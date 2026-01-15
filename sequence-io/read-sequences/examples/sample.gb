@@ -1,0 +1,29 @@
+LOCUS       EXAMPLE_SEQ              300 bp    DNA     linear   UNK
+DEFINITION  Example GenBank sequence for testing.
+ACCESSION   EXAMPLE001
+VERSION     EXAMPLE001.1
+KEYWORDS    .
+SOURCE      Example organism
+  ORGANISM  Example organism
+            Unclassified.
+FEATURES             Location/Qualifiers
+     source          1..300
+                     /organism="Example organism"
+                     /mol_type="genomic DNA"
+     gene            1..300
+                     /gene="exampleGene"
+     CDS             1..297
+                     /gene="exampleGene"
+                     /codon_start=1
+                     /product="Example protein"
+                     /protein_id="EXPROT001"
+                     /translation="MCDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
+                     DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+ORIGIN
+        1 atgcgatcga tcgatcgatc gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc
+       61 gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc
+      121 gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc
+      181 gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc
+      241 gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc gatcgatcga tcgatcgatc
+      301
+//

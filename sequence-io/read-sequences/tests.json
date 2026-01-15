@@ -1,0 +1,97 @@
+{
+  "skill": "read-sequences",
+  "description": "Test cases for reading sequence files with Bio.SeqIO",
+  "tests": [
+    {
+      "id": "parse_fasta_multiple",
+      "description": "Parse a multi-sequence FASTA file and count records",
+      "input": {
+        "file": "examples/sample.fasta",
+        "format": "fasta"
+      },
+      "expected": {
+        "record_count": 3,
+        "record_ids": ["seq1", "seq2", "seq3"]
+      },
+      "code_pattern": "list(SeqIO.parse(file, 'fasta'))"
+    },
+    {
+      "id": "read_single_fasta",
+      "description": "Read a single-record FASTA file",
+      "input": {
+        "file": "examples/single.fasta",
+        "format": "fasta"
+      },
+      "expected": {
+        "record_id": "single_seq",
+        "sequence_length": 50
+      },
+      "code_pattern": "SeqIO.read(file, 'fasta')"
+    },
+    {
+      "id": "parse_genbank_features",
+      "description": "Parse GenBank file and extract CDS features",
+      "input": {
+        "file": "examples/sample.gb",
+        "format": "genbank"
+      },
+      "expected": {
+        "has_features": true,
+        "feature_types_present": ["source", "gene", "CDS"]
+      },
+      "code_pattern": "SeqIO.parse(file, 'genbank')"
+    },
+    {
+      "id": "parse_fastq_quality",
+      "description": "Parse FASTQ and access quality scores",
+      "input": {
+        "file": "examples/sample.fastq",
+        "format": "fastq"
+      },
+      "expected": {
+        "has_quality_scores": true,
+        "quality_key": "phred_quality"
+      },
+      "code_pattern": "record.letter_annotations['phred_quality']"
+    },
+    {
+      "id": "to_dict_random_access",
+      "description": "Load sequences into dictionary for random access",
+      "input": {
+        "file": "examples/sample.fasta",
+        "format": "fasta"
+      },
+      "expected": {
+        "can_access_by_id": true,
+        "test_id": "seq2"
+      },
+      "code_pattern": "SeqIO.to_dict(SeqIO.parse(file, 'fasta'))"
+    },
+    {
+      "id": "index_large_file",
+      "description": "Index file for memory-efficient random access",
+      "input": {
+        "file": "examples/sample.fasta",
+        "format": "fasta"
+      },
+      "expected": {
+        "can_access_by_id": true,
+        "supports_close": true
+      },
+      "code_pattern": "SeqIO.index(file, 'fasta')"
+    },
+    {
+      "id": "error_read_multiple",
+      "description": "Verify read() raises error on multi-record file",
+      "input": {
+        "file": "examples/sample.fasta",
+        "format": "fasta"
+      },
+      "expected": {
+        "raises": "ValueError",
+        "message_contains": "More than one record"
+      },
+      "code_pattern": "SeqIO.read(file, 'fasta')"
+    }
+  ]
+}
