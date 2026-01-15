@@ -150,13 +150,85 @@ def clean_read(record, min_qual=20):
 
 ## FASTQ Format Variants
 
-| Variant | Format String | Quality Encoding |
-|---------|---------------|------------------|
-| Sanger/Illumina 1.8+ | `'fastq'` | Phred+33 (standard) |
-| Solexa | `'fastq-solexa'` | Solexa+64 |
-| Illumina 1.3-1.7 | `'fastq-illumina'` | Phred+64 |
+| Variant | Format String | Quality Encoding | ASCII Range |
+|---------|---------------|------------------|-------------|
+| Sanger/Illumina 1.8+ | `'fastq'` | Phred+33 (standard) | 33-126 |
+| Solexa | `'fastq-solexa'` | Solexa+64 | 59-126 |
+| Illumina 1.3-1.7 | `'fastq-illumina'` | Phred+64 | 64-126 |
 
 Most modern data uses standard `'fastq'` (Sanger/Illumina 1.8+).
+
+## Quality Score Conversion
+
+For legacy data using different quality encodings:
+
+```python
+from Bio.SeqIO.QualityIO import phred_quality_from_solexa, solexa_quality_from_phred
+```
+
+### Convert Solexa to Phred
+
+```python
+from Bio.SeqIO.QualityIO import phred_quality_from_solexa
+
+# Convert single score
+solexa_score = 10
+phred_score = phred_quality_from_solexa(solexa_score)
+
+# Convert list of scores
+solexa_scores = [10, 20, 30, 40]
+phred_scores = [phred_quality_from_solexa(s) for s in solexa_scores]
+```
+
+### Convert Phred to Solexa
+
+```python
+from Bio.SeqIO.QualityIO import solexa_quality_from_phred
+
+phred_score = 30
+solexa_score = solexa_quality_from_phred(phred_score)
+```
+
+### Convert Between FASTQ Variants
+
+```python
+from Bio import SeqIO
+
+# Read old Illumina format, write standard format
+records = SeqIO.parse('old_reads.fastq', 'fastq-illumina')
+SeqIO.write(records, 'standard_reads.fastq', 'fastq')
+
+# Read Solexa format, write standard format
+records = SeqIO.parse('solexa_reads.fastq', 'fastq-solexa')
+SeqIO.write(records, 'standard_reads.fastq', 'fastq')
+```
+
+### Auto-Detect Quality Encoding
+
+```python
+def detect_quality_encoding(filepath, sample_size=1000):
+    '''Guess FASTQ quality encoding from ASCII values'''
+    min_qual = 126
+    max_qual = 0
+    count = 0
+
+    with open(filepath) as f:
+        for i, line in enumerate(f):
+            if i % 4 == 3:  # Quality line
+                for char in line.strip():
+                    min_qual = min(min_qual, ord(char))
+                    max_qual = max(max_qual, ord(char))
+                count += 1
+                if count >= sample_size:
+                    break
+
+    if min_qual < 59:
+        return 'fastq'  # Sanger/Illumina 1.8+ (Phred+33)
+    elif min_qual < 64:
+        return 'fastq-solexa'  # Solexa+64
+    else:
+        return 'fastq-illumina'  # Illumina 1.3+ (Phred+64)
+```
 
 ## Common Errors
 

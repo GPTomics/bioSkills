@@ -1,11 +1,11 @@
 ---
 name: bio-compressed-files
-description: Read and write compressed sequence files (gzip, bzip2) using Biopython with Python's compression modules. Use when working with .gz or .bz2 sequence files.
+description: Read and write compressed sequence files (gzip, bzip2, BGZF) using Biopython. Use when working with .gz or .bz2 sequence files. Use BGZF for indexable compressed files.
 ---
 
 # Compressed Files
 
-Handle gzip and bzip2 compressed sequence files with Biopython.
+Handle gzip, bzip2, and BGZF compressed sequence files with Biopython.
 
 ## Required Imports
 
@@ -13,6 +13,7 @@ Handle gzip and bzip2 compressed sequence files with Biopython.
 import gzip
 import bz2
 from Bio import SeqIO
+from Bio import bgzf  # For BGZF (indexable compression)
 ```
 
 ## Reading Compressed Files
@@ -33,6 +34,20 @@ with bz2.open('sequences.fasta.bz2', 'rt') as handle:
         print(record.id, len(record.seq))
 ```
 
+### BGZF (Block Gzip)
+BGZF files can be read like regular gzip, but also support indexing:
+
+```python
+# Read like normal gzip (auto-detected)
+for record in SeqIO.parse('sequences.fasta.bgz', 'fasta'):
+    print(record.id)
+
+# Or explicitly with bgzf module
+with bgzf.open('sequences.fasta.bgz', 'rt') as handle:
+    for record in SeqIO.parse(handle, 'fasta'):
+        print(record.id)
+```
+
 ## Writing Compressed Files
 
 ### Gzip (.gz)
@@ -45,6 +60,53 @@ with gzip.open('output.fasta.gz', 'wt') as handle:
 ```python
 with bz2.open('output.fasta.bz2', 'wt') as handle:
     SeqIO.write(records, handle, 'fasta')
+```
+
+### BGZF (.bgz)
+```python
+with bgzf.open('output.fasta.bgz', 'wt') as handle:
+    SeqIO.write(records, handle, 'fasta')
+```
+
+## BGZF: Indexable Compression
+
+**BGZF is the only compressed format that supports `SeqIO.index()` and `SeqIO.index_db()`.**
+
+BGZF (Block GZip Format) is a variant of gzip that allows random access. It's used by BAM files and tabix-indexed files.
+
+### Create Indexable Compressed File
+
+```python
+from Bio import SeqIO, bgzf
+
+# Write as BGZF (can be indexed later)
+records = SeqIO.parse('input.fasta', 'fasta')
+with bgzf.open('output.fasta.bgz', 'wt') as handle:
+    SeqIO.write(records, handle, 'fasta')
+```
+
+### Index a BGZF File
+
+```python
+# SeqIO.index() works with BGZF!
+records = SeqIO.index('sequences.fasta.bgz', 'fasta')
+seq = records['target_id'].seq
+records.close()
+
+# SeqIO.index_db() also works
+records = SeqIO.index_db('index.sqlite', 'sequences.fasta.bgz', 'fasta')
+```
+
+### Convert Gzip to BGZF
+
+```python
+from Bio import SeqIO, bgzf
+import gzip
+
+# Read from gzip, write to BGZF
+with gzip.open('input.fasta.gz', 'rt') as in_handle:
+    with bgzf.open('output.fasta.bgz', 'wt') as out_handle:
+        SeqIO.write(SeqIO.parse(in_handle, 'fasta'), out_handle, 'fasta')
 ```
 
 ## Code Patterns
@@ -63,6 +125,15 @@ with gzip.open('sequences.fasta.gz', 'rt') as handle:
 print(f'{count} sequences')
 ```
 
+### Fast Count with Low-Level Parser
+```python
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+import gzip
+
+with gzip.open('sequences.fasta.gz', 'rt') as handle:
+    count = sum(1 for _ in SimpleFastaParser(handle))
+```
+
 ### Convert Compressed to Uncompressed
 ```python
 with gzip.open('input.fasta.gz', 'rt') as in_handle:
@@ -77,6 +148,29 @@ with gzip.open('output.fasta.gz', 'wt') as out_handle:
     SeqIO.write(records, out_handle, 'fasta')
 ```
 
+### Auto-Detect Compression
+
+```python
+from pathlib import Path
+from Bio import SeqIO, bgzf
+import gzip
+import bz2
+
+def open_sequence_file(filepath, format):
+    filepath = Path(filepath)
+    suffix = filepath.suffix.lower()
+    if suffix == '.gz':
+        # Could be gzip or bgzf - bgzf handles both
+        handle = bgzf.open(filepath, 'rt')
+    elif suffix == '.bgz':
+        handle = bgzf.open(filepath, 'rt')
+    elif suffix == '.bz2':
+        handle = bz2.open(filepath, 'rt')
+    else:
+        handle = open(filepath, 'r')
+    return SeqIO.parse(handle, format)
+```
+
 ### Process Large Gzipped File (Memory Efficient)
 ```python
 with gzip.open('large.fastq.gz', 'rt') as handle:
@@ -85,22 +179,7 @@ with gzip.open('large.fastq.gz', 'rt') as handle:
             process(record)
 ```
 
-### Auto-Detect Compression
-```python
-from pathlib import Path
-
-def open_sequence_file(filepath, format):
-    filepath = Path(filepath)
-    if filepath.suffix == '.gz':
-        handle = gzip.open(filepath, 'rt')
-    elif filepath.suffix == '.bz2':
-        handle = bz2.open(filepath, 'rt')
-    else:
-        handle = open(filepath, 'r')
-    return SeqIO.parse(handle, format)
-```
-
-### Compress Existing File
+### Compress Existing File (Raw Copy)
 ```python
 import shutil
 
@@ -109,13 +188,24 @@ with open('sequences.fasta', 'rb') as f_in:
         shutil.copyfileobj(f_in, f_out)
 ```
 
-## File Extensions
+## Compression Comparison
 
-| Extension | Compression | Module |
-|-----------|-------------|--------|
-| `.gz` | gzip | `gzip` |
-| `.bz2` | bzip2 | `bz2` |
-| `.xz` | LZMA | `lzma` |
+| Format | Extension | Indexable | Speed | Compression |
+|--------|-----------|-----------|-------|-------------|
+| Gzip | `.gz` | No | Fast | Good |
+| BGZF | `.bgz` | **Yes** | Fast | Good |
+| Bzip2 | `.bz2` | No | Slow | Better |
+| LZMA | `.xz` | No | Slowest | Best |
+
+## When to Use Each Format
+
+| Use Case | Recommended Format |
+|----------|-------------------|
+| Archive (no random access needed) | gzip or bzip2 |
+| Need to index compressed file | **BGZF** |
+| BAM files and tabix | BGZF (native) |
+| Maximum compression | bzip2 or xz |
+| Best speed | gzip or BGZF |
 
 ## Common Errors
 
@@ -125,10 +215,19 @@ with open('sequences.fasta', 'rb') as f_in:
 | `UnicodeDecodeError` | Wrong encoding | Try `gzip.open(file, 'rt', encoding='latin-1')` |
 | `gzip.BadGzipFile` | Not a gzip file | Check file extension matches actual format |
 | `OSError: Not a gzipped file` | Corrupt or wrong format | Verify file integrity |
+| `SeqIO.index() fails on .gz` | Regular gzip not indexable | Convert to BGZF first |
 
-## Performance Notes
+## Decision Tree
 
-- Gzipped files cannot be indexed with SeqIO.index()
-- For random access to compressed files, consider uncompressing first
-- Bzip2 has better compression but slower read/write than gzip
-- For very large files, process as stream rather than loading all into memory
+```
+Working with compressed sequence files?
+├── Just reading sequentially?
+│   └── Use gzip.open() or bz2.open() with 'rt' mode
+├── Need to index the compressed file?
+│   └── Convert to BGZF, then use SeqIO.index()
+├── Writing compressed output?
+│   ├── Will need to index later? → Use bgzf.open()
+│   └── Just archiving? → Use gzip.open() or bz2.open()
+└── Converting between formats?
+    └── Parse with SeqIO, write to new handle
+```

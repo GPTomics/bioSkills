@@ -77,15 +77,28 @@ Reading, writing, and converting biological sequence files.
 
 | Skill | Description |
 |-------|-------------|
-| read-sequences | Parse FASTA, FASTQ, GenBank, and 40+ formats |
+| read-sequences | Parse FASTA, FASTQ, GenBank, ABI, SFF, PDB and 40+ formats; index(), index_db(), low-level parsers |
 | write-sequences | Write SeqRecord objects to sequence files |
 | format-conversion | Convert between file formats |
-| compressed-files | Handle gzip/bzip2 compressed files |
-| fastq-quality | Analyze and filter by FASTQ quality scores |
+| compressed-files | Handle gzip/bzip2/BGZF compressed files (BGZF supports indexing) |
+| fastq-quality | Analyze quality scores, filter by quality, convert encodings |
 | filter-sequences | Filter sequences by length, ID, GC content, patterns |
 | batch-processing | Process multiple files, merge, split, batch convert |
 | sequence-statistics | Calculate N50, length/GC distributions, summary reports |
 | paired-end-fastq | Handle R1/R2 pairs, interleave/deinterleave, sync filtering |
+
+### sequence-manipulation/
+Working with sequence data programmatically.
+
+| Skill | Description |
+|-------|-------------|
+| seq-objects | Create and modify Seq, MutableSeq, SeqRecord objects |
+| transcription-translation | DNA to RNA to protein, codon tables, ORF finding |
+| reverse-complement | Reverse complement, palindrome detection, primer design |
+| sequence-slicing | Slice, extract, concatenate sequences |
+| motif-search | Find patterns with regex, PWM/PSSM, parse motif files (JASPAR, MEME) |
+| sequence-properties | GC content, GC skew, molecular weight, Tm, protein analysis |
+| codon-usage | CAI, RSCU, codon optimization for expression |
 
 ## Usage
 
@@ -95,6 +108,9 @@ Once skills are deployed, ask your agent naturally:
 "Parse my FASTA file and show sequence lengths"
 "Read the GenBank file and extract CDS features"
 "Filter FASTQ reads by quality score"
+"Translate this coding sequence to protein"
+"Calculate the CAI for E. coli expression"
+"Find all occurrences of GAATTC in my sequence"
 ```
 
 The agent will use the skill patterns to generate correct Biopython/Bioconductor code.
@@ -104,6 +120,7 @@ The agent will use the skill patterns to generate correct Biopython/Bioconductor
 ```
 bioSkills/
 ├── README.md              # This file
+├── CLAUDE.md              # Project guidance for Claude Code
 ├── install-claude.sh      # Installation script for Claude Code
 ├── install-codex.sh       # Installation script for Codex CLI
 ├── install-gemini.sh      # Installation script for Gemini CLI
@@ -117,10 +134,18 @@ bioSkills/
 │   ├── batch-processing/
 │   ├── sequence-statistics/
 │   └── paired-end-fastq/
+├── sequence-manipulation/ # Sequence manipulation (7 skills)
+│   ├── seq-objects/
+│   ├── transcription-translation/
+│   ├── reverse-complement/
+│   ├── sequence-slicing/
+│   ├── motif-search/
+│   ├── sequence-properties/
+│   └── codon-usage/
 │       ├── SKILL.md       # Agent instructions (YAML frontmatter + markdown)
 │       ├── usage-guide.md # Human documentation
 │       └── examples/      # Sample scripts
-└── ...                    # More skill categories (see planning.md)
+└── planning.md            # Roadmap for additional skill categories
 ```
 
 ## Contributing
