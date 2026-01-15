@@ -1,6 +1,8 @@
 ---
 name: bio-sequence-slicing
 description: Slice, extract, and concatenate biological sequences using Biopython. Use when extracting subsequences, joining sequences, or manipulating sequence regions by position.
+tool_type: python
+primary_tool: Bio.Seq
 ---
 
 # Sequence Slicing
@@ -201,3 +203,10 @@ Need to extract or combine sequences?
 └── From GenBank features?
     └── Use feature.extract(record.seq)
 ```
+
+## Related Skills
+
+- **seq-objects** - Create Seq and SeqRecord objects
+- **sequence-io/read-sequences** - Parse GenBank files with features to extract
+- **transcription-translation** - Translate extracted CDS regions
+- **alignment-files** (planned) - Extract sequences from BAM using samtools fasta/fastq

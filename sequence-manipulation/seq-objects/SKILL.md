@@ -1,6 +1,8 @@
 ---
 name: bio-seq-objects
 description: Create and manipulate Seq, MutableSeq, and SeqRecord objects using Biopython. Use when creating sequences from strings, modifying sequence data in-place, or building annotated sequence records.
+tool_type: python
+primary_tool: Bio.Seq
 ---
 
 # Seq Objects
@@ -37,8 +39,7 @@ seq.find('ATG')    # Find position (-1 if not found)
 seq.upper()        # Uppercase
 seq.lower()        # Lowercase
 seq * 3            # Repeat sequence
-seq.removeprefix('ATG')   # Remove prefix if present
-seq.removesuffix('TAA')   # Remove suffix if present
+seq.strip()        # Remove leading/trailing whitespace
 ```
 
 ### MutableSeq - Mutable Sequence
@@ -208,3 +209,12 @@ Need to work with sequence data?
 └── Need to write to file?
     └── Use SeqRecord with appropriate annotations
 ```
+
+## Related Skills
+
+- **sequence-io/read-sequences** - Parse files to get SeqRecord objects
+- **sequence-io/write-sequences** - Write SeqRecord objects to files
+- **transcription-translation** - Transform Seq objects (DNA to protein)
+- **reverse-complement** - Get reverse complement of Seq
+- **sequence-slicing** - Slice and extract from Seq/SeqRecord
+- **database-access** - Fetch sequences from NCBI as SeqRecords

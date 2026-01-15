@@ -1,6 +1,8 @@
 ---
 name: bio-sequence-statistics
 description: Calculate sequence statistics (N50, length distribution, GC content, summary reports) using Biopython. Use when analyzing sequence datasets, generating QC reports, or comparing assemblies.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # Sequence Statistics
@@ -204,14 +206,14 @@ def sequence_summary(fasta_file):
     }
 
 stats = sequence_summary('assembly.fasta')
-print(f"File: {stats['file']}")
-print(f"Sequences: {stats['sequences']:,}")
-print(f"Total bp: {stats['total_bp']:,}")
-print(f"Min/Max: {stats['min_length']:,} / {stats['max_length']:,} bp")
-print(f"Mean: {stats['mean_length']:,.1f} bp")
-print(f"Median: {stats['median_length']:,.1f} bp")
-print(f"N50: {stats['n50']:,} bp (L50: {stats['l50']})")
-print(f"GC: {stats['gc_mean']:.1%} (+/- {stats['gc_std']:.1%})")
+print(f'File: {stats["file"]}')
+print(f'Sequences: {stats["sequences"]:,}')
+print(f'Total bp: {stats["total_bp"]:,}')
+print(f'Min/Max: {stats["min_length"]:,} / {stats["max_length"]:,} bp')
+print(f'Mean: {stats["mean_length"]:,.1f} bp')
+print(f'Median: {stats["median_length"]:,.1f} bp')
+print(f'N50: {stats["n50"]:,} bp (L50: {stats["l50"]})')
+print(f'GC: {stats["gc_mean"]:.1%} (+/- {stats["gc_std"]:.1%})')
 ```
 
 ## Compare Multiple Assemblies
@@ -229,10 +231,10 @@ def compare_assemblies(fasta_files):
 files = list(Path('assemblies/').glob('*.fasta'))
 comparisons = compare_assemblies(files)
 
-print(f"{'File':<30} {'Seqs':>10} {'Total bp':>15} {'N50':>12}")
+print(f'{"File":<30} {"Seqs":>10} {"Total bp":>15} {"N50":>12}')
 print('-' * 70)
 for stats in comparisons:
-    print(f"{Path(stats['file']).name:<30} {stats['sequences']:>10,} {stats['total_bp']:>15,} {stats['n50']:>12,}")
+    print(f'{Path(stats["file"]).name:<30} {stats["sequences"]:>10,} {stats["total_bp"]:>15,} {stats["n50"]:>12,}')
 ```
 
 ## Export to CSV
@@ -284,3 +286,11 @@ for base in ['A', 'T', 'G', 'C', 'N']:
 | N90 | Length where 90% of total bases are in sequences >= this length |
 | GC% | Proportion of G+C bases |
 | Contiguity | Higher N50 = more contiguous assembly |
+
+## Related Skills
+
+- **read-sequences** - Parse sequences for statistics calculation
+- **batch-processing** - Calculate stats across multiple files
+- **fastq-quality** - Quality score statistics for FASTQ files
+- **sequence-manipulation/sequence-properties** - Per-sequence GC content and properties
+- **alignment-files** (planned) - samtools stats/flagstat for alignment statistics

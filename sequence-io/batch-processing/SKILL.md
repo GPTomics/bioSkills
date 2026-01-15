@@ -1,6 +1,8 @@
 ---
 name: bio-batch-processing
 description: Process multiple sequence files in batch using Biopython. Use when working with many files, merging/splitting sequences, or automating file operations across directories.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # Batch Processing
@@ -157,7 +159,7 @@ with Pool(4) as pool:
     results = pool.map(process_file, files)
 
 for r in results:
-    print(f"{r['file']}: {r['count']} seqs, {r['total_bp']} bp")
+    print(f'{r["file"]}: {r["count"]} seqs, {r["total_bp"]} bp')
 ```
 
 ### Using concurrent.futures
@@ -253,3 +255,12 @@ for fasta_file in Path('input/').glob('*.fasta'):
 | Convert all | Loop with SeqIO.convert |
 | Parallel processing | multiprocessing.Pool or ThreadPoolExecutor |
 | Summary stats | Accumulate while iterating |
+
+## Related Skills
+
+- **read-sequences** - Core parsing functions for each file
+- **write-sequences** - Write processed outputs
+- **sequence-statistics** - Generate per-file statistics
+- **format-conversion** - Batch format conversion
+- **compressed-files** - Handle compressed files in batch
+- **database-access** - Batch download sequences from NCBI

@@ -1,6 +1,8 @@
 ---
 name: bio-transcription-translation
 description: Transcribe DNA to RNA and translate to protein using Biopython. Use when converting between DNA, RNA, and protein sequences, finding ORFs, or using alternative codon tables.
+tool_type: python
+primary_tool: Bio.Seq
 ---
 
 # Transcription and Translation
@@ -205,3 +207,11 @@ Need to convert sequence?
 └── Find all ORFs?
     └── Translate all six frames, search for M...*
 ```
+
+## Related Skills
+
+- **seq-objects** - Create Seq objects for translation
+- **reverse-complement** - Translate both strands (six-frame translation)
+- **codon-usage** - Analyze codon bias in coding sequences
+- **sequence-io/read-sequences** - Parse GenBank files with CDS features
+- **database-access** - Fetch CDS sequences from NCBI for translation

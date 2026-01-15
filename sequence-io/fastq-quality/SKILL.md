@@ -1,16 +1,19 @@
 ---
 name: bio-fastq-quality
 description: Work with FASTQ quality scores using Biopython. Use when analyzing read quality, filtering by quality, trimming low-quality bases, or generating quality reports.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # FASTQ Quality Scores
 
 Analyze and manipulate FASTQ quality scores using Biopython.
 
-## Required Import
+## Required Imports
 
 ```python
 from Bio import SeqIO
+from Bio.Seq import Seq
 ```
 
 ## Accessing Quality Scores
@@ -237,3 +240,11 @@ def detect_quality_encoding(filepath, sample_size=1000):
 | `KeyError: 'phred_quality'` | Not FASTQ or wrong variant | Check format, try 'fastq-illumina' |
 | Quality scores all 0 | Wrong encoding assumed | Try different FASTQ variant |
 | Trimmed reads empty | Too aggressive trimming | Lower quality threshold |
+
+## Related Skills
+
+- **read-sequences** - Parse FASTQ files
+- **filter-sequences** - Filter reads by other criteria (length, content)
+- **paired-end-fastq** - Handle R1/R2 paired quality filtering
+- **sequence-statistics** - Generate summary statistics including quality
+- **alignment-files** (planned) - After filtering, align reads with bwa/bowtie2; quality scores in BAM

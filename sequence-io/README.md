@@ -2,6 +2,32 @@
 
 Sequence file input/output operations using Biopython's Bio.SeqIO module.
 
+**Tool type:** python
+**Primary tool:** Biopython Bio.SeqIO
+
+## Workflow Context
+
+```
+Raw Reads (FASTQ)
+    |
+    v
+[sequence-io] <--- YOU ARE HERE
+    |              - Read/write sequence files
+    |              - Filter by quality/length
+    |              - Format conversion
+    |              - Paired-end handling
+    v
+[Aligner: bwa/bowtie2/STAR]
+    |
+    v
+[alignment-files] --> SAM/BAM processing
+    |
+    v
+[variant-calling] --> VCF generation
+```
+
+This category handles the first stage of most bioinformatics pipelines: reading raw sequence data, quality filtering, and format conversion before alignment.
+
 ## Skills
 
 | Skill | Description | Key Functions |
@@ -86,3 +112,10 @@ Ask your AI agent naturally:
 ```bash
 pip install biopython
 ```
+
+## Related Skills
+
+- **sequence-manipulation** - Work with sequences after reading (transcription, translation, GC content)
+- **database-access** - Fetch sequences from NCBI before local processing
+- **alignment-files** - Process aligned reads after running an aligner
+- **variant-calling** - Call and analyze variants from aligned reads

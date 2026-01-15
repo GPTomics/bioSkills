@@ -1,6 +1,8 @@
 ---
 name: bio-sequence-properties
 description: Calculate sequence properties like GC content, molecular weight, isoelectric point, and GC skew using Biopython. Use when analyzing sequence composition, computing physical properties, or comparing sequences.
+tool_type: python
+primary_tool: Bio.SeqUtils
 ---
 
 # Sequence Properties
@@ -156,7 +158,7 @@ protein = ProteinAnalysis('MAEGEITTFTALTEKFNLPPGNYKKPKLLYCSNG')
 ```python
 mw = protein.molecular_weight()           # Molecular weight in Daltons
 pi = protein.isoelectric_point()          # Isoelectric point
-aa_comp = protein.get_amino_acids_percent()  # Amino acid composition
+aa_comp = protein.amino_acids_percent     # Amino acid composition (property)
 aa_count = protein.count_amino_acids()    # Raw amino acid counts
 ```
 
@@ -365,3 +367,11 @@ Need sequence properties?
 └── Convert amino acid codes?
     └── seq1() / seq3()
 ```
+
+## Related Skills
+
+- **seq-objects** - Create Seq objects for property calculation
+- **sequence-io/sequence-statistics** - File-level statistics (N50, totals)
+- **codon-usage** - GC123 for codon position analysis
+- **transcription-translation** - Translate before protein analysis
+- **alignment-files** (planned) - samtools stats for alignment-level GC and quality stats

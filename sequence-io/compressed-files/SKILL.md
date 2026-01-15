@@ -1,6 +1,8 @@
 ---
 name: bio-compressed-files
 description: Read and write compressed sequence files (gzip, bzip2, BGZF) using Biopython. Use when working with .gz or .bz2 sequence files. Use BGZF for indexable compressed files.
+tool_type: python
+primary_tool: Bio.bgzf
 ---
 
 # Compressed Files
@@ -231,3 +233,10 @@ Working with compressed sequence files?
 └── Converting between formats?
     └── Parse with SeqIO, write to new handle
 ```
+
+## Related Skills
+
+- **read-sequences** - Core parsing functions used with compressed handles
+- **write-sequences** - Write to compressed output files
+- **batch-processing** - Process multiple compressed files
+- **alignment-files** (planned) - BAM files use BGZF natively; samtools handles compression

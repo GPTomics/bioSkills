@@ -1,6 +1,8 @@
 ---
 name: bio-reverse-complement
 description: Generate reverse complements and complements of DNA/RNA sequences using Biopython. Use when working with opposite strands, primer design, or converting between template and coding strands.
+tool_type: python
+primary_tool: Bio.Seq
 ---
 
 # Reverse Complement
@@ -218,3 +220,11 @@ Need to work with strand orientation?
 └── Designing primers?
     └── Reverse primer = reverse_complement() of 3' end
 ```
+
+## Related Skills
+
+- **seq-objects** - Create Seq objects to complement
+- **transcription-translation** - Six-frame translation uses reverse complement
+- **motif-search** - Search both strands for motifs
+- **restriction-analysis** (planned) - Restriction sites are often palindromic
+- **alignment-files** (planned) - BAM FLAG indicates read strand; use samtools view -f 16 for reverse

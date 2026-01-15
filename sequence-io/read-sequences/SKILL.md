@@ -1,6 +1,8 @@
 ---
 name: bio-read-sequences
 description: Read biological sequence files (FASTA, FASTQ, GenBank, EMBL, ABI, SFF) using Biopython Bio.SeqIO. Use when parsing sequence files, iterating multi-sequence files, random access to large files, or high-performance parsing.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # Read Sequences
@@ -280,3 +282,13 @@ Need to read sequences?
 └── Protein from structure?
     └── Use 'pdb-seqres' or 'pdb-atom' format
 ```
+
+## Related Skills
+
+- **write-sequences** - Write parsed sequences to new files
+- **filter-sequences** - Filter sequences by criteria after reading
+- **format-conversion** - Convert between formats
+- **compressed-files** - Read gzip/bzip2/BGZF compressed sequence files
+- **sequence-manipulation/seq-objects** - Work with parsed SeqRecord objects
+- **database-access** - Fetch sequences from NCBI instead of local files
+- **alignment-files** (planned) - For SAM/BAM/CRAM alignment files, use samtools/pysam

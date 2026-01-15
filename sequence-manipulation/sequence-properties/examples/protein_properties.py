@@ -43,7 +43,7 @@ print(f'Cystine bridges: {eps[1]} M^-1 cm^-1')
 
 # Amino acid composition (top 5)
 print('\n=== Amino Acid Composition (Top 5) ===')
-aa_pct = protein.get_amino_acids_percent()
+aa_pct = protein.amino_acids_percent
 sorted_aa = sorted(aa_pct.items(), key=lambda x: x[1], reverse=True)[:5]
 for aa, pct in sorted_aa:
     print(f'{aa}: {pct * 100:.1f}%')

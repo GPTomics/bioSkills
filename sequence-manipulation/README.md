@@ -2,6 +2,30 @@
 
 Working with sequence data programmatically using Biopython's Bio.Seq and Bio.SeqUtils modules.
 
+**Tool type:** python
+**Primary tool:** Biopython Bio.Seq, Bio.SeqUtils
+
+## Workflow Context
+
+```
+[sequence-io] -----> Read sequences from files
+    |
+    v
+[sequence-manipulation] <--- YOU ARE HERE
+    |                        - Create/modify Seq objects
+    |                        - Transcription/translation
+    |                        - Motif finding
+    |                        - Sequence properties
+    v
+[Various downstream uses]
+    - Primer design (reverse-complement)
+    - Expression optimization (codon-usage)
+    - Feature annotation (motif-search)
+    - Quality assessment (sequence-properties)
+```
+
+This category handles programmatic manipulation of sequences after they've been read from files. Used throughout bioinformatics pipelines whenever you need to analyze or transform sequence data.
+
 ## Skills
 
 | Skill | Description | Key Functions |
@@ -16,30 +40,11 @@ Working with sequence data programmatically using Biopython's Bio.Seq and Bio.Se
 
 ## Core Objects
 
-### Seq Object
-Immutable sequence object. Supports standard string operations plus biological methods.
-
-```python
-from Bio.Seq import Seq
-seq = Seq('ATGCGATCGATCG')
-```
-
-### MutableSeq Object
-Mutable version for in-place modifications.
-
-```python
-from Bio.Seq import MutableSeq
-mut_seq = MutableSeq('ATGCGATCG')
-mut_seq[0] = 'C'
-```
-
-### SeqRecord Object
-Seq with metadata (ID, description, features, annotations).
-
-```python
-from Bio.SeqRecord import SeqRecord
-record = SeqRecord(Seq('ATGC'), id='gene1', description='Example gene')
-```
+| Object | Description | Use Case |
+|--------|-------------|----------|
+| `Seq` | Immutable sequence | Standard sequence operations, string-like methods plus biological methods |
+| `MutableSeq` | Mutable sequence | In-place modifications (editing, site-directed changes) |
+| `SeqRecord` | Seq with metadata | Full records with ID, description, features, annotations |
 
 ## Example Prompts
 
@@ -74,5 +79,7 @@ pip install biopython
 
 ## Related Skills
 
-- **restriction-analysis** (planned) - For comprehensive restriction enzyme analysis using Bio.Restriction
-- **sequence-io** - For reading/writing sequence files
+- **sequence-io** - Read sequences from files before manipulation
+- **alignment** - Align sequences for comparison
+- **restriction-analysis** (planned) - Comprehensive restriction enzyme analysis using Bio.Restriction
+- **database-access** - Fetch sequences from NCBI for analysis

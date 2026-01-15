@@ -1,6 +1,8 @@
 ---
 name: bio-paired-end-fastq
 description: Handle paired-end FASTQ files (R1/R2) using Biopython. Use when working with Illumina paired reads, synchronizing pairs, interleaving/deinterleaving, or filtering paired data.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # Paired-End FASTQ
@@ -297,3 +299,11 @@ for r1, r2 in iterate_gzipped_pairs('reads_R1.fastq.gz', 'reads_R2.fastq.gz'):
 | ID mismatch | Wrong file pairing | Check file naming conventions |
 | Memory error | Large files loaded to list | Use streaming/generator approach |
 | Missing R2 | Wrong naming pattern | Check `find_r2()` patterns |
+
+## Related Skills
+
+- **read-sequences** - Parse individual FASTQ files
+- **fastq-quality** - Quality filtering before paired processing
+- **filter-sequences** - Additional filtering criteria
+- **compressed-files** - Handle gzipped paired files
+- **alignment-files** (planned) - After filtering, align paired reads with bwa mem; proper pairs in BAM

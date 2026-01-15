@@ -1,6 +1,8 @@
 ---
 name: bio-filter-sequences
 description: Filter and select sequences by criteria (length, ID, GC content, patterns) using Biopython. Use when subsetting sequences, removing unwanted records, or selecting by specific criteria.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # Filter Sequences
@@ -221,3 +223,12 @@ SeqIO.write(long, 'long.fasta', 'fasta')
 | Generator exhausted | Used generator twice | Re-create generator or use list() |
 | Empty output | Filter too strict | Check filter conditions |
 | Memory error | List too large | Use generator expressions |
+
+## Related Skills
+
+- **read-sequences** - Parse sequences before filtering
+- **write-sequences** - Write filtered sequences to output
+- **fastq-quality** - Filter FASTQ by quality scores
+- **paired-end-fastq** - Synchronized filtering of paired reads
+- **sequence-manipulation/motif-search** - Filter by complex motif patterns
+- **alignment-files** (planned) - Filter aligned reads with samtools view -f/-F

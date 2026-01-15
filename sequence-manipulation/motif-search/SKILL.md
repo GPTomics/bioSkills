@@ -1,6 +1,8 @@
 ---
 name: bio-motif-search
 description: Find patterns, motifs, and subsequences in biological sequences using Biopython. Use when searching for transcription factor binding sites, regulatory elements, or any sequence pattern. For restriction enzyme analysis, use the restriction-analysis skill.
+tool_type: python
+primary_tool: Bio.motifs
 ---
 
 # Motif Search
@@ -218,9 +220,7 @@ for position, score in pssm.search(seq, threshold=3.0, both=True):
 ### Calculate Threshold from Distribution
 
 ```python
-from Bio.motifs import Scoredistribution
-
-# Calculate score distribution
+# Calculate score distribution from PSSM
 sd = pssm.distribution()
 
 # Get threshold for specific false positive rate
@@ -324,3 +324,11 @@ Need to find patterns in sequence?
 └── Restriction sites?
     └── Use restriction-analysis skill (Bio.Restriction)
 ```
+
+## Related Skills
+
+- **seq-objects** - Create Seq objects for searching
+- **reverse-complement** - Search both strands for motifs
+- **filter-sequences** - Filter sequences that contain specific motifs
+- **restriction-analysis** (planned) - For restriction enzyme site searching
+- **database-access** - Download motif databases from NCBI/JASPAR

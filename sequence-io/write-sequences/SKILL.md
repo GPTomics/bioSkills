@@ -1,6 +1,8 @@
 ---
 name: bio-write-sequences
 description: Write biological sequences to files (FASTA, FASTQ, GenBank, EMBL) using Biopython Bio.SeqIO. Use when saving sequences, creating new sequence files, or outputting modified records.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # Write Sequences
@@ -107,8 +109,14 @@ with open('output.fasta', 'w') as handle:
 
 ### Write Modified Records
 ```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
+def uppercase_record(rec):
+    return SeqRecord(rec.seq.upper(), id=rec.id, description=rec.description)
+
 records = SeqIO.parse('input.fasta', 'fasta')
-modified = (rec.upper() for rec in records)  # Uppercase all sequences
+modified = (uppercase_record(rec) for rec in records)
 SeqIO.write(modified, 'output.fasta', 'fasta')
 ```
 
@@ -159,3 +167,11 @@ record.annotations['molecule_type'] = 'DNA'  # or 'RNA', 'protein'
 
 ### PHYLIP
 All sequences must be same length. IDs truncated to 10 characters.
+
+## Related Skills
+
+- **read-sequences** - Read sequences before modifying and writing
+- **format-conversion** - Direct format conversion without intermediate processing
+- **filter-sequences** - Filter sequences before writing subset
+- **sequence-manipulation/seq-objects** - Create SeqRecord objects to write
+- **alignment-files** (planned) - For SAM/BAM output, use samtools/pysam

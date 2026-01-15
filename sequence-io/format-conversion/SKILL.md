@@ -1,6 +1,8 @@
 ---
 name: bio-format-conversion
 description: Convert between sequence file formats (FASTA, FASTQ, GenBank, EMBL) using Biopython Bio.SeqIO. Use when changing file formats or preparing data for different tools.
+tool_type: python
+primary_tool: Bio.SeqIO
 ---
 
 # Format Conversion
@@ -93,8 +95,14 @@ for gb_file in Path('.').glob('*.gb'):
 
 ### Convert with Modifications
 ```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
+def uppercase_record(rec):
+    return SeqRecord(rec.seq.upper(), id=rec.id, description=rec.description)
+
 records = SeqIO.parse('input.fasta', 'fasta')
-modified = (rec.upper() for rec in records)
+modified = (uppercase_record(rec) for rec in records)
 SeqIO.write(modified, 'output.fasta', 'fasta')
 ```
 
@@ -143,3 +151,11 @@ Converting formats?
 └── Multiple files?
     └── Loop with SeqIO.convert() or batch generator
 ```
+
+## Related Skills
+
+- **read-sequences** - Parse sequences for custom conversion logic
+- **write-sequences** - Write converted sequences with modifications
+- **batch-processing** - Convert multiple files at once
+- **compressed-files** - Handle compressed input/output during conversion
+- **alignment-files** (planned) - For SAM/BAM/CRAM conversion, use samtools view
