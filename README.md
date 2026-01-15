@@ -1,6 +1,6 @@
 # bioSkills
 
-A collection of skills that guide AI coding agents (Claude Code, Copilot, Codex) through common bioinformatics tasks using Biopython and Bioconductor.
+A collection of skills that guide AI coding agents (Claude Code, Codex, Gemini) through common bioinformatics tasks using Biopython and Bioconductor.
 
 ## Purpose
 
@@ -24,28 +24,51 @@ BiocManager::install()
 
 ### Claude Code
 
-Use the install script to deploy skills:
-
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/bioSkills.git
 cd bioSkills
 
 # Install globally (available in all projects)
-./install.sh
+./install-claude.sh
 
 # Or install to a specific project
-./install.sh --project /path/to/your/project
+./install-claude.sh --project /path/to/your/project
 
 # List available skills
-./install.sh --list
+./install-claude.sh --list
 ```
 
-Skills are auto-invoked by Claude Code when your request matches their description.
+### Codex CLI
+
+```bash
+git clone https://github.com/your-username/bioSkills.git
+cd bioSkills
+
+# Install globally
+./install-codex.sh
+
+# Or install to a specific project
+./install-codex.sh --project /path/to/your/project
+```
+
+### Gemini CLI
+
+```bash
+git clone https://github.com/your-username/bioSkills.git
+cd bioSkills
+
+# Install globally
+./install-gemini.sh
+
+# Or install to a specific project
+./install-gemini.sh --project /path/to/your/project
+```
+
+Codex and Gemini installers convert to the Agent Skills standard (`examples/` -> `scripts/`, `usage-guide.md` -> `references/`).
 
 ### Other Agents
 
-*Installation guides for Copilot, Cursor, and Codex coming soon.*
+*Installation guides for Copilot and Cursor coming soon.*
 
 ## Available Skills
 
@@ -55,8 +78,14 @@ Reading, writing, and converting biological sequence files.
 | Skill | Description |
 |-------|-------------|
 | read-sequences | Parse FASTA, FASTQ, GenBank, and 40+ formats |
-
-*More skills coming soon*
+| write-sequences | Write SeqRecord objects to sequence files |
+| format-conversion | Convert between file formats |
+| compressed-files | Handle gzip/bzip2 compressed files |
+| fastq-quality | Analyze and filter by FASTQ quality scores |
+| filter-sequences | Filter sequences by length, ID, GC content, patterns |
+| batch-processing | Process multiple files, merge, split, batch convert |
+| sequence-statistics | Calculate N50, length/GC distributions, summary reports |
+| paired-end-fastq | Handle R1/R2 pairs, interleave/deinterleave, sync filtering |
 
 ## Usage
 
@@ -75,15 +104,23 @@ The agent will use the skill patterns to generate correct Biopython/Bioconductor
 ```
 bioSkills/
 ├── README.md              # This file
-├── install.sh             # Installation script
-├── planning.md            # Skills roadmap
-├── sequence-io/           # Sequence file operations
-│   └── read-sequences/
-│       ├── SKILL.md       # Agent instructions (with YAML frontmatter)
+├── install-claude.sh      # Installation script for Claude Code
+├── install-codex.sh       # Installation script for Codex CLI
+├── install-gemini.sh      # Installation script for Gemini CLI
+├── sequence-io/           # Sequence file operations (9 skills)
+│   ├── read-sequences/
+│   ├── write-sequences/
+│   ├── format-conversion/
+│   ├── compressed-files/
+│   ├── fastq-quality/
+│   ├── filter-sequences/
+│   ├── batch-processing/
+│   ├── sequence-statistics/
+│   └── paired-end-fastq/
+│       ├── SKILL.md       # Agent instructions (YAML frontmatter + markdown)
 │       ├── usage-guide.md # Human documentation
-│       ├── tests.json     # Validation tests
-│       └── examples/      # Sample files and scripts
-└── ...                    # More skill categories
+│       └── examples/      # Sample scripts
+└── ...                    # More skill categories (see planning.md)
 ```
 
 ## Contributing
