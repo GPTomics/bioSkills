@@ -82,7 +82,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 
 ## Available Skills
 
-### sequence-io/ (complete)
+### sequence-io/
 Reading, writing, and converting biological sequence files using Biopython Bio.SeqIO.
 
 | Skill | Description |
@@ -97,7 +97,7 @@ Reading, writing, and converting biological sequence files using Biopython Bio.S
 | sequence-statistics | Calculate N50, length/GC distributions, summary reports |
 | paired-end-fastq | Handle R1/R2 pairs, interleave/deinterleave, sync filtering |
 
-### sequence-manipulation/ (complete)
+### sequence-manipulation/
 Working with sequence data programmatically using Biopython Bio.Seq and Bio.SeqUtils.
 
 | Skill | Description |
@@ -110,7 +110,7 @@ Working with sequence data programmatically using Biopython Bio.Seq and Bio.SeqU
 | sequence-properties | GC content, GC skew, molecular weight, Tm, protein analysis |
 | codon-usage | CAI, RSCU, codon optimization for expression |
 
-### database-access/ (complete)
+### database-access/
 Fetching data from NCBI and other biological databases using Bio.Entrez, SRA toolkit, and BLAST+.
 
 | Skill | Description | Tools |
@@ -124,7 +124,7 @@ Fetching data from NCBI and other biological databases using Bio.Entrez, SRA too
 | blast-searches | Remote BLAST via NCBI | Bio.Blast.NCBIWWW |
 | local-blast | Local BLAST databases and searches | BLAST+ CLI |
 
-### alignment-files/ (complete)
+### alignment-files/ 
 Working with aligned sequence data (SAM/BAM/CRAM) using samtools and pysam.
 
 | Skill | Description |
@@ -138,7 +138,7 @@ Working with aligned sequence data (SAM/BAM/CRAM) using samtools and pysam.
 | reference-operations | Generate consensus, create dict files |
 | pileup-generation | Generate pileup for variant calling |
 
-### variant-calling/ (complete)
+### variant-calling/
 Variant calling and VCF/BCF manipulation using bcftools and cyvcf2.
 
 | Skill | Description |
@@ -152,7 +152,7 @@ Variant calling and VCF/BCF manipulation using bcftools and cyvcf2.
 | vcf-statistics | Generate quality metrics, concordance |
 | consensus-sequences | Apply variants to reference FASTA |
 
-### alignment/ (complete)
+### alignment/
 Sequence alignment using Biopython Bio.Align and Bio.AlignIO.
 
 | Skill | Description |
@@ -162,7 +162,7 @@ Sequence alignment using Biopython Bio.Align and Bio.AlignIO.
 | msa-parsing | Parse and analyze MSA content: gaps, conservation, consensus |
 | alignment-statistics | Calculate identity, conservation, entropy, substitution patterns |
 
-### phylogenetics/ (complete)
+### phylogenetics/
 Phylogenetic tree analysis using Biopython Bio.Phylo.
 
 | Skill | Description |
@@ -172,7 +172,7 @@ Phylogenetic tree analysis using Biopython Bio.Phylo.
 | tree-manipulation | Root, prune, ladderize, collapse, modify tree structure |
 | distance-calculations | Compute distance matrices, build NJ/UPGMA trees, bootstrap consensus |
 
-### differential-expression/ (complete)
+### differential-expression/
 RNA-seq differential expression analysis using R/Bioconductor (DESeq2, edgeR).
 
 | Skill | Description |
@@ -182,7 +182,7 @@ RNA-seq differential expression analysis using R/Bioconductor (DESeq2, edgeR).
 | de-visualization | MA plots, volcano plots, PCA, heatmaps with ggplot2/pheatmap |
 | de-results | Filter significant genes, add annotations, export results |
 
-### structural-biology/ (complete)
+### structural-biology/
 Protein structure analysis using Biopython Bio.PDB.
 
 | Skill | Description |
@@ -192,7 +192,7 @@ Protein structure analysis using Biopython Bio.PDB.
 | geometric-analysis | Distances, angles, dihedrals, neighbor search, superimposition, RMSD, SASA |
 | structure-modification | Transform coordinates, remove/add entities, modify B-factors |
 
-### single-cell/ (complete)
+### single-cell/
 Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python).
 
 | Skill | Description |
@@ -202,7 +202,7 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python).
 | clustering | PCA, neighbors, Leiden/Louvain, UMAP/tSNE |
 | markers-annotation | Differential expression, marker genes, cell type annotation |
 
-### pathway-analysis/ (complete)
+### pathway-analysis/
 Functional enrichment and pathway analysis using R/Bioconductor (clusterProfiler, ReactomePA, rWikiPathways).
 
 | Skill | Description |
@@ -214,7 +214,7 @@ Functional enrichment and pathway analysis using R/Bioconductor (clusterProfiler
 | gsea | Gene Set Enrichment Analysis with gseGO, gseKEGG |
 | enrichment-visualization | Dot plots, bar plots, enrichment maps, cnetplots, GSEA plots |
 
-### restriction-analysis/ (complete)
+### restriction-analysis/
 Restriction enzyme analysis using Biopython Bio.Restriction.
 
 | Skill | Description |
@@ -224,7 +224,7 @@ Restriction enzyme analysis using Biopython Bio.Restriction.
 | enzyme-selection | Choose enzymes by criteria (cutters, overhangs, compatibility) |
 | fragment-analysis | Predict fragment sizes, simulate gel electrophoresis |
 
-### methylation-analysis/ (complete)
+### methylation-analysis/
 DNA methylation analysis from bisulfite sequencing using Bismark and methylKit.
 
 | Skill | Description |
@@ -234,7 +234,7 @@ DNA methylation analysis from bisulfite sequencing using Bismark and methylKit.
 | methylkit-analysis | Analyze methylation data with methylKit in R |
 | dmr-detection | Find differentially methylated regions |
 
-### chip-seq/ (complete)
+### chip-seq/
 ChIP-seq analysis using MACS3 for peak calling and ChIPseeker/DiffBind for annotation and differential analysis.
 
 | Skill | Description |
@@ -244,7 +244,7 @@ ChIP-seq analysis using MACS3 for peak calling and ChIPseeker/DiffBind for annot
 | differential-binding | Differential binding analysis with DiffBind |
 | chipseq-visualization | Visualize ChIP-seq data with deepTools and Gviz |
 
-### metagenomics/ (complete)
+### metagenomics/
 Metagenomic taxonomic profiling using Kraken2 and MetaPhlAn.
 
 | Skill | Description |
@@ -254,7 +254,7 @@ Metagenomic taxonomic profiling using Kraken2 and MetaPhlAn.
 | abundance-estimation | Species abundance estimation with Bracken |
 | metagenome-visualization | Visualize taxonomic profiles |
 
-### long-read-sequencing/ (complete)
+### long-read-sequencing/
 Long-read sequencing analysis using minimap2 and medaka for Oxford Nanopore and PacBio data.
 
 | Skill | Description |
@@ -263,30 +263,6 @@ Long-read sequencing analysis using minimap2 and medaka for Oxford Nanopore and 
 | medaka-polishing | Polish assemblies and call variants with medaka |
 | structural-variants | Detect structural variants with Sniffles/cuteSV |
 | long-read-qc | Quality control for long reads with NanoPlot |
-
-## Typical NGS Workflow
-
-```
-Raw Reads (FASTQ)
-    |
-    v
-[sequence-io] -----> QC, filtering, format conversion
-    |
-    v
-[Aligner: bwa/bowtie2/STAR] (external)
-    |
-    v
-[alignment-files] --> Sort, index, mark duplicates, stats
-    |
-    v
-[variant-calling] --> Call variants, filter, annotate
-    |
-    v
-[database-access] --> Compare to known variants, annotate
-    |
-    v
-[differential-expression / pathway-analysis] --> Downstream analysis
-```
 
 ## Usage
 
@@ -345,28 +321,26 @@ The agent will use the skill patterns to generate correct code.
 
 ```
 bioSkills/
-├── README.md              # This file
-├── CLAUDE.md              # Project guidance for Claude Code
-├── planning.md            # Full roadmap and skill details
-├── install-claude.sh      # Installation script for Claude Code
-├── install-codex.sh       # Installation script for Codex CLI
-├── install-gemini.sh      # Installation script for Gemini CLI
-├── sequence-io/           # Sequence file operations (9 skills)
-├── sequence-manipulation/ # Sequence manipulation (7 skills)
-├── database-access/       # NCBI & databases (8 skills)
-├── alignment-files/       # SAM/BAM/CRAM (8 skills)
-├── variant-calling/       # VCF/BCF (8 skills)
-├── alignment/             # Sequence alignment (4 skills)
-├── phylogenetics/         # Phylogenetic trees (4 skills)
+├── README.md                
+├── install-claude.sh        # Installation script for Claude Code
+├── install-codex.sh         # Installation script for Codex CLI
+├── install-gemini.sh        # Installation script for Gemini CLI
+├── sequence-io/             # Sequence file operations (9 skills)
+├── sequence-manipulation/   # Sequence manipulation (7 skills)
+├── database-access/         # NCBI & databases (8 skills)
+├── alignment-files/         # SAM/BAM/CRAM (8 skills)
+├── variant-calling/         # VCF/BCF (8 skills)
+├── alignment/               # Sequence alignment (4 skills)
+├── phylogenetics/           # Phylogenetic trees (4 skills)
 ├── differential-expression/ # RNA-seq DE analysis (4 skills)
-├── structural-biology/    # Protein structures (4 skills)
-├── single-cell/           # scRNA-seq (4 skills)
-├── pathway-analysis/      # GO/KEGG/Reactome enrichment (6 skills)
-├── restriction-analysis/  # Restriction enzymes (4 skills)
-├── methylation-analysis/  # Bisulfite seq analysis (4 skills)
-├── chip-seq/              # ChIP-seq analysis (4 skills)
-├── metagenomics/          # Taxonomic profiling (4 skills)
-└── long-read-sequencing/  # ONT/PacBio analysis (4 skills)
+├── structural-biology/      # Protein structures (4 skills)
+├── single-cell/             # scRNA-seq (4 skills)
+├── pathway-analysis/        # GO/KEGG/Reactome enrichment (6 skills)
+├── restriction-analysis/    # Restriction enzymes (4 skills)
+├── methylation-analysis/    # Bisulfite seq analysis (4 skills)
+├── chip-seq/                # ChIP-seq analysis (4 skills)
+├── metagenomics/            # Taxonomic profiling (4 skills)
+└── long-read-sequencing/    # ONT/PacBio analysis (4 skills)
 ```
 
 Each skill directory contains:
@@ -381,12 +355,3 @@ SKILL.md files include:
 - `tool_type` - python, r, cli, or mixed
 - `primary_tool` - Main package (Bio.SeqIO, samtools, etc.)
 - `## Related Skills` - Cross-references to related skills
-
-## Contributing
-
-Skills should be:
-- Discrete but not overly granular
-- Biopython-first for Python tasks, Bioconductor when R's statistical capabilities are needed
-- CLI tools documented with both command-line and Python wrapper alternatives
-- Compatible with multiple AI agents
-- Include examples and usage guides
