@@ -37,7 +37,7 @@ metaphlan sample.fastq.gz \
     --input_type fastq \
     --nproc 8 \
     --output_file profile.txt \
-    --bowtie2out sample.bowtie2.bz2
+    --mapout sample.map.bz2
 
 # 2. View results
 head profile.txt

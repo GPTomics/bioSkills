@@ -278,5 +278,5 @@ minimap2 -a reference.fa consensus.fa > comparison.sam
 - **sam-bam-basics** - Reference required for CRAM
 - **alignment-indexing** - faidx for reference access
 - **pileup-generation** - Pileup for consensus building
-- **variant-calling** (planned) - bcftools consensus from VCF
+- **variant-calling** - bcftools consensus from VCF
 - **sequence-io/read-sequences** - Parse FASTA with Biopython

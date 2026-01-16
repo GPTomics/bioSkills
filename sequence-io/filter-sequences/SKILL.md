@@ -231,4 +231,4 @@ SeqIO.write(long, 'long.fasta', 'fasta')
 - **fastq-quality** - Filter FASTQ by quality scores
 - **paired-end-fastq** - Synchronized filtering of paired reads
 - **sequence-manipulation/motif-search** - Filter by complex motif patterns
-- **alignment-files** (planned) - Filter aligned reads with samtools view -f/-F
+- **alignment-files** - Filter aligned reads with samtools view -f/-F

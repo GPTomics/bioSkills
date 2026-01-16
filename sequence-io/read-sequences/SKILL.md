@@ -291,4 +291,4 @@ Need to read sequences?
 - **compressed-files** - Read gzip/bzip2/BGZF compressed sequence files
 - **sequence-manipulation/seq-objects** - Work with parsed SeqRecord objects
 - **database-access** - Fetch sequences from NCBI instead of local files
-- **alignment-files** (planned) - For SAM/BAM/CRAM alignment files, use samtools/pysam
+- **alignment-files** - For SAM/BAM/CRAM alignment files, use samtools/pysam

@@ -321,4 +321,4 @@ res[which(is.na(res$pvalue) & res$baseMean > 0), ]
 - **deseq2-basics** - Run DESeq2 analysis
 - **edger-basics** - Run edgeR analysis
 - **de-visualization** - Visualize results
-- **pathway-analysis** - Use gene lists for enrichment (planned)
+- **pathway-analysis** - Use gene lists for enrichment

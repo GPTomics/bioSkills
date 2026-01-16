@@ -269,4 +269,4 @@ samtools view -c -F 1024 marked.bam
 - **alignment-sorting** - Sort by name/coordinate for workflow
 - **alignment-filtering** - Filter duplicates from output
 - **alignment-statistics** - Check duplicate rates with flagstat
-- **variant-calling** (planned) - Duplicate marking before calling
+- **variant-calling** - Duplicate marking before calling

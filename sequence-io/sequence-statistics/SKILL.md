@@ -293,4 +293,4 @@ for base in ['A', 'T', 'G', 'C', 'N']:
 - **batch-processing** - Calculate stats across multiple files
 - **fastq-quality** - Quality score statistics for FASTQ files
 - **sequence-manipulation/sequence-properties** - Per-sequence GC content and properties
-- **alignment-files** (planned) - samtools stats/flagstat for alignment statistics
+- **alignment-files** - samtools stats/flagstat for alignment statistics

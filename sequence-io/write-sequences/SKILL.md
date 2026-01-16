@@ -174,4 +174,4 @@ All sequences must be same length. IDs truncated to 10 characters.
 - **format-conversion** - Direct format conversion without intermediate processing
 - **filter-sequences** - Filter sequences before writing subset
 - **sequence-manipulation/seq-objects** - Create SeqRecord objects to write
-- **alignment-files** (planned) - For SAM/BAM output, use samtools/pysam
+- **alignment-files** - For SAM/BAM output, use samtools/pysam

@@ -306,4 +306,4 @@ for r1, r2 in iterate_gzipped_pairs('reads_R1.fastq.gz', 'reads_R2.fastq.gz'):
 - **fastq-quality** - Quality filtering before paired processing
 - **filter-sequences** - Additional filtering criteria
 - **compressed-files** - Handle gzipped paired files
-- **alignment-files** (planned) - After filtering, align paired reads with bwa mem; proper pairs in BAM
+- **alignment-files** - After filtering, align paired reads with bwa mem; proper pairs in BAM

@@ -158,4 +158,4 @@ Converting formats?
 - **write-sequences** - Write converted sequences with modifications
 - **batch-processing** - Convert multiple files at once
 - **compressed-files** - Handle compressed input/output during conversion
-- **alignment-files** (planned) - For SAM/BAM/CRAM conversion, use samtools view
+- **alignment-files** - For SAM/BAM/CRAM conversion, use samtools view

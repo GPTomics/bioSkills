@@ -291,4 +291,4 @@ pileup_text('input.bam', 'reference.fa', 'chr1', 1000000, 1000100)
 - **alignment-filtering** - Filter BAM before pileup
 - **reference-operations** - Index reference for pileup
 - **alignment-statistics** - depth command for coverage
-- **variant-calling** (planned) - bcftools call from pileup
+- **variant-calling** - bcftools call from pileup

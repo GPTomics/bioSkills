@@ -4,7 +4,7 @@ READS_DIR="fastq"
 OUTPUT_DIR="metaphlan_output"
 NPROC=8
 
-mkdir -p $OUTPUT_DIR/profiles $OUTPUT_DIR/bowtie2out
+mkdir -p $OUTPUT_DIR/profiles $OUTPUT_DIR/mapout
 
 for fq in ${READS_DIR}/*.fastq.gz; do
     sample=$(basename $fq .fastq.gz)
@@ -14,7 +14,7 @@ for fq in ${READS_DIR}/*.fastq.gz; do
         --input_type fastq \
         --nproc $NPROC \
         --output_file ${OUTPUT_DIR}/profiles/${sample}_profile.txt \
-        --bowtie2out ${OUTPUT_DIR}/bowtie2out/${sample}.bowtie2.bz2
+        --mapout ${OUTPUT_DIR}/mapout/${sample}.map.bz2
 done
 
 echo "Merging profiles..."

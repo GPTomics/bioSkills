@@ -340,4 +340,4 @@ Need SRA sequencing data?
 - **entrez-search** - Search SRA database to find accessions
 - **sequence-io** - Read downloaded FASTQ files with Biopython
 - **sequence-io/paired-end-fastq** - Handle paired R1/R2 files
-- **alignment-files** (planned) - Align downloaded reads
+- **alignment-files** - Align downloaded reads

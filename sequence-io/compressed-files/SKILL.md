@@ -239,4 +239,4 @@ Working with compressed sequence files?
 - **read-sequences** - Core parsing functions used with compressed handles
 - **write-sequences** - Write to compressed output files
 - **batch-processing** - Process multiple compressed files
-- **alignment-files** (planned) - BAM files use BGZF natively; samtools handles compression
+- **alignment-files** - BAM files use BGZF natively; samtools handles compression
