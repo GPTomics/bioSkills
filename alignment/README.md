@@ -87,7 +87,7 @@ MSA file (.aln, .phy, .sto)
 - "What is the transition/transversion ratio?"
 - "Calculate Shannon entropy for each column"
 
-## Installation
+## Requirements
 
 ```bash
 pip install biopython numpy

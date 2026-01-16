@@ -74,7 +74,7 @@ Multiple Sequence Alignment
 - "Create a bootstrap consensus with 1000 replicates"
 - "Calculate pairwise distances between all taxa"
 
-## Installation
+## Requirements
 
 ```bash
 pip install biopython matplotlib numpy

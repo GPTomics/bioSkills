@@ -77,7 +77,7 @@ DE Results (log2FC, p-values)
 - "Add gene symbols to my results"
 - "Export significant genes to Excel"
 
-## Installation
+## Requirements
 
 ```r
 if (!require('BiocManager', quietly = TRUE))
@@ -118,7 +118,7 @@ install.packages('openxlsx')
 - **sequence-io** - Prepare input sequences
 - **alignment-files** - Process BAM files for counting
 - **database-access** - Fetch gene annotations from NCBI
-- **pathway-analysis** (planned) - GO/KEGG enrichment of DE genes
+- **pathway-analysis** - GO/KEGG enrichment of DE genes
 
 ## References
 

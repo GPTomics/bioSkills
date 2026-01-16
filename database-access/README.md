@@ -1,11 +1,13 @@
 # database-access
 
-Access NCBI databases, download sequences, query SRA/GEO, and run BLAST searches.
+## Overview
+
+Access NCBI databases, download sequences, query SRA/GEO, and run BLAST searches. This category is often the starting point of bioinformatics workflows, fetching data from NCBI before local processing.
 
 **Tool type:** mixed (Python + CLI)
 **Primary tools:** Biopython Bio.Entrez, Bio.Blast, SRA toolkit, BLAST+
 
-## Workflow Context
+## Workflow
 
 ```
 [database-access] <--- YOU ARE HERE
@@ -28,8 +30,6 @@ Raw Reads (FASTQ) / Sequences (FASTA/GenBank)
     v
 [alignment-files] --> SAM/BAM processing
 ```
-
-This category is often the starting point of bioinformatics workflows, fetching data from NCBI before local processing.
 
 ## Skills
 

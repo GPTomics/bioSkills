@@ -83,7 +83,7 @@ Raw VCF
 - "Check sample identity between files"
 - "Generate consensus sequence from variants"
 
-## Installation
+## Requirements
 
 ### bcftools
 ```bash

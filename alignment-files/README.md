@@ -86,7 +86,7 @@ SAM/BAM (unsorted)
 - "Generate pileup for variant calling"
 - "Prepare this BAM for GATK"
 
-## Installation
+## Requirements
 
 ### samtools
 ```bash

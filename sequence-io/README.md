@@ -1,11 +1,13 @@
 # sequence-io
 
-Sequence file input/output operations using Biopython's Bio.SeqIO module.
+## Overview
+
+Sequence file input/output operations using Biopython's Bio.SeqIO module. This category handles the first stage of most bioinformatics pipelines: reading raw sequence data, quality filtering, and format conversion before alignment.
 
 **Tool type:** python
 **Primary tool:** Biopython Bio.SeqIO
 
-## Workflow Context
+## Workflow
 
 ```
 Raw Reads (FASTQ)
@@ -25,8 +27,6 @@ Raw Reads (FASTQ)
     v
 [variant-calling] --> VCF generation
 ```
-
-This category handles the first stage of most bioinformatics pipelines: reading raw sequence data, quality filtering, and format conversion before alignment.
 
 ## Skills
 

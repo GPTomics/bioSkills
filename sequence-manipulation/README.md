@@ -1,11 +1,13 @@
 # sequence-manipulation
 
-Working with sequence data programmatically using Biopython's Bio.Seq and Bio.SeqUtils modules.
+## Overview
+
+Working with sequence data programmatically using Biopython's Bio.Seq and Bio.SeqUtils modules. This category handles programmatic manipulation of sequences after they've been read from files. Used throughout bioinformatics pipelines whenever you need to analyze or transform sequence data.
 
 **Tool type:** python
 **Primary tool:** Biopython Bio.Seq, Bio.SeqUtils
 
-## Workflow Context
+## Workflow
 
 ```
 [sequence-io] -----> Read sequences from files
@@ -23,8 +25,6 @@ Working with sequence data programmatically using Biopython's Bio.Seq and Bio.Se
     - Feature annotation (motif-search)
     - Quality assessment (sequence-properties)
 ```
-
-This category handles programmatic manipulation of sequences after they've been read from files. Used throughout bioinformatics pipelines whenever you need to analyze or transform sequence data.
 
 ## Skills
 
@@ -81,5 +81,5 @@ pip install biopython
 
 - **sequence-io** - Read sequences from files before manipulation
 - **alignment** - Align sequences for comparison
-- **restriction-analysis** (planned) - Comprehensive restriction enzyme analysis using Bio.Restriction
+- **restriction-analysis** - Comprehensive restriction enzyme analysis using Bio.Restriction
 - **database-access** - Fetch sequences from NCBI for analysis

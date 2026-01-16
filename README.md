@@ -10,11 +10,15 @@ These skills help AI agents write correct, idiomatic code for bioinformatics wor
 
 | Tool | Type | Use Case |
 |------|------|----------|
-| **Biopython** | Python | Sequence handling, file I/O, database access, phylogenetics |
+| **Biopython** | Python | Sequence handling, file I/O, database access, phylogenetics, structural biology |
 | **Bioconductor** | R | RNA-seq, single-cell, pathway analysis, statistical methods |
 | **samtools** | CLI | SAM/BAM/CRAM alignment file manipulation |
 | **bcftools** | CLI | VCF/BCF variant calling and manipulation |
 | **NCBI tools** | Mixed | Database queries, SRA downloads, BLAST searches |
+| **Bismark/methylKit** | Mixed | DNA methylation analysis from bisulfite sequencing |
+| **MACS3/ChIPseeker** | Mixed | ChIP-seq peak calling and annotation |
+| **Kraken2/MetaPhlAn** | CLI | Metagenomic taxonomic profiling |
+| **minimap2/medaka** | CLI | Long-read sequencing alignment and analysis |
 
 ## Installation
 
@@ -178,14 +182,87 @@ RNA-seq differential expression analysis using R/Bioconductor (DESeq2, edgeR).
 | de-visualization | MA plots, volcano plots, PCA, heatmaps with ggplot2/pheatmap |
 | de-results | Filter significant genes, add annotations, export results |
 
-### Future Categories
+### structural-biology/ (complete)
+Protein structure analysis using Biopython Bio.PDB.
 
-| Category | Description | Tools |
-|----------|-------------|-------|
-| structural-biology | Protein structure analysis | Bio.PDB |
-| single-cell | scRNA-seq workflows | Seurat |
-| pathway-analysis | GO/KEGG enrichment | clusterProfiler |
-| restriction-analysis | Restriction enzyme operations | Bio.Restriction |
+| Skill | Description |
+|-------|-------------|
+| structure-io | Parse PDB/mmCIF/MMTF files, download from RCSB, write structures |
+| structure-navigation | Navigate SMCRA hierarchy, extract sequences, handle disorder |
+| geometric-analysis | Distances, angles, dihedrals, neighbor search, superimposition, RMSD, SASA |
+| structure-modification | Transform coordinates, remove/add entities, modify B-factors |
+
+### single-cell/ (complete)
+Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python).
+
+| Skill | Description |
+|-------|-------------|
+| data-io | Load 10X data, create Seurat/AnnData objects, read/write h5ad/RDS |
+| preprocessing | QC metrics, filtering, normalization, HVGs, scaling |
+| clustering | PCA, neighbors, Leiden/Louvain, UMAP/tSNE |
+| markers-annotation | Differential expression, marker genes, cell type annotation |
+
+### pathway-analysis/ (complete)
+Functional enrichment and pathway analysis using R/Bioconductor (clusterProfiler, ReactomePA, rWikiPathways).
+
+| Skill | Description |
+|-------|-------------|
+| go-enrichment | Gene Ontology over-representation analysis with enrichGO |
+| kegg-pathways | KEGG pathway enrichment with enrichKEGG and enrichMKEGG |
+| reactome-pathways | Reactome pathway enrichment with ReactomePA |
+| wikipathways | WikiPathways enrichment with enrichWP and rWikiPathways |
+| gsea | Gene Set Enrichment Analysis with gseGO, gseKEGG |
+| enrichment-visualization | Dot plots, bar plots, enrichment maps, cnetplots, GSEA plots |
+
+### restriction-analysis/ (complete)
+Restriction enzyme analysis using Biopython Bio.Restriction.
+
+| Skill | Description |
+|-------|-------------|
+| restriction-sites | Find where enzymes cut a sequence |
+| restriction-mapping | Create restriction maps, visualize cut positions |
+| enzyme-selection | Choose enzymes by criteria (cutters, overhangs, compatibility) |
+| fragment-analysis | Predict fragment sizes, simulate gel electrophoresis |
+
+### methylation-analysis/ (complete)
+DNA methylation analysis from bisulfite sequencing using Bismark and methylKit.
+
+| Skill | Description |
+|-------|-------------|
+| bismark-alignment | Align bisulfite sequencing reads with Bismark |
+| methylation-calling | Extract methylation calls from Bismark BAM files |
+| methylkit-analysis | Analyze methylation data with methylKit in R |
+| dmr-detection | Find differentially methylated regions |
+
+### chip-seq/ (complete)
+ChIP-seq analysis using MACS3 for peak calling and ChIPseeker/DiffBind for annotation and differential analysis.
+
+| Skill | Description |
+|-------|-------------|
+| peak-calling | Call peaks from ChIP-seq BAM files with MACS3 |
+| peak-annotation | Annotate peaks to genes with ChIPseeker |
+| differential-binding | Differential binding analysis with DiffBind |
+| chipseq-visualization | Visualize ChIP-seq data with deepTools and Gviz |
+
+### metagenomics/ (complete)
+Metagenomic taxonomic profiling using Kraken2 and MetaPhlAn.
+
+| Skill | Description |
+|-------|-------------|
+| kraken-classification | Taxonomic classification with Kraken2 |
+| metaphlan-profiling | Marker gene profiling with MetaPhlAn |
+| abundance-estimation | Species abundance estimation with Bracken |
+| metagenome-visualization | Visualize taxonomic profiles |
+
+### long-read-sequencing/ (complete)
+Long-read sequencing analysis using minimap2 and medaka for Oxford Nanopore and PacBio data.
+
+| Skill | Description |
+|-------|-------------|
+| long-read-alignment | Align long reads with minimap2 |
+| medaka-polishing | Polish assemblies and call variants with medaka |
+| structural-variants | Detect structural variants with Sniffles/cuteSV |
+| long-read-qc | Quality control for long reads with NanoPlot |
 
 ## Typical NGS Workflow
 
@@ -232,6 +309,34 @@ Once skills are deployed, ask your agent naturally:
 "Run DESeq2 on my count matrix comparing treated vs control"
 "Create a volcano plot of my differential expression results"
 "Extract genes with padj < 0.05 and |log2FC| > 1"
+"Download PDB structure 4HHB and list its chains"
+"Calculate the distance between residue 50 and 100 CA atoms"
+"Superimpose these two structures and calculate RMSD"
+"Remove all water molecules from this PDB file"
+"Load my 10X data and run QC filtering"
+"Cluster my single-cell data and generate a UMAP"
+"Find marker genes for each cluster"
+"Annotate cell types based on canonical markers"
+"Run GO enrichment on my differentially expressed genes"
+"Find enriched KEGG pathways for my gene list"
+"Perform GSEA using MSigDB hallmark gene sets"
+"Create a dot plot of my enrichment results"
+"Find enzymes that cut my plasmid exactly once"
+"What fragments will EcoRI produce from this sequence?"
+"Find enzymes that don't cut my insert but cut the vector"
+"Create a restriction map for my sequence"
+"Align my bisulfite sequencing reads with Bismark"
+"Find differentially methylated regions between treatment and control"
+"Call peaks from my ChIP-seq BAM with MACS3"
+"Annotate my peaks with nearby genes"
+"Find differential binding between conditions"
+"Classify my metagenomic reads with Kraken2"
+"Profile my metagenome with MetaPhlAn"
+"Create a stacked bar chart of species abundances"
+"Align my Nanopore reads with minimap2"
+"Polish my assembly with medaka"
+"Find structural variants from my long reads"
+"Generate QC report for my long read data"
 ```
 
 The agent will use the skill patterns to generate correct code.
@@ -254,7 +359,14 @@ bioSkills/
 ├── alignment/             # Sequence alignment (4 skills)
 ├── phylogenetics/         # Phylogenetic trees (4 skills)
 ├── differential-expression/ # RNA-seq DE analysis (4 skills)
-└── ...                    # Additional categories
+├── structural-biology/    # Protein structures (4 skills)
+├── single-cell/           # scRNA-seq (4 skills)
+├── pathway-analysis/      # GO/KEGG/Reactome enrichment (6 skills)
+├── restriction-analysis/  # Restriction enzymes (4 skills)
+├── methylation-analysis/  # Bisulfite seq analysis (4 skills)
+├── chip-seq/              # ChIP-seq analysis (4 skills)
+├── metagenomics/          # Taxonomic profiling (4 skills)
+└── long-read-sequencing/  # ONT/PacBio analysis (4 skills)
 ```
 
 Each skill directory contains:
