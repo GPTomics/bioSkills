@@ -15,6 +15,8 @@ Read quality control and preprocessing - the first step in any NGS workflow. Cov
 | quality-filtering | Quality/length trimming, N removal with fastp/Trimmomatic |
 | fastp-workflow | All-in-one modern preprocessing with fastp |
 | contamination-screening | Detect sample contamination with FastQ Screen |
+| umi-processing | Extract and deduplicate reads using UMIs with umi_tools |
+| rnaseq-qc | RNA-seq specific QC: rRNA, strandedness, gene body coverage |
 
 ## Example Prompts
 
@@ -30,6 +32,12 @@ Read quality control and preprocessing - the first step in any NGS workflow. Cov
 - "Check if my samples have contamination"
 - "Screen my reads against multiple genomes"
 - "What is the GC content distribution in my reads?"
+- "Extract UMIs from my reads and deduplicate"
+- "Process single-cell data with UMIs"
+- "Check rRNA contamination in my RNA-seq"
+- "Verify strandedness of my library"
+- "Check gene body coverage"
+- "Calculate transcript integrity (TIN)"
 
 ## Requirements
 
@@ -48,6 +56,13 @@ conda install -c bioconda trimmomatic
 
 # FastQ Screen
 conda install -c bioconda fastq-screen
+
+# umi_tools
+conda install -c bioconda umi_tools
+
+# RNA-seq QC
+conda install -c bioconda sortmerna rseqc
+pip install RSeQC
 ```
 
 ## Related Skills

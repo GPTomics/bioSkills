@@ -14,6 +14,8 @@ ChIP-seq analysis using MACS3 for peak calling, ChIPseeker for annotation, and D
 | peak-annotation | Annotate peaks to genes with ChIPseeker |
 | differential-binding | Differential binding analysis with DiffBind |
 | chipseq-visualization | Visualize ChIP-seq data and peaks |
+| motif-analysis | De novo and known motif enrichment with HOMER/MEME |
+| chipseq-qc | Quality metrics: FRiP, NSC/RSC, IDR for replicate concordance |
 
 ## Example Prompts
 
@@ -29,12 +31,27 @@ ChIP-seq analysis using MACS3 for peak calling, ChIPseeker for annotation, and D
 - "Create a heatmap of peak signal"
 - "Plot peak distribution around TSS"
 - "Visualize peaks in a genomic region"
+- "Find enriched motifs in my peaks with HOMER"
+- "Run de novo motif discovery"
+- "What transcription factors bind my peaks?"
+- "Calculate FRiP for my ChIP-seq experiment"
+- "Run IDR on my replicates"
+- "Check cross-correlation (NSC/RSC) for my ChIP"
 
 ## Requirements
 
 ```bash
 # MACS3
 conda install -c bioconda macs3
+
+# HOMER (motif analysis)
+conda install -c bioconda homer
+
+# MEME Suite (alternative motif analysis)
+conda install -c bioconda meme
+
+# QC tools
+conda install -c bioconda phantompeakqualtools idr deeptools
 ```
 
 ```r

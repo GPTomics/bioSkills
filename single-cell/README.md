@@ -12,9 +12,11 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 |-------|-------------|
 | data-io | Load 10X data, create Seurat/AnnData objects, read/write h5ad/RDS |
 | preprocessing | QC metrics, filtering, normalization, HVGs, scaling |
+| doublet-detection | Detect and remove doublets with Scrublet, DoubletFinder, scDblFinder |
 | clustering | PCA, neighbors, Leiden/Louvain clustering, UMAP/tSNE |
 | markers-annotation | Differential expression, marker genes, cell type annotation |
 | multimodal-integration | CITE-seq, Multiome, WNN clustering for multi-modal data |
+| scatac-analysis | Single-cell ATAC-seq with Signac and ArchR |
 
 ## Example Prompts
 
@@ -22,6 +24,8 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 - "Create a Seurat object from this count matrix"
 - "Convert h5ad to Seurat format"
 - "Run QC and filter cells with >20% mitochondrial"
+- "Detect doublets with Scrublet"
+- "Remove doublets from my Seurat object"
 - "Normalize and find highly variable genes"
 - "Preprocess this data using SCTransform"
 - "Run PCA and cluster at resolution 0.5"
@@ -33,15 +37,24 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 - "Load my CITE-seq data with both RNA and ADT"
 - "Run WNN clustering combining RNA and protein"
 - "Analyze my 10X Multiome data"
+- "Process my scATAC-seq data with Signac"
+- "Run chromVAR motif analysis on scATAC"
+- "Find differentially accessible peaks"
 
 ## Requirements
 
 ```bash
-# Python (Scanpy)
-pip install scanpy anndata leidenalg matplotlib
+# Python (Scanpy + Scrublet)
+pip install scanpy anndata leidenalg matplotlib scrublet
 
-# R (Seurat)
+# R (Seurat + DoubletFinder)
 install.packages('Seurat')
+remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+BiocManager::install('scDblFinder')
+
+# R (Signac for scATAC)
+install.packages('Signac')
+BiocManager::install(c('chromVAR', 'motifmatchr', 'JASPAR2020'))
 ```
 
 ## Related Skills

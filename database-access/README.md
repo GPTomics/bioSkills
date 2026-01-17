@@ -18,6 +18,7 @@ Access NCBI and UniProt databases, download sequences, query SRA/GEO, and run BL
 | geo-data | Query GEO expression datasets, link GEO to SRA |
 | blast-searches | Remote BLAST searches via NCBI |
 | local-blast | Local BLAST databases and searches with BLAST+ |
+| sequence-similarity | PSI-BLAST, HMMER, reciprocal best hits for remote homologs |
 | uniprot-access | Query UniProt protein database, ID mapping, batch retrieval |
 
 ## Example Prompts
@@ -31,6 +32,9 @@ Access NCBI and UniProt databases, download sequences, query SRA/GEO, and run BL
 - "BLAST this sequence against the nr database"
 - "Set up a local BLAST database from my sequences"
 - "Run blastp on my protein against the Swiss-Prot database"
+- "Find remote homologs with PSI-BLAST"
+- "Search Pfam with my protein sequence"
+- "Find orthologs between two species"
 - "Get the taxonomy ID for Escherichia coli K-12"
 - "Fetch gene information for human BRCA1"
 - "Find all human kinases in UniProt"
@@ -48,6 +52,9 @@ conda install -c bioconda sra-tools
 
 # BLAST+
 conda install -c bioconda blast
+
+# HMMER
+conda install -c bioconda hmmer
 ```
 
 ## Related Skills

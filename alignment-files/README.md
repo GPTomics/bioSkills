@@ -15,6 +15,7 @@ Working with SAM/BAM/CRAM alignment files using samtools and pysam. Covers the s
 | alignment-sorting | Sort by coordinate or name, merge BAM files, collate pairs |
 | duplicate-handling | Mark and remove PCR/optical duplicates |
 | alignment-statistics | Flagstat, depth, coverage, QC metrics |
+| alignment-validation | Insert size, proper pairing, strand balance, MAPQ distribution |
 | alignment-filtering | Filter by flags, quality, regions, subsample reads |
 | reference-operations | Index FASTA, create dictionaries, generate consensus |
 | pileup-generation | Generate pileup for variant calling |
@@ -31,6 +32,9 @@ Working with SAM/BAM/CRAM alignment files using samtools and pysam. Covers the s
 - "Get reads from chromosome 1, positions 1000000-2000000"
 - "Get alignment statistics for this BAM file"
 - "What is the mapping rate?"
+- "Check insert size distribution"
+- "Validate my alignment quality"
+- "Check proper pairing rate"
 - "Calculate coverage across my target regions"
 - "What is the duplicate rate?"
 - "Keep only properly paired reads"

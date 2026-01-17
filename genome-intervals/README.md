@@ -15,6 +15,7 @@ Genomic interval operations using BEDTools, pybedtools, and pyBigWig. Covers BED
 | gtf-gff-handling | Parse and convert GTF/GFF annotation files |
 | proximity-operations | closest, window, flank, slop for proximity queries |
 | coverage-analysis | genomecov, coverage calculations, bedGraph generation |
+| bedgraph-handling | Create, convert, and manipulate bedGraph files |
 | bigwig-tracks | Create and read bigWig browser tracks |
 
 ## Example Prompts
@@ -27,7 +28,9 @@ Genomic interval operations using BEDTools, pybedtools, and pyBigWig. Covers BED
 - "Add 500bp flanks to my intervals"
 - "Extend intervals by 1kb on each side"
 - "Calculate coverage across my BED regions"
+- "Create a normalized bedGraph from my BAM"
 - "Convert bedGraph to bigWig"
+- "Merge bedGraph files from multiple samples"
 - "Get the complement of my intervals"
 - "Window my genome into 1kb bins"
 - "Parse a GTF file and extract exon coordinates"

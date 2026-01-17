@@ -10,6 +10,7 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 
 | Skill | Description |
 |-------|-------------|
+| basecalling | Convert raw signal to sequences with Dorado/Guppy |
 | long-read-alignment | Align long reads with minimap2 |
 | medaka-polishing | Polish assemblies and call variants with medaka |
 | structural-variants | Detect SVs from long reads |
@@ -17,6 +18,9 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 
 ## Example Prompts
 
+- "Basecall my POD5 files with Dorado"
+- "Convert FAST5 to sequences"
+- "Run super-accuracy basecalling"
 - "Align my Nanopore reads with minimap2"
 - "Map PacBio HiFi reads to the reference genome"
 - "Create a sorted BAM from long-read alignment"
@@ -33,6 +37,12 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 ## Requirements
 
 ```bash
+# Dorado (from ONT)
+# Download from https://github.com/nanoporetech/dorado
+
+# POD5 tools
+pip install pod5
+
 # minimap2
 conda install -c bioconda minimap2
 
