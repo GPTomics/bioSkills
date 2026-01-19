@@ -12,10 +12,10 @@ Target users range from undergrads learning computational biology to PhD researc
 
 ### Python
 - Python 3.9+
-- biopython, pysam, cyvcf2, pybedtools, pyBigWig, scikit-allel
+- biopython, pysam, cyvcf2, pybedtools, pyBigWig, scikit-allel, anndata
 
 ```bash
-pip install biopython pysam cyvcf2 pybedtools pyBigWig scikit-allel
+pip install biopython pysam cyvcf2 pybedtools pyBigWig scikit-allel anndata mygene
 ```
 
 ### R/Bioconductor
@@ -37,7 +37,8 @@ sudo apt install samtools bcftools ncbi-blast+ minimap2 bedtools
 
 # conda (recommended for full bioinformatics stack)
 conda install -c bioconda samtools bcftools blast minimap2 bedtools \
-    fastp kraken2 metaphlan sra-tools
+    fastp kraken2 metaphlan sra-tools bwa-mem2 bowtie2 star hisat2 \
+    manta delly cnvkit macs3 tobias
 ```
 
 ## Installation
@@ -74,26 +75,32 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 |----------|--------|---------------|-------------|
 | **sequence-io** | 9 | Bio.SeqIO | Read, write, convert FASTA/FASTQ/GenBank and 40+ formats |
 | **sequence-manipulation** | 7 | Bio.Seq | Transcription, translation, motif search, sequence properties |
-| **database-access** | 9 | Bio.Entrez, BLAST+, SRA toolkit | NCBI/UniProt queries, SRA downloads, BLAST searches |
-| **alignment-files** | 8 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics |
-| **variant-calling** | 8 | bcftools, cyvcf2 | VCF/BCF variant calling, filtering, annotation |
+| **database-access** | 10 | Bio.Entrez, BLAST+, HMMER, SRA toolkit | NCBI/UniProt queries, SRA downloads, BLAST, homology searches |
+| **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, validation |
+| **variant-calling** | 11 | bcftools, GATK, Manta, Delly, VEP | VCF/BCF variant calling, SVs, filtering, annotation |
 | **alignment** | 4 | Bio.Align | Pairwise and multiple sequence alignment |
 | **phylogenetics** | 4 | Bio.Phylo | Tree I/O, visualization, manipulation, distance matrices |
 | **differential-expression** | 4 | DESeq2, edgeR | RNA-seq differential expression analysis |
 | **structural-biology** | 5 | Bio.PDB | PDB/mmCIF parsing, geometric analysis, AlphaFold |
-| **single-cell** | 5 | Seurat, Scanpy | scRNA-seq QC, clustering, markers, multimodal |
+| **single-cell** | 7 | Seurat, Scanpy, Signac | scRNA-seq QC, doublets, clustering, markers, multimodal, scATAC |
 | **pathway-analysis** | 6 | clusterProfiler | GO, KEGG, Reactome, WikiPathways enrichment |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 4 | Bismark, methylKit | Bisulfite alignment, methylation calling, DMRs |
-| **chip-seq** | 4 | MACS3, ChIPseeker | Peak calling, annotation, differential binding |
+| **chip-seq** | 6 | MACS3, ChIPseeker, HOMER, IDR | Peak calling, annotation, differential binding, motifs, QC |
 | **metagenomics** | 5 | Kraken2, MetaPhlAn | Taxonomic classification, abundance estimation |
-| **long-read-sequencing** | 4 | minimap2, medaka | Long-read alignment, polishing, SV calling |
-| **read-qc** | 5 | FastQC, fastp | Quality reports, adapter trimming, filtering |
-| **genome-intervals** | 6 | BEDTools, pybedtools | BED/GTF operations, interval arithmetic, bigWig |
+| **long-read-sequencing** | 5 | Dorado, minimap2, medaka | Basecalling, alignment, polishing, SV calling |
+| **read-qc** | 7 | FastQC, fastp, umi_tools, RSeQC | Quality reports, adapter trimming, filtering, UMIs, RNA-seq QC |
+| **genome-intervals** | 7 | BEDTools, pybedtools, pyBigWig | BED/GTF operations, interval arithmetic, bedGraph, bigWig |
 | **population-genetics** | 6 | PLINK, scikit-allel | GWAS, population structure, selection statistics |
 | **rna-quantification** | 4 | Salmon, featureCounts | Gene/transcript quantification, count matrix QC |
+| **read-alignment** | 4 | bwa-mem2, STAR | Short-read alignment for DNA and RNA-seq |
+| **expression-matrix** | 4 | pandas, anndata | Count matrix handling, gene ID mapping |
+| **copy-number** | 4 | CNVkit, GATK | CNV detection, visualization, annotation |
+| **phasing-imputation** | 4 | Beagle, SHAPEIT5 | Haplotype phasing, genotype imputation |
+| **atac-seq** | 4 | MACS3, TOBIAS | ATAC-seq peaks, QC, footprinting |
+| **genome-assembly** | 4 | SPAdes, Flye, QUAST | De novo assembly, polishing, QC |
 
-**Total: 112 skills across 20 categories**
+**Total: 148 skills across 26 categories**
 
 ## Usage
 
@@ -158,6 +165,29 @@ Once skills are deployed, ask your agent naturally:
 "Quantify transcripts with Salmon"
 "Import Salmon results into R for DESeq2"
 "Check for sample outliers before DE analysis"
+"Align my DNA reads to the human genome with bwa-mem2"
+"Run STAR on my RNA-seq data"
+"Build a STAR index with my GTF file"
+"Load my featureCounts output into a dataframe"
+"Map Ensembl IDs to gene symbols"
+"Join sample metadata with my count matrix"
+"Detect CNVs from my exome BAM files"
+"Run CNVkit on tumor-normal pairs"
+"Plot copy number profile for a sample"
+"Phase my VCF file with Beagle"
+"Impute missing genotypes using 1000 Genomes"
+"Call peaks from my ATAC-seq BAM files"
+"Calculate TSS enrichment score"
+"Run TF footprinting with TOBIAS"
+"Call structural variants with Manta"
+"Detect deletions and inversions with Delly"
+"Extract UMIs and deduplicate my reads"
+"Annotate variants with VEP"
+"Find enriched motifs in my ChIP-seq peaks"
+"Process my scATAC-seq data with Signac"
+"Assemble my bacterial genome with SPAdes"
+"Polish my assembly with Pilon"
+"Check assembly completeness with BUSCO"
 ```
 
 The agent will use the skill patterns to generate correct code.
