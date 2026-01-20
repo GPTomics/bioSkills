@@ -111,10 +111,10 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **imaging-mass-cytometry** | 6 | steinbock, Cellpose, squidpy, napari | IMC preprocessing, segmentation, spatial analysis, annotation, QC |
 | **flow-cytometry** | 8 | flowCore, CATALYST, diffcyt, flowAI | FCS handling, compensation, gating, clustering, differential, QC, bead normalization |
 | **reporting** | 2 | RMarkdown, Quarto | Reproducible analysis reports in HTML, PDF, Word |
-| **workflow-management** | 2 | Snakemake, Nextflow | Scalable pipeline frameworks with containers |
+| **workflow-management** | 4 | Snakemake, Nextflow, CWL, WDL | Scalable pipeline frameworks with containers |
 | **data-visualization** | 8 | ggplot2, ComplexHeatmap, plotly, pyGenomeTracks, Circos | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
 
-**Total: 267 skills across 40 categories**
+**Total: 269 skills across 40 categories**
 
 ## Usage
 
