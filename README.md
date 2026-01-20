@@ -77,17 +77,17 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **sequence-manipulation** | 7 | Bio.Seq | Transcription, translation, motif search, sequence properties |
 | **database-access** | 10 | Bio.Entrez, BLAST+, HMMER, SRA toolkit | NCBI/UniProt queries, SRA downloads, BLAST, homology searches |
 | **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, validation |
-| **variant-calling** | 10 | bcftools, GATK, Manta, Delly, VEP | VCF/BCF calling, SVs, filtering, annotation, best practices |
+| **variant-calling** | 13 | bcftools, GATK, DeepVariant, Manta, Delly, VEP | VCF/BCF calling, SVs, filtering, annotation, clinical interpretation, joint calling |
 | **alignment** | 4 | Bio.Align | Pairwise and multiple sequence alignment |
 | **phylogenetics** | 4 | Bio.Phylo | Tree I/O, visualization, manipulation, distance matrices |
-| **differential-expression** | 5 | DESeq2, edgeR, sva | RNA-seq differential expression, batch correction |
+| **differential-expression** | 6 | DESeq2, edgeR, sva, limma | RNA-seq differential expression, batch correction, time-series |
 | **structural-biology** | 5 | Bio.PDB | PDB/mmCIF parsing, geometric analysis, AlphaFold |
-| **single-cell** | 10 | Seurat, Scanpy, Signac, CellChat | scRNA-seq QC, clustering, trajectory, communication, annotation |
+| **single-cell** | 11 | Seurat, Scanpy, Signac, CellChat, Harmony | scRNA-seq QC, clustering, trajectory, communication, annotation, integration |
 | **pathway-analysis** | 6 | clusterProfiler | GO, KEGG, Reactome, WikiPathways enrichment |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 4 | Bismark, methylKit | Bisulfite alignment, methylation calling, DMRs |
-| **chip-seq** | 6 | MACS3, ChIPseeker, HOMER, IDR | Peak calling, annotation, differential binding, motifs, QC |
-| **metagenomics** | 5 | Kraken2, MetaPhlAn | Taxonomic classification, abundance estimation |
+| **chip-seq** | 7 | MACS3, ChIPseeker, HOMER, IDR, ROSE | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
+| **metagenomics** | 7 | Kraken2, MetaPhlAn, AMRFinderPlus, MASH | Taxonomic classification, abundance estimation, AMR detection, strain tracking |
 | **long-read-sequencing** | 6 | Dorado, minimap2, medaka, Clair3 | Basecalling, alignment, polishing, variant calling, SV calling |
 | **read-qc** | 7 | FastQC, fastp, umi_tools, RSeQC | Quality reports, adapter trimming, filtering, UMIs, RNA-seq QC |
 | **genome-intervals** | 7 | BEDTools, pybedtools, pyBigWig | BED/GTF operations, interval arithmetic, bedGraph, bigWig |
@@ -97,17 +97,24 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **expression-matrix** | 4 | pandas, anndata | Count matrix handling, gene ID mapping |
 | **copy-number** | 4 | CNVkit, GATK | CNV detection, visualization, annotation |
 | **phasing-imputation** | 4 | Beagle, SHAPEIT5 | Haplotype phasing, genotype imputation |
-| **atac-seq** | 4 | MACS3, TOBIAS | ATAC-seq peaks, QC, footprinting |
+| **atac-seq** | 5 | MACS3, TOBIAS, ATACseqQC | ATAC-seq peaks, QC, footprinting, nucleosome positioning |
 | **genome-assembly** | 8 | SPAdes, Flye, hifiasm, YaHS, CheckM2 | Assembly, polishing, scaffolding, contamination detection |
 | **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
 | **spatial-transcriptomics** | 9 | Squidpy, SpatialData | Visium, Xenium, spatial stats, domain detection, deconvolution |
 | **hi-c-analysis** | 8 | cooler, cooltools, pairtools | Contact matrices, compartments, TADs, loops, differential |
-| **workflows** | 15 | mixed | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C |
+| **workflows** | 23 | mixed | End-to-end pipelines: RNA-seq, variants, somatic, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, IMC, cytometry, multi-omics |
+| **proteomics** | 9 | pyOpenMS, MSstats, DIA-NN, limma | Mass spec data import, QC, quantification, differential abundance, PTM, DIA, spectral libraries |
+| **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
+| **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
+| **crispr-screens** | 4 | MAGeCK, CRISPResso2, BAGEL2 | Pooled screen analysis, guide counting, hit calling |
+| **metabolomics** | 5 | XCMS, MetaboAnalystR | Peak detection, annotation, normalization, pathway mapping |
+| **imaging-mass-cytometry** | 4 | steinbock, Cellpose, squidpy | IMC preprocessing, segmentation, spatial analysis |
+| **flow-cytometry** | 5 | flowCore, CATALYST, diffcyt | FCS handling, compensation, clustering, differential analysis |
 | **reporting** | 2 | RMarkdown, Quarto | Reproducible analysis reports in HTML, PDF, Word |
 | **workflow-management** | 2 | Snakemake, Nextflow | Scalable pipeline frameworks with containers |
-| **data-visualization** | 7 | ggplot2, ComplexHeatmap, plotly, pyGenomeTracks | Publication-quality figures, heatmaps, interactive plots, genome tracks |
+| **data-visualization** | 8 | ggplot2, ComplexHeatmap, plotly, pyGenomeTracks, Circos | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
 
-**Total: 202 skills across 33 categories**
+**Total: 268 skills across 40 categories**
 
 ## Usage
 
@@ -209,6 +216,27 @@ Once skills are deployed, ask your agent naturally:
 "Run ligand-receptor analysis on my spatial data"
 "Deconvolve my Visium data with cell2location"
 "Find differential contacts between conditions"
+"Load my MaxQuant proteinGroups.txt and filter contaminants"
+"Find differentially abundant proteins with limma"
+"Analyze phosphorylation sites from my phospho-enriched samples"
+"Process my 16S amplicon data with DADA2"
+"Assign taxonomy to my ASVs using SILVA"
+"Find differentially abundant taxa with ALDEx2"
+"Calculate alpha and beta diversity for my microbiome samples"
+"Run my amplicon analysis with QIIME2"
+"Analyze my DIA proteomics data with DIA-NN"
+"Build a spectral library from my DDA runs"
+"Integrate my RNA-seq and proteomics data with MOFA2"
+"Find shared factors across my multi-omics data"
+"Analyze my CRISPR screen with MAGeCK"
+"Find hit genes from my pooled screen"
+"Process my metabolomics data with XCMS"
+"Annotate my metabolite features with KEGG"
+"Segment cells in my imaging mass cytometry data"
+"Run spatial analysis on my IMC data with squidpy"
+"Load my FCS files and apply compensation"
+"Cluster my flow cytometry data with FlowSOM"
+"Find differentially abundant cell populations between conditions"
 ```
 
 The agent will use the skill patterns to generate correct code.

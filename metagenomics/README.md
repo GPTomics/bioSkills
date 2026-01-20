@@ -15,6 +15,8 @@ Taxonomic profiling of metagenomic data using Kraken2 for k-mer based classifica
 | abundance-estimation | Species abundance with Bracken |
 | metagenome-visualization | Visualize taxonomic profiles |
 | functional-profiling | Pathway and gene family abundance with HUMAnN |
+| amr-detection | Antimicrobial resistance with AMRFinderPlus, ResFinder |
+| strain-tracking | Strain-level analysis with MASH, sourmash, inStrain |
 
 ## Example Prompts
 

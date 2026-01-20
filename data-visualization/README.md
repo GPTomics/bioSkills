@@ -11,12 +11,13 @@ Publication-quality data visualization for bioinformatics using ggplot2 and matp
 | Skill | Description |
 |-------|-------------|
 | ggplot2-fundamentals | Create publication-ready figures with ggplot2 |
-| bindplots-customization | Combine and customize multi-panel figures |
+| multipanel-figures | Combine and customize multi-panel figures |
 | heatmaps-clustering | Expression heatmaps with ComplexHeatmap and pheatmap |
 | interactive-visualization | Interactive plots with plotly and bokeh |
 | genome-tracks | Genome browser tracks with pyGenomeTracks and Gviz |
 | specialized-omics-plots | Volcano, MA, PCA, and enrichment dotplots |
 | color-palettes | Colorblind-friendly palettes and journal color schemes |
+| circos-plots | Circular genome visualizations with Circos, pyCircos, circlize |
 
 ## Example Prompts
 

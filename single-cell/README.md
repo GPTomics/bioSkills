@@ -13,8 +13,12 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 | data-io | Load 10X data, create Seurat/AnnData objects, read/write h5ad/RDS |
 | preprocessing | QC metrics, filtering, normalization, HVGs, scaling |
 | doublet-detection | Detect and remove doublets with Scrublet, DoubletFinder, scDblFinder |
+| batch-integration | Multi-sample integration with Harmony, scVI, Seurat CCA/RPCA |
 | clustering | PCA, neighbors, Leiden/Louvain clustering, UMAP/tSNE |
 | markers-annotation | Differential expression, marker genes, cell type annotation |
+| cell-annotation | Automated cell type annotation with CellTypist, SingleR, Azimuth |
+| trajectory-inference | Developmental trajectories with Monocle3, Slingshot, scVelo |
+| cell-communication | Cell-cell communication with CellChat, NicheNet, LIANA |
 | multimodal-integration | CITE-seq, Multiome, WNN clustering for multi-modal data |
 | scatac-analysis | Single-cell ATAC-seq with Signac and ArchR |
 

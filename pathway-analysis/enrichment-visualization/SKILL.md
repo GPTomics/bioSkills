@@ -1,11 +1,21 @@
 ---
 name: bio-pathway-enrichment-visualization
-description: Visualize enrichment results using enrichplot. Create dot plots, bar plots, gene-concept networks, enrichment maps, GSEA plots, ridge plots, and heatmaps for GO, KEGG, and GSEA results.
+description: Visualize enrichment results using enrichplot package functions. Covers dotplot, barplot, cnetplot, emapplot, gseaplot2, ridgeplot, and treeplot for clusterProfiler results.
 tool_type: r
 primary_tool: enrichplot
 ---
 
 # Enrichment Visualization
+
+## Scope
+
+This skill covers **enrichplot package functions** designed for clusterProfiler results:
+- `dotplot()`, `barplot()` - Summary views
+- `cnetplot()`, `emapplot()`, `treeplot()` - Network/hierarchical views
+- `gseaplot2()`, `ridgeplot()` - GSEA-specific
+- `goplot()`, `heatplot()`, `upsetplot()` - Specialized views
+
+**For custom ggplot2 enrichment dotplots** (manual implementation), see `data-visualization/specialized-omics-plots`.
 
 ## Setup
 

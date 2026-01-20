@@ -1,5 +1,5 @@
 ---
-name: bio-data-visualization-bindplots-customization
+name: bio-data-visualization-multipanel-figures
 description: Combine multiple plots into publication-ready multi-panel figures using patchwork, cowplot, and gridExtra with shared legends and annotations.
 tool_type: r
 primary_tool: patchwork, cowplot

@@ -1,11 +1,24 @@
 ---
 name: bio-data-visualization-specialized-omics-plots
-description: Create standard omics visualizations including volcano plots, MA plots, PCA plots, and dotplots using ggplot2 and matplotlib.
+description: Reusable plotting functions for common omics visualizations. Custom ggplot2/matplotlib implementations of volcano, MA, PCA, enrichment dotplots, boxplots, and survival curves.
 tool_type: mixed
 primary_tool: ggplot2, matplotlib
 ---
 
 # Specialized Omics Plots
+
+## Scope
+
+This skill provides **reusable plotting functions** for common omics visualizations that can be applied across different analysis types:
+- Volcano plots (any DE result)
+- MA plots (any log-fold-change data)
+- PCA plots (any high-dimensional data)
+- Enrichment dotplots (manual, not enrichplot)
+- Expression boxplots with statistics
+- Survival curves
+
+**For DESeq2/edgeR built-in functions** (plotMA, plotPCA, plotDispEsts), see `differential-expression/de-visualization`.
+**For enrichplot-specific functions** (dotplot, cnetplot, emapplot, gseaplot2), see `pathway-analysis/enrichment-visualization`.
 
 ## Volcano Plot (R)
 

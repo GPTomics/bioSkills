@@ -13,11 +13,14 @@ Variant calling and VCF/BCF file manipulation using bcftools and cyvcf2. Covers 
 | vcf-basics | View, query, understand VCF/BCF format structure |
 | variant-calling | Call SNPs/indels from BAM files using mpileup/call |
 | gatk-variant-calling | GATK HaplotypeCaller, GVCF workflow, VQSR filtering |
+| deepvariant | Deep learning variant calling with Google DeepVariant |
+| joint-calling | Multi-sample joint calling with GATK CombineGVCFs |
 | structural-variant-calling | Call SVs (DEL, DUP, INV, INS, BND) with Manta/Delly |
 | filtering-best-practices | Comprehensive filtering with GATK hard filters and bcftools |
 | vcf-manipulation | Merge, concat, sort, intersect VCF files |
 | variant-normalization | Left-align indels, split multiallelic sites |
 | variant-annotation | Annotation with bcftools, VEP, SnpEff, ANNOVAR |
+| clinical-interpretation | ClinVar lookup, ACMG classification, pathogenicity |
 | vcf-statistics | Generate quality metrics, Ti/Tv ratio, concordance |
 | consensus-sequences | Apply variants to reference FASTA |
 

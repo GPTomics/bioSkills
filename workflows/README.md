@@ -25,6 +25,14 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | spatial-pipeline | Spatial transcriptomics end-to-end |
 | hic-pipeline | Hi-C data to compartments, TADs, and loops |
 | multiome-pipeline | Joint scRNA + scATAC analysis |
+| somatic-variant-pipeline | Tumor-normal somatic calling with Mutect2/Strelka2 |
+| proteomics-pipeline | MaxQuant to differential protein abundance with MSstats/limma |
+| microbiome-pipeline | 16S amplicon to differential taxa with DADA2 and ALDEx2 |
+| crispr-screen-pipeline | FASTQ to hit genes via MAGeCK counting and analysis |
+| metabolomics-pipeline | Raw MS to differential metabolites via XCMS and pathway mapping |
+| imc-pipeline | Imaging mass cytometry to spatial cell analysis |
+| cytometry-pipeline | FCS files to differential populations via CATALYST/diffcyt |
+| multi-omics-pipeline | Multi-omics integration via MOFA2/mixOmics |
 
 ## Example Prompts
 
@@ -38,6 +46,11 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 - "Detect CNVs from my exome sequencing"
 - "Analyze my Visium spatial transcriptomics data"
 - "Process my Hi-C data to find TADs and loops"
+- "Analyze my CRISPR screen from FASTQ to hit genes"
+- "Run metabolomics analysis from raw MS data to pathways"
+- "Process my imaging mass cytometry data with spatial analysis"
+- "Analyze my flow cytometry data end to end"
+- "Integrate my RNA-seq, proteomics, and metabolomics data"
 
 ## Requirements
 
