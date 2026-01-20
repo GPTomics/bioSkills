@@ -1,6 +1,6 @@
 ---
 name: bio-microbiome-diversity-analysis
-description: Alpha and beta diversity analysis for microbiome data. Calculate within-sample richness, evenness, and between-sample dissimilarity with phyloseq and vegan.
+description: Alpha and beta diversity analysis for microbiome data. Calculate within-sample richness, evenness, and between-sample dissimilarity with phyloseq and vegan. Use when comparing community composition across samples or testing for group differences in microbiome structure.
 tool_type: r
 primary_tool: phyloseq
 ---

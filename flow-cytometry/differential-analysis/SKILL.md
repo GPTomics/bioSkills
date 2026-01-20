@@ -1,6 +1,6 @@
 ---
 name: bio-flow-cytometry-differential-analysis
-description: Differential abundance and state analysis for cytometry data. Compare cell populations between conditions using statistical methods.
+description: Differential abundance and state analysis for cytometry data. Compare cell populations between conditions using statistical methods. Use when testing for significant changes in cell frequencies or marker expression between groups.
 tool_type: r
 primary_tool: CATALYST
 ---

@@ -1,6 +1,6 @@
 ---
 name: bio-proteomics-differential-abundance
-description: Statistical testing for differentially abundant proteins between conditions. Covers limma and MSstats workflows with multiple testing correction.
+description: Statistical testing for differentially abundant proteins between conditions. Covers limma and MSstats workflows with multiple testing correction. Use when identifying proteins with significant abundance changes between experimental groups.
 tool_type: mixed
 primary_tool: MSstats
 ---

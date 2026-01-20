@@ -1,6 +1,6 @@
 ---
 name: bio-data-visualization-genome-tracks
-description: Create genome browser-style visualizations showing multiple data tracks (coverage, peaks, genes) using pyGenomeTracks, Gviz, and IGV.
+description: Create genome browser-style visualizations showing multiple data tracks (coverage, peaks, genes) using pyGenomeTracks, Gviz, and IGV. Use when visualizing genomic data at specific loci with multiple aligned tracks.
 tool_type: mixed
 primary_tool: pyGenomeTracks, Gviz
 ---

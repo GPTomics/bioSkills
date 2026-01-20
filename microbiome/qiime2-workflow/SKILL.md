@@ -1,6 +1,6 @@
 ---
 name: bio-microbiome-qiime2-workflow
-description: QIIME2 command-line workflow for 16S/ITS amplicon analysis. Alternative to DADA2/phyloseq R workflow with built-in provenance tracking and plugin ecosystem.
+description: QIIME2 command-line workflow for 16S/ITS amplicon analysis. Alternative to DADA2/phyloseq R workflow with built-in provenance tracking. Use when preferring CLI over R, needing reproducible provenance, or working within QIIME2 ecosystem.
 tool_type: cli
 primary_tool: qiime2
 ---

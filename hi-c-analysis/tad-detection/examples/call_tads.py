@@ -39,3 +39,7 @@ print(f'  Median size: {tads_df["size"].median()/1000:.0f} kb')
 
 tads_df[['chrom', 'start', 'end']].to_csv('tads.bed', sep='\t', index=False, header=False)
 print('\nSaved to tads.bed and boundaries.bed')
+
+# Expected output: ~2000-4000 TADs genome-wide for human at 10kb resolution
+# Typical TAD sizes: 200kb-2Mb (median ~800kb), with most between 400kb-1.5Mb
+# Boundary strength: strong boundaries have values < -0.5 (more negative = stronger)

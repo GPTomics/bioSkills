@@ -1,6 +1,6 @@
 ---
 name: bio-genome-intervals-proximity-operations
-description: Find nearest features, search within windows, and extend intervals using closest, window, flank, and slop operations. Essential for TSS proximity analysis, enhancer-gene assignment, and regulatory region definition.
+description: Find nearest features, search within windows, and extend intervals using closest, window, flank, and slop operations. Use when performing TSS proximity analysis, assigning enhancers to genes, defining promoter regions, or finding nearby genomic features.
 tool_type: mixed
 primary_tool: bedtools
 ---

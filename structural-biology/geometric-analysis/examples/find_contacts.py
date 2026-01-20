@@ -13,6 +13,8 @@ contacts = ns.search_all(contact_distance, level='R')
 
 print(f'Residue contacts within {contact_distance} A:')
 print(f'Total contacts: {len(contacts)}')
+# Expected output: ~500-2000 contacts for typical small protein (100-300 residues)
+# Rule of thumb: ~3-5 contacts per residue at 4A cutoff, fewer at stricter thresholds
 
 print('\nFirst 10 contacts:')
 for res1, res2 in contacts[:10]:

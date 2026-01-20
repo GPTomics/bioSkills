@@ -1,6 +1,6 @@
 ---
 name: bio-read-qc-adapter-trimming
-description: Remove sequencing adapters from FASTQ files using Cutadapt and Trimmomatic. Supports single-end and paired-end reads, Illumina TruSeq, Nextera, and custom adapter sequences with error-tolerant matching.
+description: Remove sequencing adapters from FASTQ files using Cutadapt and Trimmomatic. Supports single-end and paired-end reads, Illumina TruSeq, Nextera, and custom adapter sequences. Use when FastQC shows adapter contamination or before alignment of short reads.
 tool_type: cli
 primary_tool: cutadapt
 ---

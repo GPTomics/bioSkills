@@ -1,6 +1,6 @@
 ---
 name: bio-atac-seq-atac-qc
-description: Quality control metrics for ATAC-seq data including fragment size distribution, TSS enrichment, FRiP, and library complexity. Essential for assessing data quality.
+description: Quality control metrics for ATAC-seq data including fragment size distribution, TSS enrichment, FRiP, and library complexity. Use when assessing ATAC-seq library quality before or after peak calling to identify problematic samples.
 tool_type: mixed
 primary_tool: deeptools
 ---

@@ -1,6 +1,6 @@
 ---
 name: bio-proteomics-ptm-analysis
-description: Post-translational modification analysis including phosphorylation, acetylation, and ubiquitination. Covers site localization, motif analysis, and quantitative PTM analysis.
+description: Post-translational modification analysis including phosphorylation, acetylation, and ubiquitination. Covers site localization, motif analysis, and quantitative PTM analysis. Use when analyzing phosphoproteomic data or other modification-enriched samples.
 tool_type: mixed
 primary_tool: pyOpenMS
 ---

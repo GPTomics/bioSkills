@@ -1,6 +1,6 @@
 ---
 name: bio-metabolomics-normalization-qc
-description: Quality control and normalization for metabolomics data. Covers QC-based correction, batch effect removal, and data transformation methods.
+description: Quality control and normalization for metabolomics data. Covers QC-based correction, batch effect removal, and data transformation methods. Use when correcting technical variation in metabolomics data before statistical analysis.
 tool_type: r
 primary_tool: MetaboAnalystR
 ---

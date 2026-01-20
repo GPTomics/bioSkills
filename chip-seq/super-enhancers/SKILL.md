@@ -1,6 +1,6 @@
 ---
 name: bio-chip-seq-super-enhancers
-description: Identify super-enhancers from H3K27ac ChIP-seq data using ROSE and related tools. Distinguish regulatory elements controlling cell identity.
+description: Identifies super-enhancers from H3K27ac ChIP-seq data using ROSE and related tools. Use when studying cell identity genes, cancer-associated regulatory elements, or master transcription factor binding regions that cluster into large enhancer domains.
 tool_type: cli
 primary_tool: ROSE
 ---

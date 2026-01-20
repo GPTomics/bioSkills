@@ -15,6 +15,9 @@ pData(raw_data)$sample_group <- ifelse(grepl('ctrl', basename(raw_files)), 'Cont
 cat('Loaded', length(raw_files), 'files\n')
 
 # Peak detection (CentWave)
+# peakwidth: Expected chromatographic peak width in seconds; typical 5-30 for LC-MS
+# ppm: Mass accuracy; use 5-15 for Orbitrap, 20-30 for TOF
+# snthresh: Signal-to-noise; 10 is standard, lower for weak signals
 cwp <- CentWaveParam(peakwidth = c(5, 30), ppm = 15, snthresh = 10, prefilter = c(3, 1000))
 xdata <- findChromPeaks(raw_data, param = cwp)
 cat('Peaks detected:', nrow(chromPeaks(xdata)), '\n')

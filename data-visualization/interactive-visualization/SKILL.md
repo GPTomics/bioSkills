@@ -1,6 +1,6 @@
 ---
 name: bio-data-visualization-interactive-visualization
-description: Create interactive HTML plots with plotly and bokeh for exploratory data analysis and web-based sharing of omics visualizations.
+description: Create interactive HTML plots with plotly and bokeh for exploratory data analysis and web-based sharing of omics visualizations. Use when building zoomable, hoverable plots for data exploration or web dashboards.
 tool_type: mixed
 primary_tool: plotly, bokeh
 ---

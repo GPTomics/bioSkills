@@ -10,12 +10,12 @@ print(f'Template: {record.id}, {len(sequence)}bp')
 result = primer3.design_primers(
     seq_args={'SEQUENCE_TEMPLATE': sequence, 'SEQUENCE_ID': record.id},
     global_args={
-        'PRIMER_PRODUCT_SIZE_RANGE': [[150, 300]],
+        'PRIMER_PRODUCT_SIZE_RANGE': [[150, 300]],  # Standard PCR range; adjust for qPCR (70-150) or cloning (500+).
         'PRIMER_NUM_RETURN': 5,
-        'PRIMER_OPT_TM': 60.0,
-        'PRIMER_MIN_TM': 57.0,
+        'PRIMER_OPT_TM': 60.0,  # Industry standard optimal Tm per primer3/IDT recommendations.
+        'PRIMER_MIN_TM': 57.0,  # Allows +/-3C from optimal; tighter range improves specificity.
         'PRIMER_MAX_TM': 63.0,
-        'PRIMER_MIN_GC': 40.0,
+        'PRIMER_MIN_GC': 40.0,  # 40-60% GC ensures balanced primer stability and specificity.
         'PRIMER_MAX_GC': 60.0,
     }
 )

@@ -1,6 +1,6 @@
 ---
 name: bio-atac-seq-atac-peak-calling
-description: Call accessible chromatin regions from ATAC-seq data using MACS3. ATAC-seq requires specific parameters different from ChIP-seq peak calling.
+description: Call accessible chromatin regions from ATAC-seq data using MACS3 with ATAC-specific parameters. Use when identifying open chromatin regions from aligned ATAC-seq BAM files, different from ChIP-seq peak calling.
 tool_type: cli
 primary_tool: macs3
 ---

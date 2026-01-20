@@ -1,6 +1,6 @@
 ---
 name: bio-crispr-screens-screen-qc
-description: Quality control for pooled CRISPR screens. Covers library representation, read distribution, replicate correlation, and essential gene recovery.
+description: Quality control for pooled CRISPR screens. Covers library representation, read distribution, replicate correlation, and essential gene recovery. Use when assessing screen quality before hit calling or diagnosing poor screen performance.
 tool_type: python
 primary_tool: pandas
 ---

@@ -22,6 +22,8 @@ names(filtFs) <- sample_names
 names(filtRs) <- sample_names
 
 # Filter and trim (adjust truncLen based on quality profiles)
+# truncLen: Set where Q-score drops below ~25-30; forward usually longer than reverse
+# maxEE: Max expected errors; 2 is DADA2 default, use 1 for stricter filtering
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
                      truncLen = c(240, 160), maxN = 0, maxEE = c(2, 2),
                      truncQ = 2, rm.phix = TRUE, compress = TRUE, multithread = TRUE)
