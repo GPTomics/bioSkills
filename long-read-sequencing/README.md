@@ -2,9 +2,9 @@
 
 ## Overview
 
-Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers alignment with minimap2, polishing and variant calling with medaka, and structural variant detection with Sniffles.
+Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers alignment with minimap2, polishing, variant calling with medaka and Clair3, and structural variant detection with Sniffles.
 
-**Tool type:** cli | **Primary tools:** minimap2, medaka, Sniffles, NanoPlot
+**Tool type:** cli | **Primary tools:** minimap2, medaka, Clair3, Sniffles, NanoPlot
 
 ## Skills
 
@@ -13,6 +13,7 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 | basecalling | Convert raw signal to sequences with Dorado/Guppy |
 | long-read-alignment | Align long reads with minimap2 |
 | medaka-polishing | Polish assemblies and call variants with medaka |
+| clair3-variants | Deep learning variant calling with Clair3 |
 | structural-variants | Detect SVs from long reads |
 | long-read-qc | Quality control for long reads |
 
@@ -23,16 +24,12 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 - "Run super-accuracy basecalling"
 - "Align my Nanopore reads with minimap2"
 - "Map PacBio HiFi reads to the reference genome"
-- "Create a sorted BAM from long-read alignment"
+- "Call variants with Clair3"
 - "Polish my assembly with medaka"
 - "Call variants from Nanopore reads with medaka"
-- "Generate consensus sequence for my region"
 - "Find structural variants from my long reads"
 - "Detect deletions and insertions with Sniffles"
-- "Call SVs from PacBio alignments"
 - "Check the quality of my Nanopore reads"
-- "Generate read length distribution"
-- "Filter reads by quality score"
 
 ## Requirements
 
@@ -43,11 +40,8 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 # POD5 tools
 pip install pod5
 
-# minimap2
-conda install -c bioconda minimap2
-
-# medaka
-conda install -c bioconda medaka
+# Alignment and variant calling
+conda install -c bioconda minimap2 medaka clair3
 
 # SV callers
 conda install -c bioconda sniffles cutesv
@@ -60,4 +54,4 @@ conda install -c bioconda nanoplot chopper
 
 - **alignment-files** - BAM manipulation
 - **variant-calling** - Short-read variant calling
-- **sequence-io** - FASTQ handling
+- **genome-assembly** - Long-read assembly

@@ -1,20 +1,20 @@
 ---
 name: bio-variant-annotation
-description: Add annotations to VCF files and predict variant consequences using bcftools annotate and csq. Use when adding database information, custom annotations, or determining functional impact.
-tool_type: cli
-primary_tool: bcftools
+description: Comprehensive variant annotation using bcftools annotate/csq, VEP, SnpEff, and ANNOVAR. Add database annotations, predict functional consequences, and assess clinical significance.
+tool_type: mixed
+primary_tool: bcftools, VEP, SnpEff
 ---
 
 # Variant Annotation
 
-Add annotations and predict consequences using bcftools.
+## Tool Comparison
 
-## Annotation Types
-
-| Tool | Purpose |
-|------|---------|
-| `bcftools annotate` | Add/remove INFO and FORMAT fields |
-| `bcftools csq` | Predict functional consequences |
+| Tool | Best For | Speed | Output |
+|------|----------|-------|--------|
+| bcftools csq | Simple consequence prediction | Fast | VCF |
+| VEP | Comprehensive with plugins | Moderate | VCF/TXT |
+| SnpEff | Fast batch annotation | Fast | VCF |
+| ANNOVAR | Flexible databases | Moderate | TXT |
 
 ## bcftools annotate
 
@@ -29,8 +29,6 @@ bcftools annotate -a dbsnp.vcf.gz -c ID input.vcf.gz -Oz -o annotated.vcf.gz
 | Option | Description |
 |--------|-------------|
 | `ID` | Copy ID column |
-| `QUAL` | Copy QUAL column |
-| `FILTER` | Copy FILTER column |
 | `INFO` | Copy all INFO fields |
 | `INFO/TAG` | Copy specific INFO field |
 | `+INFO/TAG` | Add to existing values |
@@ -47,58 +45,26 @@ bcftools annotate -a dbsnp.vcf.gz -c ID input.vcf.gz -Oz -o with_rsids.vcf.gz
 bcftools annotate -a database.vcf.gz -c ID,INFO/AF,INFO/CAF input.vcf.gz -Oz -o annotated.vcf.gz
 ```
 
-### Add INFO Field from BED
+### Add from BED/TAB Files
 
 ```bash
 # BED with 4th column as annotation
 bcftools annotate -a regions.bed.gz -c CHROM,FROM,TO,INFO/REGION \
     -h <(echo '##INFO=<ID=REGION,Number=1,Type=String,Description="Region name">') \
     input.vcf.gz -Oz -o annotated.vcf.gz
-```
 
-### Add INFO Field from TAB File
-
-```bash
 # Tab file: CHROM POS VALUE
 bcftools annotate -a annotations.tab.gz -c CHROM,POS,INFO/SCORE \
     -h <(echo '##INFO=<ID=SCORE,Number=1,Type=Float,Description="Custom score">') \
     input.vcf.gz -Oz -o annotated.vcf.gz
 ```
 
-## Removing Annotations
-
-### Remove INFO Fields
+### Remove Annotations
 
 ```bash
 bcftools annotate -x INFO/DP,INFO/MQ input.vcf.gz -Oz -o clean.vcf.gz
+bcftools annotate -x INFO input.vcf.gz -Oz -o minimal.vcf.gz  # Remove all INFO
 ```
-
-### Remove All INFO Fields
-
-```bash
-bcftools annotate -x INFO input.vcf.gz -Oz -o minimal.vcf.gz
-```
-
-### Remove FORMAT Fields
-
-```bash
-bcftools annotate -x FORMAT/AD,FORMAT/DP input.vcf.gz -Oz -o clean.vcf.gz
-```
-
-### Remove ID Column
-
-```bash
-bcftools annotate -x ID input.vcf.gz -Oz -o no_ids.vcf.gz
-```
-
-### Keep Only Specific Fields
-
-```bash
-# Remove all INFO except DP
-bcftools annotate -x ^INFO/DP input.vcf.gz -Oz -o minimal.vcf.gz
-```
-
-## Setting Annotations
 
 ### Set ID from Fields
 
@@ -106,56 +72,12 @@ bcftools annotate -x ^INFO/DP input.vcf.gz -Oz -o minimal.vcf.gz
 bcftools annotate --set-id '%CHROM\_%POS\_%REF\_%ALT' input.vcf.gz -Oz -o with_ids.vcf.gz
 ```
 
-### Set ID with rsID Fallback
-
-```bash
-bcftools annotate --set-id +'%CHROM\_%POS\_%REF\_%ALT' input.vcf.gz -Oz -o with_ids.vcf.gz
-# '+' means only set if ID is missing
-```
-
-## Header Modifications
-
-### Add Header Line
-
-```bash
-bcftools annotate -h new_headers.txt input.vcf.gz -Oz -o annotated.vcf.gz
-```
-
-Header file format:
-```
-##INFO=<ID=CUSTOM,Number=1,Type=Integer,Description="Custom field">
-##FILTER=<ID=MyFilter,Description="Custom filter">
-```
-
-### Rename Chromosomes
-
-```bash
-# rename.txt: old_name new_name
-bcftools annotate --rename-chrs rename.txt input.vcf.gz -Oz -o renamed.vcf.gz
-```
-
-Example rename.txt:
-```
-1	chr1
-2	chr2
-X	chrX
-```
-
 ## bcftools csq
 
-Predict functional consequences using GFF annotation.
-
-### Basic Consequence Prediction
+Simple consequence prediction using GFF annotation.
 
 ```bash
 bcftools csq -f reference.fa -g genes.gff3.gz input.vcf.gz -Oz -o consequences.vcf.gz
-```
-
-### Output Format
-
-Adds `BCSQ` INFO field with format:
-```
-consequence|gene|transcript|biotype|strand|amino_acid_change|dna_change
 ```
 
 ### Consequence Types
@@ -165,178 +87,281 @@ consequence|gene|transcript|biotype|strand|amino_acid_change|dna_change
 | `synonymous` | No amino acid change |
 | `missense` | Amino acid change |
 | `stop_gained` | Introduces stop codon |
-| `stop_lost` | Removes stop codon |
 | `frameshift` | Changes reading frame |
-| `splice_donor` | Affects splice donor |
-| `splice_acceptor` | Affects splice acceptor |
-| `intron` | Intronic variant |
-| `intergenic` | Between genes |
-| `5_prime_utr` | 5' UTR variant |
-| `3_prime_utr` | 3' UTR variant |
+| `splice_donor/acceptor` | Affects splicing |
 
-### Phase-Aware Predictions
+## Ensembl VEP
+
+### Installation
 
 ```bash
-bcftools csq -f reference.fa -g genes.gff3.gz -p s input.vcf.gz -Oz -o phased.vcf.gz
+conda install -c bioconda ensembl-vep
+vep_install -a cf -s homo_sapiens -y GRCh38 --CONVERT
 ```
 
-Phase options (`-p`):
-- `a` - Take first allele, ignore phase
-- `m` - Merge haplotypes
-- `r` - Require all sites phased
-- `R` - Require at least one site phased
-- `s` - Skip unphased sites
-
-### Local Phasing Window
+### Basic Annotation
 
 ```bash
-bcftools csq -f reference.fa -g genes.gff3.gz -l input.vcf.gz -Oz -o local_phased.vcf.gz
+vep -i input.vcf -o output.vcf --vcf --cache --offline
 ```
 
-## Extracting Consequences
-
-### Query BCSQ Field
+### Comprehensive Annotation
 
 ```bash
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%INFO/BCSQ\n' consequences.vcf.gz
+vep -i input.vcf -o output.vcf \
+    --vcf \
+    --cache --offline \
+    --species homo_sapiens \
+    --assembly GRCh38 \
+    --everything \
+    --fork 4
 ```
 
-### Filter by Consequence
+### --everything Enables
+
+- `--sift b` - SIFT predictions
+- `--polyphen b` - PolyPhen predictions
+- `--hgvs` - HGVS nomenclature
+- `--symbol` - Gene symbols
+- `--canonical` - Canonical transcript
+- `--af` - 1000 Genomes frequencies
+- `--af_gnomade/g` - gnomAD frequencies
+- `--pubmed` - PubMed IDs
+
+### Filter by Impact
 
 ```bash
-# Keep only missense variants
-bcftools view -i 'INFO/BCSQ~"missense"' consequences.vcf.gz -Oz -o missense.vcf.gz
+vep -i input.vcf -o output.vcf --vcf \
+    --cache --offline \
+    --pick \
+    --filter "IMPACT in HIGH,MODERATE"
 ```
 
-### Split BCSQ for Analysis
+### Plugins
 
 ```bash
-bcftools query -f '%CHROM\t%POS\t%INFO/BCSQ\n' consequences.vcf.gz | \
-    awk -F'|' '{print $1"\t"$2"\t"$3}'
+# CADD scores
+vep -i input.vcf -o output.vcf --vcf \
+    --cache --offline \
+    --plugin CADD,whole_genome_SNVs.tsv.gz
+
+# dbNSFP (multiple predictors)
+vep -i input.vcf -o output.vcf --vcf \
+    --cache --offline \
+    --plugin dbNSFP,dbNSFP4.3a.gz,ALL
+
+# Multiple plugins
+vep -i input.vcf -o output.vcf --vcf \
+    --cache --offline \
+    --plugin CADD,cadd.tsv.gz \
+    --plugin dbNSFP,dbnsfp.gz,SIFT_score,Polyphen2_HDIV_score \
+    --plugin SpliceAI,spliceai.vcf.gz
 ```
 
-## Annotation Databases
+### VEP Output Fields
 
-### Common Databases
+| Field | Description |
+|-------|-------------|
+| Consequence | SO term (e.g., missense_variant) |
+| IMPACT | HIGH, MODERATE, LOW, MODIFIER |
+| SYMBOL | Gene symbol |
+| HGVSc/HGVSp | HGVS coding/protein change |
+| SIFT/PolyPhen | Pathogenicity predictions |
 
-| Database | Content | Format |
-|----------|---------|--------|
-| dbSNP | rsIDs, frequencies | VCF |
-| gnomAD | Population frequencies | VCF |
-| ClinVar | Clinical significance | VCF |
-| COSMIC | Cancer mutations | VCF |
+## SnpEff
 
-### Download and Prepare
+### Installation
 
 ```bash
-# dbSNP (example)
-wget ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/common_all.vcf.gz
-tabix -p vcf common_all.vcf.gz
+conda install -c bioconda snpeff
+snpEff download GRCh38.105
 ```
 
-### Annotate with gnomAD
+### Basic Annotation
 
 ```bash
-bcftools annotate -a gnomad.vcf.gz \
-    -c INFO/AF,INFO/AF_popmax \
-    input.vcf.gz -Oz -o annotated.vcf.gz
+snpEff ann GRCh38.105 input.vcf > output.vcf
 ```
 
-### Annotate with ClinVar
+### With Statistics
 
 ```bash
-bcftools annotate -a clinvar.vcf.gz \
-    -c INFO/CLNSIG,INFO/CLNDN \
-    input.vcf.gz -Oz -o annotated.vcf.gz
+snpEff ann -v -stats stats.html -csvStats stats.csv GRCh38.105 input.vcf > output.vcf
 ```
 
-## Common Workflows
-
-### Add rsIDs and Filter
+### Filter by Impact
 
 ```bash
-bcftools annotate -a dbsnp.vcf.gz -c ID input.vcf.gz | \
-    bcftools view -i 'ID!="."' -Oz -o known_variants.vcf.gz
+snpEff ann GRCh38.105 input.vcf | \
+    SnpSift filter "(ANN[*].IMPACT = 'HIGH')" > high_impact.vcf
 ```
 
-### Annotate with Population Frequency
+### SnpEff Impact Categories
+
+| Impact | Examples |
+|--------|----------|
+| HIGH | Stop gained, frameshift, splice donor/acceptor |
+| MODERATE | Missense, inframe indel |
+| LOW | Synonymous, splice region |
+| MODIFIER | Intron, intergenic, UTR |
+
+### SnpSift Database Annotations
 
 ```bash
-bcftools annotate -a gnomad.vcf.gz -c INFO/AF input.vcf.gz | \
-    bcftools filter -i 'INFO/AF<0.01' -Oz -o rare.vcf.gz
+# dbSNP
+SnpSift annotate dbsnp.vcf.gz input.vcf > annotated.vcf
+
+# ClinVar
+SnpSift annotate clinvar.vcf.gz input.vcf > annotated.vcf
+
+# dbNSFP
+SnpSift dbnsfp -db dbNSFP4.3a.txt.gz input.vcf > annotated.vcf
+
+# Chain multiple
+snpEff ann GRCh38.105 input.vcf | \
+    SnpSift annotate dbsnp.vcf.gz | \
+    SnpSift annotate clinvar.vcf.gz > fully_annotated.vcf
 ```
 
-### Full Annotation Pipeline
+### SnpSift Filtering
 
 ```bash
-# Normalize first
-bcftools norm -f reference.fa -m-any input.vcf.gz | \
-# Add rsIDs
-bcftools annotate -a dbsnp.vcf.gz -c ID | \
-# Add population frequencies
-bcftools annotate -a gnomad.vcf.gz -c INFO/AF | \
-# Predict consequences
-bcftools csq -f reference.fa -g genes.gff3.gz -Oz -o annotated.vcf.gz
+SnpSift filter "(QUAL >= 30) & (DP >= 10)" input.vcf > filtered.vcf
+SnpSift filter "(exists CLNSIG) & (CLNSIG has 'Pathogenic')" input.vcf > pathogenic.vcf
 ```
 
-## cyvcf2 Annotation Access
+## ANNOVAR
 
-### Read Annotations
+### Installation
+
+```bash
+# Download from https://annovar.openbioinformatics.org/ (registration required)
+annotate_variation.pl -buildver hg38 -downdb -webfrom annovar refGene humandb/
+annotate_variation.pl -buildver hg38 -downdb -webfrom annovar gnomad30_genome humandb/
+```
+
+### Table Annotation
+
+```bash
+table_annovar.pl input.vcf humandb/ \
+    -buildver hg38 \
+    -out annotated \
+    -remove \
+    -protocol refGene,gnomad30_genome,clinvar_20230416,dbnsfp42a \
+    -operation g,f,f,f \
+    -nastring . \
+    -vcfinput
+```
+
+## Python: Parse Annotated VCF
+
+### Parse VEP CSQ
 
 ```python
 from cyvcf2 import VCF
 
-for variant in VCF('annotated.vcf.gz'):
-    rsid = variant.ID
-    af = variant.INFO.get('AF')
-    bcsq = variant.INFO.get('BCSQ')
+def parse_vep_csq(csq_string, csq_header):
+    fields = csq_header.split('|')
+    values = csq_string.split('|')
+    return dict(zip(fields, values))
 
-    if bcsq:
-        parts = bcsq.split('|')
-        consequence = parts[0]
-        gene = parts[1] if len(parts) > 1 else None
-        print(f'{variant.CHROM}:{variant.POS} {consequence} {gene}')
-```
-
-### Filter by Annotation
-
-```python
-from cyvcf2 import VCF, Writer
-
-vcf = VCF('annotated.vcf.gz')
-writer = Writer('rare.vcf', vcf)
+vcf = VCF('vep_output.vcf')
+csq_header = None
+for h in vcf.header_iter():
+    if h['HeaderType'] == 'INFO' and h['ID'] == 'CSQ':
+        csq_header = h['Description'].split('Format: ')[1].rstrip('"')
+        break
 
 for variant in vcf:
-    af = variant.INFO.get('AF', 1.0)
-    if af < 0.01:
-        writer.write_record(variant)
-
-writer.close()
-vcf.close()
+    csq = variant.INFO.get('CSQ')
+    if csq:
+        for transcript in csq.split(','):
+            parsed = parse_vep_csq(transcript, csq_header)
+            if parsed.get('IMPACT') in ('HIGH', 'MODERATE'):
+                print(f"{variant.CHROM}:{variant.POS} {parsed['SYMBOL']} {parsed['Consequence']}")
 ```
+
+### Parse SnpEff ANN
+
+```python
+from cyvcf2 import VCF
+
+def parse_snpeff_ann(ann_string):
+    fields = ['Allele', 'Annotation', 'Impact', 'Gene_Name', 'Gene_ID',
+              'Feature_Type', 'Feature_ID', 'Transcript_BioType', 'Rank',
+              'HGVS_c', 'HGVS_p', 'cDNA_pos', 'CDS_pos', 'Protein_pos', 'Distance']
+    values = ann_string.split('|')
+    return dict(zip(fields, values[:len(fields)]))
+
+for variant in VCF('snpeff_output.vcf'):
+    ann = variant.INFO.get('ANN')
+    if ann:
+        for transcript in ann.split(','):
+            parsed = parse_snpeff_ann(transcript)
+            if parsed['Impact'] == 'HIGH':
+                print(f"{variant.CHROM}:{variant.POS} {parsed['Gene_Name']} {parsed['Annotation']}")
+```
+
+## Complete Annotation Pipeline
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+INPUT=$1
+REFERENCE=$2
+VEP_CACHE=$3
+OUTPUT_PREFIX=$4
+
+# Normalize variants
+bcftools norm -f $REFERENCE -m-any $INPUT -Oz -o ${OUTPUT_PREFIX}_norm.vcf.gz
+bcftools index ${OUTPUT_PREFIX}_norm.vcf.gz
+
+# VEP annotation
+vep -i ${OUTPUT_PREFIX}_norm.vcf.gz \
+    -o ${OUTPUT_PREFIX}_vep.vcf \
+    --vcf --cache --offline --dir_cache $VEP_CACHE \
+    --assembly GRCh38 --everything --pick --fork 4
+
+bgzip ${OUTPUT_PREFIX}_vep.vcf
+bcftools index ${OUTPUT_PREFIX}_vep.vcf.gz
+
+# Filter high/moderate impact
+bcftools view -i 'INFO/CSQ~"HIGH" || INFO/CSQ~"MODERATE"' \
+    ${OUTPUT_PREFIX}_vep.vcf.gz -Oz -o ${OUTPUT_PREFIX}_filtered.vcf.gz
+```
+
+## Pathogenicity Predictors
+
+| Predictor | Deleterious | Benign |
+|-----------|-------------|--------|
+| SIFT | < 0.05 | >= 0.05 |
+| PolyPhen-2 (HDIV) | > 0.957 (probably), > 0.453 (possibly) | <= 0.453 |
+| CADD | > 20 (top 1%), > 30 (top 0.1%) | < 10 |
+| REVEL | > 0.5 | < 0.5 |
+
+## Clinical Significance (ClinVar)
+
+| Code | Meaning |
+|------|---------|
+| Pathogenic | Disease-causing |
+| Likely_pathogenic | Probably disease-causing |
+| Uncertain_significance | VUS |
+| Likely_benign | Probably not disease-causing |
+| Benign | Not disease-causing |
 
 ## Quick Reference
 
 | Task | Command |
 |------|---------|
 | Add rsIDs | `bcftools annotate -a dbsnp.vcf.gz -c ID in.vcf.gz` |
-| Add INFO field | `bcftools annotate -a db.vcf.gz -c INFO/AF in.vcf.gz` |
-| Remove field | `bcftools annotate -x INFO/DP in.vcf.gz` |
-| Set ID | `bcftools annotate --set-id '%CHROM\_%POS' in.vcf.gz` |
-| Rename chroms | `bcftools annotate --rename-chrs map.txt in.vcf.gz` |
-| Consequences | `bcftools csq -f ref.fa -g genes.gff in.vcf.gz` |
-
-## Common Errors
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `no such tag` | INFO field doesn't exist | Check with `bcftools view -h` |
-| `chromosome not found` | Annotation file has different chroms | Use `--rename-chrs` |
-| `index required` | Annotation file not indexed | Run `tabix -p vcf file.vcf.gz` |
+| VEP annotation | `vep -i in.vcf -o out.vcf --vcf --cache --everything` |
+| SnpEff annotation | `snpEff ann GRCh38.105 in.vcf > out.vcf` |
+| Consequences only | `bcftools csq -f ref.fa -g genes.gff in.vcf.gz` |
 
 ## Related Skills
 
-- **variant-normalization** - Normalize before annotating
-- **vcf-filtering** - Filter by annotations
-- **vcf-basics** - Query annotated fields
-- **database-access/entrez-fetch** - Download annotation databases
+- variant-calling/variant-normalization - Normalize before annotating
+- variant-calling/filtering-best-practices - Filter by annotations
+- variant-calling/vcf-basics - Query annotated fields
+- database-access/entrez-fetch - Download annotation databases

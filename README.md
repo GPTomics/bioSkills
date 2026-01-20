@@ -35,7 +35,7 @@ brew install samtools bcftools blast minimap2 bedtools
 # Ubuntu/Debian
 sudo apt install samtools bcftools ncbi-blast+ minimap2 bedtools
 
-# conda (recommended for full bioinformatics stack)
+# conda
 conda install -c bioconda samtools bcftools blast minimap2 bedtools \
     fastp kraken2 metaphlan sra-tools bwa-mem2 bowtie2 star hisat2 \
     manta delly cnvkit macs3 tobias
@@ -77,18 +77,18 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **sequence-manipulation** | 7 | Bio.Seq | Transcription, translation, motif search, sequence properties |
 | **database-access** | 10 | Bio.Entrez, BLAST+, HMMER, SRA toolkit | NCBI/UniProt queries, SRA downloads, BLAST, homology searches |
 | **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, validation |
-| **variant-calling** | 11 | bcftools, GATK, Manta, Delly, VEP | VCF/BCF variant calling, SVs, filtering, annotation |
+| **variant-calling** | 10 | bcftools, GATK, Manta, Delly, VEP | VCF/BCF calling, SVs, filtering, annotation, best practices |
 | **alignment** | 4 | Bio.Align | Pairwise and multiple sequence alignment |
 | **phylogenetics** | 4 | Bio.Phylo | Tree I/O, visualization, manipulation, distance matrices |
-| **differential-expression** | 4 | DESeq2, edgeR | RNA-seq differential expression analysis |
+| **differential-expression** | 5 | DESeq2, edgeR, sva | RNA-seq differential expression, batch correction |
 | **structural-biology** | 5 | Bio.PDB | PDB/mmCIF parsing, geometric analysis, AlphaFold |
-| **single-cell** | 7 | Seurat, Scanpy, Signac | scRNA-seq QC, doublets, clustering, markers, multimodal, scATAC |
+| **single-cell** | 10 | Seurat, Scanpy, Signac, CellChat | scRNA-seq QC, clustering, trajectory, communication, annotation |
 | **pathway-analysis** | 6 | clusterProfiler | GO, KEGG, Reactome, WikiPathways enrichment |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 4 | Bismark, methylKit | Bisulfite alignment, methylation calling, DMRs |
 | **chip-seq** | 6 | MACS3, ChIPseeker, HOMER, IDR | Peak calling, annotation, differential binding, motifs, QC |
 | **metagenomics** | 5 | Kraken2, MetaPhlAn | Taxonomic classification, abundance estimation |
-| **long-read-sequencing** | 5 | Dorado, minimap2, medaka | Basecalling, alignment, polishing, SV calling |
+| **long-read-sequencing** | 6 | Dorado, minimap2, medaka, Clair3 | Basecalling, alignment, polishing, variant calling, SV calling |
 | **read-qc** | 7 | FastQC, fastp, umi_tools, RSeQC | Quality reports, adapter trimming, filtering, UMIs, RNA-seq QC |
 | **genome-intervals** | 7 | BEDTools, pybedtools, pyBigWig | BED/GTF operations, interval arithmetic, bedGraph, bigWig |
 | **population-genetics** | 6 | PLINK, scikit-allel | GWAS, population structure, selection statistics |
@@ -98,9 +98,16 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **copy-number** | 4 | CNVkit, GATK | CNV detection, visualization, annotation |
 | **phasing-imputation** | 4 | Beagle, SHAPEIT5 | Haplotype phasing, genotype imputation |
 | **atac-seq** | 4 | MACS3, TOBIAS | ATAC-seq peaks, QC, footprinting |
-| **genome-assembly** | 4 | SPAdes, Flye, QUAST | De novo assembly, polishing, QC |
+| **genome-assembly** | 8 | SPAdes, Flye, hifiasm, YaHS, CheckM2 | Assembly, polishing, scaffolding, contamination detection |
+| **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
+| **spatial-transcriptomics** | 9 | Squidpy, SpatialData | Visium, Xenium, spatial stats, domain detection, deconvolution |
+| **hi-c-analysis** | 8 | cooler, cooltools, pairtools | Contact matrices, compartments, TADs, loops, differential |
+| **workflows** | 15 | mixed | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C |
+| **reporting** | 2 | RMarkdown, Quarto | Reproducible analysis reports in HTML, PDF, Word |
+| **workflow-management** | 2 | Snakemake, Nextflow | Scalable pipeline frameworks with containers |
+| **data-visualization** | 7 | ggplot2, ComplexHeatmap, plotly, pyGenomeTracks | Publication-quality figures, heatmaps, interactive plots, genome tracks |
 
-**Total: 148 skills across 26 categories**
+**Total: 202 skills across 33 categories**
 
 ## Usage
 
@@ -188,6 +195,20 @@ Once skills are deployed, ask your agent naturally:
 "Assemble my bacterial genome with SPAdes"
 "Polish my assembly with Pilon"
 "Check assembly completeness with BUSCO"
+"Design primers for this sequence"
+"Design qPCR primers with a TaqMan probe"
+"Check my primers for dimers"
+"Load my Visium data"
+"Find spatially variable genes"
+"Identify spatial domains in my tissue"
+"Plot gene expression on the tissue"
+"Load my Hi-C contact matrix"
+"Call compartments from my Hi-C data"
+"Detect TADs in my contact matrix"
+"Find chromatin loops"
+"Run ligand-receptor analysis on my spatial data"
+"Deconvolve my Visium data with cell2location"
+"Find differential contacts between conditions"
 ```
 
 The agent will use the skill patterns to generate correct code.

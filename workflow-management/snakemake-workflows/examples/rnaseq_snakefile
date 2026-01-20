@@ -1,0 +1,72 @@
+configfile: "config.yaml"
+
+SAMPLES = config["samples"]
+SALMON_INDEX = config["salmon_index"]
+
+rule all:
+    input:
+        "results/multiqc_report.html",
+        "results/de_results.csv"
+
+rule fastp_trim:
+    input:
+        r1 = "data/{sample}_R1.fq.gz",
+        r2 = "data/{sample}_R2.fq.gz"
+    output:
+        r1 = "trimmed/{sample}_R1.fq.gz",
+        r2 = "trimmed/{sample}_R2.fq.gz",
+        json = "qc/{sample}_fastp.json",
+        html = "qc/{sample}_fastp.html"
+    threads: 4
+    log:
+        "logs/fastp/{sample}.log"
+    shell:
+        """
+        fastp -i {input.r1} -I {input.r2} \
+            -o {output.r1} -O {output.r2} \
+            --json {output.json} --html {output.html} \
+            --thread {threads} 2> {log}
+        """
+
+rule salmon_quant:
+    input:
+        r1 = "trimmed/{sample}_R1.fq.gz",
+        r2 = "trimmed/{sample}_R2.fq.gz",
+        index = SALMON_INDEX
+    output:
+        directory("salmon/{sample}")
+    threads: 8
+    log:
+        "logs/salmon/{sample}.log"
+    shell:
+        """
+        salmon quant -i {input.index} -l A \
+            -1 {input.r1} -2 {input.r2} \
+            -o {output} --threads {threads} \
+            --validateMappings 2> {log}
+        """
+
+rule multiqc:
+    input:
+        fastp = expand("qc/{sample}_fastp.json", sample=SAMPLES),
+        salmon = expand("salmon/{sample}", sample=SAMPLES)
+    output:
+        "results/multiqc_report.html"
+    log:
+        "logs/multiqc.log"
+    shell:
+        """
+        multiqc qc/ salmon/ -o results/ -n multiqc_report 2> {log}
+        """
+
+rule deseq2_analysis:
+    input:
+        quants = expand("salmon/{sample}", sample=SAMPLES),
+        metadata = config["metadata"]
+    output:
+        results = "results/de_results.csv",
+        normalized = "results/normalized_counts.csv"
+    log:
+        "logs/deseq2.log"
+    script:
+        "scripts/run_deseq2.R"

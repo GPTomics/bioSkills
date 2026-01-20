@@ -13,10 +13,11 @@ Assemble genomes from Oxford Nanopore (ONT) or PacBio long reads for highly cont
 
 | Tool | Speed | Memory | Best For |
 |------|-------|--------|----------|
-| Flye | Fast | Moderate | General purpose, bacteria |
-| Canu | Slow | High | High accuracy, PacBio HiFi |
-| Hifiasm | Fast | Moderate | PacBio HiFi only |
+| Flye | Fast | Moderate | General purpose, bacteria, ONT |
+| Canu | Slow | High | High accuracy, complex genomes |
 | Wtdbg2 | Very fast | Low | Draft assemblies |
+
+> **Note:** For PacBio HiFi data, see the dedicated **hifi-assembly** skill which covers hifiasm.
 
 ## Flye
 
@@ -179,40 +180,6 @@ canu_output/
 └── assembly.seqStore/
 ```
 
-## Hifiasm (PacBio HiFi)
-
-### Installation
-
-```bash
-conda install -c bioconda hifiasm
-```
-
-### Basic Usage
-
-```bash
-# Primary assembly
-hifiasm -o assembly -t 16 reads.fastq.gz
-
-# Output is GFA, convert to FASTA
-awk '/^S/{print ">"$2;print $3}' assembly.bp.p_ctg.gfa > assembly.fasta
-```
-
-### With Hi-C Data (Phased)
-
-```bash
-hifiasm -o assembly -t 16 \
-    --h1 hic_R1.fq.gz --h2 hic_R2.fq.gz \
-    reads.fastq.gz
-```
-
-### Output Files
-
-```
-assembly.bp.p_ctg.gfa    # Primary contigs
-assembly.bp.hap1.p_ctg.gfa  # Haplotype 1 (if phased)
-assembly.bp.hap2.p_ctg.gfa  # Haplotype 2 (if phased)
-```
-
 ## Wtdbg2 (Fast Draft)
 
 ### Installation
@@ -268,25 +235,6 @@ cat ${OUTDIR}/flye/assembly_info.txt
 echo "Assembly: ${OUTDIR}/flye/assembly.fasta"
 ```
 
-### PacBio HiFi Assembly
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-READS=$1
-OUTDIR=$2
-SIZE=${3:-5m}
-
-# Hifiasm (best for HiFi)
-hifiasm -o ${OUTDIR}/asm -t 16 $READS
-
-# Convert GFA to FASTA
-awk '/^S/{print ">"$2;print $3}' ${OUTDIR}/asm.bp.p_ctg.gfa > ${OUTDIR}/assembly.fasta
-
-echo "Assembly: ${OUTDIR}/assembly.fasta"
-```
-
 ### Hybrid Assembly (Long + Short)
 
 ```bash
@@ -332,6 +280,7 @@ flye --nano-raw $LONG --out-dir ${OUTDIR}/flye --genome-size 5m --threads 16
 
 ## Related Skills
 
+- hifi-assembly - PacBio HiFi assembly with hifiasm
 - assembly-polishing - Polish long-read assemblies
 - assembly-qc - QUAST and BUSCO assessment
 - short-read-assembly - Hybrid with Illumina

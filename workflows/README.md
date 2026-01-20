@@ -1,0 +1,60 @@
+# workflows
+
+## Overview
+
+End-to-end bioinformatics pipelines that orchestrate multiple skills into complete analysis workflows. Each workflow provides a primary recommended path plus alternatives, with QC checkpoints between major steps.
+
+**Tool type:** mixed | **Primary tools:** Various (workflow-specific)
+
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| rnaseq-to-de | FASTQ to differential expression via Salmon/STAR and DESeq2 |
+| fastq-to-variants | DNA sequencing to variant calls via BWA and bcftools/GATK |
+| chipseq-pipeline | ChIP-seq reads to annotated peaks |
+| scrnaseq-pipeline | 10X data to clustered and annotated cells |
+| atacseq-pipeline | ATAC-seq reads to accessibility analysis |
+| methylation-pipeline | Bisulfite-seq to differentially methylated regions |
+| metagenomics-pipeline | Metagenomic reads to taxonomic profiles |
+| expression-to-pathways | DE results to functional enrichment |
+| genome-assembly-pipeline | Reads to polished assembly with QC |
+| longread-sv-pipeline | Long reads to structural variants |
+| gwas-pipeline | VCF to genome-wide associations |
+| cnv-pipeline | BAM to copy number variants |
+| spatial-pipeline | Spatial transcriptomics end-to-end |
+| hic-pipeline | Hi-C data to compartments, TADs, and loops |
+| multiome-pipeline | Joint scRNA + scATAC analysis |
+
+## Example Prompts
+
+- "I have FASTQ files, how do I find differentially expressed genes?"
+- "Run the complete RNA-seq pipeline from raw reads to DE results"
+- "Process my ChIP-seq data from FASTQ to annotated peaks"
+- "Analyze my 10X single-cell data end to end"
+- "Call variants from my whole genome sequencing data"
+- "Find structural variants from my Nanopore reads"
+- "Run GWAS on my case-control study"
+- "Detect CNVs from my exome sequencing"
+- "Analyze my Visium spatial transcriptomics data"
+- "Process my Hi-C data to find TADs and loops"
+
+## Requirements
+
+Requirements vary by workflow. See individual skill files for specific dependencies.
+
+```bash
+# Common tools
+conda install -c bioconda samtools bcftools bwa-mem2 star salmon fastp
+
+# R/Bioconductor
+BiocManager::install(c('DESeq2', 'Seurat', 'clusterProfiler'))
+```
+
+## Related Skills
+
+- **read-qc** - Quality control and preprocessing (first step in most workflows)
+- **read-alignment** - Alignment tools used by many workflows
+- **differential-expression** - DE analysis details
+- **single-cell** - Single-cell analysis details
+- **variant-calling** - Variant calling details
