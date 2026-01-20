@@ -14,6 +14,7 @@ Analyze ATAC-seq data for chromatin accessibility profiling. Covers peak calling
 | atac-qc | Assess data quality: fragment sizes, TSS enrichment, FRiP |
 | differential-accessibility | Find differentially accessible regions between conditions |
 | footprinting | Detect transcription factor binding sites within accessible regions |
+| nucleosome-positioning | Extract nucleosome positions with NucleoATAC, ATACseqQC |
 
 ## Example Prompts
 

@@ -16,6 +16,7 @@ ChIP-seq analysis using MACS3 for peak calling, ChIPseeker for annotation, and D
 | chipseq-visualization | Visualize ChIP-seq data and peaks |
 | motif-analysis | De novo and known motif enrichment with HOMER/MEME |
 | chipseq-qc | Quality metrics: FRiP, NSC/RSC, IDR for replicate concordance |
+| super-enhancers | Super-enhancer identification with ROSE |
 
 ## Example Prompts
 

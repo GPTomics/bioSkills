@@ -4,7 +4,7 @@
 
 Variant calling and VCF/BCF file manipulation using bcftools and cyvcf2. Covers calling SNPs/indels from alignments, structural variant detection, filtering, normalization, annotation, and downstream analysis.
 
-**Tool type:** cli | **Primary tools:** bcftools, cyvcf2, Manta, Delly
+**Tool type:** cli | **Primary tools:** bcftools, cyvcf2, Manta, Delly, VEP, SnpEff
 
 ## Skills
 
@@ -13,12 +13,14 @@ Variant calling and VCF/BCF file manipulation using bcftools and cyvcf2. Covers 
 | vcf-basics | View, query, understand VCF/BCF format structure |
 | variant-calling | Call SNPs/indels from BAM files using mpileup/call |
 | gatk-variant-calling | GATK HaplotypeCaller, GVCF workflow, VQSR filtering |
+| deepvariant | Deep learning variant calling with Google DeepVariant |
+| joint-calling | Multi-sample joint calling with GATK CombineGVCFs |
 | structural-variant-calling | Call SVs (DEL, DUP, INV, INS, BND) with Manta/Delly |
-| vcf-filtering | Filter variants by quality, depth, type, expressions |
+| filtering-best-practices | Comprehensive filtering with GATK hard filters and bcftools |
 | vcf-manipulation | Merge, concat, sort, intersect VCF files |
 | variant-normalization | Left-align indels, split multiallelic sites |
-| variant-annotation | Add annotations, predict functional consequences |
-| vep-snpeff-annotation | Comprehensive annotation with VEP, SnpEff, ANNOVAR |
+| variant-annotation | Annotation with bcftools, VEP, SnpEff, ANNOVAR |
+| clinical-interpretation | ClinVar lookup, ACMG classification, pathogenicity |
 | vcf-statistics | Generate quality metrics, Ti/Tv ratio, concordance |
 | consensus-sequences | Apply variants to reference FASTA |
 
@@ -31,25 +33,17 @@ Variant calling and VCF/BCF file manipulation using bcftools and cyvcf2. Covers 
 - "Detect deletions and inversions with Delly"
 - "Merge SV calls from multiple callers"
 - "View the first 20 variants in my VCF"
-- "Extract chromosome 1 variants to a new file"
-- "List all sample names in this VCF"
 - "Filter variants with QUAL < 30"
 - "Keep only SNPs with depth >= 10"
 - "Extract PASS variants only"
 - "Get rare variants with AF < 0.01"
 - "Merge VCF files from different samples"
-- "Compare variants between two callers"
-- "Find variants shared between two files"
-- "Concatenate per-chromosome VCFs"
 - "Normalize indels to left-aligned representation"
-- "Split multiallelic sites to biallelic"
 - "Add rsIDs from dbSNP"
-- "Predict functional consequences"
-- "Calculate transition/transversion ratio"
-- "Generate consensus sequence from variants"
 - "Annotate variants with VEP"
 - "Run SnpEff on my VCF"
 - "Add CADD scores to my variants"
+- "Generate consensus sequence from variants"
 
 ## Requirements
 
@@ -77,4 +71,3 @@ conda install -c bioconda gatk4
 - **long-read-sequencing** - Long-read SV detection
 - **population-genetics** - Population-level analysis of variants
 - **database-access** - Download reference databases (dbSNP, gnomAD)
-- **sequence-io** - Work with consensus FASTA output

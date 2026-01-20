@@ -1,13 +1,22 @@
 ---
 name: bio-de-visualization
-description: Visualize differential expression results with MA plots, volcano plots, PCA, and heatmaps. Use for creating publication-quality figures from DESeq2 or edgeR analysis including sample clustering and gene expression patterns.
+description: Visualize differential expression results using DESeq2/edgeR built-in functions. Covers plotMA, plotDispEsts, plotCounts, plotBCV, sample distance heatmaps, and p-value histograms.
 tool_type: r
-primary_tool: ggplot2
+primary_tool: DESeq2, edgeR
 ---
 
 # DE Visualization
 
-Create visualizations for differential expression analysis results.
+Create visualizations for differential expression analysis using DESeq2 and edgeR built-in plotting functions.
+
+## Scope
+
+This skill covers **DE-specific built-in functions**:
+- DESeq2: `plotMA()`, `plotPCA()`, `plotDispEsts()`, `plotCounts()`
+- edgeR: `plotMD()`, `plotBCV()`, `plotMDS()`
+- Sample distance heatmaps and p-value distributions
+
+**For custom ggplot2/matplotlib implementations** of volcano, MA, and PCA plots, see `data-visualization/specialized-omics-plots`.
 
 ## Required Libraries
 
@@ -338,6 +347,8 @@ brewer.pal(n = 8, name = 'Set1')
 
 ## Related Skills
 
-- **deseq2-basics** - Generate DESeq2 results for visualization
-- **edger-basics** - Generate edgeR results for visualization
-- **de-results** - Filter genes before visualization
+- deseq2-basics - Generate DESeq2 results for visualization
+- edger-basics - Generate edgeR results for visualization
+- de-results - Filter genes before visualization
+- data-visualization/specialized-omics-plots - Custom ggplot2 volcano/MA/PCA functions
+- data-visualization/heatmaps-clustering - Advanced heatmap customization

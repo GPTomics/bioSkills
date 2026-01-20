@@ -1,0 +1,163 @@
+---
+title: "RNA-seq Differential Expression Report"
+author: "Bioinformatics Analysis"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+params:
+  count_file: "counts.csv"
+  metadata_file: "metadata.csv"
+  fdr_threshold: 0.05
+  lfc_threshold: 1
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE, message = FALSE, warning = FALSE,
+    fig.width = 10, fig.height = 6, fig.align = 'center'
+)
+
+library(DESeq2)
+library(tidyverse)
+library(pheatmap)
+library(DT)
+library(ggrepel)
+library(RColorBrewer)
+```
+
+## Executive Summary
+
+This report presents differential expression analysis results.
+
+**Parameters used:**
+
+- FDR threshold: `r params$fdr_threshold`
+- Log2 fold change threshold: `r params$lfc_threshold`
+
+## Data Loading
+
+```{r load-data}
+counts <- read.csv(params$count_file, row.names = 1)
+metadata <- read.csv(params$metadata_file, row.names = 1)
+
+stopifnot(all(colnames(counts) == rownames(metadata)))
+```
+
+**Dataset overview:**
+
+- Genes: `r format(nrow(counts), big.mark = ',')`
+- Samples: `r ncol(counts)`
+- Conditions: `r paste(unique(metadata$condition), collapse = ', ')`
+
+## Quality Control {.tabset}
+
+### Sample Distribution
+
+```{r sample-dist}
+metadata %>%
+    count(condition) %>%
+    knitr::kable(caption = 'Samples per condition')
+```
+
+### Library Sizes
+
+```{r lib-sizes}
+lib_sizes <- data.frame(
+    sample = colnames(counts),
+    total_counts = colSums(counts),
+    condition = metadata$condition
+)
+
+ggplot(lib_sizes, aes(reorder(sample, total_counts), total_counts, fill = condition)) +
+    geom_col() +
+    coord_flip() +
+    labs(x = 'Sample', y = 'Total Counts', title = 'Library Sizes') +
+    theme_minimal() +
+    scale_y_continuous(labels = scales::comma)
+```
+
+## Differential Expression Analysis
+
+```{r de-analysis, cache=TRUE}
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = metadata, design = ~ condition)
+dds <- dds[rowSums(counts(dds)) >= 10, ]
+dds <- DESeq(dds)
+
+res <- results(dds) %>%
+    as.data.frame() %>%
+    rownames_to_column('gene') %>%
+    arrange(padj)
+```
+
+## Results {.tabset}
+
+### Summary
+
+```{r summary}
+sig_genes <- res %>% filter(padj < params$fdr_threshold, abs(log2FoldChange) > params$lfc_threshold)
+
+summary_stats <- data.frame(
+    Metric = c('Total genes tested', 'Significant (FDR < threshold)', 'Upregulated', 'Downregulated'),
+    Count = c(nrow(res), nrow(sig_genes),
+              sum(sig_genes$log2FoldChange > 0), sum(sig_genes$log2FoldChange < 0))
+)
+knitr::kable(summary_stats)
+```
+
+### Volcano Plot
+
+```{r volcano}
+res_plot <- res %>%
+    mutate(significant = padj < params$fdr_threshold & abs(log2FoldChange) > params$lfc_threshold,
+           label = ifelse(significant & rank(padj) <= 10, gene, ''))
+
+ggplot(res_plot, aes(log2FoldChange, -log10(pvalue), color = significant)) +
+    geom_point(alpha = 0.6) +
+    geom_text_repel(aes(label = label), max.overlaps = 20) +
+    scale_color_manual(values = c('grey60', 'red3')) +
+    geom_vline(xintercept = c(-params$lfc_threshold, params$lfc_threshold), linetype = 'dashed') +
+    geom_hline(yintercept = -log10(params$fdr_threshold), linetype = 'dashed') +
+    labs(title = 'Volcano Plot', x = 'Log2 Fold Change', y = '-Log10 P-value') +
+    theme_minimal() +
+    theme(legend.position = 'none')
+```
+
+### Top Genes Table
+
+```{r top-genes-table}
+res %>%
+    filter(padj < params$fdr_threshold) %>%
+    head(50) %>%
+    mutate(across(where(is.numeric), ~round(., 4))) %>%
+    datatable(filter = 'top', options = list(pageLength = 10, scrollX = TRUE))
+```
+
+### Heatmap
+
+```{r heatmap, fig.height=8}
+vsd <- vst(dds, blind = FALSE)
+top_genes <- head(sig_genes$gene, 50)
+
+if (length(top_genes) > 0) {
+    mat <- assay(vsd)[top_genes, ]
+    mat <- mat - rowMeans(mat)
+
+    annotation_col <- data.frame(Condition = metadata$condition, row.names = rownames(metadata))
+
+    pheatmap(mat, annotation_col = annotation_col, scale = 'row',
+             show_rownames = TRUE, fontsize_row = 8,
+             color = colorRampPalette(rev(brewer.pal(9, 'RdBu')))(100))
+}
+```
+
+## Session Info
+
+```{r session-info}
+sessionInfo()
+```

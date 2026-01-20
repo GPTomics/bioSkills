@@ -12,8 +12,10 @@ Differential expression analysis using R/Bioconductor packages DESeq2 and edgeR 
 |-------|-------------|
 | deseq2-basics | DESeq2 workflow: DESeqDataSet, normalization, testing, lfcShrink |
 | edger-basics | edgeR workflow: DGEList, TMM normalization, glmQLFit, testing |
+| batch-correction | Batch correction with ComBat, limma, SVA |
 | de-visualization | MA plots, volcano plots, PCA, heatmaps with ggplot2/pheatmap |
 | de-results | Filter significant genes, add annotations, export results |
+| timeseries-de | Time-series DE with limma splines, maSigPro, ImpulseDE2 |
 
 ## Example Prompts
 
