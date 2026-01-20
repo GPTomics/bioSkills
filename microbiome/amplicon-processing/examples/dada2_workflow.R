@@ -43,7 +43,7 @@ mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose = TRUE)
 seqtab <- makeSequenceTable(mergers)
 cat('ASVs before chimera removal:', ncol(seqtab), '\n')
 
-# Remove chimeras
+# Remove chimeras; 'consensus' method is more conservative than 'pooled', reducing false positives
 seqtab_nochim <- removeBimeraDenovo(seqtab, method = 'consensus', multithread = TRUE, verbose = TRUE)
 cat('ASVs after chimera removal:', ncol(seqtab_nochim), '\n')
 cat('Reads retained:', round(100 * sum(seqtab_nochim) / sum(seqtab), 1), '%\n')

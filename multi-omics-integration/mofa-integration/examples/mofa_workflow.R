@@ -1,10 +1,33 @@
 library(MOFA2)
 
-# Simulate multi-omics data (replace with real data)
+# --- ALTERNATIVE: Use the CLL dataset from MOFA2 package ---
+# The CLL (Chronic Lymphocytic Leukemia) dataset is the canonical MOFA2 example
+# with matched RNA-seq, drug response, methylation, and mutation data:
+#
+# data('CLL_data')  # Loads list with mRNA, Drugs, Methylation, Mutations
+# mofa <- create_mofa(CLL_data)
+#
+# For more details see: https://biofam.github.io/MOFA2/CLL.html
+
+# Simulated multi-omics data with shared latent structure
 set.seed(42)
 n_samples <- 100
-rna <- matrix(rnorm(n_samples * 500), nrow = 500, dimnames = list(paste0('Gene', 1:500), paste0('Sample', 1:n_samples)))
-protein <- matrix(rnorm(n_samples * 200), nrow = 200, dimnames = list(paste0('Protein', 1:200), paste0('Sample', 1:n_samples)))
+n_factors <- 5
+
+# Create shared latent factors (what MOFA will try to recover)
+latent_factors <- matrix(rnorm(n_samples * n_factors), nrow = n_samples)
+
+# RNA: 500 genes, ~60% influenced by shared factors
+rna_loadings <- matrix(rnorm(500 * n_factors, 0, 0.5), nrow = 500)
+rna_loadings[1:300, ] <- rna_loadings[1:300, ] * 3  # Stronger signal in subset
+rna <- rna_loadings %*% t(latent_factors) + matrix(rnorm(500 * n_samples, 0, 0.5), nrow = 500)
+dimnames(rna) <- list(paste0('Gene', 1:500), paste0('Sample', 1:n_samples))
+
+# Protein: 200 proteins, correlated with RNA via shared factors
+protein_loadings <- matrix(rnorm(200 * n_factors, 0, 0.5), nrow = 200)
+protein_loadings[1:100, ] <- protein_loadings[1:100, ] * 2.5
+protein <- protein_loadings %*% t(latent_factors) + matrix(rnorm(200 * n_samples, 0, 0.5), nrow = 200)
+dimnames(protein) <- list(paste0('Protein', 1:200), paste0('Sample', 1:n_samples))
 
 data_list <- list(RNA = rna, Protein = protein)
 

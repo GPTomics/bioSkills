@@ -7,10 +7,6 @@ primary_tool: Clair3
 
 # Clair3 Variant Calling
 
-## Overview
-
-Clair3 is a deep learning-based variant caller specifically designed for long-read sequencing data (ONT, PacBio). It achieves high accuracy for germline SNPs and small indels.
-
 ## Basic Usage
 
 ```bash

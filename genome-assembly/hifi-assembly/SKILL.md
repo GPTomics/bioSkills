@@ -7,10 +7,6 @@ primary_tool: hifiasm
 
 # HiFi Assembly
 
-## Overview
-
-hifiasm produces high-quality phased assemblies from PacBio HiFi reads, achieving near-complete genome assemblies with N50 often exceeding chromosome arms.
-
 ## Basic Assembly
 
 ```bash

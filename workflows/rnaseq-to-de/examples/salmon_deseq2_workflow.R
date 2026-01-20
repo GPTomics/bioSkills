@@ -21,6 +21,7 @@ files <- file.path(quant_dir, samples, 'quant.sf')
 names(files) <- samples
 stopifnot(all(file.exists(files)))
 
+# ignoreTxVersion=TRUE strips version suffixes (.1, .2) from Ensembl IDs to match tx2gene
 txi <- tximport(files, type = 'salmon', tx2gene = tx2gene, ignoreTxVersion = TRUE)
 
 # Create sample metadata
