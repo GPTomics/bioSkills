@@ -1,6 +1,52 @@
-# Count Matrix QC Usage Guide
+# Count Matrix QC - Usage Guide
 
+## Overview
 Quality control of count matrices is essential before differential expression analysis to identify outliers, batch effects, and sample quality issues.
+
+## Prerequisites
+```r
+if (!require('BiocManager', quietly = TRUE))
+    install.packages('BiocManager')
+
+BiocManager::install('DESeq2')
+install.packages('pheatmap')
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Check the quality of my count matrix before DE analysis"
+- "Identify outlier samples in my RNA-seq data"
+- "Make a PCA plot to see if my samples cluster by condition"
+
+## Example Prompts
+### Basic QC
+> "Run QC on my count matrix and identify any problematic samples"
+
+> "Check library sizes and gene detection rates across my samples"
+
+### Visualization
+> "Create a sample correlation heatmap from my count data"
+
+> "Make a PCA plot colored by condition and batch"
+
+### Outlier Detection
+> "Check if any samples are outliers based on PCA and correlation"
+
+> "Should I remove sample X based on the QC metrics?"
+
+### Batch Effects
+> "Check if my samples show batch effects in PCA"
+
+> "Add batch correction to my DESeq2 design"
+
+## What the Agent Will Do
+1. Load the count matrix and sample metadata
+2. Calculate library sizes and gene detection rates
+3. Normalize counts for visualization (VST or rlog)
+4. Generate sample correlation heatmap
+5. Create PCA plot to assess sample clustering
+6. Identify any outliers or batch effects
+7. Recommend next steps based on QC results
 
 ## Key QC Checks
 
@@ -76,3 +122,10 @@ design(dds) <- ~ batch + condition
 | Genes detected | >12,000 | <8,000 |
 | Replicate correlation | >0.95 | <0.85 |
 | Mapping rate | >70% | <50% |
+
+## Tips
+- Always run QC before differential expression analysis
+- Use blind=TRUE for vst/rlog when doing unsupervised QC
+- Document any samples removed and justify the decision
+- Run sensitivity analysis if unsure about removing a sample
+- Check for batch effects even if not explicitly part of the design

@@ -1,50 +1,61 @@
-# AMR Detection Usage Guide
+# AMR Detection - Usage Guide
 
-Identify antimicrobial resistance genes in bacterial genomes and metagenomes.
+## Overview
+Identify antimicrobial resistance genes in bacterial genomes and metagenomes using curated databases like NCBI AMRFinderPlus, ResFinder, and CARD.
 
 ## Prerequisites
-
 ```bash
-# AMRFinderPlus
+# AMRFinderPlus (recommended)
 conda install -c bioconda ncbi-amrfinderplus
 amrfinder -u  # Update database
 
 # ResFinder
 pip install resfinder
 
-# ABRicate
+# ABRicate (quick multi-database screening)
 conda install -c bioconda abricate
 abricate --setupdb
 ```
 
 ## Quick Start
+Tell your AI agent what you want to do:
+- "Screen my genome assembly for resistance genes"
+- "Identify AMR genes in my metagenome contigs"
+- "Compare resistance profiles across isolates"
 
-### AMRFinderPlus (Recommended)
+## Example Prompts
+### Basic Screening
+> "Run AMRFinderPlus on contigs.fasta to find resistance genes"
 
-```bash
-# From assembled contigs
-amrfinder \
-    -n contigs.fasta \
-    -o amr_results.tsv \
-    --plus  # Include stress/virulence genes
+> "Screen my assembly against the CARD database using ABRicate"
 
-# From protein sequences
-amrfinder \
-    -p proteins.faa \
-    -o amr_results.tsv
-```
+### Comprehensive Analysis
+> "Run AMRFinderPlus with --plus to include virulence and stress genes"
 
-### ABRicate (Quick Screening)
+> "Screen my genome against ResFinder, CARD, and NCBI databases and compare results"
 
-```bash
-# Screen against multiple databases
-abricate contigs.fasta --db resfinder > resfinder_results.tsv
-abricate contigs.fasta --db card > card_results.tsv
-abricate contigs.fasta --db ncbi > ncbi_results.tsv
+### Metagenome Analysis
+> "Identify AMR genes in my metagenomic assembly"
 
-# Summary across samples
-abricate --summary *_results.tsv > summary.tsv
-```
+> "Find resistance genes in my assembled MAGs"
+
+### Batch Processing
+> "Run AMR detection on all fasta files in this directory and summarize results"
+
+> "Create a presence/absence matrix of resistance genes across all isolates"
+
+## What the Agent Will Do
+1. Select appropriate tool and database for the analysis
+2. Run resistance gene detection on assemblies or protein sequences
+3. Parse output to identify gene classes and drug targets
+4. Summarize findings across multiple samples if requested
+
+## Tips
+- AMRFinderPlus is most curated; use for clinical/publication work
+- ABRicate is fast for screening multiple databases
+- Always update databases before analysis (`amrfinder -u`, `abricate --setupdb`)
+- Use `--plus` flag with AMRFinderPlus for virulence and stress genes
+- Check % coverage and % identity to assess match quality
 
 ## Database Comparison
 
@@ -55,21 +66,7 @@ abricate --summary *_results.tsv > summary.tsv
 | CARD | Mechanism-focused | Research |
 | ARG-ANNOT | Acquired genes | Surveillance |
 
-## Interpreting Results
-
-### AMRFinderPlus Output
-
-```
-Gene symbol | Sequence name | Scope | Element type | Element subtype | Class | Subclass
-```
-
-Key fields:
-- **Gene symbol**: Standardized resistance gene name
-- **Class**: Drug class (e.g., aminoglycoside, beta-lactam)
-- **Subclass**: Specific drug (e.g., gentamicin)
-- **% Coverage/Identity**: Match quality
-
-### Resistance Mechanisms
+## Resistance Mechanisms
 
 | Type | Example | Implication |
 |------|---------|-------------|
@@ -77,34 +74,7 @@ Key fields:
 | Mutational | gyrA | Chromosomal |
 | Efflux | mexAB-oprM | Broad spectrum |
 
-## Metagenomic Analysis
-
-```bash
-# Assemble first, then screen
-megahit -1 reads_1.fq.gz -2 reads_2.fq.gz -o assembly
-amrfinder -n assembly/final.contigs.fa -o metagenome_amr.tsv
-
-# Or use read-based approach
-shortbred_identify.py \
-    --goi card_proteins.faa \
-    --ref uniref90.fasta \
-    --markers markers.faa
-```
-
-## Batch Processing
-
-```bash
-for fasta in *.fasta; do
-    sample=$(basename $fasta .fasta)
-    amrfinder -n $fasta -o ${sample}_amr.tsv --plus
-done
-
-# Combine results
-cat *_amr.tsv | head -1 > all_amr.tsv
-cat *_amr.tsv | grep -v "^Protein" >> all_amr.tsv
-```
-
-## See Also
-
+## Resources
 - [AMRFinderPlus wiki](https://github.com/ncbi/amr/wiki)
 - [CARD database](https://card.mcmaster.ca/)
+- [ResFinder web server](https://cge.food.dtu.dk/services/ResFinder/)

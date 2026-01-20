@@ -1,53 +1,59 @@
-# Clustering and Phenotyping Usage Guide
+# Clustering and Phenotyping - Usage Guide
 
 ## Overview
+Unsupervised clustering identifies cell populations without predefined gates. Useful for discovery and high-dimensional CyTOF/spectral flow data.
 
-Unsupervised clustering identifies cell populations without predefined gates. Useful for discovery and high-dimensional data.
+## Prerequisites
+```bash
+# R/Bioconductor
+BiocManager::install(c('FlowSOM', 'CATALYST', 'Rphenograph'))
+```
 
-## Methods
+## Quick Start
+Tell your AI agent what you want to do:
+- "Cluster my CyTOF data with FlowSOM"
+- "Identify cell populations using Phenograph"
+- "Annotate clusters based on marker expression"
 
-### FlowSOM
-- Self-organizing map + hierarchical clustering
-- Fast, scalable
-- Requires specifying # clusters
+## Example Prompts
+### Clustering
+> "Run FlowSOM clustering with 20 metaclusters on my CyTOF data"
+> "Apply Phenograph clustering to identify cell populations"
+> "Use Leiden clustering via CATALYST"
 
-### Phenograph
-- KNN graph + Louvain clustering
-- Automatic # clusters
-- Good for rare populations
+### Visualization
+> "Create a UMAP colored by FlowSOM clusters"
+> "Show a heatmap of marker expression per cluster"
+> "Generate a cluster abundance plot per sample"
 
-### Leiden
-- Improved Louvain
-- More consistent results
-- Implemented in CATALYST
+### Annotation
+> "Annotate clusters based on canonical marker expression"
+> "Merge similar clusters that express the same markers"
+> "Create a panel file with type and state marker annotations"
 
-## Workflow
+## What the Agent Will Do
+1. Prepare SingleCellExperiment or flowSet for clustering
+2. Select phenotyping markers (exclude state markers)
+3. Apply clustering algorithm (FlowSOM, Phenograph, or Leiden)
+4. Generate UMAP embedding
+5. Visualize and annotate clusters
 
-1. **Preprocess**: Transform data (arcsinh for CyTOF)
-2. **Select markers**: Use phenotyping markers
-3. **Cluster**: FlowSOM or Phenograph
-4. **Visualize**: UMAP colored by cluster
-5. **Annotate**: Name clusters based on markers
+## Tips
+- FlowSOM is fast and scalable; Phenograph finds rare populations
+- Use type markers (lineage) for clustering, state markers for downstream analysis
+- Start with more clusters than expected, then merge
+- Check delta area plot to help choose number of clusters
+- CATALYST provides a streamlined workflow for CyTOF
 
-## Choosing K (Number of Clusters)
+## Methods Comparison
 
-- Start with overestimate (20-30)
-- Check delta area plot
-- Merge similar clusters
-- Match to known biology
-
-## Marker Selection
-
-### Type markers
-- Cell lineage definition
-- Used for clustering
-
-### State markers
-- Functional states
-- Used for differential analysis
+| Method | Speed | Auto K | Best For |
+|--------|-------|--------|----------|
+| FlowSOM | Fast | No | Large datasets, defined biology |
+| Phenograph | Slow | Yes | Discovery, rare populations |
+| Leiden | Medium | Yes | Consistent community detection |
 
 ## CATALYST Panel Format
-
 ```
 fcs_colname,antigen,marker_class
 Yb176Di,CD45,type
@@ -56,7 +62,6 @@ Nd142Di,Ki67,state
 ```
 
 ## References
-
 - FlowSOM: doi:10.1002/cyto.a.22625
 - Phenograph: doi:10.1016/j.cell.2015.05.047
 - CATALYST: doi:10.1101/218826

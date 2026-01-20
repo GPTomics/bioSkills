@@ -4,52 +4,46 @@
 
 Polishing improves assembly accuracy by using additional sequencing data to correct errors. Essential for long-read assemblies which have higher raw error rates.
 
-## When to Use This Skill
-
-- After long-read assembly (ONT or PacBio CLR)
-- When Illumina data is available for validation
-- To improve consensus accuracy
-- Before gene annotation
-
-## Installation
+## Prerequisites
 
 ```bash
-conda install -c bioconda pilon medaka racon
+conda install -c bioconda pilon medaka racon bwa samtools
 ```
 
 ## Quick Start
 
-### Illumina Polishing (Pilon)
+Tell your AI agent what you want to do:
+- "Polish my ONT assembly with medaka"
+- "Use Illumina reads to polish my long-read assembly with Pilon"
+- "Run multiple rounds of polishing to improve accuracy"
 
-```bash
-bwa index assembly.fa
-bwa mem -t 16 assembly.fa R1.fq.gz R2.fq.gz | samtools sort -o aligned.bam
-samtools index aligned.bam
-pilon --genome assembly.fa --frags aligned.bam --output polished
-```
+## Example Prompts
 
-### ONT Polishing (medaka)
+### ONT Polishing
+> "Polish my Flye assembly with medaka using the original ONT reads"
+> "Run two rounds of Racon followed by medaka on my nanopore assembly"
 
-```bash
-medaka_consensus -i reads.fq.gz -d assembly.fa -o medaka_out -t 8
-```
+### Illumina Polishing
+> "Polish my assembly with Pilon using paired-end Illumina reads"
+> "Run two iterations of Pilon polishing to maximize accuracy"
 
-## Recommended Workflow
+### Combined Approach
+> "Polish my ONT assembly first with medaka then with Illumina using Pilon"
 
-| Assembly Type | Polishing Steps |
-|--------------|-----------------|
-| ONT | Racon x2 → medaka → Pilon x2 |
-| PacBio CLR | Racon x2 → Pilon x2 |
-| PacBio HiFi | Usually none needed |
+## What the Agent Will Do
 
-## When to Stop
+1. Assess input assembly and available polishing reads
+2. Determine optimal polishing strategy based on data types
+3. Align reads to assembly (BWA for Illumina, minimap2 for long reads)
+4. Run polishing tool with appropriate parameters
+5. Iterate polishing if multiple rounds requested
+6. Compare before/after statistics to verify improvement
 
-- No more changes in Pilon output
-- Error rate stabilizes
-- BUSCO completeness stops improving
+## Tips
 
-## Resources
-
-- [Pilon](https://github.com/broadinstitute/pilon)
-- [medaka](https://github.com/nanoporetech/medaka)
-- [Racon](https://github.com/isovic/racon)
+- For ONT assemblies: Racon x2 -> medaka -> Pilon x2 is a recommended workflow
+- PacBio HiFi assemblies typically do not need polishing due to high accuracy
+- Stop polishing when changes between rounds become minimal
+- Monitor BUSCO completeness to track improvement
+- Pilon requires significant memory; use `--fix bases` to limit corrections
+- medaka models should match your flowcell/basecaller version

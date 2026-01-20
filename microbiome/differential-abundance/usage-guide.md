@@ -1,49 +1,71 @@
-# Differential Abundance Testing
+# Differential Abundance - Usage Guide
 
 ## Overview
 
 Differential abundance testing identifies taxa that differ significantly between experimental groups while accounting for the compositional nature of microbiome data.
 
-## The Compositionality Problem
+## Prerequisites
 
-Microbiome data from sequencing is compositional:
-- Abundances are relative (proportions)
-- Changes in one taxon affect apparent abundance of others
-- Standard statistical tests give false positives
+```bash
+# R packages
+BiocManager::install(c('ANCOMBC', 'ALDEx2'))
+install.packages('Maaslin2')
+```
 
-## Recommended Methods
+## Quick Start
 
-### ALDEx2
-- CLR (centered log-ratio) transformation
-- Monte Carlo sampling from Dirichlet distribution
-- Handles compositionality properly
-- Best for: Simple two-group comparisons
+Tell your AI agent what you want to do:
+- "Find differentially abundant taxa between treatment and control"
+- "Run ANCOM-BC2 with covariates for my microbiome study"
 
-### ANCOM-BC
-- Bias correction for compositionality
-- Handles structural zeros
-- Supports covariates
-- Best for: Complex designs with covariates
+## Example Prompts
 
-### MaAsLin2
-- Multiple normalization options
-- Linear models with covariates
-- TSS, CLR, or AST normalization
-- Best for: Mixed effects, longitudinal data
+### Simple Comparisons
+> "Run ALDEx2 to compare taxa abundance between two groups"
+
+> "Find differentially abundant genera between healthy and diseased samples"
+
+### Complex Designs
+> "Run ANCOM-BC2 with age and sex as covariates"
+
+> "Analyze differential abundance with MaAsLin2 for my longitudinal study"
+
+### Filtering and Interpretation
+> "Filter taxa present in fewer than 10% of samples before testing"
+
+> "Which taxa have effect size greater than 1 and q-value below 0.05?"
+
+## What the Agent Will Do
+
+1. Filter low-abundance and rare taxa
+2. Select appropriate method based on study design
+3. Set up statistical model with covariates if needed
+4. Run differential abundance test
+5. Apply FDR correction
+6. Filter by effect size and significance
+7. Generate results table and visualizations
+
+## Tips
+
+- ALDEx2 is best for simple two-group comparisons
+- ANCOM-BC2 handles complex designs with covariates
+- MaAsLin2 is best for longitudinal and mixed effects
+- Always use FDR correction (q-value < 0.05)
+- Consider effect size, not just p-value
 
 ## Methods to Avoid
 
-- **Simple t-test**: Ignores compositionality
-- **DESeq2/edgeR alone**: Designed for RNA-seq, not compositional
-- **LEfSe**: Outdated, no FDR control
+- Simple t-test (ignores compositionality)
+- DESeq2/edgeR alone (designed for RNA-seq)
+- LEfSe (outdated, no FDR control)
 
-## Workflow
+## Method Comparison
 
-1. **Filter low-abundance taxa**: Remove rare taxa
-2. **Choose appropriate method**: Based on design
-3. **Run differential test**: With proper normalization
-4. **Apply FDR correction**: BH or similar
-5. **Effect size filtering**: Not just p-value
+| Method | Best For | Handles Covariates |
+|--------|----------|-------------------|
+| ALDEx2 | Two-group comparisons | Limited |
+| ANCOM-BC2 | Complex designs | Yes |
+| MaAsLin2 | Longitudinal, mixed effects | Yes |
 
 ## Filtering Recommendations
 
@@ -52,17 +74,9 @@ Before testing:
 - Remove taxa with <0.1% mean abundance
 - Remove samples with <1000 reads
 
-## Interpreting Results
+## Effect Size Interpretation
 
-### Effect Size
-- **ALDEx2 effect**: >1 or <-1 is meaningful
-- **Log2 fold change**: >1 is 2-fold difference
-
-### Multiple Testing
-- Always use FDR correction (BH)
-- q-value < 0.05 is standard threshold
-
-### Biological Significance
-- Consider absolute abundance
-- Validate with qPCR if possible
-- Check consistency across methods
+| Metric | Meaningful Threshold |
+|--------|---------------------|
+| ALDEx2 effect | >1 or <-1 |
+| Log2 fold change | >1 (2-fold difference) |

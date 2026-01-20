@@ -1,54 +1,57 @@
-# Compensation and Transformation Usage Guide
+# Compensation and Transformation - Usage Guide
 
 ## Overview
-
 Compensation removes spectral spillover between fluorochromes. Transformation normalizes dynamic range for visualization and analysis.
 
-## Compensation
+## Prerequisites
+```bash
+# R/Bioconductor
+BiocManager::install(c('flowCore', 'flowWorkspace'))
+```
 
-### Why?
-Fluorochromes emit into multiple detectors. Spillover must be mathematically removed.
+## Quick Start
+Tell your AI agent what you want to do:
+- "Apply compensation to my flow cytometry data"
+- "Transform my CyTOF data with arcsinh"
+- "Calculate compensation matrix from single-stained controls"
 
-### Matrix
-Square matrix with detectors on both axes. Diagonal = 1, off-diagonal = spillover coefficients.
+## Example Prompts
+### Compensation
+> "Apply the compensation matrix from the FCS keywords to my data"
+> "Build a spillover matrix from my single-stained controls"
+> "Verify compensation with bivariate plots"
 
-### Best Practices
-- Use single-stained controls
-- Match voltages to experiment
-- Verify with FMO controls
+### Transformation
+> "Apply logicle transformation to my compensated flow data"
+> "Transform my CyTOF data with arcsinh cofactor 5"
+> "Estimate optimal logicle parameters for each channel"
 
-## Transformations
+### Quality Control
+> "Check my compensation with FMO controls"
+> "Show before/after plots for compensation verification"
 
-### Biexponential (Logicle)
-- Standard for conventional flow
-- Handles negative values (compensation artifacts)
-- ~5 decades of display
+## What the Agent Will Do
+1. Extract or compute compensation/spillover matrix
+2. Apply compensation to correct for spectral overlap
+3. Select appropriate transformation (logicle for flow, arcsinh for CyTOF)
+4. Apply transformation to normalize dynamic range
+5. Generate verification plots
 
-### Arcsinh
-- Standard for mass cytometry (CyTOF)
-- cofactor = 5 is typical
-- Formula: asinh(x/cofactor)
+## Tips
+- Conventional flow: Use logicle (biexponential) transformation
+- CyTOF: Use arcsinh with cofactor = 5
+- Always verify compensation with bivariate plots
+- Use single-stained controls with voltages matching the experiment
+- FMO (Fluorescence Minus One) controls help verify gating boundaries
 
-### Log
-- Classic transformation
-- Cannot handle negative/zero values
-- Less common now
+## Transformation Guide
 
-## When to Transform
-
-| Data Type | Transform |
-|-----------|-----------|
-| Conventional flow | Logicle (biexponential) |
-| CyTOF | Arcsinh (cofactor 5) |
-| Spectral flow | Logicle after unmixing |
-
-## Verification
-
-1. Check bivariate plots post-compensation
-2. Verify no spillover-driven false positives
-3. Check spread (compensation increases CV)
+| Data Type | Transform | Notes |
+|-----------|-----------|-------|
+| Conventional flow | Logicle | Handles negative values from compensation |
+| CyTOF | Arcsinh (cofactor 5) | Standard for mass cytometry |
+| Spectral flow | Logicle | Apply after unmixing |
 
 ## References
-
 - Logicle: doi:10.1002/cyto.a.20258
 - CyTOF normalization: doi:10.1002/cyto.a.22271

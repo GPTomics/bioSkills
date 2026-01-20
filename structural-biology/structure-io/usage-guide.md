@@ -12,13 +12,10 @@ pip install biopython
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Download structure 1ABC from PDB"
-
-> "Parse this PDB file and show the chains"
-
-> "Convert this mmCIF file to PDB format"
+Tell your AI agent what you want to do:
+- "Download structure 1ABC from PDB"
+- "Parse this PDB file and show the chains"
+- "Convert this mmCIF file to PDB format"
 
 ## Example Prompts
 

@@ -1,47 +1,47 @@
 # fastp Workflow - Usage Guide
 
 ## Overview
+fastp is a modern, all-in-one FASTQ preprocessing tool that replaces the need for separate adapter trimming (Cutadapt), quality filtering (Trimmomatic), and QC reporting (FastQC) steps. It is fast, memory-efficient, and produces comprehensive HTML reports.
 
-fastp is a modern, all-in-one FASTQ preprocessing tool that replaces the need for separate adapter trimming (Cutadapt), quality filtering (Trimmomatic), and QC reporting (FastQC) steps. It's fast, memory-efficient, and produces comprehensive HTML reports.
-
-## When to Use This Skill
-
-- Starting a new NGS project (recommended default)
-- Need fast, single-step preprocessing
-- Processing NovaSeq/NextSeq data (poly-G handling)
-- Want integrated QC reports
-- Deduplication without alignment
-
-## Installation
-
+## Prerequisites
 ```bash
 conda install -c bioconda fastp
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Process my FASTQ files with fastp"
+- "Run all-in-one preprocessing on my paired-end reads"
+- "Clean up my sequencing data with automatic adapter detection"
 
-### Minimal Command
+## Example Prompts
 
-```bash
-fastp -i R1.fq.gz -I R2.fq.gz -o R1_clean.fq.gz -O R2_clean.fq.gz
-```
+### Basic Processing
+> "Run fastp on my paired-end FASTQ files with default settings"
 
-This automatically:
-- Detects and removes adapters
-- Filters low-quality reads (Q15)
-- Removes poly-G tails (if detected)
-- Generates HTML and JSON reports
+> "Process all samples in my data directory with fastp and generate reports"
 
-### Recommended Settings
+### Custom Parameters
+> "Use fastp with Q20 quality threshold and minimum length of 36bp"
 
-```bash
-fastp \
-    -i R1.fq.gz -I R2.fq.gz \
-    -o R1_clean.fq.gz -O R2_clean.fq.gz \
-    --cut_right -q 20 -l 36 \
-    --thread 8 \
-    -h report.html -j report.json
-```
+> "Run fastp with sliding window trimming from the 3' end"
+
+### Special Features
+> "Merge overlapping paired-end reads using fastp"
+
+> "Deduplicate my reads at the FASTQ level with fastp"
+
+> "Process my NovaSeq data with poly-G trimming enabled"
+
+### Batch Processing
+> "Run fastp on all my samples and aggregate reports with MultiQC"
+
+## What the Agent Will Do
+1. Run fastp with automatic adapter detection
+2. Apply quality filtering and trimming
+3. Handle platform-specific issues (poly-G for NovaSeq)
+4. Generate HTML and JSON reports
+5. Optionally merge overlapping reads or deduplicate
 
 ## Comparison with Traditional Pipeline
 
@@ -54,56 +54,14 @@ fastp \
 | Dedup | After align | Optional |
 | Time | 3 steps | 1 step |
 
-## Key Features
-
-### Auto Adapter Detection
-
-fastp identifies Illumina adapters automatically:
-```bash
-# Report shows detected adapters
-fastp -i in.fq -o out.fq
-# Check HTML report for "Adapter" section
-```
-
-### Poly-G Trimming
-
-Essential for NovaSeq/NextSeq (two-color chemistry):
-```bash
-fastp -i in.fq -o out.fq --trim_poly_g
-```
-
-### Sliding Window Quality Trim
-
-`--cut_right` is similar to Trimmomatic's SLIDINGWINDOW:
-```bash
-fastp -i in.fq -o out.fq \
-      --cut_right --cut_right_window_size 4 --cut_right_mean_quality 20
-```
-
-### Read Merging
-
-For paired reads with overlap (e.g., amplicons):
-```bash
-fastp -i R1.fq -I R2.fq \
-      --merge --merged_out merged.fq
-```
-
-## MultiQC Integration
-
-fastp JSON reports are compatible with MultiQC:
-```bash
-# Process multiple samples
-for sample in sample1 sample2 sample3; do
-    fastp -i ${sample}_R1.fq.gz -I ${sample}_R2.fq.gz \
-          -o ${sample}_R1_clean.fq.gz -O ${sample}_R2_clean.fq.gz \
-          -j ${sample}_fastp.json -h ${sample}_fastp.html
-done
-
-# Aggregate reports
-multiqc .
-```
+## Tips
+- fastp auto-detects Illumina adapters, no need to specify them manually
+- Use `--cut_right` for sliding window trimming similar to Trimmomatic
+- JSON reports integrate seamlessly with MultiQC
+- Read merging is useful for amplicon sequencing with overlapping pairs
+- FASTQ-level deduplication can reduce file sizes before alignment
+- Always review the HTML report for QC metrics and filtering statistics
 
 ## Resources
-
 - [fastp GitHub](https://github.com/OpenGene/fastp)
 - [fastp Publication](https://doi.org/10.1093/bioinformatics/bty560)

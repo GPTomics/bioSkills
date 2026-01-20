@@ -1,27 +1,53 @@
-# Protein Quantification
+# Quantification - Usage Guide
 
 ## Overview
+Convert raw mass spectrometry signals into protein abundance estimates using label-free, isobaric, or metabolic labeling strategies.
 
-Protein quantification converts raw mass spectrometry signals into abundance estimates for statistical analysis.
+## Prerequisites
+```bash
+pip install numpy pandas scipy
+# R packages: BiocManager::install(c("MSstats", "DEP", "MSnbase"))
+```
 
-## Quantification Strategies
+## Quick Start
+Tell your AI agent what you want to do:
+- "Normalize my MaxLFQ intensities using median centering"
+- "Process TMT reporter ion intensities from my experiment"
+- "Impute missing values using KNN for my protein matrix"
 
-### Label-Free Quantification (LFQ)
-- **Intensity-based**: Sum of peptide intensities (MaxLFQ)
-- **Spectral counting**: Number of spectra per protein
-- **Pros**: No labeling required, unlimited samples
-- **Cons**: More missing values, requires careful normalization
+## Example Prompts
 
-### Isobaric Labeling (TMT/iTRAQ)
-- **TMT**: 6-plex, 10-plex, 11-plex, 16-plex, 18-plex
-- **iTRAQ**: 4-plex, 8-plex
-- **Pros**: Multiplex samples, reduced missing values
-- **Cons**: Ratio compression, batch effects between plexes
+### Normalization
+> "Apply median centering normalization to my protein intensity matrix"
 
-### Metabolic Labeling (SILAC)
-- Incorporate heavy amino acids during cell culture
-- **Pros**: Most accurate ratios
-- **Cons**: Limited to cell culture, max 3-plex
+> "Use quantile normalization to correct for batch effects between runs"
+
+> "Normalize my TMT data using the internal reference channel"
+
+### Missing Value Handling
+> "Impute missing values using KNN for MAR pattern and MinProb for MNAR"
+
+> "Filter proteins with more than 50% missing values, then impute the rest"
+
+> "Analyze the missing value pattern and recommend an imputation strategy"
+
+### Label-Free Quantification
+> "Calculate MaxLFQ intensities from peptide-level data"
+
+> "Summarize peptide intensities to protein level using top3 method"
+
+### TMT/iTRAQ Processing
+> "Extract TMT reporter ion intensities and correct for isotope impurity"
+
+> "Normalize across TMT plexes using the bridge channel"
+
+## What the Agent Will Do
+1. Load protein/peptide intensity matrix
+2. Log2-transform raw intensities
+3. Apply appropriate normalization method
+4. Identify missing value pattern (MCAR/MAR/MNAR)
+5. Impute missing values with suitable method
+6. Generate QC metrics (CV, correlation)
 
 ## Normalization Methods
 
@@ -38,11 +64,10 @@ Protein quantification converts raw mass spectrometry signals into abundance est
 |------|--------|
 | MCAR | Mean/median imputation |
 | MAR | KNN imputation |
-| MNAR (low abundance) | MinDet, MinProb, Perseus left-censored |
+| MNAR (low abundance) | MinDet, MinProb, left-censored |
 
-## Quality Metrics
-
-- **CV per protein**: Coefficient of variation across replicates
-- **Correlation**: Pearson/Spearman between replicates
-- **PCA**: Check for batch effects and outliers
-- **Missing value pattern**: Should be random, not systematic
+## Tips
+- Always log2-transform before normalization
+- Check CV across replicates (technical <20%, biological <40%)
+- Use PCA to verify normalization removed batch effects
+- Document imputation method - it affects downstream statistics

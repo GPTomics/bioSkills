@@ -1,20 +1,9 @@
 # Interval Arithmetic - Usage Guide
 
 ## Overview
-
 Interval arithmetic covers the core set operations on genomic intervals: finding overlaps (intersect), removing overlaps (subtract), combining intervals (merge), and finding uncovered regions (complement). These operations form the foundation of genomic analysis.
 
-## When to Use This Skill
-
-- Find overlapping regions between two sets of intervals
-- Remove unwanted regions from your intervals
-- Merge overlapping or adjacent intervals
-- Find genomic regions not covered by your intervals
-- Calculate similarity between interval sets (Jaccard)
-- Test statistical significance of overlaps (Fisher)
-
-## Installation
-
+## Prerequisites
 ```bash
 # bedtools (required)
 conda install -c bioconda bedtools
@@ -22,6 +11,41 @@ conda install -c bioconda bedtools
 # pybedtools (optional, for Python)
 pip install pybedtools
 ```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Find which of my peaks overlap with promoter regions"
+- "Remove blacklisted regions from my peak calls"
+- "Merge overlapping peaks from multiple replicates"
+
+## Example Prompts
+
+### Finding Overlaps
+> "Find peaks from peaks.bed that overlap with promoters.bed"
+> "Get the overlapping portions between my ChIP-seq peaks and enhancer annotations"
+> "Which of my peaks do NOT overlap with any gene?"
+
+### Removing Regions
+> "Remove ENCODE blacklist regions from my peak file"
+> "Subtract exons from gene bodies to get introns"
+
+### Merging Intervals
+> "Merge overlapping peaks from my three replicates"
+> "Combine peaks that are within 100bp of each other"
+
+### Complement and Gaps
+> "Find all genomic regions not covered by my annotations"
+> "Get the gaps between my exons"
+
+### Statistical Analysis
+> "Calculate Jaccard similarity between two peak sets"
+> "Test if my peaks significantly overlap with promoters using Fisher's exact test"
+
+## What the Agent Will Do
+1. Sort input BED files if needed
+2. Execute the appropriate bedtools/pybedtools operation
+3. Apply any filtering criteria (distance thresholds, overlap fractions)
+4. Save results and report summary statistics
 
 ## Choosing the Right Operation
 
@@ -34,92 +58,15 @@ pip install pybedtools
 | Combine overlapping intervals | merge | Merge replicates |
 | Find uncovered genome | complement | Non-coding regions |
 
-## Basic Workflow
-
-### 1. Prepare Input Files
-
-```bash
-# Sort BED files (required for many operations)
-bedtools sort -i peaks.bed > peaks.sorted.bed
-bedtools sort -i genes.bed > genes.sorted.bed
-```
-
-### 2. Find Overlaps
-
-```bash
-# Peaks that overlap genes
-bedtools intersect -a peaks.sorted.bed -b genes.sorted.bed -u > peaks_in_genes.bed
-
-# Peaks that don't overlap genes
-bedtools intersect -a peaks.sorted.bed -b genes.sorted.bed -v > peaks_outside_genes.bed
-```
-
-### 3. Merge Replicates
-
-```bash
-# Combine peaks from multiple replicates
-cat rep1.bed rep2.bed rep3.bed | \
-    bedtools sort | \
-    bedtools merge -d 100 > consensus_peaks.bed
-```
-
-## Common Issues
-
-### Empty Output
-
-**Problem:** No overlaps found
-**Solutions:**
-- Check chromosome naming (chr1 vs 1)
-- Verify coordinate system (0-based vs 1-based)
-- Check file format with `head -5`
-
-### Unsorted Input Error
-
-**Problem:** "Input must be sorted"
-**Solution:** Sort first
-
-```bash
-bedtools sort -i input.bed | bedtools merge > output.bed
-```
-
-### Memory Issues
-
-**Problem:** Out of memory on large files
-**Solution:** Use streaming or sorted input
-
-```bash
-# Stream through operations
-bedtools sort -i huge.bed | bedtools merge > merged.bed
-```
-
-## Python Integration
-
-```python
-import pybedtools
-import pandas as pd
-
-# Load and intersect
-a = pybedtools.BedTool('peaks.bed')
-b = pybedtools.BedTool('genes.bed')
-result = a.intersect(b, u=True)
-
-# Convert to DataFrame for analysis
-df = result.to_dataframe()
-print(f'Found {len(df)} overlapping peaks')
-
-# Cleanup
-pybedtools.cleanup()
-```
-
-## Performance Tips
-
-1. **Sort once:** Sort input files before multiple operations
-2. **Use streams:** Pipe operations together
-3. **Index BAM files:** For BAM/BED intersections
-4. **Clean up:** Remove temp files with `pybedtools.cleanup()`
+## Tips
+- Sort input files once before running multiple operations
+- Use `-u` flag to get unique overlapping intervals (not duplicated per overlap)
+- Use `-v` to invert and get non-overlapping intervals
+- Pipe operations together for efficiency: `bedtools sort | bedtools merge`
+- Use `pybedtools.cleanup()` to remove temp files after Python operations
+- Check chromosome naming consistency between files (chr1 vs 1)
 
 ## Resources
-
 - [bedtools intersect](https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html)
 - [bedtools merge](https://bedtools.readthedocs.io/en/latest/content/tools/merge.html)
 - [pybedtools tutorial](https://daler.github.io/pybedtools/topical-intersections.html)

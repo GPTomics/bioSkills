@@ -1,18 +1,9 @@
 # methylKit Analysis - Usage Guide
 
 ## Overview
+methylKit is an R/Bioconductor package for DNA methylation analysis, handling data import, quality control, normalization, and differential methylation analysis from bisulfite sequencing data.
 
-methylKit is an R/Bioconductor package for analysis of DNA methylation data from bisulfite sequencing. It handles data import, quality control, normalization, and differential methylation analysis.
-
-## When to Use This Skill
-
-- You have Bismark coverage files from multiple samples
-- You want to identify differentially methylated CpGs
-- You need to visualize methylation patterns
-- You want to compare methylation between conditions
-
-## Installation
-
+## Prerequisites
 ```r
 if (!require('BiocManager', quietly = TRUE))
     install.packages('BiocManager')
@@ -20,77 +11,44 @@ if (!require('BiocManager', quietly = TRUE))
 BiocManager::install('methylKit')
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Load my Bismark coverage files into methylKit and run QC"
+- "Find differentially methylated CpGs between treatment and control"
+- "Generate PCA and correlation plots for my methylation samples"
 
-### 1. Prepare Sample Information
+## Example Prompts
+### Data Import
+> "Read my Bismark coverage files into methylKit with sample metadata"
 
-Create a sample sheet:
-```r
-samples <- data.frame(
-    file = c('ctrl1.cov.gz', 'ctrl2.cov.gz', 'treat1.cov.gz', 'treat2.cov.gz'),
-    sample_id = c('ctrl_1', 'ctrl_2', 'treat_1', 'treat_2'),
-    treatment = c(0, 0, 1, 1)
-)
-```
+> "Import methylation data for 4 controls and 4 treated samples"
 
-### 2. Read Data
+### Quality Control
+> "Generate methylation and coverage statistics plots for all samples"
 
-```r
-library(methylKit)
+> "Show me PCA and sample correlation for my methylation data"
 
-meth_obj <- methRead(
-    location = as.list(samples$file),
-    sample.id = as.list(samples$sample_id),
-    treatment = samples$treatment,
-    assembly = 'hg38',
-    pipeline = 'bismarkCoverage'
-)
-```
+### Differential Analysis
+> "Find differentially methylated CpGs with at least 25% difference and q < 0.01"
 
-### 3. Quality Control
+> "Run differential methylation analysis between tumor and normal samples"
 
-```r
-# Check each sample
-for (i in seq_along(meth_obj)) {
-    getMethylationStats(meth_obj[[i]], plot = TRUE)
-    getCoverageStats(meth_obj[[i]], plot = TRUE)
-}
-```
+> "Identify hypermethylated and hypomethylated CpGs separately"
 
-### 4. Filter and Normalize
+### Filtering
+> "Filter CpGs by coverage (minimum 10x) and normalize samples"
 
-```r
-meth_filt <- filterByCoverage(meth_obj, lo.count = 10, hi.perc = 99.9)
-meth_norm <- normalizeCoverage(meth_filt)
-meth_united <- unite(meth_norm, destrand = TRUE)
-```
+> "Unite samples requiring CpG coverage in at least 3 samples per group"
 
-### 5. Sample Visualization
-
-```r
-getCorrelation(meth_united, plot = TRUE)
-PCASamples(meth_united)
-```
-
-### 6. Differential Methylation
-
-```r
-diff_meth <- calculateDiffMeth(meth_united, overdispersion = 'MN', mc.cores = 4)
-dmcs <- getMethylDiff(diff_meth, difference = 25, qvalue = 0.01)
-```
-
-## Common Issues
-
-### Low Number of Common CpGs
-
-- Relax coverage filter (lo.count = 5)
-- Use min.per.group in unite()
-- Ensure samples are from same protocol
-
-### Memory Issues
-
-- Process chromosomes separately
-- Use save.db = TRUE for database-backed objects
+## What the Agent Will Do
+1. Create sample metadata with file paths, sample IDs, and treatment groups
+2. Import Bismark coverage files with methRead()
+3. Generate QC plots (coverage stats, methylation stats)
+4. Filter by coverage and normalize between samples
+5. Unite samples to get common CpGs
+6. Visualize sample relationships (PCA, correlation)
+7. Run differential methylation analysis
+8. Export significant differentially methylated CpGs
 
 ## Output Interpretation
 
@@ -104,7 +62,11 @@ dmcs <- getMethylDiff(diff_meth, difference = 25, qvalue = 0.01)
 Positive meth.diff = hypermethylated in treatment
 Negative meth.diff = hypomethylated in treatment
 
-## Resources
-
-- [methylKit Bioconductor](https://bioconductor.org/packages/methylKit/)
-- [methylKit Vignette](https://bioconductor.org/packages/release/bioc/vignettes/methylKit/inst/doc/methylKit.html)
+## Tips
+- Use pipeline = 'bismarkCoverage' when reading Bismark .cov files
+- Set destrand = TRUE in unite() to combine CpGs on both strands
+- Typical filters: lo.count = 10 (minimum coverage), hi.perc = 99.9 (remove PCR artifacts)
+- For memory issues, use save.db = TRUE for database-backed objects
+- Use min.per.group in unite() if samples have variable coverage
+- Overdispersion = 'MN' (multiplicative) is recommended for calculateDiffMeth()
+- Common thresholds: difference = 25%, qvalue = 0.01

@@ -1,57 +1,58 @@
-# Phenotyping Usage Guide
+# Phenotyping - Usage Guide
 
 ## Overview
+Phenotyping assigns cell type identities based on marker expression, enabling biological interpretation of IMC data.
 
-Phenotyping assigns cell type identities based on marker expression. Critical for biological interpretation of IMC data.
+## Prerequisites
+```bash
+pip install scanpy anndata scikit-learn
+# For FlowSOM-style clustering
+pip install minisom
+```
 
-## Approaches
+## Quick Start
+Tell your AI agent what you want to do:
+- "Cluster cells and identify cell types from my IMC data"
+- "Assign cell phenotypes using marker expression"
+- "Create a manual gating strategy for my panel"
+
+## Example Prompts
+
+### Clustering-Based Phenotyping
+> "Cluster my IMC cells using Leiden clustering and annotate cell types"
+
+> "Run FlowSOM clustering on my single-cell data and identify populations"
+
+> "Perform PCA and UMAP on my cell data then cluster with Leiden"
 
 ### Manual Gating
-- Define thresholds for each marker
-- Boolean logic for cell types
-- Most interpretable, requires expertise
+> "Define CD45+CD3+CD8+ cells as cytotoxic T cells in my data"
 
-### Clustering
-- Unsupervised grouping
-- PCA + Leiden/Louvain
-- FlowSOM for cytometry-style
+> "Create a gating hierarchy for immune cell populations"
 
-### Automated
-- Reference-based classification
-- Transfer learning from labeled data
-- Faster, requires good reference
+### Marker-Based Annotation
+> "Identify macrophages as CD45+CD68+ cells"
 
-## Marker Panel Design
+> "Annotate epithelial cells using E-cadherin and pan-cytokeratin"
 
-### Lineage Markers
-- Pan-immune: CD45
-- T cells: CD3, CD4, CD8
-- B cells: CD20
-- Macrophages: CD68, CD163
-- Epithelial: E-cadherin, pan-CK
+### Validation
+> "Show me marker expression heatmaps for each cluster"
 
-### Functional Markers
-- Activation: Ki67, PD-1, PD-L1
-- Cytotoxicity: Granzyme B
+> "Validate my cell type assignments against known marker profiles"
 
-## Best Practices
+## What the Agent Will Do
+1. Load single-cell expression data from segmented images
+2. Transform data (arcsinh with cofactor 5)
+3. Select lineage markers for phenotyping
+4. Run dimensionality reduction (PCA, UMAP)
+5. Perform clustering (Leiden, FlowSOM)
+6. Annotate clusters based on marker expression
+7. Generate validation plots (heatmaps, dotplots)
 
-1. **Transform data** before clustering (arcsinh)
-2. **Select relevant markers** for phenotyping
-3. **Validate** with known biology
-4. **Report confidence** of assignments
-
-## Common Cell Types
-
-| Type | Key Markers |
-|------|-------------|
-| CD8 T | CD45+CD3+CD8+ |
-| CD4 T | CD45+CD3+CD4+ |
-| B cell | CD45+CD20+ |
-| Macrophage | CD45+CD68+ |
-| Epithelial | E-cadherin+ |
-
-## References
-
-- FlowSOM: doi:10.1002/cyto.a.22625
-- Phenograph: doi:10.1016/j.cell.2015.05.047
+## Tips
+- Always arcsinh transform data before clustering
+- Select only lineage markers for phenotyping (exclude functional markers)
+- Common lineage markers: CD45 (immune), CD3/CD4/CD8 (T cells), CD20 (B cells), CD68 (macrophages)
+- FlowSOM produces more reproducible clusters than Leiden for cytometry data
+- Validate assignments by checking marker expression in each cluster
+- Report confidence of ambiguous cell type assignments

@@ -1,41 +1,67 @@
-# Fragment Analysis Usage Guide
+# Fragment Analysis - Usage Guide
 
+## Overview
 Predict and analyze DNA fragments produced by restriction enzyme digestion.
 
 ## Prerequisites
-
 ```bash
 pip install biopython
 ```
 
-## Basic Fragment Prediction
+## Quick Start
+Tell your AI agent what you want to do:
+- "Predict the fragment sizes from an EcoRI digest"
+- "What bands will I see on a gel after cutting with BamHI?"
 
+## Example Prompts
+
+### Single Digest
+> "What fragment sizes will I get from an EcoRI digest of my plasmid?"
+
+> "Predict the gel pattern for HindIII digestion of sequence.fasta"
+
+### Double Digest
+> "Calculate fragment sizes for an EcoRI + BamHI double digest"
+
+> "What bands will I see from digesting with both PstI and SalI?"
+
+### Gel Comparison
+> "Compare my predicted fragments to a 1kb ladder"
+
+> "My gel shows bands at 3000, 2000, and 1000 bp - does this match EcoRI digestion?"
+
+### Verification
+> "Verify my digest worked by comparing observed vs expected fragments"
+
+## What the Agent Will Do
+1. Load your DNA sequence
+2. Find enzyme cut positions
+3. Calculate fragment sizes
+4. Sort fragments for gel comparison
+5. Optionally compare to observed gel results
+
+## Code Patterns
+
+### Basic Fragment Prediction
 ```python
 from Bio import SeqIO
 from Bio.Restriction import EcoRI
 
 record = SeqIO.read('plasmid.fasta', 'fasta')
-seq = record.seq
-
-# Get fragments
-fragments = EcoRI.catalyze(seq)[0]
-
-# Get sizes
+fragments = EcoRI.catalyze(record.seq)[0]
 sizes = sorted([len(f) for f in fragments], reverse=True)
 print(f'Fragment sizes: {sizes}')
 ```
 
-## Understanding catalyze()
-
-The `catalyze()` method returns a tuple:
-- `[0]`: 5' fragments (most common use)
-- `[1]`: 3' fragments (for asymmetric cuts)
-
+### Understanding catalyze()
 ```python
+# catalyze() returns a tuple
 five_prime_frags, three_prime_frags = EcoRI.catalyze(seq)
+# [0]: 5' fragments (most common use)
+# [1]: 3' fragments (for asymmetric cuts)
 ```
 
-## Linear vs Circular DNA
+### Linear vs Circular DNA
 
 | DNA Type | n cuts | Fragments |
 |----------|--------|-----------|
@@ -47,26 +73,19 @@ five_prime_frags, three_prime_frags = EcoRI.catalyze(seq)
 fragments = EcoRI.catalyze(seq, linear=False)[0]
 ```
 
-## Double Digest
-
-For two enzymes, combine their cut positions:
-
+### Double Digest
 ```python
 from Bio.Restriction import EcoRI, BamHI
 
-# Get all cut positions
 ecori_sites = EcoRI.search(seq)
 bamhi_sites = BamHI.search(seq)
 all_sites = sorted(set(ecori_sites + bamhi_sites))
 
-# Calculate fragments from positions
 def calc_fragments(seq_len, positions, linear=True):
     if not positions:
         return [seq_len]
-
     positions = sorted(positions)
     frags = []
-
     if linear:
         frags.append(positions[0])
         for i in range(len(positions) - 1):
@@ -76,16 +95,12 @@ def calc_fragments(seq_len, positions, linear=True):
         for i in range(len(positions) - 1):
             frags.append(positions[i + 1] - positions[i])
         frags.append((seq_len - positions[-1]) + positions[0])
-
     return frags
 
 sizes = calc_fragments(len(seq), all_sites, linear=True)
 ```
 
-## Gel Simulation
-
-Match predicted fragments to a DNA ladder:
-
+### Gel Simulation
 ```python
 def gel_pattern(sizes, ladder=[10000, 5000, 3000, 2000, 1500, 1000, 500]):
     all_bands = sorted(set(sizes + ladder), reverse=True)
@@ -95,15 +110,10 @@ def gel_pattern(sizes, ladder=[10000, 5000, 3000, 2000, 1500, 1000, 500]):
         print(f'{band:>6} {marker} | {sample}')
 ```
 
-## Comparing Results
-
-When comparing predicted vs gel-observed sizes:
-
+### Comparing Predicted vs Observed
 ```python
 predicted = [3000, 2000, 1000]
 observed = [3050, 1980, 1020]  # From gel image
-
-# Allow tolerance for gel measurement error
 tolerance = 100  # bp
 
 for pred in predicted:
@@ -112,16 +122,8 @@ for pred in predicted:
         print(f'{pred} bp matches {matches[0]} bp')
 ```
 
-## Common Issues
-
-**Wrong number of fragments:**
-- Check linear vs circular setting
-- Verify enzyme recognition site exists
-
-**Fragments don't add up:**
-- For linear DNA: sum should equal sequence length
-- For circular: same, but n cuts give n fragments
-
-**Missing small fragments:**
-- Small fragments (<100 bp) may run off gel
-- Include them in calculations
+## Tips
+- Check linear vs circular setting if fragment count is wrong
+- For linear DNA: sum of fragments should equal sequence length
+- Small fragments (<100 bp) may run off the gel
+- Allow ~5-10% tolerance when comparing to gel measurements

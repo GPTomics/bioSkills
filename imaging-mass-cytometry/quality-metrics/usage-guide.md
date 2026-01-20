@@ -1,105 +1,60 @@
-# Quality Metrics Usage Guide
+# Quality Metrics - Usage Guide
 
 ## Overview
+Quality metrics assess IMC data quality at acquisition, preprocessing, and segmentation levels to catch issues before downstream analysis.
 
-Quality metrics assess IMC data quality at multiple levels: acquisition, preprocessing, and segmentation. Early QC catches issues before downstream analysis.
+## Prerequisites
+```bash
+pip install numpy scipy scikit-image pandas matplotlib
+```
 
-## When to Use This Skill
+## Quick Start
+Tell your AI agent what you want to do:
+- "Calculate QC metrics for my IMC acquisition"
+- "Check signal-to-noise ratio for all channels"
+- "Generate a QC report for my experiment"
 
-- After data acquisition
-- Before analysis begins
-- Batch processing QC
-- Troubleshooting unexpected results
-- Multi-site study harmonization
+## Example Prompts
 
-## Key Metrics
+### Signal Quality
+> "Calculate signal-to-noise ratio for each channel in my IMC image"
 
-### Signal-to-Noise Ratio
-| SNR | Interpretation |
-|-----|----------------|
-| > 5 | Excellent |
-| 3-5 | Good |
-| 1.5-3 | Acceptable |
-| < 1.5 | Poor - review |
-
-### Tissue Coverage
-| Coverage | Status |
-|----------|--------|
-| > 50% | Good |
-| 30-50% | Acceptable |
-| < 30% | Poor - may affect analysis |
+> "Check which channels have low SNR in my data"
 
 ### Channel Correlation
-- Expected: Related markers (CD3/CD45)
-- Unexpected high: Possible spillover
-- Check against panel design
+> "Calculate pairwise channel correlations to detect spillover"
 
-## Common Issues
+> "Check for unexpected correlations between my markers"
 
-### Low SNR
-- Antibody concentration issue
-- Poor tissue fixation
-- Acquisition parameters
-- Consider normalization
+### Tissue Quality
+> "Calculate tissue coverage and fragmentation metrics"
 
-### Unexpected correlations
-- Spillover from adjacent channels
-- Apply spillover correction
-- Check panel mass spacing
+> "Check my image for acquisition artifacts like hot pixels or striping"
 
-### Acquisition artifacts
-- Hot pixels: Dead detector elements
-- Striping: Ion beam instability
-- Saturation: Overloaded detector
+### Batch QC
+> "Compare QC metrics across all samples in my experiment"
 
-### Tissue quality
-- Low coverage: Tissue loss
-- High fragmentation: Poor sectioning
-- Dead regions: Ablation issues
+> "Flag outlier samples based on SNR and coverage"
 
-## QC Thresholds
+### Comprehensive QC
+> "Generate a full QC report for my IMC dataset"
 
-### Pass Criteria (typical)
-- Mean SNR > 2
-- All channels SNR > 1.5
-- Tissue coverage > 30%
-- No saturation > 1%
-- No striping artifacts
+> "Run quality control checks before starting analysis"
 
-### Flag for Review
-- Any channel SNR < 1.5
-- Unexpected correlations > 0.7
-- Tissue fragmentation > 0.5
-- Hot pixels > 0.1%
+## What the Agent Will Do
+1. Load preprocessed IMC images
+2. Calculate signal-to-noise ratio per channel
+3. Compute pairwise channel correlations
+4. Assess tissue coverage and fragmentation
+5. Detect acquisition artifacts (hot pixels, striping, saturation)
+6. Compare metrics across samples for batch effects
+7. Generate QC summary report with pass/fail status
 
-### Fail
-- Mean SNR < 1
-- Coverage < 10%
-- Major striping/banding
-- Extensive saturation
-
-## Batch QC
-
-### Outlier Detection
-- Compare across samples
-- Flag > 2 SD from median
-- Review before exclusion
-
-### Documentation
-- Record QC decisions
-- Note excluded samples
-- Track batch effects
-
-## Best Practices
-
-1. Run QC before analysis
-2. Define thresholds before looking at data
-3. Document all QC decisions
-4. Keep QC reports with data
-5. Review failed samples individually
-6. Consider reacquisition for failures
-
-## References
-
-- IMC quality control: doi:10.1038/s41596-021-00508-0
-- steinbock QC: doi:10.1038/s41592-021-01308-y
+## Tips
+- Run QC before any downstream analysis
+- SNR thresholds: >5 excellent, 3-5 good, 1.5-3 acceptable, <1.5 poor
+- Unexpected high correlations (>0.7) may indicate spillover
+- Tissue coverage <30% may affect spatial analysis reliability
+- Define QC thresholds before looking at data to avoid bias
+- Document all QC decisions and excluded samples
+- Consider reacquisition for samples failing QC

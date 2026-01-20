@@ -1,108 +1,83 @@
-# Library Design Usage Guide
+# Library Design - Usage Guide
 
 ## Overview
-
 CRISPR library design involves selecting optimal sgRNAs for genetic screens, balancing efficiency, specificity, and practical cloning considerations.
 
-## When to Use This Skill
+## Prerequisites
+```bash
+pip install biopython pandas numpy
+# For sgRNA scoring
+pip install crispor  # or use web interface
+```
 
-- Designing new knockout/activation libraries
-- Optimizing existing library designs
-- Creating focused sublibaries
-- Validating library composition
+## Quick Start
+Tell your AI agent what you want to do:
+- "Design sgRNAs targeting my gene list"
+- "Create a focused CRISPR library for pathway genes"
+- "Select optimal guides with low off-target potential"
 
-## Design Considerations
+## Example Prompts
 
-### sgRNA Selection Criteria
+### sgRNA Selection
+> "Design 4 sgRNAs per gene for my list of 50 kinases. Filter for GC content 40-60% and no poly-T runs."
+
+> "Find the best guides targeting TP53 exons. Prioritize high efficiency scores and low off-targets."
+
+> "Select sgRNAs for a CRISPRa activation library targeting my gene set."
+
+### Library Design
+> "Design a focused knockout library for 200 DNA repair genes with 6 guides per gene."
+
+> "Create a genome-wide library design. Include essential gene controls and 500 non-targeting controls."
+
+> "Design a sublibrary from the Brunello library targeting only my genes of interest."
+
+### Validation and QC
+> "Check my designed guides for off-target sites in the human genome."
+
+> "Validate that my library has adequate controls: essentials, non-essentials, and non-targeting."
+
+> "Calculate the optimal cell numbers needed for 500x library coverage."
+
+## What the Agent Will Do
+1. Parse gene list and retrieve sequences
+2. Identify PAM sites and candidate guides
+3. Score guides for efficiency and specificity
+4. Filter based on design criteria
+5. Add control guides (essential, non-targeting)
+6. Generate oligo sequences for synthesis
+
+## Tips
+- Include 4-6 guides per gene for dropout screens, 6-10 for focused screens
+- Optimal GC content is 40-60%, acceptable is 30-70%
+- Avoid poly-T runs (>3 Ts) which terminate Pol III transcription
+- 5' G preferred for U6 promoter transcription
+- Include 5-10% of library as controls
+
+## Design Criteria
+
 | Criterion | Optimal | Acceptable |
 |-----------|---------|------------|
 | GC content | 40-60% | 30-70% |
-| Length | 20 nt | 18-22 nt |
+| Guide length | 20 nt | 18-22 nt |
 | Poly-T runs | None | < 4 Ts |
 | 5' nucleotide | G | A, C |
+| Off-targets | 0 in exons | < 3 in exons |
 
-### Off-Target Risk
-- Use validated algorithms (CRISPOR, Azimuth)
-- Filter guides with >3 off-targets in exons
-- Consider off-target in essential genes
+## Library Size Guidelines
 
-### Library Size
-| Screen Type | Guides/Gene | Minimum Cells |
+| Screen Type | Guides/Gene | Cell Coverage |
 |-------------|-------------|---------------|
-| Dropout | 4-6 | 500x coverage |
-| Activation | 3-4 | 300x coverage |
-| Focused | 6-10 | 1000x coverage |
+| Dropout | 4-6 | 500x |
+| Activation | 3-4 | 300x |
+| Focused | 6-10 | 1000x |
 
 ## Control Design
-
-### Essential Controls
-- Include 20-50 essential gene guides
-- Should drop out in all conditions
-- Validates library/screen quality
-
-### Non-Targeting Controls
-- 100-500 non-targeting guides
-- Use for background estimation
-- Spread across library synthesis
-
-### Safe Harbor Controls
-- AAVS1, ROSA26 targeting
-- Validate Cas9 activity
-- Should show no phenotype
-
-## Cloning Strategy
-
-### Arrayed Oligo Synthesis
-- For libraries < 1,000 guides
-- Higher per-guide quality
-- Individual validation possible
-
-### Pooled Array Synthesis
-- For libraries > 1,000 guides
-- More cost-effective
-- Requires representation QC
-
-### Subpool Strategy
-- Divide large libraries into subpools
-- Enables focused validation
-- Simplifies coverage calculations
-
-## Common Issues
-
-### Low guide scores
-- Gene lacks good PAM sites
-- Try extended search window
-- Consider alternative PAMs (NAG)
-
-### Too many off-targets
-- Use stricter filtering
-- Prioritize exon-targeting
-- Check against recent genome build
-
-### Uneven representation
-- Array synthesis variance
-- Amplification bias
-- May need rebalancing
-
-## Quality Metrics
-
-### Good Library
-- 4+ guides per gene
-- >90% guides with GC 30-70%
-- <5% guides with off-targets
-- Controls: 5-10% of library
-
-## Best Practices
-
-1. Use latest genome annotation
-2. Validate computationally predicted scores
-3. Include comprehensive controls
-4. Document design parameters
-5. Verify representation after cloning
-6. Bank library aliquots
+- **Essential genes**: 20-50 guides, validates dropout
+- **Non-targeting**: 100-500 guides, background estimation
+- **Safe harbor**: AAVS1/ROSA26, validates Cas9 activity
 
 ## References
-
 - CRISPOR: doi:10.1093/nar/gkw441
 - Azimuth 2.0: doi:10.1038/nbt.3437
-- Library design: doi:10.1038/nrg.2017.97
+- Library design review: doi:10.1038/nrg.2017.97

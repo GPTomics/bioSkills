@@ -1,59 +1,75 @@
-# DIA Analysis Usage Guide
+# DIA Analysis - Usage Guide
 
 ## Overview
+Process data-independent acquisition (DIA) mass spectrometry data for comprehensive proteome quantification with fewer missing values than DDA.
 
-Data-independent acquisition (DIA) is a mass spectrometry method where all precursors within isolation windows are fragmented simultaneously. This provides comprehensive coverage with fewer missing values than DDA.
+## Prerequisites
+```bash
+pip install pandas numpy
+# CLI: DIA-NN (recommended), MSFragger-DIA, OpenSWATH
+# Commercial: Spectronaut
+```
 
-## Key Tools
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run DIA-NN on my mzML files in library-free mode"
+- "Process DIA data using a spectral library I built"
+- "Load DIA-NN results and prepare for statistical analysis"
 
-- **DIA-NN** - Fast, accurate, open-source (recommended)
-- **Spectronaut** - Commercial, user-friendly
-- **MSFragger-DIA** - Part of FragPipe suite
-- **OpenSWATH** - OpenMS-based workflow
+## Example Prompts
+
+### Library-Free Analysis
+> "Run DIA-NN in library-free mode against the UniProt human FASTA with 1% FDR"
+
+> "Set up library-free DIA analysis with trypsin digestion and standard modifications"
+
+> "Process my DIA mzML files without a spectral library using deep learning prediction"
+
+### Library-Based Analysis
+> "Search my DIA data against the spectral library from my previous DDA experiments"
+
+> "Run DIA-NN with my Prosit-predicted library for targeted analysis"
+
+> "Use match-between-runs with my spectral library for improved coverage"
+
+### Parameter Configuration
+> "Configure DIA-NN with 10 ppm mass accuracy and 1 missed cleavage"
+
+> "Set up DIA analysis with phosphorylation as a variable modification"
+
+> "Enable two-pass analysis (reanalyse) for improved quantification"
+
+### Results Processing
+> "Load the DIA-NN report.tsv and create a protein abundance matrix"
+
+> "Filter DIA results to precursor q-value < 0.01 and protein q-value < 0.01"
+
+> "Compare protein identifications between library-free and library-based modes"
+
+## What the Agent Will Do
+1. Configure DIA-NN parameters (FASTA, library, tolerances)
+2. Run search in library-free or library-based mode
+3. Apply FDR filtering at precursor and protein level
+4. Export protein/precursor matrices
+5. Load results for downstream analysis
 
 ## Library-Free vs Library-Based
 
-### Library-Free (Recommended for most cases)
-- No prior DDA experiments needed
-- Uses deep learning (DIA-NN predictor)
-- Generates library from data automatically
-- Slightly lower sensitivity than library-based
-
-### Library-Based
-- Requires pre-built spectral library
-- Higher sensitivity for known targets
-- Better for targeted panels
-- Library from DDA or predicted (Prosit, DeepLC)
+| Mode | Description | Use When |
+|------|-------------|----------|
+| Library-free | Deep learning predicts spectra | Quick analysis, no prior data |
+| Library-based | Match to experimental spectra | Higher sensitivity for known targets |
+| Hybrid | Predicted + empirical library | Best coverage for large studies |
 
 ## Key Parameters
-
-### Mass Ranges
-- `--min-fr-mz 200 --max-fr-mz 1800` - Fragment ion range
-- `--min-pr-mz 300 --max-pr-mz 1800` - Precursor range
-
-### Digestion
-- `--cut K*,R*` - Trypsin specificity
-- `--missed-cleavages 1` - Allow 1 missed cleavage
-
-### Modifications
-- `--unimod4` - Carbamidomethyl C (fixed)
-- `--var-mod UniMod:35,15.994915,M` - Oxidation M (variable)
-
-### Quality Control
 - `--qvalue 0.01` - 1% FDR at precursor and protein level
-- `--reanalyse` - Two-pass analysis for MBR
-- `--smart-profiling` - Improved quantification
+- `--reanalyse` - Two-pass analysis for match-between-runs
+- `--smart-profiling` - Improved quantification accuracy
+- `--min-fr-mz 200 --max-fr-mz 1800` - Fragment ion range
 
-## Typical Workflow
-
-1. Convert raw files to mzML (ProteoWizard)
-2. Run DIA-NN (library-free or library-based)
-3. Load protein matrix in R/Python
-4. Normalize (median centering)
-5. Impute missing values
-6. Statistical testing (limma)
-
-## References
-
-- DIA-NN: https://github.com/vdemichev/DiaNN
-- DIA-NN paper: doi:10.1038/s41592-019-0638-x
+## Tips
+- Library-free mode is often sufficient for discovery proteomics
+- Use --reanalyse for better quantification across many samples
+- DIA typically has fewer missing values than DDA
+- Filter to 1% FDR at both precursor and protein levels
+- For large cohorts, consider building a project-specific library

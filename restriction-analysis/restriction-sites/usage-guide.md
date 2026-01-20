@@ -1,35 +1,54 @@
-# Finding Restriction Sites Usage Guide
+# Finding Restriction Sites - Usage Guide
 
-Bio.Restriction allows you to search DNA sequences for restriction enzyme recognition sites.
+## Overview
+Search DNA sequences for restriction enzyme recognition sites using Bio.Restriction.
 
 ## Prerequisites
-
 ```bash
 pip install biopython
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Find all EcoRI sites in my plasmid sequence"
+- "Search for multiple restriction enzyme sites in this DNA sequence"
 
-### 1. Load Your Sequence
+## Example Prompts
 
+### Single Enzyme Search
+> "Find all EcoRI cut sites in plasmid.fasta"
+
+> "Where does BamHI cut in my sequence?"
+
+### Multiple Enzyme Search
+> "Search for EcoRI, BamHI, and HindIII sites in my plasmid"
+
+> "Find all commercially available enzymes that cut my sequence exactly once"
+
+### Filtering Results
+> "Which enzymes cut my sequence twice?"
+
+> "Find all enzymes that don't cut my insert sequence"
+
+## What the Agent Will Do
+1. Load your DNA sequence from file
+2. Search for specified enzyme recognition sites
+3. Report cut positions (1-based)
+4. Optionally filter results by cut frequency
+
+## Code Patterns
+
+### Basic Search
 ```python
 from Bio import SeqIO
-
-record = SeqIO.read('plasmid.fasta', 'fasta')
-seq = record.seq
-```
-
-### 2. Search for Sites
-
-```python
 from Bio.Restriction import EcoRI
 
-sites = EcoRI.search(seq)
+record = SeqIO.read('plasmid.fasta', 'fasta')
+sites = EcoRI.search(record.seq)
 print(f'EcoRI cuts at: {sites}')
 ```
 
-### 3. Search Multiple Enzymes
-
+### Multiple Enzymes
 ```python
 from Bio.Restriction import RestrictionBatch, Analysis, EcoRI, BamHI, HindIII
 
@@ -42,51 +61,40 @@ for enzyme, sites in results.items():
         print(f'{enzyme}: {sites}')
 ```
 
+### Filtering Results
+```python
+from Bio.Restriction import Analysis, CommOnly
+
+analysis = Analysis(CommOnly, seq)
+once = analysis.once_cutters()       # Cut exactly once
+twice = analysis.twice_cutters()     # Cut exactly twice
+none = analysis.only_dont_cut()      # Don't cut at all
+```
+
 ## Understanding Cut Positions
 
-Positions returned are **1-based** and indicate where the enzyme cuts:
-
+Positions returned are 1-based and indicate where the enzyme cuts:
 ```
 EcoRI: G^AATTC
        |
        Cut position = 1 (after G)
 ```
 
-For a sequence:
-```
-Position: 1234567890...
-Sequence: ATGAATTCGC...
-EcoRI cuts at position 4 (between G and A)
-```
-
-## Linear vs Circular
-
-For circular DNA (plasmids), sites near the origin matter:
-
+## Linear vs Circular DNA
 ```python
 # Linear DNA (default)
 sites = EcoRI.search(seq, linear=True)
 
-# Circular DNA
+# Circular DNA (plasmids)
 sites = EcoRI.search(seq, linear=False)
 ```
 
 ## Enzyme Properties
-
 ```python
-from Bio.Restriction import EcoRI
-
-# Recognition site
-EcoRI.site        # 'GAATTC'
-
-# Cut characteristics
+EcoRI.site            # 'GAATTC' - recognition site
 EcoRI.is_blunt()      # False (makes sticky ends)
 EcoRI.is_5overhang()  # True (5' overhang)
-EcoRI.is_3overhang()  # False
-
-# Overhang details
-EcoRI.ovhg        # 4 (overhang length)
-EcoRI.ovhgseq     # 'AATT' (overhang sequence)
+EcoRI.ovhgseq         # 'AATT' (overhang sequence)
 ```
 
 ## Common Enzyme Collections
@@ -97,27 +105,8 @@ EcoRI.ovhgseq     # 'AATT' (overhang sequence)
 | CommOnly | Commercially available only |
 | Custom RestrictionBatch | Your selected enzymes |
 
-## Filtering Results
-
-```python
-from Bio.Restriction import Analysis, CommOnly
-
-analysis = Analysis(CommOnly, seq)
-
-# Get specific categories
-cutters = analysis.only_cut()         # All that cut
-once = analysis.once_cutters()        # Cut exactly once
-twice = analysis.twice_cutters()      # Cut exactly twice
-none = analysis.only_dont_cut()       # Don't cut at all
-```
-
-## Common Issues
-
-**Empty results:**
-- Check sequence is DNA (not protein)
-- Verify sequence has the recognition site
-- Check linear/circular setting
-
-**Module not found:**
-- Install biopython: `pip install biopython`
-- Import from Bio.Restriction, not Bio.restriction
+## Tips
+- Use `linear=False` for plasmid sequences
+- Use CommOnly for practical cloning applications
+- Check sequence is DNA (not protein) if getting empty results
+- Import from Bio.Restriction (capital R)

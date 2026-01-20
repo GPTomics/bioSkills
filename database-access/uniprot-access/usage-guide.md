@@ -1,53 +1,48 @@
-# UniProt Access Usage Guide
+# UniProt Access - Usage Guide
 
-UniProt is the most comprehensive protein sequence and annotation database. Access it programmatically using the REST API.
+## Overview
 
-## API Base URL
+This skill enables AI agents to help you query UniProt programmatically using the REST API to retrieve protein sequences, annotations, and functional information.
 
-```
-https://rest.uniprot.org/
+## Prerequisites
+
+```bash
+pip install requests
 ```
 
 ## Quick Start
 
-```python
-import requests
+Tell your AI agent what you want to do:
 
-# Fetch protein sequence
-response = requests.get('https://rest.uniprot.org/uniprotkb/P04637.fasta')
-print(response.text)
+- "Download the FASTA sequence for UniProt P04637"
+- "Search UniProt for all human kinases"
+- "Map these gene names to UniProt accessions"
+- "Get functional annotations for BRCA1"
 
-# Search for proteins
-response = requests.get('https://rest.uniprot.org/uniprotkb/search',
-                       params={'query': 'gene:BRCA1 AND organism_id:9606', 'format': 'json'})
-results = response.json()
-```
+## Example Prompts
 
-## Common Use Cases
+### Sequence Retrieval
+> "Download the protein sequence for UniProt accession P53_HUMAN"
 
-### Get All Human Kinases
+### Protein Search
+> "Find all reviewed human proteins with 'transcription factor' in their name"
 
-```python
-query = 'organism_id:9606 AND keyword:kinase AND reviewed:true'
-params = {'query': query, 'format': 'tsv', 'fields': 'accession,gene_names,protein_name'}
-response = requests.get('https://rest.uniprot.org/uniprotkb/search', params=params)
-```
+### ID Mapping
+> "Convert these gene names to UniProt IDs: TP53, BRCA1, EGFR"
 
-### Map Gene Names to UniProt
+### Bulk Download
+> "Download all Swiss-Prot entries for E. coli K-12 as FASTA"
 
-```python
-# Use ID mapping endpoint
-response = requests.post('https://rest.uniprot.org/idmapping/run',
-                        data={'ids': 'TP53,BRCA1,EGFR', 'from': 'Gene_Name', 'to': 'UniProtKB'})
-```
+### Specific Fields
+> "Get accession, gene name, and subcellular location for all human membrane proteins"
 
-### Download All Proteins for an Organism
+## What the Agent Will Do
 
-```python
-# Use stream endpoint for large results
-response = requests.get('https://rest.uniprot.org/uniprotkb/stream',
-                       params={'query': 'organism_id:9606 AND reviewed:true', 'format': 'fasta'})
-```
+1. Construct the appropriate REST API query
+2. Choose the right endpoint (search, stream, idmapping)
+3. Set output format (FASTA, JSON, TSV, XML)
+4. Handle pagination for large result sets
+5. Parse and present the results
 
 ## Output Formats
 
@@ -62,8 +57,8 @@ response = requests.get('https://rest.uniprot.org/uniprotkb/stream',
 
 ## Tips
 
-1. **Use reviewed:true** for Swiss-Prot (curated) entries only
-2. **Use stream endpoint** for >500 results
-3. **Specify fields** in TSV format to reduce data transfer
-4. **Check rate limits** - be polite with requests
-5. **Cache results** - UniProt updates frequently but not constantly
+- Use `reviewed:true` for Swiss-Prot (curated) entries only
+- Use the stream endpoint for >500 results
+- Specify fields in TSV format to reduce data transfer
+- Be polite with requests - add delays for batch queries
+- Cache results when possible - UniProt updates frequently but not constantly

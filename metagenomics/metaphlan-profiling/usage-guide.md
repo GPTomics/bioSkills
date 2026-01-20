@@ -1,15 +1,55 @@
 # MetaPhlAn Profiling - Usage Guide
 
 ## Overview
+MetaPhlAn uses clade-specific marker genes to provide accurate taxonomic profiling of metagenomic samples, outputting relative abundances that sum to 100%.
 
-MetaPhlAn (Metagenomic Phylogenetic Analysis) uses clade-specific marker genes to provide accurate taxonomic profiling of metagenomic samples. It outputs relative abundances that sum to 100% and is particularly accurate at species level.
+## Prerequisites
+```bash
+conda install -c bioconda metaphlan
 
-## When to Use This Skill
+# Database downloads automatically on first run (~1GB)
+# Or download manually:
+metaphlan --install
+```
 
-- You want accurate species-level abundances
-- You need relative abundances (percentages)
-- You're comparing microbial communities across samples
-- You want a standard profiling method for publication
+## Quick Start
+Tell your AI agent what you want to do:
+- "Profile the taxonomic composition of my metagenome"
+- "Get species-level abundances for my microbial community"
+- "Merge MetaPhlAn profiles from multiple samples"
+
+## Example Prompts
+### Basic Profiling
+> "Run MetaPhlAn on sample.fastq.gz and output species abundances"
+
+> "Profile my metagenome and save the intermediate mapping file"
+
+### Multi-sample Analysis
+> "Process all fastq files through MetaPhlAn and merge into one table"
+
+> "Create a merged abundance table for downstream visualization"
+
+### Specific Taxonomic Levels
+> "Extract only species-level results from my MetaPhlAn output"
+
+> "Get genus-level abundances from the merged table"
+
+### Comparison with Kraken2
+> "I have both MetaPhlAn and Kraken2 results - help me compare them"
+
+## What the Agent Will Do
+1. Verify MetaPhlAn installation and database availability
+2. Run profiling with appropriate parameters for input format
+3. Generate taxonomic profile with relative abundances
+4. Merge multiple samples if requested
+5. Filter to specific taxonomic levels as needed
+
+## Tips
+- MetaPhlAn outputs relative abundance (all values sum to 100% at each level)
+- Low mapping rate is normal - only marker genes are targeted
+- Save the mapping file (`--mapout`) for faster re-analysis
+- UNCLASSIFIED means reads didn't match any marker gene
+- Use `merge_metaphlan_tables.py` to combine multiple profiles
 
 ## MetaPhlAn vs Kraken2
 
@@ -21,70 +61,21 @@ MetaPhlAn (Metagenomic Phylogenetic Analysis) uses clade-specific marker genes t
 | Database | Smaller (~1GB) | Larger (8-50GB) |
 | Speed | Slower | Very fast |
 
-## Installation
-
-```bash
-conda install -c bioconda metaphlan
-```
-
-Database downloads automatically on first run (~1GB).
-
-## Basic Workflow
-
-```bash
-# 1. Profile sample
-metaphlan sample.fastq.gz \
-    --input_type fastq \
-    --nproc 8 \
-    --output_file profile.txt \
-    --mapout sample.map.bz2
-
-# 2. View results
-head profile.txt
-
-# 3. Extract species
-grep "s__" profile.txt | grep -v "t__"
-```
-
-## Processing Multiple Samples
-
-```bash
-# Process all samples
-for fq in *.fastq.gz; do
-    sample=$(basename $fq .fastq.gz)
-    metaphlan $fq --input_type fastq --nproc 4 -o profiles/${sample}.txt
-done
-
-# Merge into one table
-merge_metaphlan_tables.py profiles/*.txt > merged_profiles.txt
-```
-
 ## Common Issues
 
 ### No Database Found
-
 ```bash
-# Download database manually
 metaphlan --install
 ```
 
 ### Low Mapping Rate
-
-Normal for some samples. MetaPhlAn only considers marker genes, so many reads won't map. Check for host contamination.
+Normal for some samples. MetaPhlAn only considers marker genes. Check for host contamination if rate is very low.
 
 ### Output All Zeros
-
 - Check input file is not empty
-- Verify input_type matches file format
+- Verify `--input_type` matches file format
 - Sample may have very low microbial content
 
-## Output Interpretation
-
-- Values are percentages (relative abundance)
-- All values sum to 100% at each taxonomic level
-- UNCLASSIFIED means reads didn't match any marker
-
 ## Resources
-
 - [MetaPhlAn GitHub](https://github.com/biobakery/MetaPhlAn)
 - [MetaPhlAn Wiki](https://github.com/biobakery/MetaPhlAn/wiki)

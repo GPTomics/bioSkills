@@ -1,6 +1,45 @@
-# ChIP-seq QC Usage Guide
+# ChIP-seq QC - Usage Guide
 
-This guide covers quality control metrics for ChIP-seq experiments.
+## Overview
+
+Quality control metrics for ChIP-seq experiments including FRiP, NSC/RSC, IDR, and library complexity measurements to assess enrichment quality and replicate reproducibility.
+
+## Prerequisites
+
+```bash
+conda install -c bioconda bedtools samtools phantompeakqualtools idr deeptools
+pip install pybedtools pysam
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Calculate FRiP score for my ChIP-seq sample"
+- "Run phantompeakqualtools to get NSC and RSC metrics"
+- "Check reproducibility between replicates using IDR"
+
+## Example Prompts
+
+### Enrichment Assessment
+> "Calculate the FRiP score for my H3K27ac ChIP-seq experiment"
+
+### Cross-correlation Analysis
+> "Run phantompeakqualtools on my BAM file and interpret the NSC/RSC values"
+
+### Replicate Consistency
+> "Run IDR analysis on my two ChIP-seq replicates to assess reproducibility"
+
+### Comprehensive QC
+> "Generate a full QC report including FRiP, NSC/RSC, and fingerprint plots"
+
+## What the Agent Will Do
+
+1. Calculate FRiP score by counting reads in peaks vs total reads
+2. Run phantompeakqualtools to compute NSC and RSC metrics
+3. Check library complexity metrics (NRF, PBC1)
+4. Run IDR on replicate peak files
+5. Generate fingerprint plots with deepTools plotFingerprint
+6. Interpret results against ENCODE standards
 
 ## Key Metrics
 
@@ -25,21 +64,13 @@ This guide covers quality control metrics for ChIP-seq experiments.
 - Ranks peaks by signal and checks concordance
 - > 70% of peaks should be reproducible at IDR < 0.05
 
-## Typical Workflow
+## Tips
 
-1. Align reads and call peaks
-2. Calculate FRiP to check enrichment
-3. Run phantompeakqualtools for NSC/RSC
-4. Check library complexity (NRF, PBC1)
-5. Run IDR on replicates
-6. Generate fingerprint plots with deepTools
-
-## Tool Requirements
-
-```bash
-conda install -c bioconda bedtools samtools phantompeakqualtools idr deeptools
-pip install pybedtools pysam
-```
+- Always use input control when calculating enrichment metrics
+- Run QC before differential binding analysis to identify problematic samples
+- Low FRiP may indicate weak antibody or insufficient sequencing depth
+- Poor IDR suggests biological variation or technical issues with one replicate
+- Consider re-doing immunoprecipitation if NSC/RSC values are consistently low
 
 ## Troubleshooting
 

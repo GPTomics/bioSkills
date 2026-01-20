@@ -1,21 +1,47 @@
-# Peptide Identification
+# Peptide Identification - Usage Guide
 
 ## Overview
+Match MS/MS spectra to peptide sequences using database search or spectral library matching.
 
-Peptide identification matches MS/MS spectra to peptide sequences from a protein database or spectral library.
+## Prerequisites
+```bash
+pip install pyopenms
+# CLI tools: MSFragger, Comet, or X!Tandem
+# R alternative: BiocManager::install(c("mzID", "MSnbase"))
+```
 
-## Search Strategies
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run a database search on my mzML files against UniProt human"
+- "Set up peptide identification with trypsin digestion and 10 ppm tolerance"
+- "Parse search results and filter to 1% FDR"
 
-### Database Search
-1. Digest protein database in-silico
-2. Generate theoretical spectra for peptides
-3. Match experimental spectra to theoretical
-4. Score matches and estimate FDR
+## Example Prompts
+
+### Database Search Setup
+> "Configure a database search with trypsin, 2 missed cleavages, carbamidomethyl C as fixed mod, and oxidation M as variable"
+
+> "Set up MSFragger search with 10 ppm precursor tolerance and 0.02 Da fragment tolerance"
+
+### Running Searches
+> "Run a peptide search against the reviewed human proteome from UniProt"
+
+> "Perform an open modification search to identify unknown PTMs"
+
+### Results Processing
+> "Parse the mzIdentML output and filter to 1% peptide FDR"
+
+> "Convert pepXML results to a pandas DataFrame with PSM scores"
 
 ### Spectral Library Search
-1. Use previously identified spectra as reference
-2. Match by spectral similarity
-3. Faster but limited to known peptides
+> "Search my DIA data against a spectral library for targeted quantification"
+
+## What the Agent Will Do
+1. Configure search parameters (enzyme, tolerances, modifications)
+2. Set up target-decoy strategy for FDR control
+3. Run database or spectral library search
+4. Filter results to specified FDR threshold
+5. Report identification statistics
 
 ## Key Parameters
 
@@ -27,14 +53,6 @@ Peptide identification matches MS/MS spectra to peptide sequences from a protein
 | Fixed modifications | Carbamidomethyl (C) | Always present |
 | Variable modifications | Oxidation (M), Phospho (STY) | May be present |
 
-## FDR Control
-
-The target-decoy approach:
-1. Search against forward + reversed sequences
-2. Decoys estimate false positives
-3. FDR = #decoys / #targets at score threshold
-4. Typically filter to 1% FDR
-
 ## Common Enzymes
 
 | Enzyme | Cleavage Rule |
@@ -44,8 +62,8 @@ The target-decoy approach:
 | Chymotrypsin | After F, W, Y, L |
 | Asp-N | Before D |
 
-## Output Formats
-
-- **mzIdentML (.mzid)**: Standard exchange format
-- **idXML**: OpenMS internal format
-- **pepXML**: Trans-Proteomic Pipeline format
+## Tips
+- Always use target-decoy FDR for quality control
+- 1% FDR at peptide level is standard; protein FDR is separate
+- Use >= 2 unique peptides per protein for confident identification
+- Variable modifications increase search space exponentially

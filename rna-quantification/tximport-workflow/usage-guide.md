@@ -1,32 +1,46 @@
-# tximport Workflow Usage Guide
+# tximport Workflow - Usage Guide
 
+## Overview
 tximport imports transcript-level quantifications and summarizes them to the gene level for differential expression analysis with DESeq2 or edgeR.
 
-## Installation
-
+## Prerequisites
 ```r
 if (!require('BiocManager', quietly = TRUE))
     install.packages('BiocManager')
 
 BiocManager::install('tximport')
 BiocManager::install('tximeta')  # Optional: metadata-aware import
+BiocManager::install('GenomicFeatures')  # For creating tx2gene from GTF
 ```
 
 ## Quick Start
+Tell your AI agent what you want to do:
+- "Import my Salmon quantification results into R"
+- "Summarize transcript counts to gene level for DESeq2"
+- "Create a tx2gene mapping from my GTF file"
 
-```r
-library(tximport)
+## Example Prompts
+### Basic Import
+> "Import Salmon quant.sf files from my samples and create a gene-level count matrix"
 
-# Define files
-files <- file.path(paste0('sample', 1:4, '_quant'), 'quant.sf')
-names(files) <- paste0('sample', 1:4)
+> "Load my kallisto results into R for differential expression analysis"
 
-# Create tx2gene mapping (transcript ID -> gene ID)
-tx2gene <- read.csv('tx2gene.csv')
+### tx2gene Creation
+> "Create a transcript-to-gene mapping from my Ensembl GTF file"
 
-# Import
-txi <- tximport(files, type = 'salmon', tx2gene = tx2gene)
-```
+> "Build tx2gene using biomaRt for human transcripts"
+
+### Downstream Analysis
+> "Import Salmon results and create a DESeqDataSet ready for analysis"
+
+> "Use tximeta to automatically link my Salmon results to annotations"
+
+## What the Agent Will Do
+1. Locate all quantification output files (quant.sf or abundance.tsv)
+2. Create or load the tx2gene mapping
+3. Import transcript-level counts with tximport
+4. Summarize to gene level with proper length scaling
+5. Create a DESeqDataSet or DGEList for downstream analysis
 
 ## Why tximport?
 
@@ -42,7 +56,6 @@ The tx2gene data frame must have exactly two columns:
 - `GENEID` - Gene identifiers for summarization
 
 ### Method 1: From Ensembl GTF
-
 ```r
 library(GenomicFeatures)
 txdb <- makeTxDbFromGFF('Homo_sapiens.GRCh38.110.gtf.gz')
@@ -52,7 +65,6 @@ write.csv(tx2gene, 'tx2gene.csv', row.names = FALSE)
 ```
 
 ### Method 2: From biomaRt
-
 ```r
 library(biomaRt)
 mart <- useMart('ensembl', dataset = 'hsapiens_gene_ensembl')
@@ -64,7 +76,6 @@ colnames(tx2gene) <- c('TXNAME', 'GENEID')
 ```
 
 ### Method 3: Quick Parse from IDs
-
 ```r
 # If transcript IDs are like ENST00000456328.2|ENSG00000223972.5
 quant <- read.table('sample1_quant/quant.sf', header = TRUE)
@@ -131,8 +142,8 @@ gse <- addIds(gse, 'SYMBOL', gene = TRUE)
 ```
 
 ## Tips
-
-1. **Match versions** - tx2gene IDs must exactly match quant file IDs
-2. **Use ignoreTxVersion** if versions don't match
-3. **Save tx2gene** - Create once, reuse for all analyses
-4. **Check import** - Verify row counts match expected gene count
+- Match versions - tx2gene IDs must exactly match quant file IDs
+- Use `ignoreTxVersion = TRUE` if transcript versions don't match
+- Save tx2gene once and reuse for all analyses with the same annotation
+- Check import results - verify row counts match expected gene count
+- Use tximeta for automatic annotation linking when working with standard references

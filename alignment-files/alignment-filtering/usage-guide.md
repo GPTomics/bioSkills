@@ -1,15 +1,63 @@
-# Alignment Filtering Usage Guide
+# Alignment Filtering - Usage Guide
 
-This guide covers filtering alignments by various criteria.
+## Overview
+Filter alignments by mapping quality, flags, regions, and other criteria to prepare clean datasets for downstream analysis.
 
 ## Prerequisites
+```bash
+# samtools
+conda install -c bioconda samtools
 
-- samtools installed (`conda install -c bioconda samtools`)
-- pysam installed (`pip install pysam`)
+# pysam
+pip install pysam
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Remove unmapped reads from my BAM file"
+- "Filter for high-quality mapped reads (MAPQ >= 30)"
+- "Extract reads from specific genomic regions"
+- "Remove duplicates and secondary alignments"
+
+## Example Prompts
+
+### Quality Filtering
+> "Keep only reads with mapping quality 30 or higher"
+
+> "Remove all unmapped reads from my BAM file"
+
+> "Filter for primary alignments only (no secondary or supplementary)"
+
+### Flag-Based Filtering
+> "Remove duplicate reads from my BAM file"
+
+> "Keep only properly paired reads"
+
+> "Extract first-in-pair reads only"
+
+### Region Filtering
+> "Extract reads from chr1:1000000-2000000"
+
+> "Get all reads overlapping my target BED file"
+
+> "Extract reads from multiple regions"
+
+### Subsampling
+> "Subsample my BAM to 10% of reads"
+
+> "Downsample to approximately 1 million reads"
+
+> "Create a reproducible subset for testing"
+
+## What the Agent Will Do
+
+1. Analyze the current BAM file to understand read composition
+2. Apply requested filters using appropriate flags and quality thresholds
+3. Count reads before and after filtering
+4. Write filtered output to a new BAM file
+5. Verify the output file and report filtering statistics
 
 ## Understanding SAM FLAGS
-
-Every alignment has a FLAG field encoding its properties as a bitwise combination:
 
 | Bit | Flag | Meaning |
 |-----|------|---------|
@@ -27,224 +75,79 @@ Every alignment has a FLAG field encoding its properties as a bitwise combinatio
 | 0x800 | 2048 | Supplementary alignment |
 
 ### Decoding FLAGS
-
 ```bash
-# What does FLAG 99 mean?
-samtools flags 99
-# 0x63  99  PAIRED,PROPER_PAIR,MREVERSE,READ1
-
-# What does FLAG 147 mean?
-samtools flags 147
-# 0x93  147  PAIRED,PROPER_PAIR,REVERSE,READ2
+samtools flags 99   # 0x63 99 PAIRED,PROPER_PAIR,MREVERSE,READ1
+samtools flags 147  # 0x93 147 PAIRED,PROPER_PAIR,REVERSE,READ2
 ```
 
-### Common FLAG Combinations
+## Common Filter Patterns
 
-| FLAG | Hex | Meaning |
-|------|-----|---------|
-| 99 | 0x63 | Read1, proper pair, mate reverse |
-| 147 | 0x93 | Read2, proper pair, on reverse strand |
-| 83 | 0x53 | Read1, proper pair, on reverse strand |
-| 163 | 0xA3 | Read2, proper pair, mate reverse |
-| 4 | 0x4 | Unmapped |
-| 256 | 0x100 | Secondary alignment |
-| 2048 | 0x800 | Supplementary (chimeric) |
-
-## The -f and -F Options
-
-### -f FLAG: Require bits
-
-Keep reads where ALL specified bits are set:
-
+### -f FLAG: Require These Bits
 ```bash
-# Keep only paired reads (bit 0x1 must be set)
-samtools view -f 1 input.bam
-
-# Keep only properly paired (bits 0x1 and 0x2)
-samtools view -f 3 input.bam
+samtools view -f 1 input.bam    # Only paired reads
+samtools view -f 2 input.bam    # Only properly paired
+samtools view -f 3 input.bam    # Paired AND properly paired
 ```
 
-### -F FLAG: Exclude bits
-
-Remove reads where ANY specified bits are set:
-
+### -F FLAG: Exclude These Bits
 ```bash
-# Remove unmapped (exclude if bit 0x4 is set)
-samtools view -F 4 input.bam
-
-# Remove secondary and supplementary (exclude if 0x100 or 0x800)
-samtools view -F 2304 input.bam
+samtools view -F 4 input.bam      # Remove unmapped
+samtools view -F 1024 input.bam   # Remove duplicates
+samtools view -F 2304 input.bam   # Remove secondary and supplementary
 ```
 
-### Combining -f and -F
-
+### Combined Filters
 ```bash
 # Properly paired AND not duplicates
 samtools view -f 2 -F 1024 input.bam
 
-# Primary reads that are mapped
-samtools view -F 2308 input.bam
-# 2308 = 4 + 256 + 2048 (unmapped, secondary, supplementary)
-```
+# Primary mapped reads (most common)
+samtools view -F 2308 input.bam  # 2308 = 4 + 256 + 2048
 
-## Common Filter Scenarios
-
-### Keep Only Mapped Reads
-
-```bash
-samtools view -F 4 -o mapped.bam input.bam
-```
-
-Removes reads with FLAG bit 4 (unmapped).
-
-### Remove Duplicates
-
-```bash
-samtools view -F 1024 -o nodup.bam input.bam
-```
-
-After running `samtools markdup`, removes marked duplicates.
-
-### Primary Alignments Only
-
-```bash
-samtools view -F 2304 -o primary.bam input.bam
-```
-
-Removes secondary (256) and supplementary (2048) alignments.
-
-### Standard Quality Filter
-
-```bash
-samtools view -F 2308 -q 30 -o filtered.bam input.bam
-```
-
-- `-F 2308`: Remove unmapped, secondary, supplementary
-- `-q 30`: Require MAPQ >= 30
-
-### Variant Calling Prep
-
-```bash
+# Variant calling prep
 samtools view -f 2 -F 3332 -q 20 -o clean.bam input.bam
 ```
 
-- `-f 2`: Require properly paired
-- `-F 3332`: Remove unmapped (4), secondary (256), duplicate (1024), supplementary (2048)
-- `-q 20`: MAPQ >= 20
+## Common Commands
 
-## Filtering by Mapping Quality
-
-### What is MAPQ?
-
-MAPQ (Mapping Quality) indicates confidence that the read is mapped correctly:
-
-```
-MAPQ = -10 * log10(P(mapping position is wrong))
-```
-
-| MAPQ | Error Probability | Meaning |
-|------|-------------------|---------|
-| 0 | >10% | Multi-mapped or very uncertain |
-| 10 | 10% | Low confidence |
-| 20 | 1% | Moderate confidence |
-| 30 | 0.1% | High confidence |
-| 40 | 0.01% | Very high confidence |
-| 60 | ~0% | Maximum (BWA) |
-
-### Filter by MAPQ
-
+### Basic Quality Filter
 ```bash
-# Minimum MAPQ 30
-samtools view -q 30 -o highqual.bam input.bam
-
-# Combined with other filters
-samtools view -F 4 -q 30 -o filtered.bam input.bam
+samtools view -F 4 -o mapped.bam input.bam              # Keep mapped only
+samtools view -F 1024 -o nodup.bam input.bam            # Remove duplicates
+samtools view -F 2308 -o primary.bam input.bam          # Primary alignments only
+samtools view -F 2308 -q 30 -o filtered.bam input.bam   # Standard quality filter
 ```
 
-## Filtering by Region
-
-### Single Region
-
+### Region Filtering
 ```bash
-# Requires index
 samtools view input.bam chr1:1000000-2000000 -o region.bam
-```
-
-### Multiple Regions
-
-```bash
-samtools view input.bam chr1:1000-2000 chr2:3000-4000 chr3:5000-6000 -o regions.bam
-```
-
-### BED File Regions
-
-```bash
-# targets.bed format: chr start end
+samtools view input.bam chr1:1000-2000 chr2:3000-4000 -o regions.bam
 samtools view -L targets.bed input.bam -o targets.bam
-```
-
-### Combine with Quality Filter
-
-```bash
 samtools view -L targets.bed -F 2308 -q 30 -o filtered_targets.bam input.bam
 ```
 
-## Subsampling
-
-### Random Fraction
-
+### Subsampling
 ```bash
-# Keep ~10% of reads
-samtools view -s 0.1 -o subset.bam input.bam
-```
+samtools view -s 0.1 -o subset.bam input.bam      # ~10% of reads
+samtools view -s 42.1 -o subset.bam input.bam     # Reproducible (seed 42)
 
-### Reproducible Subsampling
-
-```bash
-# Seed ensures same reads each time
-samtools view -s 42.1 -o subset.bam input.bam
-# The integer part (42) is the seed
-```
-
-### Downsample to Target
-
-```bash
-# Downsample to ~1 million reads
+# Downsample to target count
 total=$(samtools view -c input.bam)
 frac=$(echo "scale=6; 1000000 / $total" | bc)
 samtools view -s "$frac" -o subset.bam input.bam
 ```
 
-## Output Options
-
-### Output BAM (Default)
-
+### Output Options
 ```bash
-samtools view -b -F 4 -o output.bam input.bam
+samtools view -b -F 4 -o output.bam input.bam              # Output BAM
+samtools view -C -T reference.fa -F 4 -o output.cram input.bam  # Output CRAM
+samtools view -c -F 4 input.bam                            # Count only
+samtools view -h -F 4 input.bam > output.sam               # With header
 ```
 
-### Output CRAM
-
-```bash
-samtools view -C -T reference.fa -F 4 -o output.cram input.bam
-```
-
-### Count Only
-
-```bash
-samtools view -c -F 4 input.bam
-```
-
-### With Header
-
-```bash
-samtools view -h -F 4 input.bam > output.sam
-```
-
-## Working with pysam
+## Python with pysam
 
 ### Simple Filter
-
 ```python
 import pysam
 
@@ -259,7 +162,6 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
 ```
 
 ### Configurable Filter
-
 ```python
 import pysam
 
@@ -281,7 +183,6 @@ class AlignmentFilter:
         return True
 
 filt = AlignmentFilter(min_mapq=30)
-
 with pysam.AlignmentFile('input.bam', 'rb') as infile:
     with pysam.AlignmentFile('filtered.bam', 'wb', header=infile.header) as outfile:
         for read in infile:
@@ -289,8 +190,7 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
                 outfile.write(read)
 ```
 
-### Count Filtered Reads
-
+### Count with Filter
 ```python
 import pysam
 
@@ -304,44 +204,48 @@ def count_with_filter(bam_path, mapq_min=0, exclude_flags=0):
                 count += 1
     return count
 
-total = count_with_filter('input.bam')
-filtered = count_with_filter('input.bam', mapq_min=30, exclude_flags=2308)
-print(f'Before: {total}, After: {filtered}, Removed: {total - filtered}')
+before = count_with_filter('input.bam')
+after = count_with_filter('input.bam', mapq_min=30, exclude_flags=2308)
+print(f'Before: {before}, After: {after}, Removed: {before - after}')
 ```
+
+## Mapping Quality (MAPQ)
+
+| MAPQ | Error Probability | Meaning |
+|------|-------------------|---------|
+| 0 | >10% | Multi-mapped or very uncertain |
+| 10 | 10% | Low confidence |
+| 20 | 1% | Moderate confidence |
+| 30 | 0.1% | High confidence |
+| 40 | 0.01% | Very high confidence |
+| 60 | ~0% | Maximum (BWA) |
 
 ## Troubleshooting
 
 ### Index Required for Region Filtering
-
 ```bash
-# Error: [E::idx_find_and_load] could not retrieve index
 samtools index input.bam
 samtools view input.bam chr1:1000-2000
 ```
 
-### Check Filter Effect Before Applying
-
+### Check Filter Effect First
 ```bash
-# Count before filtering
-samtools view -c input.bam
-# 10000000
-
-# Count after filtering
-samtools view -c -F 2308 -q 30 input.bam
-# 8500000
-
-# Apply if reasonable
-samtools view -F 2308 -q 30 -o filtered.bam input.bam
+samtools view -c input.bam                      # Before
+samtools view -c -F 2308 -q 30 input.bam        # After
+samtools view -F 2308 -q 30 -o filtered.bam input.bam  # Apply if reasonable
 ```
 
-### Verify BAM After Filtering
-
+### Verify Output
 ```bash
 samtools quickcheck filtered.bam && echo "OK" || echo "CORRUPT"
 samtools flagstat filtered.bam
 ```
 
-## See Also
-
-- [samtools view documentation](http://www.htslib.org/doc/samtools-view.html)
-- [SAM FLAG explanation](https://broadinstitute.github.io/picard/explain-flags.html)
+## Tips
+- Always count reads before and after filtering to verify expected behavior
+- Use `-F 2308` (unmapped + secondary + supplementary) for most downstream analyses
+- MAPQ 30 is a good default threshold for high-confidence alignments
+- Region filtering requires an index - index first if needed
+- Use `-s SEED.FRACTION` format for reproducible subsampling
+- Combine `-f` and `-F` flags to build complex filters
+- Save filtering commands for reproducibility

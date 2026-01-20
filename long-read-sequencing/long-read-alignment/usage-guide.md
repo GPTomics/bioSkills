@@ -1,20 +1,39 @@
-# Long-Read Alignment with minimap2 - Usage Guide
+# Long-Read Alignment - Usage Guide
 
 ## Overview
-
 minimap2 is the standard aligner for long reads. It's fast, accurate, and handles the higher error rates of long-read data. Different presets optimize for ONT, PacBio, or RNA sequencing.
 
-## When to Use This Skill
-
-- You have Oxford Nanopore FASTQ files
-- You have PacBio HiFi or CLR reads
-- You need to align long reads for variant calling or assembly
-
-## Installation
-
+## Prerequisites
 ```bash
 conda install -c bioconda minimap2 samtools
 ```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Align my Nanopore reads to the reference genome"
+- "Map PacBio HiFi reads and generate a sorted BAM"
+
+## Example Prompts
+
+### Basic Alignment
+> "Align my ONT reads in reads.fastq.gz to reference.fa and output a sorted BAM"
+
+> "Map my PacBio HiFi reads to the human genome using minimap2"
+
+### With Read Groups
+> "Align reads with sample ID 'patient1' and add read group information for downstream GATK"
+
+### RNA/cDNA
+> "Align my Nanopore direct RNA reads to the transcriptome using the splice preset"
+
+### Performance
+> "Build a minimap2 index for the reference genome so future alignments are faster"
+
+## What the Agent Will Do
+1. Select the appropriate minimap2 preset based on your data type (map-ont, map-hifi, map-pb, splice)
+2. Run alignment with proper threading
+3. Pipe output through samtools for sorting and indexing
+4. Check alignment statistics with flagstat
 
 ## Choosing the Right Preset
 
@@ -25,62 +44,13 @@ conda install -c bioconda minimap2 samtools
 | PacBio CLR (older) | map-pb |
 | cDNA/direct RNA | splice |
 
-## Basic Workflow
-
-```bash
-# 1. Align and sort
-minimap2 -ax map-ont -t 8 reference.fa reads.fastq.gz | \
-    samtools sort -@ 4 -o aligned.bam
-
-# 2. Index BAM
-samtools index aligned.bam
-
-# 3. Check alignment rate
-samtools flagstat aligned.bam
-```
-
-## Best Practices
-
-### Always Use Proper Preset
-
-Wrong preset will give poor alignments. Check your data type.
-
-### Add Read Groups
-
-Required for many downstream tools:
-```bash
-minimap2 -ax map-ont -R '@RG\tID:run1\tSM:sample1' ref.fa reads.fq.gz
-```
-
-### Pre-Index Large References
-
-Saves time for multiple runs:
-```bash
-minimap2 -d ref.mmi ref.fa
-```
-
-## Common Issues
-
-### Low Alignment Rate
-
-- Check correct preset for your data type
-- Verify reference matches organism
-- Check if reads are very short (< 500bp)
-
-### Slow Performance
-
-- Pre-build index
-- Increase threads (-t)
-- Use faster storage
-
-## Output
-
-| Extension | Description |
-|-----------|-------------|
-| .bam | Binary alignment |
-| .paf | Pairwise format (no sequence) |
+## Tips
+- Always use the correct preset for your data type - wrong preset will give poor alignments
+- Add read groups with `-R '@RG\tID:run1\tSM:sample1'` for downstream tools like GATK
+- Pre-build index with `minimap2 -d ref.mmi ref.fa` for multiple alignment runs
+- Check alignment rate with `samtools flagstat` - low rates indicate wrong preset or reference mismatch
+- Use PAF format (`-x` without `-a`) when you only need alignment coordinates, not full BAM
 
 ## Resources
-
 - [minimap2 Manual](https://lh3.github.io/minimap2/minimap2.html)
 - [minimap2 Paper](https://doi.org/10.1093/bioinformatics/bty191)

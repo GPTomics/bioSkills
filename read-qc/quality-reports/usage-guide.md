@@ -1,19 +1,9 @@
 # Quality Reports - Usage Guide
 
 ## Overview
-
 Quality reports are the first step in any NGS analysis. FastQC generates per-sample reports showing quality scores, adapter content, GC bias, and duplication levels. MultiQC aggregates multiple FastQC reports into a single interactive summary.
 
-## When to Use This Skill
-
-- Initial QC check of raw FASTQ files
-- Comparing quality before/after trimming
-- Identifying adapter contamination
-- Detecting sample issues (low quality, contamination)
-- Generating project-wide QC summaries
-
-## Installation
-
+## Prerequisites
 ```bash
 # Conda (recommended)
 conda install -c bioconda fastqc multiqc
@@ -22,28 +12,34 @@ conda install -c bioconda fastqc multiqc
 pip install multiqc
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run FastQC on all my FASTQ files"
+- "Generate a MultiQC report from my QC results"
+- "Check the quality of my sequencing data"
 
-### 1. Generate FastQC Reports
+## Example Prompts
 
-```bash
-# Create output directory
-mkdir -p qc_reports
+### Initial QC
+> "Run FastQC on all FASTQ files in my data directory and create a summary report"
 
-# Run FastQC on all samples
-fastqc -t 4 -o qc_reports/ *.fastq.gz
-```
+> "Check the quality of my raw reads before trimming"
 
-### 2. Aggregate with MultiQC
+### Aggregating Reports
+> "Combine all my FastQC reports into a single MultiQC summary"
 
-```bash
-# Generate summary report
-multiqc qc_reports/ -o multiqc_output/
-```
+> "Generate a project-wide QC report with custom sample names"
 
-### 3. Review Reports
+### Interpreting Results
+> "My FastQC shows adapter contamination, what should I do?"
 
-Open `multiqc_output/multiqc_report.html` in a browser.
+> "Explain the quality metrics in my MultiQC report"
+
+## What the Agent Will Do
+1. Create an output directory for QC reports
+2. Run FastQC on all FASTQ files with appropriate threading
+3. Generate MultiQC summary from individual reports
+4. Identify any quality issues (adapter contamination, low quality, duplication)
 
 ## Key Quality Metrics
 
@@ -54,60 +50,14 @@ Open `multiqc_output/multiqc_report.html` in a browser.
 | Duplication | <20% | >50% | Dedup |
 | GC content | Normal curve | Secondary peak | Investigate |
 
-## Common Issues
-
-### Low Quality at 3' End
-
-Normal for Illumina sequencing. Use quality trimming:
-```bash
-fastp -i sample.fastq.gz -o trimmed.fastq.gz -q 20
-```
-
-### Adapter Contamination
-
-Adapters visible in "Overrepresented sequences" or "Adapter Content":
-```bash
-cutadapt -a AGATCGGAAGAGC -o trimmed.fastq.gz sample.fastq.gz
-```
-
-### High Duplication
-
-May indicate low library complexity or excessive PCR:
-- Mark duplicates after alignment
-- Consider deeper sequencing
-
-### Unusual GC Distribution
-
-Secondary peaks suggest contamination:
-- Run FastQ Screen to identify source
-- Check for adapter dimers
-
-## MultiQC Configuration
-
-Create `multiqc_config.yaml` for custom settings:
-
-```yaml
-title: "My Project QC Report"
-report_header_info:
-  - Project: "RNA-seq Analysis"
-  - Sequencing: "NovaSeq 6000"
-
-# Custom module order
-module_order:
-  - fastqc
-  - fastp
-  - star
-  - picard
-
-# Sample name cleaning
-fn_clean_exts:
-  - ".fastq.gz"
-  - "_R1"
-  - "_R2"
-```
+## Tips
+- Run FastQC both before and after trimming to verify improvement
+- Use MultiQC config files to customize report titles and sample name cleaning
+- Check "Overrepresented sequences" to identify unknown adapters
+- High duplication may be normal for RNA-seq or amplicon data
+- Secondary peaks in GC distribution often indicate contamination
 
 ## Resources
-
 - [FastQC Documentation](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 - [MultiQC Documentation](https://multiqc.info/)
 - [FastQC Example Reports](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/good_sequence_short_fastqc.html)

@@ -1,80 +1,83 @@
-# AlphaFold Predictions Usage Guide
+# AlphaFold Predictions - Usage Guide
 
-The AlphaFold Protein Structure Database provides AI-predicted structures for most known proteins.
+## Overview
 
-## Database Coverage
+Download and analyze AI-predicted protein structures from the AlphaFold database, including confidence scores (pLDDT) and predicted aligned error (PAE) for assessing prediction quality.
 
-- **200+ million** structures predicted
-- Covers proteomes of major model organisms
-- Predictions based on UniProt sequences
+## Prerequisites
 
-## Access Methods
-
-### Direct Download URLs
-
-```
-https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-model_v4.pdb
-https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-model_v4.cif
-https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-predicted_aligned_error_v4.json
-```
-
-### API Endpoint
-
-```
-https://alphafold.ebi.ac.uk/api/prediction/{UNIPROT_ID}
+```bash
+pip install biopython requests numpy
 ```
 
 ## Quick Start
 
-```python
-import requests
+Tell your AI agent what you want to do:
+- "Download the AlphaFold structure for UniProt P04637"
+- "Check the confidence scores for this AlphaFold prediction"
+- "Identify low-confidence regions in this predicted structure"
 
-# Download structure
-uniprot_id = 'P04637'
-url = f'https://alphafold.ebi.ac.uk/files/AF-{uniprot_id}-F1-model_v4.pdb'
-response = requests.get(url)
-with open(f'AF-{uniprot_id}.pdb', 'w') as f:
-    f.write(response.text)
-```
+## Example Prompts
 
-## Understanding Confidence Scores
+### Downloading Structures
+> "Download the AlphaFold model for UniProt ID P53_HUMAN"
 
-### pLDDT (per-residue)
-- Stored in B-factor column
-- 0-100 scale
-- Higher = more confident
+> "Get the AlphaFold structure for P04637 in mmCIF format"
 
-### PAE (inter-residue)
-- Matrix showing expected position error
-- Lower = better
-- Identifies domain boundaries
+> "Fetch AlphaFold predictions for these 5 UniProt IDs"
 
-## Best Practices
+### Analyzing Confidence
+> "Show me the pLDDT scores for this AlphaFold structure"
 
-1. **Check pLDDT scores** before using predictions
-2. **Use PAE** to identify reliable domain-domain contacts
-3. **Compare with experimental** structures when available
-4. **Be cautious** with low-confidence regions (<70 pLDDT)
-5. **Consider ensemble** - AlphaFold predicts one conformation
+> "Which regions have low confidence (pLDDT < 70)?"
 
-## Limitations
+> "Plot the per-residue confidence scores"
 
-- Single static conformation predicted
-- May miss alternative conformations
-- Disordered regions have low confidence
-- Oligomeric states not always correct
-- Ligand binding may be absent
+### PAE Analysis
+> "Download and visualize the PAE matrix for this protein"
 
-## When to Use AlphaFold
+> "Identify domain boundaries from the PAE data"
 
-**Good for:**
-- Proteins without experimental structures
-- Homology modeling starting points
-- Domain architecture analysis
-- Identifying folded vs disordered regions
+> "Which domain-domain interactions are reliable?"
 
-**Caution needed for:**
-- Active site details
-- Protein-protein interfaces
-- Conformational changes
-- Membrane protein orientations
+### Quality Assessment
+> "Compare this AlphaFold prediction with the experimental structure"
+
+> "Highlight the confident vs disordered regions"
+
+> "Is this prediction reliable enough for docking?"
+
+## What the Agent Will Do
+
+1. Construct the AlphaFold database URL from UniProt ID
+2. Download the structure file (PDB or mmCIF format)
+3. Parse confidence scores from B-factor column (pLDDT)
+4. Optionally fetch PAE matrix for inter-residue error estimates
+5. Analyze and report on prediction quality
+
+## Database Access
+
+**Direct download URLs:**
+- Structure: `https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-model_v4.pdb`
+- mmCIF: `https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-model_v4.cif`
+- PAE: `https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-predicted_aligned_error_v4.json`
+
+**API endpoint:** `https://alphafold.ebi.ac.uk/api/prediction/{UNIPROT_ID}`
+
+## Confidence Score Interpretation
+
+| pLDDT Range | Interpretation | Color (AlphaFold DB) |
+|-------------|----------------|----------------------|
+| 90-100 | Very high confidence | Blue |
+| 70-90 | Confident | Cyan |
+| 50-70 | Low confidence | Yellow |
+| <50 | Very low (likely disordered) | Orange |
+
+## Tips
+
+- **Check pLDDT before using** - Regions with pLDDT < 70 should be treated cautiously
+- **Use PAE for domains** - Low PAE between residues indicates reliable relative positioning
+- **B-factor column holds pLDDT** - Parse with Bio.PDB and read `atom.bfactor`
+- **Single conformation only** - AlphaFold predicts one state, not conformational ensembles
+- **Compare when possible** - Validate against experimental structures if available
+- **200M+ structures available** - Coverage includes most UniProt sequences

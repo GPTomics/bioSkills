@@ -1,8 +1,41 @@
-# Sparse Matrix Handling Usage Guide
+# Sparse Matrix Handling - Usage Guide
 
 ## Overview
+Work with sparse matrices (CSR, CSC, COO) for memory-efficient storage and operations on count data with many zero values, especially single-cell RNA-seq data.
 
-Sparse matrices store only non-zero values, making them memory-efficient for count data where many genes have zero counts across samples. This is essential for single-cell data and large bulk RNA-seq datasets.
+## Prerequisites
+```bash
+pip install scipy pandas numpy anndata scanpy
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Convert my count matrix to sparse format to save memory"
+- "Calculate gene means and variances on my sparse matrix"
+- "Normalize my sparse single-cell counts"
+
+## Example Prompts
+### Conversion
+> "Check the sparsity of my count matrix and convert to sparse if beneficial"
+
+> "Convert my dense matrix to CSR format for row operations"
+
+### Operations
+> "Filter genes with fewer than 10 counts across all samples from my sparse matrix"
+
+> "Calculate CPM normalization on my sparse matrix without converting to dense"
+
+### Integration
+> "Create an AnnData object with my sparse counts and save as h5ad"
+
+> "Convert my sparse matrix to dense for DESeq2 export"
+
+## What the Agent Will Do
+1. Assess matrix sparsity and memory footprint
+2. Choose appropriate sparse format (CSR for rows, CSC for columns)
+3. Convert to sparse if sparsity >50% and matrix is large
+4. Perform operations while maintaining sparse format where possible
+5. Convert back to dense only when required by downstream tools
 
 ## When to Use Sparse
 
@@ -20,21 +53,10 @@ Rule: Use sparse if >50% zeros and matrix is large (>10,000 genes).
 ```python
 import scipy.sparse as sp
 
-# CSR - Compressed Sparse Row
-# Best for: row slicing, arithmetic operations
-csr = sp.csr_matrix(data)
-
-# CSC - Compressed Sparse Column
-# Best for: column slicing
-csc = sp.csc_matrix(data)
-
-# COO - Coordinate format
-# Best for: constructing sparse matrices, format conversion
-coo = sp.coo_matrix(data)
-
-# lil - List of Lists
-# Best for: incrementally building matrix
-lil = sp.lil_matrix((nrows, ncols))
+csr = sp.csr_matrix(data)   # Best for: row slicing, arithmetic operations
+csc = sp.csc_matrix(data)   # Best for: column slicing
+coo = sp.coo_matrix(data)   # Best for: constructing sparse matrices, format conversion
+lil = sp.lil_matrix((nrows, ncols))  # Best for: incrementally building matrix
 ```
 
 ## Complete Workflow
@@ -45,28 +67,23 @@ import numpy as np
 import scipy.sparse as sp
 import anndata as ad
 
-# 1. Load data
 counts = pd.read_csv('counts.tsv', sep='\t', index_col=0)
 
-# 2. Check sparsity
 sparsity = (counts == 0).sum().sum() / counts.size
 print(f'Sparsity: {sparsity:.1%}')
 
-# 3. Convert to sparse if beneficial
 if sparsity > 0.5:
     sparse_counts = sp.csr_matrix(counts.values)
     print(f'Memory: {counts.values.nbytes/1e6:.1f}MB -> {sparse_counts.data.nbytes/1e6:.1f}MB')
 else:
     print('Matrix not sparse enough for conversion')
 
-# 4. Create AnnData for downstream analysis
 adata = ad.AnnData(
     X=sparse_counts if sparsity > 0.5 else counts.values,
     obs=pd.DataFrame(index=counts.columns),
     var=pd.DataFrame(index=counts.index)
 )
 
-# 5. Save
 adata.write_h5ad('counts.h5ad', compression='gzip')
 ```
 
@@ -74,12 +91,10 @@ adata.write_h5ad('counts.h5ad', compression='gzip')
 
 ### Filtering
 ```python
-# Filter genes with low counts
 row_sums = np.array(sparse_matrix.sum(axis=1)).flatten()
 keep_genes = row_sums >= 10
 filtered = sparse_matrix[keep_genes, :]
 
-# Filter samples with low counts
 col_sums = np.array(sparse_matrix.sum(axis=0)).flatten()
 keep_samples = col_sums >= 1000
 filtered = sparse_matrix[:, keep_samples]
@@ -87,12 +102,10 @@ filtered = sparse_matrix[:, keep_samples]
 
 ### Normalization
 ```python
-# CPM normalization
 def sparse_cpm(X):
     lib_sizes = np.array(X.sum(axis=0)).flatten()
     return X.multiply(1e6 / lib_sizes)
 
-# Log transform
 def sparse_log1p(X):
     X = X.copy()
     X.data = np.log1p(X.data)
@@ -103,10 +116,8 @@ normalized = sparse_log1p(sparse_cpm(sparse_matrix))
 
 ### Statistics
 ```python
-# Mean per gene
 gene_means = np.array(sparse_matrix.mean(axis=1)).flatten()
 
-# Variance per gene (requires dense for each row)
 def sparse_var(X):
     mean = np.array(X.mean(axis=1)).flatten()
     sq_mean = np.array(X.multiply(X).mean(axis=1)).flatten()
@@ -114,7 +125,6 @@ def sparse_var(X):
 
 gene_vars = sparse_var(sparse_matrix)
 
-# Number of non-zeros per gene
 nnz_per_gene = np.array((sparse_matrix != 0).sum(axis=1)).flatten()
 ```
 
@@ -124,18 +134,15 @@ nnz_per_gene = np.array((sparse_matrix != 0).sum(axis=1)).flatten()
 ```python
 import scanpy as sc
 
-# Scanpy handles sparse automatically
 adata = sc.read_h5ad('single_cell.h5ad')
-print(f'Data type: {type(adata.X)}')  # Usually scipy.sparse
+print(f'Data type: {type(adata.X)}')
 
-# Operations maintain sparsity
 sc.pp.normalize_total(adata)
 sc.pp.log1p(adata)
 ```
 
 ### Converting for DESeq2/edgeR
 ```python
-# These tools need dense integer counts
 dense_counts = sparse_matrix.toarray().astype(int)
 counts_df = pd.DataFrame(dense_counts, index=gene_names, columns=sample_names)
 counts_df.to_csv('counts_for_deseq.tsv', sep='\t')
@@ -146,7 +153,6 @@ counts_df.to_csv('counts_for_deseq.tsv', sep='\t')
 ```python
 import gc
 
-# Process in chunks for very large matrices
 def process_in_chunks(sparse_matrix, chunk_size=1000, func=None):
     results = []
     for i in range(0, sparse_matrix.shape[0], chunk_size):
@@ -154,10 +160,9 @@ def process_in_chunks(sparse_matrix, chunk_size=1000, func=None):
         if func:
             chunk = func(chunk)
         results.append(chunk)
-        gc.collect()  # Free memory
+        gc.collect()
     return sp.vstack(results)
 
-# Monitor memory
 import psutil
 print(f'Memory usage: {psutil.Process().memory_info().rss / 1e9:.1f} GB')
 ```
@@ -166,29 +171,28 @@ print(f'Memory usage: {psutil.Process().memory_info().rss / 1e9:.1f} GB')
 
 ### Out of Memory When Converting
 ```python
-# Don't convert to dense
-# Bad:
 dense = sparse_matrix.toarray()  # May fail on large matrices
 
-# Good: work with sparse directly
-result = sparse_matrix.sum(axis=0)  # Stays sparse
+result = sparse_matrix.sum(axis=0)  # Stays sparse - preferred
 ```
 
 ### Slow Operations
 ```python
-# Use appropriate format
-# For row operations: CSR
-# For column operations: CSC
-sparse_csc = sparse_matrix.tocsc()  # Convert for column operations
-col_slice = sparse_csc[:, 0:10]  # Fast column slice
+sparse_csc = sparse_matrix.tocsc()
+col_slice = sparse_csc[:, 0:10]  # Fast column slice with CSC format
 ```
 
 ### Indexing Returns Matrix
 ```python
-# Single element indexing returns a matrix, not scalar
-val = sparse_matrix[0, 0]  # Returns matrix
+val = sparse_matrix[0, 0]         # Returns matrix
 val = sparse_matrix[0, 0].item()  # Returns scalar
 
-# Or for multiple elements
 vals = np.array(sparse_matrix[0, :].todense()).flatten()
 ```
+
+## Tips
+- Use CSR format for row operations and CSC for column operations
+- Avoid converting to dense unless absolutely necessary (e.g., for DESeq2)
+- Process in chunks for very large matrices to manage memory
+- Scanpy and AnnData handle sparse matrices natively - let them do the work
+- Monitor memory usage with psutil when working with large datasets

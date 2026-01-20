@@ -1,8 +1,46 @@
-# Gene ID Mapping Usage Guide
+# Gene ID Mapping - Usage Guide
 
 ## Overview
+Convert between different gene identifier systems (Ensembl, Symbol, Entrez, UniProt) using mygene, biomaRt, and org.db packages for cross-database integration.
 
-Different databases and tools use different gene identifiers. Mapping between these systems is essential for integrating data from multiple sources and for using pathway analysis tools that require specific ID types.
+## Prerequisites
+```bash
+pip install mygene pandas pyensembl
+```
+
+```r
+install.packages("BiocManager")
+BiocManager::install(c("biomaRt", "org.Hs.eg.db", "AnnotationDbi"))
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Convert my Ensembl gene IDs to gene symbols for visualization"
+- "Map gene IDs to Entrez for KEGG pathway analysis"
+- "Convert my count matrix index from Ensembl to symbols"
+
+## Example Prompts
+### Basic Conversion
+> "Convert these Ensembl IDs to gene symbols: ENSG00000141510, ENSG00000133703"
+
+> "Map my count matrix gene IDs from Ensembl to Entrez for pathway analysis"
+
+### Handling Edge Cases
+> "Convert my Ensembl IDs to symbols but keep the original ID if no mapping is found"
+
+> "Handle one-to-many mappings when converting to UniProt IDs"
+
+### Species-Specific
+> "Map mouse Ensembl IDs (ENSMUSG) to gene symbols"
+
+> "Convert my zebrafish gene IDs using the appropriate database"
+
+## What the Agent Will Do
+1. Identify the source ID type and target ID type
+2. Select appropriate mapping tool (mygene for Python, biomaRt/org.db for R)
+3. Clean IDs (remove version suffixes like .15 from ENSG00000141510.15)
+4. Perform batch query with caching for efficiency
+5. Handle unmapped IDs and one-to-many mappings appropriately
 
 ## Common Scenarios
 
@@ -26,42 +64,34 @@ class GeneMapper:
         self.cache = {}
 
     def map_ids(self, ids, from_type, to_type):
-        '''Map gene IDs with caching.'''
         cache_key = (tuple(ids), from_type, to_type)
         if cache_key in self.cache:
             return self.cache[cache_key]
 
         clean_ids = [str(g).split('.')[0] for g in ids]
-        results = self.mg.querymany(clean_ids, scopes=from_type,
-            fields=to_type, species=self.species, verbose=False)
+        results = self.mg.querymany(clean_ids, scopes=from_type, fields=to_type, species=self.species, verbose=False)
 
         mapping = {}
         for r in results:
             if to_type in r:
                 val = r[to_type]
                 if isinstance(val, list):
-                    val = val[0]  # Take first if multiple
+                    val = val[0]
                 mapping[r['query']] = val
 
         self.cache[cache_key] = mapping
         return mapping
 
     def convert_counts(self, counts, from_type, to_type):
-        '''Convert count matrix index.'''
         mapping = self.map_ids(counts.index, from_type, to_type)
         new_index = [mapping.get(str(g).split('.')[0], g) for g in counts.index]
         result = counts.copy()
         result.index = new_index
-        result = result[~result.index.duplicated(keep='first')]  # or groupby().sum()
+        result = result[~result.index.duplicated(keep='first')]
         return result
 
-# Usage
 mapper = GeneMapper('human')
-
-# Ensembl to Symbol
 counts_symbol = mapper.convert_counts(counts, 'ensembl.gene', 'symbol')
-
-# Ensembl to Entrez
 counts_entrez = mapper.convert_counts(counts, 'ensembl.gene', 'entrezgene')
 ```
 
@@ -72,33 +102,23 @@ library(biomaRt)
 library(org.Hs.eg.db)
 library(AnnotationDbi)
 
-# Method 1: biomaRt (more complete but slower)
 convert_ids_biomart <- function(ids, from_attr, to_attr, dataset='hsapiens_gene_ensembl') {
     ensembl <- useEnsembl(biomart='genes', dataset=dataset)
-    results <- getBM(
-        attributes=c(from_attr, to_attr),
-        filters=from_attr,
-        values=ids,
-        mart=ensembl
-    )
+    results <- getBM(attributes=c(from_attr, to_attr), filters=from_attr, values=ids, mart=ensembl)
     mapping <- setNames(results[[to_attr]], results[[from_attr]])
     return(mapping)
 }
 
-# Method 2: org.db (faster, local)
 convert_ids_orgdb <- function(ids, from_keytype, to_column, orgdb=org.Hs.eg.db) {
-    mapping <- mapIds(orgdb, keys=ids, keytype=from_keytype, column=to_column,
-        multiVals='first')
+    mapping <- mapIds(orgdb, keys=ids, keytype=from_keytype, column=to_column, multiVals='first')
     return(mapping)
 }
 
-# Convert count matrix
 convert_counts <- function(counts, from_keytype, to_column) {
     clean_ids <- gsub('\\..*', '', rownames(counts))
     mapping <- convert_ids_orgdb(clean_ids, from_keytype, to_column)
     new_names <- ifelse(is.na(mapping[clean_ids]), clean_ids, mapping[clean_ids])
     rownames(counts) <- new_names
-    # Sum duplicates
     counts <- aggregate(. ~ rownames(counts), data=counts, FUN=sum)
     rownames(counts) <- counts[,1]
     counts <- counts[,-1]
@@ -110,7 +130,6 @@ convert_counts <- function(counts, from_keytype, to_column) {
 
 ### Unmapped IDs
 ```python
-# Keep original ID if no mapping found
 def safe_map(counts, mapper, from_type, to_type):
     mapping = mapper.map_ids(counts.index, from_type, to_type)
     new_index = []
@@ -123,11 +142,8 @@ def safe_map(counts, mapper, from_type, to_type):
 
 ### One-to-Many Mappings
 ```python
-# Some IDs map to multiple targets
-results = mg.querymany(['ENSG00000141510'], scopes='ensembl.gene',
-    fields='uniprot.Swiss-Prot', species='human')
+results = mg.querymany(['ENSG00000141510'], scopes='ensembl.gene', fields='uniprot.Swiss-Prot', species='human')
 
-# Handle multiple results
 for r in results:
     uniprots = r.get('uniprot', {}).get('Swiss-Prot', [])
     if isinstance(uniprots, str):
@@ -137,10 +153,8 @@ for r in results:
 
 ### Deprecated/Retired IDs
 ```python
-# Use archived Ensembl for old IDs
 from pyensembl import EnsemblRelease
 
-# Try current release first, fall back to older
 for release in [110, 100, 90, 75]:
     try:
         ens = EnsemblRelease(release, species='human')
@@ -162,25 +176,10 @@ for release in [110, 100, 90, 75]:
 | Fly | org.Dm.eg.db | dmelanogaster_gene_ensembl |
 | Worm | org.Ce.eg.db | celegans_gene_ensembl |
 
-## Performance Tips
-
-1. **Batch queries**: Always query multiple IDs at once
-2. **Cache results**: Store mappings for reuse
-3. **Use local databases**: org.db packages faster than API calls
-4. **Remove version numbers**: Clean IDs before mapping
-
-```python
-# Efficient batch query
-ids = counts.index.tolist()
-results = mg.querymany(ids, scopes='ensembl.gene', fields='symbol,entrezgene',
-    species='human', as_dataframe=True)
-```
-
 ## Validation
 
 ```python
 def validate_mapping(original_ids, mapping, expected_mapped_pct=0.8):
-    '''Check mapping quality.'''
     mapped = sum(1 for k, v in mapping.items() if v is not None)
     pct = mapped / len(original_ids)
     print(f'Mapped: {mapped}/{len(original_ids)} ({pct:.1%})')
@@ -189,3 +188,10 @@ def validate_mapping(original_ids, mapping, expected_mapped_pct=0.8):
         print('Check: correct species? correct ID type?')
     return pct >= expected_mapped_pct
 ```
+
+## Tips
+- Always batch queries - query multiple IDs at once rather than one at a time
+- Cache results for reuse across analyses
+- Use local databases (org.db packages) for faster lookups than API calls
+- Remove version numbers from Ensembl IDs before mapping (ENSG00000141510.15 -> ENSG00000141510)
+- Validate mapping rates - low rates often indicate wrong species or ID type

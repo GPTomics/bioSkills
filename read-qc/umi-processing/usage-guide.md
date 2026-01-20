@@ -1,55 +1,42 @@
 # UMI Processing - Usage Guide
 
 ## Overview
-
 Unique Molecular Identifiers (UMIs) are random sequences added to molecules before PCR amplification. They enable distinguishing PCR duplicates from biological duplicates, crucial for accurate quantification in RNA-seq, targeted sequencing, and single-cell applications.
 
-## When to Use This Skill
-
-- Processing libraries prepared with UMI-containing adapters
-- Single-cell RNA-seq (10X Genomics, Drop-seq, etc.)
-- Low-input RNA-seq requiring accurate molecule counting
-- Targeted sequencing panels
-- Any workflow where PCR duplicate rates are high
-
-## Installation
-
+## Prerequisites
 ```bash
 conda install -c bioconda umi_tools
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Extract UMIs from my reads and deduplicate after alignment"
+- "Process my UMI-tagged library for accurate quantification"
+- "Remove PCR duplicates using UMI information"
 
-### 1. Extract UMIs
+## Example Prompts
 
-Move UMIs from read sequence to read header:
+### Standard Workflow
+> "Extract 8bp UMIs from read 1 and move them to the read header"
 
-```bash
-umi_tools extract \
-    --stdin=R1.fastq.gz \
-    --read2-in=R2.fastq.gz \
-    --stdout=R1_umi.fastq.gz \
-    --read2-out=R2_umi.fastq.gz \
-    --bc-pattern=NNNNNNNN
-```
+> "Deduplicate my aligned BAM file using UMI information"
 
-### 2. Align Reads
+### Library-Specific
+> "Process my 10X Genomics library with cell barcodes and UMIs"
 
-Use your preferred aligner (STAR, BWA, etc.):
+> "Handle my NEBNext library with 8bp UMIs"
 
-```bash
-STAR --genomeDir ref --readFilesIn R1_umi.fq.gz R2_umi.fq.gz ...
-samtools sort -o aligned_sorted.bam aligned.bam
-samtools index aligned_sorted.bam
-```
+### Deduplication Options
+> "Use directional deduplication method for my RNA-seq data"
 
-### 3. Deduplicate
+> "Deduplicate with cluster method for high-error-rate UMIs"
 
-Remove PCR duplicates based on UMI + alignment position:
-
-```bash
-umi_tools dedup -I aligned_sorted.bam -S deduplicated.bam
-```
+## What the Agent Will Do
+1. Extract UMIs from reads and add to read headers
+2. Pass through alignment with UMI information preserved
+3. Deduplicate aligned reads based on UMI + alignment position
+4. Generate deduplication statistics
+5. Output deduplicated BAM for downstream analysis
 
 ## UMI Pattern Syntax
 
@@ -69,22 +56,13 @@ umi_tools dedup -I aligned_sorted.bam -S deduplicated.bam
 | 10X 3' v3 | `CCCCCCCCCCCCCCCCNNNNNNNNNNNN` (16bp CB + 12bp UMI) |
 | TruSeq UMI | `NNNNNNNNN` (9bp in index) |
 
-## Deduplication Methods
-
-| Method | Best For |
-|--------|----------|
-| `directional` | Most RNA-seq (default) |
-| `unique` | High diversity libraries |
-| `cluster` | High error rates |
-
-## QC Metrics
-
-Good libraries typically show:
-- 20-60% deduplication rate (RNA-seq)
-- >70% may indicate over-amplification
-- <10% may indicate under-sequencing
+## Tips
+- Extract UMIs before alignment; they must be in read headers for deduplication
+- Directional deduplication is recommended for most RNA-seq applications
+- High deduplication rates (>70%) may indicate library over-amplification
+- Low deduplication rates (<10%) may indicate under-sequencing
+- Check UMI diversity in the deduplication stats to assess library complexity
 
 ## Resources
-
-- [umi_tools documentation](https://umi-tools.readthedocs.io/)
-- [umi_tools publication](https://doi.org/10.1101/gr.209601.116)
+- [umi_tools Documentation](https://umi-tools.readthedocs.io/)
+- [umi_tools Publication](https://doi.org/10.1101/gr.209601.116)

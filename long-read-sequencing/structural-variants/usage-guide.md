@@ -1,8 +1,42 @@
 # Structural Variant Detection - Usage Guide
 
 ## Overview
+Long reads excel at detecting structural variants (deletions, insertions, inversions, duplications) that are difficult or impossible to detect with short reads. Sniffles2 is the most popular tool, with cuteSV and SVIM as alternatives.
 
-Long reads excel at detecting structural variants (deletions, insertions, inversions, duplications) that are difficult or impossible to detect with short reads. Multiple callers exist with different strengths.
+## Prerequisites
+```bash
+conda install -c bioconda sniffles cutesv svim pbsv bcftools
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Call structural variants from my ONT alignment"
+- "Detect large insertions and deletions using Sniffles"
+
+## Example Prompts
+
+### Basic SV Calling
+> "Call SVs from aligned.bam using Sniffles2 and output to structural_variants.vcf"
+
+> "Run cuteSV on my PacBio HiFi alignment for SV detection"
+
+### With Reference for Insertions
+> "Call SVs with Sniffles and include the reference so insertion sequences are output"
+
+### Filtering
+> "Call SVs and filter for high-confidence variants with QUAL >= 20"
+
+### Population Calling
+> "Merge SV calls from multiple samples for population analysis"
+
+### Tandem Repeat Regions
+> "Call SVs with tandem repeat annotation for improved accuracy in repetitive regions"
+
+## What the Agent Will Do
+1. Verify alignment file is sorted and indexed
+2. Run SV caller with appropriate settings for your platform (ONT vs HiFi)
+3. Apply quality filtering
+4. Optionally merge calls from multiple samples
 
 ## Tool Comparison
 
@@ -13,69 +47,13 @@ Long reads excel at detecting structural variants (deletions, insertions, invers
 | SVIM | ONT data | Good insertion detection |
 | pbsv | PacBio HiFi | PacBio-optimized |
 
-## When to Use This Skill
-
-- You have long-read alignments and want to find SVs
-- You're looking for insertions/deletions >50bp
-- You need to detect inversions or complex rearrangements
-- You're doing disease research involving SVs
-
-## Installation
-
-```bash
-conda install -c bioconda sniffles cutesv svim
-```
-
-## Basic Workflow
-
-```bash
-# 1. Align reads
-minimap2 -ax map-ont ref.fa reads.fq.gz | samtools sort -o aligned.bam
-samtools index aligned.bam
-
-# 2. Call SVs
-sniffles --input aligned.bam --vcf svs.vcf --reference ref.fa
-
-# 3. Filter
-bcftools filter -i 'QUAL>=20' svs.vcf > svs.filtered.vcf
-```
-
-## Best Practices
-
-### Use Reference for Insertions
-
-Sniffles2 needs reference to output insertion sequences:
-```bash
-sniffles --input aligned.bam --vcf svs.vcf --reference ref.fa
-```
-
-### Platform-Specific Settings
-
-- ONT: Higher error rate, adjust parameters
-- HiFi: Lower error, can use stricter thresholds
-
-### Tandem Repeat Annotation
-
-Improves accuracy in repetitive regions:
-```bash
-sniffles --input aligned.bam --vcf svs.vcf --tandem-repeats tandem_repeats.bed
-```
-
-## Common Issues
-
-### Too Few SVs
-
-- Check coverage (need >10x)
-- Lower min support threshold
-- Verify alignment quality
-
-### Too Many False Positives
-
-- Increase quality threshold
-- Increase min support
-- Filter repetitive regions
+## Tips
+- Need at least 10x coverage for reliable SV calling
+- Always provide reference with `--reference` to get insertion sequences in output
+- Use tandem repeat BED file with `--tandem-repeats` for better accuracy in repetitive regions
+- Filter by QUAL >= 20 for high-confidence calls
+- For PacBio HiFi, consider pbsv which is optimized for that platform
 
 ## Resources
-
 - [Sniffles2 GitHub](https://github.com/fritzsedlazeck/Sniffles)
 - [cuteSV GitHub](https://github.com/tjiangHIT/cuteSV)

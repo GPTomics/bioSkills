@@ -34,17 +34,17 @@ dds <- DESeq(dds)
 cat('Available coefficients:\n')
 print(resultsNames(dds))
 
-# Compare treatmentA vs control
-res_A <- results(dds, name = 'condition_treatmentA_vs_control')
+# Compare treatmentA vs control (with log2FC shrinkage)
+res_A <- lfcShrink(dds, coef = 'condition_treatmentA_vs_control', type = 'apeglm')
 cat('\nTreatmentA vs Control:\n')
 summary(res_A)
 
-# Compare treatmentB vs control
-res_B <- results(dds, name = 'condition_treatmentB_vs_control')
+# Compare treatmentB vs control (with log2FC shrinkage)
+res_B <- lfcShrink(dds, coef = 'condition_treatmentB_vs_control', type = 'apeglm')
 cat('\nTreatmentB vs Control:\n')
 summary(res_B)
 
-# Compare treatmentA vs treatmentB (using contrast)
-res_AB <- results(dds, contrast = c('condition', 'treatmentA', 'treatmentB'))
+# Compare treatmentA vs treatmentB (using contrast, ashr for non-coefficient comparisons)
+res_AB <- lfcShrink(dds, contrast = c('condition', 'treatmentA', 'treatmentB'), type = 'ashr')
 cat('\nTreatmentA vs TreatmentB:\n')
 summary(res_AB)

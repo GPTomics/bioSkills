@@ -1,26 +1,71 @@
-# Metabolite Annotation Usage Guide
+# Metabolite Annotation - Usage Guide
 
 ## Overview
 
-Metabolite annotation (identification) assigns chemical identities to detected features based on m/z, retention time, and MS/MS spectra.
+Metabolite annotation assigns chemical identities to detected features based on m/z, retention time, and MS/MS spectra. Confidence levels range from Level 1 (authenticated standard) to Level 4 (mass match only).
 
-## Annotation Approaches
+## Prerequisites
 
-### Level 1: Authentic Standard
-- Match m/z, RT, and MS/MS to run standard
-- Highest confidence, limited coverage
+```bash
+# Python
+pip install matchms rdkit-pypi
 
-### Level 2: Database MS/MS Match
-- Match MS/MS to reference spectra (HMDB, GNPS, MassBank)
-- Good confidence for known compounds
+# R/Bioconductor
+BiocManager::install("CompoundDb")
 
-### Level 3: Formula Assignment
-- Accurate mass + isotope pattern → molecular formula
-- SIRIUS/CSI:FingerID for structure prediction
+# External tools
+# SIRIUS: https://bio.informatik.uni-jena.de/software/sirius/
+```
 
-### Level 4: Mass Match
-- m/z matches database entry within tolerance
-- Multiple candidates usually
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Annotate my metabolomics features against HMDB"
+- "Match MS/MS spectra to MassBank database"
+
+## Example Prompts
+
+### Database Matching
+> "Search my features against HMDB with 10 ppm mass tolerance in positive mode"
+> "Match m/z values to KEGG compounds considering [M+H]+ and [M+Na]+ adducts"
+
+### MS/MS Annotation
+> "Compare my MS/MS spectra to MassBank using cosine similarity"
+> "Run SIRIUS for molecular formula prediction on features with MS/MS"
+
+### Adduct Consideration
+> "Annotate features considering common positive mode adducts: [M+H]+, [M+Na]+, [M+NH4]+"
+> "Check for in-source fragments and adduct clusters"
+
+### Confidence Assignment
+> "Assign MSI confidence levels to my annotations based on evidence"
+> "Filter annotations to keep only Level 2 or better matches"
+
+## What the Agent Will Do
+
+1. Load feature table with m/z, RT, and optional MS/MS spectra
+2. Calculate expected masses for different adducts
+3. Search against metabolite databases within mass tolerance
+4. Score MS/MS matches if spectra available
+5. Assign confidence levels
+6. Export annotations with evidence
+
+## Tips
+
+- Always specify ion mode (positive/negative) and expected adducts
+- MS/MS matching greatly improves annotation confidence
+- Report confidence levels per MSI guidelines
+- Consider in-source fragments that may appear as separate features
+- Use multiple databases for better coverage
+
+## Annotation Confidence Levels
+
+| Level | Evidence Required |
+|-------|-------------------|
+| 1 | Authentic standard (m/z, RT, MS/MS) |
+| 2 | MS/MS match to database spectra |
+| 3 | Molecular formula from accurate mass |
+| 4 | Mass match only (multiple candidates) |
 
 ## Key Databases
 
@@ -28,25 +73,8 @@ Metabolite annotation (identification) assigns chemical identities to detected f
 |----------|---------|--------|
 | HMDB | Human metabolites | hmdb.ca |
 | KEGG | Pathway metabolites | kegg.jp |
-| PubChem | All chemicals | pubchem.ncbi.nlm.nih.gov |
 | MassBank | MS/MS spectra | massbank.eu |
 | GNPS | MS/MS spectra | gnps.ucsd.edu |
-
-## Adduct Considerations
-
-### Positive Mode
-- [M+H]+, [M+Na]+, [M+K]+, [M+NH4]+
-
-### Negative Mode
-- [M-H]-, [M+Cl]-, [M+FA-H]-
-
-## Best Practices
-
-1. Always specify polarity and adducts
-2. Use MS/MS when available
-3. Report confidence levels
-4. Validate with RT if possible
-5. Consider in-source fragments
 
 ## References
 

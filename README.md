@@ -106,15 +106,15 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **proteomics** | 9 | pyOpenMS, MSstats, DIA-NN, limma | Mass spec data import, QC, quantification, differential abundance, PTM, DIA, spectral libraries |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
-| **crispr-screens** | 4 | MAGeCK, CRISPResso2, BAGEL2 | Pooled screen analysis, guide counting, hit calling |
-| **metabolomics** | 5 | XCMS, MetaboAnalystR | Peak detection, annotation, normalization, pathway mapping |
-| **imaging-mass-cytometry** | 4 | steinbock, Cellpose, squidpy | IMC preprocessing, segmentation, spatial analysis |
-| **flow-cytometry** | 5 | flowCore, CATALYST, diffcyt | FCS handling, compensation, clustering, differential analysis |
+| **crispr-screens** | 6 | MAGeCK, CRISPResso2, BAGEL2 | Pooled screen analysis, guide counting, hit calling, QC, batch correction |
+| **metabolomics** | 8 | XCMS, MetaboAnalystR, lipidr, MS-DIAL | Peak detection, annotation, normalization, pathway mapping, lipidomics, targeted |
+| **imaging-mass-cytometry** | 6 | steinbock, Cellpose, squidpy, napari | IMC preprocessing, segmentation, spatial analysis, annotation, QC |
+| **flow-cytometry** | 8 | flowCore, CATALYST, diffcyt, flowAI | FCS handling, compensation, gating, clustering, differential, QC, bead normalization |
 | **reporting** | 2 | RMarkdown, Quarto | Reproducible analysis reports in HTML, PDF, Word |
 | **workflow-management** | 2 | Snakemake, Nextflow | Scalable pipeline frameworks with containers |
 | **data-visualization** | 8 | ggplot2, ComplexHeatmap, plotly, pyGenomeTracks, Circos | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
 
-**Total: 268 skills across 40 categories**
+**Total: 267 skills across 40 categories**
 
 ## Usage
 

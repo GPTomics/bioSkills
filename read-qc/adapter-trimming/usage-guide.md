@@ -1,18 +1,9 @@
 # Adapter Trimming - Usage Guide
 
 ## Overview
-
 Sequencing adapters must be removed before alignment to prevent misalignment and artifacts. Cutadapt offers precise control with error-tolerant matching, while Trimmomatic provides efficient paired-end handling with palindrome mode.
 
-## When to Use This Skill
-
-- FastQC shows adapter contamination
-- Reads contain sequencing artifacts
-- Preparing reads for alignment
-- Trimming custom primers or barcodes
-
-## Installation
-
+## Prerequisites
 ```bash
 # Cutadapt
 pip install cutadapt
@@ -23,88 +14,52 @@ conda install -c bioconda cutadapt
 conda install -c bioconda trimmomatic
 ```
 
-## Choosing a Tool
+## Quick Start
+Tell your AI agent what you want to do:
+- "Remove adapters from my paired-end reads"
+- "Trim Illumina TruSeq adapters from my FASTQ files"
+- "My FastQC shows adapter contamination, please fix it"
 
-| Feature | Cutadapt | Trimmomatic |
-|---------|----------|-------------|
-| Flexibility | High | Medium |
-| Paired-end | Good | Excellent (palindrome) |
-| Speed | Fast | Fast |
-| Error tolerance | Configurable | Fixed |
-| Documentation | Excellent | Good |
+## Example Prompts
 
-**Recommendation**: Use Cutadapt for most cases. Use Trimmomatic when you need palindrome mode for paired-end data with adapter read-through.
+### Standard Trimming
+> "Remove TruSeq adapters from my paired-end FASTQ files using Cutadapt"
 
-## Common Workflows
+> "Trim Nextera adapters from my reads and keep only reads longer than 20bp"
 
-### Illumina TruSeq (Cutadapt)
+### Troubleshooting
+> "FastQC still shows adapters after trimming, increase the error tolerance"
 
-```bash
-cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
-         -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
-         -m 20 -j 4 \
-         -o trimmed_R1.fastq.gz -p trimmed_R2.fastq.gz \
-         raw_R1.fastq.gz raw_R2.fastq.gz
-```
+> "I don't know which adapters were used, identify and remove them"
 
-### Nextera (Cutadapt)
+### Tool Selection
+> "Use Trimmomatic with palindrome mode for better adapter detection on my overlapping reads"
 
-```bash
-cutadapt -a CTGTCTCTTATACACATCT -A CTGTCTCTTATACACATCT \
-         -m 20 -j 4 \
-         -o trimmed_R1.fastq.gz -p trimmed_R2.fastq.gz \
-         raw_R1.fastq.gz raw_R2.fastq.gz
-```
+> "Compare Cutadapt vs Trimmomatic output for my dataset"
 
-### TruSeq with Trimmomatic (Palindrome Mode)
+## What the Agent Will Do
+1. Identify the adapter sequences (from FastQC or library prep info)
+2. Select appropriate tool (Cutadapt for most cases, Trimmomatic for palindrome mode)
+3. Run trimming with proper parameters for paired-end data
+4. Set minimum read length to discard too-short fragments
+5. Verify adapter removal with post-trimming QC
 
-```bash
-trimmomatic PE -phred33 -threads 4 \
-    raw_R1.fastq.gz raw_R2.fastq.gz \
-    trimmed_R1.fastq.gz unpaired_R1.fastq.gz \
-    trimmed_R2.fastq.gz unpaired_R2.fastq.gz \
-    ILLUMINACLIP:TruSeq3-PE-2.fa:2:30:10:2:keepBothReads \
-    MINLEN:20
-```
+## Common Adapter Sequences
 
-## Identifying Your Adapter
+| Library | Adapter |
+|---------|---------|
+| Illumina Universal | `AGATCGGAAGAGC` |
+| Nextera | `CTGTCTCTTATACACATCT` |
+| Small RNA | `TGGAATTCTCGGGTGCCAAGG` |
 
-1. **Check FastQC report** - "Overrepresented sequences" and "Adapter Content"
-2. **Check sequencing facility** - They should provide adapter info
-3. **Common patterns**:
-   - `AGATCGGAAGAGC` - Illumina universal
-   - `CTGTCTCTTATACACATCT` - Nextera
-   - `TGGAATTCTCGGGTGCCAAGG` - Small RNA
-
-## Troubleshooting
-
-### Adapters Still Present
-
-Increase error rate or reduce overlap requirement:
-```bash
-cutadapt -a ADAPTER -e 0.15 -O 3 -o out.fq in.fq
-```
-
-### Too Many Reads Discarded
-
-Reduce minimum length:
-```bash
-cutadapt -a ADAPTER -m 15 -o out.fq in.fq
-```
-
-### Unknown Adapter
-
-Use FastQC "Overrepresented sequences" to identify, or try common adapters:
-```bash
-# Try all common Illumina adapters
-cutadapt -a AGATCGGAAGAGC \
-         -a CTGTCTCTTATACACATCT \
-         -a TGGAATTCTCGGGTGCCAAGG \
-         -o out.fq in.fq
-```
+## Tips
+- Check FastQC "Overrepresented sequences" to identify unknown adapters
+- Use `-m 20` or higher to discard very short trimmed reads
+- Trimmomatic palindrome mode works best for paired reads with adapter read-through
+- Multiple adapters can be specified in a single Cutadapt command
+- Always run FastQC after trimming to verify adapter removal
 
 ## Resources
-
 - [Cutadapt Documentation](https://cutadapt.readthedocs.io/)
 - [Trimmomatic Manual](http://www.usadellab.org/cms/?page=trimmomatic)
 - [Illumina Adapter Sequences](https://support.illumina.com/downloads/illumina-adapter-sequences-document-1000000002694.html)

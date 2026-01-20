@@ -1,26 +1,10 @@
-# Metagenome Assembly Usage Guide
+# Metagenome Assembly - Usage Guide
 
 ## Overview
 
 Metagenome assembly reconstructs individual genomes from complex microbial communities. Long-read sequencing (ONT, PacBio) dramatically improves contiguity and enables recovery of complete genomes.
 
-## Tool Selection
-
-| Data Type | Recommended Tool |
-|-----------|------------------|
-| ONT reads | metaFlye |
-| PacBio HiFi | metaFlye (--pacbio-hifi) |
-| Illumina only | metaSPAdes |
-| Hybrid (short + long) | metaFlye + Pilon polishing |
-
-## Quick Start Prompts
-
-- "Assemble this ONT metagenome with Flye"
-- "Bin my metagenome assembly"
-- "Find complete circular genomes"
-- "Assess MAG quality with CheckM2"
-
-## Requirements
+## Prerequisites
 
 ```bash
 # Assembly
@@ -36,23 +20,45 @@ conda install -c bioconda gtdbtk
 conda install -c bioconda minimap2 samtools seqkit
 ```
 
-## Workflow Overview
+## Quick Start
 
-```
-Reads → Assembly → Mapping → Binning → QC → Taxonomy
-         (Flye)    (minimap2) (MetaBAT2) (CheckM2) (GTDB-Tk)
-```
+Tell your AI agent what you want to do:
+- "Assemble this ONT metagenome with Flye"
+- "Bin my metagenome assembly into MAGs"
+- "Assess MAG quality with CheckM2"
 
-## Quality Thresholds
+## Example Prompts
 
-| Category | Completeness | Contamination |
-|----------|--------------|---------------|
-| High-quality | >90% | <5% |
-| Medium-quality | >50% | <10% |
-| Low-quality | <50% | >10% |
+### Assembly
+> "Assemble this ONT metagenome with Flye"
+> "Run metaSPAdes on my Illumina metagenome reads"
+> "Create a hybrid assembly from short and long reads"
 
-## Related Skills
+### Binning
+> "Bin my metagenome assembly into MAGs"
+> "Run MetaBAT2 binning on my assembled contigs"
+> "Use SemiBin2 for deep learning-based binning"
 
-- **genome-assembly/contamination-detection** - Bin quality assessment
-- **metagenomics/taxonomic-profiling** - Community composition
-- **long-read-sequencing/read-qc** - Input data quality
+### Quality and Taxonomy
+> "Find complete circular genomes in my assembly"
+> "Assess MAG quality with CheckM2"
+> "Classify my MAGs with GTDB-Tk"
+
+## What the Agent Will Do
+
+1. Select appropriate assembler based on input data type
+2. Run metagenome assembly with optimized parameters
+3. Map reads back to assembly for coverage calculation
+4. Bin contigs into putative genomes (MAGs)
+5. Assess MAG quality with CheckM2
+6. Assign taxonomy with GTDB-Tk
+7. Report quality-filtered MAG statistics
+
+## Tips
+
+- metaFlye is recommended for long reads; metaSPAdes for Illumina only
+- Long reads often recover complete circular genomes directly
+- Multiple binning tools (MetaBAT2 + SemiBin2) can improve recovery
+- High-quality MAGs: >90% complete, <5% contamination
+- GUNC can detect chimeric MAGs missed by CheckM
+- Consider co-assembly of related samples to improve binning

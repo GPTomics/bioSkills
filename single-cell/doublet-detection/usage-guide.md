@@ -1,37 +1,63 @@
-# Doublet Detection Usage Guide
+# Doublet Detection - Usage Guide
 
-This guide covers detecting and removing doublets from single-cell RNA-seq data.
+## Overview
 
-## What are Doublets?
+Doublet detection identifies and removes droplets containing two or more cells, which can create artificial intermediate populations and lead to false biological conclusions.
 
-Doublets occur when two or more cells are captured in the same droplet. They:
-- Appear as intermediate cell populations
-- Inflate cell counts
-- Can lead to false biological conclusions
+## Prerequisites
 
-## When to Run Doublet Detection
+```bash
+# Python
+pip install scrublet scanpy
+```
 
-Run doublet detection:
-- After initial QC (gene/cell filtering)
-- Before normalization and clustering
-- On each sample separately (if pooled)
+```r
+# R
+install.packages('Seurat')
+remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+BiocManager::install('scDblFinder')
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Detect doublets in my scRNA-seq data"
+- "Remove doublets before clustering"
+- "Run Scrublet on my AnnData object"
+
+## Example Prompts
+
+### Detection
+> "Run Scrublet to identify doublets"
+> "Use scDblFinder to detect doublets in my Seurat object"
+> "Run DoubletFinder with optimized parameters"
+
+### Filtering
+> "Remove predicted doublets from my data"
+> "Show me which cells are doublets on the UMAP"
+> "What percentage of cells are doublets?"
+
+### Troubleshooting
+> "The doublet score distribution is not bimodal, what should I do?"
+> "I'm getting too many doublets detected, how do I adjust?"
+> "Run doublet detection on each sample separately"
+
+## What the Agent Will Do
+
+1. Simulate artificial doublets from the data
+2. Train classifier to distinguish doublets from singlets
+3. Score each cell for doublet probability
+4. Identify threshold for calling doublets
+5. Flag or remove predicted doublets
+6. Visualize doublet scores on UMAP
 
 ## Method Selection
 
-### Scrublet (Python)
-- Fast and simple
-- Good for quick analysis
-- Works well with Scanpy
-
-### DoubletFinder (R)
-- Most widely used in R
-- Requires parameter optimization
-- Works with Seurat
-
-### scDblFinder (R)
-- Fastest R method
-- Machine learning based
-- Often most accurate
+| Method | Strengths | Language |
+|--------|-----------|----------|
+| Scrublet | Fast, simple | Python |
+| DoubletFinder | Most widely used | R |
+| scDblFinder | Fastest, often most accurate | R |
 
 ## Expected Doublet Rates
 
@@ -43,31 +69,11 @@ Use the 10X formula: ~0.8% per 1,000 cells loaded
 | 10,000 | 8% |
 | 15,000 | 12% |
 
-## Requirements
+## Tips
 
-```bash
-# Python
-pip install scrublet scanpy
-
-# R
-install.packages('Seurat')
-remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
-BiocManager::install('scDblFinder')
-```
-
-## Troubleshooting
-
-### No doublets detected
-- Check expected_doublet_rate
-- Try lower threshold
-- Verify data quality
-
-### Too many doublets
-- Lower expected rate
-- Raise score threshold
-- Check for batch effects
-
-### Bimodal distribution unclear
-- Use scDblFinder instead
-- Set manual threshold
-- Check data quality
+- **Run before normalization** - doublet detection works best on raw or minimally processed data
+- **Run per sample** - if samples are pooled, detect doublets in each separately
+- **Expect bimodal distribution** - doublet scores should show two peaks
+- **High gene counts often indicate doublets** - filter these first if doublet detection fails
+- **Check intermediate populations** - doublets often appear between cell types
+- **Validate with markers** - doublets may express markers of multiple cell types

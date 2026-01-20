@@ -1,8 +1,57 @@
-# Amplicon Processing with DADA2
+# Amplicon Processing - Usage Guide
 
 ## Overview
 
 DADA2 infers exact amplicon sequence variants (ASVs) from amplicon sequencing data, providing single-nucleotide resolution without clustering.
+
+## Prerequisites
+
+```bash
+# R packages
+install.packages('BiocManager')
+BiocManager::install('dada2')
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Process my 16S amplicon data with DADA2"
+- "Denoise paired-end reads and generate an ASV table"
+
+## Example Prompts
+
+### Basic Processing
+> "Run DADA2 on my paired-end 16S data in /data/fastq/"
+
+> "Generate quality plots for my amplicon sequences"
+
+### Parameter Tuning
+> "What truncLen should I use based on these quality profiles?"
+
+> "Process my reads with maxEE=2 and truncLen of 240,160"
+
+### Troubleshooting
+> "My merge rate is low, help me diagnose the issue"
+
+> "Remove chimeras from my ASV table"
+
+## What the Agent Will Do
+
+1. Inspect quality profiles to determine trim points
+2. Filter and trim reads to remove low-quality bases
+3. Learn error rates from the data
+4. Denoise reads to infer true sequences
+5. Merge paired reads (if applicable)
+6. Remove chimeric sequences
+7. Generate final ASV table and sequences
+
+## Tips
+
+- ASVs provide single-nucleotide resolution vs 97% OTU clustering
+- Examine quality profiles before choosing truncLen
+- Ensure sufficient overlap for merging (20bp minimum)
+- Normal chimera rate is 10-25% of ASVs but few reads
+- Save output as RDS for downstream phyloseq analysis
 
 ## ASVs vs OTUs
 
@@ -12,15 +61,6 @@ DADA2 infers exact amplicon sequence variants (ASVs) from amplicon sequencing da
 | Reproducibility | Exact sequences | Cluster-dependent |
 | Comparability | Can merge studies | Requires re-clustering |
 | Sensitivity | Higher | Lower |
-
-## Workflow Steps
-
-1. **Inspect quality profiles** - Determine trim points
-2. **Filter and trim** - Remove low-quality bases
-3. **Learn error rates** - Model sequencing errors
-4. **Denoise** - Infer true sequences
-5. **Merge pairs** - Combine forward/reverse
-6. **Remove chimeras** - Eliminate PCR artifacts
 
 ## Key Parameters
 
@@ -32,12 +72,6 @@ DADA2 infers exact amplicon sequence variants (ASVs) from amplicon sequencing da
 | maxEE | Maximum expected errors | 2 |
 | maxN | Maximum Ns allowed | 0 |
 | truncQ | Truncate at quality score | 2 |
-
-### Choosing truncLen
-
-- Examine quality profiles
-- Trim where median quality drops below Q30
-- Ensure sufficient overlap for merging (20bp minimum)
 
 ## Common Issues
 
@@ -54,15 +88,3 @@ DADA2 infers exact amplicon sequence variants (ASVs) from amplicon sequencing da
 - Loosen maxEE (try 2, 5)
 - Adjust truncLen
 - Check raw data quality
-
-## Output Files
-
-```r
-# Save for downstream analysis
-saveRDS(seqtab_nochim, 'seqtab_nochim.rds')
-
-# Export as FASTA
-seqs <- getSequences(seqtab_nochim)
-headers <- paste0('ASV', seq_along(seqs))
-writeXStringSet(DNAStringSet(seqs), 'asv_seqs.fasta')
-```

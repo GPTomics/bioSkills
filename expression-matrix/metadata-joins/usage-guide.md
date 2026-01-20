@@ -1,8 +1,50 @@
-# Metadata Joins Usage Guide
+# Metadata Joins - Usage Guide
 
 ## Overview
+Join sample metadata with count matrices ensuring proper sample alignment, validating metadata completeness, and exporting for downstream differential expression analysis tools.
 
-Properly joining sample metadata with count matrices is critical for differential expression and other analyses. Mismatched samples or missing metadata can cause analysis failures or incorrect results.
+## Prerequisites
+```bash
+pip install pandas anndata
+```
+
+```r
+install.packages("BiocManager")
+BiocManager::install("DESeq2")
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Join my metadata file with my count matrix"
+- "Validate that all samples have condition and batch information"
+- "Export my data for DESeq2 analysis"
+
+## Example Prompts
+### Basic Joining
+> "Load my counts.tsv and metadata.csv and join them together"
+
+> "Match samples between my count matrix and sample metadata, keeping only common samples"
+
+### Validation
+> "Check that all samples have values for condition, batch, and sex columns"
+
+> "Find samples that are in my counts but missing from metadata"
+
+### Export
+> "Export my data as files ready for DESeq2 analysis in R"
+
+> "Create an AnnData object with my counts and metadata"
+
+### Sample Name Issues
+> "My sample names in counts have .bam suffixes but metadata doesn't - harmonize them"
+
+## What the Agent Will Do
+1. Load count matrix and metadata files
+2. Harmonize sample names (clean suffixes, match formats)
+3. Identify common samples and report any dropped
+4. Validate required columns exist and have no missing values
+5. Set appropriate factor levels for categorical variables
+6. Export in the format needed for downstream tools
 
 ## Metadata Structure
 
@@ -32,7 +74,6 @@ class DataPreparation:
         self.harmonize()
 
     def harmonize(self):
-        '''Match samples between counts and metadata.'''
         count_samples = set(self.counts.columns)
         meta_samples = set(self.metadata.index)
         common = count_samples & meta_samples
@@ -52,7 +93,6 @@ class DataPreparation:
         self.metadata = self.metadata.loc[sorted(common)]
 
     def validate(self, required_columns):
-        '''Check metadata completeness.'''
         for col in required_columns:
             if col not in self.metadata.columns:
                 raise ValueError(f'Required column missing: {col}')
@@ -61,17 +101,14 @@ class DataPreparation:
         return True
 
     def to_anndata(self):
-        '''Export as AnnData.'''
         adata = ad.AnnData(X=self.counts.T)
         adata.obs = self.metadata
         return adata
 
     def to_deseq_files(self, prefix):
-        '''Export files for DESeq2.'''
         self.counts.to_csv(f'{prefix}_counts.tsv', sep='\t')
         self.metadata.to_csv(f'{prefix}_metadata.csv')
 
-# Usage
 prep = DataPreparation('counts.tsv', 'metadata.csv')
 prep.validate(['condition', 'batch'])
 adata = prep.to_anndata()
@@ -82,13 +119,12 @@ adata = prep.to_anndata()
 ### Sample Name Variations
 ```python
 def normalize_sample_names(names):
-    '''Standardize sample names.'''
     normalized = []
     for n in names:
         n = str(n)
         n = n.replace('.bam', '')
         n = n.replace('_sorted', '')
-        n = n.split('/')[-1]  # Remove path
+        n = n.split('/')[-1]
         normalized.append(n)
     return normalized
 
@@ -98,33 +134,20 @@ metadata.index = normalize_sample_names(metadata.index)
 
 ### Categorical Variables
 ```python
-# Ensure categorical columns are properly typed
 categorical_cols = ['condition', 'batch', 'sex']
 for col in categorical_cols:
     if col in metadata.columns:
         metadata[col] = pd.Categorical(metadata[col])
 
-# Set reference level for differential expression
-metadata['condition'] = pd.Categorical(
-    metadata['condition'],
-    categories=['control', 'treated'],
-    ordered=True
-)
+metadata['condition'] = pd.Categorical(metadata['condition'], categories=['control', 'treated'], ordered=True)
 ```
 
 ### Missing Values
 ```python
-# Check for missing values
 print(metadata.isna().sum())
 
-# Options for handling:
-# 1. Drop samples with any missing
 metadata_clean = metadata.dropna()
-
-# 2. Fill with defaults
 metadata['batch'] = metadata['batch'].fillna('unknown')
-
-# 3. Impute numeric columns
 metadata['age'] = metadata['age'].fillna(metadata['age'].median())
 ```
 
@@ -133,80 +156,44 @@ metadata['age'] = metadata['age'].fillna(metadata['age'].median())
 ```r
 library(DESeq2)
 
-# Load and validate
 counts <- read.delim('counts.tsv', row.names=1, check.names=FALSE)
 metadata <- read.csv('metadata.csv', row.names=1)
 
-# Match samples
 stopifnot(all(colnames(counts) %in% rownames(metadata)))
 metadata <- metadata[colnames(counts), , drop=FALSE]
 
-# Set factor levels (control as reference)
 metadata$condition <- factor(metadata$condition, levels=c('control', 'treated'))
 
-# Validate
 stopifnot(all(colnames(counts) == rownames(metadata)))
 stopifnot(!any(is.na(metadata$condition)))
 
-# Create DESeq object
-dds <- DESeqDataSetFromMatrix(
-    countData=round(as.matrix(counts)),
-    colData=metadata,
-    design=~batch + condition
-)
+dds <- DESeqDataSetFromMatrix(countData=round(as.matrix(counts)), colData=metadata, design=~batch + condition)
 ```
 
 ## Multi-factor Designs
 
 ```python
-# Combine factors for complex designs
 metadata['group'] = metadata['condition'] + '_' + metadata['timepoint']
-
-# Or keep separate for interaction models
-# In DESeq2: design = ~condition + timepoint + condition:timepoint
 ```
 
 ```r
-# R version
 metadata$group <- paste(metadata$condition, metadata$timepoint, sep='_')
 
-# Or use interaction in design
-dds <- DESeqDataSetFromMatrix(
-    countData=counts,
-    colData=metadata,
-    design=~condition * timepoint
-)
-```
-
-## Batch Information
-
-Always include batch information if available:
-
-```python
-# Add sequencing batch
-metadata['seq_batch'] = metadata['sample_id'].apply(
-    lambda x: 'batch1' if x.startswith('S1') else 'batch2'
-)
-
-# Add processing date if available
-# This helps identify technical variation
+dds <- DESeqDataSetFromMatrix(countData=counts, colData=metadata, design=~condition * timepoint)
 ```
 
 ## Quality Control Integration
 
 ```python
-# Add QC metrics from alignment/counting
 qc_metrics = pd.read_csv('alignment_qc.csv', index_col=0)
 metadata = metadata.join(qc_metrics, how='left')
 
-# Flag low-quality samples
 metadata['pass_qc'] = (
     (metadata['uniquely_mapped_pct'] > 70) &
     (metadata['total_reads'] > 1e6) &
     (metadata['assigned_pct'] > 50)
 )
 
-# Filter to passing samples
 counts = counts.loc[:, metadata[metadata['pass_qc']].index]
 metadata = metadata[metadata['pass_qc']]
 ```
@@ -215,21 +202,22 @@ metadata = metadata[metadata['pass_qc']]
 
 ```python
 def export_for_deseq2(counts, metadata, prefix):
-    '''Export for DESeq2 analysis in R.'''
-    # Counts must be integers
     counts_int = counts.round().astype(int)
     counts_int.to_csv(f'{prefix}_counts.tsv', sep='\t')
     metadata.to_csv(f'{prefix}_coldata.csv')
 
 def export_for_edger(counts, metadata, prefix):
-    '''Export for edgeR analysis in R.'''
     counts.to_csv(f'{prefix}_counts.txt', sep='\t')
-    # edgeR uses group from metadata
     metadata.to_csv(f'{prefix}_design.csv')
 
 def export_for_limma(counts, metadata, prefix):
-    '''Export for limma-voom.'''
-    # Similar to DESeq2
     counts.to_csv(f'{prefix}_counts.txt', sep='\t')
     metadata.to_csv(f'{prefix}_targets.csv')
 ```
+
+## Tips
+- Always verify sample order matches between counts and metadata before analysis
+- Set factor reference levels explicitly (e.g., 'control' before 'treated') for interpretable results
+- Include batch information whenever available to account for technical variation
+- Validate metadata completeness early to avoid cryptic errors in downstream tools
+- Use descriptive column names and document the meaning of categorical levels

@@ -1,80 +1,46 @@
 # Bismark Alignment - Usage Guide
 
 ## Overview
+Bismark is the standard tool for aligning bisulfite sequencing reads, handling the complexity of bisulfite conversion (C->T) by creating in-silico converted genomes and performing four-way alignment.
 
-Bismark is the standard tool for aligning bisulfite sequencing reads. It handles the complexity of bisulfite conversion (C→T) by creating in-silico converted genomes and performing four-way alignment.
-
-## When to Use This Skill
-
-- You have raw bisulfite sequencing FASTQ files
-- You need to align WGBS, RRBS, or targeted bisulfite-seq data
-- You want to prepare data for methylation calling
-
-## Installation
-
+## Prerequisites
 ```bash
-# Conda (recommended)
-conda install -c bioconda bismark bowtie2 samtools
+conda install -c bioconda bismark bowtie2 samtools trim-galore
 
-# Verify
 bismark --version
 bowtie2 --version
 ```
 
-## Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Align my WGBS FASTQ files to the hg38 reference genome"
+- "Prepare a bisulfite genome index for my reference"
+- "Run Bismark alignment with deduplication for my paired-end samples"
 
-### 1. Prepare Genome (Once per Reference)
+## Example Prompts
+### Genome Preparation
+> "Create a Bismark genome index from my hg38.fa reference file"
 
-```bash
-# Download reference genome
-wget https://example.com/hg38.fa.gz
-gunzip hg38.fa.gz
-mkdir genome && mv hg38.fa genome/
+> "Prepare a bisulfite-converted genome for mm10"
 
-# Create bisulfite genome index
-bismark_genome_preparation --bowtie2 genome/
-```
+### Read Alignment
+> "Align my paired-end bisulfite sequencing reads to the genome"
 
-### 2. Trim Reads (Recommended)
+> "Run Bismark on my RRBS data without deduplication"
 
-```bash
-# Trim Galore handles adapter trimming
-trim_galore --illumina --paired \
-    sample_R1.fastq.gz sample_R2.fastq.gz
-```
+> "Align my non-directional bisulfite library to hg38"
 
-### 3. Align Reads
+### Troubleshooting
+> "My Bismark mapping rate is very low, help me diagnose the issue"
 
-```bash
-bismark --genome genome/ \
-    -1 sample_R1_val_1.fq.gz \
-    -2 sample_R2_val_2.fq.gz \
-    -o aligned/
-```
+> "Check if my library is directional or non-directional"
 
-### 4. Deduplicate (WGBS Only)
-
-```bash
-deduplicate_bismark --paired --bam aligned/sample_bismark_bt2_pe.bam
-```
-
-## Common Issues
-
-### Low Mapping Rate
-
-- Check bisulfite conversion efficiency in report
-- Verify correct library type (directional vs non-directional)
-- Try relaxing alignment parameters (-N 1)
-
-### Memory Issues
-
-- Use --parallel instead of running multiple instances
-- Increase --temp_dir to a disk with more space
-
-### Wrong Library Type
-
-Symptoms: Very low mapping, biased methylation calls
-Solution: Try --non_directional or --pbat
+## What the Agent Will Do
+1. Prepare the bisulfite genome index (if not already done)
+2. Trim adapter sequences with Trim Galore
+3. Align reads with Bismark using appropriate parameters for your library type
+4. Deduplicate aligned reads (for WGBS, skip for RRBS)
+5. Generate alignment reports and QC statistics
 
 ## Output Files
 
@@ -84,7 +50,12 @@ Solution: Try --non_directional or --pbat
 | *_SE_report.txt | Alignment statistics |
 | *.deduplicated.bam | After deduplication |
 
-## Resources
-
-- [Bismark User Guide](https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html)
-- [Bismark GitHub](https://github.com/FelixKrueger/Bismark)
+## Tips
+- Always run genome preparation once before alignment (bismark_genome_preparation --bowtie2 genome/)
+- Use Trim Galore for adapter trimming before alignment
+- Skip deduplication for RRBS data (PCR duplicates expected at restriction sites)
+- Check bisulfite conversion efficiency in the alignment report (should be >99%)
+- For non-directional libraries, add --non_directional flag
+- For PBAT libraries, use --pbat flag
+- If mapping rate is low, try relaxing alignment with -N 1
+- Use --parallel for multi-core processing instead of running multiple instances

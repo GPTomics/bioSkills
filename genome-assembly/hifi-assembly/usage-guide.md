@@ -1,27 +1,10 @@
-# HiFi Assembly Usage Guide
+# HiFi Assembly - Usage Guide
 
 ## Overview
 
 hifiasm is the leading assembler for PacBio HiFi reads, producing highly contiguous and accurate genome assemblies with built-in phasing support.
 
-## When to Use
-
-| Scenario | Recommended Approach |
-|----------|---------------------|
-| Diploid, no phasing data | Basic hifiasm |
-| Diploid with Hi-C | hifiasm --h1/--h2 |
-| Trio sample available | hifiasm with yak |
-| Highly repetitive genome | Add ONT ultra-long |
-| Polyploid | Adjust --n-hap |
-
-## Quick Start Prompts
-
-- "Assemble this HiFi dataset with hifiasm"
-- "Create a phased assembly using Hi-C data"
-- "Run trio-binned assembly with parental reads"
-- "Assess my hifiasm assembly quality"
-
-## Requirements
+## Prerequisites
 
 ```bash
 # Install hifiasm
@@ -34,28 +17,45 @@ conda install -c bioconda yak
 conda install -c bioconda quast busco seqkit
 ```
 
-## Input Recommendations
+## Quick Start
 
-| Parameter | Recommendation |
-|-----------|---------------|
-| HiFi coverage | 30-60x for mammals |
-| Read quality | Q20+ (typically Q30+) |
-| Read N50 | >15 kb preferred |
-| Hi-C coverage | 30-50x for phasing |
+Tell your AI agent what you want to do:
+- "Assemble this HiFi dataset with hifiasm"
+- "Create a phased assembly using Hi-C data"
+- "Run trio-binned assembly with parental reads"
 
-## Output Files
+## Example Prompts
 
-| File | Description |
-|------|-------------|
-| *.bp.p_ctg.gfa | Primary contigs (consensus) |
-| *.bp.a_ctg.gfa | Alternate contigs (haplotigs) |
-| *.bp.hap1.p_ctg.gfa | Haplotype 1 (phased) |
-| *.bp.hap2.p_ctg.gfa | Haplotype 2 (phased) |
-| *.ovlp.* | Overlap information |
-| *.ec.* | Error-corrected reads |
+### Basic Assembly
+> "Assemble this HiFi dataset with hifiasm"
+> "Run hifiasm on my PacBio HiFi reads"
 
-## Related Skills
+### Phased Assembly
+> "Create a phased assembly using Hi-C data"
+> "Run hifiasm with Hi-C phasing for my diploid sample"
 
-- **genome-assembly/quality-assessment** - Evaluate assemblies
-- **genome-assembly/scaffolding** - Chromosome-scale scaffolding
-- **long-read-sequencing/read-qc** - Input QC
+### Trio Binning
+> "Run trio-binned assembly with parental reads"
+> "Use yak to create k-mer databases for trio phasing"
+
+### Quality Assessment
+> "Assess my hifiasm assembly quality with BUSCO"
+> "Compare the two haplotypes from my phased assembly"
+
+## What the Agent Will Do
+
+1. Verify HiFi input reads and quality
+2. Select assembly mode (basic, Hi-C phased, or trio)
+3. Run hifiasm with appropriate parameters
+4. Convert GFA output to FASTA format
+5. Report assembly statistics and haplotype information
+6. Suggest quality assessment and next steps
+
+## Tips
+
+- HiFi reads are high-accuracy; assemblies typically need no polishing
+- 30-60x coverage is recommended for mammalian genomes
+- Hi-C phasing produces two haplotype assemblies plus primary/alternate
+- Trio binning with parental data gives the best phasing results
+- Use `--n-hap` for polyploid genomes (default is 2 for diploids)
+- Output GFA files can be converted to FASTA with awk or seqkit

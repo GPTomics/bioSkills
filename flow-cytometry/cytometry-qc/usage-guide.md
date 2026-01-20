@@ -1,111 +1,84 @@
-# Cytometry QC Usage Guide
+# Cytometry QC - Usage Guide
 
 ## Overview
-
 Comprehensive quality control ensures reliable flow cytometry and CyTOF data by detecting acquisition problems, removing problematic events, and flagging outlier samples.
 
-## When to Use This Skill
+## Prerequisites
+```bash
+# R/Bioconductor
+BiocManager::install(c('flowCore', 'flowAI', 'CATALYST'))
 
-- After data acquisition, before analysis
-- Batch processing multiple samples
-- Troubleshooting inconsistent results
-- Multi-site study harmonization
-- Longitudinal data comparison
+# Optional for advanced QC
+BiocManager::install('PeacoQC')
+```
 
-## QC Checks
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run quality control on my flow cytometry data"
+- "Check for flow rate anomalies and signal drift"
+- "Identify and flag low-quality samples"
 
-### Flow Rate Stability
-- Events per time unit should be consistent
-- Clogs cause rate drops
-- Air bubbles cause rate spikes
-- CV < 20% is typically acceptable
+## Example Prompts
+### Event-Level QC
+> "Remove margin events and anomalous time segments"
+> "Run flowAI to automatically clean my FCS files"
+> "Apply PeacoQC to detect acquisition problems"
 
-### Signal Drift
-- Detector sensitivity can change over time
-- Temperature effects on optics
-- Check before/after normalization
+### Sample-Level QC
+> "Check flow rate stability for each sample"
+> "Flag samples with high dead cell percentages"
+> "Identify outlier samples based on event counts"
 
-### Margin Events
-- Events at detector saturation limits
-- Cannot be accurately quantified
-- Remove before analysis
+### CyTOF-Specific QC
+> "Filter events by Event_length and DNA content"
+> "Check Gaussian parameters for acquisition quality"
+> "Generate a QC report for my CyTOF batch"
 
-### Dead Cells
-- Take up viability dye
-- Should be excluded for most analyses
-- Percentage indicates sample quality
+### Batch QC
+> "Compare QC metrics across all samples in my experiment"
+> "Create a QC summary table for my dataset"
+> "Flag samples that fail QC thresholds"
 
-## Expected QC Metrics
+## What the Agent Will Do
+1. Load QC packages (flowAI, PeacoQC, or CATALYST)
+2. Check flow rate stability over time
+3. Identify margin events and signal anomalies
+4. Remove or flag problematic events
+5. Generate QC report with pass/fail metrics
+
+## Tips
+- Run QC before any downstream analysis
+- flowAI handles flow rate, signal drift, and margin events
+- For CyTOF, filter by Event_length (15-45) and DNA content
+- Dead cells (>10%) indicate sample handling issues
+- Document QC thresholds before analyzing data
+
+## QC Thresholds
 
 | Metric | Acceptable | Warning | Fail |
 |--------|------------|---------|------|
-| Flow rate CV | < 15% | 15-25% | > 25% |
-| Signal drift | < 5% | 5-15% | > 15% |
-| Margin events | < 1% | 1-5% | > 5% |
-| Dead cells | < 10% | 10-30% | > 30% |
+| Flow rate CV | <15% | 15-25% | >25% |
+| Signal drift | <5% | 5-15% | >15% |
+| Margin events | <1% | 1-5% | >5% |
+| Dead cells | <10% | 10-30% | >30% |
 
 ## CyTOF-Specific Checks
 
-### Event Length
-- Cell size proxy
-- Typical: 15-45 for single cells
-- Low: debris/dying cells
-- High: doublets/aggregates
-
-### DNA Content
-- Confirms nucleated cells
-- Dead/debris have low DNA
-- Use Ir191/Ir193 channels
-
-### Gaussian Parameters
-- Push quality metrics
-- Center, Width, Residual
-- Identify poor acquisitions
-
-## Batch QC
-
-### Outlier Detection
-- Event count significantly different
-- Flow rate unstable
-- Median signals shifted
-- Consider excluding or re-acquiring
-
-### Cross-Sample Normalization
-- After individual QC passes
-- Use bead-normalization skill
-- Document normalization parameters
+| Check | Purpose | Typical Range |
+|-------|---------|---------------|
+| Event_length | Cell size proxy | 15-45 |
+| DNA (Ir191/193) | Confirms nucleated cells | Bimodal peak |
+| Gaussian Center/Width | Push quality | Per run baseline |
 
 ## Common Issues
 
-### High dead cell percentage
-- Sample handling issue
-- Staining too long
-- Temperature problems
-- Transport/storage issues
-
-### Flow rate instability
-- Clogged sample line
-- Air in system
-- Sample viscosity
-- Low sample volume
-
-### Signal drift
-- Laser warmup incomplete
-- Temperature fluctuation
-- Detector fatigue
-- Long acquisition time
-
-## Best Practices
-
-1. Run QC controls at start of each day
-2. Include technical replicates
-3. Document instrument settings
-4. Review QC plots before analysis
-5. Set pass/fail thresholds before analysis
-6. Archive QC reports with data
+| Issue | Likely Cause | Solution |
+|-------|--------------|----------|
+| High dead cells | Sample handling, temperature | Improve protocol |
+| Flow rate instability | Clog, air bubble | Clean instrument |
+| Signal drift | Laser warmup, temperature | Allow warmup, normalize |
 
 ## References
-
 - flowAI: doi:10.1093/bioinformatics/btw191
 - PeacoQC: doi:10.1002/cyto.a.24501
 - CyTOF QC: doi:10.1002/cyto.a.22624

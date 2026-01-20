@@ -1,77 +1,89 @@
-# Lipidomics Usage Guide
+# Lipidomics - Usage Guide
 
 ## Overview
 
-Lipidomics is a specialized branch of metabolomics focused on the comprehensive analysis of lipids. Lipids have unique characteristics requiring specialized annotation and analysis approaches.
+Lipidomics is a specialized branch of metabolomics focused on comprehensive lipid analysis. Lipids have unique characteristics requiring specialized annotation, normalization, and class-based analysis approaches.
 
-## When to Use This Skill
+## Prerequisites
 
-- Lipid-focused studies (membranes, signaling, energy storage)
-- Shotgun lipidomics (direct infusion MS)
-- LC-MS lipidomics (chromatographic separation)
-- Lipid biomarker discovery
-- Membrane composition analysis
+```bash
+# R packages
+BiocManager::install("lipidr")
+install.packages("ggplot2")
+
+# Python
+pip install pandas numpy scipy
+
+# Software: MS-DIAL, LipidSearch
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Analyze my lipidomics data by lipid class"
+- "Normalize to internal standards and compare lipid profiles"
+
+## Example Prompts
+
+### Data Processing
+> "Import my MS-DIAL lipidomics output and parse lipid annotations"
+> "Extract lipid class, carbon chain length, and double bond information from annotations"
+
+### Normalization
+> "Normalize each lipid class to its matched internal standard"
+> "Apply PQN normalization and calculate class-level summaries"
+
+### Class Analysis
+> "Compare lipid class abundances between treatment groups"
+> "Create a lipid class composition bar plot for each sample group"
+> "Test for changes in sphingolipids between disease and control"
+
+### Chain Analysis
+> "Analyze the distribution of chain lengths and saturation by class"
+> "Compare fatty acid profiles between groups"
+
+### Visualization
+> "Create a lipid bubble plot showing class, saturation, and fold change"
+> "Generate a heatmap of individual lipid species grouped by class"
+
+## What the Agent Will Do
+
+1. Parse lipid annotations (class, chains, saturation)
+2. Normalize to internal standards by class
+3. Aggregate by lipid class or species
+4. Run statistical comparisons
+5. Create lipid-specific visualizations
+6. Export results with lipid metadata
+
+## Tips
+
+- Use class-matched internal standards (e.g., PC-d7 for PC class)
+- Report sum composition when isomers cannot be separated
+- Include at least one internal standard per lipid class
+- Consider ion suppression varies by lipid class
+- LipidMaps shorthand notation is standard (e.g., PC 34:1)
 
 ## Lipid Classes
 
 | Class | Abbreviation | Examples |
 |-------|--------------|----------|
-| Fatty Acyls | FA | Palmitic acid (FA 16:0) |
-| Glycerolipids | GL | Triacylglycerol (TG) |
-| Glycerophospholipids | GP | PC, PE, PS, PI, PG |
-| Sphingolipids | SP | Ceramide (Cer), Sphingomyelin (SM) |
-| Sterol lipids | ST | Cholesterol, CE |
-| Prenol lipids | PR | Coenzyme Q |
+| Glycerophospholipids | GP | PC, PE, PS, PI |
+| Sphingolipids | SP | Cer, SM |
+| Glycerolipids | GL | TG, DG |
+| Sterol lipids | ST | CE, Cholesterol |
+| Fatty acyls | FA | Free fatty acids |
 
-## Lipid Nomenclature
+## Nomenclature
 
-Standard shorthand notation: `Class(carbon:double_bonds)`
-
-Examples:
-- `PC(34:1)` - Phosphatidylcholine with 34 carbons and 1 double bond
-- `TG(52:2)` - Triacylglycerol with 52 carbons and 2 double bonds
+Standard shorthand: `Class(carbons:double_bonds)`
+- `PC(34:1)` - Phosphatidylcholine, 34 carbons, 1 double bond
+- `TG(52:2)` - Triacylglycerol, 52 carbons, 2 double bonds
 - `Cer(d18:1/16:0)` - Ceramide with specific chains
-
-## Analysis Workflow
-
-1. **Data acquisition** - LC-MS or shotgun MS
-2. **Peak detection** - XCMS, MS-DIAL, LipidSearch
-3. **Lipid annotation** - LipidMaps, in-house database
-4. **Normalization** - Internal standards, PQN
-5. **Statistical analysis** - Univariate/multivariate
-6. **Pathway interpretation** - KEGG lipid pathways
-
-## Normalization Strategies
-
-### Internal Standards
-- Use class-matched internal standards (e.g., PC-d7 for PC)
-- One IS per lipid class minimum
-- Calculate ratios to IS
-
-### Sample Normalization
-- Total ion current (TIC)
-- Probabilistic quotient normalization (PQN)
-- Median centering
-
-## Common Issues
-
-### Isomer separation
-- LC may not separate all isomers
-- Consider reporting sum composition
-
-### Ion suppression
-- Matrix effects vary by lipid class
-- Use multiple internal standards
-
-### Annotation confidence
-- Level 1: MS/MS match + RT
-- Level 2: MS/MS match only
-- Level 3: Mass match only
 
 ## Databases
 
 - **LipidMaps** - Comprehensive lipid database
-- **SwissLipids** - Curated lipid structures
+- **SwissLipids** - Curated structures
 - **LipidBlast** - In-silico MS/MS library
 
 ## References
