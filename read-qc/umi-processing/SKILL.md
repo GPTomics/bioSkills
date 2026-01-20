@@ -1,6 +1,6 @@
 ---
 name: bio-read-qc-umi-processing
-description: Extract, process, and deduplicate reads using Unique Molecular Identifiers (UMIs) with umi_tools. Essential for accurate quantification in single-cell RNA-seq, low-input RNA-seq, and targeted sequencing where PCR duplicates must be distinguished from biological duplicates.
+description: Extract, process, and deduplicate reads using Unique Molecular Identifiers (UMIs) with umi_tools. Use when library prep includes UMIs and accurate molecule counting is needed, such as in single-cell RNA-seq, low-input RNA-seq, or targeted sequencing to distinguish PCR from biological duplicates.
 tool_type: cli
 primary_tool: umi_tools
 ---

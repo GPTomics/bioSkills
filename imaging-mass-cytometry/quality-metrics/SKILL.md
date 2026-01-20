@@ -1,6 +1,6 @@
 ---
 name: bio-imc-quality-metrics
-description: Quality metrics for IMC data including signal-to-noise, channel correlation, tissue integrity, and acquisition QC.
+description: Quality metrics for IMC data including signal-to-noise, channel correlation, tissue integrity, and acquisition QC. Use when assessing data quality before analysis or troubleshooting problematic acquisitions.
 tool_type: python
 primary_tool: numpy
 ---

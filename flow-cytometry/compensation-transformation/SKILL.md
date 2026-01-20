@@ -1,6 +1,6 @@
 ---
 name: bio-flow-cytometry-compensation-transformation
-description: Spillover compensation and data transformation for flow cytometry. Covers compensation matrix calculation, application, and biexponential/arcsinh transforms.
+description: Spillover compensation and data transformation for flow cytometry. Covers compensation matrix calculation, application, and biexponential/arcsinh transforms. Use when correcting spectral overlap between fluorophores or transforming data for analysis.
 tool_type: r
 primary_tool: flowCore
 ---

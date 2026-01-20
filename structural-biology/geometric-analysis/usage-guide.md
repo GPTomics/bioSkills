@@ -12,13 +12,10 @@ pip install biopython numpy
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Measure the distance between residue 50 CA and residue 100 CA"
-
-> "Calculate the RMSD between these two structures"
-
-> "Find all residues within 5 Angstroms of the ligand"
+Tell your AI agent what you want to do:
+- "Measure the distance between residue 50 CA and residue 100 CA"
+- "Calculate the RMSD between these two structures"
+- "Find all residues within 5 Angstroms of the ligand"
 
 ## Example Prompts
 

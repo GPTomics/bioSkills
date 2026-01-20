@@ -1,18 +1,9 @@
 # BigWig Tracks - Usage Guide
 
 ## Overview
+BigWig is an indexed binary format for continuous genomic data like coverage, ChIP-seq signal, or conservation scores. It is efficient for genome browsers and programmatic access. This skill covers creating bigWig files from bedGraph and extracting values with pyBigWig.
 
-BigWig is an indexed binary format for continuous genomic data like coverage, ChIP-seq signal, or conservation scores. It's efficient for genome browsers and programmatic access. This skill covers creating bigWig files from bedGraph and extracting values with pyBigWig.
-
-## When to Use This Skill
-
-- Convert bedGraph to bigWig for browser visualization
-- Extract signal values from bigWig for analysis
-- Create normalized coverage tracks
-- Compare signal between samples
-
-## Installation
-
+## Prerequisites
 ```bash
 # UCSC tools (CLI conversion)
 conda install -c bioconda ucsc-bedgraphtobigwig ucsc-bigwigtobedgraph
@@ -23,6 +14,40 @@ pip install pyBigWig
 # deepTools (advanced bigWig operations)
 conda install -c bioconda deeptools
 ```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Convert my bedGraph coverage to bigWig for the genome browser"
+- "Extract signal values from my bigWig file for specific regions"
+- "Create a normalized bigWig track from my BAM file"
+
+## Example Prompts
+
+### Creating BigWig Files
+> "Convert my coverage.bedGraph to bigWig format"
+> "Create a normalized bigWig track from my ChIP-seq BAM"
+> "Generate a CPM-normalized bigWig from alignments.bam"
+
+### Extracting Signal
+> "Get the mean signal from my bigWig file for each peak in peaks.bed"
+> "Extract coverage values for the region chr1:1000000-1100000"
+> "Calculate average signal across all promoters from my bigWig"
+
+### Comparison and Analysis
+> "Compare signal between two bigWig files across my regions of interest"
+> "Generate a matrix of signal values for heatmap visualization"
+> "Calculate fold change between treatment and control bigWig files"
+
+### Format Conversion
+> "Convert my bigWig back to bedGraph format"
+> "Create a bigWig from my BAM file using deepTools"
+
+## What the Agent Will Do
+1. Prepare chromosome sizes file if needed
+2. Sort bedGraph if converting from bedGraph
+3. Create bigWig using appropriate tool
+4. Verify output is valid and indexed
+5. Extract or summarize signal if requested
 
 ## Key Concepts
 
@@ -35,97 +60,15 @@ conda install -c bioconda deeptools
 | Browser support | Basic | Full |
 | Query speed | Slow | Fast |
 
-### Chromosome Sizes File
-
-Most bigWig operations require a chromosome sizes file:
-
-```bash
-# Format: chr<TAB>size
-chr1	248956422
-chr2	242193529
-```
-
-Create from:
-```bash
-# FASTA index
-cut -f1,2 reference.fa.fai > chrom.sizes
-
-# Download from UCSC
-wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes
-```
-
-## Basic Workflow
-
-### 1. Generate bedGraph
-
-```bash
-bedtools genomecov -ibam alignments.bam -bg > coverage.bedGraph
-```
-
-### 2. Sort bedGraph
-
-```bash
-sort -k1,1 -k2,2n coverage.bedGraph > coverage.sorted.bedGraph
-```
-
-### 3. Convert to bigWig
-
-```bash
-bedGraphToBigWig coverage.sorted.bedGraph hg38.chrom.sizes coverage.bw
-```
-
-### 4. View in Browser
-
-Upload `coverage.bw` to UCSC Genome Browser or IGV.
-
-## Common Patterns
-
-### Quick Normalized Track
-
-```bash
-# Using deepTools (recommended)
-bamCoverage -b alignments.bam -o coverage.bw --normalizeUsing CPM
-```
-
-### Extract Signal for Regions
-
-```python
-import pyBigWig
-
-bw = pyBigWig.open('signal.bw')
-mean_signal = bw.stats('chr1', 1000000, 1100000, type='mean')[0]
-print(f'Mean signal: {mean_signal}')
-bw.close()
-```
-
-## Common Issues
-
-### Unsorted bedGraph
-
-**Problem:** "bedGraph not sorted"
-**Solution:** Sort by chromosome and position
-
-```bash
-sort -k1,1 -k2,2n input.bedGraph > sorted.bedGraph
-```
-
-### Chromosome Name Mismatch
-
-**Problem:** Chromosome names in bedGraph don't match chrom.sizes
-**Solution:** Ensure consistent naming (chr1 vs 1)
-
-```bash
-# Add 'chr' prefix
-sed 's/^/chr/' input.bedGraph > with_chr.bedGraph
-```
-
-### Missing Chromosome in chrom.sizes
-
-**Problem:** "chr not found in chrom.sizes"
-**Solution:** Ensure all chromosomes in bedGraph are in chrom.sizes
+## Tips
+- bedGraph must be sorted by chromosome and position before conversion
+- Chromosome names in bedGraph must match exactly with chrom.sizes file
+- Use `bamCoverage` from deepTools for direct BAM to normalized bigWig
+- pyBigWig can query specific regions without loading the entire file
+- Always provide chromosome sizes when creating bigWig files
+- Use `bigWigInfo` to verify bigWig file properties
 
 ## Resources
-
 - [pyBigWig GitHub](https://github.com/deeptools/pyBigWig)
 - [UCSC Tools](http://hgdownload.soe.ucsc.edu/admin/exe/)
 - [deepTools Documentation](https://deeptools.readthedocs.io/)

@@ -1,15 +1,11 @@
 ---
 name: bio-genome-assembly-hifi-assembly
-description: High-quality genome assembly from PacBio HiFi reads using hifiasm with phasing support.
+description: High-quality genome assembly from PacBio HiFi reads using hifiasm with phasing support. Use when building reference-quality diploid assemblies from HiFi data, especially with trio or Hi-C phasing for fully resolved haplotypes.
 tool_type: cli
 primary_tool: hifiasm
 ---
 
 # HiFi Assembly
-
-## Overview
-
-hifiasm produces high-quality phased assemblies from PacBio HiFi reads, achieving near-complete genome assemblies with N50 often exceeding chromosome arms.
 
 ## Basic Assembly
 

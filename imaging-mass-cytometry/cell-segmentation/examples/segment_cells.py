@@ -25,8 +25,8 @@ print('Running segmentation...')
 masks, flows, styles, diams = model.eval(
     img_input,
     channels=[1, 2],
-    diameter=40,
-    flow_threshold=0.4
+    diameter=40,  # Typical IMC cell diameter in pixels (~10um at 1um/px). Adjust per tissue type.
+    flow_threshold=0.4  # Cellpose default; lower (0.1-0.3) for more cells, higher (0.5-0.8) for stringency.
 )
 
 print(f'Segmented {masks.max()} cells')

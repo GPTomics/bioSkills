@@ -1,28 +1,52 @@
-# Sequence Similarity Usage Guide
+# Sequence Similarity - Usage Guide
 
-This guide covers advanced methods for finding homologous sequences.
+## Overview
 
-## When to Use Each Tool
+This skill enables AI agents to help you find homologous sequences using advanced methods including PSI-BLAST, HMMER, and reciprocal best hits.
 
-### Standard BLAST
-- First-pass search
-- Close homologs
-- Fast results
+## Prerequisites
 
-### PSI-BLAST
-- Remote homologs
-- Protein family members
-- When BLAST finds few hits
+```bash
+# BLAST+
+conda install -c bioconda blast
 
-### HMMER
-- Highest sensitivity
-- Profile-based search
-- Domain identification
+# HMMER
+conda install -c bioconda hmmer
 
-### Reciprocal Best Hit
-- Ortholog identification
-- Comparative genomics
-- Protein function transfer
+# OrthoFinder (for ortholog identification)
+conda install -c bioconda orthofinder
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+
+- "Run PSI-BLAST to find distant homologs of my protein"
+- "Search Pfam domains in my sequence using HMMER"
+- "Find orthologs between mouse and human proteomes"
+- "Build a profile HMM from my alignment"
+
+## Example Prompts
+
+### PSI-BLAST Searches
+> "Run PSI-BLAST for 5 iterations against nr to find remote homologs of this protein"
+
+### HMMER Domain Search
+> "Search my protein against Pfam to identify conserved domains"
+
+### Reciprocal Best Hits
+> "Find 1:1 orthologs between human and mouse using reciprocal best BLAST"
+
+### Profile Building
+> "Build an HMM profile from my multiple sequence alignment and search against a proteome"
+
+## What the Agent Will Do
+
+1. Select the appropriate tool (BLAST, PSI-BLAST, HMMER) based on sensitivity needs
+2. Configure search parameters (iterations, E-values, databases)
+3. Run the similarity search
+4. Parse and filter results by significance
+5. Interpret homology relationships (orthologs, paralogs, domains)
 
 ## Method Comparison
 
@@ -32,19 +56,6 @@ This guide covers advanced methods for finding homologous sequences.
 | PSI-BLAST | Medium | High | Remote homologs |
 | HMMER | Slow | Highest | Protein families |
 | Delta-BLAST | Medium | High | Domain-aware |
-
-## Requirements
-
-```bash
-# BLAST+
-conda install -c bioconda blast
-
-# HMMER
-conda install -c bioconda hmmer
-
-# OrthoFinder
-conda install -c bioconda orthofinder
-```
 
 ## E-value Guidelines
 
@@ -57,7 +68,8 @@ conda install -c bioconda orthofinder
 
 ## Tips
 
-- Run PSI-BLAST for 3-5 iterations
+- Run PSI-BLAST for 3-5 iterations for best sensitivity
 - Use lower inclusion E-value (0.001) for cleaner profiles
 - HMMER is better for very distant relationships
-- Always validate with reciprocal searches
+- Always validate with reciprocal searches for ortholog calls
+- Use hmmscan for domain identification, hmmsearch for protein family members

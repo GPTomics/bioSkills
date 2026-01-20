@@ -1,6 +1,6 @@
 ---
 name: bio-genome-intervals-coverage-analysis
-description: Calculate read depth and coverage across genomic intervals using bedtools genomecov and coverage. Generate bedGraph files, compute per-base depth, and summarize coverage statistics for BAM and BED files.
+description: Calculate read depth and coverage across genomic intervals using bedtools genomecov and coverage. Generate bedGraph files, compute per-base depth, and summarize coverage statistics. Use when assessing sequencing depth, creating coverage tracks, or evaluating target capture efficiency.
 tool_type: mixed
 primary_tool: bedtools
 ---

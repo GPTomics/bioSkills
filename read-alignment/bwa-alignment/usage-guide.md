@@ -1,59 +1,50 @@
-# BWA-MEM2 Alignment Usage Guide
+# BWA-MEM2 Alignment - Usage Guide
 
 ## Overview
-
 bwa-mem2 is the successor to BWA-MEM, providing 2-3x faster alignment with nearly identical results. It's the standard choice for DNA short-read alignment including WGS, WES, and ChIP-seq.
 
-## Installation
-
+## Prerequisites
 ```bash
 conda install -c bioconda bwa-mem2 samtools
 ```
 
 ## Quick Start
+Tell your AI agent what you want to do:
+- "Align my paired-end WGS reads to the human reference genome"
+- "Index this reference genome for BWA alignment"
+- "Run BWA-MEM2 with read groups for GATK compatibility"
 
-```bash
-# 1. Index reference (once)
-bwa-mem2 index reference.fa
+## Example Prompts
 
-# 2. Align paired-end reads
-bwa-mem2 mem -t 8 reference.fa reads_R1.fq.gz reads_R2.fq.gz | \
-    samtools sort -o aligned.bam -
-samtools index aligned.bam
-```
+### Basic Alignment
+> "Align reads_R1.fq.gz and reads_R2.fq.gz to reference.fa using BWA-MEM2"
 
-## Complete WGS Pipeline
+> "Index my reference genome for BWA-MEM2 alignment"
 
-```bash
-# Variables
-REF=reference.fa
-R1=sample_R1.fq.gz
-R2=sample_R2.fq.gz
-SAMPLE=sample1
-THREADS=16
+### WGS Pipeline
+> "Run a complete WGS alignment pipeline with duplicate marking for sample NA12878"
 
-# Index if needed
-if [ ! -f ${REF}.bwt.2bit.64 ]; then
-    bwa-mem2 index $REF
-fi
+> "Align my WGS reads and add proper read groups for downstream GATK analysis"
 
-# Align, sort, mark duplicates
-bwa-mem2 mem -t $THREADS \
-    -R "@RG\tID:${SAMPLE}\tSM:${SAMPLE}\tPL:ILLUMINA\tLB:lib1" \
-    $REF $R1 $R2 | \
-    samtools fixmate -m -@ 4 - - | \
-    samtools sort -@ 4 -T /tmp/${SAMPLE} - | \
-    samtools markdup -@ 4 - ${SAMPLE}.markdup.bam
+### Performance Optimization
+> "Align reads with reduced memory usage for my 16GB system"
 
-samtools index ${SAMPLE}.markdup.bam
+> "Run BWA-MEM2 with reproducible results across different thread counts"
 
-# Alignment stats
-samtools flagstat ${SAMPLE}.markdup.bam > ${SAMPLE}.flagstat.txt
-```
+## What the Agent Will Do
+1. Index the reference genome if not already indexed
+2. Align reads with appropriate settings (threads, read groups)
+3. Sort and index the output BAM file
+4. Optionally mark duplicates and generate alignment statistics
 
-## Read Groups
+## Tips
+- Always add read groups (-R) for multi-sample analysis and GATK compatibility
+- Pipe directly to samtools to avoid large intermediate SAM files
+- Use `-K` flag for reproducible results across different thread counts
+- Check reference genome version matches your reads if mapping rate is low
+- Use SSD storage for reference and temporary files for best performance
 
-Read groups are essential for multi-sample analysis and GATK compatibility.
+## Read Group Fields
 
 | Field | Description | Example |
 |-------|-------------|---------|
@@ -63,63 +54,38 @@ Read groups are essential for multi-sample analysis and GATK compatibility.
 | LB | Library | lib1 |
 | PU | Platform unit | flowcell.lane.barcode |
 
-```bash
-# Full read group string
--R '@RG\tID:H0164.2\tSM:NA12878\tPL:ILLUMINA\tLB:Solexa-272222\tPU:H0164ALXX140820.2'
-```
-
-## Alignment Modes
-
-### Default (Global)
-Standard alignment allowing gaps:
-```bash
-bwa-mem2 mem reference.fa reads.fq
-```
-
-### Local-like Behavior
-Soft clip low-quality ends:
-```bash
-bwa-mem2 mem -Y reference.fa reads.fq
-```
-
-### High Sensitivity
-Lower seed length for divergent sequences:
-```bash
-bwa-mem2 mem -k 15 reference.fa reads.fq
-```
-
-## Memory Optimization
+## Complete WGS Pipeline Example
 
 ```bash
-# Reduce memory with smaller batch size
-bwa-mem2 mem -K 10000000 -t 4 reference.fa r1.fq r2.fq
+REF=reference.fa
+R1=sample_R1.fq.gz
+R2=sample_R2.fq.gz
+SAMPLE=sample1
+THREADS=16
 
-# For limited memory systems, use fewer threads
-bwa-mem2 mem -t 4 reference.fa r1.fq r2.fq
+if [ ! -f ${REF}.bwt.2bit.64 ]; then
+    bwa-mem2 index $REF
+fi
+
+bwa-mem2 mem -t $THREADS \
+    -R "@RG\tID:${SAMPLE}\tSM:${SAMPLE}\tPL:ILLUMINA\tLB:lib1" \
+    $REF $R1 $R2 | \
+    samtools fixmate -m -@ 4 - - | \
+    samtools sort -@ 4 -T /tmp/${SAMPLE} - | \
+    samtools markdup -@ 4 - ${SAMPLE}.markdup.bam
+
+samtools index ${SAMPLE}.markdup.bam
+samtools flagstat ${SAMPLE}.markdup.bam > ${SAMPLE}.flagstat.txt
 ```
 
 ## Troubleshooting
-
-### Index Issues
-```bash
-# If index incomplete, remove and rebuild
-rm reference.fa.0123 reference.fa.amb reference.fa.ann reference.fa.bwt.2bit.64 reference.fa.pac
-bwa-mem2 index reference.fa
-```
-
-### Out of Memory
-- Reduce threads (-t)
-- Reduce batch size (-K)
-- Use original BWA-MEM as fallback
 
 ### Low Mapping Rate
 - Check reference genome version matches reads
 - Check read quality with FastQC
 - Try more sensitive settings (-k 15)
 
-## Performance Tips
-
-1. Use SSD storage for reference and temporary files
-2. Match thread count to available cores
-3. Pipe directly to samtools to avoid intermediate SAM files
-4. Use `-K` for reproducible results across different thread counts
+### Out of Memory
+- Reduce threads (-t)
+- Reduce batch size (-K 10000000)
+- Use original BWA-MEM as fallback

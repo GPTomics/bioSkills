@@ -1,6 +1,6 @@
 ---
 name: bio-read-qc-quality-reports
-description: Generate and interpret quality reports from FASTQ files using FastQC and MultiQC. Assess per-base quality, adapter content, GC bias, duplication levels, and overrepresented sequences for NGS data quality control.
+description: Generate and interpret quality reports from FASTQ files using FastQC and MultiQC. Assess per-base quality, adapter content, GC bias, duplication levels, and overrepresented sequences. Use when performing initial QC on raw sequencing data or validating preprocessing results.
 tool_type: cli
 primary_tool: fastqc
 ---

@@ -12,13 +12,10 @@ pip install biopython
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "List all chains in this PDB file"
-
-> "Extract the sequence from chain A"
-
-> "Find all ligands in this structure"
+Tell your AI agent what you want to do:
+- "List all chains in this PDB file"
+- "Extract the sequence from chain A"
+- "Find all ligands in this structure"
 
 ## Example Prompts
 

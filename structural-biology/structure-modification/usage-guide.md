@@ -12,13 +12,10 @@ pip install biopython numpy
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Remove all water molecules from this structure"
-
-> "Translate the structure by 10 Angstroms in X"
-
-> "Set B-factors based on this conservation score data"
+Tell your AI agent what you want to do:
+- "Remove all water molecules from this structure"
+- "Translate the structure by 10 Angstroms in X"
+- "Set B-factors based on this conservation score data"
 
 ## Example Prompts
 

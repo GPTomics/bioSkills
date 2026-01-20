@@ -1,6 +1,6 @@
 ---
 name: bio-imaging-mass-cytometry-spatial-analysis
-description: Spatial analysis of cell neighborhoods and interactions in IMC data. Covers neighbor graphs, spatial statistics, and interaction testing.
+description: Spatial analysis of cell neighborhoods and interactions in IMC data. Covers neighbor graphs, spatial statistics, and interaction testing. Use when analyzing spatial relationships between cell types, testing for neighborhood enrichment, or identifying cell-cell interaction patterns in imaging mass cytometry data.
 tool_type: python
 primary_tool: squidpy
 ---

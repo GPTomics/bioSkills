@@ -1,6 +1,6 @@
 ---
 name: bio-workflow-management-nextflow-pipelines
-description: Create scalable, containerized bioinformatics pipelines with Nextflow DSL2 supporting Docker, Singularity, and cloud execution.
+description: Create scalable, containerized bioinformatics pipelines with Nextflow DSL2 supporting Docker, Singularity, and cloud execution. Use when building portable pipelines with container support, running workflows on cloud platforms (AWS, Google Cloud), or leveraging nf-core community pipelines.
 tool_type: cli
 primary_tool: Nextflow
 ---

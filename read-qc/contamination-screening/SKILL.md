@@ -1,6 +1,6 @@
 ---
 name: bio-read-qc-contamination-screening
-description: Detect sample contamination and cross-species reads using FastQ Screen. Screen reads against multiple reference genomes to identify bacterial, viral, adapter, or sample swap contamination in NGS data.
+description: Detect sample contamination and cross-species reads using FastQ Screen. Screen reads against multiple reference genomes to identify bacterial, viral, adapter, or sample swap contamination. Use when suspecting cross-contamination or working with samples prone to microbial contamination.
 tool_type: cli
 primary_tool: fastq_screen
 ---

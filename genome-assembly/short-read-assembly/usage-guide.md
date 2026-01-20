@@ -2,18 +2,9 @@
 
 ## Overview
 
-SPAdes assembles genomes from Illumina short reads using a multi-k-mer de Bruijn graph approach. It's the standard tool for bacterial, fungal, and small genome assembly.
+SPAdes assembles genomes from Illumina short reads using a multi-k-mer de Bruijn graph approach. It is the standard tool for bacterial, fungal, and small genome assembly.
 
-## When to Use This Skill
-
-- Bacterial genome assembly from Illumina data
-- Fungal genome assembly
-- Plasmid extraction
-- Metagenome assembly
-- Transcriptome assembly (RNA-seq)
-- Hybrid assembly with short + long reads
-
-## Installation
+## Prerequisites
 
 ```bash
 conda install -c bioconda spades
@@ -21,39 +12,36 @@ conda install -c bioconda spades
 
 ## Quick Start
 
-```bash
-# Basic assembly
-spades.py -1 R1.fastq.gz -2 R2.fastq.gz -o assembly_output
+Tell your AI agent what you want to do:
+- "Assemble my bacterial genome from paired-end Illumina reads"
+- "Run SPAdes in isolate mode for a pure culture sample"
+- "Extract plasmids from my bacterial sequencing data"
 
-# Bacterial isolate (recommended)
-spades.py --isolate --careful -1 R1.fq.gz -2 R2.fq.gz -o output
-```
+## Example Prompts
 
-## Mode Selection
+### Basic Assembly
+> "Assemble my paired-end reads R1.fastq.gz and R2.fastq.gz with SPAdes"
 
-| Mode | Flag | Use Case |
-|------|------|----------|
-| Default | (none) | General purpose |
-| Isolate | `--isolate` | Single organism, uniform coverage |
-| Careful | `--careful` | Reduce misassemblies |
-| Meta | `--meta` | Metagenomes |
-| RNA | `--rna` | Transcriptomes |
-| Plasmid | `--plasmid` | Extract plasmids |
+### Mode-Specific Assembly
+> "Run SPAdes in careful mode to minimize misassemblies"
+> "Use SPAdes metagenome mode for my environmental sample"
+> "Extract plasmid sequences from my bacterial Illumina data"
 
-## Typical Workflow
+### Hybrid Assembly
+> "Combine my Illumina and ONT reads in a hybrid SPAdes assembly"
 
-1. QC reads with FastQC
-2. Trim adapters with fastp/Trimmomatic
-3. Assemble with SPAdes
-4. Assess quality with QUAST/BUSCO
-5. Polish if needed (Pilon)
+## What the Agent Will Do
 
-## Output
+1. Verify input files exist and are paired correctly
+2. Select appropriate SPAdes mode based on sample type
+3. Run assembly with recommended parameters
+4. Check assembly statistics (N50, number of contigs)
+5. Suggest quality assessment with QUAST/BUSCO
 
-Primary output: `scaffolds.fasta`
+## Tips
 
-Header format: `>NODE_1_length_500000_cov_50.5`
-
-## Resources
-
-- [SPAdes Manual](https://github.com/ablab/spades)
+- Use `--isolate` mode for single bacterial isolates with uniform coverage
+- Use `--careful` to reduce misassemblies at the cost of longer runtime
+- SPAdes automatically selects k-mer sizes but you can specify with `-k`
+- Output scaffolds.fasta is the primary result; contigs.fasta has unscaffolded sequences
+- For metagenomes, prefer `--meta` mode or consider dedicated metagenome assemblers

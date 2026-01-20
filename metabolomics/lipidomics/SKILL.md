@@ -1,6 +1,6 @@
 ---
 name: bio-metabolomics-lipidomics
-description: Specialized lipidomics analysis for lipid identification, quantification, and pathway interpretation. Covers LC-MS lipidomics with LipidSearch, MS-DIAL, and LipidMaps annotation.
+description: Specialized lipidomics analysis for lipid identification, quantification, and pathway interpretation. Covers LC-MS lipidomics with LipidSearch, MS-DIAL, and LipidMaps annotation. Use when analyzing lipid classes, chain composition, or lipid-specific pathways.
 tool_type: mixed
 primary_tool: lipidr
 ---

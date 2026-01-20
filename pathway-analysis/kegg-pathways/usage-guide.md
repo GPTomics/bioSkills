@@ -1,91 +1,47 @@
-# KEGG Pathway Enrichment Usage Guide
+# KEGG Pathway Enrichment - Usage Guide
 
-KEGG (Kyoto Encyclopedia of Genes and Genomes) pathway enrichment tests whether your genes are enriched in specific biological pathways.
-
-## When to Use
-
-- You have a list of significant genes
-- You want to identify affected pathways (signaling, metabolism, disease)
-- You need to interpret results in terms of pathway biology
+## Overview
+KEGG (Kyoto Encyclopedia of Genes and Genomes) pathway enrichment tests whether your genes are enriched in specific biological pathways including signaling, metabolism, and disease pathways.
 
 ## Prerequisites
-
 ```r
 if (!require('BiocManager', quietly = TRUE))
     install.packages('BiocManager')
 
-BiocManager::install('clusterProfiler')
-
-# For converting gene IDs:
-BiocManager::install('org.Hs.eg.db')  # Human
+BiocManager::install(c('clusterProfiler', 'org.Hs.eg.db'))
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run KEGG pathway enrichment on my significant genes"
+- "Find which metabolic pathways are affected in my experiment"
+- "Identify signaling pathways enriched in my gene list"
 
-### 1. Prepare Gene List
+## Example Prompts
+### Basic Enrichment
+> "Run KEGG pathway enrichment on my differentially expressed genes from deseq2_results.csv"
 
-KEGG requires Entrez gene IDs:
+> "Find enriched KEGG pathways in my significant genes using human annotation"
 
-```r
-library(clusterProfiler)
-library(org.Hs.eg.db)
+### Organism-Specific
+> "Run KEGG enrichment on my mouse gene list using mmu organism code"
 
-de_results <- read.csv('de_results.csv')
-sig_genes <- de_results$gene_id[de_results$padj < 0.05 & abs(de_results$log2FoldChange) > 1]
+> "What organism code should I use for zebrafish KEGG analysis?"
 
-# Convert to Entrez IDs
-gene_ids <- bitr(sig_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-gene_list <- gene_ids$ENTREZID
-```
+### Visualization
+> "Run KEGG enrichment and show a dotplot of the top 20 pathways"
 
-### 2. Run Enrichment
+> "Open the most enriched KEGG pathway in the browser"
 
-```r
-kk <- enrichKEGG(
-    gene = gene_list,
-    organism = 'hsa',  # Human
-    pvalueCutoff = 0.05
-)
-```
+### KEGG Modules
+> "Run KEGG module enrichment instead of full pathway enrichment"
 
-### 3. Make Readable
-
-```r
-# Convert Entrez IDs to symbols in results
-kk_readable <- setReadable(kk, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
-
-# View results
-head(kk_readable)
-```
-
-### 4. Export Results
-
-```r
-write.csv(as.data.frame(kk_readable), 'kegg_results.csv', row.names = FALSE)
-```
-
-## KEGG vs GO
-
-| Feature | KEGG | GO |
-|---------|------|----|
-| Focus | Pathways, reactions | Functions, processes |
-| Structure | Curated pathway maps | Hierarchical ontology |
-| Coverage | 4000+ organisms | Requires OrgDb |
-| Update | Online database | OrgDb version |
-| readable param | No (use setReadable) | Yes |
-
-## Finding Organism Codes
-
-```r
-# Search for organism
-search_kegg_organism('mouse')
-#   kegg_code scientific_name    common_name
-#        mmu   Mus musculus          mouse
-
-search_kegg_organism('zebrafish')
-#   kegg_code scientific_name    common_name
-#        dre   Danio rerio      zebrafish
-```
+## What the Agent Will Do
+1. Load DE results and extract significant genes
+2. Convert gene IDs to Entrez format (required for KEGG)
+3. Run enrichKEGG() with appropriate organism code
+4. Convert results to readable gene symbols with setReadable()
+5. Generate visualizations and export results
 
 ## Common Organism Codes
 
@@ -100,17 +56,6 @@ search_kegg_organism('zebrafish')
 | sce | S. cerevisiae |
 | ath | Arabidopsis |
 
-## KEGG Modules
-
-KEGG modules are smaller functional units:
-
-```r
-mkk <- enrichMKEGG(
-    gene = gene_list,
-    organism = 'hsa'
-)
-```
-
 ## Understanding Results
 
 | Column | Description |
@@ -124,32 +69,10 @@ mkk <- enrichMKEGG(
 | geneID | Genes in the pathway |
 | Count | Number of genes |
 
-## Visualization
-
-See enrichment-visualization skill:
-
-```r
-# Dot plot
-dotplot(kk, showCategory = 20)
-
-# Bar plot
-barplot(kk)
-
-# Open pathway in browser
-browseKEGG(kk, 'hsa04110')
-```
-
-## Common Issues
-
-**No results found:**
-- Check organism code is correct
-- Verify gene IDs are Entrez format
-- Increase pvalueCutoff
-
-**Network error:**
-- KEGG queries require internet
-- Try `use_internal_data = TRUE` for cached data
-
-**ID conversion fails:**
-- Not all gene symbols map to Entrez
-- Check conversion results for NAs
+## Tips
+- KEGG requires Entrez gene IDs - always convert from symbols first
+- Use search_kegg_organism() to find the correct organism code
+- Use setReadable() to convert Entrez IDs back to symbols in results
+- KEGG queries require internet connection; use use_internal_data = TRUE for cached data
+- See enrichment-visualization skill for plotting (dotplot, barplot, browseKEGG)
+- Try enrichMKEGG() for KEGG module analysis (smaller functional units)

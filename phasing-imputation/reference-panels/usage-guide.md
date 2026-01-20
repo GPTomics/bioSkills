@@ -1,17 +1,59 @@
-# Reference Panels Usage Guide
+# Reference Panels - Usage Guide
 
 ## Overview
+Reference panels provide haplotype information from well-characterized samples, essential for haplotype phasing, genotype imputation, and quality control alignment.
 
-Reference panels provide haplotype information from well-characterized samples. They are essential for:
-- Haplotype phasing (using LD patterns)
-- Genotype imputation (predicting untyped variants)
-- Quality control (strand and allele alignment)
+## Prerequisites
+```bash
+# bcftools for panel manipulation
+conda install -c bioconda bcftools
+
+# Picard for liftover
+conda install -c bioconda picard
+
+# wget for downloading panels
+# (usually pre-installed)
+
+# Storage: 50GB-500GB depending on panel
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Download and set up 1000 Genomes reference panel for imputation"
+- "Create population-specific subsets from 1000 Genomes"
+- "Liftover my data from GRCh37 to GRCh38"
+
+## Example Prompts
+### Panel Setup
+> "Download 1000 Genomes Phase 3 high-coverage data and prepare it for imputation"
+
+### Population Subset
+> "Extract European samples from the 1000 Genomes reference panel"
+
+### Data Alignment
+> "Align my study VCF to the reference panel, fixing strand and allele issues"
+
+### Genome Build Conversion
+> "Liftover my GRCh37 VCF to GRCh38 to match the reference panel"
+
+## What the Agent Will Do
+1. Download reference panel files for all chromosomes
+2. Extract population-specific samples if needed
+3. Prepare reference for imputation (biallelic SNPs, consistent IDs)
+4. Align study data to reference (strand correction)
+5. Verify alignment and compatibility
+
+## Tips
+- Match reference panel ancestry to your study population
+- TOPMed has best coverage for rare variants
+- Always verify genome build matches between study and reference
+- Plan storage: 1000G ~50GB, HRC ~100GB, TOPMed ~500GB
+- Use imputation servers (Michigan, TOPMed) for convenience
+- Keep population subset files for ancestry-matched imputation
 
 ## Choosing a Reference Panel
 
 ### By Ancestry
-Match the reference panel to your study population:
-
 | Study Population | Recommended Panel |
 |-----------------|-------------------|
 | European | HRC, 1000G EUR, UK10K |
@@ -75,23 +117,7 @@ bcftools annotate --set-id '%CHROM:%POS:%REF:%ALT' ref_maf001.vcf.gz -Oz -o ref_
 bcftools index ref_final.vcf.gz
 ```
 
-## Downloading Genetic Maps
-
-```bash
-# Beagle format (GRCh38)
-mkdir -p genetic_maps
-cd genetic_maps
-
-wget https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh38.map.zip
-unzip plink.GRCh38.map.zip
-
-# Files: plink.chr1.GRCh38.map, plink.chr2.GRCh38.map, etc.
-# Format: position COMBINED_rate(cM/Mb) Genetic_Map(cM)
-```
-
 ## Aligning Study Data to Reference
-
-Before imputation, ensure study data matches reference:
 
 ```bash
 # 1. Check reference genome build
@@ -115,8 +141,6 @@ bcftools isec -n=2 -w1 \
 
 ```bash
 # GRCh37 to GRCh38 using Picard
-# Download chain file from UCSC
-
 wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
 
 java -jar picard.jar LiftoverVcf \
@@ -126,13 +150,11 @@ java -jar picard.jar LiftoverVcf \
     R=hg38.fa \
     REJECT=rejected.vcf
 
-# Check rejection rate
-wc -l rejected.vcf  # Should be <5% typically
+# Check rejection rate (should be <5%)
+wc -l rejected.vcf
 ```
 
 ## Using Imputation Servers
-
-For convenience, use web-based imputation servers:
 
 ### Michigan Imputation Server
 ```bash
@@ -142,10 +164,7 @@ for chr in {1..22}; do
 done
 
 # Upload to https://imputationserver.sph.umich.edu
-# Select:
-# - Reference Panel: HRC r1.1 2016 or TOPMed r2
-# - Population: matching your study
-# - Phasing: Eagle (default)
+# Select: Reference Panel (HRC r1.1 or TOPMed r2), Population, Phasing (Eagle)
 ```
 
 ### TOPMed Imputation Server
@@ -154,37 +173,7 @@ done
 # https://imputation.biodatacatalyst.nhlbi.nih.gov
 
 # TOPMed has best coverage for rare variants
-# Requires dbGaP authorization for some uses
-```
-
-## Quality Check Reference Panel
-
-```python
-import subprocess
-import pandas as pd
-
-def check_reference_panel(vcf_path):
-    '''Basic QC of reference panel.'''
-    # Sample count
-    samples = subprocess.check_output(f'bcftools query -l {vcf_path} | wc -l', shell=True)
-    print(f'Samples: {samples.decode().strip()}')
-
-    # Variant count
-    variants = subprocess.check_output(f'bcftools view -H {vcf_path} | wc -l', shell=True)
-    print(f'Variants: {variants.decode().strip()}')
-
-    # Chromosomes
-    chroms = subprocess.check_output(f'bcftools index -s {vcf_path}', shell=True)
-    print(f'Chromosomes:\n{chroms.decode()}')
-
-    # Check phasing
-    gt_sample = subprocess.check_output(
-        f'bcftools query -f "[%GT\\n]" {vcf_path} | head -100', shell=True)
-    phased = gt_sample.decode().count('|')
-    total = gt_sample.decode().count('\n')
-    print(f'Phased genotypes: {phased}/{total} ({100*phased/total:.1f}%)')
-
-check_reference_panel('reference.vcf.gz')
+# May require dbGaP authorization
 ```
 
 ## Storage Requirements
@@ -194,5 +183,3 @@ check_reference_panel('reference.vcf.gz')
 | 1000G Phase 3 | ~50 GB | ~500 GB |
 | HRC | ~100 GB | ~1 TB |
 | TOPMed | ~500 GB | ~5 TB |
-
-Plan storage accordingly, especially for per-chromosome files.

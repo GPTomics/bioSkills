@@ -1,25 +1,9 @@
-# GSEA Usage Guide
+# GSEA - Usage Guide
 
-Gene Set Enrichment Analysis (GSEA) tests whether genes in predefined sets show coordinated changes across conditions.
-
-## GSEA vs Over-Representation
-
-| Feature | Over-Representation | GSEA |
-|---------|---------------------|------|
-| Input | Gene list (significant only) | Ranked gene list (all genes) |
-| Cutoff | Requires significance threshold | No arbitrary cutoff |
-| Detection | Strong individual changes | Coordinated subtle changes |
-| Functions | enrichGO, enrichKEGG | gseGO, gseKEGG |
-
-## When to Use GSEA
-
-- You want to use information from all genes
-- You're looking for coordinated, subtle changes
-- Over-representation finds few or no enriched terms
-- You have good expression statistics for all genes
+## Overview
+Gene Set Enrichment Analysis (GSEA) tests whether genes in predefined sets show coordinated changes across conditions, using all genes ranked by expression change rather than just significant genes.
 
 ## Prerequisites
-
 ```r
 if (!require('BiocManager', quietly = TRUE))
     install.packages('BiocManager')
@@ -30,61 +14,48 @@ BiocManager::install(c('clusterProfiler', 'org.Hs.eg.db'))
 install.packages('msigdbr')
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run GSEA on my differential expression results"
+- "Find pathways with coordinated gene expression changes"
+- "Use MSigDB Hallmark gene sets for GSEA analysis"
 
-### 1. Create Ranked Gene List
+## Example Prompts
+### Basic GSEA
+> "Run GSEA on my DESeq2 results using log2FoldChange as the ranking statistic"
 
-The most critical step - genes must be:
-- Named (gene IDs)
-- Numeric (statistic)
-- Sorted (decreasing order)
+> "Perform GO biological process GSEA on all my genes ranked by expression change"
 
-```r
-library(clusterProfiler)
-library(org.Hs.eg.db)
+### MSigDB Gene Sets
+> "Run GSEA using MSigDB Hallmark gene sets on my ranked gene list"
 
-de_results <- read.csv('deseq2_results.csv')
+> "Use KEGG pathways from MSigDB for GSEA analysis"
 
-# Use log2FoldChange as ranking statistic
-gene_list <- de_results$log2FoldChange
-names(gene_list) <- de_results$gene_id
+### Ranking Statistics
+> "Run GSEA using signed p-value as the ranking statistic instead of fold change"
 
-# Remove NAs and sort
-gene_list <- gene_list[!is.na(gene_list)]
-gene_list <- sort(gene_list, decreasing = TRUE)
-```
+> "Create a ranked gene list using the Wald statistic from DESeq2"
 
-### 2. Convert to Entrez IDs
+### Visualization
+> "Show a GSEA running score plot for the top enriched pathway"
 
-```r
-# Convert symbols to Entrez
-gene_ids <- bitr(names(gene_list), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+> "Create a ridge plot showing fold change distributions for enriched gene sets"
 
-# Create Entrez-named list
-gene_list_entrez <- gene_list[names(gene_list) %in% gene_ids$SYMBOL]
-names(gene_list_entrez) <- gene_ids$ENTREZID[match(names(gene_list_entrez), gene_ids$SYMBOL)]
-gene_list_entrez <- sort(gene_list_entrez, decreasing = TRUE)
-```
+## What the Agent Will Do
+1. Load DE results and create ranked gene list (named numeric vector)
+2. Choose appropriate ranking statistic (log2FC, signed p-value, or Wald stat)
+3. Convert gene IDs to Entrez format and sort by rank
+4. Run gseGO(), gseKEGG(), or GSEA() with custom gene sets
+5. Generate GSEA plots (running score, ridge plot, dotplot)
 
-### 3. Run GSEA
+## GSEA vs Over-Representation
 
-```r
-# GO GSEA
-gse <- gseGO(
-    geneList = gene_list_entrez,
-    OrgDb = org.Hs.eg.db,
-    ont = 'BP',
-    pvalueCutoff = 0.05,
-    verbose = FALSE
-)
-```
-
-### 4. View Results
-
-```r
-head(gse)
-results <- as.data.frame(gse)
-```
+| Feature | Over-Representation | GSEA |
+|---------|---------------------|------|
+| Input | Gene list (significant only) | Ranked gene list (all genes) |
+| Cutoff | Requires significance threshold | No arbitrary cutoff |
+| Detection | Strong individual changes | Coordinated subtle changes |
+| Functions | enrichGO, enrichKEGG | gseGO, gseKEGG |
 
 ## Choosing a Ranking Statistic
 
@@ -95,69 +66,16 @@ results <- as.data.frame(gse)
 | Wald | stat column from DESeq2 | Pre-computed statistic |
 | t-statistic | From limma | Moderated statistics |
 
-Signed p-value often works best:
-```r
-gene_list <- -log10(de_results$pvalue) * sign(de_results$log2FoldChange)
-```
+## Interpreting NES (Normalized Enrichment Score)
+- Positive NES: Gene set genes tend to be upregulated
+- Negative NES: Gene set genes tend to be downregulated
+- |NES| > 1.5: Strong enrichment
+- |NES| > 2.0: Very strong enrichment
 
-## Understanding Results
-
-| Column | Description |
-|--------|-------------|
-| ID | Gene set ID |
-| Description | Gene set name |
-| setSize | Genes in set |
-| enrichmentScore | Raw ES |
-| NES | Normalized Enrichment Score |
-| pvalue | Nominal p-value |
-| p.adjust | FDR-adjusted p-value |
-| core_enrichment | Leading edge genes |
-
-### Interpreting NES
-
-- **Positive NES**: Gene set genes tend to be upregulated
-- **Negative NES**: Gene set genes tend to be downregulated
-- **|NES| > 1.5**: Strong enrichment
-- **|NES| > 2.0**: Very strong enrichment
-
-## Visualization
-
-See enrichment-visualization skill:
-
-```r
-# GSEA plot (running score)
-gseaplot2(gse, geneSetID = 1, title = gse$Description[1])
-
-# Ridge plot (multiple gene sets)
-ridgeplot(gse)
-
-# Dot plot
-dotplot(gse, showCategory = 20)
-```
-
-## Using MSigDB Gene Sets
-
-```r
-library(msigdbr)
-
-# Get Hallmark gene sets
-hallmarks <- msigdbr(species = 'Homo sapiens', category = 'H')
-hallmarks_t2g <- hallmarks[, c('gs_name', 'entrez_gene')]
-
-# Run GSEA
-gse <- GSEA(geneList = gene_list_entrez, TERM2GENE = hallmarks_t2g)
-```
-
-## Common Issues
-
-**Error: geneList must be sorted:**
-- Ensure `sort(gene_list, decreasing = TRUE)`
-
-**No enriched terms:**
-- Try different ranking statistic
-- Increase pvalueCutoff
-- Check gene ID conversion
-
-**Many NAs in ranked list:**
-- Remove NAs before sorting
-- Check for missing values in DE results
+## Tips
+- GSEA uses ALL genes, not just significant ones - include the full ranked list
+- Ensure the gene list is sorted in decreasing order before running
+- Remove NAs from the ranked list before analysis
+- The signed p-value statistic (-log10(p) * sign(FC)) often works best
+- See enrichment-visualization skill for gseaplot2(), ridgeplot(), and dotplot()
+- If no enriched terms, try a different ranking statistic or increase pvalueCutoff

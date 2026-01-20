@@ -1,60 +1,45 @@
 # Methylation Calling - Usage Guide
 
 ## Overview
+bismark_methylation_extractor processes Bismark BAM files to extract per-cytosine methylation information, producing various output formats for downstream analysis and visualization.
 
-bismark_methylation_extractor processes Bismark BAM files to extract per-cytosine methylation information. It reads the XM tag containing methylation calls and produces various output formats for downstream analysis.
-
-## When to Use This Skill
-
-- You have aligned Bismark BAM files
-- You need per-CpG methylation levels
-- You want to generate bedGraph files for visualization
-- You need coverage files for methylKit/bsseq
-
-## Workflow
-
-### 1. Run Methylation Extraction
-
+## Prerequisites
 ```bash
-bismark_methylation_extractor \
-    --paired-end \
-    --no_overlap \
-    --gzip \
-    --bedGraph \
-    --cytosine_report \
-    --genome_folder genome/ \
-    -o methylation_calls/ \
-    sample.deduplicated.bam
+conda install -c bioconda bismark
+
+bismark_methylation_extractor --version
 ```
 
-### 2. Check M-bias Plot
+## Quick Start
+Tell your AI agent what you want to do:
+- "Extract methylation calls from my Bismark BAM files"
+- "Generate bedGraph files for IGV visualization"
+- "Create coverage files for methylKit analysis"
 
-Review the M-bias plots to check for systematic bias at read ends:
-```bash
-# If bias found at positions 1-3:
-bismark_methylation_extractor --ignore 3 --ignore_r2 3 ...
-```
+## Example Prompts
+### Basic Extraction
+> "Run methylation extraction on my deduplicated Bismark BAM file"
 
-### 3. Use Output for Analysis
+> "Extract CpG methylation with bedGraph output for visualization"
 
-```bash
-# Coverage file for methylKit
-methylation_calls/sample.bismark.cov.gz
+### M-Bias Analysis
+> "Check M-bias plots for my samples and recommend ignore parameters"
 
-# bedGraph for visualization
-methylation_calls/sample.bedGraph.gz
+> "My M-bias shows end bias, help me rerun extraction with trimming"
 
-# Full report for bsseq
-methylation_calls/sample.CpG_report.txt.gz
-```
+### Output Formats
+> "Generate a cytosine report for bsseq analysis"
 
-## Understanding M-Bias
+> "Create coverage files compatible with methylKit"
 
-The M-bias plot shows methylation level by read position. Ideal: flat line around 70-80%. Problems:
-- Sharp increase/decrease at ends = adapter contamination or end-repair bias
-- Solution: Use --ignore and --ignore_3prime parameters
+## What the Agent Will Do
+1. Run bismark_methylation_extractor with appropriate flags
+2. Generate M-bias plots to check for positional bias
+3. Review M-bias and recommend --ignore parameters if needed
+4. Produce coverage files, bedGraph, and/or cytosine reports
+5. Explain output files and their downstream uses
 
-## Output Files Explained
+## Output Files
 
 | File | Content | Downstream Use |
 |------|---------|----------------|
@@ -63,19 +48,11 @@ The M-bias plot shows methylation level by read position. Ideal: flat line aroun
 | *.bedGraph | Methylation track | IGV/UCSC |
 | *.CpG_report | All genome CpGs | bsseq input |
 
-## Common Issues
-
-### Memory Errors
-
-```bash
-# Increase buffer size
-bismark_methylation_extractor --buffer_size 20G sample.bam
-```
-
-### Missing cytosine_report
-
-Requires --genome_folder to know all CpG positions in genome.
-
-## Resources
-
-- [Bismark User Guide](https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html)
+## Tips
+- Always use --no_overlap for paired-end data to avoid double-counting
+- Review M-bias plots before downstream analysis; ideal is a flat line around 70-80%
+- Use --ignore and --ignore_3prime if M-bias shows sharp changes at read ends
+- Include --cytosine_report and --genome_folder if you need all CpG positions (for bsseq)
+- For memory issues, increase --buffer_size (e.g., --buffer_size 20G)
+- Use --gzip to compress output files and save disk space
+- Coverage files (*.bismark.cov) are the most common input for differential analysis

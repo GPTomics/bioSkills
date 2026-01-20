@@ -1,13 +1,17 @@
-# Batch Integration Usage Guide
+# Batch Integration - Usage Guide
 
-Integrate multiple scRNA-seq datasets to remove batch effects while preserving biological variation.
+## Overview
+
+Batch integration removes technical variation between samples, experiments, or technologies while preserving biological differences, enabling meaningful comparison across datasets.
 
 ## Prerequisites
 
 ```bash
 # Python
 pip install scanpy harmonypy scvi-tools
+```
 
+```r
 # R
 install.packages('Seurat')
 install.packages('harmony')
@@ -16,47 +20,42 @@ BiocManager::install('batchelor')
 
 ## Quick Start
 
-### Harmony (R) - Fast, Most Common
+Tell your AI agent what you want to do:
+- "Integrate my samples to remove batch effects"
+- "Run Harmony on my merged Seurat object"
+- "Combine datasets from different experiments"
 
-```r
-library(Seurat)
-library(harmony)
+## Example Prompts
 
-# Merge datasets
-merged <- merge(sample1, y = list(sample2, sample3), add.cell.ids = c('S1', 'S2', 'S3'))
+### Integration
+> "Merge my samples and run Harmony integration"
+> "Use scVI to integrate these batches"
+> "Run Seurat CCA integration on my samples"
 
-# Standard preprocessing
-merged <- NormalizeData(merged)
-merged <- FindVariableFeatures(merged)
-merged <- ScaleData(merged)
-merged <- RunPCA(merged)
+### Assessment
+> "Show batch mixing on the UMAP"
+> "Calculate integration metrics (LISI, kBET)"
+> "Are the batches well mixed within cell types?"
 
-# Run Harmony
-merged <- RunHarmony(merged, group.by.vars = 'orig.ident')
+### Comparison
+> "Compare Harmony vs scVI integration"
+> "Which method preserves cell type separation best?"
+> "Test different integration parameters"
 
-# Continue with integrated embeddings
-merged <- RunUMAP(merged, reduction = 'harmony', dims = 1:30)
-merged <- FindNeighbors(merged, reduction = 'harmony', dims = 1:30)
-merged <- FindClusters(merged, resolution = 0.5)
-```
+### Downstream
+> "Cluster the integrated data"
+> "Find markers using the integrated representation"
+> "Run differential expression between conditions"
 
-### Harmony (Python)
+## What the Agent Will Do
 
-```python
-import scanpy as sc
-import harmonypy
-
-adata = sc.read_h5ad('merged.h5ad')
-sc.pp.pca(adata)
-
-# Run Harmony
-adata.obsm['X_pca_harmony'] = harmonypy.run_harmony(
-    adata.obsm['X_pca'], adata.obs, 'batch'
-).Z_corr.T
-
-sc.pp.neighbors(adata, use_rep='X_pca_harmony')
-sc.tl.umap(adata)
-```
+1. Merge datasets with batch labels
+2. Preprocess each batch appropriately
+3. Run chosen integration method
+4. Generate integrated low-dimensional representation
+5. Visualize batch mixing
+6. Cluster using integrated embeddings
+7. Assess integration quality
 
 ## Method Comparison
 
@@ -67,58 +66,22 @@ sc.tl.umap(adata)
 | Seurat CCA | Moderate | Conserved biology |
 | fastMNN | Fast | MNN-based correction |
 
-## scVI (Deep Learning)
-
-```python
-import scvi
-
-scvi.model.SCVI.setup_anndata(adata, batch_key='batch')
-model = scvi.model.SCVI(adata)
-model.train()
-
-adata.obsm['X_scVI'] = model.get_latent_representation()
-sc.pp.neighbors(adata, use_rep='X_scVI')
-```
-
-## Seurat CCA/RPCA
-
-```r
-# Split by batch
-samples <- SplitObject(merged, split.by = 'batch')
-
-# Find anchors
-anchors <- FindIntegrationAnchors(object.list = samples, dims = 1:30)
-
-# Integrate
-integrated <- IntegrateData(anchorset = anchors, dims = 1:30)
-
-# Use 'integrated' assay for downstream
-DefaultAssay(integrated) <- 'integrated'
-```
-
 ## Evaluating Integration
 
 ### Visual Assessment
-
 - UMAP should show mixing of batches within cell types
 - Cell types should cluster together across batches
 
 ### Quantitative Metrics
-
-```python
-# kBET - batch mixing within neighborhoods
-# LISI - local inverse Simpson index
-# Silhouette - cluster separation
-```
+- kBET: batch mixing within neighborhoods
+- LISI: local inverse Simpson index
+- Silhouette: cluster separation
 
 ## Tips
 
-- Always preprocess each batch separately before merging
-- Check that cell types are represented across batches
-- Use batch as covariate in DE analysis, not integrated values
-- For DE, use original counts, not batch-corrected values
-
-## See Also
-
-- [Harmony paper](https://www.nature.com/articles/s41592-019-0619-0)
-- [scVI documentation](https://docs.scvi-tools.org/)
+- **Preprocess each batch separately** before merging
+- **Check cell type representation** - ensure types are present across batches
+- **Use batch as covariate in DE** - not integrated values
+- **Keep original counts for DE** - use raw counts, not batch-corrected
+- **Validate integration** - cell types should mix, not batch artifacts
+- **Harmony is a good default** - fast and works well for most cases

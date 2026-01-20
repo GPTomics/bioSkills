@@ -1,6 +1,6 @@
 ---
 name: bio-microbiome-functional-prediction
-description: Predict metagenome functional content from 16S rRNA marker gene data using PICRUSt2. Infer KEGG, MetaCyc, and EC abundances from ASV tables.
+description: Predict metagenome functional content from 16S rRNA marker gene data using PICRUSt2. Infer KEGG, MetaCyc, and EC abundances from ASV tables. Use when functional profiling is needed from 16S data without shotgun metagenomics sequencing.
 tool_type: cli
 primary_tool: picrust2
 ---

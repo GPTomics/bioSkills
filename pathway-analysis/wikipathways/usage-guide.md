@@ -1,106 +1,76 @@
 # WikiPathways Enrichment - Usage Guide
 
 ## Overview
+WikiPathways is an open, collaborative platform for biological pathways with CC0 license, community curation, and support for 30+ species including many not covered by KEGG or Reactome.
 
-WikiPathways is an open, collaborative platform for biological pathways. Unlike KEGG (commercial license) or Reactome (limited species), WikiPathways is community-curated with CC0 license and supports 30+ species. The clusterProfiler package provides enrichWP() and gseWP() functions for direct analysis.
-
-## When to Use This Skill
-
-- You want open-source pathway annotations (CC0 license)
-- You're working with species not in Reactome
-- You want disease-specific or drug-related pathways
-- You need community-contributed specialized pathways
-- You want to complement KEGG/Reactome results
-
-## Installation
-
+## Prerequisites
 ```r
 if (!require('BiocManager', quietly = TRUE))
     install.packages('BiocManager')
 
-BiocManager::install(c('clusterProfiler', 'rWikiPathways', 'enrichplot'))
-BiocManager::install('org.Hs.eg.db')  # For human
+BiocManager::install(c('clusterProfiler', 'rWikiPathways', 'enrichplot', 'org.Hs.eg.db'))
 ```
 
-## Basic Workflow
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run WikiPathways enrichment on my significant genes"
+- "Find disease-specific pathways in my gene list"
+- "Use open-source pathway database for enrichment"
 
-### 1. Prepare Gene List
+## Example Prompts
+### Basic Enrichment
+> "Run WikiPathways enrichment on my differentially expressed genes from deseq2_results.csv"
 
-```r
-library(clusterProfiler)
-library(org.Hs.eg.db)
+> "Perform WikiPathways enrichment on my significant genes for human"
 
-de_results <- read.csv('deseq2_results.csv')
-sig_genes <- de_results[de_results$padj < 0.05 & abs(de_results$log2FoldChange) > 1, ]
+### Organism-Specific
+> "Run WikiPathways enrichment for mouse genes"
 
-gene_ids <- bitr(sig_genes$gene_symbol, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-entrez_ids <- gene_ids$ENTREZID
-```
+> "What organisms are available in WikiPathways?"
 
-### 2. Run Enrichment
+### Exploring Pathways
+> "Search WikiPathways for cancer-related pathways"
 
-```r
-wp_result <- enrichWP(
-    gene = entrez_ids,
-    organism = 'Homo sapiens',
-    pvalueCutoff = 0.05
-)
+> "Find drug metabolism pathways in WikiPathways"
 
-# Make readable
-wp_readable <- setReadable(wp_result, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
-head(as.data.frame(wp_readable))
-```
+### Combining Databases
+> "Run enrichment using WikiPathways, KEGG, and Reactome and compare results"
 
-### 3. Visualize
+### GSEA
+> "Run WikiPathways GSEA on my ranked gene list"
 
-```r
-library(enrichplot)
+## What the Agent Will Do
+1. Load DE results and extract significant genes
+2. Convert gene IDs to Entrez format
+3. Run enrichWP() with appropriate organism name
+4. Convert results to readable gene symbols with setReadable()
+5. Generate visualizations and export results
 
-dotplot(wp_readable, showCategory = 15)
-```
-
-## Exploring WikiPathways
-
+## Exploring Available Pathways
 ```r
 library(rWikiPathways)
 
-# Available organisms
+# List available organisms
 listOrganisms()
 
-# Pathways for organism
-pathways <- listPathways('Homo sapiens')
-head(pathways)
-
-# Search pathways
+# Search for pathways
 searchPathways('cancer', 'Homo sapiens')
 searchPathways('insulin signaling', 'Homo sapiens')
 
-# Pathway details
+# Get pathway details
 getPathwayInfo('WP554')
 ```
 
-## Common Issues
+## WikiPathways vs Other Databases
 
-### Organism Name
+| Feature | WikiPathways | KEGG | Reactome |
+|---------|--------------|------|----------|
+| License | CC0 (open) | Commercial | Open |
+| Curation | Community | Expert | Peer-reviewed |
+| Species | 30+ | 4000+ | 7 |
+| Focus | Disease/drug pathways | Metabolic/signaling | Reactions |
 
-Use the full scientific name exactly as listed:
-```r
-library(rWikiPathways)
-listOrganisms()  # Check exact spelling
-```
-
-### Internet Connection
-
-WikiPathways requires internet access to download current pathway data.
-
-### Few Results
-
-WikiPathways has fewer pathways than KEGG. Consider:
-- Using multiple databases (WikiPathways + KEGG + Reactome)
-- Relaxing p-value cutoff
-- Checking if pathways exist for your research area
-
-## Output Format
+## Understanding Results
 
 | Column | Description |
 |--------|-------------|
@@ -113,8 +83,10 @@ WikiPathways has fewer pathways than KEGG. Consider:
 | geneID | Genes in pathway |
 | Count | Number of genes |
 
-## Resources
-
-- [WikiPathways Website](https://www.wikipathways.org/)
-- [rWikiPathways Bioconductor](https://bioconductor.org/packages/rWikiPathways/)
-- [WikiPathways API](https://webservice.wikipathways.org/)
+## Tips
+- Use the exact scientific name from listOrganisms() for the organism parameter
+- WikiPathways requires internet access to download current pathway data
+- WikiPathways has fewer total pathways than KEGG - combine with other databases
+- Community pathways include specialized disease and drug-related pathways
+- Use setReadable() to convert Entrez IDs to gene symbols in results
+- See enrichment-visualization skill for dotplot() and other plots

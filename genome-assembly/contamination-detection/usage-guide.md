@@ -1,42 +1,10 @@
-# Contamination Detection Usage Guide
+# Contamination Detection - Usage Guide
 
 ## Overview
 
 Contamination detection identifies foreign DNA in genome assemblies and assesses completeness for metagenome-assembled genomes (MAGs) and isolate assemblies.
 
-## Tool Selection
-
-| Tool | Purpose | Best For |
-|------|---------|----------|
-| CheckM2 | Completeness + contamination | All genomes |
-| GUNC | Chimerism detection | MAGs |
-| GTDB-Tk | Taxonomic classification | Taxonomy + novelty |
-| BlobTools | Visual decontamination | Complex contamination |
-
-## Quick Start Prompts
-
-- "Check my MAGs for contamination using CheckM2"
-- "Classify my genomes taxonomically with GTDB-Tk"
-- "Detect chimeric assemblies with GUNC"
-- "Remove contaminating contigs from my assembly"
-
-## Quality Standards (MIMAG)
-
-| Quality | Completeness | Contamination |
-|---------|--------------|---------------|
-| High | >90% | <5% |
-| Medium | ≥50% | <10% |
-| Low | <50% | <10% |
-
-## Workflow
-
-1. **Run CheckM2** - Completeness and contamination
-2. **Run GUNC** - Detect chimeric genomes
-3. **Run GTDB-Tk** - Taxonomic assignment
-4. **Filter** - Apply quality thresholds
-5. **Decontaminate** - Remove flagged contigs if needed
-
-## Requirements
+## Prerequisites
 
 ```bash
 # CheckM2
@@ -52,14 +20,42 @@ conda install -c bioconda gtdbtk
 gtdbtk download_gtdbtk_data
 ```
 
-## Key Considerations
+## Quick Start
 
-- **CheckM2** is faster and more accurate than original CheckM
-- **GUNC** specifically detects inter-phylum chimerism
-- **Combine tools** for comprehensive QC
-- **MAG quality** affects downstream analyses significantly
+Tell your AI agent what you want to do:
+- "Check my MAGs for contamination using CheckM2"
+- "Classify my genomes taxonomically with GTDB-Tk"
+- "Detect chimeric assemblies in my bins"
 
-## Related Skills
+## Example Prompts
 
-- **genome-assembly/assembly-qc** - BUSCO completeness
-- **metagenomics/taxonomic-profiling** - Community analysis
+### Contamination Assessment
+> "Check my MAGs for contamination using CheckM2"
+> "Run CheckM2 on my genome assembly to assess completeness"
+> "Detect chimeric assemblies with GUNC"
+
+### Taxonomy Classification
+> "Classify my genomes taxonomically with GTDB-Tk"
+> "Assign taxonomy to my MAGs using GTDB"
+
+### Quality Filtering
+> "Filter my MAGs to keep only high-quality genomes"
+> "Remove contaminating contigs from my assembly"
+
+## What the Agent Will Do
+
+1. Run CheckM2 to assess completeness and contamination
+2. Run GUNC to detect chimeric genomes
+3. Run GTDB-Tk for taxonomic assignment
+4. Apply MIMAG quality thresholds
+5. Flag genomes that need decontamination
+6. Provide summary of genome quality statistics
+
+## Tips
+
+- CheckM2 is faster and more accurate than the original CheckM
+- GUNC specifically detects inter-phylum chimerism missed by CheckM
+- MIMAG standards: High-quality >90% complete, <5% contamination
+- Combine multiple tools for comprehensive contamination assessment
+- MAG quality significantly affects downstream analyses
+- BlobTools can help visualize and remove contamination

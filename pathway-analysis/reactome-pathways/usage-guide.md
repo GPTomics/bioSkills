@@ -1,16 +1,45 @@
 # Reactome Pathway Enrichment - Usage Guide
 
 ## Overview
+ReactomePA provides pathway enrichment analysis using the Reactome database, a curated peer-reviewed knowledgebase of biological pathways with deep hierarchy and reaction-level detail.
 
-ReactomePA provides pathway enrichment analysis using the Reactome database, a curated peer-reviewed knowledgebase of biological pathways. It offers both over-representation analysis (ORA) and Gene Set Enrichment Analysis (GSEA) for Reactome pathways.
+## Prerequisites
+```r
+if (!require('BiocManager', quietly = TRUE))
+    install.packages('BiocManager')
 
-## When to Use This Skill
+BiocManager::install(c('ReactomePA', 'org.Hs.eg.db', 'enrichplot'))
+```
 
-- You have a list of differentially expressed genes and want pathway enrichment
-- You prefer curated, peer-reviewed pathway annotations
-- You want detailed pathway hierarchy information
-- You need to visualize pathways in the Reactome browser
-- You want an alternative to KEGG pathways
+## Quick Start
+Tell your AI agent what you want to do:
+- "Run Reactome pathway enrichment on my significant genes"
+- "Find peer-reviewed curated pathways enriched in my gene list"
+- "Use Reactome instead of KEGG for pathway analysis"
+
+## Example Prompts
+### Basic Enrichment
+> "Run Reactome pathway enrichment on my differentially expressed genes from deseq2_results.csv"
+
+> "Perform Reactome enrichment on my significant genes and show the top 20 pathways"
+
+### Visualization
+> "Create a dotplot of my Reactome enrichment results"
+
+> "Open the most enriched Reactome pathway in the browser"
+
+### Comparison with KEGG
+> "Run both Reactome and KEGG enrichment on my genes and compare results"
+
+### GSEA with Reactome
+> "Run Reactome GSEA on my ranked gene list"
+
+## What the Agent Will Do
+1. Load DE results and extract significant genes
+2. Convert gene IDs to Entrez format (required for ReactomePA)
+3. Run enrichPathway() with readable = TRUE for gene symbols
+4. Generate visualizations and export results
+5. Optionally view pathways in Reactome browser
 
 ## Reactome vs KEGG
 
@@ -23,82 +52,7 @@ ReactomePA provides pathway enrichment analysis using the Reactome database, a c
 | Updates | Quarterly | Ongoing |
 | Organisms | 7 species | 4000+ species |
 
-## Installation
-
-```r
-if (!require('BiocManager', quietly = TRUE))
-    install.packages('BiocManager')
-
-BiocManager::install('ReactomePA')
-
-# Also need organism database
-BiocManager::install('org.Hs.eg.db')  # Human
-```
-
-## Basic Workflow
-
-### 1. Prepare Gene List
-
-```r
-library(ReactomePA)
-library(clusterProfiler)
-library(org.Hs.eg.db)
-
-# From differential expression results
-de_results <- read.csv('deseq2_results.csv')
-
-# Get significant genes
-sig_genes <- de_results[de_results$padj < 0.05 & abs(de_results$log2FoldChange) > 1, ]
-
-# Convert to Entrez IDs (required for ReactomePA)
-gene_ids <- bitr(sig_genes$gene_symbol, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-entrez_ids <- gene_ids$ENTREZID
-```
-
-### 2. Run Enrichment
-
-```r
-pathway_result <- enrichPathway(
-    gene = entrez_ids,
-    organism = 'human',
-    pvalueCutoff = 0.05,
-    readable = TRUE
-)
-
-# View results
-head(as.data.frame(pathway_result))
-```
-
-### 3. Visualize
-
-```r
-library(enrichplot)
-
-# Dot plot
-dotplot(pathway_result, showCategory = 20)
-
-# View specific pathway in browser
-viewPathway(pathway_result@result$ID[1], organism = 'human')
-```
-
-## Common Issues
-
-### No Results
-
-- Check that genes are Entrez IDs (not symbols or Ensembl)
-- Try relaxing p-value cutoff
-- Ensure organism parameter matches your data
-- Check that genes are in Reactome database
-
-### ID Conversion Failures
-
-```r
-# Check conversion success rate
-converted <- bitr(genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-message(sprintf('Converted %d of %d genes', nrow(converted), length(genes)))
-```
-
-## Output Format
+## Understanding Results
 
 | Column | Description |
 |--------|-------------|
@@ -112,8 +66,10 @@ message(sprintf('Converted %d of %d genes', nrow(converted), length(genes)))
 | geneID | Genes in pathway |
 | Count | Number of genes |
 
-## Resources
-
-- [Reactome Website](https://reactome.org/)
-- [ReactomePA Bioconductor](https://bioconductor.org/packages/ReactomePA/)
-- [ReactomePA Documentation](https://yulab-smu.top/biomedical-knowledge-mining-book/reactomepa.html)
+## Tips
+- Reactome requires Entrez gene IDs - convert from symbols first with bitr()
+- Use readable = TRUE in enrichPathway() to get gene symbols in output
+- viewPathway() opens interactive pathway visualization in browser
+- Reactome has fewer species than KEGG but more detailed pathway annotation
+- Combine Reactome with KEGG/WikiPathways for comprehensive pathway coverage
+- See enrichment-visualization skill for dotplot() and other plots

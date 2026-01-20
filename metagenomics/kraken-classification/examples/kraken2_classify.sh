@@ -14,7 +14,7 @@ kraken2 --db $KRAKEN_DB \
     --gzip-compressed \
     --output ${OUTPUT_DIR}/${SAMPLE}.kraken \
     --report ${OUTPUT_DIR}/${SAMPLE}_report.txt \
-    --use-names \
+    --use-names \  # outputs human-readable taxon names instead of numeric NCBI IDs
     $READS_R1 $READS_R2
 
 echo "Classification summary:"
@@ -29,4 +29,5 @@ unclassified=$(grep -c "^U" ${OUTPUT_DIR}/${SAMPLE}.kraken || echo "0")
 total=$((classified + unclassified))
 pct=$(echo "scale=2; $classified * 100 / $total" | bc)
 echo ""
+# Classification rate >70% typical for well-characterized samples; lower rates suggest novel taxa or contamination
 echo "Classification rate: ${pct}% (${classified}/${total})"

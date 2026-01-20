@@ -7,15 +7,6 @@ primary_tool: DeepVariant
 
 # DeepVariant Variant Calling
 
-Google's deep learning variant caller using convolutional neural networks for high-accuracy germline variant detection.
-
-## Key Features
-
-- CNN-based variant calling (pileup images → variant predictions)
-- Pre-trained models for Illumina WGS/WES, PacBio HiFi, ONT
-- Consistently high accuracy in benchmarks (GIAB/PrecisionFDA)
-- GPU acceleration available
-
 ## Installation
 
 ### Docker (Recommended)

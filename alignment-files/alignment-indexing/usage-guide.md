@@ -1,77 +1,90 @@
-# Alignment Indexing Usage Guide
+# Alignment Indexing - Usage Guide
 
-This guide covers creating and using indices for random access to BAM/CRAM files.
+## Overview
+Create and use indices for random access to BAM and CRAM files, enabling fast region queries without reading entire files.
 
 ## Prerequisites
+```bash
+# samtools
+conda install -c bioconda samtools
 
-- samtools installed (`conda install -c bioconda samtools`)
-- pysam installed (`pip install pysam`)
-- Coordinate-sorted BAM/CRAM file
+# pysam
+pip install pysam
+```
 
-## Why Index?
+## Quick Start
+Tell your AI agent what you want to do:
+- "Index my BAM file for random access"
+- "Get per-chromosome read counts from the index"
+- "Check if my BAM file has an index"
+- "Create a CSI index for large chromosomes"
 
-Without an index, accessing a specific genomic region requires reading the entire file. An index allows jumping directly to any region, making queries O(log n) instead of O(n).
+## Example Prompts
+
+### Creating Indices
+> "Create an index for sample.bam"
+
+> "Index my BAM file using 8 threads"
+
+> "Create CSI index for my genome with large chromosomes"
+
+### Using Indices
+> "Count reads per chromosome using idxstats"
+
+> "Extract reads from chr1:1000000-2000000"
+
+> "Get reads overlapping regions in my BED file"
+
+### FASTA Indexing
+> "Index my reference FASTA for random access"
+
+> "Extract sequence for chr1:1000-2000 from reference"
+
+### Index Statistics
+> "Show per-chromosome read distribution"
+
+> "Calculate mitochondrial contamination percentage"
+
+> "Check X/Y ratio for sex determination"
+
+## What the Agent Will Do
+
+1. Verify the BAM file is coordinate-sorted (required for indexing)
+2. Create the appropriate index type (BAI, CSI, or CRAI)
+3. Place the index file alongside the BAM file
+4. Verify the index was created successfully
+5. Use the index for efficient region queries or statistics
 
 ## Index Types
 
 ### BAI (BAM Index)
-
-The standard index format for BAM files.
-
+Standard index for BAM files. Chromosomes must be < 512 Mbp.
 ```bash
-samtools index input.bam
+samtools index input.bam  # Creates input.bam.bai
 ```
-
-Creates `input.bam.bai` alongside the BAM file.
-
-**Limitations**: Reference sequences must be < 512 Mbp (2^29 bp).
 
 ### CSI (Coordinate-Sorted Index)
-
-For genomes with large chromosomes or when using custom bin sizes.
-
+For genomes with large chromosomes (> 512 Mbp).
 ```bash
-samtools index -c input.bam
+samtools index -c input.bam  # Creates input.bam.csi
 ```
-
-Creates `input.bam.csi`.
-
-**When to use**: Chromosomes > 512 Mbp, or when you need different binning.
 
 ### CRAI (CRAM Index)
-
-Index for CRAM files (automatically created with correct extension).
-
+Index for CRAM files.
 ```bash
-samtools index input.cram
+samtools index input.cram  # Creates input.cram.crai
 ```
 
-Creates `input.cram.crai`.
+## Common Commands
 
-## Creating Indices
-
-### Basic Indexing
-
+### Creating Indices
 ```bash
-# Index a BAM file
-samtools index sample.bam
-
-# Verify index was created
-ls -la sample.bam*
-```
-
-### Multi-threaded Indexing
-
-For large files, use multiple threads:
-
-```bash
-samtools index -@ 8 large.bam
+samtools index sample.bam           # Basic indexing
+samtools index -@ 8 large.bam       # Multi-threaded
+samtools index -c input.bam         # CSI for large chromosomes
 ```
 
 ### Batch Indexing
-
-Index multiple files:
-
 ```bash
 for bam in *.bam; do
     if [ ! -f "${bam}.bai" ]; then
@@ -80,190 +93,98 @@ for bam in *.bam; do
 done
 ```
 
-## Using Indices
-
-### Region Queries with samtools
-
+### Region Queries
 ```bash
-# Single region
-samtools view input.bam chr1:1000000-2000000
-
-# Multiple regions
-samtools view input.bam chr1:1000-2000 chr2:3000-4000
-
-# Count reads in region
-samtools view -c input.bam chr1:1000000-2000000
-
-# Regions from BED file
-samtools view -L targets.bed input.bam
+samtools view input.bam chr1:1000000-2000000       # Single region
+samtools view input.bam chr1:1000-2000 chr2:3000-4000  # Multiple regions
+samtools view -L targets.bed input.bam             # From BED file
+samtools view -c input.bam chr1:1000000-2000000    # Count in region
 ```
 
-### Region Queries with pysam
+### Index Statistics
+```bash
+samtools idxstats input.bam  # Per-chromosome counts
 
+# Total mapped reads
+samtools idxstats input.bam | awk '{sum += $3} END {print sum}'
+
+# Mitochondrial fraction
+samtools idxstats input.bam | awk '/^chrM/ {mt=$3} {total+=$3} END {printf "MT: %.2f%%\n", mt/total*100}'
+```
+
+### FASTA Indexing
+```bash
+samtools faidx reference.fa                    # Create index
+samtools faidx reference.fa chr1:1000-2000     # Extract region
+```
+
+## Python with pysam
+
+### Region Queries
 ```python
 import pysam
 
 with pysam.AlignmentFile('input.bam', 'rb') as bam:
-    # Fetch all reads overlapping region
     for read in bam.fetch('chr1', 1000000, 2000000):
         print(f'{read.query_name}: {read.reference_start}-{read.reference_end}')
-
-    # Count reads in region
     count = bam.count('chr1', 1000000, 2000000)
     print(f'Total reads: {count}')
 ```
 
-### Iterate by Chromosome
-
-```python
-import pysam
-
-with pysam.AlignmentFile('input.bam', 'rb') as bam:
-    for chrom in bam.references:
-        count = bam.count(chrom)
-        print(f'{chrom}: {count} reads')
-```
-
-## Index Statistics
-
-### samtools idxstats
-
-Quick per-chromosome read counts without reading alignment data:
-
-```bash
-samtools idxstats input.bam
-```
-
-Output:
-```
-chr1    248956422    5000000    1000
-chr2    242193529    4500000    800
-*       0            0          50000
-```
-
-Columns:
-1. Reference name
-2. Reference length
-3. Mapped read count
-4. Unmapped read count (placed on this reference)
-
-The `*` row shows reads not mapped to any reference.
-
-### Parse idxstats
-
-```bash
-# Total mapped reads
-samtools idxstats input.bam | awk '{sum += $3} END {print sum}'
-
-# Reads per chromosome as percentage
-total=$(samtools idxstats input.bam | awk '{sum += $3} END {print sum}')
-samtools idxstats input.bam | awk -v total="$total" '{if ($3 > 0) printf "%s\t%.2f%%\n", $1, $3/total*100}'
-```
-
-### pysam Index Statistics
-
+### Index Statistics
 ```python
 import pysam
 
 with pysam.AlignmentFile('input.bam', 'rb') as bam:
     stats = bam.get_index_statistics()
     total_mapped = sum(s.mapped for s in stats)
-
     for stat in stats:
         pct = stat.mapped / total_mapped * 100 if total_mapped > 0 else 0
         print(f'{stat.contig}: {stat.mapped:,} ({pct:.1f}%)')
 ```
 
-## FASTA Indexing
-
-Index reference FASTA for random access (separate from BAM indexing):
-
-### Create FASTA Index
-
-```bash
-samtools faidx reference.fa
-```
-
-Creates `reference.fa.fai` with format:
-```
-chr1    248956422    6    60    61
-chr2    242193529    253404903    60    61
-```
-
-Columns: name, length, offset, line bases, line width
-
-### Fetch FASTA Region
-
-```bash
-samtools faidx reference.fa chr1:1000-2000
-```
-
-### pysam FastaFile
-
+### FASTA Access
 ```python
 import pysam
 
 with pysam.FastaFile('reference.fa') as ref:
-    # Fetch sequence (0-based coordinates)
-    seq = ref.fetch('chr1', 999, 2000)  # Gets bases 1000-2000
-    print(seq)
-
-    # Get chromosome length
+    seq = ref.fetch('chr1', 999, 2000)  # 0-based coordinates
     length = ref.get_reference_length('chr1')
-    print(f'chr1 length: {length}')
 ```
 
 ## Troubleshooting
 
 ### "random alignment retrieval only works for indexed BAM"
-
-The BAM file lacks an index:
-
+BAM file lacks an index:
 ```bash
 samtools index input.bam
 ```
 
 ### "file is not coordinate sorted"
-
-BAM must be sorted by coordinate before indexing:
-
+BAM must be sorted before indexing:
 ```bash
 samtools sort -o sorted.bam unsorted.bam
 samtools index sorted.bam
 ```
 
 ### "could not retrieve index file"
-
-Index file is missing or in wrong location. Check:
-
+Index file is missing or in wrong location:
 ```bash
-ls -la input.bam*
-# Should see input.bam and input.bam.bai (or input.bai)
+ls -la input.bam*  # Should see input.bam and input.bam.bai
 ```
 
-### Chromosome name mismatch
-
-Chromosome names must match exactly between query and BAM:
-
+### Chromosome Name Mismatch
+Names must match exactly between query and BAM:
 ```bash
-# Check what chromosomes are in the file
-samtools view -H input.bam | grep "^@SQ"
-
-# Common issue: "chr1" vs "1"
-# If BAM uses "chr1", query must use "chr1"
-samtools view input.bam chr1:1000-2000  # Not "1:1000-2000"
+samtools view -H input.bam | grep "^@SQ"  # Check names
+# If BAM uses "chr1", query must use "chr1", not "1"
 ```
 
-## Best Practices
-
-1. **Always index after sorting**: Sort and index are typically done together
-2. **Keep index with BAM**: Index file should stay alongside BAM
-3. **Rebuild after modification**: Any BAM modification requires re-indexing
-4. **Use CSI for large genomes**: If working with very large chromosomes
-5. **Check before fetching**: Verify index exists before using fetch()
-
-## See Also
-
-- [samtools index documentation](http://www.htslib.org/doc/samtools-index.html)
-- [samtools idxstats documentation](http://www.htslib.org/doc/samtools-idxstats.html)
-- [pysam documentation](https://pysam.readthedocs.io/)
+## Tips
+- Always index after sorting - they go together as a pair
+- Keep the index file alongside the BAM file with the same prefix
+- Rebuild the index after any BAM modification
+- Use CSI format for genomes with very large chromosomes
+- Check that index exists before using fetch() in pysam
+- Multi-threading (`-@ 8`) significantly speeds up large file indexing
+- Use idxstats for quick per-chromosome summaries without reading alignments

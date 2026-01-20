@@ -1,6 +1,6 @@
 ---
 name: bio-copy-number-gatk-cnv
-description: Call copy number variants using GATK best practices workflow. Supports both somatic (tumor-normal) and germline CNV detection from WGS or WES data.
+description: Call copy number variants using GATK best practices workflow. Supports both somatic (tumor-normal) and germline CNV detection from WGS or WES data. Use when following GATK best practices or integrating CNV calling with other GATK variant pipelines.
 tool_type: cli
 primary_tool: gatk
 ---

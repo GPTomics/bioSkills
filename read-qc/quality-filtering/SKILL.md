@@ -1,6 +1,6 @@
 ---
 name: bio-read-qc-quality-filtering
-description: Filter reads by quality scores, length, and N content using Trimmomatic and fastp. Apply sliding window trimming, remove low-quality bases from read ends, and discard reads below quality thresholds.
+description: Filter reads by quality scores, length, and N content using Trimmomatic and fastp. Apply sliding window trimming, remove low-quality bases from read ends, and discard reads below thresholds. Use when reads have poor quality tails or require minimum quality for downstream analysis.
 tool_type: cli
 primary_tool: trimmomatic
 ---

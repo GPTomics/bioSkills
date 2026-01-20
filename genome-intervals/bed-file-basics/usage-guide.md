@@ -1,34 +1,50 @@
 # BED File Basics - Usage Guide
 
 ## Overview
-
 BED (Browser Extensible Data) is the standard format for representing genomic intervals. This skill covers creating, reading, validating, and converting BED files using bedtools (CLI) and pybedtools (Python).
 
-## When to Use This Skill
-
-- You need to create BED files from coordinates
-- You want to validate BED file format
-- You need to convert between BED and other formats
-- You want to filter or sort interval files
-
-## Installation
-
+## Prerequisites
 ```bash
 # bedtools (CLI)
 conda install -c bioconda bedtools
 
 # pybedtools (Python)
 pip install pybedtools
-
-# Verify
-bedtools --version  # Should be 2.31+
-python -c "import pybedtools; print(pybedtools.__version__)"
 ```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "Create a BED file from my list of peak coordinates"
+- "Validate my BED file format and fix any issues"
+- "Convert my GFF file to BED format"
+
+## Example Prompts
+
+### Creating BED Files
+> "Create a BED file from this DataFrame with columns chr, start, end, name"
+> "Generate a BED4 file from my peak coordinates stored in peaks.csv"
+
+### Validation
+> "Check if my peaks.bed file has valid BED format"
+> "Validate the coordinate system in my annotation.bed file"
+
+### Conversion
+> "Convert my GTF annotations to BED format"
+> "Convert my VCF variants to BED intervals, adjusting for coordinate systems"
+
+### Filtering and Sorting
+> "Sort my BED file by chromosome and position"
+> "Filter my BED file to keep only intervals larger than 500bp"
+
+## What the Agent Will Do
+1. Load the BED file or create one from your data
+2. Validate format (check coordinates, column count, sorting)
+3. Apply requested operations (filter, sort, convert)
+4. Save the output with proper formatting
 
 ## Key Concepts
 
 ### Coordinate System
-
 BED uses **0-based, half-open** coordinates:
 
 | System | First base | Interval 100-200 |
@@ -50,82 +66,14 @@ When converting:
 | BED6 | Stranded | + strand |
 | BED12 | Full | + thick, rgb, blocks |
 
-## Basic Workflow
-
-### 1. Create BED File
-
-```python
-import pybedtools
-import pandas as pd
-
-# From DataFrame
-df = pd.DataFrame({
-    'chrom': ['chr1', 'chr1', 'chr2'],
-    'start': [100, 500, 200],
-    'end': [200, 600, 400],
-    'name': ['peak1', 'peak2', 'peak3']
-})
-bed = pybedtools.BedTool.from_dataframe(df)
-bed.saveas('peaks.bed')
-```
-
-### 2. Validate
-
-```bash
-# Check for issues
-awk '$2 >= $3' peaks.bed  # Should be empty
-bedtools sort -i peaks.bed > /dev/null  # Should succeed
-```
-
-### 3. Sort
-
-```bash
-bedtools sort -i peaks.bed > peaks.sorted.bed
-```
-
-### 4. Filter
-
-```python
-import pybedtools
-bed = pybedtools.BedTool('peaks.sorted.bed')
-filtered = bed.filter(lambda x: len(x) >= 100)
-filtered.saveas('peaks.filtered.bed')
-```
-
-## Common Issues
-
-### Wrong Coordinate System
-
-**Problem:** Coordinates off by one
-**Solution:** Check if source uses 1-based coordinates (GFF, VCF) and convert
-
-```python
-# 1-based to 0-based
-df['start'] = df['start'] - 1
-```
-
-### Unsorted Input
-
-**Problem:** bedtools operations fail or give wrong results
-**Solution:** Sort before operations
-
-```bash
-bedtools sort -i input.bed > sorted.bed
-```
-
-### Memory Issues with pybedtools
-
-**Problem:** Temp files accumulate
-**Solution:** Clean up explicitly
-
-```python
-import pybedtools
-# At end of script
-pybedtools.cleanup()
-```
+## Tips
+- Always sort BED files before operations requiring sorted input
+- Check chromosome naming consistency (chr1 vs 1)
+- Use `pybedtools.cleanup()` after processing to remove temp files
+- Validate coordinate systems when combining data from different sources
+- BED files are tab-separated; spaces will cause parsing errors
 
 ## Resources
-
 - [UCSC BED Format Specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)
 - [bedtools Documentation](https://bedtools.readthedocs.io/)
 - [pybedtools Documentation](https://daler.github.io/pybedtools/)

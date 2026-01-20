@@ -1,6 +1,6 @@
 ---
 name: bio-genome-intervals-bed-file-basics
-description: BED file format fundamentals, creation, validation, and basic operations. Covers BED3 through BED12 formats, coordinate systems, sorting, filtering, makewindows, and conversion to/from other formats using bedtools and pybedtools.
+description: BED file format fundamentals, creation, validation, and basic operations. Covers BED3 through BED12 formats, coordinate systems, sorting, and format conversion using bedtools and pybedtools. Use when working with genomic coordinates or preparing interval files for downstream tools.
 tool_type: mixed
 primary_tool: bedtools
 ---

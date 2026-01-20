@@ -1,100 +1,77 @@
-# Bead Normalization Usage Guide
+# Bead Normalization - Usage Guide
 
 ## Overview
+Bead-based normalization corrects for signal drift and batch effects in CyTOF and high-parameter flow cytometry by using reference beads with known properties.
 
-Bead-based normalization corrects for signal drift and batch effects in mass cytometry (CyTOF) and high-parameter flow cytometry by using reference beads with known properties.
+## Prerequisites
+```bash
+# R/Bioconductor
+BiocManager::install(c('CATALYST', 'flowCore'))
 
-## When to Use This Skill
+# Or use Fluidigm normalizer for EQ beads
+```
 
-- CyTOF experiments (EQ beads standard)
-- Multi-batch experiments
-- Longitudinal studies
-- Multi-site collaborations
-- Observed signal drift
+## Quick Start
+Tell your AI agent what you want to do:
+- "Normalize my CyTOF data using EQ beads"
+- "Correct for signal drift across my acquisition"
+- "Apply batch correction using reference samples"
 
-## Types of Normalization
+## Example Prompts
+### EQ Bead Normalization
+> "Identify EQ beads and normalize my CyTOF run"
+> "Correct for instrument drift using bead channels"
+> "Remove bead events after normalization"
 
-### EQ Bead Normalization (CyTOF)
-- Standard for CyTOF
-- Uses metal-containing beads
-- Corrects instrument drift
-- Typically done with Fluidigm normalizer
+### Batch Correction
+> "Apply CytoNorm to harmonize data across batches"
+> "Use reference samples to build a batch correction model"
+> "Normalize my multi-site CyTOF study"
 
-### Reference Sample Normalization
-- Use same biological sample across batches
-- Build transformation model
-- Apply to all samples
-- CytoNorm, Harmony methods
+### Quality Assessment
+> "Plot bead signal over time to visualize drift"
+> "Show before/after normalization comparison"
+> "Calculate CV of bead channels across the run"
 
-### Quantile Normalization
-- Force same distribution across samples
-- Simple but aggressive
-- Use cautiously with biological heterogeneity
+## What the Agent Will Do
+1. Identify bead events using bead-specific channels
+2. Calculate reference intensity (median per channel)
+3. Compute normalization factors over time
+4. Apply correction (linear or LOESS smoothing)
+5. Remove bead events from final dataset
 
-## EQ Beads
+## Tips
+- EQ beads contain Ce-140, Eu-151, Eu-153, Ho-165, Lu-175
+- Always include beads in every CyTOF run
+- CV of bead channels should be <10% after normalization
+- For multi-batch studies, include a reference sample per batch
+- CytoNorm provides batch-to-batch normalization using reference samples
 
-Fluidigm EQ Four Element Calibration Beads contain:
-- Cerium-140
-- Europium-151
-- Europium-153
-- Holmium-165
-- Lutetium-175
+## Normalization Types
 
-## Workflow
-
-1. **Identify beads** - Gate on bead-positive events
-2. **Calculate reference** - Median intensity per channel
-3. **Compute factors** - Ratio to reference
-4. **Apply correction** - Multiply or LOESS smooth
-5. **Remove beads** - Clean data for analysis
+| Type | Use Case | Method |
+|------|----------|--------|
+| EQ Bead | Within-run drift | Fluidigm normalizer or CATALYST |
+| Reference sample | Between-batch | CytoNorm, Harmony |
+| Quantile | Simple normalization | Force same distribution (use cautiously) |
 
 ## Drift Patterns
 
-| Type | Cause | Solution |
-|------|-------|----------|
+| Pattern | Cause | Solution |
+|---------|-------|----------|
 | Linear drift | Ion source degradation | Linear correction |
 | Step change | Tuning adjustment | Segment normalization |
 | Random fluctuation | Unstable conditions | LOESS smoothing |
 
 ## Quality Metrics
 
-### Good Normalization
-- CV of bead channels < 10%
-- No trend in residuals
-- Biological patterns preserved
-
-### Warning Signs
-- Persistent drift after correction
-- Over-correction artifacts
-- Loss of biological signal
-
-## Common Issues
-
-### Bead identification failure
-- Adjust gating threshold
-- Check bead concentration
-- Verify channel names
-
-### Over-normalization
-- Use appropriate span
-- Preserve biological variation
-- Validate with known markers
-
-### Batch effects remain
-- Consider CytoNorm
-- Add reference samples
-- Check other confounders
-
-## Best Practices
-
-1. Include EQ beads in every run
-2. Run reference sample per batch
-3. Normalize before analysis
-4. Validate with known biology
-5. Document normalization parameters
+| Metric | Good | Warning |
+|--------|------|---------|
+| Bead CV | <10% | >15% |
+| Residual trend | None | Persistent drift |
+| Biological signal | Preserved | Lost/distorted |
 
 ## References
-
 - CyTOF normalization: doi:10.1002/cyto.a.22271
 - CytoNorm: doi:10.1002/cyto.a.24158
 - Bead-based QC: doi:10.1002/cyto.a.22624

@@ -1,77 +1,54 @@
 # Kraken2 Classification - Usage Guide
 
 ## Overview
+Kraken2 is a fast taxonomic classifier that uses exact k-mer matches to assign reads to taxonomic nodes. It's highly accurate for well-represented taxa and ideal for screening large datasets.
 
-Kraken2 is a fast taxonomic classifier that uses exact k-mer matches to assign reads to taxonomic nodes. It's highly accurate for well-represented taxa and very fast, but requires substantial memory for the database.
-
-## When to Use This Skill
-
-- You have metagenomic reads and want to know what organisms are present
-- You need fast classification for screening
-- You want to classify reads for downstream assembly filtering
-- You're looking for viral or rare taxa (better database coverage)
-
-## Installation
-
+## Prerequisites
 ```bash
 conda install -c bioconda kraken2
-```
 
-## Database Setup
-
-### Option 1: Download Pre-built Database
-
-```bash
-# Download from https://benlangmead.github.io/aws-indexes/k2
+# Download pre-built database
 wget https://genome-idx.s3.amazonaws.com/kraken/k2_standard_08gb_20230605.tar.gz
 mkdir kraken2_db && tar -xzf k2_standard_08gb_20230605.tar.gz -C kraken2_db
-```
 
-### Option 2: Build Standard Database
-
-```bash
+# Or build standard database (~100GB disk, ~50GB final)
 kraken2-build --standard --db kraken2_standard_db --threads 16
 ```
 
-This downloads RefSeq bacterial, archaeal, viral, and human genomes. Requires ~100GB disk space during build, ~50GB final.
+## Quick Start
+Tell your AI agent what you want to do:
+- "Classify my metagenomic reads to identify organisms"
+- "Run Kraken2 on paired-end reads and generate a report"
+- "Filter out human reads from my metagenome"
 
-## Basic Workflow
+## Example Prompts
+### Basic Classification
+> "Run Kraken2 on reads_R1.fastq.gz and reads_R2.fastq.gz using the standard database"
 
-```bash
-# 1. Classify reads
-kraken2 --db kraken2_db \
-    --threads 8 \
-    --paired \
-    --output classifications.kraken \
-    --report kraken_report.txt \
-    reads_R1.fastq.gz reads_R2.fastq.gz
+> "Classify my shotgun metagenomics data and show me the top 20 species"
 
-# 2. View top taxa
-head kraken_report.txt
+### Database Selection
+> "Use the viral database to screen for viral sequences in my sample"
 
-# 3. Get species only
-awk '$4 == "S"' kraken_report.txt | sort -k1 -nr | head -20
-```
+> "Run Kraken2 with the standard-8 database since I have limited RAM"
 
-## Common Issues
+### Post-classification Analysis
+> "Extract only bacterial classifications from my Kraken2 output"
 
-### Database Loading Fails
+> "Get species-level results and sort by abundance"
 
-- Check available RAM (`free -h`)
-- Use `--memory-mapping` for low-memory systems
-- Use smaller database (standard-8)
+## What the Agent Will Do
+1. Verify Kraken2 installation and database availability
+2. Run classification with appropriate parameters for paired/single reads
+3. Generate per-read classifications and taxonomic report
+4. Parse and summarize results by taxonomic level
 
-### Low Classification Rate
-
-- Normal for environmental samples (30-70% is common)
-- May indicate novel organisms
-- Try different database with broader coverage
-
-### Slow Performance
-
-- Use more threads (`--threads`)
-- Ensure database is on fast storage (SSD)
-- Pre-load database into memory cache
+## Tips
+- Use `--memory-mapping` for low-memory systems (slower but works)
+- Classification rate of 30-70% is normal for environmental samples
+- Store databases on SSD for better performance
+- Run Bracken after Kraken2 for improved abundance estimates
+- Use `--threads` to parallelize (8-16 typically optimal)
 
 ## Output Files
 
@@ -80,11 +57,6 @@ awk '$4 == "S"' kraken_report.txt | sort -k1 -nr | head -20
 | output.kraken | Per-read classifications |
 | report.txt | Taxonomic summary |
 
-## Next Steps
-
-After Kraken2 classification, typically run Bracken for species abundance estimation.
-
 ## Resources
-
 - [Kraken2 GitHub](https://github.com/DerrickWood/kraken2)
 - [Pre-built Databases](https://benlangmead.github.io/aws-indexes/k2)

@@ -1,16 +1,9 @@
-# Functional Profiling Usage Guide
+# Functional Profiling - Usage Guide
 
-HUMAnN3 (HMP Unified Metabolic Analysis Network) profiles the functional potential of metagenomic communities.
+## Overview
+HUMAnN3 profiles the functional potential of metagenomic communities by quantifying gene families (UniRef90) and inferring pathway abundances (MetaCyc).
 
-## What It Does
-
-1. **Maps reads** to species-specific pangenomes (via MetaPhlAn)
-2. **Translates unmapped reads** to protein database
-3. **Quantifies gene families** (UniRef90 clusters)
-4. **Infers pathway abundance** (MetaCyc pathways)
-
-## Installation
-
+## Prerequisites
 ```bash
 conda create -n humann -c bioconda humann
 conda activate humann
@@ -21,36 +14,53 @@ humann_databases --download uniref uniref90_diamond /db/humann
 ```
 
 ## Quick Start
+Tell your AI agent what you want to do:
+- "Profile the functional potential of my metagenome"
+- "Identify metabolic pathways in my microbial community"
+- "Compare pathway abundances across treatment groups"
 
-```bash
-# Single sample
-humann --input sample.fq.gz --output sample_out --threads 8
+## Example Prompts
+### Basic Profiling
+> "Run HUMAnN3 on sample.fastq.gz to get pathway abundances"
 
-# Multiple samples
-for fq in *.fq.gz; do
-    humann --input $fq --output $(basename $fq .fq.gz)_out -t 8
-done
+> "Profile functional genes in my metagenome with 8 threads"
 
-# Join and normalize
-humann_join_tables -i . -o merged_pathways.tsv --file_name pathabundance
-humann_renorm_table -i merged_pathways.tsv -o pathways_relab.tsv -u relab
-```
+### Multi-sample Analysis
+> "Process all fastq files through HUMAnN3 and merge the results"
 
-## Output Interpretation
+> "Normalize pathway abundances to relative abundance and compare groups"
 
-### Gene Families (UniRef90)
-- Abundance in RPKs (reads per kilobase)
-- Can be regrouped to EC, KO, GO, Pfam
+### Gene Family Analysis
+> "Regroup gene families to KEGG Orthologs (KO)"
 
-### Pathway Abundance
-- MetaCyc pathway abundances
-- Stratified by contributing species
-- UNMAPPED = reads not mapping to any gene
-- UNINTEGRATED = genes not in any pathway
+> "Show which species contribute to each pathway in my sample"
 
-### Pathway Coverage
-- Fraction of pathway genes detected (0-1)
-- Low coverage = incomplete pathway
+### Database Selection
+> "Use the smaller uniref50 database for faster processing"
+
+> "Run HUMAnN3 with a pre-computed MetaPhlAn profile to speed things up"
+
+## What the Agent Will Do
+1. Run MetaPhlAn for taxonomic profiling (if not provided)
+2. Map reads to species-specific pangenomes
+3. Translate unmapped reads to protein database
+4. Quantify gene families and infer pathway abundances
+5. Merge and normalize results across samples if requested
+
+## Tips
+- Concatenate paired-end reads before running (HUMAnN handles both orientations)
+- Pre-compute MetaPhlAn profile with `--taxonomic-profile` for speed
+- High UNMAPPED rate indicates missing database coverage
+- Always normalize before cross-sample comparison (use `humann_renorm_table`)
+- Stratified output shows species contributions to each pathway
+
+## Database Options
+
+| Database | Size | Speed | Sensitivity |
+|----------|------|-------|-------------|
+| uniref90_diamond | 16GB | Fast | Standard |
+| uniref50_diamond | 5GB | Faster | Lower |
+| uniref90_ec_filtered | 0.8GB | Fastest | EC only |
 
 ## Key Parameters
 
@@ -61,18 +71,6 @@ humann_renorm_table -i merged_pathways.tsv -o pathways_relab.tsv -u relab
 | `--taxonomic-profile` | Pre-computed MetaPhlAn profile |
 | `--bypass-nucleotide-search` | Skip pangenome search |
 
-## Database Options
-
-| Database | Size | Speed | Sensitivity |
-|----------|------|-------|-------------|
-| uniref90_diamond | 16GB | Fast | Standard |
-| uniref50_diamond | 5GB | Faster | Lower |
-| uniref90_ec_filtered | 0.8GB | Fastest | EC only |
-
-## Tips
-
-1. **Use MetaPhlAn pre-profile** for speed if you have it
-2. **Concatenate paired-end reads** - HUMAnN handles both orientations
-3. **Check UNMAPPED rate** - high rates indicate missing database coverage
-4. **Normalize before comparison** - use relab or CPM
-5. **Consider stratification** - species contributions add biological insight
+## Resources
+- [HUMAnN3 User Manual](https://huttenhower.sph.harvard.edu/humann/)
+- [bioBakery Tools](https://github.com/biobakery/biobakery)

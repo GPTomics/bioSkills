@@ -5,10 +5,11 @@ from cyvcf2 import VCF
 import csv
 
 def prioritize_variant(v):
-    '''Score variant based on clinical criteria'''
+    '''Score variant based on clinical criteria. Weights reflect ACMG evidence strength.'''
     score = 0
     reasons = []
 
+    # ClinVar: Pathogenic (+10) > Likely pathogenic (+8) per ACMG strong evidence
     clnsig = v.INFO.get('CLNSIG', '')
     if 'Pathogenic' in str(clnsig):
         score += 10
@@ -17,6 +18,7 @@ def prioritize_variant(v):
         score += 8
         reasons.append('ClinVar_Likely_Pathogenic')
 
+    # AF: <0.001 rare (+5), <0.01 uncommon (+3); thresholds per gnomAD guidance
     af = v.INFO.get('gnomAD_AF', v.INFO.get('AF', 1.0))
     if af is not None and af < 0.001:
         score += 5
@@ -25,6 +27,7 @@ def prioritize_variant(v):
         score += 3
         reasons.append('Uncommon_AF<0.01')
 
+    # CADD: >25 high deleterious (~0.3% most deleterious), >20 moderate (~1%)
     cadd = v.INFO.get('CADD_PHRED', 0)
     if cadd and cadd > 25:
         score += 4
@@ -33,6 +36,7 @@ def prioritize_variant(v):
         score += 2
         reasons.append('ModerateCADD>20')
 
+    # Consequence: LoF (+5) > missense (+2); LoF generally more disruptive
     consequence = v.INFO.get('Consequence', v.INFO.get('ANN', ''))
     if 'stop_gained' in str(consequence) or 'frameshift' in str(consequence):
         score += 5

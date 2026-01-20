@@ -1,28 +1,41 @@
-# Medaka Polishing and Variant Calling - Usage Guide
+# Medaka Polishing - Usage Guide
 
 ## Overview
-
 Medaka uses neural networks to polish consensus sequences and call variants from Oxford Nanopore data. Models are trained on specific basecaller versions for optimal accuracy.
 
-## When to Use This Skill
-
-- You have a draft assembly from ONT data that needs polishing
-- You want to call SNPs/indels from Nanopore reads
-- You need to improve consensus accuracy for a genomic region
-
-## Installation
-
+## Prerequisites
 ```bash
-# Conda (recommended)
 conda create -n medaka -c conda-forge -c bioconda medaka
 conda activate medaka
-
-# Verify
-medaka --version
 ```
 
-## Model Selection
+## Quick Start
+Tell your AI agent what you want to do:
+- "Polish my draft assembly with medaka"
+- "Call variants from ONT reads using medaka"
 
+## Example Prompts
+
+### Assembly Polishing
+> "Polish my draft assembly draft.fa using reads.fastq.gz with medaka"
+
+> "Run medaka consensus on my Nanopore assembly using the R10.4.1 SUP model"
+
+### Variant Calling
+> "Call haploid variants from my ONT reads aligned to the reference"
+
+### Model Selection
+> "What medaka model should I use for R10.4.1 flowcell with SUP basecalling?"
+
+> "List available medaka models and help me choose the right one"
+
+## What the Agent Will Do
+1. Identify the correct medaka model based on your basecaller and chemistry
+2. Run medaka_consensus for polishing or medaka_variant for variant calling
+3. Handle intermediate files and cleanup
+4. Report improvement in consensus quality
+
+## Model Selection
 Critical: Use the model matching your basecaller.
 
 ```bash
@@ -34,51 +47,6 @@ medaka tools list_models
 # - r941_min_sup_g507 (R9.4.1, SUP)
 ```
 
-## Basic Workflows
-
-### Assembly Polishing
-
-```bash
-medaka_consensus \
-    -i reads.fastq.gz \
-    -d draft_assembly.fa \
-    -o medaka_output \
-    -t 4 \
-    -m r1041_e82_400bps_sup_v5.0.0
-```
-
-### Variant Calling (Haploid)
-
-```bash
-# medaka v2.0+ uses medaka_variant for haploid samples
-medaka_variant \
-    -i reads.fastq.gz \
-    -r reference.fa \
-    -o output_dir \
-    -m r1041_e82_400bps_sup_v5.0.0
-
-# For diploid samples, use Clair3 instead (medaka diploid is deprecated)
-```
-
-## Common Issues
-
-### Wrong Model
-
-Symptoms: Poor polishing, unusual errors
-Solution: Check basecaller version and select matching model
-
-### Out of Memory
-
-- Reduce batch size (-b 50)
-- Process by region (--region chr1)
-- Use fewer threads
-
-### Slow Performance
-
-- Use GPU if available
-- Pre-align reads with minimap2
-- Increase batch size if GPU memory allows
-
 ## Expected Accuracy
 
 | Basecaller | Before Polish | After Polish |
@@ -86,7 +54,13 @@ Solution: Check basecaller version and select matching model
 | SUP R10.4.1 | Q20 (~99%) | Q40+ (>99.99%) |
 | HAC R10.4.1 | Q15-18 | Q30+ |
 
-## Resources
+## Tips
+- Wrong model is the most common cause of poor polishing - always check basecaller version
+- For diploid variant calling, use Clair3 instead (medaka diploid is deprecated)
+- Reduce batch size (`-b 50`) if running out of memory
+- Process by region (`--region chr1`) for large genomes
+- Use GPU if available for much faster processing
 
+## Resources
 - [Medaka GitHub](https://github.com/nanoporetech/medaka)
 - [ONT Community](https://community.nanoporetech.com/)

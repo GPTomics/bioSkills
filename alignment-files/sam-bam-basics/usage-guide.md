@@ -1,25 +1,71 @@
-# SAM/BAM/CRAM Basics Usage Guide
+# SAM/BAM/CRAM Basics - Usage Guide
 
-This guide covers viewing, converting, and understanding alignment files.
+## Overview
+View, convert, and understand alignment files in SAM, BAM, and CRAM formats using samtools and pysam.
 
 ## Prerequisites
+```bash
+# samtools
+conda install -c bioconda samtools
 
-- samtools installed (`conda install -c bioconda samtools` or `brew install samtools`)
-- pysam installed (`pip install pysam`)
+# pysam
+pip install pysam
+```
+
+## Quick Start
+Tell your AI agent what you want to do:
+- "View the first 10 reads in my BAM file"
+- "Convert my SAM file to BAM format"
+- "Count the total number of reads in sample.bam"
+- "Extract reads from chromosome 1"
+
+## Example Prompts
+
+### Viewing Files
+> "Show me the header of my BAM file"
+
+> "View the first 20 alignments with the header included"
+
+> "Count how many reads are in my BAM file"
+
+### Format Conversion
+> "Convert my SAM file to compressed BAM"
+
+> "Convert my BAM to CRAM format using the reference genome"
+
+> "Convert CRAM back to BAM for compatibility with older tools"
+
+### Region Extraction
+> "Extract all reads from chr1:1000000-2000000"
+
+> "Get reads from multiple regions: chr1:1000-2000 and chr2:3000-4000"
+
+> "Count reads in a specific genomic region"
+
+### Understanding Alignments
+> "Explain what FLAG 99 means in my SAM file"
+
+> "Parse the CIGAR string 10M2I30M5D20M"
+
+> "Show me the mapping quality distribution of my reads"
+
+## What the Agent Will Do
+
+1. Open the alignment file with appropriate mode (SAM/BAM/CRAM)
+2. Parse the header to understand reference sequences and metadata
+3. Iterate through alignments or fetch specific regions
+4. Extract read properties (name, flag, position, quality, sequence)
+5. Apply any requested filters or transformations
+6. Output results in the requested format
 
 ## Understanding SAM Format
 
-SAM (Sequence Alignment/Map) is the standard text format for storing aligned sequencing reads. BAM is the compressed binary equivalent, and CRAM provides even better compression using reference-based encoding.
-
 ### File Structure
-
 A SAM file has two sections:
-
 1. **Header** - Lines starting with `@` containing metadata
 2. **Alignments** - Tab-separated alignment records
 
 ### Header Types
-
 ```
 @HD VN:1.6 SO:coordinate           # File metadata
 @SQ SN:chr1 LN:248956422           # Reference sequences
@@ -28,9 +74,6 @@ A SAM file has two sections:
 ```
 
 ### Alignment Fields
-
-Each alignment line has 11 mandatory fields plus optional tags:
-
 | Column | Name | Description |
 |--------|------|-------------|
 | 1 | QNAME | Query (read) name |
@@ -45,155 +88,89 @@ Each alignment line has 11 mandatory fields plus optional tags:
 | 10 | SEQ | Read sequence |
 | 11 | QUAL | Base quality string |
 
-## Working with samtools
+### Common FLAGS
+| FLAG | Meaning |
+|------|---------|
+| 99 | First read, properly paired, mate on reverse strand |
+| 147 | Second read, properly paired, on reverse strand |
+| 4 | Unmapped read |
+| 256 | Secondary alignment |
+| 2048 | Supplementary alignment |
 
-### Viewing Files
+### CIGAR Operations
+| Op | Description |
+|----|-------------|
+| M | Alignment match/mismatch |
+| I | Insertion to reference |
+| D | Deletion from reference |
+| N | Skipped region (RNA intron) |
+| S | Soft clipping |
+| H | Hard clipping |
 
+## Common Commands
+
+### Viewing
 ```bash
-# View first 10 alignments
-samtools view input.bam | head
-
-# View with header
-samtools view -h input.bam | head -50
-
-# View header only
-samtools view -H input.bam
-
-# View specific chromosome
-samtools view input.bam chr1
-
-# View specific region (requires index)
-samtools view input.bam chr1:1000000-2000000
-
-# Count total alignments
-samtools view -c input.bam
-
-# Count alignments in region
-samtools view -c input.bam chr1:1000000-2000000
+samtools view input.bam | head              # First 10 alignments
+samtools view -h input.bam | head -50       # With header
+samtools view -H input.bam                  # Header only
+samtools view input.bam chr1                # Specific chromosome
+samtools view input.bam chr1:1000000-2000000  # Specific region
+samtools view -c input.bam                  # Count alignments
 ```
 
-### Format Conversion
-
+### Conversion
 ```bash
-# SAM to BAM (compression)
-samtools view -b -o output.bam input.sam
-
-# BAM to SAM (for inspection/debugging)
-samtools view -h -o output.sam input.bam
-
-# BAM to CRAM (maximum compression, needs reference)
-samtools view -C -T reference.fa -o output.cram input.bam
-
-# CRAM to BAM
-samtools view -b -T reference.fa -o output.bam input.cram
+samtools view -b -o output.bam input.sam              # SAM to BAM
+samtools view -h -o output.sam input.bam              # BAM to SAM
+samtools view -C -T reference.fa -o output.cram input.bam  # BAM to CRAM
+samtools view -b -T reference.fa -o output.bam input.cram  # CRAM to BAM
 ```
 
-### Understanding FLAGS
-
-The FLAG field is a bitwise combination of properties:
-
+### Decode FLAGS
 ```bash
-# Decode a FLAG value
-samtools flags 99
-# Output: 0x63 99 PAIRED,PROPER_PAIR,MREVERSE,READ1
-
-samtools flags 147
-# Output: 0x93 147 PAIRED,PROPER_PAIR,REVERSE,READ2
+samtools flags 99   # 0x63 99 PAIRED,PROPER_PAIR,MREVERSE,READ1
+samtools flags 147  # 0x93 147 PAIRED,PROPER_PAIR,REVERSE,READ2
 ```
 
-Common FLAG combinations:
-- 99: First read, properly paired, mate on reverse strand
-- 147: Second read, properly paired, on reverse strand
-- 4: Unmapped read
-- 256: Secondary alignment
+## Python with pysam
 
-## Working with pysam
-
-### Basic Reading
-
-```python
-import pysam
-
-# Open BAM file
-bam = pysam.AlignmentFile('input.bam', 'rb')
-
-# Iterate over all reads
-for read in bam:
-    print(read.query_name, read.reference_name, read.reference_start)
-
-bam.close()
-```
-
-### Using Context Manager
-
+### Reading BAM
 ```python
 import pysam
 
 with pysam.AlignmentFile('input.bam', 'rb') as bam:
     for read in bam:
-        # Process read
-        pass
+        print(read.query_name, read.reference_name, read.reference_start)
 ```
 
 ### Accessing Read Properties
-
 ```python
 import pysam
 
 with pysam.AlignmentFile('input.bam', 'rb') as bam:
     for read in bam:
-        # Basic properties
         name = read.query_name
         flag = read.flag
         chrom = read.reference_name
-        pos = read.reference_start  # 0-based!
+        pos = read.reference_start  # 0-based
         mapq = read.mapping_quality
         cigar = read.cigarstring
         seq = read.query_sequence
-        qual = read.query_qualities  # As array of integers
-
-        # Flag checks
-        is_paired = read.is_paired
-        is_proper = read.is_proper_pair
-        is_unmapped = read.is_unmapped
-        is_reverse = read.is_reverse
-        is_read1 = read.is_read1
-        is_read2 = read.is_read2
-        is_secondary = read.is_secondary
-        is_supplementary = read.is_supplementary
-        is_duplicate = read.is_duplicate
-
-        # Optional tags
-        nm = read.get_tag('NM') if read.has_tag('NM') else None
-
-        break  # Just show first read
+        qual = read.query_qualities
+        break
 ```
 
 ### Fetching Regions
-
 ```python
 import pysam
 
 with pysam.AlignmentFile('input.bam', 'rb') as bam:
-    # Fetch requires index (input.bam.bai)
     for read in bam.fetch('chr1', 1000000, 2000000):
         print(read.query_name)
 ```
 
-### Writing Files
-
-```python
-import pysam
-
-# Copy BAM to new file
-with pysam.AlignmentFile('input.bam', 'rb') as infile:
-    with pysam.AlignmentFile('output.bam', 'wb', header=infile.header) as outfile:
-        for read in infile:
-            outfile.write(read)
-```
-
 ### File Mode Strings
-
 | Mode | Description |
 |------|-------------|
 | `rb` | Read BAM |
@@ -202,77 +179,32 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
 | `wb` | Write BAM |
 | `w` | Write SAM |
 | `wc` | Write CRAM |
-| `wbu` | Write uncompressed BAM |
-
-## CIGAR String Interpretation
-
-CIGAR describes how the read aligns to the reference:
-
-| Operation | Consumes Query | Consumes Reference | Description |
-|-----------|----------------|-------------------|-------------|
-| M | Yes | Yes | Alignment match/mismatch |
-| I | Yes | No | Insertion |
-| D | No | Yes | Deletion |
-| N | No | Yes | Skipped region (RNA intron) |
-| S | Yes | No | Soft clipping |
-| H | No | No | Hard clipping |
-| = | Yes | Yes | Sequence match |
-| X | Yes | Yes | Sequence mismatch |
-
-Example: `10M2I30M5D20M`
-- 10 bases match
-- 2 bases inserted (in read, not in reference)
-- 30 bases match
-- 5 bases deleted (in reference, not in read)
-- 20 bases match
-
-## Common Workflows
-
-### Inspect a BAM File
-
-```bash
-# Check if sorted and indexed
-samtools view -H input.bam | grep "^@HD"
-
-# Count reads
-samtools view -c input.bam
-
-# View first few reads
-samtools view input.bam | head
-
-# Check reference sequences
-samtools view -H input.bam | grep "^@SQ" | head
-```
-
-### Convert Aligner Output
-
-```bash
-# BWA outputs SAM, convert to sorted BAM
-bwa mem reference.fa reads.fq | samtools sort -o aligned.bam
-
-# Index the result
-samtools index aligned.bam
-```
-
-### Prepare for IGV
-
-```bash
-# IGV needs sorted, indexed BAM
-samtools sort -o sorted.bam input.bam
-samtools index sorted.bam
-```
 
 ## Troubleshooting
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| `[E::idx_find_and_load] Could not retrieve index file` | Missing index | Run `samtools index file.bam` |
-| `[E::hts_open_format] Failed to open file` | File doesn't exist or wrong permissions | Check path and permissions |
-| Truncated output | Pipe closed early | Use `samtools view -h` to include header |
-| CRAM errors | Missing reference | Provide `-T reference.fa` |
+### Missing Index Error
+```bash
+# Error: Could not retrieve index file
+samtools index file.bam
+```
 
-## See Also
+### CRAM Requires Reference
+```bash
+# Always provide reference for CRAM
+samtools view -T reference.fa input.cram
+```
 
-- [SAM Format Specification](https://samtools.github.io/hts-specs/SAMv1.pdf)
-- [samtools documentation](http://www.htslib.org/doc/samtools.html)
-- [pysam documentation](https://pysam.readthedocs.io/)
+### Chromosome Name Mismatch
+```bash
+# Check chromosome names in file
+samtools view -H input.bam | grep "^@SQ"
+# Use matching names: "chr1" not "1" if file uses "chr1"
+```
+
+## Tips
+- Always check if BAM is sorted and indexed before region queries
+- Use BAM for most operations, CRAM only when storage is critical
+- pysam uses 0-based coordinates, samtools uses 1-based
+- Include `-h` flag when piping to preserve header information
+- Use context managers with pysam to ensure proper file closing
+- The `-@` flag enables multi-threading for faster processing

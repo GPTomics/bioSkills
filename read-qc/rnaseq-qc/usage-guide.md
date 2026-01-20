@@ -1,41 +1,9 @@
-# RNA-seq QC Usage Guide
+# RNA-seq QC - Usage Guide
 
-This guide covers RNA-seq specific quality control beyond general read quality.
+## Overview
+RNA-seq QC goes beyond general read quality to assess RNA-specific metrics including rRNA contamination, library strandedness, gene body coverage, and transcript integrity.
 
-## Key Metrics
-
-### rRNA Contamination
-Measure of ribosomal RNA remaining after depletion/selection. Should be <10%.
-
-### Strandedness
-Library strand orientation. Must match analysis settings.
-
-### Gene Body Coverage
-Even coverage indicates good RNA integrity. 3' bias suggests degradation.
-
-### Transcript Integrity Number (TIN)
-Per-transcript measure of degradation. Mean >70 is good.
-
-## Workflow
-
-```
-FASTQ
-  |
-  v
-General QC (FastQC)
-  |
-  v
-Alignment
-  |
-  v
-RNA-seq QC <-- This skill
-  |
-  v
-Quantification
-```
-
-## Requirements
-
+## Prerequisites
 ```bash
 # RSeQC
 pip install RSeQC
@@ -50,17 +18,56 @@ conda install -c bioconda picard
 pip install multiqc
 ```
 
-## Common Issues
+## Quick Start
+Tell your AI agent what you want to do:
+- "Check the RNA-seq specific quality metrics for my samples"
+- "Verify the strandedness of my RNA-seq library"
+- "Assess gene body coverage and RNA integrity"
 
-### High rRNA
-- rRNA depletion failed
-- Use SortMeRNA to filter
+## Example Prompts
 
-### Wrong strandedness
-- Verify library prep protocol
-- Use salmon `-l A` to auto-detect
+### Strandedness
+> "Determine the strandedness of my RNA-seq library using RSeQC"
 
-### 3' bias
-- RNA degradation
-- Check input RNA quality
-- Consider excluding low-TIN samples
+> "Check if my library is stranded or unstranded before running alignment"
+
+### rRNA Contamination
+> "Measure the rRNA contamination level in my samples"
+
+> "Filter rRNA reads from my RNA-seq data using SortMeRNA"
+
+### RNA Integrity
+> "Calculate gene body coverage to assess RNA degradation"
+
+> "Compute TIN scores for all my samples to check RNA integrity"
+
+### Comprehensive QC
+> "Run full RNA-seq QC including strandedness, coverage, and rRNA metrics"
+
+## What the Agent Will Do
+1. Run RSeQC tools on aligned BAM files
+2. Determine library strandedness for correct quantification settings
+3. Calculate gene body coverage to detect 3'/5' bias
+4. Compute TIN scores per transcript
+5. Measure rRNA contamination levels
+6. Aggregate results with MultiQC
+
+## Key Metrics
+
+| Metric | Good | Warning | Action |
+|--------|------|---------|--------|
+| rRNA contamination | <10% | >20% | Filter rRNA or re-prep |
+| Gene body coverage | Even | 3' bias | Check RNA quality |
+| Mean TIN | >70 | <50 | Exclude degraded samples |
+
+## Tips
+- Run strandedness check early; wrong settings cause major quantification errors
+- 3' bias in gene body coverage indicates RNA degradation
+- High rRNA despite depletion may require computational filtering with SortMeRNA
+- Use salmon `-l A` to auto-detect strandedness if unsure
+- TIN scores below 50 suggest significant degradation; consider excluding those samples
+
+## Resources
+- [RSeQC Documentation](http://rseqc.sourceforge.net/)
+- [SortMeRNA GitHub](https://github.com/biocore/sortmerna)
+- [Picard RNA Metrics](https://broadinstitute.github.io/picard/)

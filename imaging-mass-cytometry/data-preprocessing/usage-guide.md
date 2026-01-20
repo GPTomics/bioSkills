@@ -1,44 +1,52 @@
-# Data Preprocessing Usage Guide
+# Data Preprocessing - Usage Guide
 
 ## Overview
+IMC/MIBI data requires preprocessing before analysis including hot pixel removal, normalization, and format conversion.
 
-IMC/MIBI data requires preprocessing before analysis. Key steps include hot pixel removal, normalization, and format conversion.
+## Prerequisites
+```bash
+pip install readimc tifffile napari scikit-image
+# For steinbock pipeline (Docker-based)
+docker pull ghcr.io/bodenmillergroup/steinbock:latest
+```
 
-## Data Formats
+## Quick Start
+Tell your AI agent what you want to do:
+- "Load MCD files and extract multichannel TIFFs"
+- "Remove hot pixels from my IMC images"
+- "Normalize channel intensities across samples"
 
-| Format | Source | Description |
-|--------|--------|-------------|
-| MCD | Hyperion | Contains all acquisitions |
-| TIFF | Export | Multi-channel images |
-| OME-TIFF | Standard | Metadata-rich TIFF |
+## Example Prompts
 
-## Preprocessing Steps
+### Data Loading
+> "Read my MCD file and export each acquisition as OME-TIFF"
 
-1. **Extract images** from MCD files
-2. **Remove hot pixels** (detector artifacts)
-3. **Normalize** intensity values
-4. **Transform** (arcsinh for visualization)
+> "Convert my Hyperion MCD file to multichannel TIFF images"
 
-## Hot Pixels
+### Hot Pixel Removal
+> "Detect and remove hot pixels from my IMC images using median filtering"
 
-Caused by detector noise. Appear as bright spots in single pixels.
-- Median filter comparison detects them
-- Replace with local median
+> "Clean detector artifacts from my MIBI data"
 
-## Normalization Options
+### Normalization
+> "Apply percentile normalization to my IMC channels"
 
-- **Percentile**: Scale to 1st-99th percentile
-- **Z-score**: Mean=0, SD=1 per channel
-- **Min-max**: Scale to 0-1
+> "Arcsinh transform my intensity values for visualization"
 
-## Tools
+### Batch Processing
+> "Preprocess all MCD files in my experiment folder"
 
-- **steinbock**: Complete pipeline (Docker-based)
-- **readimc**: Python MCD reading
-- **napari**: Visualization
-- **tifffile**: TIFF I/O
+## What the Agent Will Do
+1. Load raw data from MCD/TIFF files using readimc or tifffile
+2. Detect hot pixels by comparing to local median filter
+3. Replace hot pixels with local median values
+4. Apply normalization (percentile, z-score, or min-max)
+5. Optionally apply arcsinh transformation for visualization
+6. Save preprocessed images as OME-TIFF
 
-## References
-
-- steinbock: doi:10.1038/s41592-022-01459-z
-- readimc: https://github.com/BodenmillerGroup/readimc
+## Tips
+- MCD files contain all acquisitions; extract each ROI separately
+- Hot pixels appear as bright single-pixel spots from detector noise
+- Percentile normalization (1st-99th) is robust to outliers
+- Arcsinh transform (cofactor 5) is standard for visualization
+- steinbock provides a complete Docker-based preprocessing pipeline

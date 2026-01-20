@@ -25,3 +25,7 @@ consensus_tree.ladderize()
 
 print('\nMajority Rule Consensus Tree:')
 Phylo.draw_ascii(consensus_tree)
+
+# Expected output: Bootstrap values appear as branch confidences (0-100%)
+# Interpretation: <50 = weak, 50-70 = moderate, 70-90 = good, >90 = strong support
+# For publication: typically require >70% bootstrap support to report a clade

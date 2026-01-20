@@ -1,84 +1,107 @@
-# Enzyme Selection Usage Guide
+# Enzyme Selection - Usage Guide
 
+## Overview
 Choose restriction enzymes based on various criteria for cloning experiments.
 
 ## Prerequisites
-
 ```bash
 pip install biopython
 ```
 
-## Common Selection Criteria
+## Quick Start
+Tell your AI agent what you want to do:
+- "Find enzymes that cut my plasmid exactly once"
+- "Which enzymes don't cut my insert sequence?"
 
-### 1. Single-Cutters (Linearization)
+## Example Prompts
 
-Find enzymes that cut a plasmid exactly once:
+### Single-Cutters
+> "Find all enzymes that cut my plasmid exactly once for linearization"
 
+> "Which commercial enzymes are single-cutters in pUC19?"
+
+### Non-Cutters
+> "Find enzymes that don't cut my insert but do cut the vector"
+
+> "Which enzymes should I avoid for my insert sequence?"
+
+### Compatible Ends
+> "Find enzymes with sticky ends compatible with BamHI"
+
+> "Which enzymes produce the same overhang as EcoRI?"
+
+### Cloning Strategy
+> "Find enzyme pairs for directional cloning of my insert into pET28a"
+
+> "Suggest enzymes for Golden Gate assembly of my construct"
+
+### Methylation
+> "Which enzymes are blocked by Dam methylation?"
+
+> "Find methylation-insensitive alternatives to MboI"
+
+## What the Agent Will Do
+1. Analyze your vector and/or insert sequences
+2. Search for enzymes matching your criteria
+3. Filter by commercial availability
+4. Check compatibility and methylation sensitivity
+5. Recommend enzyme choices for your cloning strategy
+
+## Code Patterns
+
+### Single-Cutters (Linearization)
 ```python
 from Bio import SeqIO
 from Bio.Restriction import Analysis, CommOnly
 
 record = SeqIO.read('plasmid.fasta', 'fasta')
 analysis = Analysis(CommOnly, record.seq, linear=False)
-
 once_cutters = analysis.once_cutters()
 print(f'Found {len(once_cutters)} single-cutters')
 ```
 
-### 2. Non-Cutters (Insert Protection)
-
-Find enzymes that don't cut your insert:
-
+### Non-Cutters (Insert Protection)
 ```python
 analysis = Analysis(CommOnly, insert_seq)
 non_cutters = analysis.only_dont_cut()
 ```
 
-### 3. Compatible Enzymes
-
-Find enzymes with compatible sticky ends:
-
+### Compatible Enzymes
 ```python
 from Bio.Restriction import BamHI
 
 compatible = BamHI.compatible_end()
-# Returns enzymes that produce compatible overhangs
 ```
 
-### 4. Rare Cutters
-
-8-base recognition (cut rarely):
-
+### Directional Cloning Selection
 ```python
-eight_cutters = [e for e in CommOnly if len(e.site) == 8]
-```
-
-## Cloning Strategy Selection
-
-### Directional Cloning
-
-Need two different enzymes that:
-- Cut vector once each
-- Don't cut insert
-- Produce incompatible ends (for directionality)
-
-```python
-# Find candidates
 vec_once = set(Analysis(CommOnly, vector_seq).once_cutters().keys())
 ins_none = set(Analysis(CommOnly, insert_seq).only_dont_cut())
 candidates = vec_once & ins_none
 
-# Pick one 5' and one 3' overhang enzyme
 five_prime = [e for e in candidates if e.is_5overhang()]
 three_prime = [e for e in candidates if e.is_3overhang()]
+blunt = [e for e in candidates if e.is_blunt()]
 ```
 
-### Blunt-End Cloning
-
-For blunt-end ligation:
-
+### Rare Cutters (8-base)
 ```python
-blunt = [e for e in candidates if e.is_blunt()]
+eight_cutters = [e for e in CommOnly if len(e.site) == 8]
+```
+
+### Methylation Sensitivity
+```python
+enzyme.is_dam_methylable()  # True if blocked by Dam
+enzyme.is_dcm_methylable()  # True if blocked by Dcm
+```
+
+### Golden Gate Compatibility
+```python
+from Bio.Restriction import BsaI
+
+sites = BsaI.search(insert_seq)
+if not sites:
+    print('Insert is Golden Gate compatible')
 ```
 
 ## Overhang Types
@@ -88,17 +111,6 @@ blunt = [e for e in candidates if e.is_blunt()]
 | 5' overhang | EcoRI, BamHI | Most common cloning |
 | 3' overhang | PstI, KpnI | Specific strategies |
 | Blunt | EcoRV, SmaI | When no compatible sites |
-
-## Commercial Availability
-
-Always check if enzyme is commercially available:
-
-```python
-from Bio.Restriction import CommOnly
-
-# CommOnly contains only commercial enzymes
-analysis = Analysis(CommOnly, seq)  # Use CommOnly, not AllEnzymes
-```
 
 ## Recognition Site Length
 
@@ -110,24 +122,14 @@ analysis = Analysis(CommOnly, seq)  # Use CommOnly, not AllEnzymes
 
 ## Methylation Sensitivity
 
-When working with genomic DNA from bacteria (E. coli), methylation can block certain enzymes:
-
 | Methylation | Enzymes Blocked | Alternative |
 |-------------|-----------------|-------------|
 | Dam (GATC) | MboI, DpnII, Sau3AI | Sau3AI (partially resistant) |
 | Dcm (CCWGG) | BstNI, EcoRII | BsaWI |
 
-```python
-# Check methylation sensitivity
-enzyme.is_dam_methylable()  # True if blocked by Dam
-enzyme.is_dcm_methylable()  # True if blocked by Dcm
-```
+Note: DpnI requires Dam methylation to cut.
 
-**Note:** DpnI is the opposite - it *requires* Dam methylation to cut.
-
-## Golden Gate / Type IIS Cloning
-
-Type IIS enzymes cut outside their recognition site, enabling scarless assembly:
+## Type IIS Enzymes (Golden Gate)
 
 | Enzyme | Recognition | Overhang |
 |--------|-------------|----------|
@@ -136,21 +138,10 @@ Type IIS enzymes cut outside their recognition site, enabling scarless assembly:
 | BbsI | GAAGAC | 4 bp |
 | SapI | GCTCTTC | 3 bp |
 
-For Golden Gate cloning, your insert must be **free of the Type IIS site**:
-
-```python
-from Bio.Restriction import BsaI
-
-sites = BsaI.search(insert_seq)
-if not sites:
-    print('Insert is Golden Gate compatible')
-```
-
 ## Tips
-
 - Use 6-cutters for routine cloning
 - Use 8-cutters for large constructs
 - Check both vector AND insert for cut sites
 - Consider methylation sensitivity for genomic DNA
 - For Golden Gate, verify insert lacks Type IIS sites
-- Verify commercial availability before planning
+- Always use CommOnly for practical applications

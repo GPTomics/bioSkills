@@ -1,50 +1,63 @@
-# Strain Tracking Usage Guide
+# Strain Tracking - Usage Guide
 
-Track bacterial strains at sub-species resolution.
+## Overview
+Track bacterial strains at sub-species resolution using genome distance metrics (MASH, fastANI) and strain-level metagenomics (inStrain, sourmash).
 
 ## Prerequisites
-
 ```bash
-# MASH
+# MASH - fast distance estimation
 conda install -c bioconda mash
 
-# sourmash
+# sourmash - metagenome comparisons
 pip install sourmash
 
-# fastANI
+# fastANI - average nucleotide identity
 conda install -c bioconda fastani
 
-# inStrain
+# inStrain - strain-level metagenomics
 pip install instrain
 ```
 
 ## Quick Start
+Tell your AI agent what you want to do:
+- "Calculate pairwise distances between my genome assemblies"
+- "Track strains across timepoints in my longitudinal study"
+- "Identify which reference genomes are in my metagenome"
 
-### MASH - Fast Distance Estimation
+## Example Prompts
+### Genome Distance Calculations
+> "Calculate MASH distances between all genomes in this directory"
 
-```bash
-# Create sketches
-mash sketch -o reference genome1.fasta genome2.fasta
+> "Run fastANI to determine if these isolates are the same species"
 
-# Calculate distances
-mash dist reference.msh query.fasta > distances.tsv
+### Outbreak Investigation
+> "Cluster my outbreak isolates and identify closely related strains"
 
-# Screen against RefSeq
-mash screen refseq.msh reads.fastq.gz > screen_results.tsv
-```
+> "Find genomes with less than 0.001 MASH distance (same strain)"
 
-### sourmash - Metagenome Comparisons
+### Metagenome Strain Analysis
+> "Run sourmash gather to identify reference genomes in my metagenome"
 
-```bash
-# Compute signatures
-sourmash sketch dna -p k=31,scaled=1000 *.fasta
+> "Use inStrain to profile strain variation in my sample"
 
-# Compare all-vs-all
-sourmash compare *.sig -o comparison.numpy
+### Longitudinal Tracking
+> "Track strain changes across my time-series samples using inStrain"
 
-# Search against database
-sourmash gather sample.sig gtdb-rs214.k31.zip
-```
+> "Compare strain populations between treatment and control groups"
+
+## What the Agent Will Do
+1. Create genome sketches or signatures for efficient comparison
+2. Calculate pairwise distances or ANI values
+3. Cluster strains based on distance thresholds
+4. Profile within-sample variation for metagenomes
+5. Compare strain profiles across samples or timepoints
+
+## Tips
+- MASH distance < 0.05 indicates same species (ANI > 95%)
+- MASH distance < 0.001 suggests same strain
+- sourmash uses MinHash sketches; compatible with large-scale comparisons
+- inStrain requires BAM alignment to reference; provides SNV-level resolution
+- fastANI is gold standard for species delineation
 
 ## Distance Interpretation
 
@@ -55,66 +68,13 @@ sourmash gather sample.sig gtdb-rs214.k31.zip
 | 0.05-0.10 | 90-95% | Related species |
 | > 0.10 | < 90% | Different species |
 
-## Strain-Level Metagenomics
-
-### inStrain Profiling
-
-```bash
-# Profile strain variation
-inStrain profile reads.bam reference.fasta -o profile_output
-
-# Compare samples
-inStrain compare profile1 profile2 -o comparison_output
-```
-
-### Key Metrics
-
+## inStrain Key Metrics
 - **popANI**: Population ANI across reads
 - **conANI**: Consensus ANI
 - **SNV density**: Variation within sample
 
-## Tracking Workflows
-
-### Outbreak Investigation
-
-```bash
-# Sketch all isolates
-mash sketch -s 10000 -o outbreak *.fasta
-
-# Pairwise distances
-mash dist outbreak.msh outbreak.msh > pairwise.tsv
-
-# Cluster close strains (< 0.001)
-```
-
-### Longitudinal Strain Tracking
-
-```bash
-# For each timepoint sample
-for sample in timepoint*.bam; do
-    inStrain profile $sample reference.fasta -o ${sample%.bam}_profile
-done
-
-# Compare across timepoints
-inStrain compare *_profile -o longitudinal_comparison
-```
-
-## Large-Scale Comparisons
-
-```bash
-# fastANI for many genomes
-fastANI \
-    --ql genome_list.txt \
-    --rl genome_list.txt \
-    -o ani_results.tsv \
-    -t 16
-
-# Parse results
-awk '$3 > 99' ani_results.tsv  # Near-identical strains
-```
-
-## See Also
-
+## Resources
 - [MASH documentation](https://mash.readthedocs.io/)
 - [sourmash documentation](https://sourmash.readthedocs.io/)
 - [inStrain tutorial](https://instrain.readthedocs.io/)
+- [fastANI paper](https://doi.org/10.1038/s41467-018-07641-9)

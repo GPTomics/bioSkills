@@ -1,8 +1,62 @@
-# Statistical Analysis Usage Guide
+# Statistical Analysis - Usage Guide
 
 ## Overview
 
-Statistical analysis identifies metabolites associated with biological conditions. Methods range from simple univariate tests to complex multivariate models.
+Statistical analysis identifies metabolites associated with biological conditions. Methods range from simple univariate tests to multivariate models for biomarker discovery.
+
+## Prerequisites
+
+```bash
+# R packages
+install.packages(c("mixOmics", "ropls", "pROC"))
+
+# Python
+pip install scikit-learn scipy statsmodels
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Find differentially abundant metabolites between treatment and control"
+- "Run PLS-DA and identify important features by VIP score"
+
+## Example Prompts
+
+### Univariate Analysis
+> "Run t-tests comparing treatment vs control with FDR correction"
+> "Perform ANOVA across my three treatment groups and identify significant metabolites"
+> "Calculate fold changes and create a volcano plot"
+
+### Multivariate Analysis
+> "Run PCA for exploratory analysis and check sample grouping"
+> "Build a PLS-DA model with 10-fold cross-validation and calculate VIP scores"
+> "Use OPLS-DA for biomarker discovery between disease and healthy groups"
+
+### Biomarker Selection
+> "Identify metabolites with VIP > 1, FDR < 0.05, and |log2FC| > 1"
+> "Calculate ROC curves and AUC for top candidate biomarkers"
+> "Build a Random Forest classifier and rank feature importance"
+
+### Model Validation
+> "Validate my PLS-DA model with 100 permutation tests"
+> "Report Q2 and R2 from cross-validation"
+
+## What the Agent Will Do
+
+1. Check data distribution and apply appropriate tests
+2. Run univariate tests with multiple testing correction
+3. Build and validate multivariate models
+4. Calculate VIP scores and feature importance
+5. Generate summary tables and visualizations
+6. Export significant metabolites
+
+## Tips
+
+- Always correct for multiple testing (FDR/BH method is standard)
+- Validate PLS-DA with permutation testing (Q2 should exceed permuted values)
+- VIP > 1 is common threshold, but combine with FDR for confidence
+- Use 5-10 fold CV with 50+ repeats for stable model assessment
+- Report both univariate (FDR) and multivariate (VIP) evidence
 
 ## Method Selection
 
@@ -13,36 +67,16 @@ Statistical analysis identifies metabolites associated with biological condition
 | PCA | Any | Exploratory, QC |
 | PLS-DA | 2+ groups | Classification, VIP |
 | OPLS-DA | 2 groups | Biomarker discovery |
-| Random Forest | 2+ groups | Non-linear, importance |
-
-## Multiple Testing
-
-Always correct for multiple testing:
-- **FDR (BH)**: Most common, controls false discovery rate
-- **Bonferroni**: Conservative, controls family-wise error
-- **q-value**: Similar to FDR
-
-## VIP Scores
-
-Variable Importance in Projection (VIP):
-- VIP > 1: Important (common threshold)
-- VIP > 1.5: Very important
-- Use with FDR for confidence
-
-## Cross-Validation
-
-Always validate models:
-- 5-10 fold CV
-- 50+ repeats for stability
-- Report Q2 (predictive ability)
+| Random Forest | 2+ groups | Non-linear importance |
 
 ## Biomarker Criteria
 
-Typical thresholds:
-- FDR < 0.05 (or 0.1 for discovery)
-- |log2FC| > 1 (2-fold change)
-- VIP > 1
-- AUC > 0.7 (moderate), > 0.8 (good)
+| Metric | Threshold |
+|--------|-----------|
+| FDR | < 0.05 (discovery: < 0.1) |
+| log2FC | > 1 (2-fold change) |
+| VIP | > 1 |
+| AUC | > 0.7 (moderate), > 0.8 (good) |
 
 ## References
 

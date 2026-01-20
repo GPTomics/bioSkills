@@ -1,15 +1,11 @@
 ---
 name: bio-long-read-sequencing-clair3-variants
-description: Deep learning-based variant calling from long reads using Clair3 for SNPs and small indels.
+description: Deep learning-based variant calling from long reads using Clair3 for SNPs and small indels. Use when calling germline variants from ONT or PacBio alignments, particularly when high accuracy is needed for clinical or research applications.
 tool_type: cli
 primary_tool: Clair3
 ---
 
 # Clair3 Variant Calling
-
-## Overview
-
-Clair3 is a deep learning-based variant caller specifically designed for long-read sequencing data (ONT, PacBio). It achieves high accuracy for germline SNPs and small indels.
 
 ## Basic Usage
 

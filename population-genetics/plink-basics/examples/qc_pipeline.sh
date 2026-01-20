@@ -24,11 +24,12 @@ echo "Variants: $(wc -l < ${PREFIX}_raw.bim)"
 plink2 --bfile "${PREFIX}_raw" --missing --out "${PREFIX}_raw"
 
 echo -e "\n=== Step 3: Apply QC Filters ==="
+# Thresholds follow PLINK best practices for GWAS; adjust for rare variant studies
 plink2 --bfile "${PREFIX}_raw" \
-    --maf 0.01 \
-    --geno 0.05 \
-    --mind 0.05 \
-    --hwe 1e-6 \
+    --maf 0.01 \      # Minor allele freq; typical 0.01-0.05 depending on sample size
+    --geno 0.05 \     # Max 5% missing genotypes per variant
+    --mind 0.05 \     # Max 5% missing genotypes per sample
+    --hwe 1e-6 \      # Hardy-Weinberg p-value; stringent to catch genotyping errors
     --make-bed --out "$PREFIX"
 
 echo -e "\n=== Step 4: Final Statistics ==="

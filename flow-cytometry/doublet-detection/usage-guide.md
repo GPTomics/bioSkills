@@ -1,39 +1,58 @@
-# Doublet Detection Usage Guide
+# Doublet Detection - Usage Guide
 
 ## Overview
+Doublets are events where two or more cells pass through the laser simultaneously. They appear as false intermediate populations and must be removed before downstream analysis.
 
-Doublets are events where two or more cells pass through the laser simultaneously. They can confuse gating and clustering by appearing as intermediate populations.
+## Prerequisites
+```bash
+# R/Bioconductor
+BiocManager::install(c('flowCore', 'flowDensity'))
+```
 
-## Why Remove Doublets
+## Quick Start
+Tell your AI agent what you want to do:
+- "Remove doublets from my flow cytometry data"
+- "Gate singlets using FSC-A vs FSC-H"
+- "Identify doublets in my CyTOF data"
 
-- Doublets appear as false intermediate populations
-- Affect clustering accuracy
-- Skew population frequencies
-- Corrupt rare event detection
+## Example Prompts
+### Standard Doublet Removal
+> "Create a singlet gate using FSC-A vs FSC-H"
+> "Remove doublets from all samples in my flowSet"
+> "Show the doublet rate for each sample"
+
+### CyTOF Doublet Removal
+> "Gate singlets using DNA intercalator channels"
+> "Remove doublets based on Event_length"
+> "Create a combined doublet filter using DNA and Event_length"
+
+### Quality Assessment
+> "Show FSC-A vs FSC-H plots before and after singlet gating"
+> "Calculate the percentage of doublets removed per sample"
+> "Flag samples with unusually high doublet rates"
+
+## What the Agent Will Do
+1. Identify appropriate doublet detection channels (FSC-A/H for flow, DNA/Event_length for CyTOF)
+2. Create singlet gate based on pulse geometry or DNA content
+3. Apply gate to remove doublets
+4. Calculate doublet rates and generate QC plots
+5. Return cleaned data for downstream analysis
+
+## Tips
+- FSC-A vs FSC-H is the standard method for conventional flow
+- Singlets show linear A vs H relationship; doublets have higher A for given H
+- CyTOF: use DNA intercalator (Ir191/Ir193) or Event_length
+- Expect 1-5% doublets in PBMCs, higher in tissue digests
+- High doublet rates (>15%) indicate sample preparation issues
 
 ## Detection Methods
 
-### FSC-A vs FSC-H
-- Most common method
-- Works on pulse geometry
-- FSC-A = Area under pulse
-- FSC-H = Height of pulse
-- Singlets: linear relationship
-- Doublets: higher A for given H
-
-### FSC-A vs FSC-W
-- Some instruments provide Width
-- A = H × W
-- Doublets have increased width
-
-### Ratio Method
-- Calculate FSC-A / FSC-H ratio
-- Singlets have consistent ratio
-- Doublets have elevated ratio
-
-### DNA Content (CyTOF)
-- Use DNA intercalator channels
-- Doublets have ~2× DNA signal
+| Method | Instrument | Principle |
+|--------|------------|-----------|
+| FSC-A vs FSC-H | Flow | Pulse geometry (singlets are linear) |
+| FSC-A vs FSC-W | Flow | Doublets have increased width |
+| DNA content | CyTOF | Doublets have ~2x DNA signal |
+| Event_length | CyTOF | Doublets have longer transit time |
 
 ## Expected Doublet Rates
 
@@ -44,45 +63,6 @@ Doublets are events where two or more cells pass through the laser simultaneousl
 | Tissue digest | 5-15% |
 | Sorted cells | <1% |
 
-## Method Selection
-
-| Situation | Recommended Method |
-|-----------|-------------------|
-| Standard flow | FSC-A vs FSC-H |
-| High doublet rate | Combined FSC + SSC |
-| CyTOF | DNA or Event_length |
-| No FSC-H | Ratio or DNA |
-
-## Quality Checks
-
-### Good Singlet Gate
-- Clear diagonal pattern
-- ~95% of events retained
-- Clean separation from doublets
-
-### Warning Signs
-- Bimodal distribution on diagonal
-- Very high doublet rate (>15%)
-- Gate cuts into true singlets
-
-## Common Issues
-
-### No FSC-H channel
-- Use FSC-W if available
-- Calculate derived ratio
-- Consider DNA staining
-
-### High doublet rate
-- Reduce cell concentration
-- Check sample preparation
-- Ensure proper disaggregation
-
-### Poor discrimination
-- Check pulse settings
-- Verify threshold settings
-- Consider different gating strategy
-
 ## References
-
 - flowAI: doi:10.1093/bioinformatics/btw191
 - flowDensity: doi:10.1093/bioinformatics/btu677

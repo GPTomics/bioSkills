@@ -1,6 +1,6 @@
 ---
 name: bio-workflow-management-snakemake-workflows
-description: Build reproducible bioinformatics pipelines with Snakemake using rules, wildcards, and automatic dependency resolution.
+description: Build reproducible bioinformatics pipelines with Snakemake using rules, wildcards, and automatic dependency resolution. Use when creating Python-based workflows, automating multi-step analyses with make-like dependency tracking, or running pipelines on HPC clusters with SLURM.
 tool_type: python
 primary_tool: Snakemake
 ---

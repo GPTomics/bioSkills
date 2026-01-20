@@ -1,6 +1,6 @@
 ---
 name: bio-atac-seq-nucleosome-positioning
-description: Extract nucleosome positions from ATAC-seq data using NucleoATAC, ATACseqQC, and fragment analysis. Understand chromatin organization.
+description: Extract nucleosome positions from ATAC-seq data using NucleoATAC, ATACseqQC, and fragment analysis. Use when analyzing chromatin organization, identifying nucleosome-free regions at promoters, or characterizing nucleosome occupancy patterns from ATAC-seq fragment size distributions.
 tool_type: mixed
 primary_tool: NucleoATAC, ATACseqQC
 ---

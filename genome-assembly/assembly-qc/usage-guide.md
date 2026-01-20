@@ -4,15 +4,7 @@
 
 Assembly QC evaluates the quality of genome assemblies using contiguity metrics (QUAST) and gene completeness (BUSCO).
 
-## When to Use This Skill
-
-- After any genome assembly
-- Comparing different assemblers
-- Evaluating polishing improvement
-- Before downstream annotation
-- Publishing assembly statistics
-
-## Installation
+## Prerequisites
 
 ```bash
 conda install -c bioconda quast busco
@@ -20,35 +12,38 @@ conda install -c bioconda quast busco
 
 ## Quick Start
 
-```bash
-# Basic contiguity stats
-quast.py assembly.fasta -o quast_output
+Tell your AI agent what you want to do:
+- "Check the quality of my genome assembly"
+- "Run BUSCO on my bacterial assembly"
+- "Compare two assemblies with QUAST"
 
-# Gene completeness
-busco -i assembly.fasta -m genome -l bacteria_odb10 -o busco_output
-```
+## Example Prompts
 
-## Key Metrics
+### Basic Quality Check
+> "Run QUAST on my assembly to get N50 and other statistics"
+> "Check my assembly quality with BUSCO using the bacteria lineage"
 
-| Metric | Meaning | Target |
-|--------|---------|--------|
-| N50 | Contig length at 50% of assembly | Higher is better |
-| L50 | Number of contigs in N50 | Lower is better |
-| BUSCO Complete | Gene completeness | >95% |
-| Misassemblies | Structural errors | 0 |
+### Comparative Analysis
+> "Compare my SPAdes and Flye assemblies with QUAST"
+> "Run QUAST with a reference genome to detect misassemblies"
 
-## BUSCO Lineage Selection
+### Lineage-Specific BUSCO
+> "Run BUSCO on my fungal assembly using fungi_odb10"
+> "Check gene completeness of my plant genome with viridiplantae lineage"
 
-| Organism | Lineage |
-|----------|---------|
-| Bacteria | bacteria_odb10 |
-| Fungi | fungi_odb10 |
-| Animals | metazoa_odb10 |
-| Plants | viridiplantae_odb10 |
+## What the Agent Will Do
 
-Use `busco --list-datasets` for full list.
+1. Run QUAST to calculate contiguity statistics (N50, L50, total length)
+2. Run BUSCO with appropriate lineage database
+3. Report key metrics and quality assessment
+4. Flag potential issues (low N50, missing BUSCOs, contamination)
+5. Suggest next steps based on quality results
 
-## Resources
+## Tips
 
-- [QUAST Manual](http://quast.sourceforge.net/docs/manual.html)
-- [BUSCO User Guide](https://busco.ezlab.org/busco_userguide.html)
+- Target >95% BUSCO completeness for high-quality assemblies
+- N50 should be interpreted relative to expected chromosome/genome size
+- Use `busco --list-datasets` to find the appropriate lineage database
+- QUAST with a reference (`-r`) can detect misassemblies and structural errors
+- Run both tools together for a comprehensive quality picture
+- High duplication in BUSCO may indicate contamination or assembly issues

@@ -1,6 +1,6 @@
 ---
 name: bio-microbiome-amplicon-processing
-description: Amplicon sequence variant (ASV) inference from 16S rRNA or ITS amplicon sequencing using DADA2. Covers quality filtering, error learning, denoising, and chimera removal.
+description: Amplicon sequence variant (ASV) inference from 16S rRNA or ITS amplicon sequencing using DADA2. Covers quality filtering, error learning, denoising, and chimera removal. Use when processing demultiplexed amplicon FASTQ files to generate an ASV table for downstream analysis.
 tool_type: r
 primary_tool: dada2
 ---

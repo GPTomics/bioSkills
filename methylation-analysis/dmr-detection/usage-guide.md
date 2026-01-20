@@ -1,15 +1,55 @@
 # DMR Detection - Usage Guide
 
 ## Overview
+Differentially Methylated Region (DMR) detection identifies contiguous genomic regions with methylation differences between conditions, using methods like tile-based (methylKit), smoothing-based (bsseq BSmooth), or kernel-based (DMRcate) approaches.
 
-Differentially Methylated Regions (DMRs) are contiguous genomic regions showing methylation differences between conditions. Multiple methods exist: tile-based (methylKit), smoothing-based (bsseq BSmooth), and kernel-based (DMRcate).
+## Prerequisites
+```r
+if (!require('BiocManager', quietly = TRUE))
+    install.packages('BiocManager')
 
-## When to Use This Skill
+BiocManager::install(c('methylKit', 'bsseq', 'DMRcate', 'DSS'))
+```
 
-- You want to find regions (not just single CpGs) with methylation changes
-- You have WGBS or RRBS data from multiple conditions
-- You want to identify promoters or enhancers with altered methylation
-- You need to integrate methylation with gene expression data
+## Quick Start
+Tell your AI agent what you want to do:
+- "Find differentially methylated regions between my treatment groups"
+- "Detect DMRs using BSmooth smoothing for my WGBS data"
+- "Identify promoter regions with altered methylation"
+
+## Example Prompts
+### Method Selection
+> "Which DMR method should I use for my WGBS data with low coverage?"
+
+> "Compare tile-based vs smoothing-based DMR detection for my samples"
+
+### methylKit Tiles
+> "Find DMRs using 500bp tiles with methylKit"
+
+> "Run tile-based DMR analysis with stringent cutoffs"
+
+### BSmooth Analysis
+> "Detect DMRs using BSmooth smoothing for my WGBS experiment"
+
+> "Run bsseq DMR analysis with appropriate smoothing parameters"
+
+### DMR Annotation
+> "Annotate my DMRs with gene names and genomic features"
+
+> "Find DMRs overlapping promoters and CpG islands"
+
+### Integration
+> "Compare DMRs with differentially expressed genes"
+
+> "Identify DMRs in enhancer regions from my ChIP-seq data"
+
+## What the Agent Will Do
+1. Help select appropriate DMR method based on your data type
+2. Set tile size or smoothing parameters for your analysis
+3. Run DMR detection with chosen method
+4. Filter DMRs by q-value, methylation difference, and number of CpGs
+5. Annotate DMRs with genomic features
+6. Export results for visualization or integration
 
 ## Method Comparison
 
@@ -20,14 +60,6 @@ Differentially Methylated Regions (DMRs) are contiguous genomic regions showing 
 | DMRcate | Array-optimized | Less flexible | 450K/EPIC arrays |
 | DSS | Statistical rigor | Complex | Multi-factor designs |
 
-## Choosing Tile Size (methylKit)
-
-| Data Type | Recommended Size |
-|-----------|------------------|
-| WGBS | 500-1000 bp |
-| RRBS | 100-500 bp |
-| Targeted | Region size |
-
 ## DMR Filtering Guidelines
 
 | Parameter | Lenient | Moderate | Stringent |
@@ -36,43 +68,12 @@ Differentially Methylated Regions (DMRs) are contiguous genomic regions showing 
 | meth.diff | > 10% | > 25% | > 40% |
 | CpGs | >= 3 | >= 5 | >= 10 |
 
-## Workflow
-
-### 1. Single CpG Analysis First
-
-Run methylKit analysis to understand data quality and overall patterns.
-
-### 2. Choose DMR Method
-
-- Quick exploration: methylKit tiles
-- Publication: BSmooth or DSS
-- Array data: DMRcate
-
-### 3. Annotate DMRs
-
-Map DMRs to genes, promoters, CpG islands.
-
-### 4. Integrate with Other Data
-
-Compare with gene expression, chromatin accessibility.
-
-## Common Issues
-
-### Few/No DMRs Found
-
-- Relax q-value threshold
-- Reduce methylation difference cutoff
-- Use smaller tile size
-- Check sample quality and experimental design
-
-### Too Many DMRs
-
-- Increase methylation difference threshold
-- Lower q-value cutoff
-- Merge adjacent DMRs
-
-## Resources
-
-- [methylKit Bioconductor](https://bioconductor.org/packages/methylKit/)
-- [bsseq Bioconductor](https://bioconductor.org/packages/bsseq/)
-- [DMRcate Bioconductor](https://bioconductor.org/packages/DMRcate/)
+## Tips
+- Run single-CpG analysis first to understand data quality before DMR detection
+- Tile size recommendations: WGBS 500-1000bp, RRBS 100-500bp
+- BSmooth works better with low coverage data due to smoothing
+- For publication, use BSmooth or DSS rather than simple tiles
+- If few DMRs found: relax thresholds, use smaller tiles, check sample quality
+- If too many DMRs: increase meth.diff threshold, lower q-value cutoff
+- Always annotate DMRs to promoters, CpG islands, and gene bodies for interpretation
+- Consider integrating with expression data to prioritize functionally relevant DMRs

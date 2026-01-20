@@ -1,76 +1,85 @@
-# Taxonomy Assignment
+# Taxonomy Assignment - Usage Guide
 
 ## Overview
 
-Taxonomic assignment classifies ASVs or OTUs to taxonomic ranks (Kingdom through Species) using reference databases.
+Taxonomic assignment classifies ASVs or OTUs to taxonomic ranks (Kingdom through Species) using reference databases like SILVA, GTDB, or UNITE.
+
+## Prerequisites
+
+```bash
+# R packages
+BiocManager::install(c('dada2', 'DECIPHER'))
+
+# Download reference databases
+# SILVA: https://zenodo.org/record/4587955
+# GTDB: https://data.gtdb.ecogenomic.org/
+# UNITE: https://unite.ut.ee/repository.php
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Assign taxonomy to my ASVs using SILVA"
+- "Classify my fungal ITS sequences with UNITE"
+
+## Example Prompts
+
+### Database Selection
+> "Assign taxonomy to my ASV sequences using SILVA 138.1"
+
+> "Use GTDB for taxonomy assignment on my environmental samples"
+
+> "Classify my ITS sequences against the UNITE database"
+
+### Method Selection
+> "Use IDTAXA for more accurate taxonomy assignment"
+
+> "Compare naive Bayes vs IDTAXA results"
+
+### Confidence Filtering
+> "Filter taxonomy assignments below 80% confidence at genus level"
+
+> "What bootstrap threshold should I use for species-level calls?"
+
+## What the Agent Will Do
+
+1. Load ASV sequences and select appropriate reference database
+2. Choose classification method (naive Bayes or IDTAXA)
+3. Assign taxonomy with confidence scores
+4. Filter low-confidence assignments
+5. Format output as taxonomy table
+6. Merge with ASV abundance table
+
+## Tips
+
+- SILVA is most comprehensive for 16S/18S general use
+- GTDB has better taxonomy consistency for environmental samples
+- UNITE is the gold standard for fungal ITS
+- V4 region has limited species-level resolution
+- Typical confidence thresholds: Genus 80-90%, Species 95%+
 
 ## Classification Methods
 
-### Naive Bayes Classifier
-- **Used by**: DADA2, QIIME2 (sklearn)
-- **Pros**: Fast, handles novel sequences
-- **Cons**: May overclassify
-
-### Exact Matching
-- **Used by**: VSEARCH, BLAST
-- **Pros**: High precision
-- **Cons**: Misses novel taxa, slower
-
-### Hybrid
-- **Used by**: SINTAX, IDTAXA
-- **Pros**: Balances speed and accuracy
+| Method | Pros | Cons |
+|--------|------|------|
+| Naive Bayes | Fast, handles novel sequences | May overclassify |
+| Exact Matching | High precision | Misses novel taxa |
+| IDTAXA | Balances speed and accuracy | Requires training |
 
 ## Reference Databases
 
-### SILVA (16S/18S)
-- Most comprehensive for general use
-- Version 138.1 is current
-- Includes bacteria, archaea, eukaryotes
-
-### GTDB (16S)
-- Genome-based taxonomy
-- Better for novel/environmental samples
-- More consistent naming
-
-### UNITE (ITS)
-- Gold standard for fungi
-- Regular updates
-- Species hypotheses for unknown taxa
-
-### RDP (16S)
-- Historical standard
-- Less frequently updated
-- 6-rank taxonomy
+| Database | Region | Best For |
+|----------|--------|----------|
+| SILVA 138.1 | 16S/18S | General bacteria/archaea |
+| GTDB | 16S | Environmental, novel taxa |
+| UNITE | ITS | Fungi |
+| RDP | 16S | Historical compatibility |
 
 ## Confidence Thresholds
 
-Typical bootstrap thresholds:
-- **Phylum**: 50-70%
-- **Family**: 70-80%
-- **Genus**: 80-90%
-- **Species**: 95%+ (rarely achieved for 16S V4)
-
-## Common Issues
-
-### Unassigned taxa
-- Check database coverage
-- May be genuine novel taxa
-- Try different database
-
-### Inconsistent naming
-- SILVA vs GTDB naming differs
-- Stick to one database per study
-
-### Low species-level assignment
-- Normal for short amplicons
-- V4 region has limited species resolution
-- Consider longer reads or different region
-
-## Output Formats
-
-```
-# Typical taxonomy table format
-ASV    Kingdom   Phylum          Class          Order          Family         Genus
-ASV1   Bacteria  Firmicutes      Clostridia     Clostridiales  Lachnospiraceae  Blautia
-ASV2   Bacteria  Bacteroidota    Bacteroidia    Bacteroidales  Bacteroidaceae   Bacteroides
-```
+| Rank | Typical Threshold |
+|------|-------------------|
+| Phylum | 50-70% |
+| Family | 70-80% |
+| Genus | 80-90% |
+| Species | 95%+ |
