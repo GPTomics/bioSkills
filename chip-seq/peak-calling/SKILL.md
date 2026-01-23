@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-peak-calling
-description: ChIP-seq peak calling using MACS3 (or MACS2). Call narrow peaks for transcription factors or broad peaks for histone modifications. Supports input control, fragment size modeling, and various output formats including narrowPeak and broadPeak BED files.
+description: ChIP-seq peak calling using MACS3 (or MACS2). Call narrow peaks for transcription factors or broad peaks for histone modifications. Supports input control, fragment size modeling, and various output formats including narrowPeak and broadPeak BED files. Use when calling peaks from ChIP-seq alignments.
 tool_type: cli
 primary_tool: macs3
 ---

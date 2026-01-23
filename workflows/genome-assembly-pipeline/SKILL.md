@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-genome-assembly-pipeline
-description: End-to-end genome assembly workflow from reads to polished assembly with QC. Supports short reads (SPAdes), long reads (Flye), and hybrid approaches.
+description: End-to-end genome assembly workflow from reads to polished assembly with QC. Supports short reads (SPAdes), long reads (Flye), and hybrid approaches. Use when assembling genomes from raw reads.
 tool_type: cli
 primary_tool: SPAdes, Flye, QUAST, BUSCO
 workflow: true

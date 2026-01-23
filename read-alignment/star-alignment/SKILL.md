@@ -1,6 +1,6 @@
 ---
 name: bio-read-alignment-star-alignment
-description: Align RNA-seq reads with STAR (Spliced Transcripts Alignment to a Reference). Use for RNA-seq data requiring splice-aware alignment. Supports two-pass mode for novel splice junction discovery.
+description: Align RNA-seq reads with STAR (Spliced Transcripts Alignment to a Reference). Supports two-pass mode for novel splice junction discovery. Use when aligning RNA-seq data requiring splice-aware alignment.
 tool_type: cli
 primary_tool: STAR
 ---

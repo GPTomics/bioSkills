@@ -1,6 +1,6 @@
 ---
 name: bio-copy-number-cnv-annotation
-description: Annotate CNVs with genes, pathways, and clinical significance. Use to interpret CNV calls and identify affected genes.
+description: Annotate CNVs with genes, pathways, and clinical significance. Use when interpreting CNV calls or identifying affected genes from copy number analysis.
 tool_type: mixed
 primary_tool: bedtools
 ---

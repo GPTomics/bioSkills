@@ -1,6 +1,6 @@
 ---
 name: bio-de-results
-description: Extract, filter, annotate, and export differential expression results from DESeq2 or edgeR. Use for identifying significant genes, applying multiple testing corrections, adding gene annotations, and preparing results for downstream analysis.
+description: Extract, filter, annotate, and export differential expression results from DESeq2 or edgeR. Use for identifying significant genes, applying multiple testing corrections, adding gene annotations, and preparing results for downstream analysis. Use when filtering and exporting DE analysis results.
 tool_type: r
 primary_tool: DESeq2
 ---

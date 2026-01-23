@@ -1,6 +1,6 @@
 ---
 name: bio-batch-downloads
-description: Download large datasets from NCBI efficiently using history server, batching, and rate limiting. Use for bulk sequence downloads, large query results, and production-scale data retrieval.
+description: Download large datasets from NCBI efficiently using history server, batching, and rate limiting. Use when performing bulk sequence downloads, handling large query results, or production-scale data retrieval.
 tool_type: python
 primary_tool: Bio.Entrez
 ---

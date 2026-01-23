@@ -1,12 +1,61 @@
-# Joint Calling Usage Guide
+# Joint Calling - Usage Guide
 
-Multi-sample joint genotyping for improved variant detection.
+## Overview
+
+Multi-sample joint genotyping combines information across samples for improved variant detection, consistent site calling, and eligibility for machine learning-based filtering (VQSR).
 
 ## Prerequisites
 
 ```bash
 conda install -c bioconda gatk4
 ```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Set up joint calling for my cohort of 50 samples"
+- "Combine GVCFs and run GenotypeGVCFs"
+- "Scale joint calling for 1000+ samples by chromosome"
+- "Choose between CombineGVCFs and GenomicsDBImport"
+
+## Example Prompts
+
+### Small Cohort
+> "Combine these 10 sample GVCFs and run joint genotyping"
+
+> "Run CombineGVCFs followed by GenotypeGVCFs for my family trio"
+
+### Large Cohort
+> "Set up GenomicsDBImport for 500 samples, processing by chromosome"
+
+> "Create a sample map file and import into GenomicsDB"
+
+### GVCF Generation
+> "Generate GVCFs from all BAM files for joint calling"
+
+> "Run HaplotypeCaller in GVCF mode for each sample in the cohort"
+
+### Post-Processing
+> "Apply VQSR to my joint-called cohort VCF"
+
+> "Joint call my samples and then apply hard filters"
+
+## What the Agent Will Do
+
+1. Generate per-sample GVCFs using HaplotypeCaller with -ERC GVCF
+2. Select appropriate combining method (CombineGVCFs vs GenomicsDBImport)
+3. Combine GVCFs across samples
+4. Run GenotypeGVCFs to produce the cohort VCF
+5. Apply VQSR or hard filtering based on cohort size
+6. Validate output with variant statistics
+
+## Tips
+
+- Use GenomicsDBImport for cohorts >50 samples (more scalable)
+- CombineGVCFs is simpler for small cohorts (<50 samples)
+- Process large cohorts by chromosome to parallelize and manage memory
+- Always generate GVCFs (not VCFs) when planning joint calling
+- VQSR requires enough variants to train; fall back to hard filters if it fails
 
 ## Why Joint Calling?
 
@@ -18,7 +67,7 @@ conda install -c bioconda gatk4
 ## Workflow Overview
 
 ```
-Sample BAMs → HaplotypeCaller (GVCF mode) → CombineGVCFs → GenotypeGVCFs → Cohort VCF
+Sample BAMs -> HaplotypeCaller (GVCF mode) -> CombineGVCFs -> GenotypeGVCFs -> Cohort VCF
 ```
 
 ## Step-by-Step

@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-hic-pipeline
-description: End-to-end Hi-C analysis workflow from contact pairs to compartments, TADs, and loops. Covers cooler matrices, cooltools analysis, and visualization.
+description: End-to-end Hi-C analysis workflow from contact pairs to compartments, TADs, and loops. Covers cooler matrices, cooltools analysis, and visualization. Use when processing Hi-C data to compartments and TADs.
 tool_type: mixed
 primary_tool: cooler, cooltools, pairtools
 workflow: true

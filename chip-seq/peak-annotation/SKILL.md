@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-peak-annotation
-description: Annotate ChIP-seq peaks to genomic features and genes using ChIPseeker. Assign peaks to promoters, exons, introns, and intergenic regions. Find nearest genes and calculate distance to TSS. Generate annotation plots and statistics.
+description: Annotate ChIP-seq peaks to genomic features and genes using ChIPseeker. Assign peaks to promoters, exons, introns, and intergenic regions. Find nearest genes and calculate distance to TSS. Generate annotation plots and statistics. Use when annotating ChIP-seq peaks to genomic features.
 tool_type: r
 primary_tool: ChIPseeker
 ---

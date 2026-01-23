@@ -1,6 +1,6 @@
 ---
 name: bio-hi-c-analysis-contact-pairs
-description: Process Hi-C read pairs using pairtools. Parse alignments, filter duplicates, classify pairs, and generate contact statistics from Hi-C sequencing data.
+description: Process Hi-C read pairs using pairtools. Parse alignments, filter duplicates, classify pairs, and generate contact statistics from Hi-C sequencing data. Use when processing raw Hi-C read pairs.
 tool_type: cli
 primary_tool: pairtools
 ---

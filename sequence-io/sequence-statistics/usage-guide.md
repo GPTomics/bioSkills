@@ -42,6 +42,12 @@ Tell your AI agent what you want to do:
 | Total bp | Dataset size |
 | GC% | Nucleotide composition |
 
+## What the Agent Will Do
+1. Load sequences from input file
+2. Calculate requested statistics (length, GC, etc.)
+3. Aggregate statistics across all sequences
+4. Report summary results
+
 ## Tips
 
 - N50 is the most common assembly quality metric

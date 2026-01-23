@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-visualization
-description: Visualize ChIP-seq data using deepTools, Gviz, and ChIPseeker. Create heatmaps, profile plots, and genome browser tracks. Visualize signal around peaks, TSS, or custom regions.
+description: Visualize ChIP-seq data using deepTools, Gviz, and ChIPseeker. Create heatmaps, profile plots, and genome browser tracks. Visualize signal around peaks, TSS, or custom regions. Use when visualizing ChIP-seq signal and peaks.
 tool_type: mixed
 primary_tool: deepTools
 ---

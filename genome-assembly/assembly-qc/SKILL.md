@@ -1,6 +1,6 @@
 ---
 name: bio-genome-assembly-assembly-qc
-description: Assess genome assembly quality using QUAST for contiguity metrics and BUSCO for completeness. Essential for evaluating assembly success and comparing assemblers.
+description: Assess genome assembly quality using QUAST for contiguity metrics and BUSCO for completeness. Essential for evaluating assembly success and comparing assemblers. Use when evaluating assembly completeness and quality.
 tool_type: cli
 primary_tool: QUAST
 ---

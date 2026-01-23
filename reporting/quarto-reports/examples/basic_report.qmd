@@ -1,0 +1,68 @@
+---
+title: "Bioinformatics Analysis Report"
+author: "Your Name"
+date: today
+format:
+  html:
+    toc: true
+    code-fold: true
+    theme: cosmo
+execute:
+  echo: true
+  warning: false
+---
+
+## Overview
+
+This report demonstrates a basic Quarto document for bioinformatics analysis.
+
+## Setup
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Seed for reproducibility
+np.random.seed(42)
+```
+
+## Sample Data
+
+```{python}
+# Simulated gene expression data
+genes = [f'Gene_{i}' for i in range(1, 101)]
+samples = ['Control_1', 'Control_2', 'Control_3', 'Treatment_1', 'Treatment_2', 'Treatment_3']
+
+# Log2 expression values, typical range 0-15
+expression = pd.DataFrame(
+    np.random.normal(loc=8, scale=2, size=(100, 6)),
+    index=genes,
+    columns=samples
+)
+expression
+```
+
+## Quality Control
+
+```{python}
+#| fig-cap: "Distribution of expression values across samples"
+
+fig, ax = plt.subplots(figsize=(10, 5))
+expression.boxplot(ax=ax)
+ax.set_ylabel('Log2 Expression')
+ax.set_title('Sample Expression Distributions')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+```
+
+## Summary Statistics
+
+```{python}
+expression.describe()
+```
+
+## Conclusion
+
+This template can be extended for full differential expression, pathway analysis, or other bioinformatics workflows.

@@ -1,6 +1,6 @@
 ---
 name: bio-geo-data
-description: Query NCBI Gene Expression Omnibus (GEO) for expression datasets using Biopython Bio.Entrez. Use for finding microarray/RNA-seq datasets, downloading expression data, and linking GEO to SRA.
+description: Query NCBI Gene Expression Omnibus (GEO) for expression datasets using Biopython Bio.Entrez. Use when finding microarray/RNA-seq datasets, downloading expression data, or linking GEO series to SRA runs.
 tool_type: python
 primary_tool: Bio.Entrez
 ---

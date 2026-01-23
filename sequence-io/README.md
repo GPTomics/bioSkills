@@ -4,7 +4,7 @@
 
 Sequence file input/output operations using Biopython's Bio.SeqIO module. Handles reading, writing, and converting biological sequence files in 40+ formats including FASTA, FASTQ, GenBank, and specialized formats like ABI traces.
 
-**Tool type:** python | **Primary tool:** Bio.SeqIO
+**Tool type:** python | **Primary tools:** Bio.SeqIO
 
 ## Skills
 

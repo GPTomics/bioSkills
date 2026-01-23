@@ -1,6 +1,6 @@
 ---
 name: bio-multi-omics-similarity-network
-description: Similarity Network Fusion (SNF) for patient stratification using multi-omics data. Integrates multiple data types into a unified patient similarity network.
+description: Similarity Network Fusion (SNF) for patient stratification using multi-omics data. Integrates multiple data types into a unified patient similarity network. Use when performing patient stratification or integrating multi-omics data into unified similarity networks.
 tool_type: r
 primary_tool: SNFtool
 ---

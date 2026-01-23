@@ -1,6 +1,6 @@
 ---
 name: bio-spatial-transcriptomics-spatial-preprocessing
-description: Quality control, filtering, normalization, and feature selection for spatial transcriptomics data. Calculate QC metrics, filter spots/cells, normalize counts, and identify highly variable genes.
+description: Quality control, filtering, normalization, and feature selection for spatial transcriptomics data. Calculate QC metrics, filter spots/cells, normalize counts, and identify highly variable genes. Use when filtering and normalizing spatial transcriptomics data.
 tool_type: python
 primary_tool: squidpy
 ---

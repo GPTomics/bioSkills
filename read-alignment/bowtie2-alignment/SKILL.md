@@ -1,6 +1,6 @@
 ---
 name: bio-read-alignment-bowtie2-alignment
-description: Align short reads using Bowtie2 with local or end-to-end modes. Use for ChIP-seq, ATAC-seq, or when you need flexible alignment modes. Supports gapped alignment.
+description: Align short reads using Bowtie2 with local or end-to-end modes. Supports gapped alignment. Use when aligning ChIP-seq, ATAC-seq, or when flexible alignment modes are needed.
 tool_type: cli
 primary_tool: bowtie2
 ---

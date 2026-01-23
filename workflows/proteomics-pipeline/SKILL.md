@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-proteomics-pipeline
-description: End-to-end proteomics workflow from MaxQuant output to differential protein abundance. Orchestrates data import, normalization, imputation, and statistical testing with MSstats or limma.
+description: End-to-end proteomics workflow from MaxQuant output to differential protein abundance. Orchestrates data import, normalization, imputation, and statistical testing with MSstats or limma. Use when processing mass spectrometry proteomics.
 tool_type: mixed
 primary_tool: MSstats
 workflow: true

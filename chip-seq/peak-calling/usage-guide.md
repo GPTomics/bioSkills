@@ -1,16 +1,10 @@
-# Peak Calling with MACS3 - Usage Guide
+# Peak Calling - Usage Guide
 
 ## Overview
 
-MACS3 (Model-based Analysis of ChIP-Seq) is the standard tool for identifying enriched regions (peaks) in ChIP-seq data. It models the fragment size, uses local background correction, and provides statistical significance for each peak.
+Call peaks from ChIP-seq data using MACS3 to identify transcription factor binding sites or histone modification regions.
 
-## When to Use This Skill
-
-- You have aligned ChIP-seq BAM files
-- You need to identify binding sites or enriched regions
-- You want narrowPeak or broadPeak files for downstream analysis
-
-## Installation
+## Prerequisites
 
 ```bash
 # Conda (recommended)
@@ -18,88 +12,48 @@ conda install -c bioconda macs3
 
 # Pip
 pip install macs3
-
-# Verify
-macs3 --version
 ```
 
-## Choosing Peak Type
+## Quick Start
 
-| Target | Peak Type | MACS3 Flag |
-|--------|-----------|------------|
-| Transcription factors | Narrow | (default) |
-| H3K4me3, H3K27ac | Narrow | (default) |
-| H3K4me1 | Narrow or Broad | --broad optional |
-| H3K36me3 | Broad | --broad |
-| H3K27me3, H3K9me3 | Broad | --broad |
-| ATAC-seq | Narrow | --nomodel --extsize 200 |
+Tell your AI agent what you want to do:
+- "Call peaks from my ChIP-seq BAM file"
+- "Identify H3K27ac enriched regions"
+- "Find transcription factor binding sites with input control"
 
-## Basic Workflow
+## Example Prompts
 
-### 1. Prepare BAM Files
+### Narrow Peaks (TFs, H3K4me3)
+> "Call narrow peaks for my transcription factor ChIP-seq"
 
-```bash
-# Sort and index (if not already done)
-samtools sort chip.bam -o chip.sorted.bam
-samtools index chip.sorted.bam
-```
+> "Run MACS3 on my H3K27ac ChIP-seq with input control"
 
-### 2. Call Peaks
+### Broad Peaks (H3K27me3, H3K36me3)
+> "Call broad peaks for my H3K27me3 ChIP-seq data"
 
-```bash
-# Narrow peaks with control
-macs3 callpeak -t chip.sorted.bam -c input.sorted.bam \
-    -f BAM -g hs -n experiment --outdir peaks/
+> "Identify H3K9me3 domains using broad peak calling"
 
-# Broad peaks
-macs3 callpeak -t chip.sorted.bam -c input.sorted.bam \
-    -f BAM -g hs -n experiment --broad --outdir peaks/
-```
+### ATAC-seq
+> "Call peaks from my ATAC-seq data"
 
-### 3. Check Results
+### Troubleshooting
+> "My peak calling found no peaks, help me troubleshoot"
 
-```bash
-# Number of peaks
-wc -l peaks/experiment_peaks.narrowPeak
+> "I'm getting too many peaks, how can I increase stringency?"
 
-# Top peaks by significance
-sort -k8,8nr peaks/experiment_peaks.narrowPeak | head
-```
+## What the Agent Will Do
 
-## Common Issues
+1. Sort and index BAM files if not already done
+2. Select appropriate peak type (narrow vs broad) based on target
+3. Run MACS3 with appropriate parameters and genome size
+4. Generate narrowPeak/broadPeak files and summit BED files
+5. Report peak counts and quality metrics
+6. Suggest parameter adjustments if results are unexpected
 
-### No Peaks Called
+## Tips
 
-- Check BAM file has reads: `samtools view -c chip.bam`
-- Lower q-value threshold: `-q 0.1`
-- Check genome size parameter matches your data
-
-### Model Building Failed
-
-- Use `--nomodel --extsize 200` for small datasets
-- Use `--nomodel --extsize 147` for MNase-seq
-
-### Too Many Peaks
-
-- Increase q-value stringency: `-q 0.01`
-- Use input control (essential for TF ChIP-seq)
-
-## Output Interpretation
-
-### narrowPeak columns
-
-1. chrom
-2. chromStart
-3. chromEnd
-4. name
-5. score (0-1000)
-6. strand
-7. signalValue (fold enrichment)
-8. pValue (-log10)
-9. qValue (-log10)
-10. peak (summit position relative to start)
-
-## Resources
-
-- [MACS3 GitHub](https://github.com/macs3-project/MACS)
-- [MACS3 Documentation](https://macs3-project.github.io/MACS/)
+- Always use input/IgG control for TF ChIP-seq
+- Use `--broad` for histone marks that form domains (H3K27me3, H3K36me3)
+- Default q-value threshold is 0.05; use `-q 0.01` for higher stringency
+- Use `--nomodel --extsize 200` if model building fails on small datasets
+- Check peak numbers: TFs typically have 1,000-50,000 peaks; broad marks can have fewer but larger regions

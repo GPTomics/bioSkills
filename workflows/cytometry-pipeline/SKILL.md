@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-cytometry-pipeline
-description: End-to-end flow cytometry workflow from FCS files to differential analysis. Orchestrates compensation, transformation, gating/clustering, and statistical testing with CATALYST/diffcyt.
+description: End-to-end flow cytometry workflow from FCS files to differential analysis. Orchestrates compensation, transformation, gating/clustering, and statistical testing with CATALYST/diffcyt. Use when processing flow or mass cytometry data end-to-end.
 tool_type: r
 primary_tool: CATALYST
 workflow: true

@@ -36,6 +36,12 @@ Tell your AI agent what you want to do:
 ### Parallel Processing
 > "Process all FASTQ files in parallel and count reads"
 
+## What the Agent Will Do
+1. Load sequences from the input files
+2. Apply the requested processing to each sequence
+3. Track progress across all files
+4. Output results to specified location
+
 ## Tips
 
 - Use pathlib.Path for cross-platform file handling

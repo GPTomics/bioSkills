@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-scrnaseq-pipeline
-description: End-to-end single-cell RNA-seq workflow from 10X Genomics data to annotated cell types. Covers QC, normalization, clustering, marker detection, and cell type annotation.
+description: End-to-end single-cell RNA-seq workflow from 10X Genomics data to annotated cell types. Covers QC, normalization, clustering, marker detection, and cell type annotation. Use when analyzing single-cell RNA-seq data.
 tool_type: mixed
 primary_tool: Seurat, Scanpy
 workflow: true

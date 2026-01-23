@@ -1,6 +1,6 @@
 ---
 name: bio-reporting-quarto-reports
-description: Build reproducible scientific documents, presentations, and websites with Quarto supporting R, Python, Julia, and Observable JS.
+description: Build reproducible scientific documents, presentations, and websites with Quarto supporting R, Python, Julia, and Observable JS. Use when creating reproducible reports with Quarto.
 tool_type: mixed
 primary_tool: Quarto
 ---

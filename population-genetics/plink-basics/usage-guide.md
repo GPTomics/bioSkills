@@ -2,17 +2,9 @@
 
 ## Overview
 
-PLINK is the standard tool for population genetic analysis. PLINK 2.0 is faster and more memory-efficient but doesn't support all legacy formats. Use PLINK 1.9 for format conversion from PED/MAP, then PLINK 2.0 for analysis.
+PLINK is the standard tool for population genetic analysis, handling format conversion, quality control, and basic statistics. PLINK 2.0 is faster and more memory-efficient but doesn't support all legacy formats.
 
-## When to Use This Skill
-
-- Converting VCF to PLINK format for analysis
-- Quality control filtering before GWAS
-- Merging datasets from different sources
-- Extracting specific samples or variants
-- Basic allele frequency calculations
-
-## Installation
+## Prerequisites
 
 ```bash
 # PLINK 1.9
@@ -21,6 +13,56 @@ conda install -c bioconda plink
 # PLINK 2.0
 conda install -c bioconda plink2
 ```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Convert my VCF file to PLINK format"
+- "Run quality control on my GWAS data"
+- "Filter out low-quality variants and samples"
+- "Merge these two PLINK datasets"
+- "Extract samples from a specific population"
+
+## Example Prompts
+
+### Format Conversion
+> "Convert data.vcf.gz to PLINK binary format"
+
+> "Convert my PED/MAP files to binary BED format"
+
+> "Export my PLINK data back to VCF"
+
+### Quality Control
+> "Run standard QC filtering on my GWAS data with MAF 0.01, genotype missingness 5%, and sample missingness 5%"
+
+> "Apply strict QC filters for population structure analysis"
+
+> "Check for samples with high missingness rates"
+
+### Data Management
+> "Merge these three PLINK datasets into one"
+
+> "Extract only the European samples from my data"
+
+> "Remove all variants not in my keep list"
+
+> "Calculate allele frequencies for each population"
+
+## What the Agent Will Do
+
+1. Assess input data format (VCF, PED/MAP, or binary)
+2. Determine appropriate PLINK version (1.9 for legacy formats, 2.0 for analysis)
+3. Run quality control or conversion commands
+4. Report statistics before and after filtering
+5. Verify output file integrity
+
+## Tips
+
+- Use `--double-id` when converting VCF to handle sample ID parsing
+- PLINK 2.0's `--pfile` is faster than `--bfile` for large datasets
+- Always check variant/sample counts before and after QC
+- Use `--snps-only just-acgt` to remove indels and non-standard alleles
+- For merging datasets, ensure consistent chromosome naming and strand orientation
 
 ## Standard QC Workflow
 

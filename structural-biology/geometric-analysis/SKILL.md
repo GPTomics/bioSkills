@@ -1,6 +1,6 @@
 ---
 name: bio-pdb-geometric-analysis
-description: Perform geometric calculations on protein structures using Biopython Bio.PDB. Use for measuring distances, angles, and dihedrals, finding neighbor atoms, superimposing structures, calculating RMSD, identifying contacts, and computing solvent accessible surface area (SASA).
+description: Perform geometric calculations on protein structures using Biopython Bio.PDB. Use when measuring distances, angles, and dihedrals, superimposing structures, calculating RMSD, or computing solvent accessible surface area (SASA).
 tool_type: python
 primary_tool: Bio.PDB
 ---

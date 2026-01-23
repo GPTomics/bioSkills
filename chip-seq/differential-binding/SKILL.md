@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-differential-binding
-description: Differential binding analysis using DiffBind. Compare ChIP-seq peaks between conditions with statistical rigor. Requires replicate samples. Outputs differentially bound regions with fold changes and p-values.
+description: Differential binding analysis using DiffBind. Compare ChIP-seq peaks between conditions with statistical rigor. Requires replicate samples. Outputs differentially bound regions with fold changes and p-values. Use when comparing ChIP-seq binding between conditions.
 tool_type: r
 primary_tool: DiffBind
 ---

@@ -1,6 +1,6 @@
 ---
 name: bio-entrez-link
-description: Find cross-references between NCBI databases using Biopython Bio.Entrez. Use for navigating from genes to proteins, sequences to publications, finding related records, and discovering database relationships.
+description: Find cross-references between NCBI databases using Biopython Bio.Entrez. Use when navigating from genes to proteins, sequences to publications, finding related records, or discovering database relationships.
 tool_type: python
 primary_tool: Bio.Entrez
 ---

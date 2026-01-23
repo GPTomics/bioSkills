@@ -1,6 +1,6 @@
 ---
 name: bio-population-genetics-association-testing
-description: Genome-wide association studies (GWAS) with PLINK. Perform case-control and quantitative trait association testing using logistic/linear regression with covariates, generate Manhattan and QQ plots for result visualization.
+description: Genome-wide association studies (GWAS) with PLINK. Perform case-control and quantitative trait association testing using logistic/linear regression with covariates, generate Manhattan and QQ plots for result visualization. Use when running GWAS or association tests.
 tool_type: cli
 primary_tool: plink2
 ---

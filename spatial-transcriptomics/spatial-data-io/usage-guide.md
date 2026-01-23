@@ -12,11 +12,11 @@ pip install squidpy spatialdata spatialdata-io scanpy anndata
 
 ## Quick Start
 
-Ask your AI agent:
+Tell your AI agent what you want to do:
 
-> "Load my Visium data from the Space Ranger output"
-
-> "Read this Xenium experiment"
+- "Load my Visium data from the Space Ranger output"
+- "Read this Xenium experiment"
+- "Load my MERFISH spatial data"
 
 ## Example Prompts
 

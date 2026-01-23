@@ -1,6 +1,6 @@
 ---
 name: bio-rna-quantification-alignment-free-quant
-description: Quantify transcript expression using pseudo-alignment with Salmon or kallisto. Use for fast, accurate transcript-level quantification directly from FASTQ files without genome alignment.
+description: Quantify transcript expression using pseudo-alignment with Salmon or kallisto. Use when quantifying transcripts with Salmon or kallisto.
 tool_type: cli
 primary_tool: salmon
 ---

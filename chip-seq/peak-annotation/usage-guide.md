@@ -1,91 +1,59 @@
-# Peak Annotation with ChIPseeker - Usage Guide
+# Peak Annotation - Usage Guide
 
 ## Overview
 
-ChIPseeker annotates ChIP-seq peaks to genomic features and genes. It provides statistical summaries, visualizations, and functional enrichment analysis of peak-associated genes.
+Annotate ChIP-seq peaks to genomic features (promoters, exons, introns, intergenic) and associated genes using ChIPseeker.
 
-## When to Use This Skill
-
-- You have peak files from MACS2 or other peak callers
-- You want to know which genes are associated with peaks
-- You need to visualize peak distribution across genomic features
-- You want to compare peak annotations between samples
-
-## Installation
+## Prerequisites
 
 ```r
-if (!require('BiocManager', quietly = TRUE))
-    install.packages('BiocManager')
-
 BiocManager::install(c('ChIPseeker', 'TxDb.Hsapiens.UCSC.hg38.knownGene', 'org.Hs.eg.db'))
 
 # For functional enrichment
 BiocManager::install('clusterProfiler')
 ```
 
-## Basic Workflow
+## Quick Start
 
-### 1. Load Packages and Data
+Tell your AI agent what you want to do:
+- "Annotate my peaks to the nearest genes"
+- "Show the distribution of peaks across genomic features"
+- "Find which genes have peaks in their promoters"
 
-```r
-library(ChIPseeker)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-library(org.Hs.eg.db)
+## Example Prompts
 
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
-peaks <- readPeakFile('sample_peaks.narrowPeak')
-```
+### Basic Annotation
+> "Annotate my narrowPeak file to genes and genomic features"
 
-### 2. Annotate Peaks
+> "Get gene symbols for all peaks in my BED file"
 
-```r
-peak_anno <- annotatePeak(peaks, TxDb = txdb, annoDb = 'org.Hs.eg.db')
-```
+> "Find the nearest TSS for each peak"
 
-### 3. Visualize
+### Visualization
+> "Create a pie chart showing peak distribution across genomic features"
 
-```r
-plotAnnoPie(peak_anno)
-plotDistToTSS(peak_anno)
-```
+> "Plot the distance of peaks to the nearest TSS"
 
-### 4. Export Results
+> "Compare peak annotation between two samples"
 
-```r
-anno_df <- as.data.frame(peak_anno)
-write.csv(anno_df, 'annotated_peaks.csv', row.names = FALSE)
-```
+### Functional Analysis
+> "Run GO enrichment on genes with promoter peaks"
 
-## Common Issues
+> "Export annotated peaks with gene symbols to CSV"
 
-### Chromosome Name Mismatch
+## What the Agent Will Do
 
-UCSC uses "chr1", Ensembl uses "1". Ensure consistency:
-```r
-# Add chr prefix if needed
-seqlevelsStyle(peaks) <- 'UCSC'
-```
+1. Load peak files (narrowPeak, broadPeak, or BED format)
+2. Match chromosome naming style (UCSC vs Ensembl)
+3. Annotate peaks to genomic features using the appropriate TxDb
+4. Add gene symbols and Entrez IDs from the annotation database
+5. Generate visualization plots (pie chart, bar plot, TSS distance plot)
+6. Export annotated peaks with all gene information
 
-### No Gene Symbols
+## Tips
 
-Ensure annoDb parameter is set correctly:
-```r
-annotatePeak(peaks, TxDb = txdb, annoDb = 'org.Hs.eg.db')
-```
-
-## Output Columns
-
-| Column | Description |
-|--------|-------------|
-| seqnames | Chromosome |
-| start, end | Peak coordinates |
-| annotation | Genomic feature |
-| distanceToTSS | Distance to nearest TSS |
-| SYMBOL | Gene symbol |
-| GENENAME | Gene description |
-| ENTREZID | Entrez gene ID |
-
-## Resources
-
-- [ChIPseeker Bioconductor](https://bioconductor.org/packages/ChIPseeker/)
-- [ChIPseeker Vignette](https://bioconductor.org/packages/release/bioc/vignettes/ChIPseeker/inst/doc/ChIPseeker.html)
+- Ensure chromosome names match between peaks and TxDb (use `seqlevelsStyle()`)
+- Include `annoDb` parameter to get gene symbols, not just Entrez IDs
+- Promoter regions are typically defined as +/- 3kb from TSS
+- Use `distanceToTSS` to filter for proximal vs distal peaks
+- Multiple peaks can annotate to the same gene

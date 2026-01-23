@@ -1,6 +1,6 @@
 ---
 name: bio-sra-data
-description: Download sequencing data from NCBI SRA using the SRA toolkit. Use for downloading FASTQ files from SRA accessions, prefetching large datasets, validating downloads, and configuring SRA toolkit.
+description: Download sequencing data from NCBI SRA using the SRA toolkit. Use when downloading FASTQ files from SRA accessions, prefetching large datasets, or validating SRA downloads.
 tool_type: cli
 primary_tool: sra-tools
 ---

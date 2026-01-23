@@ -1,6 +1,8 @@
-# DeepVariant Usage Guide
+# DeepVariant - Usage Guide
 
-Deep learning variant calling for high-accuracy germline SNP/indel detection.
+## Overview
+
+Deep learning variant calling using Google's DeepVariant for high-accuracy germline SNP and indel detection from Illumina, PacBio HiFi, or Oxford Nanopore data.
 
 ## Prerequisites
 
@@ -17,16 +19,54 @@ singularity pull docker://google/deepvariant:1.6.0
 
 ## Quick Start
 
-```bash
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
-    /opt/deepvariant/bin/run_deepvariant \
-    --model_type=WGS \
-    --ref=/data/reference.fa \
-    --reads=/data/sample.bam \
-    --output_vcf=/data/output.vcf.gz \
-    --output_gvcf=/data/output.g.vcf.gz \
-    --num_shards=16
-```
+Tell your AI agent what you want to do:
+- "Call variants from my WGS BAM using DeepVariant"
+- "Run DeepVariant on exome data with target regions"
+- "Set up DeepVariant with GPU acceleration"
+- "Generate GVCFs for joint calling with GLnexus"
+
+## Example Prompts
+
+### Basic Variant Calling
+> "Call variants from my whole genome BAM using DeepVariant"
+
+> "Run DeepVariant on sample.bam with 16 threads"
+
+### Exome/Targeted
+> "Run DeepVariant on my exome data with the capture BED file"
+
+> "Call variants only in my target regions using DeepVariant WES model"
+
+### Long Reads
+> "Call variants from my PacBio HiFi reads with DeepVariant"
+
+> "Run DeepVariant with the ONT_R104 model for Nanopore data"
+
+### Multi-Sample
+> "Generate GVCFs with DeepVariant for joint calling"
+
+> "Set up DeepVariant + GLnexus for my cohort of 20 samples"
+
+### GPU Acceleration
+> "Run DeepVariant with GPU support for faster processing"
+
+## What the Agent Will Do
+
+1. Verify input BAM is aligned, sorted, and indexed
+2. Select appropriate model type (WGS, WES, PACBIO, ONT_R104)
+3. Set up Docker/Singularity command with volume mounts
+4. Run DeepVariant with optimal thread count
+5. Generate VCF and optionally GVCF for joint calling
+6. Produce variant statistics for quality assessment
+
+## Tips
+
+- Use the correct model type for your data (WGS, WES, PACBIO, ONT_R104)
+- Always specify `--regions` for exome/targeted data to save time
+- GPU version provides 3-4x speedup for WGS; worthwhile for many samples
+- Generate GVCFs with `--output_gvcf` if planning multi-sample joint calling
+- Use GLnexus (not GATK) for joint genotyping DeepVariant GVCFs
+- Ti/Tv ratio around 2.0-2.1 indicates high-quality WGS SNP calls
 
 ## Model Types
 
@@ -38,6 +78,19 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
 | `ONT_R104` | Oxford Nanopore R10.4 |
 
 ## Usage Patterns
+
+### Basic WGS
+
+```bash
+docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+    /opt/deepvariant/bin/run_deepvariant \
+    --model_type=WGS \
+    --ref=/data/reference.fa \
+    --reads=/data/sample.bam \
+    --output_vcf=/data/output.vcf.gz \
+    --output_gvcf=/data/output.g.vcf.gz \
+    --num_shards=16
+```
 
 ### Exome/Targeted Sequencing
 

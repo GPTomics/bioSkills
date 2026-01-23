@@ -1,6 +1,6 @@
 ---
 name: bio-restriction-enzyme-selection
-description: Select restriction enzymes by criteria using Biopython Bio.Restriction. Find enzymes that cut once, don't cut, produce specific overhangs, are commercially available, or have compatible ends for cloning.
+description: Select restriction enzymes by criteria using Biopython Bio.Restriction. Find enzymes that cut once, don't cut, produce specific overhangs, are commercially available, or have compatible ends for cloning. Use when selecting restriction enzymes for cloning or analysis.
 tool_type: python
 primary_tool: Bio.Restriction
 ---

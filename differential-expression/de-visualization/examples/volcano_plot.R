@@ -17,6 +17,9 @@ res_df <- data.frame(
 res_df$gene <- rownames(res_df)
 
 # Define significance
+# padj < 0.05: Standard FDR cutoff (5% false discovery rate)
+# |log2FC| > 1: Requires 2-fold change - conservative, reduces noise
+# For exploratory analysis, use |log2FC| > 0.5 (1.4-fold) or padj < 0.1
 res_df$significant <- ifelse(
     res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 1,
     ifelse(res_df$log2FoldChange > 1, 'Up', 'Down'),

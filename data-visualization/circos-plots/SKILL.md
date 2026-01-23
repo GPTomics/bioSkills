@@ -1,6 +1,6 @@
 ---
 name: bio-data-visualization-circos-plots
-description: Create circular genome visualizations with Circos and pyCircos. Display multi-track data including ideograms, genes, variants, CNVs, and interaction arcs.
+description: Create circular genome visualizations with Circos and pyCircos. Display multi-track data including ideograms, genes, variants, CNVs, and interaction arcs. Use when creating circular genome visualizations.
 tool_type: mixed
 primary_tool: Circos, pyCircos
 ---

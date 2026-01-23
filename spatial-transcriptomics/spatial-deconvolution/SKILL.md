@@ -1,6 +1,6 @@
 ---
 name: bio-spatial-transcriptomics-spatial-deconvolution
-description: Estimate cell type composition in spatial transcriptomics spots using reference-based deconvolution. Use cell2location, RCTD, SPOTlight, or Tangram to infer cell type proportions from scRNA-seq references.
+description: Estimate cell type composition in spatial transcriptomics spots using reference-based deconvolution. Use cell2location, RCTD, SPOTlight, or Tangram to infer cell type proportions from scRNA-seq references. Use when estimating cell type composition in spatial spots.
 tool_type: python
 primary_tool: cell2location
 ---

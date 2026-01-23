@@ -12,13 +12,11 @@ pip install biopython
 
 ## Quick Start
 
-Ask your AI agent:
+Tell your AI agent what you want to do:
 
-> "Align these two DNA sequences and show me the best alignment"
-
-> "Compare this protein sequence against a reference using BLOSUM62"
-
-> "Find the best matching region between these two sequences"
+- "Align these two DNA sequences and show me the best alignment"
+- "Compare this protein sequence against a reference using BLOSUM62"
+- "Find the best matching region between these two sequences"
 
 ## Example Prompts
 

@@ -19,6 +19,10 @@ print('\nGenes detected per sample:')
 genes_detected = (counts > 0).sum()
 print(genes_detected.describe())
 
+# Standard filtering: gene must have >=10 counts in >=3 samples
+# min_counts=10: Removes genes with only 1-2 reads that could be noise
+# min_samples=3: Ensures gene is expressed in multiple replicates, not just one outlier
+# Expected: ~12,000-18,000 genes pass filtering for mammalian samples
 min_counts, min_samples = 10, 3
 gene_filter = (counts >= min_counts).sum(axis=1) >= min_samples
 counts_filt = counts[gene_filter]

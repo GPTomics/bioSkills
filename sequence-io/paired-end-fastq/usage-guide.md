@@ -41,6 +41,12 @@ Tell your AI agent what you want to do:
 | Simple | `sample_1.fastq` | `sample_2.fastq` |
 | Underscore | `sample_R1.fastq` | `sample_R2.fastq` |
 
+## What the Agent Will Do
+1. Open both R1 and R2 FASTQ files
+2. Iterate through paired records simultaneously
+3. Verify read pairing by ID matching
+4. Process paired reads together
+
 ## Tips
 
 - Always filter pairs together (both must pass)

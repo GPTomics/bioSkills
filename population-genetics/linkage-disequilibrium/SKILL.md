@@ -1,6 +1,6 @@
 ---
 name: bio-population-genetics-linkage-disequilibrium
-description: Calculate linkage disequilibrium statistics (r², D'), perform LD pruning for population structure analysis, identify haplotype blocks, and visualize LD patterns using PLINK, scikit-allel, and LDBlockShow.
+description: Calculate linkage disequilibrium statistics (r², D'), perform LD pruning for population structure analysis, identify haplotype blocks, and visualize LD patterns using PLINK, scikit-allel, and LDBlockShow. Use when calculating LD or pruning variants.
 tool_type: mixed
 primary_tool: plink2
 ---
