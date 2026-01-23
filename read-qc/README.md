@@ -62,7 +62,6 @@ conda install -c bioconda umi_tools
 
 # RNA-seq QC
 conda install -c bioconda sortmerna rseqc
-pip install RSeQC
 ```
 
 ## Related Skills
