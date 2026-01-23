@@ -1,6 +1,6 @@
 ---
 name: bio-entrez-fetch
-description: Retrieve records from NCBI databases using Biopython Bio.Entrez. Use for downloading sequences, fetching GenBank records, getting document summaries, and parsing NCBI data into Biopython objects.
+description: Retrieve records from NCBI databases using Biopython Bio.Entrez. Use when downloading sequences, fetching GenBank records, getting document summaries, or parsing NCBI data into Biopython objects.
 tool_type: python
 primary_tool: Bio.Entrez
 ---

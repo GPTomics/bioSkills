@@ -9,6 +9,8 @@ cat('Loading MS-DIAL alignment results...\n')
 
 # Simulate MS-DIAL output structure
 # In practice: msdial_data <- read.csv('msdial_alignment_result.csv', check.names = FALSE)
+# For realistic data, download from Metabolomics Workbench (www.metabolomicsworkbench.org)
+# or use mtbls2 package: BiocManager::install('mtbls2'); library(mtbls2)
 
 set.seed(42)
 n_features <- 500

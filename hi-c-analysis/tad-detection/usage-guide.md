@@ -14,11 +14,12 @@ conda install -c bioconda hicexplorer
 
 ## Quick Start
 
-Ask your AI agent:
+Tell your AI agent what you want to do:
 
-> "Call TADs from my Hi-C data"
-
-> "Find TAD boundaries"
+- "Call TADs from my Hi-C data"
+- "Find TAD boundaries using insulation score"
+- "Compute domain boundaries at 10kb resolution"
+- "Compare TAD structures between conditions"
 
 ## Example Prompts
 

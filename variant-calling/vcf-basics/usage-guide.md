@@ -1,424 +1,69 @@
-# VCF/BCF Basics Usage Guide
+# VCF/BCF Basics - Usage Guide
 
-This guide covers viewing, querying, and understanding variant files.
+## Overview
+
+View, query, and understand VCF/BCF variant files using bcftools and cyvcf2. Essential for working with variant calling results.
 
 ## Prerequisites
 
-- bcftools installed (`conda install -c bioconda bcftools`)
-- cyvcf2 installed (`pip install cyvcf2`)
-- htslib for bgzip/tabix (`conda install -c bioconda htslib`)
-
-## Understanding VCF Format
-
-VCF (Variant Call Format) is the standard format for storing genetic variants.
-
-### File Structure
-
-A VCF file has three sections:
-
-1. **Meta-information lines** (##) - Describe the file and define fields
-2. **Header line** (#CHROM) - Column names
-3. **Data lines** - One variant per line
-
-### Example VCF
-
-```
-##fileformat=VCFv4.2
-##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
-##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
-##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO            FORMAT      SAMPLE1     SAMPLE2
-chr1    1000    rs123   A       G       50      PASS    DP=100;AF=0.5   GT:DP:GQ    0/1:50:99   0/0:50:99
-chr1    2000    .       CT      C       30      PASS    DP=80;AF=0.25   GT:DP:GQ    0/1:40:80   0/1:40:85
-```
-
-### Fixed Columns
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| CHROM | Chromosome | chr1 |
-| POS | 1-based position | 1000 |
-| ID | Variant ID or `.` | rs123 |
-| REF | Reference allele | A |
-| ALT | Alternate allele(s) | G |
-| QUAL | Quality score | 50 |
-| FILTER | PASS or filter name | PASS |
-| INFO | Variant annotations | DP=100;AF=0.5 |
-| FORMAT | Sample field format | GT:DP:GQ |
-
-### INFO Field
-
-Semicolon-separated key=value pairs describing the variant:
-
-```
-DP=100;AF=0.5;MQ=60
-```
-
-Common INFO fields:
-- `DP` - Total read depth
-- `AF` - Allele frequency
-- `MQ` - Mapping quality
-- `AN` - Total alleles
-- `AC` - Allele count
-
-### FORMAT and Sample Fields
-
-FORMAT defines the order of sample values. Sample columns contain colon-separated values:
-
-```
-FORMAT      SAMPLE1
-GT:DP:GQ    0/1:50:99
-```
-
-Common FORMAT fields:
-- `GT` - Genotype
-- `DP` - Read depth
-- `GQ` - Genotype quality
-- `AD` - Allelic depths
-- `PL` - Phred-scaled likelihoods
-
-## Viewing VCF Files
-
-### Basic Viewing
-
 ```bash
-# View entire file
-bcftools view input.vcf.gz | less
-
-# View first 20 variants
-bcftools view -H input.vcf.gz | head -20
-
-# View header only
-bcftools view -h input.vcf.gz
+conda install -c bioconda bcftools htslib
+pip install cyvcf2
 ```
 
-### View Specific Region
+## Quick Start
 
-```bash
-# Region query (requires index)
-bcftools view input.vcf.gz chr1:1000000-2000000
+Tell your AI agent what you want to do:
 
-# Multiple regions
-bcftools view -r chr1:1000-2000,chr2:3000-4000 input.vcf.gz
-```
+- "View the first 20 variants in my VCF file"
+- "List all samples in this VCF"
+- "Extract chromosome, position, and genotypes to a TSV"
+- "Convert my VCF to BCF format"
+- "Query variants in the region chr1:1000000-2000000"
 
-### View Specific Samples
+## Example Prompts
 
-```bash
-# Include samples
-bcftools view -s sample1,sample2 input.vcf.gz
+### Viewing Files
 
-# Exclude samples
-bcftools view -s ^sample3,sample4 input.vcf.gz
+> "Show me the header of my VCF file"
 
-# List samples
-bcftools query -l input.vcf.gz
-```
+> "View variants in chromosome 1 between positions 1M and 2M"
 
-## Querying VCF Files
+> "How many SNPs and indels are in this VCF?"
 
-### Basic Query
+### Extracting Data
 
-```bash
-# Extract CHROM, POS, REF, ALT
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' input.vcf.gz
-```
+> "Extract variant positions and allele frequencies to a table"
 
-### Query with INFO Fields
+> "Get genotypes for all samples as a TSV file"
 
-```bash
-# Include depth and allele frequency
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%INFO/DP\t%INFO/AF\n' input.vcf.gz
-```
+> "List all variant IDs (rsIDs) in the file"
 
-### Query Sample Data
+### Format Conversion
 
-```bash
-# Get genotypes for all samples
-bcftools query -f '%CHROM\t%POS[\t%GT]\n' input.vcf.gz
+> "Compress my VCF with bgzip and index it"
 
-# Get sample name with genotype
-bcftools query -f '%CHROM\t%POS[\t%SAMPLE=%GT]\n' input.vcf.gz
+> "Convert this VCF to BCF format for faster processing"
 
-# Get depth per sample
-bcftools query -f '%CHROM\t%POS[\t%DP]\n' input.vcf.gz
-```
+### Python Analysis
 
-### Query with Header
+> "Iterate through variants and count heterozygous calls per sample"
 
-```bash
-bcftools query -H -f '%CHROM\t%POS\t%REF\t%ALT\n' input.vcf.gz
-```
+> "Filter variants with QUAL > 30 and write to a new file"
 
-### Query to TSV
+## What the Agent Will Do
 
-```bash
-bcftools query -H -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%INFO/DP[\t%GT]\n' \
-    input.vcf.gz > variants.tsv
-```
+1. Identify the VCF/BCF file location and check if it's indexed
+2. Select appropriate tool (bcftools for CLI, cyvcf2 for Python)
+3. Construct the query or view command with proper flags
+4. Execute the operation and format output as requested
+5. For region queries, ensure the file is indexed first
 
-## Format Conversion
+## Tips
 
-### Compression
-
-VCF files should be compressed with bgzip (not gzip):
-
-```bash
-# Compress VCF
-bgzip input.vcf
-
-# Decompress
-bgzip -d input.vcf.gz
-
-# Keep original
-bgzip -k input.vcf
-```
-
-### VCF to BCF
-
-BCF (binary VCF) is faster to process:
-
-```bash
-bcftools view -Ob -o output.bcf input.vcf.gz
-bcftools index output.bcf
-```
-
-### BCF to VCF
-
-```bash
-bcftools view -Oz -o output.vcf.gz input.bcf
-```
-
-## Indexing
-
-Index files enable random access:
-
-```bash
-# CSI index (default, supports large chromosomes)
-bcftools index input.vcf.gz
-
-# TBI index (tabix format)
-bcftools index -t input.vcf.gz
-
-# Force reindex
-bcftools index -f input.vcf.gz
-```
-
-## Working with cyvcf2
-
-### Basic Iteration
-
-```python
-from cyvcf2 import VCF
-
-vcf = VCF('input.vcf.gz')
-
-for variant in vcf:
-    print(f'{variant.CHROM}:{variant.POS} {variant.REF}>{",".join(variant.ALT)}')
-
-vcf.close()
-```
-
-### Using Context Manager Pattern
-
-```python
-from cyvcf2 import VCF
-
-def process_vcf(path):
-    vcf = VCF(path)
-    try:
-        for variant in vcf:
-            yield variant
-    finally:
-        vcf.close()
-
-for v in process_vcf('input.vcf.gz'):
-    print(v.CHROM, v.POS)
-```
-
-### Accessing Variant Properties
-
-```python
-from cyvcf2 import VCF
-
-for variant in VCF('input.vcf.gz'):
-    # Basic properties
-    chrom = variant.CHROM
-    pos = variant.POS
-    ref = variant.REF
-    alts = variant.ALT  # List of alternate alleles
-    qual = variant.QUAL
-    filter_status = variant.FILTER  # None if PASS
-
-    # Variant type
-    var_type = variant.var_type  # 'snp', 'indel', 'mnp', etc.
-    is_snp = variant.is_snp
-    is_indel = variant.is_indel
-
-    # Allele info
-    is_transition = variant.is_transition
-    num_called = variant.num_called
-    num_het = variant.num_het
-    num_hom_ref = variant.num_hom_ref
-    num_hom_alt = variant.num_hom_alt
-
-    break
-```
-
-### Accessing INFO Fields
-
-```python
-from cyvcf2 import VCF
-
-for variant in VCF('input.vcf.gz'):
-    # Get INFO field (returns None if not present)
-    dp = variant.INFO.get('DP')
-    af = variant.INFO.get('AF')
-    mq = variant.INFO.get('MQ')
-
-    # Check if field exists
-    if 'DP' in variant.INFO:
-        print(f'Depth: {variant.INFO["DP"]}')
-```
-
-### Accessing Genotypes
-
-```python
-from cyvcf2 import VCF
-
-vcf = VCF('input.vcf.gz')
-samples = vcf.samples
-
-for variant in vcf:
-    # gt_types: 0=HOM_REF, 1=HET, 2=UNKNOWN, 3=HOM_ALT
-    gt_types = variant.gt_types
-
-    # gt_bases: actual genotype strings like 'A/G'
-    gt_bases = variant.gt_bases
-
-    # gt_phases: phasing information
-    gt_phases = variant.gt_phases
-
-    for sample, gt_type, gt_base in zip(samples, gt_types, gt_bases):
-        print(f'{sample}: {gt_base} (type={gt_type})')
-
-    break
-```
-
-### Accessing FORMAT Fields
-
-```python
-from cyvcf2 import VCF
-
-for variant in VCF('input.vcf.gz'):
-    # Returns numpy array (samples x values)
-    depths = variant.format('DP')
-    gqs = variant.format('GQ')
-    ads = variant.format('AD')  # Allelic depths
-
-    if depths is not None:
-        print(f'Depths: {depths.flatten()}')
-```
-
-### Region Queries
-
-```python
-from cyvcf2 import VCF
-
-vcf = VCF('input.vcf.gz')
-
-# Query specific region
-for variant in vcf('chr1:1000000-2000000'):
-    print(f'{variant.CHROM}:{variant.POS}')
-
-# Multiple regions
-for region in ['chr1:1000-2000', 'chr2:3000-4000']:
-    for variant in vcf(region):
-        print(variant.POS)
-```
-
-### Writing VCF
-
-```python
-from cyvcf2 import VCF, Writer
-
-vcf = VCF('input.vcf.gz')
-writer = Writer('output.vcf', vcf)  # Inherits header
-
-for variant in vcf:
-    # Filter and write
-    if variant.QUAL and variant.QUAL > 30:
-        writer.write_record(variant)
-
-writer.close()
-vcf.close()
-```
-
-## Common Tasks
-
-### Count Variants
-
-```bash
-# Total variants
-bcftools view -H input.vcf.gz | wc -l
-
-# SNPs only
-bcftools view -v snps input.vcf.gz | bcftools view -H | wc -l
-
-# Indels only
-bcftools view -v indels input.vcf.gz | bcftools view -H | wc -l
-```
-
-### List Samples
-
-```bash
-bcftools query -l input.vcf.gz
-```
-
-### Extract Variant IDs
-
-```bash
-bcftools query -f '%ID\n' input.vcf.gz | grep -v '^\.$'
-```
-
-### Get Allele Frequencies
-
-```bash
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%INFO/AF\n' input.vcf.gz
-```
-
-## Troubleshooting
-
-### "no BGZF EOF marker"
-
-File compressed with gzip instead of bgzip:
-
-```bash
-# Fix: recompress
-gunzip input.vcf.gz
-bgzip input.vcf
-```
-
-### "index required"
-
-Missing index file:
-
-```bash
-bcftools index input.vcf.gz
-```
-
-### "sample not found"
-
-Check available samples:
-
-```bash
-bcftools query -l input.vcf.gz
-```
-
-## See Also
-
-- [VCF specification](https://samtools.github.io/hts-specs/VCFv4.2.pdf)
-- [bcftools documentation](http://www.htslib.org/doc/bcftools.html)
-- [cyvcf2 documentation](https://brentp.github.io/cyvcf2/)
+- Always use bgzip (not gzip) for VCF compression - bcftools requires it
+- Index files (.tbi or .csi) enable fast region queries
+- BCF format is faster to process than VCF for large files
+- Use `-H` flag with bcftools query to skip the header line
+- cyvcf2 is faster than PyVCF for large files
+- Filter status of `None` in cyvcf2 means the variant passed all filters

@@ -1,6 +1,6 @@
 ---
 name: bio-local-blast
-description: Run local BLAST searches using BLAST+ command-line tools. Use for fast unlimited searches, custom databases, large-scale analysis, and when NCBI servers are slow or unavailable.
+description: Run local BLAST searches using BLAST+ command-line tools. Use when running fast unlimited searches, building custom databases, performing large-scale analysis, or when NCBI servers are slow or unavailable.
 tool_type: cli
 primary_tool: BLAST+
 ---
