@@ -51,6 +51,9 @@ cd bioSkills
 ./install-claude.sh                              # Install globally
 ./install-claude.sh --project /path/to/project   # Or install to specific project
 ./install-claude.sh --list                       # List available skills
+./install-claude.sh --validate                   # Validate all skills
+./install-claude.sh --update                     # Only update changed skills
+./install-claude.sh --uninstall                  # Remove all bio-* skills
 ```
 
 ### Codex CLI
@@ -58,6 +61,9 @@ cd bioSkills
 ```bash
 ./install-codex.sh                               # Install globally
 ./install-codex.sh --project /path/to/project    # Or install to specific project
+./install-codex.sh --validate                    # Validate all skills
+./install-codex.sh --update                      # Only update changed skills
+./install-codex.sh --uninstall                   # Remove all bio-* skills
 ```
 
 ### Gemini CLI
@@ -65,6 +71,9 @@ cd bioSkills
 ```bash
 ./install-gemini.sh                              # Install globally
 ./install-gemini.sh --project /path/to/project   # Or install to specific project
+./install-gemini.sh --validate                   # Validate all skills
+./install-gemini.sh --update                     # Only update changed skills
+./install-gemini.sh --uninstall                  # Remove all bio-* skills
 ```
 
 Codex and Gemini installers convert to the Agent Skills standard (`examples/` -> `scripts/`, `usage-guide.md` -> `references/`).
@@ -82,13 +91,13 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **phylogenetics** | 4 | Bio.Phylo | Tree I/O, visualization, manipulation, distance matrices |
 | **differential-expression** | 6 | DESeq2, edgeR, sva, limma | RNA-seq differential expression, batch correction, time-series |
 | **structural-biology** | 5 | Bio.PDB | PDB/mmCIF parsing, geometric analysis, AlphaFold |
-| **single-cell** | 11 | Seurat, Scanpy, Signac, CellChat, Harmony | scRNA-seq QC, clustering, trajectory, communication, annotation, integration |
+| **single-cell** | 13 | Seurat, Scanpy, Signac, CellChat, Pertpy, Cassiopeia | scRNA-seq QC, clustering, trajectory, communication, annotation, integration, perturb-seq, lineage tracing |
 | **pathway-analysis** | 6 | clusterProfiler | GO, KEGG, Reactome, WikiPathways enrichment |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 4 | Bismark, methylKit | Bisulfite alignment, methylation calling, DMRs |
 | **chip-seq** | 7 | MACS3, ChIPseeker, HOMER, IDR, ROSE | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
 | **metagenomics** | 7 | Kraken2, MetaPhlAn, AMRFinderPlus, MASH | Taxonomic classification, abundance estimation, AMR detection, strain tracking |
-| **long-read-sequencing** | 6 | Dorado, minimap2, medaka, Clair3 | Basecalling, alignment, polishing, variant calling, SV calling |
+| **long-read-sequencing** | 7 | Dorado, minimap2, medaka, Clair3, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, Iso-Seq |
 | **read-qc** | 7 | FastQC, fastp, umi_tools, RSeQC | Quality reports, adapter trimming, filtering, UMIs, RNA-seq QC |
 | **genome-intervals** | 7 | BEDTools, pybedtools, pyBigWig | BED/GTF operations, interval arithmetic, bedGraph, bigWig |
 | **population-genetics** | 6 | PLINK, scikit-allel | GWAS, population structure, selection statistics |
@@ -100,9 +109,9 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **atac-seq** | 5 | MACS3, TOBIAS, ATACseqQC | ATAC-seq peaks, QC, footprinting, nucleosome positioning |
 | **genome-assembly** | 8 | SPAdes, Flye, hifiasm, YaHS, CheckM2 | Assembly, polishing, scaffolding, contamination detection |
 | **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
-| **spatial-transcriptomics** | 9 | Squidpy, SpatialData | Visium, Xenium, spatial stats, domain detection, deconvolution |
+| **spatial-transcriptomics** | 10 | Squidpy, SpatialData | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution, high-resolution |
 | **hi-c-analysis** | 8 | cooler, cooltools, pairtools | Contact matrices, compartments, TADs, loops, differential |
-| **workflows** | 23 | mixed | End-to-end pipelines: RNA-seq, variants, somatic, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, IMC, cytometry, multi-omics |
+| **workflows** | 28 | mixed | End-to-end pipelines: RNA-seq, variants, somatic, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, IMC, cytometry, multi-omics, TCR, small-RNA, Ribo-seq, MeRIP, CLIP |
 | **proteomics** | 9 | pyOpenMS, MSstats, DIA-NN, limma | Mass spec data import, QC, quantification, differential abundance, PTM, DIA, spectral libraries |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
@@ -113,8 +122,14 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **reporting** | 2 | RMarkdown, Quarto | Reproducible analysis reports in HTML, PDF, Word |
 | **workflow-management** | 4 | Snakemake, Nextflow, CWL, WDL | Scalable pipeline frameworks with containers |
 | **data-visualization** | 8 | ggplot2, ComplexHeatmap, plotly, pyGenomeTracks, Circos | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
+| **tcr-bcr-analysis** | 5 | MiXCR, VDJtools, Immcantation, scirpy | TCR/BCR repertoire analysis, clonotype assembly, diversity metrics |
+| **small-rna-seq** | 5 | miRDeep2, miRge3, DESeq2, miRanda | miRNA/piRNA analysis, differential expression, target prediction |
+| **ribo-seq** | 5 | Plastid, RiboCode, riborex | Ribosome profiling, translation efficiency, ORF detection |
+| **epitranscriptomics** | 5 | exomePeak2, m6Anet, Guitar | RNA modifications (m6A), MeRIP-seq, ONT direct RNA |
+| **clip-seq** | 5 | umi_tools, CLIPper, HOMER | Protein-RNA interactions, binding site analysis, CLIP protocols |
+| **clinical-databases** | 5 | myvariant, ClinVar API, gnomAD | Clinical variant queries, frequency databases, variant prioritization |
 
-**Total: 269 skills across 40 categories**
+**Total: 308 skills across 46 categories**
 
 ## Example Usage
 
@@ -161,6 +176,14 @@ Once skills are deployed, ask your agent naturally:
 "Segment cells from my imaging mass cytometry and analyze neighborhoods"
 "Integrate my transcriptomics and proteomics datasets"
 "Create a clustered heatmap of my top DE genes"
+"Analyze my TCR repertoire and calculate diversity"
+"Find differentially expressed miRNAs and their targets"
+"Calculate translation efficiency from Ribo-seq data"
+"Detect m6A modifications from MeRIP-seq"
+"Find RBP binding sites from my CLIP-seq data"
+"Look up clinical significance of my variants in ClinVar"
+"Track clonal lineages using CRISPR barcodes"
+"Analyze my Perturb-seq CRISPR screen"
 ```
 
 The agent will select appropriate tools based on context.

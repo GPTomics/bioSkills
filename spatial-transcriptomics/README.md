@@ -19,6 +19,7 @@ Analyze spatial transcriptomics data from Visium, Xenium, MERFISH, and other pla
 | spatial-visualization | Static and interactive visualization of spatial data |
 | spatial-communication | Ligand-receptor analysis and cell-cell interactions |
 | spatial-deconvolution | Estimate cell type composition per spot |
+| spatial-multiomics | Analyze high-resolution platforms (Slide-seq, Stereo-seq, Visium HD) |
 
 ## Example Prompts
 
@@ -36,6 +37,9 @@ Analyze spatial transcriptomics data from Visium, Xenium, MERFISH, and other pla
 - "Show clusters overlaid on the image"
 - "Run ligand-receptor analysis"
 - "Deconvolve my Visium data with cell2location"
+- "Analyze my Slide-seq data"
+- "Process Stereo-seq at bin level"
+- "Work with Visium HD subcellular resolution"
 
 ## Requirements
 

@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-reactome
-description: Reactome pathway enrichment using ReactomePA package. Performs over-representation analysis and GSEA on Reactome pathways, a curated peer-reviewed knowledgebase of biological pathways. Supports visualization and pathway hierarchy exploration.
+description: Reactome pathway enrichment using ReactomePA package. Use when analyzing gene lists against Reactome's curated peer-reviewed pathway database. Performs over-representation analysis and GSEA with visualization and pathway hierarchy exploration.
 tool_type: r
 primary_tool: ReactomePA
 ---

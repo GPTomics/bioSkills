@@ -1,6 +1,6 @@
 ---
 name: bio-proteomics-data-import
-description: Load and parse mass spectrometry data formats including mzML, mzXML, and quantification tool outputs like MaxQuant proteinGroups.txt. Handles common preprocessing steps like contaminant filtering and missing value assessment.
+description: Load and parse mass spectrometry data formats including mzML, mzXML, and quantification tool outputs like MaxQuant proteinGroups.txt. Use when starting a proteomics analysis with raw or processed MS data. Handles contaminant filtering and missing value assessment.
 tool_type: mixed
 primary_tool: pyOpenMS
 ---

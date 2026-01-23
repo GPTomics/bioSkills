@@ -33,6 +33,11 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | imc-pipeline | Imaging mass cytometry to spatial cell analysis |
 | cytometry-pipeline | FCS files to differential populations via CATALYST/diffcyt |
 | multi-omics-pipeline | Multi-omics integration via MOFA2/mixOmics |
+| tcr-pipeline | TCR/BCR repertoire from FASTQ to clonotype diversity |
+| smrna-pipeline | Small RNA-seq from FASTQ to differential miRNAs |
+| riboseq-pipeline | Ribo-seq from FASTQ to translation efficiency |
+| merip-pipeline | MeRIP-seq from FASTQ to m6A peaks |
+| clip-pipeline | CLIP-seq from FASTQ to binding sites and motifs |
 
 ## Example Prompts
 
@@ -51,6 +56,11 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 - "Process my imaging mass cytometry data with spatial analysis"
 - "Analyze my flow cytometry data end to end"
 - "Integrate my RNA-seq, proteomics, and metabolomics data"
+- "Run the TCR repertoire pipeline from FASTQ to diversity"
+- "Analyze my small RNA-seq for differential miRNAs"
+- "Process my Ribo-seq to translation efficiency"
+- "Run m6A analysis from MeRIP-seq data"
+- "Find RBP binding sites from my CLIP-seq data"
 
 ## Requirements
 

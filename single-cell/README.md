@@ -21,6 +21,8 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 | cell-communication | Cell-cell communication with CellChat, NicheNet, LIANA |
 | multimodal-integration | CITE-seq, Multiome, WNN clustering for multi-modal data |
 | scatac-analysis | Single-cell ATAC-seq with Signac and ArchR |
+| perturb-seq | Analyze Perturb-seq and CROP-seq CRISPR screens |
+| lineage-tracing | Reconstruct cell lineages from CRISPR barcodes |
 
 ## Example Prompts
 
@@ -44,6 +46,10 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 - "Process my scATAC-seq data with Signac"
 - "Run chromVAR motif analysis on scATAC"
 - "Find differentially accessible peaks"
+- "Analyze my Perturb-seq CRISPR screen"
+- "Find genes affected by each perturbation"
+- "Build lineage tree from CRISPR barcodes"
+- "Track clonal dynamics with CoSpar"
 
 ## Requirements
 
@@ -59,6 +65,9 @@ BiocManager::install('scDblFinder')
 # R (Signac for scATAC)
 install.packages('Signac')
 BiocManager::install(c('chromVAR', 'motifmatchr', 'JASPAR2020'))
+
+# Python (Perturbation and lineage)
+pip install pertpy cassiopeia-lineage cospar
 ```
 
 ## Related Skills

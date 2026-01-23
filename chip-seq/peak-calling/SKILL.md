@@ -15,8 +15,7 @@ MACS3 is the actively developed successor to MACS2. Commands are identical excep
 # Call peaks with input control (recommended)
 macs3 callpeak -t chip.bam -c input.bam -f BAM -g hs -n sample --outdir peaks/
 
-# MACS2 syntax (identical, for legacy pipelines)
-# macs3 callpeak -t chip.bam -c input.bam -f BAM -g hs -n sample --outdir peaks/
+# For MACS2 (legacy), replace 'macs3' with 'macs2' - syntax is identical
 ```
 
 ## Without Input Control
@@ -56,7 +55,7 @@ macs3 callpeak \
 ## Paired-End Data
 
 ```bash
-# MACS2 uses BAMPE format for paired-end
+# MACS3 uses BAMPE format for paired-end
 macs3 callpeak \
     -t chip.bam \
     -c input.bam \
@@ -69,7 +68,7 @@ macs3 callpeak \
 ## Multiple Replicates
 
 ```bash
-# Pool replicates (MACS2 handles internally)
+# Pool replicates (MACS3 handles internally)
 macs3 callpeak \
     -t rep1.bam rep2.bam rep3.bam \
     -c input.bam \

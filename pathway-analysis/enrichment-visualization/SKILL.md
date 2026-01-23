@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-enrichment-visualization
-description: Visualize enrichment results using enrichplot package functions. Covers dotplot, barplot, cnetplot, emapplot, gseaplot2, ridgeplot, and treeplot for clusterProfiler results.
+description: Visualize enrichment results using enrichplot package functions. Use when creating publication-quality figures from clusterProfiler results. Covers dotplot, barplot, cnetplot, emapplot, gseaplot2, ridgeplot, and treeplot.
 tool_type: r
 primary_tool: enrichplot
 ---

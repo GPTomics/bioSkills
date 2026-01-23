@@ -16,6 +16,7 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 | clair3-variants | Deep learning variant calling with Clair3 |
 | structural-variants | Detect SVs from long reads |
 | long-read-qc | Quality control for long reads |
+| isoseq-analysis | PacBio Iso-Seq isoform discovery and quantification |
 
 ## Example Prompts
 
@@ -30,6 +31,9 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 - "Find structural variants from my long reads"
 - "Detect deletions and insertions with Sniffles"
 - "Check the quality of my Nanopore reads"
+- "Process my Iso-Seq data"
+- "Discover novel isoforms from PacBio"
+- "QC my transcript assembly with SQANTI"
 
 ## Requirements
 
@@ -48,6 +52,9 @@ conda install -c bioconda sniffles cutesv
 
 # QC tools
 conda install -c bioconda nanoplot chopper
+
+# Iso-Seq tools
+conda install -c bioconda pbccs lima isoseq3 sqanti3
 ```
 
 ## Related Skills

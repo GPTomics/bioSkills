@@ -16,7 +16,7 @@ library(org.Hs.eg.db)
 
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 
-# Read peaks from MACS2
+# Read peaks from MACS3
 peaks <- readPeakFile('sample_peaks.narrowPeak')
 ```
 
@@ -204,7 +204,7 @@ library(org.Dr.eg.db)
 
 ## Related Skills
 
-- peak-calling - Generate peak files with MACS2
+- peak-calling - Generate peak files with MACS3
 - differential-binding - Find differential peaks
 - pathway-analysis - Functional enrichment
 - chipseq-visualization - Additional visualizations
