@@ -4,7 +4,7 @@
 
 Analysis of RNA modifications (m6A, m5C) from MeRIP-seq and direct RNA sequencing.
 
-**Tool type:** mixed | **Primary tools:** exomePeak2, MACS2, m6Anet, Guitar
+**Tool type:** mixed | **Primary tools:** exomePeak2, MACS3, m6Anet, Guitar
 
 ## Skills
 
@@ -34,7 +34,7 @@ BiocManager::install(c('exomePeak2', 'Guitar', 'GenomicFeatures'))
 pip install m6anet ont-fast5-api
 
 # CLI tools
-conda install -c bioconda star macs2 samtools
+conda install -c bioconda star macs3 samtools
 ```
 
 ## Related Skills

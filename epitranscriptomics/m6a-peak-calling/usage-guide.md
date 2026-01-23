@@ -11,7 +11,7 @@ BiocManager::install(c('exomePeak2', 'MeTPeak'))
 ```
 
 ```bash
-conda install -c bioconda macs2
+conda install -c bioconda macs3
 ```
 
 ## Quick Start
@@ -26,7 +26,7 @@ conda install -c bioconda macs2
 
 > "Run exomePeak2 on my IP and input BAM files"
 
-> "Call m6A peaks with MACS2"
+> "Call m6A peaks with MACS3"
 
 ### With Replicates
 
@@ -37,7 +37,7 @@ conda install -c bioconda macs2
 ## What the Agent Will Do
 
 1. Load IP and input BAM files
-2. Perform peak calling (exomePeak2 or MACS2)
+2. Perform peak calling (exomePeak2 or MACS3)
 3. Apply significance thresholds
 4. Export peaks in BED format
 5. Generate peak statistics
@@ -45,7 +45,7 @@ conda install -c bioconda macs2
 ## Tips
 
 - **exomePeak2** - Recommended for transcript-aware analysis
-- **MACS2** - Faster, good for initial exploration
+- **MACS3** - Faster, good for initial exploration
 - **Replicates** - Use at least 2 per condition
 - **FDR < 0.05** - Standard significance threshold
 - **DRACH motif** - m6A occurs at DRACH consensus (D=A/G/U, R=A/G, H=A/C/U)

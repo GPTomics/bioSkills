@@ -1,6 +1,6 @@
 ---
 name: bio-proteomics-peptide-identification
-description: Peptide-spectrum matching and protein identification from MS/MS data. Covers database searching, spectral library matching, and FDR estimation using target-decoy approaches.
+description: Peptide-spectrum matching and protein identification from MS/MS data. Use when identifying peptides from tandem mass spectra. Covers database searching, spectral library matching, and FDR estimation using target-decoy approaches.
 tool_type: mixed
 primary_tool: pyOpenMS
 ---

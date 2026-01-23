@@ -1,6 +1,6 @@
 ---
 name: bio-proteomics-spectral-libraries
-description: Build, manage, and search spectral libraries for proteomics. Covers DDA-based library generation, predicted libraries (Prosit, DeepLC), and library formats.
+description: Build, manage, and search spectral libraries for proteomics. Use when creating or working with spectral libraries for DIA analysis. Covers DDA-based library generation, predicted libraries (Prosit, DeepLC), and library formats.
 tool_type: mixed
 primary_tool: encyclopedia
 ---

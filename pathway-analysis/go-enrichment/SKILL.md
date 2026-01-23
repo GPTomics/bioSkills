@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-go-enrichment
-description: Gene Ontology over-representation analysis using clusterProfiler enrichGO. Tests whether GO terms are enriched in a gene list compared to background. Supports all three ontologies (BP, MF, CC), multiple ID types, and customizable statistical thresholds.
+description: Gene Ontology over-representation analysis using clusterProfiler enrichGO. Use when identifying biological functions enriched in a gene list from differential expression or other analyses. Supports all three ontologies (BP, MF, CC), multiple ID types, and customizable statistical thresholds.
 tool_type: r
 primary_tool: clusterProfiler
 ---

@@ -1,5 +1,5 @@
 #!/bin/bash
-# m6A peak calling with MACS2
+# m6A peak calling with MACS3
 
 IP_BAMS="IP_rep1.bam IP_rep2.bam"
 INPUT_BAMS="Input_rep1.bam Input_rep2.bam"
@@ -10,7 +10,7 @@ GENOME_SIZE="hs"  # hs for human, mm for mouse
 # --nomodel: Don't build shifting model (m6A peaks differ from TF ChIP)
 # --extsize 150: Extend reads to ~150bp (typical fragment size)
 # -q 0.05: FDR threshold
-macs2 callpeak \
+macs3 callpeak \
     -t $IP_BAMS \
     -c $INPUT_BAMS \
     -f BAMPE \

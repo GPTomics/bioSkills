@@ -33,11 +33,12 @@ ps = pt.tl.PerturbationSignature(adata)
 ps.compute(groupby='perturbation')
 ```
 
-## Mixscape (Seurat)
+## Mixscape (Seurat v5)
 
 ```r
 library(Seurat)
 library(SeuratObject)
+# Note: Seurat v5 uses 'layer' instead of deprecated 'slot' parameter
 
 # Classify perturbed vs non-perturbed cells
 seurat <- RunMixscape(

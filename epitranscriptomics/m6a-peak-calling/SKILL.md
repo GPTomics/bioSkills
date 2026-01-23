@@ -25,11 +25,11 @@ result <- exomePeak2(
 exportResults(result, format = 'BED')
 ```
 
-## MACS2 Alternative
+## MACS3 Alternative
 
 ```bash
 # Call peaks treating input as control
-macs2 callpeak \
+macs3 callpeak \
     -t IP_rep1.bam IP_rep2.bam \
     -c Input_rep1.bam Input_rep2.bam \
     -f BAMPE \

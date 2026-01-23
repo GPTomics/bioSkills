@@ -22,7 +22,7 @@ seurat <- RunUMAP(seurat, dims = 1:20)
 seurat <- CalcPerturbSig(
     seurat,
     assay = 'RNA',
-    slot = 'data',
+    layer = 'data',
     gd.class = 'guide_ID',  # Guide identity column
     nt.cell.class = 'NT',   # Non-targeting label
     new.class.name = 'mixscape_class'
@@ -32,7 +32,7 @@ seurat <- CalcPerturbSig(
 seurat <- RunMixscape(
     seurat,
     assay = 'RNA',
-    slot = 'scale.data',
+    layer = 'scale.data',
     labels = 'gene',        # Target gene column
     nt.class.name = 'NT',
     min.de.genes = 5,       # Min DE genes to classify as perturbed

@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-kegg-pathways
-description: KEGG pathway and module enrichment analysis using clusterProfiler enrichKEGG and enrichMKEGG. Tests whether KEGG pathways are over-represented in a gene list. Supports 4000+ organisms via KEGG online database.
+description: KEGG pathway and module enrichment analysis using clusterProfiler enrichKEGG and enrichMKEGG. Use when identifying metabolic and signaling pathways over-represented in a gene list. Supports 4000+ organisms via KEGG online database.
 tool_type: r
 primary_tool: clusterProfiler
 ---
