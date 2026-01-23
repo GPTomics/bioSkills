@@ -1,6 +1,6 @@
 ---
 name: bio-alignment-msa-parsing
-description: Parse and analyze multiple sequence alignments using Biopython. Extract sequences, identify conserved regions, analyze gaps, work with annotations, and manipulate alignment data for downstream analysis.
+description: Parse and analyze multiple sequence alignments using Biopython. Extract sequences, identify conserved regions, analyze gaps, work with annotations, and manipulate alignment data for downstream analysis. Use when parsing or manipulating multiple sequence alignments.
 tool_type: python
 primary_tool: Bio.AlignIO
 ---
