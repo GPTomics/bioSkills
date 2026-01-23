@@ -1,6 +1,6 @@
 ---
 name: bio-phylo-distance-calculations
-description: Compute evolutionary distances and build phylogenetic trees using Biopython Bio.Phylo.TreeConstruction. Use for creating distance matrices from alignments, building NJ/UPGMA trees, parsimony analysis, and generating bootstrap consensus trees.
+description: Compute evolutionary distances and build phylogenetic trees using Biopython Bio.Phylo.TreeConstruction. Use when creating distance matrices from alignments, building NJ/UPGMA trees, or generating bootstrap consensus trees.
 tool_type: python
 primary_tool: Bio.Phylo.TreeConstruction
 ---

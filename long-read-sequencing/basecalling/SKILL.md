@@ -38,8 +38,8 @@ dorado basecaller sup pod5_dir/ > calls.bam
 ### Specific Model Version
 
 ```bash
-dorado download --model dna_r10.4.1_e8.2_400bps_sup@v5.0.0
-dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.0.0 pod5_dir/ > calls.bam
+dorado download --model dna_r10.4.1_e8.2_400bps_sup@v5.1.0
+dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.1.0 pod5_dir/ > calls.bam
 ```
 
 ### List Available Models

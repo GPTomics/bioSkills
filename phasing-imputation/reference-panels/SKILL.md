@@ -84,11 +84,11 @@ pyega3 -cf credentials.json fetch EGAD00001002729
 ## Genetic Maps
 
 ```bash
-# Beagle format (GRCh38)
-wget https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh38.map.zip
+# Beagle format (GRCh38) - from Browning lab
+wget https://faculty.washington.edu/browning/beagle/genetic_maps/plink.GRCh38.map.zip
 unzip plink.GRCh38.map.zip -d genetic_maps/
 
-# SHAPEIT format
+# SHAPEIT5 format (recommended for SHAPEIT5)
 wget https://github.com/odelaneau/shapeit5/raw/main/maps/genetic_maps.b38.tar.gz
 tar xzf genetic_maps.b38.tar.gz
 ```

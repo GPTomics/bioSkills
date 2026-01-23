@@ -135,14 +135,19 @@ cat *_SE_report.txt
 # - C methylated in CpG context
 ```
 
-## Genome Preparation with HISAT2
+## Genome Preparation with HISAT2 (Recommended for Large Genomes)
 
 ```bash
-# Alternative aligner (faster for large genomes)
+# HISAT2 is faster and uses less memory for large mammalian genomes
 bismark_genome_preparation --hisat2 /path/to/genome_folder/
 
-# Then align
+# Align with HISAT2
 bismark --genome /path/to/genome_folder/ --hisat2 reads.fastq.gz
+
+# HISAT2 paired-end
+bismark --genome /path/to/genome_folder/ --hisat2 \
+    -1 reads_R1.fastq.gz \
+    -2 reads_R2.fastq.gz
 ```
 
 ## Key Parameters

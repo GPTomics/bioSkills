@@ -161,7 +161,7 @@ plotTracks(list(gtrack, ht, grtrack), from = 1000000, to = 2000000)
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/igv@2.15.0/dist/igv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/igv@3.0.0/dist/igv.min.js"></script>
 </head>
 <body>
     <div id="igv-div"></div>

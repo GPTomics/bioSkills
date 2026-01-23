@@ -7,6 +7,8 @@ primary_tool: alakazam
 
 # Immcantation Analysis
 
+Requires Immcantation suite: alakazam 1.3+, shazam 1.2+, scoper 1.3+, dowser 2.0+, tigger 1.1+.
+
 ## Load and Format Data
 
 ```r

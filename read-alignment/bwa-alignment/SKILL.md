@@ -109,12 +109,32 @@ bwa-mem2 mem -t 8 -Y reference.fa r1.fq r2.fq > aligned.sam
 - Per thread: ~1-2GB
 - Typical human WGS: 30-50GB RAM with 8 threads
 
-## BWA vs BWA-MEM2
+## BWA-MEM (Alternative)
+
+```bash
+# Build index
+bwa index reference.fa
+
+# Paired-end alignment
+bwa mem -t 8 reference.fa reads_1.fq.gz reads_2.fq.gz > aligned.sam
+
+# With read groups
+bwa mem -t 8 -R '@RG\tID:sample1\tSM:sample1\tPL:ILLUMINA' \
+    reference.fa reads_1.fq.gz reads_2.fq.gz > aligned.sam
+
+# Direct to sorted BAM
+bwa mem -t 8 -R '@RG\tID:sample1\tSM:sample1\tPL:ILLUMINA' \
+    reference.fa reads_1.fq.gz reads_2.fq.gz | \
+    samtools sort -@ 4 -o aligned.sorted.bam -
+```
+
+## BWA-MEM vs BWA-MEM2
 
 | Feature | BWA-MEM | BWA-MEM2 |
 |---------|---------|----------|
+| Status | Active | Archived |
 | Speed | 1x | 2-3x faster |
-| Index format | Different | Different |
+| Index format | .bwt | .bwt.2bit.64 |
 | Results | Baseline | Nearly identical |
 | Memory | ~5GB | ~10GB |
 

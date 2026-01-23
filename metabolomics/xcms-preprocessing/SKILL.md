@@ -7,6 +7,8 @@ primary_tool: xcms
 
 # XCMS Metabolomics Preprocessing
 
+Requires Bioconductor 3.18+ with xcms 4.0+ and MSnbase 2.28+.
+
 ## Load Raw Data
 
 ```r

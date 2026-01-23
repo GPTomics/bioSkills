@@ -7,18 +7,21 @@ primary_tool: beagle
 
 # Haplotype Phasing
 
-## Beagle Phasing (Recommended)
+## Beagle 5.4 Phasing (Recommended)
 
 ```bash
+# Download Beagle 5.4
+wget https://faculty.washington.edu/browning/beagle/beagle.22Jul22.46e.jar
+
 # Basic phasing
-java -jar beagle.jar \
+java -jar beagle.22Jul22.46e.jar \
     gt=input.vcf.gz \
     out=phased
 
 # Output: phased.vcf.gz (phased genotypes)
 
 # With genetic map (improves accuracy)
-java -jar beagle.jar \
+java -jar beagle.22Jul22.46e.jar \
     gt=input.vcf.gz \
     map=plink.chr22.GRCh38.map \
     out=phased
@@ -27,7 +30,7 @@ java -jar beagle.jar \
 ## Beagle Options
 
 ```bash
-java -jar beagle.jar \
+java -jar beagle.22Jul22.46e.jar \
     gt=input.vcf.gz \
     out=phased \
     map=genetic_map.txt \
@@ -91,7 +94,7 @@ shapeit5_phase_common \
 
 ```bash
 # Use reference panel for better phasing
-java -jar beagle.jar \
+java -jar beagle.22Jul22.46e.jar \
     gt=input.vcf.gz \
     ref=reference.vcf.gz \
     map=genetic_map.txt \
@@ -129,7 +132,7 @@ bcftools query -f '[%GT\n]' phased.vcf.gz | grep -c '|'
 
 ```bash
 # Download genetic maps (GRCh38)
-wget https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh38.map.zip
+wget https://faculty.washington.edu/browning/beagle/genetic_maps/plink.GRCh38.map.zip
 unzip plink.GRCh38.map.zip
 
 # Format: chromosome position rate(cM/Mb) genetic_position(cM)
