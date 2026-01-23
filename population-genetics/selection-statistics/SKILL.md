@@ -1,6 +1,6 @@
 ---
 name: bio-population-genetics-selection-statistics
-description: Detect signatures of natural selection using Fst, Tajima's D, iHS, XP-EHH, and other selection statistics. Calculate population differentiation, test for departures from neutrality, and identify selective sweeps with scikit-allel and vcftools.
+description: Detect signatures of natural selection using Fst, Tajima's D, iHS, XP-EHH, and other selection statistics. Calculate population differentiation, test for departures from neutrality, and identify selective sweeps with scikit-allel and vcftools. Use when computing selection signatures like Fst or Tajima's D.
 tool_type: mixed
 primary_tool: scikit-allel
 ---

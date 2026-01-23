@@ -1,6 +1,6 @@
 ---
 name: bio-hi-c-analysis-tad-detection
-description: Call topologically associating domains (TADs) from Hi-C data using insulation score, HiCExplorer, and other methods. Identify domain boundaries and hierarchical domain structure.
+description: Call topologically associating domains (TADs) from Hi-C data using insulation score, HiCExplorer, and other methods. Identify domain boundaries and hierarchical domain structure. Use when calling TADs from Hi-C insulation scores.
 tool_type: mixed
 primary_tool: cooltools
 ---

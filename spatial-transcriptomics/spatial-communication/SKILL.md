@@ -1,6 +1,6 @@
 ---
 name: bio-spatial-transcriptomics-spatial-communication
-description: Analyze cell-cell communication in spatial transcriptomics data using ligand-receptor analysis with Squidpy. Infer intercellular signaling, identify communication pathways, and visualize interaction networks.
+description: Analyze cell-cell communication in spatial transcriptomics data using ligand-receptor analysis with Squidpy. Infer intercellular signaling, identify communication pathways, and visualize interaction networks. Use when analyzing cell-cell communication in spatial context.
 tool_type: python
 primary_tool: squidpy
 ---

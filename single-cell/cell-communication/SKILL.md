@@ -1,6 +1,6 @@
 ---
 name: bio-single-cell-cell-communication
-description: Infer cell-cell communication networks from scRNA-seq data using CellChat, NicheNet, and LIANA for ligand-receptor interaction analysis.
+description: Infer cell-cell communication networks from scRNA-seq data using CellChat, NicheNet, and LIANA for ligand-receptor interaction analysis. Use when inferring ligand-receptor interactions between cell types.
 tool_type: mixed
 primary_tool: CellChat, NicheNet, LIANA
 ---

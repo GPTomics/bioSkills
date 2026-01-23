@@ -1,6 +1,6 @@
 ---
 name: bio-primer-design-primer-validation
-description: Validate PCR primers for specificity, dimers, hairpins, and secondary structures using primer3-py thermodynamic calculations. Check self-complementarity, heterodimer formation, and 3' stability.
+description: Validate PCR primers for specificity, dimers, hairpins, and secondary structures using primer3-py thermodynamic calculations. Check self-complementarity, heterodimer formation, and 3' stability. Use when validating primer specificity and properties.
 tool_type: python
 primary_tool: primer3-py
 ---

@@ -33,6 +33,12 @@ Tell your AI agent what you want to do:
 ### Statistics
 > "Generate per-position quality profile for the first 50 bases"
 
+## What the Agent Will Do
+1. Parse FASTQ records including quality scores
+2. Decode quality encoding (Phred33/64)
+3. Calculate per-base or per-read quality metrics
+4. Report summary statistics
+
 ## Quality Score Reference
 
 - Q20 = 99% accuracy (1 error per 100 bases)

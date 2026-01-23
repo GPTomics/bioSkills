@@ -1,6 +1,6 @@
 ---
 name: bio-gatk-variant-calling
-description: Variant calling with GATK HaplotypeCaller following best practices. Covers germline SNP/indel calling, GVCF workflow for cohorts, joint genotyping, and variant quality score recalibration (VQSR). Use for production-quality variant calls from WGS/WES data.
+description: Variant calling with GATK HaplotypeCaller following best practices. Covers germline SNP/indel calling, GVCF workflow for cohorts, joint genotyping, and variant quality score recalibration (VQSR). Use when calling variants with GATK HaplotypeCaller.
 tool_type: cli
 primary_tool: gatk
 ---

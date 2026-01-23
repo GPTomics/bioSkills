@@ -32,6 +32,12 @@ Tell your AI agent what you want to do:
 ### Converting
 > "Decompress reads.fastq.gz to reads.fastq"
 
+## What the Agent Will Do
+1. Detect compression format from file extension
+2. Open file with appropriate decompression handler
+3. Process sequences from the compressed stream
+4. Close file handles properly
+
 ## Tips
 
 - Always use text mode ('rt', 'wt') not binary mode with SeqIO

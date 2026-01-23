@@ -1,6 +1,6 @@
 ---
 name: bio-genome-assembly-scaffolding
-description: Scaffold contigs into chromosome-level assemblies using Hi-C data with YaHS, 3D-DNA, SALSA2, and validate with BUSCO and contact maps.
+description: Scaffold contigs into chromosome-level assemblies using Hi-C data with YaHS, 3D-DNA, SALSA2, and validate with BUSCO and contact maps. Use when scaffolding contigs to chromosome-level assemblies.
 tool_type: cli
 primary_tool: YaHS, 3D-DNA, SALSA2
 ---

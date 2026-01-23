@@ -1,6 +1,6 @@
 ---
 name: bio-rna-quantification-count-matrix-qc
-description: Quality control and exploration of RNA-seq count matrices before differential expression. Check for outliers, batch effects, and sample relationships.
+description: Quality control and exploration of RNA-seq count matrices before differential expression. Check for outliers, batch effects, and sample relationships. Use when assessing count matrix quality before DE analysis.
 tool_type: mixed
 primary_tool: DESeq2
 ---

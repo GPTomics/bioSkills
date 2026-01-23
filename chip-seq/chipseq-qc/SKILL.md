@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-qc
-description: ChIP-seq quality control metrics including FRiP (Fraction of Reads in Peaks), cross-correlation analysis (NSC/RSC), library complexity, and IDR (Irreproducibility Discovery Rate) for replicate concordance. Use to assess experiment quality before downstream analysis.
+description: ChIP-seq quality control metrics including FRiP (Fraction of Reads in Peaks), cross-correlation analysis (NSC/RSC), library complexity, and IDR (Irreproducibility Discovery Rate) for replicate concordance. Use to assess experiment quality before downstream analysis. Use when assessing ChIP-seq data quality metrics.
 tool_type: mixed
 primary_tool: deepTools, phantompeakqualtools, IDR
 ---

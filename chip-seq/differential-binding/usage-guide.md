@@ -1,92 +1,54 @@
-# Differential Binding Analysis with DiffBind - Usage Guide
+# Differential Binding Analysis - Usage Guide
 
 ## Overview
 
-DiffBind identifies differentially bound regions between ChIP-seq conditions using read counts in consensus peaks. It applies normalization and statistical testing similar to RNA-seq differential expression analysis.
+Identify differentially bound regions between ChIP-seq conditions using DiffBind, which applies normalization and statistical testing to read counts in consensus peaks.
 
-## When to Use This Skill
-
-- You have ChIP-seq data from multiple conditions with replicates
-- You want to find peaks that change between conditions
-- You need statistical significance for differential binding
-
-## Installation
+## Prerequisites
 
 ```r
-if (!require('BiocManager', quietly = TRUE))
-    install.packages('BiocManager')
-
 BiocManager::install('DiffBind')
 ```
 
-## Requirements
+## Quick Start
 
-- Aligned BAM files for each sample
-- Peak files from each sample (MACS2 narrowPeak/broadPeak)
-- At least 2 replicates per condition (recommended: 3+)
+Tell your AI agent what you want to do:
+- "Find peaks that change between treatment and control"
+- "Identify differential binding sites with FDR < 0.05"
+- "Compare H3K27ac peaks between wild-type and knockout"
 
-## Sample Sheet Format
+## Example Prompts
 
-Create a CSV file with columns:
-- SampleID: Unique sample name
-- Condition: Control vs Treatment
-- Replicate: 1, 2, 3...
-- bamReads: Path to ChIP BAM
-- Peaks: Path to peak file
-- PeakCaller: macs (for narrowPeak)
+### Basic Analysis
+> "Run differential binding analysis comparing treated vs untreated samples"
 
-## Basic Workflow
+> "Find regions with increased binding in the drug treatment condition"
 
-```r
-library(DiffBind)
+> "Identify peaks lost upon knockdown of my transcription factor"
 
-# 1. Load samples
-dba_obj <- dba(sampleSheet = 'samples.csv')
+### Sample Setup
+> "Create a DiffBind sample sheet from my BAM and peak files"
 
-# 2. Count reads
-dba_obj <- dba.count(dba_obj, summits = 250)
+> "Set up a contrast comparing tumor vs normal samples"
 
-# 3. Normalize
-dba_obj <- dba.normalize(dba_obj)
+### Results Interpretation
+> "Generate an MA plot of differential binding results"
 
-# 4. Set contrast
-dba_obj <- dba.contrast(dba_obj, categories = DBA_CONDITION)
+> "Export the significant differential peaks to a BED file"
 
-# 5. Analyze
-dba_obj <- dba.analyze(dba_obj)
+## What the Agent Will Do
 
-# 6. Get results
-results <- dba.report(dba_obj, th = 0.05)
-```
+1. Create a sample sheet with BAM files, peak files, and condition labels
+2. Load samples and count reads in consensus peak regions
+3. Normalize counts and set up the experimental contrast
+4. Run differential binding analysis using DESeq2 or edgeR
+5. Generate diagnostic plots (PCA, MA plot, volcano plot)
+6. Export significant differential peaks with fold changes and FDR values
 
-## Common Issues
+## Tips
 
-### Few Differential Peaks
-
-- Ensure sufficient replicates (n >= 2)
-- Check peak quality and overlap between replicates
-- Try relaxing FDR threshold
-
-### Memory Issues
-
-- Use `summits = FALSE` to keep original peak widths
-- Reduce number of peaks with `minOverlap`
-
-## Output Interpretation
-
-| Column | Description |
-|--------|-------------|
-| Conc | Mean concentration (log2) |
-| Conc_control | Control mean |
-| Conc_treatment | Treatment mean |
-| Fold | Log2 fold change |
-| p-value | Raw p-value |
-| FDR | Adjusted p-value |
-
-Positive Fold = gained in treatment
-Negative Fold = lost in treatment
-
-## Resources
-
-- [DiffBind Bioconductor](https://bioconductor.org/packages/DiffBind/)
-- [DiffBind Vignette](https://bioconductor.org/packages/release/bioc/vignettes/DiffBind/inst/doc/DiffBind.html)
+- Requires at least 2 replicates per condition (3+ recommended)
+- Use `summits = 250` to re-center peaks on summit and standardize width
+- Positive fold change means gained in treatment, negative means lost
+- Check PCA plot to verify samples cluster by condition, not batch
+- If few peaks are significant, check replicate concordance and peak quality

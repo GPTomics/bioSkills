@@ -1,6 +1,65 @@
-# GATK Variant Calling Usage Guide
+# GATK Variant Calling - Usage Guide
 
-This guide covers germline variant calling using GATK HaplotypeCaller.
+## Overview
+
+Germline variant calling using GATK HaplotypeCaller, the gold standard for production-quality SNP and indel detection following GATK Best Practices.
+
+## Prerequisites
+
+```bash
+# GATK 4.x
+conda install -c bioconda gatk4
+
+# Or download from Broad
+# https://github.com/broadinstitute/gatk/releases
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Call germline variants from my aligned BAM file"
+- "Run HaplotypeCaller in GVCF mode for joint calling"
+- "Apply BQSR before variant calling"
+- "Set up a variant calling pipeline for whole genome data"
+
+## Example Prompts
+
+### Single Sample Calling
+> "Call variants from sample.bam using GATK HaplotypeCaller"
+
+> "Run HaplotypeCaller on my exome data with the capture regions BED file"
+
+### GVCF for Joint Calling
+> "Generate GVCFs from all BAM files in my cohort for joint genotyping"
+
+> "Run HaplotypeCaller in GVCF mode so I can combine samples later"
+
+### With BQSR
+> "Apply base quality score recalibration before variant calling"
+
+> "Run the full GATK best practices pipeline with BQSR and variant calling"
+
+### Filtering
+> "Apply VQSR to my whole genome variant calls"
+
+> "Use hard filtering for my small exome cohort"
+
+## What the Agent Will Do
+
+1. Verify input BAM is sorted, indexed, and has read groups
+2. Check for required reference files (FASTA, dbSNP, known sites)
+3. Run BQSR if requested (BaseRecalibrator + ApplyBQSR)
+4. Execute HaplotypeCaller with appropriate settings (VCF or GVCF mode)
+5. Apply filtering (VQSR for large WGS cohorts, hard filters otherwise)
+6. Generate variant statistics for quality assessment
+
+## Tips
+
+- Always use `-ERC GVCF` when planning to do joint genotyping later
+- VQSR requires many variants to train the model; use hard filters for exomes or small cohorts
+- Mark duplicates before variant calling (Picard MarkDuplicates or samtools markdup)
+- BQSR improves accuracy but requires known sites files (dbSNP, Mills indels)
+- For WGS, expect Ti/Tv ratio around 2.0-2.1 for high-quality SNP calls
 
 ## When to Use GATK
 
@@ -43,16 +102,6 @@ This guide covers germline variant calling using GATK HaplotypeCaller.
 - Single sample or small cohort
 - Non-model organism
 - VQSR fails (not enough variants)
-
-## Tool Requirements
-
-```bash
-# GATK 4.x
-conda install -c bioconda gatk4
-
-# Or download from Broad
-# https://github.com/broadinstitute/gatk/releases
-```
 
 ## Resource Files
 

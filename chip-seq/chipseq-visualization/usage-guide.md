@@ -2,74 +2,56 @@
 
 ## Overview
 
-This skill covers visualization of ChIP-seq data using deepTools (CLI), ChIPseeker (R), and Gviz (R). Create heatmaps, profile plots, and genome browser-style visualizations.
+Create heatmaps, profile plots, and genome browser-style visualizations for ChIP-seq data using deepTools (CLI), ChIPseeker (R), and Gviz (R).
 
-## Tool Comparison
-
-| Tool | Type | Use Case |
-|------|------|----------|
-| deepTools | CLI | Fast, large-scale analysis |
-| ChIPseeker | R | Peak-centric, TSS profiles |
-| Gviz | R | Publication-quality browser |
-| EnrichedHeatmap | R | Customizable heatmaps |
-
-## Installation
-
-### deepTools (CLI)
+## Prerequisites
 
 ```bash
+# deepTools (CLI)
 conda install -c bioconda deeptools
+
+# R packages
+# BiocManager::install(c('ChIPseeker', 'Gviz', 'EnrichedHeatmap'))
 ```
 
-### R Packages
+## Quick Start
 
-```r
-BiocManager::install(c('ChIPseeker', 'Gviz', 'EnrichedHeatmap'))
-```
+Tell your AI agent what you want to do:
+- "Create a heatmap of ChIP-seq signal around TSS regions"
+- "Generate profile plots comparing treatment vs control"
+- "Make a genome browser view of my peaks at the MYC locus"
 
-## Basic Workflows
+## Example Prompts
 
-### Heatmap with deepTools
+### Heatmaps and Profiles
+> "Create a heatmap showing H3K27ac signal at all promoters"
 
-```bash
-# 1. Create bigWig from BAM
-bamCoverage -b sample.bam -o sample.bw --normalizeUsing CPM
+> "Compare ChIP-seq signal profiles between wild-type and knockout samples"
 
-# 2. Compute matrix
-computeMatrix reference-point -R genes.bed -S sample.bw -o matrix.gz
+> "Generate a reference-point matrix centered on peak summits"
 
-# 3. Plot heatmap
-plotHeatmap -m matrix.gz -o heatmap.png
-```
+### Genome Browser Views
+> "Create a publication-quality browser track for chromosome 1:1-2Mb"
 
-### Profile with ChIPseeker
+> "Visualize my bigWig files alongside gene annotations"
 
-```r
-library(ChIPseeker)
-peaks <- readPeakFile('peaks.narrowPeak')
-tagMatrix <- getTagMatrix(peaks, windows = promoter)
-plotAvgProf(tagMatrix, xlim = c(-3000, 3000))
-```
+### Normalization
+> "Convert my BAM files to bigWig with CPM normalization"
 
-### Browser View with Gviz
+> "Create RPGC-normalized coverage tracks for my samples"
 
-```r
-library(Gviz)
-dtrack <- DataTrack(range = 'sample.bw', genome = 'hg38')
-plotTracks(dtrack, from = 1000000, to = 1100000, chromosome = 'chr1')
-```
+## What the Agent Will Do
 
-## Common bigWig Normalization
+1. Convert BAM files to bigWig format with appropriate normalization (CPM, RPKM, RPGC)
+2. Compute signal matrices around reference points (TSS, peak summits) or scaled regions
+3. Generate heatmaps and profile plots using deepTools or EnrichedHeatmap
+4. Create genome browser visualizations with Gviz for specific loci
+5. Customize plot aesthetics and export publication-ready figures
 
-| Method | Description |
-|--------|-------------|
-| CPM | Counts per million |
-| RPKM | Reads per kilobase million |
-| BPM | Bins per million |
-| RPGC | Reads per genomic content |
+## Tips
 
-## Resources
-
-- [deepTools Documentation](https://deeptools.readthedocs.io/)
-- [ChIPseeker Vignette](https://bioconductor.org/packages/ChIPseeker/)
-- [Gviz User Guide](https://bioconductor.org/packages/Gviz/)
+- Use CPM normalization for comparing samples with similar library sizes
+- RPGC (reads per genomic content) is better for comparing samples with different sequencing depths
+- For TSS profiles, use a window of +/- 3kb around the TSS
+- deepTools is faster for large-scale analysis; R packages offer more customization
+- Always include a control/input track when visualizing ChIP-seq data

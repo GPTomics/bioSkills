@@ -2,19 +2,9 @@
 
 ## Overview
 
-scikit-allel provides Python data structures and algorithms for population genetics analysis. It's ideal for custom analyses, interactive exploration, and integration with other Python tools.
+scikit-allel provides Python data structures and algorithms for population genetics analysis. It's ideal for custom analyses, interactive exploration in Jupyter, and integration with other Python tools.
 
-**Note**: scikit-allel is in maintenance mode. For new projects, consider [sgkit](https://github.com/sgkit-dev/sgkit) for long-term support.
-
-## When to Use This Skill
-
-- Custom population genetics analyses
-- Interactive exploration in Jupyter
-- Integration with other Python tools
-- Need fine-grained control over calculations
-- Visualization with matplotlib
-
-## Installation
+## Prerequisites
 
 ```bash
 pip install scikit-allel
@@ -23,7 +13,73 @@ pip install scikit-allel
 pip install zarr
 ```
 
+**Note**: scikit-allel is in maintenance mode. For new projects, consider [sgkit](https://github.com/sgkit-dev/sgkit) for long-term support.
+
 ## Quick Start
+
+Tell your AI agent what you want to do:
+- "Calculate nucleotide diversity from my VCF"
+- "Compute allele frequencies per population"
+- "Run PCA on my genetic data in Python"
+- "Calculate Fst between populations"
+- "Analyze haplotype structure"
+
+## Example Prompts
+
+### Loading and Basic Statistics
+> "Load my VCF into scikit-allel and calculate allele frequencies"
+
+> "Compute nucleotide diversity (pi) across the genome"
+
+> "Calculate per-site heterozygosity for each sample"
+
+### Population Comparisons
+> "Calculate pairwise Fst between my three populations"
+
+> "Run PCA and plot the first two components"
+
+> "Compute Watterson's theta in sliding windows"
+
+### Selection Analysis
+> "Calculate Tajima's D in 10kb windows"
+
+> "Compute iHS scores across chromosome 2"
+
+> "Find regions with unusual allele frequency differentiation"
+
+### Large Data Handling
+> "Convert my large VCF to Zarr format for efficient access"
+
+> "Calculate statistics on a Zarr-backed dataset"
+
+> "Process my VCF in chunks to avoid memory issues"
+
+## What the Agent Will Do
+
+1. Load VCF data into appropriate array structures
+2. Subset data by samples/populations if specified
+3. Calculate requested statistics
+4. Handle windowing or genome-wide aggregation
+5. Generate visualizations if requested
+6. Return results as DataFrames or arrays
+
+## Tips
+
+- Use `zarr` backend for VCFs larger than available RAM
+- `GenotypeArray` is for diploid data; `HaplotypeArray` for phased haplotypes
+- Convert to `AlleleCountsArray` early for faster frequency calculations
+- Filter missing data before calculating statistics
+- Many functions accept `pos` arrays for windowed calculations
+
+## Data Structures
+
+| Class | Purpose |
+|-------|---------|
+| `GenotypeArray` | Diploid genotypes (n_var x n_samp x 2) |
+| `HaplotypeArray` | Haploid data (n_var x n_hap) |
+| `AlleleCountsArray` | Allele counts (n_var x n_alleles) |
+
+## Quick Reference
 
 ```python
 import allel
@@ -36,14 +92,6 @@ ac = gt.count_alleles()
 pi = allel.sequence_diversity(callset['variants/POS'], ac)
 print(f'Nucleotide diversity: {pi:.6f}')
 ```
-
-## Data Structures
-
-| Class | Purpose |
-|-------|---------|
-| `GenotypeArray` | Diploid genotypes (n_var × n_samp × 2) |
-| `HaplotypeArray` | Haploid data (n_var × n_hap) |
-| `AlleleCountsArray` | Allele counts (n_var × n_alleles) |
 
 ## Memory Management
 

@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-imc-pipeline
-description: End-to-end imaging mass cytometry workflow from raw acquisitions to spatial cell analysis. Orchestrates image preprocessing, segmentation, phenotyping, and spatial statistics.
+description: End-to-end imaging mass cytometry workflow from raw acquisitions to spatial cell analysis. Orchestrates image preprocessing, segmentation, phenotyping, and spatial statistics. Use when analyzing imaging mass cytometry data end-to-end.
 tool_type: python
 primary_tool: steinbock
 workflow: true

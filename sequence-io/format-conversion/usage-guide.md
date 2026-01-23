@@ -30,6 +30,12 @@ Tell your AI agent what you want to do:
 ### With Modifications
 > "Convert to FASTA and uppercase all sequences"
 
+## What the Agent Will Do
+1. Parse sequences from input format
+2. Convert to target format representation
+3. Write sequences in new format
+4. Preserve sequence metadata where applicable
+
 ## Tips
 
 - GenBank to FASTA is always safe (just loses annotations)

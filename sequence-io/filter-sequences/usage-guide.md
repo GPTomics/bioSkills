@@ -36,6 +36,12 @@ Tell your AI agent what you want to do:
 ### Combined
 > "Filter sequences: length >= 100, no N's, GC 40-60%"
 
+## What the Agent Will Do
+1. Load sequences from input file
+2. Apply specified filter criteria
+3. Keep sequences passing all filters
+4. Write filtered sequences to output
+
 ## Tips
 
 - Use generator expressions for large files (memory efficient)

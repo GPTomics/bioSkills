@@ -2,17 +2,9 @@
 
 ## Overview
 
-Population structure analysis identifies genetic ancestry and stratification using PCA (clustering in continuous space) and ADMIXTURE (discrete ancestry proportions). Essential for GWAS stratification control and ancestry analysis.
+Population structure analysis identifies genetic ancestry and stratification using PCA (continuous clustering) and ADMIXTURE (discrete ancestry proportions). Essential for GWAS stratification control and ancestry inference.
 
-## When to Use This Skill
-
-- Assessing population stratification before GWAS
-- Identifying sample ancestry
-- Detecting outliers or sample swaps
-- Understanding genetic diversity
-- Generating covariates for association testing
-
-## Installation
+## Prerequisites
 
 ```bash
 # PLINK 2.0
@@ -26,6 +18,55 @@ pip install pandas matplotlib
 ```
 
 ## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run PCA on my genetic data"
+- "Estimate ancestry proportions with ADMIXTURE"
+- "Check for population stratification before GWAS"
+- "Identify outlier samples in my dataset"
+- "Plot PC1 vs PC2 colored by population"
+
+## Example Prompts
+
+### PCA Analysis
+> "Calculate the first 10 principal components from my PLINK data"
+
+> "Run PCA and identify any outlier samples"
+
+> "Generate a PCA plot colored by self-reported ancestry"
+
+### Admixture Analysis
+> "Run ADMIXTURE for K=2 through K=6 and find the best K"
+
+> "Estimate ancestry proportions assuming 3 ancestral populations"
+
+> "Create a stacked bar plot of admixture proportions"
+
+### Combined Analysis
+> "Perform full population structure analysis with LD pruning, PCA, and ADMIXTURE"
+
+> "Check my data for population stratification and generate covariates for GWAS"
+
+> "Compare PCA clustering with ADMIXTURE assignments"
+
+## What the Agent Will Do
+
+1. LD prune the data for unbiased estimation
+2. Run PCA to calculate principal components
+3. Run ADMIXTURE across multiple K values if requested
+4. Identify optimal K using cross-validation error
+5. Generate visualizations (PCA scatter, ADMIXTURE bar plots)
+6. Flag outlier samples if detected
+
+## Tips
+
+- Always LD prune before PCA/ADMIXTURE (r2 < 0.1)
+- PC1-2 usually capture the largest population splits
+- Choose K with lowest cross-validation error
+- Outliers may indicate sample swaps, contamination, or unique ancestry
+- Remove related individuals (IBD > 0.125) before analysis
+
+## Quick Reference
 
 ### PCA Only
 

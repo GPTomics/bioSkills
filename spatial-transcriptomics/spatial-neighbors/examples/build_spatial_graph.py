@@ -6,6 +6,7 @@ import scanpy as sc
 adata = sc.read_h5ad('preprocessed.h5ad')
 print(f'Loaded: {adata.n_obs} spots')
 
+# n_neighs=6: Default for hexagonal Visium spots; use 4 for square grids, adjust for spot density
 sq.gr.spatial_neighbors(adata, n_neighs=6, coord_type='generic')
 
 conn = adata.obsp['spatial_connectivities']

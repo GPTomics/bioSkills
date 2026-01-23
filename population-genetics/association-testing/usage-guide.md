@@ -2,16 +2,9 @@
 
 ## Overview
 
-GWAS identifies genetic variants associated with traits. PLINK 2.0's `--glm` command provides unified testing for binary (case-control) and quantitative traits using logistic/linear regression with covariate support.
+GWAS identifies genetic variants associated with traits using regression models. PLINK 2.0's `--glm` command provides unified testing for binary (case-control) and quantitative traits with covariate support.
 
-## When to Use This Skill
-
-- Testing SNP associations with disease status
-- Quantitative trait mapping
-- Candidate gene association studies
-- Whole-genome association scans
-
-## Installation
+## Prerequisites
 
 ```bash
 conda install -c bioconda plink2
@@ -19,6 +12,58 @@ conda install -c bioconda plink2
 # For visualization
 pip install pandas matplotlib scipy
 ```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run a GWAS for my case-control phenotype"
+- "Test association with a quantitative trait"
+- "Perform association testing with population covariates"
+- "Find genome-wide significant hits"
+- "Generate a Manhattan plot from my GWAS results"
+
+## Example Prompts
+
+### Basic Association
+> "Run a genome-wide association study on my case-control data"
+
+> "Test SNP associations with my quantitative phenotype"
+
+> "Perform logistic regression GWAS for disease status"
+
+### With Covariates
+> "Run GWAS including age, sex, and the first 5 PCs as covariates"
+
+> "Test associations while controlling for population stratification"
+
+> "Perform association testing with a custom covariate file"
+
+### Results Analysis
+> "Extract all genome-wide significant variants from my GWAS"
+
+> "Calculate genomic inflation factor for my results"
+
+> "Find the top 100 hits and annotate them with gene names"
+
+> "Create Manhattan and QQ plots from my association results"
+
+## What the Agent Will Do
+
+1. Verify input data quality (post-QC PLINK files)
+2. Check phenotype file format and distribution
+3. Generate PCs for stratification control if needed
+4. Run association testing with appropriate model
+5. Filter results by significance threshold
+6. Calculate genomic inflation (lambda)
+7. Generate visualization if requested
+
+## Tips
+
+- Always include population PCs as covariates to control stratification
+- Start with `--glm hide-covar` to simplify output
+- Genome-wide significance is 5e-8; suggestive is 1e-5
+- Lambda > 1.1 suggests residual stratification or relatedness
+- For family data, use mixed models (GCTA, BOLT-LMM) instead
 
 ## Standard GWAS Workflow
 
@@ -57,13 +102,13 @@ awk '$13 < 5e-8' gwas.PHENO1.glm.* > significant.txt
 
 | Level | P-value | Use |
 |-------|---------|-----|
-| Genome-wide | 5×10⁻⁸ | Standard GWAS threshold |
-| Suggestive | 1×10⁻⁵ | Follow-up candidates |
+| Genome-wide | 5e-8 | Standard GWAS threshold |
+| Suggestive | 1e-5 | Follow-up candidates |
 | Nominal | 0.05 | Not reliable for GWAS |
 
 ## Common Issues
 
-### High Genomic Inflation (λ > 1.1)
+### High Genomic Inflation (lambda > 1.1)
 
 - Add more PCs as covariates
 - Check for cryptic relatedness

@@ -1,6 +1,6 @@
 ---
 name: bio-rna-quantification-tximport-workflow
-description: Import transcript-level quantifications from Salmon/kallisto into R for gene-level analysis with DESeq2/edgeR using tximport or tximeta.
+description: Import transcript-level quantifications from Salmon/kallisto into R for gene-level analysis with DESeq2/edgeR using tximport or tximeta. Use when importing transcript counts into R for DESeq2/edgeR.
 tool_type: r
 primary_tool: tximport
 ---

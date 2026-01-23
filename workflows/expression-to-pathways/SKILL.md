@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-expression-to-pathways
-description: Workflow from differential expression results to functional enrichment analysis. Covers GO, KEGG, Reactome enrichment with clusterProfiler and visualization.
+description: Workflow from differential expression results to functional enrichment analysis. Covers GO, KEGG, Reactome enrichment with clusterProfiler and visualization. Use when taking DE results to pathway enrichment.
 tool_type: r
 primary_tool: clusterProfiler
 workflow: true
