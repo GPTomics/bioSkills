@@ -83,51 +83,51 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | Category | Skills | Primary Tools | Description |
 |----------|--------|---------------|-------------|
 | **sequence-io** | 9 | Bio.SeqIO | Read, write, convert FASTA/FASTQ/GenBank and 40+ formats |
-| **sequence-manipulation** | 7 | Bio.Seq | Transcription, translation, motif search, sequence properties |
-| **database-access** | 10 | Bio.Entrez, BLAST+, HMMER, SRA toolkit | NCBI/UniProt queries, SRA downloads, BLAST, homology searches |
+| **sequence-manipulation** | 7 | Bio.Seq, Bio.SeqUtils | Transcription, translation, motif search, sequence properties |
+| **database-access** | 10 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API | NCBI/UniProt queries, SRA downloads, BLAST, homology searches |
 | **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, validation |
-| **variant-calling** | 13 | bcftools, GATK, DeepVariant, Manta, Delly, VEP | VCF/BCF calling, SVs, filtering, annotation, clinical interpretation, joint calling |
-| **alignment** | 4 | Bio.Align | Pairwise and multiple sequence alignment |
-| **phylogenetics** | 5 | Bio.Phylo, IQ-TREE2 | Tree I/O, visualization, manipulation, distance matrices, ML inference |
-| **differential-expression** | 6 | DESeq2, edgeR, sva, limma | RNA-seq differential expression, batch correction, time-series |
-| **structural-biology** | 6 | Bio.PDB, ESMFold | PDB/mmCIF parsing, geometric analysis, AlphaFold, modern structure prediction |
-| **single-cell** | 13 | Seurat, Scanpy, Signac, CellChat, Pertpy, Cassiopeia | scRNA-seq QC, clustering, trajectory, communication, annotation, integration, perturb-seq, lineage tracing |
-| **pathway-analysis** | 6 | clusterProfiler | GO, KEGG, Reactome, WikiPathways enrichment |
+| **variant-calling** | 13 | bcftools, cyvcf2, Manta, Delly, VEP, SnpEff | VCF/BCF calling, SVs, filtering, annotation, clinical interpretation |
+| **alignment** | 4 | Bio.Align, Bio.AlignIO | Pairwise and multiple sequence alignment, alignment I/O |
+| **phylogenetics** | 5 | Bio.Phylo, IQ-TREE2, RAxML-ng | Tree I/O, visualization, ML inference with model selection, ultrafast bootstrap |
+| **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
+| **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
+| **single-cell** | 13 | Seurat, Scanpy, Pertpy, Cassiopeia | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing |
+| **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
-| **methylation-analysis** | 4 | Bismark, methylKit | Bisulfite alignment, methylation calling, DMRs |
-| **chip-seq** | 7 | MACS3, ChIPseeker, HOMER, IDR, ROSE | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
-| **metagenomics** | 7 | Kraken2, MetaPhlAn, AMRFinderPlus, MASH | Taxonomic classification, abundance estimation, AMR detection, strain tracking |
-| **long-read-sequencing** | 7 | Dorado, minimap2, medaka, Clair3, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, Iso-Seq |
-| **read-qc** | 7 | FastQC, fastp, umi_tools, RSeQC | Quality reports, adapter trimming, filtering, UMIs, RNA-seq QC |
+| **methylation-analysis** | 4 | Bismark, methylKit, bsseq | Bisulfite alignment, methylation calling, DMRs |
+| **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
+| **metagenomics** | 7 | Kraken2, MetaPhlAn, Bracken, HUMAnN | Taxonomic classification, abundance estimation, functional profiling, AMR detection |
+| **long-read-sequencing** | 7 | Dorado, minimap2, Clair3, IsoSeq3, SQANTI3 | Basecalling, alignment, polishing, variant calling, SV calling, Iso-Seq isoform QC |
+| **read-qc** | 7 | FastQC, MultiQC, fastp, Trimmomatic, Cutadapt | Quality reports, adapter trimming, filtering, UMIs |
 | **genome-intervals** | 7 | BEDTools, pybedtools, pyBigWig | BED/GTF operations, interval arithmetic, bedGraph, bigWig |
-| **population-genetics** | 6 | PLINK, FlashPCA2, scikit-allel | GWAS, population structure, selection statistics |
-| **rna-quantification** | 4 | Salmon, featureCounts | Gene/transcript quantification, count matrix QC |
-| **read-alignment** | 4 | bwa-mem2, STAR | Short-read alignment for DNA and RNA-seq |
-| **expression-matrix** | 4 | pandas, anndata | Count matrix handling, gene ID mapping |
+| **population-genetics** | 6 | PLINK, FlashPCA2, ADMIXTURE, scikit-allel | GWAS, biobank-scale PCA, admixture, selection statistics |
+| **rna-quantification** | 4 | featureCounts, Salmon, kallisto, tximport | Gene/transcript quantification, count matrix QC |
+| **read-alignment** | 4 | bwa-mem2, bowtie2, STAR, HISAT2 | Short-read alignment for DNA and RNA-seq |
+| **expression-matrix** | 4 | pandas, anndata, scanpy, biomaRt | Count matrix handling, gene ID mapping |
 | **copy-number** | 4 | CNVkit, GATK | CNV detection, visualization, annotation |
-| **phasing-imputation** | 4 | Beagle, SHAPEIT5 | Haplotype phasing, genotype imputation |
-| **atac-seq** | 6 | MACS3, TOBIAS, chromVAR | ATAC-seq peaks, QC, footprinting, nucleosome positioning, motif deviation |
-| **genome-assembly** | 8 | SPAdes, Flye, hifiasm, YaHS, CheckM2 | Assembly, polishing, scaffolding, contamination detection |
+| **phasing-imputation** | 4 | Beagle, SHAPEIT5, bcftools | Haplotype phasing, genotype imputation |
+| **atac-seq** | 6 | MACS3, DiffBind, chromVAR, TOBIAS | ATAC-seq peaks, differential accessibility, footprinting, TF motif deviation |
+| **genome-assembly** | 8 | SPAdes, Flye, hifiasm, QUAST, BUSCO | Assembly, polishing, scaffolding, quality assessment |
 | **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
-| **spatial-transcriptomics** | 10 | Squidpy, SpatialData | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution, high-resolution |
-| **hi-c-analysis** | 8 | cooler, cooltools, pairtools | Contact matrices, compartments, TADs, loops, differential |
-| **workflows** | 28 | mixed | End-to-end pipelines: RNA-seq, variants, somatic, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, IMC, cytometry, multi-omics, TCR, small-RNA, Ribo-seq, MeRIP, CLIP |
-| **proteomics** | 9 | pyOpenMS, MSstats, DIA-NN, limma | Mass spec data import, QC, quantification, differential abundance, PTM, DIA, spectral libraries |
+| **spatial-transcriptomics** | 10 | Squidpy, SpatialData, Scanpy | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution |
+| **hi-c-analysis** | 8 | cooler, cooltools, pairtools, HiCExplorer | Contact matrices, compartments, TADs, loops, differential |
+| **workflows** | 28 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics |
+| **proteomics** | 9 | pyOpenMS, MSstats, limma, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
-| **crispr-screens** | 7 | MAGeCK, JACKS, CRISPResso2 | Pooled screen analysis, guide counting, hit calling, QC, sgRNA efficacy |
+| **crispr-screens** | 7 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, editing QC |
 | **metabolomics** | 8 | XCMS, MetaboAnalystR, lipidr, MS-DIAL | Peak detection, annotation, normalization, pathway mapping, lipidomics, targeted |
-| **imaging-mass-cytometry** | 6 | steinbock, Cellpose, squidpy, napari | IMC preprocessing, segmentation, spatial analysis, annotation, QC |
-| **flow-cytometry** | 8 | flowCore, CATALYST, diffcyt, flowAI | FCS handling, compensation, gating, clustering, differential, QC, bead normalization |
-| **reporting** | 2 | RMarkdown, Quarto | Reproducible analysis reports in HTML, PDF, Word |
-| **workflow-management** | 4 | Snakemake, Nextflow, CWL, WDL | Scalable pipeline frameworks with containers |
-| **data-visualization** | 8 | ggplot2, ComplexHeatmap, plotly, pyGenomeTracks, Circos | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
+| **imaging-mass-cytometry** | 6 | steinbock, squidpy, napari | IMC preprocessing, segmentation, spatial analysis, annotation, QC |
+| **flow-cytometry** | 8 | flowCore, CATALYST, CytoML | FCS handling, compensation, gating, clustering, differential, QC |
+| **reporting** | 2 | RMarkdown, Quarto, Jupyter | Reproducible analysis reports in HTML, PDF, Word |
+| **workflow-management** | 4 | Snakemake, Nextflow, cwltool, Cromwell | Scalable pipeline frameworks with containers |
+| **data-visualization** | 8 | ggplot2, matplotlib, plotly, ComplexHeatmap | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
 | **tcr-bcr-analysis** | 5 | MiXCR, VDJtools, Immcantation, scirpy | TCR/BCR repertoire analysis, clonotype assembly, diversity metrics |
-| **small-rna-seq** | 5 | miRDeep2, miRge3, DESeq2, miRanda | miRNA/piRNA analysis, differential expression, target prediction |
-| **ribo-seq** | 5 | Plastid, RiboCode, ORFik | Ribosome profiling, translation efficiency, ORF detection |
-| **epitranscriptomics** | 5 | exomePeak2, m6Anet, Guitar | RNA modifications (m6A), MeRIP-seq, ONT direct RNA |
-| **clip-seq** | 5 | CLIPper, PureCLIP, umi_tools | Protein-RNA interactions, binding site analysis, CLIP protocols |
-| **clinical-databases** | 5 | myvariant, ClinVar API, gnomAD | Clinical variant queries, frequency databases, variant prioritization |
+| **small-rna-seq** | 5 | miRDeep2, miRge3, cutadapt, DESeq2 | miRNA/piRNA analysis, differential expression, target prediction |
+| **ribo-seq** | 5 | Plastid, RiboCode, ORFik, riborex | Ribosome profiling, translation efficiency, ORF detection |
+| **epitranscriptomics** | 5 | exomePeak2, MACS3, m6Anet, Guitar | RNA modifications (m6A), MeRIP-seq, ONT direct RNA |
+| **clip-seq** | 5 | CLIPper, PureCLIP, umi_tools, HOMER | Protein-RNA interactions, crosslink detection, binding site motifs |
+| **clinical-databases** | 5 | myvariant, requests, pandas | Clinical variant queries, ClinVar/gnomAD access, variant prioritization |
 
 **Total: 312 skills across 46 categories**
 
