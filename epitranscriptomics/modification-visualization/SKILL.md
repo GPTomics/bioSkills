@@ -73,6 +73,6 @@ Heatmap(
 
 ## Related Skills
 
-- **m6a-peak-calling** - Generate peaks for visualization
-- **genome-browsers** - IGV, UCSC integration
-- **chip-seq/visualization** - Similar techniques
+- **epitranscriptomics/m6a-peak-calling** - Generate peaks for visualization
+- **data-visualization/genome-tracks** - IGV, UCSC integration
+- **chip-seq/chipseq-visualization** - Similar techniques

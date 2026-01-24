@@ -12,11 +12,9 @@ pip install cooler cooltools numpy scipy pandas matplotlib statsmodels bioframe
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Compare Hi-C between treatment and control"
-
-> "Find differential contacts"
+Tell your AI agent what you want to do:
+- "Compare Hi-C between treatment and control"
+- "Find differential contacts"
 
 ## Example Prompts
 

@@ -1,7 +1,7 @@
 # Basecalling - Usage Guide
 
 ## Overview
-Basecalling converts raw Nanopore signal data (FAST5/POD5) to nucleotide sequences. Dorado is the current production basecaller; Guppy is legacy and being deprecated.
+Basecalling converts raw Nanopore signal data (FAST5/POD5) to nucleotide sequences. Dorado is the current production basecaller and should be used for all new analyses. Guppy is deprecated and no longer receiving updates.
 
 ## Prerequisites
 ```bash
@@ -18,7 +18,7 @@ conda install -c bioconda chopper nanoplot
 ## Quick Start
 Tell your AI agent what you want to do:
 - "Basecall my POD5 files with Dorado using SUP accuracy"
-- "Convert FAST5 to FASTQ using Guppy"
+- "Basecall my FAST5 files with Dorado"
 
 ## Example Prompts
 

@@ -17,6 +17,8 @@ meth_obj <- methRead(
 getMethylationStats(meth_obj[[1]], plot = TRUE, both.strands = FALSE)
 getCoverageStats(meth_obj[[1]], plot = TRUE, both.strands = FALSE)
 
+# lo.count=10: Minimum 10 reads per CpG. Standard for reliable methylation calls.
+# hi.perc=99.9: Remove top 0.1% coverage (likely PCR artifacts or repeat regions).
 meth_filt <- filterByCoverage(meth_obj, lo.count = 10, lo.perc = NULL, hi.count = NULL, hi.perc = 99.9)
 
 meth_norm <- normalizeCoverage(meth_filt, method = 'median')
@@ -29,6 +31,8 @@ clusterSamples(meth_united, dist = 'correlation', method = 'ward.D', plot = TRUE
 
 diff_meth <- calculateDiffMeth(meth_united, overdispersion = 'MN', test = 'Chisq', mc.cores = 4)
 
+# difference=25: Minimum 25% methylation difference. Standard threshold.
+# qvalue=0.01: FDR-adjusted p-value cutoff. Use 0.05 for exploratory analysis.
 dmcs <- getMethylDiff(diff_meth, difference = 25, qvalue = 0.01)
 dmcs_hyper <- getMethylDiff(diff_meth, difference = 25, qvalue = 0.01, type = 'hyper')
 dmcs_hypo <- getMethylDiff(diff_meth, difference = 25, qvalue = 0.01, type = 'hypo')

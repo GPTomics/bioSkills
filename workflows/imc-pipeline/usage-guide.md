@@ -4,6 +4,40 @@
 
 This workflow processes imaging mass cytometry data from raw acquisitions through cell segmentation, phenotyping, and spatial analysis.
 
+## Prerequisites
+
+```bash
+pip install steinbock cellpose squidpy scanpy
+```
+
+```r
+BiocManager::install(c('imcRtools', 'cytomapper'))
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run the IMC pipeline on my MCD files"
+- "Segment cells and cluster by marker expression"
+- "Analyze spatial interactions in my tissue images"
+
+## Example Prompts
+
+### Basic Analysis
+> "I have IMC data, run the full pipeline from segmentation to clustering"
+
+> "Process my MCD files and quantify single-cell marker expression"
+
+### Segmentation
+> "Use Cellpose to segment cells in my IMC images"
+
+> "Segment my tissue images using nuclear and membrane markers"
+
+### Spatial Analysis
+> "Run neighborhood enrichment analysis on my cell types"
+
+> "Find spatially co-localized cell populations in my tumor samples"
+
 ## When to Use This Pipeline
 
 - Imaging mass cytometry (IMC) tissue analysis
@@ -107,6 +141,14 @@ channel,name,full_name,keep,segment
 | umap_celltypes.png | Cluster visualization |
 | spatial_celltypes.png | Spatial cell maps |
 | neighborhood_enrichment.png | Spatial interactions |
+
+## Tips
+
+- **Segmentation**: Start with default Cellpose diameter (20), adjust based on cell size
+- **Hot pixels**: Filter before segmentation to avoid artifacts
+- **Panel file**: Map channels to markers and flag which to use for segmentation
+- **Multiple ROIs**: Include multiple regions per condition for statistical power
+- **Batch effects**: Use Harmony or scVI if combining data from different runs
 
 ## References
 

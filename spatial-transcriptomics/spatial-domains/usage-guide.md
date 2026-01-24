@@ -12,11 +12,9 @@ pip install squidpy scanpy scikit-learn
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Identify spatial domains in my tissue"
-
-> "Cluster my spatial data considering location"
+Tell your AI agent what you want to do:
+- "Identify spatial domains in my tissue"
+- "Cluster my spatial data considering location"
 
 ## Example Prompts
 

@@ -12,11 +12,9 @@ pip install squidpy scanpy
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Build a spatial neighbor graph"
-
-> "Create a KNN graph with 6 neighbors"
+Tell your AI agent what you want to do:
+- "Build a spatial neighbor graph"
+- "Create a KNN graph with 6 neighbors"
 
 ## Example Prompts
 

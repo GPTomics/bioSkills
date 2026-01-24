@@ -29,7 +29,7 @@ head(taxa)
 
 ```r
 # GTDB-formatted database (better for environmental samples)
-taxa_gtdb <- assignTaxonomy(seqtab_nochim, 'GTDB_bac120_arc53_ssu_r214_fullTaxo.fa.gz',
+taxa_gtdb <- assignTaxonomy(seqtab_nochim, 'GTDB_bac120_arc53_ssu_r220_fullTaxo.fa.gz',
                             multithread = TRUE)
 ```
 
@@ -136,11 +136,11 @@ taxa_names(ps) <- paste0('ASV', seq(ntaxa(ps)))
 
 | Database | Organisms | Taxonomy | Updated |
 |----------|-----------|----------|---------|
-| SILVA 138 | Bacteria, Archaea, Eukaryotes | 7 ranks | 2020 |
-| GTDB r214 | Bacteria, Archaea | 7 ranks (genome-based) | 2023 |
+| SILVA 138.1 | Bacteria, Archaea, Eukaryotes | 7 ranks | 2024 |
+| GTDB R220 | Bacteria, Archaea | 7 ranks (genome-based) | 2024 |
 | RDP 18 | Bacteria, Archaea | 6 ranks | 2016 |
-| UNITE | Fungi | 7 ranks | 2023 |
-| PR2 | Protists | 8 ranks | 2023 |
+| UNITE 10.0 | Fungi | 7 ranks | 2024 |
+| PR2 5.0 | Protists | 8 ranks | 2024 |
 
 ## Related Skills
 

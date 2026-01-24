@@ -297,15 +297,19 @@ plink2 --bfile input --set-all-var-ids @:#:\$r:\$a --make-bed --out output
 plink2 --bfile input --update-name update.txt --make-bed --out output
 ```
 
-## PLINK 1.9 vs 2.0 Summary
+## PLINK 2.0 vs 1.9 Summary
 
-| Task | PLINK 1.9 | PLINK 2.0 |
-|------|-----------|-----------|
-| Command | `plink` | `plink2` |
-| Read PED/MAP | `--file` | Not supported (use 1.9 first) |
-| Export VCF | `--recode vcf` | `--export vcf` |
-| Frequency | MAF | ALT frequency |
-| Missing output | `.imiss/.lmiss` | `.smiss/.vmiss` |
+| Feature | PLINK 2.0 | PLINK 1.9 |
+|---------|-----------|-----------|
+| Status | Current | Legacy |
+| Command | `plink2` | `plink` |
+| Format | `.pgen/.pvar/.psam` | `.bed/.bim/.fam` |
+| Speed | Faster | Baseline |
+| Memory | More efficient | Higher for large data |
+| Export VCF | `--export vcf` | `--recode vcf` |
+| Frequency output | ALT frequency | MAF |
+| Missing output | `.smiss/.vmiss` | `.imiss/.lmiss` |
+| PED/MAP support | No (convert via 1.9) | Yes (`--file`) |
 
 ## Related Skills
 

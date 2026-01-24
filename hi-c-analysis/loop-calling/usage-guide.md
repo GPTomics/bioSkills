@@ -16,11 +16,9 @@ conda install -c bioconda hicexplorer
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Call loops from my Hi-C data"
-
-> "Find chromatin loops"
+Tell your AI agent what you want to do:
+- "Call loops from my Hi-C data"
+- "Find chromatin loops"
 
 ## Example Prompts
 

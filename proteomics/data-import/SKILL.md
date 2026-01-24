@@ -31,14 +31,17 @@ import pandas as pd
 protein_groups = pd.read_csv('proteinGroups.txt', sep='\t', low_memory=False)
 
 # Filter contaminants and reverse hits
+contam_col = 'Potential contaminant' if 'Potential contaminant' in protein_groups.columns else 'Contaminant'
 protein_groups = protein_groups[
-    (protein_groups['Potential contaminant'] != '+') &
-    (protein_groups['Reverse'] != '+') &
-    (protein_groups['Only identified by site'] != '+')
+    (protein_groups.get(contam_col, '') != '+') &
+    (protein_groups.get('Reverse', '') != '+') &
+    (protein_groups.get('Only identified by site', '') != '+')
 ]
 
-# Extract intensity columns
-intensity_cols = [c for c in protein_groups.columns if c.startswith('LFQ intensity')]
+# Extract intensity columns (LFQ or iBAQ)
+intensity_cols = [c for c in protein_groups.columns if c.startswith('LFQ intensity') or c.startswith('iBAQ ')]
+if not intensity_cols:
+    intensity_cols = [c for c in protein_groups.columns if c.startswith('Intensity ') and 'Intensity L' not in c]
 intensities = protein_groups[['Protein IDs', 'Gene names'] + intensity_cols]
 ```
 

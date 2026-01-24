@@ -63,6 +63,7 @@ flow_rate <- data %>%
 
 flow_cv <- sd(flow_rate$events) / mean(flow_rate$events) * 100
 cat('Flow rate CV:', round(flow_cv, 1), '%\n')
+# CV<20%: Standard flow rate stability threshold. Higher CV indicates clogs or bubbles.
 cat('Status:', ifelse(flow_cv < 20, 'PASS', 'FAIL'), '\n')
 
 # Plot flow rate
@@ -92,6 +93,7 @@ cd45_pct_change <- (predict(cd45_trend, newdata = data.frame(time_bin = n_bins))
                    predict(cd45_trend, newdata = data.frame(time_bin = 1)) * 100
 
 cat('CD45 drift:', round(cd45_pct_change, 1), '%\n')
+# drift<10%: Signal should not change >10% during acquisition. Indicates instrument instability.
 cat('Status:', ifelse(abs(cd45_pct_change) < 10, 'PASS', 'WARNING'), '\n')
 
 # Plot signal drift
@@ -109,6 +111,7 @@ max_val <- 262143
 margin_mask <- data$FSC_A >= max_val * 0.99 | data$FSC_A <= 0
 
 cat('Margin events:', sum(margin_mask), '(', round(mean(margin_mask) * 100, 2), '%)\n')
+# <5% margin: Events at detector limits indicate saturation. >5% suggests voltage issues.
 cat('Status:', ifelse(mean(margin_mask) < 0.05, 'PASS', 'WARNING'), '\n')
 
 # === 5. DEAD CELL EXCLUSION ===
@@ -118,6 +121,7 @@ viability_threshold <- quantile(data$Viability, 0.9)
 dead_mask <- data$Viability > viability_threshold
 
 cat('Dead cells:', sum(dead_mask), '(', round(mean(dead_mask) * 100, 1), '%)\n')
+# <15% dead: Acceptable for most samples. >15% may indicate sample handling issues.
 cat('Status:', ifelse(mean(dead_mask) < 0.15, 'PASS', 'WARNING'), '\n')
 
 # Viability distribution

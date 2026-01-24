@@ -14,11 +14,9 @@ conda install -c bioconda hicexplorer
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Plot my Hi-C contact matrix"
-
-> "Show Hi-C with TADs and loops"
+Tell your AI agent what you want to do:
+- "Plot my Hi-C contact matrix"
+- "Show Hi-C with TADs and loops"
 
 ## Example Prompts
 

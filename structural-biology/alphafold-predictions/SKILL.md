@@ -65,6 +65,8 @@ print(f"Model version: {info['latestVersion']}")
 
 ## File Types Available
 
+Database version v4 (current as of 2025). The version number refers to the database release, not the AlphaFold model version.
+
 | File | URL Pattern | Description |
 |------|-------------|-------------|
 | PDB | `AF-{id}-F1-model_v4.pdb` | Structure coordinates |

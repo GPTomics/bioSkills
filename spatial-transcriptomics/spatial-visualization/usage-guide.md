@@ -14,11 +14,9 @@ pip install napari
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Plot gene expression on the tissue"
-
-> "Show clusters on the spatial plot"
+Tell your AI agent what you want to do:
+- "Plot gene expression on the tissue"
+- "Show clusters on the spatial plot"
 
 ## Example Prompts
 

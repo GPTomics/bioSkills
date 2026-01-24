@@ -21,13 +21,10 @@ wget https://github.com/broadinstitute/cromwell/releases/download/86/womtool-86.
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Create a WDL workflow for variant calling with GATK"
-
-> "Convert this pipeline to WDL for Terra"
-
-> "Run this WDL workflow locally with miniwdl"
+Tell your AI agent what you want to do:
+- "Create a WDL workflow for variant calling with GATK"
+- "Convert this pipeline to WDL for Terra"
+- "Run this WDL workflow locally with miniwdl"
 
 ## Example Prompts
 

@@ -1,6 +1,6 @@
 ---
 name: bio-phylo-tree-visualization
-description: Draw and export phylogenetic trees using Biopython Bio.Phylo with matplotlib. Use for creating publication-quality tree figures, customizing colors and labels, and exporting to various image formats.
+description: Draw and export phylogenetic trees using Biopython Bio.Phylo with matplotlib. Use when creating publication-quality tree figures, customizing colors and labels, or exporting to image formats.
 tool_type: python
 primary_tool: Bio.Phylo
 ---

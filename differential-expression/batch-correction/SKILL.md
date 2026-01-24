@@ -2,7 +2,7 @@
 name: bio-differential-expression-batch-correction
 description: Remove batch effects from RNA-seq data using ComBat, ComBat-Seq, limma removeBatchEffect, and SVA for unknown batch variables. Use when correcting batch effects in expression data.
 tool_type: r
-primary_tool: sva, limma
+primary_tool: sva
 ---
 
 # Batch Effect Correction

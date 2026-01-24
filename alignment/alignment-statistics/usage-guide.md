@@ -12,13 +12,10 @@ pip install biopython numpy
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Calculate pairwise identity between all sequences in this alignment"
-
-> "Show me the conservation score for each column"
-
-> "What is the average sequence identity in this alignment?"
+Tell your AI agent what you want to do:
+- "Calculate pairwise identity between all sequences in this alignment"
+- "Show me the conservation score for each column"
+- "What is the average sequence identity in this alignment?"
 
 ## Example Prompts
 

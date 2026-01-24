@@ -12,11 +12,9 @@ pip install squidpy scanpy pandas networkx matplotlib
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run ligand-receptor analysis on my spatial data"
-
-> "Find which cell types are communicating"
+Tell your AI agent what you want to do:
+- "Run ligand-receptor analysis on my spatial data"
+- "Find which cell types are communicating"
 
 ## Example Prompts
 

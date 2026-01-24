@@ -31,6 +31,8 @@ print(f'  Gap-free columns: {gap_free} ({gap_free/num_cols*100:.1f}%)')
 print(f'  All-gap columns: {all_gap}')
 
 if any(g > 0 for g in gaps_per_col):
+    # 0.5 (50%) threshold: columns with majority gaps often indicate alignment uncertainty
+    # or indel events. Lower threshold (0.3) for stringent analysis; higher (0.7) if gaps expected.
     gappy_cols = [(i, g) for i, g in enumerate(gaps_per_col) if g > num_seqs * 0.5]
     if gappy_cols:
         print(f'\nColumns with >50% gaps: {len(gappy_cols)}')

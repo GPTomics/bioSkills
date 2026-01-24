@@ -2,7 +2,7 @@
 name: bio-workflows-fastq-to-variants
 description: End-to-end DNA sequencing workflow from FASTQ files to variant calls. Covers QC, alignment with BWA, BAM processing, and variant calling with bcftools or GATK HaplotypeCaller. Use when calling variants from raw sequencing reads.
 tool_type: cli
-primary_tool: bwa-mem2, bcftools
+primary_tool: bcftools
 workflow: true
 depends_on:
   - read-qc/fastp-workflow

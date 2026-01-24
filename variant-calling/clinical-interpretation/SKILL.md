@@ -2,7 +2,7 @@
 name: bio-variant-calling-clinical-interpretation
 description: Clinical variant interpretation using ClinVar, ACMG guidelines, and pathogenicity predictors. Prioritize variants for diagnostic and research applications. Use when interpreting clinical significance of variants.
 tool_type: mixed
-primary_tool: ClinVar, InterVar
+primary_tool: InterVar
 ---
 
 # Clinical Variant Interpretation

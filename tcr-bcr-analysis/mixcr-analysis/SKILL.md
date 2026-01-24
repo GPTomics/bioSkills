@@ -10,17 +10,14 @@ primary_tool: MiXCR
 ## Complete Workflow (Recommended)
 
 ```bash
-# One-command analysis for common protocols
-mixcr analyze amplicon \
-    -s human \
-    --starting-material rna \
-    --5-end v-primers \
-    --3-end c-primers \
-    --adapters adapters-cdr3 \
+mixcr analyze generic-tcr-amplicon \
+    --species human \
+    --rna \
+    --rigid-left-alignment-boundary \
+    --floating-right-alignment-boundary C \
     input_R1.fastq.gz input_R2.fastq.gz \
     output_prefix
 
-# For 10x Genomics VDJ
 mixcr analyze 10x-vdj-tcr \
     input_R1.fastq.gz input_R2.fastq.gz \
     output_prefix
@@ -32,74 +29,73 @@ mixcr analyze 10x-vdj-tcr \
 
 ```bash
 mixcr align \
-    -s human \
-    -p rna-seq \
+    --species human \
+    --preset generic-tcr-amplicon-umi \
+    input_R1.fastq.gz input_R2.fastq.gz \
+    alignments.vdjca
+
+mixcr align \
+    --species human \
+    --rna \
     -OallowPartialAlignments=true \
     input_R1.fastq.gz input_R2.fastq.gz \
     alignments.vdjca
 ```
 
-### Step 2: Assemble Clonotypes
+### Step 2: Refine and Assemble
 
 ```bash
-# Assemble partial alignments (for fragmented data)
-mixcr assemblePartial alignments.vdjca alignments_rescued.vdjca
+mixcr refineTagsAndSort alignments.vdjca alignments_refined.vdjca
 
-# Extend alignments
-mixcr extend alignments_rescued.vdjca alignments_extended.vdjca
-
-# Assemble clonotypes
-mixcr assemble alignments_extended.vdjca clones.clns
+mixcr assemble alignments_refined.vdjca clones.clns
 ```
 
 ### Step 3: Export Results
 
 ```bash
-# Export clonotypes to table
 mixcr exportClones \
-    -c TRB \
-    -p fullImputed \
+    --chains TRB \
+    --preset full \
     clones.clns \
-    clones.txt
+    clones.tsv
 
-# Export with specific columns
 mixcr exportClones \
-    -cloneId -count -fraction \
+    --chains TRB \
+    -cloneId -readCount -readFraction \
     -nFeature CDR3 -aaFeature CDR3 \
     -vGene -dGene -jGene \
     clones.clns \
-    clones_custom.txt
+    clones_custom.tsv
 ```
 
 ## Preset Protocols
 
 | Protocol | Use Case |
 |----------|----------|
-| `amplicon` | Targeted TCR/BCR amplicon sequencing |
-| `shotgun` | RNA-seq with TCR/BCR extraction |
+| `generic-tcr-amplicon` | TCR amplicon sequencing |
+| `generic-bcr-amplicon` | BCR amplicon sequencing |
+| `generic-tcr-amplicon-umi` | TCR amplicon with UMIs |
+| `rnaseq-tcr` | TCR extraction from bulk RNA-seq |
+| `rnaseq-bcr` | BCR extraction from bulk RNA-seq |
 | `10x-vdj-tcr` | 10x Genomics TCR enrichment |
 | `10x-vdj-bcr` | 10x Genomics BCR enrichment |
+| `takara-human-tcr-v2` | Takara SMARTer kit |
 
 ## Species Support
 
 ```bash
-# Human
-mixcr align -s human ...
-
-# Mouse
-mixcr align -s mmu ...
+mixcr align --species human ...
+mixcr align --species mmu ...
 
 # Available: human, mmu, rat, rhesus, dog, pig, rabbit, chicken
 ```
 
 ## Output Format
 
-Key columns in exported clones:
-
 | Column | Description |
 |--------|-------------|
 | cloneId | Unique clone identifier |
-| cloneCount | Number of reads |
+| readCount | Number of reads |
 | cloneFraction | Proportion of repertoire |
 | nSeqCDR3 | Nucleotide CDR3 sequence |
 | aaSeqCDR3 | Amino acid CDR3 sequence |
@@ -110,7 +106,6 @@ Key columns in exported clones:
 ## Quality Metrics
 
 ```bash
-# Get alignment report
 mixcr exportReports alignments.vdjca
 
 # Key metrics:
@@ -125,17 +120,13 @@ mixcr exportReports alignments.vdjca
 import pandas as pd
 
 def load_mixcr_clones(filepath):
-    '''Load MiXCR clone table'''
     df = pd.read_csv(filepath, sep='\t')
-
-    # Rename common columns
     df = df.rename(columns={
-        'cloneCount': 'count',
+        'readCount': 'count',
         'cloneFraction': 'frequency',
         'aaSeqCDR3': 'cdr3_aa',
         'nSeqCDR3': 'cdr3_nt'
     })
-
     return df
 ```
 

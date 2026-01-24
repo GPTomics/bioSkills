@@ -2,7 +2,7 @@
 name: bio-variant-calling-filtering-best-practices
 description: Comprehensive variant filtering including GATK VQSR, hard filters, bcftools expressions, and quality metric interpretation for SNPs and indels. Use when filtering variants using GATK best practices.
 tool_type: mixed
-primary_tool: bcftools, GATK
+primary_tool: bcftools
 ---
 
 # Variant Filtering Best Practices

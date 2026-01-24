@@ -7,6 +7,8 @@ primary_tool: m6Anet
 
 # m6Anet Analysis
 
+Documentation: https://m6anet.readthedocs.io/
+
 ## Data Preparation
 
 ```bash

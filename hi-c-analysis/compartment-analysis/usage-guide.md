@@ -12,11 +12,9 @@ pip install cooler cooltools bioframe matplotlib
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Call compartments from my Hi-C data"
-
-> "Compute A/B compartments"
+Tell your AI agent what you want to do:
+- "Call compartments from my Hi-C data"
+- "Compute A/B compartments"
 
 ## Example Prompts
 

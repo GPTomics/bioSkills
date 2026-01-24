@@ -198,6 +198,15 @@ print(f'Tm: {tm:.1f}C')
 tm = primer3.calc_tm('ATGCGATCGATCGATCGATC', mv_conc=50.0, dv_conc=1.5, dntp_conc=0.2, dna_conc=50.0)
 ```
 
+### Tm Calculation Defaults
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| mv_conc | 50.0 mM | Monovalent cations (Na+, K+) |
+| dv_conc | 0.0 mM | Divalent cations (Mg2+) |
+| dntp_conc | 0.0 mM | dNTP concentration |
+| dna_conc | 50.0 nM | DNA oligo concentration |
+
 ## Calculate Hairpin and Dimer Tm
 
 ```python

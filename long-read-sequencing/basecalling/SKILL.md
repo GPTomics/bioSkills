@@ -1,8 +1,8 @@
 ---
 name: bio-basecalling
-description: Convert raw Nanopore signal data (FAST5/POD5) to nucleotide sequences using Dorado or Guppy basecallers. Covers model selection, GPU acceleration, modified base detection, and quality filtering. Use when processing raw Nanopore data before alignment.
+description: Convert raw Nanopore signal data (FAST5/POD5) to nucleotide sequences using Dorado basecaller. Covers model selection, GPU acceleration, modified base detection, and quality filtering. Use when processing raw Nanopore data before alignment. Note: Guppy is deprecated; use Dorado for all new analyses.
 tool_type: cli
-primary_tool: dorado, guppy
+primary_tool: dorado
 ---
 
 # Nanopore Basecalling
@@ -38,8 +38,8 @@ dorado basecaller sup pod5_dir/ > calls.bam
 ### Specific Model Version
 
 ```bash
-dorado download --model dna_r10.4.1_e8.2_400bps_sup@v5.0.0
-dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.0.0 pod5_dir/ > calls.bam
+dorado download --model dna_r10.4.1_e8.2_400bps_sup@v5.1.0
+dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.1.0 pod5_dir/ > calls.bam
 ```
 
 ### List Available Models
@@ -102,9 +102,9 @@ dorado basecaller sup pod5_dir/ --no-trim > calls_untrimmed.bam
 dorado basecaller sup pod5_dir/ --resume-from calls.bam > calls_complete.bam
 ```
 
-## Guppy (Legacy)
+## Guppy (Deprecated - Legacy Only)
 
-Guppy is being deprecated but still used in some workflows.
+Guppy is deprecated and no longer receiving updates. Use Dorado for all new analyses. Guppy examples below are only for maintaining legacy pipelines.
 
 ### Basic Basecalling
 

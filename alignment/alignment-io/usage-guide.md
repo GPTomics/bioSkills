@@ -12,13 +12,10 @@ pip install biopython
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Read this Clustal alignment file and show me the sequences"
-
-> "Convert my PHYLIP alignment to FASTA format"
-
-> "Parse the Stockholm file and extract sequence IDs"
+Tell your AI agent what you want to do:
+- "Read this Clustal alignment file and show me the sequences"
+- "Convert my PHYLIP alignment to FASTA format"
+- "Parse the Stockholm file and extract sequence IDs"
 
 ## Example Prompts
 

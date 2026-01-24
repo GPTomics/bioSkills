@@ -12,13 +12,10 @@ pip install biopython
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Find all the fully conserved positions in this alignment"
-
-> "Remove sequences with more than 10% gaps"
-
-> "Generate a consensus sequence from this alignment"
+Tell your AI agent what you want to do:
+- "Find all the fully conserved positions in this alignment"
+- "Remove sequences with more than 10% gaps"
+- "Generate a consensus sequence from this alignment"
 
 ## Example Prompts
 

@@ -42,6 +42,7 @@ bray <- phyloseq::distance(ps_rare, method = 'bray')
 
 # PERMANOVA
 meta_df <- data.frame(sample_data(ps_rare))
+# permutations=999: Standard for PERMANOVA. Use 9999 for publication; 99 for quick tests.
 perm <- adonis2(bray ~ Group, data = meta_df, permutations = 999)
 cat('\nPERMANOVA results:\n')
 print(perm)

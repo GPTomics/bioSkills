@@ -50,6 +50,6 @@ pip install scikit-allel
 
 ## Related Skills
 
-- **variant-calling** - Upstream VCF generation
-- **vcf-filtering** - Pre-processing variants
-- **vcf-manipulation** - Merging population VCFs
+- **variant-calling** - VCF generation, filtering, and manipulation
+- **phasing-imputation** - Haplotype phasing for population studies
+- **alignment-files** - BAM processing before variant calling

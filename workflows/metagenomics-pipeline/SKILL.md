@@ -2,7 +2,7 @@
 name: bio-workflows-metagenomics-pipeline
 description: End-to-end metagenomics workflow from FASTQ to taxonomic and functional profiles. Covers Kraken2 classification, Bracken abundance estimation, and HUMAnN functional profiling. Use when profiling metagenomic samples.
 tool_type: cli
-primary_tool: Kraken2, MetaPhlAn, HUMAnN
+primary_tool: Kraken2
 workflow: true
 depends_on:
   - read-qc/fastp-workflow

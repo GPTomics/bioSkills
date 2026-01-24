@@ -7,6 +7,8 @@ primary_tool: Snakemake
 
 # Snakemake Workflows
 
+Compatible with Snakemake 7.x and 8.x. For Snakemake 8.0+, use `--executor` instead of `--cluster`.
+
 ## Basic Rule Structure
 
 ```python
@@ -171,12 +173,16 @@ align:
 ```
 
 ```bash
-# SLURM execution
+# Snakemake 8.x with executor plugin
+pip install snakemake-executor-plugin-slurm
+snakemake --executor slurm --jobs 100
+
+# Snakemake 7.x cluster execution
 snakemake --cluster "sbatch --partition={cluster.partition} \
     --time={cluster.time} --mem={cluster.mem}" \
     --cluster-config cluster.yaml --jobs 100
 
-# Or use profile
+# Or use profile (both versions)
 snakemake --profile slurm
 ```
 

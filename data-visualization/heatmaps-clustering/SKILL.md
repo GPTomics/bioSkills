@@ -2,7 +2,7 @@
 name: bio-data-visualization-heatmaps-clustering
 description: Create clustered heatmaps with row/column annotations using ComplexHeatmap, pheatmap, and seaborn for gene expression and omics data visualization. Use when visualizing expression patterns across samples or identifying co-expressed gene clusters.
 tool_type: mixed
-primary_tool: ComplexHeatmap, pheatmap, seaborn
+primary_tool: ComplexHeatmap
 ---
 
 # Heatmaps and Clustering

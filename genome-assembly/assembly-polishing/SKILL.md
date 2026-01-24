@@ -140,7 +140,7 @@ medaka_consensus -i reads.fastq.gz -d assembly.fasta -o medaka_output -t 8
 medaka tools list_models
 
 # Use specific model (match your basecaller)
-medaka_consensus -i reads.fq.gz -d assembly.fa -o output -m r1041_e82_400bps_sup_v5.0.0
+medaka_consensus -i reads.fq.gz -d assembly.fa -o output -m r1041_e82_400bps_sup_v5.1.0
 ```
 
 ### Models for Common Chemistries

@@ -14,11 +14,9 @@ pip install cellpose
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Extract image features from my tissue image"
-
-> "Segment cells in my Visium image"
+Tell your AI agent what you want to do:
+- "Extract image features from my tissue image"
+- "Segment cells in my Visium image"
 
 ## Example Prompts
 

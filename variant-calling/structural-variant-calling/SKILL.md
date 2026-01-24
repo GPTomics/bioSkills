@@ -216,6 +216,18 @@ AnnotSV \
 | 30x | Most SVs |
 | 50x+ | Small SVs, better breakpoints |
 
+## Long-Read SV Callers
+
+For long-read data (ONT/PacBio HiFi), use specialized callers with higher sensitivity:
+
+| Caller | Best For | Notes |
+|--------|----------|-------|
+| CuteSV | ONT/HiFi | Fast, accurate for all SV types |
+| Sniffles2 | ONT/HiFi | Population-scale, multisample |
+| PBSV | PacBio | Official PacBio caller |
+
+See **long-read-sequencing/structural-variants** for long-read SV workflows.
+
 ## Related Skills
 
 - long-read-sequencing/structural-variants - Long-read SV calling

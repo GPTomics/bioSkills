@@ -2,7 +2,7 @@
 name: bio-data-visualization-specialized-omics-plots
 description: Reusable plotting functions for common omics visualizations. Custom ggplot2/matplotlib implementations of volcano, MA, PCA, enrichment dotplots, boxplots, and survival curves. Use when creating volcano, MA, or enrichment plots.
 tool_type: mixed
-primary_tool: ggplot2, matplotlib
+primary_tool: ggplot2
 ---
 
 # Specialized Omics Plots

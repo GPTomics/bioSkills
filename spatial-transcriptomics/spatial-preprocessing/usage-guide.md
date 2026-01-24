@@ -12,11 +12,9 @@ pip install squidpy scanpy matplotlib
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run QC on my spatial data"
-
-> "Filter and normalize my Visium data"
+Tell your AI agent what you want to do:
+- "Run QC on my spatial data"
+- "Filter and normalize my Visium data"
 
 ## Example Prompts
 

@@ -12,11 +12,9 @@ pip install cooler cooltools numpy scipy
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Balance my Hi-C matrix"
-
-> "Compute observed/expected normalization"
+Tell your AI agent what you want to do:
+- "Balance my Hi-C matrix"
+- "Compute observed/expected normalization"
 
 ## Example Prompts
 

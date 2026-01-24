@@ -43,4 +43,4 @@ pip install biopython
 
 - **sequence-io** - Read sequences for restriction analysis
 - **sequence-manipulation** - Work with restriction fragments
-- **sequence-properties** - Analyze fragment sequences
+- **primer-design** - Design primers around restriction sites

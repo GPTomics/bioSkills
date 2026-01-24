@@ -12,16 +12,16 @@ primary_tool: DeepVariant
 ### Docker (Recommended)
 
 ```bash
-docker pull google/deepvariant:1.6.0
+docker pull google/deepvariant:1.6.1
 
 # Or with GPU support
-docker pull google/deepvariant:1.6.0-gpu
+docker pull google/deepvariant:1.6.1-gpu
 ```
 
 ### Singularity
 
 ```bash
-singularity pull docker://google/deepvariant:1.6.0
+singularity pull docker://google/deepvariant:1.6.1
 ```
 
 ## Basic Usage
@@ -30,7 +30,7 @@ singularity pull docker://google/deepvariant:1.6.0
 
 ```bash
 docker run -v "${PWD}:/input" -v "${PWD}/output:/output" \
-    google/deepvariant:1.6.0 \
+    google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
     --model_type=WGS \
     --ref=/input/reference.fa \
@@ -57,7 +57,7 @@ For more control, run each step separately:
 ### Step 1: Make Examples
 
 ```bash
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/make_examples \
     --mode calling \
     --ref /data/reference.fa \
@@ -69,7 +69,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
 ### Step 2: Call Variants
 
 ```bash
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/call_variants \
     --outfile /data/call_variants.tfrecord.gz \
     --examples /data/examples.tfrecord.gz \
@@ -79,7 +79,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
 ### Step 3: Postprocess Variants
 
 ```bash
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/postprocess_variants \
     --ref /data/reference.fa \
     --infile /data/call_variants.tfrecord.gz \
@@ -92,7 +92,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
 
 ```bash
 docker run --gpus all -v "${PWD}:/data" \
-    google/deepvariant:1.6.0-gpu \
+    google/deepvariant:1.6.1-gpu \
     /opt/deepvariant/bin/run_deepvariant \
     --model_type=WGS \
     --ref=/data/reference.fa \
@@ -104,7 +104,7 @@ docker run --gpus all -v "${PWD}:/data" \
 ## PacBio HiFi Calling
 
 ```bash
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
     --model_type=PACBIO \
     --ref=/data/reference.fa \
@@ -116,7 +116,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
 ## ONT Calling
 
 ```bash
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
     --model_type=ONT_R104 \
     --ref=/data/reference.fa \
@@ -128,7 +128,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
 ## Exome/Targeted Sequencing
 
 ```bash
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
     --model_type=WES \
     --ref=/data/reference.fa \
@@ -146,7 +146,7 @@ For multi-sample cohorts, use gVCFs with GLnexus:
 # Generate gVCFs for each sample
 for bam in *.bam; do
     sample=$(basename $bam .bam)
-    docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+    docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
         /opt/deepvariant/bin/run_deepvariant \
         --model_type=WGS \
         --ref=/data/reference.fa \
@@ -212,7 +212,7 @@ THREADS=${5:-16}
 
 echo "=== DeepVariant: ${MODEL_TYPE} mode ==="
 
-docker run -v "${PWD}:/data" google/deepvariant:1.6.0 \
+docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
     --model_type=${MODEL_TYPE} \
     --ref=/data/${REFERENCE} \

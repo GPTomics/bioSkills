@@ -50,5 +50,5 @@ pip install squidpy spatialdata spatialdata-io scanpy anndata
 ## Related Skills
 
 - **single-cell** - Non-spatial scRNA-seq analysis
-- **image-analysis** - General image processing
 - **differential-expression** - DE between spatial regions
+- **data-visualization** - Visualization of spatial patterns

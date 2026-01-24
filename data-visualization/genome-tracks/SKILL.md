@@ -2,7 +2,7 @@
 name: bio-data-visualization-genome-tracks
 description: Create genome browser-style visualizations showing multiple data tracks (coverage, peaks, genes) using pyGenomeTracks, Gviz, and IGV. Use when visualizing genomic data at specific loci with multiple aligned tracks.
 tool_type: mixed
-primary_tool: pyGenomeTracks, Gviz
+primary_tool: pyGenomeTracks
 ---
 
 # Genome Track Visualization
@@ -161,7 +161,7 @@ plotTracks(list(gtrack, ht, grtrack), from = 1000000, to = 2000000)
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/igv@2.15.0/dist/igv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/igv@3.0.0/dist/igv.min.js"></script>
 </head>
 <body>
     <div id="igv-div"></div>
