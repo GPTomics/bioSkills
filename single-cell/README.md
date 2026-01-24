@@ -4,7 +4,7 @@
 
 Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the complete workflow from loading data through quality control, normalization, clustering, marker gene identification, and cell type annotation.
 
-**Tool type:** mixed | **Primary tools:** Seurat (R), Scanpy/AnnData (Python)
+**Tool type:** mixed | **Primary tools:** Seurat, Scanpy, Pertpy, Cassiopeia
 
 ## Skills
 
@@ -21,8 +21,8 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 | cell-communication | Cell-cell communication with CellChat, NicheNet, LIANA |
 | multimodal-integration | CITE-seq, Multiome, WNN clustering for multi-modal data |
 | scatac-analysis | Single-cell ATAC-seq with Signac and ArchR |
-| perturb-seq | Analyze Perturb-seq and CROP-seq CRISPR screens |
-| lineage-tracing | Reconstruct cell lineages from CRISPR barcodes |
+| perturb-seq | Analyze Perturb-seq/CROP-seq with Pertpy, Mixscape; guide assignment, DE, pathway enrichment |
+| lineage-tracing | Reconstruct lineages from CRISPR barcodes with Cassiopeia, CoSpar; tree inference, fate mapping |
 
 ## Example Prompts
 

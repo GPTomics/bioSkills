@@ -4,7 +4,7 @@
 
 Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers alignment with minimap2, polishing, variant calling with medaka and Clair3, and structural variant detection with Sniffles.
 
-**Tool type:** cli | **Primary tools:** minimap2, medaka, Clair3, Sniffles, NanoPlot
+**Tool type:** cli | **Primary tools:** Dorado, minimap2, Clair3, IsoSeq3, SQANTI3
 
 ## Skills
 
@@ -16,7 +16,7 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 | clair3-variants | Deep learning variant calling with Clair3 |
 | structural-variants | Detect SVs from long reads |
 | long-read-qc | Quality control for long reads |
-| isoseq-analysis | PacBio Iso-Seq isoform discovery and quantification |
+| isoseq-analysis | PacBio Iso-Seq isoform discovery with IsoSeq3, SQANTI3 QC, differential isoforms |
 
 ## Example Prompts
 
