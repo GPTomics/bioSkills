@@ -281,7 +281,7 @@ def batch_annotation_session(image_files, seg_files, existing_annotations=None):
 
 ## Related Skills
 
-- **cell-segmentation** - Generate cell masks for annotation
-- **phenotyping** - Automated phenotyping as alternative
-- **spatial-analysis** - Use annotations for spatial analysis
-- **quality-metrics** - QC annotated data
+- cell-segmentation - Generate cell masks for annotation
+- phenotyping - Automated phenotyping as alternative
+- spatial-analysis - Use annotations for spatial analysis
+- quality-metrics - QC annotated data

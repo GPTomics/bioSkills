@@ -56,6 +56,6 @@ plotCorrelation -in results.npz \
 
 ## Related Skills
 
-- **read-qc** - Raw read quality assessment
-- **read-alignment** - General alignment concepts
-- **m6a-peak-calling** - Next step after preprocessing
+- read-qc - Raw read quality assessment
+- read-alignment - General alignment concepts
+- m6a-peak-calling - Next step after preprocessing

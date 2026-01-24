@@ -298,7 +298,7 @@ echo "Pipeline complete. Results in ${OUTDIR}/"
 
 ## Related Skills
 
-- **copy-number/cnvkit-analysis** - CNVkit details
-- **copy-number/cnv-visualization** - Plotting options
-- **copy-number/cnv-annotation** - Gene annotations
-- **copy-number/gatk-cnv** - GATK alternative
+- copy-number/cnvkit-analysis - CNVkit details
+- copy-number/cnv-visualization - Plotting options
+- copy-number/cnv-annotation - Gene annotations
+- copy-number/gatk-cnv - GATK alternative

@@ -203,6 +203,6 @@ def plot_clone_network(clone_df, similarity_threshold=0.8):
 
 ## Related Skills
 
-- **vdjtools-analysis** - Generate input data
-- **mixcr-analysis** - Generate clonotype tables
-- **data-visualization** - General plotting concepts
+- vdjtools-analysis - Generate input data
+- mixcr-analysis - Generate clonotype tables
+- data-visualization - General plotting concepts

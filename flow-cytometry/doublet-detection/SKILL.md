@@ -262,10 +262,10 @@ ggsave('doublet_detection.png', width = 8, height = 6)
 
 ## Related Skills
 
-**Workflow order:** cytometry-qc → doublet-detection → bead-normalization → clustering
+Workflow order: cytometry-qc → doublet-detection → bead-normalization → clustering
 
-- **cytometry-qc** - Run first: identify flow rate and signal issues
-- **bead-normalization** - Run after: correct remaining instrument drift
-- **fcs-handling** - Load FCS files
-- **gating-analysis** - Manual gating workflows
-- **clustering-phenotyping** - Downstream analysis after doublet removal
+- cytometry-qc - Run first: identify flow rate and signal issues
+- bead-normalization - Run after: correct remaining instrument drift
+- fcs-handling - Load FCS files
+- gating-analysis - Manual gating workflows
+- clustering-phenotyping - Downstream analysis after doublet removal

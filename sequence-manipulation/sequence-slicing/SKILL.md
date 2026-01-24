@@ -206,7 +206,7 @@ Need to extract or combine sequences?
 
 ## Related Skills
 
-- **seq-objects** - Create Seq and SeqRecord objects
-- **sequence-io/read-sequences** - Parse GenBank files with features to extract
-- **transcription-translation** - Translate extracted CDS regions
-- **alignment-files** - Extract sequences from BAM using samtools fasta/fastq
+- seq-objects - Create Seq and SeqRecord objects
+- sequence-io/read-sequences - Parse GenBank files with features to extract
+- transcription-translation - Translate extracted CDS regions
+- alignment-files - Extract sequences from BAM using samtools fasta/fastq

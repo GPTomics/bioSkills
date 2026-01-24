@@ -251,6 +251,6 @@ np.save('processed_matrix.npy', oe_matrix)
 
 ## Related Skills
 
-- **hic-data-io** - Load and access cooler files
-- **compartment-analysis** - Use O/E matrices for compartments
-- **hic-visualization** - Visualize processed matrices
+- hic-data-io - Load and access cooler files
+- compartment-analysis - Use O/E matrices for compartments
+- hic-visualization - Visualize processed matrices

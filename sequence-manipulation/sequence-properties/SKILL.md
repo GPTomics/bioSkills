@@ -370,8 +370,8 @@ Need sequence properties?
 
 ## Related Skills
 
-- **seq-objects** - Create Seq objects for property calculation
-- **sequence-io/sequence-statistics** - File-level statistics (N50, totals)
-- **codon-usage** - GC123 for codon position analysis
-- **transcription-translation** - Translate before protein analysis
-- **alignment-files** - samtools stats for alignment-level GC and quality stats
+- seq-objects - Create Seq objects for property calculation
+- sequence-io/sequence-statistics - File-level statistics (N50, totals)
+- codon-usage - GC123 for codon position analysis
+- transcription-translation - Translate before protein analysis
+- alignment-files - samtools stats for alignment-level GC and quality stats

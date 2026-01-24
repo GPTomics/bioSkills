@@ -297,12 +297,12 @@ res_DA <- testDA_voom(sce, formula, contrast)
 
 ## Related Skills
 
-- **flow-cytometry/fcs-handling** - FCS file operations
-- **flow-cytometry/compensation-transformation** - Data preprocessing
-- **flow-cytometry/gating-analysis** - Manual gating
-- **flow-cytometry/clustering-phenotyping** - Unsupervised clustering
-- **flow-cytometry/differential-analysis** - Statistical testing
-- **flow-cytometry/doublet-detection** - Remove doublet events
-- **flow-cytometry/bead-normalization** - CyTOF EQ bead normalization
-- **flow-cytometry/cytometry-qc** - Comprehensive QC
-- **single-cell/clustering** - Related clustering methods
+- flow-cytometry/fcs-handling - FCS file operations
+- flow-cytometry/compensation-transformation - Data preprocessing
+- flow-cytometry/gating-analysis - Manual gating
+- flow-cytometry/clustering-phenotyping - Unsupervised clustering
+- flow-cytometry/differential-analysis - Statistical testing
+- flow-cytometry/doublet-detection - Remove doublet events
+- flow-cytometry/bead-normalization - CyTOF EQ bead normalization
+- flow-cytometry/cytometry-qc - Comprehensive QC
+- single-cell/clustering - Related clustering methods

@@ -284,7 +284,7 @@ plot_batch_effect(counts_df, [1,1,1,2,2,2], sample_cols, 'batch_pca.png')
 
 ## Related Skills
 
-- **mageck-analysis** - Batch-aware MAGeCK analysis
-- **screen-qc** - Quality control before correction
-- **hit-calling** - Analysis after batch correction
-- **library-design** - Control guide design
+- mageck-analysis - Batch-aware MAGeCK analysis
+- screen-qc - Quality control before correction
+- hit-calling - Analysis after batch correction
+- library-design - Control guide design

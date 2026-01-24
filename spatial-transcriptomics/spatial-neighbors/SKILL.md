@@ -164,6 +164,6 @@ for n_neighs in [4, 6, 10]:
 
 ## Related Skills
 
-- **spatial-statistics** - Use neighbor graph for spatial statistics
-- **spatial-domains** - Identify domains using spatial graph
-- **single-cell/clustering** - Non-spatial neighbor graphs
+- spatial-statistics - Use neighbor graph for spatial statistics
+- spatial-domains - Identify domains using spatial graph
+- single-cell/clustering - Non-spatial neighbor graphs

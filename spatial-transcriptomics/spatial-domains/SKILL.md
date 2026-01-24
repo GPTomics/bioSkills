@@ -204,6 +204,6 @@ sq.pl.spatial_scatter(adata, color='domain', size=1.3)
 
 ## Related Skills
 
-- **spatial-neighbors** - Build spatial graphs (prerequisite)
-- **spatial-statistics** - Compute spatial statistics per domain
-- **single-cell/clustering** - Standard clustering methods
+- spatial-neighbors - Build spatial graphs (prerequisite)
+- spatial-statistics - Compute spatial statistics per domain
+- single-cell/clustering - Standard clustering methods

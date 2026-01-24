@@ -245,6 +245,6 @@ plt.savefig('zoomed.png', dpi=300)
 
 ## Related Skills
 
-- **spatial-data-io** - Load spatial data
-- **spatial-statistics** - Compute statistics to visualize
-- **single-cell/clustering** - Generate cluster labels
+- spatial-data-io - Load spatial data
+- spatial-statistics - Compute statistics to visualize
+- single-cell/clustering - Generate cluster labels

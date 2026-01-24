@@ -70,5 +70,5 @@ RiboCode -a annotation.gtf -c config.txt -o ribocoded_orfs
 
 ## Related Skills
 
-- **ribo-seq/** - Individual Ribo-seq analysis skills
-- **differential-expression** - For differential TE
+- ribo-seq/ - Individual Ribo-seq analysis skills
+- differential-expression - For differential TE

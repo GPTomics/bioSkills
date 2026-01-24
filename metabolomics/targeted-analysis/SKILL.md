@@ -290,6 +290,6 @@ write.csv(results_final, 'targeted_results.csv', row.names = FALSE)
 
 ## Related Skills
 
-- **xcms-preprocessing** - Peak detection for targeted features
-- **normalization-qc** - QC-based normalization
-- **statistical-analysis** - Group comparisons
+- xcms-preprocessing - Peak detection for targeted features
+- normalization-qc - QC-based normalization
+- statistical-analysis - Group comparisons

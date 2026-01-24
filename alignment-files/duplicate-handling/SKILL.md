@@ -266,7 +266,7 @@ samtools view -c -F 1024 marked.bam
 
 ## Related Skills
 
-- **alignment-sorting** - Sort by name/coordinate for workflow
-- **alignment-filtering** - Filter duplicates from output
-- **alignment-statistics** - Check duplicate rates with flagstat
-- **variant-calling** - Duplicate marking before calling
+- alignment-sorting - Sort by name/coordinate for workflow
+- alignment-filtering - Filter duplicates from output
+- bam-statistics - Check duplicate rates with flagstat
+- variant-calling - Duplicate marking before calling

@@ -313,8 +313,8 @@ print(f'Min: {min(sizes)}, Max: {max(sizes)}')
 
 ## Related Skills
 
-- **sam-bam-basics** - View alignment files
-- **alignment-indexing** - idxstats requires index
-- **duplicate-handling** - Check duplicate rates
-- **alignment-filtering** - Filter before stats
-- **sequence-io/sequence-statistics** - FASTA/FASTQ statistics
+- sam-bam-basics - View alignment files
+- alignment-indexing - idxstats requires index
+- duplicate-handling - Check duplicate rates
+- alignment-filtering - Filter before stats
+- sequence-io/sequence-statistics - FASTA/FASTQ statistics

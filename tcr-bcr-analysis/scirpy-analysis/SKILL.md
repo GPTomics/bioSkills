@@ -142,6 +142,6 @@ ir.io.write_airr(adata, 'scirpy_airr.tsv')
 
 ## Related Skills
 
-- **mixcr-analysis** - Process raw VDJ FASTQ
-- **single-cell/data-io** - Load scRNA-seq data
-- **single-cell/clustering** - Cell type annotation
+- mixcr-analysis - Process raw VDJ FASTQ
+- single-cell/data-io - Load scRNA-seq data
+- single-cell/clustering - Cell type annotation

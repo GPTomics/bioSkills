@@ -116,6 +116,6 @@ protein_summary <- quantification(processed)
 
 ## Related Skills
 
-- **data-import** - Load MS data before quantification
-- **differential-abundance** - Statistical testing after quantification
-- **expression-matrix/counts-ingest** - Similar matrix handling
+- data-import - Load MS data before quantification
+- differential-abundance - Statistical testing after quantification
+- expression-matrix/counts-ingest - Similar matrix handling

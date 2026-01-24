@@ -192,7 +192,7 @@ diann \
 
 ## Related Skills
 
-- **data-import** - Load raw MS data
-- **spectral-libraries** - Build and use spectral libraries
-- **quantification** - Normalization methods
-- **differential-abundance** - Statistical testing
+- data-import - Load raw MS data
+- spectral-libraries - Build and use spectral libraries
+- quantification - Normalization methods
+- differential-abundance - Statistical testing

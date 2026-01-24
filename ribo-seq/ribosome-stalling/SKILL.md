@@ -179,6 +179,6 @@ def extract_pause_motifs(pause_sites, sequences, window=10):
 
 ## Related Skills
 
-- **ribosome-periodicity** - Validate data quality
-- **orf-detection** - Context for pause sites
-- **translation-efficiency** - Gene-level translation
+- ribosome-periodicity - Validate data quality
+- orf-detection - Context for pause sites
+- translation-efficiency - Gene-level translation

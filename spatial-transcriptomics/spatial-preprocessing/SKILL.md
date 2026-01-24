@@ -207,6 +207,6 @@ adata.write_h5ad('preprocessed.h5ad')
 
 ## Related Skills
 
-- **spatial-data-io** - Load spatial data
-- **spatial-neighbors** - Build spatial graphs
-- **single-cell/preprocessing** - Non-spatial preprocessing
+- spatial-data-io - Load spatial data
+- spatial-neighbors - Build spatial graphs
+- single-cell/preprocessing - Non-spatial preprocessing

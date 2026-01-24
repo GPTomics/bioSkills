@@ -317,9 +317,9 @@ write.csv(as.data.frame(sig), 'significant_genes.csv')
 
 ## Related Skills
 
-- **read-qc/fastp-workflow** - Detailed QC options and parameters
-- **rna-quantification/alignment-free-quant** - Salmon and kallisto details
-- **rna-quantification/tximport-workflow** - tximport options and tx2gene creation
-- **differential-expression/deseq2-basics** - Complete DESeq2 reference
-- **differential-expression/de-visualization** - Advanced visualization options
-- **pathway-analysis/go-enrichment** - Next step: functional enrichment
+- read-qc/fastp-workflow - Detailed QC options and parameters
+- rna-quantification/alignment-free-quant - Salmon and kallisto details
+- rna-quantification/tximport-workflow - tximport options and tx2gene creation
+- differential-expression/deseq2-basics - Complete DESeq2 reference
+- differential-expression/de-visualization - Advanced visualization options
+- pathway-analysis/go-enrichment - Next step: functional enrichment

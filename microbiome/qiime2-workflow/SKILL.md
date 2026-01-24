@@ -198,5 +198,5 @@ sample3	Treatment	Day7
 
 - amplicon-processing - DADA2 R workflow alternative
 - taxonomy-assignment - More database options
-- **diversity-analysis** - phyloseq R alternative
-- **differential-abundance** - ALDEx2/ANCOM-BC in R
+- diversity-analysis - phyloseq R alternative
+- differential-abundance - ALDEx2/ANCOM-BC in R

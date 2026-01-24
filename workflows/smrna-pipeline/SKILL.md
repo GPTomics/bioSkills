@@ -61,6 +61,6 @@ miranda mature_mirnas.fa target_3utrs.fa -out targets.txt
 
 ## Related Skills
 
-- **small-rna-seq/mirdeep2-analysis** - Detailed miRDeep2
-- **small-rna-seq/differential-mirna** - DE analysis
-- **small-rna-seq/target-prediction** - Target analysis
+- small-rna-seq/mirdeep2-analysis - Detailed miRDeep2
+- small-rna-seq/differential-mirna - DE analysis
+- small-rna-seq/target-prediction - Target analysis

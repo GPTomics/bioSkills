@@ -218,6 +218,6 @@ cat('  Unknown:', sum(annotation_report$confidence_level == 5), '\n')
 
 ## Related Skills
 
-- **xcms-preprocessing** - Generate feature table
-- **pathway-mapping** - Map annotated metabolites to pathways
-- **proteomics/spectral-libraries** - Similar spectral matching concepts
+- xcms-preprocessing - Generate feature table
+- pathway-mapping - Map annotated metabolites to pathways
+- proteomics/spectral-libraries - Similar spectral matching concepts

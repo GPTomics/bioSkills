@@ -304,8 +304,8 @@ merged[merged['switched']].to_csv('compartment_switches.csv', index=False)
 
 ## Related Skills
 
-- **hic-data-io** - Load Hi-C matrices
-- **matrix-operations** - Normalize matrices
-- **compartment-analysis** - Call compartments
-- **tad-detection** - Call TADs for comparison
-- **loop-calling** - Call loops for comparison
+- hic-data-io - Load Hi-C matrices
+- matrix-operations - Normalize matrices
+- compartment-analysis - Call compartments
+- tad-detection - Call TADs for comparison
+- loop-calling - Call loops for comparison

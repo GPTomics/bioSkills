@@ -221,8 +221,8 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
 
 ## Related Skills
 
-- **alignment-indexing** - Create indices for random access (required for fetch/region queries)
-- **alignment-sorting** - Sort alignments by coordinate or name
-- **alignment-filtering** - Filter alignments by flags, quality, regions
-- **alignment-statistics** - Generate statistics from alignment files
-- **sequence-io/read-sequences** - Parse FASTA/FASTQ input files
+- alignment-indexing - Create indices for random access (required for fetch/region queries)
+- alignment-sorting - Sort alignments by coordinate or name
+- alignment-filtering - Filter alignments by flags, quality, regions
+- bam-statistics - Generate statistics from alignment files
+- sequence-io/read-sequences - Parse FASTA/FASTQ input files

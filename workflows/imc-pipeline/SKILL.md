@@ -274,11 +274,11 @@ sq.gr.ligrec(adata, cluster_key='cell_type', source_groups=['Tumor'],
 
 ## Related Skills
 
-- **imaging-mass-cytometry/data-preprocessing** - Hot pixel, spillover
-- **imaging-mass-cytometry/cell-segmentation** - Cellpose/Mesmer details
-- **imaging-mass-cytometry/phenotyping** - Cluster annotation
-- **imaging-mass-cytometry/spatial-analysis** - Spatial statistics
-- **imaging-mass-cytometry/interactive-annotation** - Manual cell labeling
-- **imaging-mass-cytometry/quality-metrics** - QC metrics
-- **single-cell/clustering** - Clustering methods
-- **spatial-transcriptomics/spatial-statistics** - Related spatial methods
+- imaging-mass-cytometry/data-preprocessing - Hot pixel, spillover
+- imaging-mass-cytometry/cell-segmentation - Cellpose/Mesmer details
+- imaging-mass-cytometry/phenotyping - Cluster annotation
+- imaging-mass-cytometry/spatial-analysis - Spatial statistics
+- imaging-mass-cytometry/interactive-annotation - Manual cell labeling
+- imaging-mass-cytometry/quality-metrics - QC metrics
+- single-cell/clustering - Clustering methods
+- spatial-transcriptomics/spatial-statistics - Related spatial methods

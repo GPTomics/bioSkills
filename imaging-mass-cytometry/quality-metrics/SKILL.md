@@ -293,7 +293,7 @@ plot_qc_summary(image_stack, channel_names, 'qc_summary.png')
 
 ## Related Skills
 
-- **data-preprocessing** - Clean data before QC
-- **cell-segmentation** - Segmentation affects QC metrics
-- **interactive-annotation** - Manual review of QC failures
-- **phenotyping** - Analysis after QC passes
+- data-preprocessing - Clean data before QC
+- cell-segmentation - Segmentation affects QC metrics
+- interactive-annotation - Manual review of QC failures
+- phenotyping - Analysis after QC passes

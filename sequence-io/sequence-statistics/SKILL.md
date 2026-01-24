@@ -289,8 +289,8 @@ for base in ['A', 'T', 'G', 'C', 'N']:
 
 ## Related Skills
 
-- **read-sequences** - Parse sequences for statistics calculation
-- **batch-processing** - Calculate stats across multiple files
-- **fastq-quality** - Quality score statistics for FASTQ files
-- **sequence-manipulation/sequence-properties** - Per-sequence GC content and properties
-- **alignment-files** - samtools stats/flagstat for alignment statistics
+- read-sequences - Parse sequences for statistics calculation
+- batch-processing - Calculate stats across multiple files
+- fastq-quality - Quality score statistics for FASTQ files
+- sequence-manipulation/sequence-properties - Per-sequence GC content and properties
+- alignment-files - samtools stats/flagstat for alignment statistics

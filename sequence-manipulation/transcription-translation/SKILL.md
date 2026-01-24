@@ -210,8 +210,8 @@ Need to convert sequence?
 
 ## Related Skills
 
-- **seq-objects** - Create Seq objects for translation
-- **reverse-complement** - Translate both strands (six-frame translation)
-- **codon-usage** - Analyze codon bias in coding sequences
-- **sequence-io/read-sequences** - Parse GenBank files with CDS features
-- **database-access** - Fetch CDS sequences from NCBI for translation
+- seq-objects - Create Seq objects for translation
+- reverse-complement - Translate both strands (six-frame translation)
+- codon-usage - Analyze codon bias in coding sequences
+- sequence-io/read-sequences - Parse GenBank files with CDS features
+- database-access - Fetch CDS sequences from NCBI for translation

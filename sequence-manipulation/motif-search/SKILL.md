@@ -327,8 +327,8 @@ Need to find patterns in sequence?
 
 ## Related Skills
 
-- **seq-objects** - Create Seq objects for searching
-- **reverse-complement** - Search both strands for motifs
-- **filter-sequences** - Filter sequences that contain specific motifs
-- **restriction-analysis** - For restriction enzyme site searching
-- **database-access** - Download motif databases from NCBI/JASPAR
+- seq-objects - Create Seq objects for searching
+- reverse-complement - Search both strands for motifs
+- filter-sequences - Filter sequences that contain specific motifs
+- restriction-analysis - For restriction enzyme site searching
+- database-access - Download motif databases from NCBI/JASPAR

@@ -281,7 +281,7 @@ good_guides.to_csv('high_efficacy_guides.csv', index=False)
 
 ## Related Skills
 
-- **mageck-analysis** - Alternative screen analysis method
-- **hit-calling** - Statistical hit identification
-- **screen-qc** - Quality control before analysis
-- **batch-correction** - Handle batch effects in multi-screen data
+- mageck-analysis - Alternative screen analysis method
+- hit-calling - Statistical hit identification
+- screen-qc - Quality control before analysis
+- batch-correction - Handle batch effects in multi-screen data

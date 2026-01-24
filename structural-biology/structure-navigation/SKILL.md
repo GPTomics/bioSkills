@@ -316,7 +316,7 @@ for model in structure:
 
 ## Related Skills
 
-- **structure-io** - Parse and write structure files
-- **geometric-analysis** - Measure distances, angles, RMSD
-- **structure-modification** - Modify coordinates and properties
-- **sequence-manipulation** - Work with extracted sequences
+- structure-io - Parse and write structure files
+- geometric-analysis - Measure distances, angles, RMSD
+- structure-modification - Modify coordinates and properties
+- sequence-manipulation - Work with extracted sequences

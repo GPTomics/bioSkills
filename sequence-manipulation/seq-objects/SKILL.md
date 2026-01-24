@@ -212,9 +212,9 @@ Need to work with sequence data?
 
 ## Related Skills
 
-- **sequence-io/read-sequences** - Parse files to get SeqRecord objects
-- **sequence-io/write-sequences** - Write SeqRecord objects to files
-- **transcription-translation** - Transform Seq objects (DNA to protein)
-- **reverse-complement** - Get reverse complement of Seq
-- **sequence-slicing** - Slice and extract from Seq/SeqRecord
-- **database-access** - Fetch sequences from NCBI as SeqRecords
+- sequence-io/read-sequences - Parse files to get SeqRecord objects
+- sequence-io/write-sequences - Write SeqRecord objects to files
+- transcription-translation - Transform Seq objects (DNA to protein)
+- reverse-complement - Get reverse complement of Seq
+- sequence-slicing - Slice and extract from Seq/SeqRecord
+- database-access - Fetch sequences from NCBI as SeqRecords

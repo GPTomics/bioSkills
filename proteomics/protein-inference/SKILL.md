@@ -150,6 +150,6 @@ def protein_fdr(protein_groups, target_fdr=0.01):
 
 ## Related Skills
 
-- **peptide-identification** - Input for protein inference
-- **quantification** - Quantify inferred proteins
-- **database-access/uniprot-access** - Protein annotations
+- peptide-identification - Input for protein inference
+- quantification - Quantify inferred proteins
+- database-access/uniprot-access - Protein annotations

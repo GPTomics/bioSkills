@@ -256,7 +256,7 @@ echo "FRiP: $frip"
 
 ## Related Skills
 
-- **clip-alignment** - Generate aligned BAM
-- **clip-preprocessing** - UMI deduplication
-- **binding-site-annotation** - Annotate peaks with gene features
-- **clip-motif-analysis** - Find enriched motifs in peaks
+- clip-alignment - Generate aligned BAM
+- clip-preprocessing - UMI deduplication
+- binding-site-annotation - Annotate peaks with gene features
+- clip-motif-analysis - Find enriched motifs in peaks

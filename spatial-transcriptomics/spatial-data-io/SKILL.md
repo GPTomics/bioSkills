@@ -218,6 +218,6 @@ print(f'Selected {adata_region.n_obs} spots')
 
 ## Related Skills
 
-- **spatial-preprocessing** - QC and normalization after loading
-- **spatial-visualization** - Plot spatial data
-- **single-cell/data-io** - Non-spatial scRNA-seq data loading
+- spatial-preprocessing - QC and normalization after loading
+- spatial-visualization - Plot spatial data
+- single-cell/data-io - Non-spatial scRNA-seq data loading

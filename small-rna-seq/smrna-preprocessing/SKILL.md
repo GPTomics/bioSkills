@@ -149,6 +149,6 @@ def plot_length_distribution(fastq_path):
 
 ## Related Skills
 
-- **mirdeep2-analysis** - Novel miRNA discovery
-- **mirge3-analysis** - Fast miRNA quantification
-- **read-qc/adapter-trimming** - General adapter trimming
+- mirdeep2-analysis - Novel miRNA discovery
+- mirge3-analysis - Fast miRNA quantification
+- read-qc/adapter-trimming - General adapter trimming

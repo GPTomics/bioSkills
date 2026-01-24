@@ -348,7 +348,7 @@ validator.close()
 
 ## Related Skills
 
-- **alignment-statistics** - Basic flagstat and depth
-- **duplicate-handling** - Mark/remove duplicates
-- **alignment-filtering** - Filter low-quality reads
-- **chipseq-qc** - ChIP-specific metrics
+- bam-statistics - Basic flagstat and depth
+- duplicate-handling - Mark/remove duplicates
+- alignment-filtering - Filter low-quality reads
+- chipseq-qc - ChIP-specific metrics

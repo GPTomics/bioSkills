@@ -276,9 +276,9 @@ print(f'Results saved to {outdir}/')
 
 ## Related Skills
 
-- **hi-c-analysis/hic-data-io** - Cooler file operations
-- **hi-c-analysis/contact-pairs** - Pairtools processing
-- **hi-c-analysis/compartment-analysis** - A/B compartments
-- **hi-c-analysis/tad-detection** - TAD calling methods
-- **hi-c-analysis/loop-calling** - Loop detection
-- **hi-c-analysis/hic-visualization** - Plotting matrices
+- hi-c-analysis/hic-data-io - Cooler file operations
+- hi-c-analysis/contact-pairs - Pairtools processing
+- hi-c-analysis/compartment-analysis - A/B compartments
+- hi-c-analysis/tad-detection - TAD calling methods
+- hi-c-analysis/loop-calling - Loop detection
+- hi-c-analysis/hic-visualization - Plotting matrices

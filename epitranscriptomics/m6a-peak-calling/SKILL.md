@@ -64,6 +64,6 @@ awk '$7 > 2 && $9 < 0.05' peaks.xls > filtered_peaks.bed
 
 ## Related Skills
 
-- **merip-preprocessing** - Prepare data for peak calling
-- **m6a-differential** - Compare peaks between conditions
-- **chip-seq/peak-calling** - Similar concepts
+- merip-preprocessing - Prepare data for peak calling
+- m6a-differential - Compare peaks between conditions
+- chip-seq/peak-calling - Similar concepts

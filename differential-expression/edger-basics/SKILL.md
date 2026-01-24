@@ -339,6 +339,6 @@ topTags(qlf, n = 20)
 
 ## Related Skills
 
-- **deseq2-basics** - Alternative DE analysis with DESeq2
-- **de-visualization** - MA plots, volcano plots, heatmaps
-- **de-results** - Extract and export significant genes
+- deseq2-basics - Alternative DE analysis with DESeq2
+- de-visualization - MA plots, volcano plots, heatmaps
+- de-results - Extract and export significant genes

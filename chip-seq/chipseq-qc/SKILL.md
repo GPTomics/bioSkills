@@ -353,7 +353,7 @@ cat qc_report.txt
 
 ## Related Skills
 
-- **peak-calling** - Call peaks before QC analysis
-- **alignment-files** - BAM statistics and filtering
-- **differential-binding** - Compare conditions after QC
-- **atac-seq/atac-qc** - Similar QC for ATAC-seq
+- peak-calling - Call peaks before QC analysis
+- alignment-files - BAM statistics and filtering
+- differential-binding - Compare conditions after QC
+- atac-seq/atac-qc - Similar QC for ATAC-seq

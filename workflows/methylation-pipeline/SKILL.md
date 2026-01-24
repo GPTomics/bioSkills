@@ -248,7 +248,7 @@ echo "Pipeline complete. Run R script for DMR analysis."
 
 ## Related Skills
 
-- **methylation-analysis/bismark-alignment** - Bismark parameters
-- **methylation-analysis/methylation-calling** - Calling details
-- **methylation-analysis/methylkit-analysis** - methylKit functions
-- **methylation-analysis/dmr-detection** - DMR algorithms
+- methylation-analysis/bismark-alignment - Bismark parameters
+- methylation-analysis/methylation-calling - Calling details
+- methylation-analysis/methylkit-analysis - methylKit functions
+- methylation-analysis/dmr-detection - DMR algorithms

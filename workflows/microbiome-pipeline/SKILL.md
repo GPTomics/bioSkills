@@ -194,8 +194,8 @@ taxa <- assignTaxonomy(seqtab_nochim, 'GTDB_bac120_arc53_ssu_r214_fullTaxo.fa.gz
 
 ## Related Skills
 
-- **microbiome/amplicon-processing** - DADA2 details
-- **microbiome/taxonomy-assignment** - Database options, IDTAXA
-- **microbiome/diversity-analysis** - Diversity metrics, Faith's PD
-- **microbiome/differential-abundance** - ALDEx2, ANCOM-BC2
-- **microbiome/functional-prediction** - PICRUSt2 functional analysis
+- microbiome/amplicon-processing - DADA2 details
+- microbiome/taxonomy-assignment - Database options, IDTAXA
+- microbiome/diversity-analysis - Diversity metrics, Faith's PD
+- microbiome/differential-abundance - ALDEx2, ANCOM-BC2
+- microbiome/functional-prediction - PICRUSt2 functional analysis

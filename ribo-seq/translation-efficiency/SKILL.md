@@ -159,6 +159,6 @@ def calculate_te_matrix(ribo_tpm, rna_tpm):
 
 ## Related Skills
 
-- **rna-quantification** - Get RNA-seq counts
-- **differential-expression** - Compare expression
-- **orf-detection** - Identify translated ORFs
+- rna-quantification - Get RNA-seq counts
+- differential-expression - Compare expression
+- orf-detection - Identify translated ORFs

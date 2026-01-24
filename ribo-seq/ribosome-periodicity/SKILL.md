@@ -143,6 +143,6 @@ RiboCode_onestep \
 
 ## Related Skills
 
-- **riboseq-preprocessing** - Generate aligned BAM
-- **orf-detection** - Uses P-site offsets
-- **translation-efficiency** - Requires proper positioning
+- riboseq-preprocessing - Generate aligned BAM
+- orf-detection - Uses P-site offsets
+- translation-efficiency - Requires proper positioning

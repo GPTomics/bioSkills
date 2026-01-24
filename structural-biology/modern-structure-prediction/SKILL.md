@@ -322,7 +322,7 @@ print(rmsd)
 
 ## Related Skills
 
-- **alphafold-predictions** - Download pre-computed AlphaFold structures
-- **structure-io** - Parse and write structure files
-- **geometric-analysis** - RMSD, superimposition, distance calculations
-- **structure-navigation** - Navigate predicted structure hierarchy
+- alphafold-predictions - Download pre-computed AlphaFold structures
+- structure-io - Parse and write structure files
+- geometric-analysis - RMSD, superimposition, distance calculations
+- structure-navigation - Navigate predicted structure hierarchy

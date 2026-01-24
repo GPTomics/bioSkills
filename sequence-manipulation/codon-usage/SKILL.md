@@ -327,7 +327,7 @@ Need to analyze codon usage?
 
 ## Related Skills
 
-- **transcription-translation** - Translate sequences and understand codon tables
-- **sequence-properties** - GC123 for wobble position GC content
-- **sequence-io/read-sequences** - Parse CDS sequences from GenBank files
-- **database-access** - Fetch reference gene sets from NCBI for CAI training
+- transcription-translation - Translate sequences and understand codon tables
+- sequence-properties - GC123 for wobble position GC content
+- sequence-io/read-sequences - Parse CDS sequences from GenBank files
+- database-access - Fetch reference gene sets from NCBI for CAI training

@@ -115,6 +115,6 @@ ptm_results <- groupComparisonPTM(processed_ptm, contrast.matrix = comparison_ma
 
 ## Related Skills
 
-- **peptide-identification** - Identify modified peptides
-- **quantification** - Quantify PTM sites
-- **pathway-analysis/go-enrichment** - Enrichment of modified proteins
+- peptide-identification - Identify modified peptides
+- quantification - Quantify PTM sites
+- pathway-analysis/go-enrichment - Enrichment of modified proteins

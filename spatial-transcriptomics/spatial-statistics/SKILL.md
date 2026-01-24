@@ -200,6 +200,6 @@ print(f'{len(significant)} genes with significant spatial autocorrelation')
 
 ## Related Skills
 
-- **spatial-neighbors** - Build spatial graphs (prerequisite)
-- **spatial-domains** - Identify spatial domains
-- **spatial-visualization** - Visualize spatial statistics
+- spatial-neighbors - Build spatial graphs (prerequisite)
+- spatial-domains - Identify spatial domains
+- spatial-visualization - Visualize spatial statistics

@@ -295,7 +295,7 @@ rnaseq_qc('aligned.bam')
 
 ## Related Skills
 
-- **quality-reports** - General FastQC
-- **fastp-workflow** - Read trimming
-- **alignment-validation** - General BAM QC
-- **rna-quantification** - Quantification after QC
+- quality-reports - General FastQC
+- fastp-workflow - Read trimming
+- alignment-validation - General BAM QC
+- rna-quantification - Quantification after QC

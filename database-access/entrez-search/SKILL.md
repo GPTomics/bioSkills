@@ -284,8 +284,8 @@ Need to search NCBI?
 
 ## Related Skills
 
-- **entrez-fetch** - Retrieve full records after searching
-- **entrez-link** - Find related records in other databases
-- **batch-downloads** - Download large result sets efficiently
-- **geo-data** - Search GEO expression datasets (specialized search)
-- **blast-searches** - Search by sequence similarity instead of keywords
+- entrez-fetch - Retrieve full records after searching
+- entrez-link - Find related records in other databases
+- batch-downloads - Download large result sets efficiently
+- geo-data - Search GEO expression datasets (specialized search)
+- blast-searches - Search by sequence similarity instead of keywords

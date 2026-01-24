@@ -1,6 +1,6 @@
 ---
 name: bio-structural-biology-alphafold-predictions
-description: Access and analyze AlphaFold protein structure predictions. Use when you need predicted structures for proteins without experimental structures, or confidence scores (pLDDT).
+description: Access and analyze AlphaFold protein structure predictions. Use when predicted structures are needed for proteins without experimental structures, or for confidence scores (pLDDT).
 tool_type: python
 primary_tool: requests
 ---

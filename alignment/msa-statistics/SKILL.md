@@ -325,7 +325,7 @@ The `AlignInfo.SummaryInfo` class is **deprecated** in recent Biopython versions
 
 ## Related Skills
 
-- **msa-parsing** - Parse and manipulate alignments
-- **alignment-io** - Read/write alignment files
-- **pairwise-alignment** - Create and score pairwise alignments
-- **sequence-manipulation/sequence-properties** - Sequence-level statistics
+- msa-parsing - Parse and manipulate alignments
+- alignment-io - Read/write alignment files
+- pairwise-alignment - Create and score pairwise alignments
+- sequence-manipulation/sequence-properties - Sequence-level statistics

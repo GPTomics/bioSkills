@@ -152,6 +152,6 @@ bcftools annotate \
 
 ## Related Skills
 
-- **myvariant-queries** - Aggregated queries including ClinVar
-- **variant-prioritization** - Filter by ClinVar significance
-- **variant-calling/clinical-interpretation** - ACMG guidelines
+- myvariant-queries - Aggregated queries including ClinVar
+- variant-prioritization - Filter by ClinVar significance
+- variant-calling/clinical-interpretation - ACMG guidelines

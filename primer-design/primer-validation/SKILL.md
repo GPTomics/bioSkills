@@ -319,6 +319,6 @@ print(f'Custom conditions:   Tm={tm_custom:.1f}C, Hairpin Tm={hairpin_custom.tm:
 
 ## Related Skills
 
-- **primer-basics** - Design new primers with primer3
-- **qpcr-primers** - Design and validate qPCR assays
-- **database-access/local-blast** - BLAST primers against genome for specificity
+- primer-basics - Design new primers with primer3
+- qpcr-primers - Design and validate qPCR assays
+- database-access/local-blast - BLAST primers against genome for specificity

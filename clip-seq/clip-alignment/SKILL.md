@@ -46,5 +46,5 @@ umi_tools dedup \
 
 ## Related Skills
 
-- **clip-preprocessing** - Prepare reads
-- **clip-peak-calling** - Call peaks
+- clip-preprocessing - Prepare reads
+- clip-peak-calling - Call peaks

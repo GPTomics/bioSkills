@@ -97,6 +97,6 @@ MzMLFile().load('spectral_library.mzML', library)
 
 ## Related Skills
 
-- **data-import** - Load raw MS data before identification
-- **protein-inference** - Group peptides to proteins
-- **ptm-analysis** - Identify modified peptides
+- data-import - Load raw MS data before identification
+- protein-inference - Group peptides to proteins
+- ptm-analysis - Identify modified peptides

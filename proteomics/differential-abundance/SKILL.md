@@ -104,6 +104,6 @@ ggplot(results, aes(x = log2FC, y = -log10(adj.P.Val))) +
 
 ## Related Skills
 
-- **quantification** - Prepare normalized data for testing
-- **differential-expression/deseq2-basics** - Similar concepts for RNA-seq
-- **data-visualization/specialized-omics-plots** - Volcano plots, MA plots
+- quantification - Prepare normalized data for testing
+- differential-expression/deseq2-basics - Similar concepts for RNA-seq
+- data-visualization/specialized-omics-plots - Volcano plots, MA plots

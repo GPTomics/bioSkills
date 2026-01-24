@@ -174,6 +174,6 @@ saveRDS(list(comp = comp_matrix, transform = lgcl), 'preprocessing_params.rds')
 
 ## Related Skills
 
-- **fcs-handling** - Load FCS files first
-- **gating-analysis** - Gate after preprocessing
-- **clustering-phenotyping** - Cluster transformed data
+- fcs-handling - Load FCS files first
+- gating-analysis - Gate after preprocessing
+- clustering-phenotyping - Cluster transformed data

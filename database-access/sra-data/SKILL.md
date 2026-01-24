@@ -337,7 +337,7 @@ Need SRA sequencing data?
 
 ## Related Skills
 
-- **entrez-search** - Search SRA database to find accessions
-- **sequence-io** - Read downloaded FASTQ files with Biopython
-- **sequence-io/paired-end-fastq** - Handle paired R1/R2 files
-- **alignment-files** - Align downloaded reads
+- entrez-search - Search SRA database to find accessions
+- sequence-io - Read downloaded FASTQ files with Biopython
+- sequence-io/paired-end-fastq - Handle paired R1/R2 files
+- alignment-files - Align downloaded reads

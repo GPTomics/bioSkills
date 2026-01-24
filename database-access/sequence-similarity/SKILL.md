@@ -309,7 +309,7 @@ rm -f db_A.* db_B.*
 
 ## Related Skills
 
-- **blast-searches** - Basic remote BLAST
-- **local-blast** - Local BLAST databases
-- **entrez-fetch** - Download sequences
-- **alignment** - Align identified homologs
+- blast-searches - Basic remote BLAST
+- local-blast - Local BLAST databases
+- entrez-fetch - Download sequences
+- alignment - Align identified homologs

@@ -240,8 +240,8 @@ print(f'Results saved to {output_dir}/')
 
 ## Related Skills
 
-- **spatial-transcriptomics/spatial-data-io** - Loading formats
-- **spatial-transcriptomics/spatial-preprocessing** - QC details
-- **spatial-transcriptomics/spatial-statistics** - Moran's I, co-occurrence
-- **spatial-transcriptomics/spatial-domains** - Domain detection methods
-- **spatial-transcriptomics/spatial-deconvolution** - Cell type estimation
+- spatial-transcriptomics/spatial-data-io - Loading formats
+- spatial-transcriptomics/spatial-preprocessing - QC details
+- spatial-transcriptomics/spatial-statistics - Moran's I, co-occurrence
+- spatial-transcriptomics/spatial-domains - Domain detection methods
+- spatial-transcriptomics/spatial-deconvolution - Cell type estimation

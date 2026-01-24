@@ -226,9 +226,9 @@ SeqIO.write(long, 'long.fasta', 'fasta')
 
 ## Related Skills
 
-- **read-sequences** - Parse sequences before filtering
-- **write-sequences** - Write filtered sequences to output
-- **fastq-quality** - Filter FASTQ by quality scores
-- **paired-end-fastq** - Synchronized filtering of paired reads
-- **sequence-manipulation/motif-search** - Filter by complex motif patterns
-- **alignment-files** - Filter aligned reads with samtools view -f/-F
+- read-sequences - Parse sequences before filtering
+- write-sequences - Write filtered sequences to output
+- fastq-quality - Filter FASTQ by quality scores
+- paired-end-fastq - Synchronized filtering of paired reads
+- sequence-manipulation/motif-search - Filter by complex motif patterns
+- alignment-files - Filter aligned reads with samtools view -f/-F

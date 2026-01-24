@@ -302,8 +302,8 @@ cat('Reactome pathways:', nrow(as.data.frame(reactome)), '\n')
 
 ## Related Skills
 
-- **pathway-analysis/go-enrichment** - GO enrichment details
-- **pathway-analysis/kegg-pathways** - KEGG analysis
-- **pathway-analysis/reactome-pathways** - Reactome analysis
-- **pathway-analysis/gsea** - GSEA methods
-- **pathway-analysis/enrichment-visualization** - Visualization options
+- pathway-analysis/go-enrichment - GO enrichment details
+- pathway-analysis/kegg-pathways - KEGG analysis
+- pathway-analysis/reactome-pathways - Reactome analysis
+- pathway-analysis/gsea - GSEA methods
+- pathway-analysis/enrichment-visualization - Visualization options

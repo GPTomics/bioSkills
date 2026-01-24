@@ -261,6 +261,6 @@ print(f'Promoter-enhancer loops: {len(pe_loops)}')
 
 ## Related Skills
 
-- **hic-data-io** - Load Hi-C matrices
-- **hic-visualization** - Visualize loops
-- **chip-seq** - CTCF ChIP-seq for loop anchor validation
+- hic-data-io - Load Hi-C matrices
+- hic-visualization - Visualize loops
+- chip-seq - CTCF ChIP-seq for loop anchor validation

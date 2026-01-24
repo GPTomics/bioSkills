@@ -285,10 +285,10 @@ Need to read sequences?
 
 ## Related Skills
 
-- **write-sequences** - Write parsed sequences to new files
-- **filter-sequences** - Filter sequences by criteria after reading
-- **format-conversion** - Convert between formats
-- **compressed-files** - Read gzip/bzip2/BGZF compressed sequence files
-- **sequence-manipulation/seq-objects** - Work with parsed SeqRecord objects
-- **database-access** - Fetch sequences from NCBI instead of local files
-- **alignment-files** - For SAM/BAM/CRAM alignment files, use samtools/pysam
+- write-sequences - Write parsed sequences to new files
+- filter-sequences - Filter sequences by criteria after reading
+- format-conversion - Convert between formats
+- compressed-files - Read gzip/bzip2/BGZF compressed sequence files
+- sequence-manipulation/seq-objects - Work with parsed SeqRecord objects
+- database-access - Fetch sequences from NCBI instead of local files
+- alignment-files - For SAM/BAM/CRAM alignment files, use samtools/pysam

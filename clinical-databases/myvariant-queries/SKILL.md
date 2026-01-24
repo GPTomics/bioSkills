@@ -132,6 +132,6 @@ def batch_query(variants, chunk_size=1000):
 
 ## Related Skills
 
-- **clinvar-lookup** - Detailed ClinVar queries
-- **gnomad-frequencies** - gnomAD-specific frequency queries
-- **dbsnp-queries** - dbSNP rsID lookups
+- clinvar-lookup - Detailed ClinVar queries
+- gnomad-frequencies - gnomAD-specific frequency queries
+- dbsnp-queries - dbSNP rsID lookups

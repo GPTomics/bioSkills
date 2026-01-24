@@ -248,6 +248,6 @@ print(df)
 
 ## Related Skills
 
-- **primer-basics** - General PCR primer design
-- **primer-validation** - Check primers for dimers and specificity
-- **sequence-manipulation** - Work with cDNA sequences
+- primer-basics - General PCR primer design
+- primer-validation - Check primers for dimers and specificity
+- sequence-manipulation - Work with cDNA sequences

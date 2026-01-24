@@ -354,7 +354,7 @@ Need GEO expression data?
 
 ## Related Skills
 
-- **entrez-search** - General database searching
-- **entrez-link** - Link GEO to SRA and other databases
-- **sra-data** - Download raw sequencing data from linked SRA
-- **batch-downloads** - Download multiple GEO records
+- entrez-search - General database searching
+- entrez-link - Link GEO to SRA and other databases
+- sra-data - Download raw sequencing data from linked SRA
+- batch-downloads - Download multiple GEO records

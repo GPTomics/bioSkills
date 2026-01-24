@@ -345,7 +345,7 @@ watch -n 1 nvidia-smi
 
 ## Related Skills
 
-- **long-read-alignment** - Align basecalled reads
-- **long-read-qc** - QC after basecalling
-- **medaka-polishing** - Polish using basecalled reads
-- **structural-variants** - SV detection from long reads
+- long-read-alignment - Align basecalled reads
+- long-read-qc - QC after basecalling
+- medaka-polishing - Polish using basecalled reads
+- structural-variants - SV detection from long reads

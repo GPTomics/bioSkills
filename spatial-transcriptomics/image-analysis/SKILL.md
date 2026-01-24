@@ -241,6 +241,6 @@ adata.layers['img_smoothed'] = X_smoothed
 
 ## Related Skills
 
-- **spatial-data-io** - Load spatial data with images
-- **spatial-visualization** - Visualize images with expression
-- **spatial-domains** - Use image features for domain detection
+- spatial-data-io - Load spatial data with images
+- spatial-visualization - Visualize images with expression
+- spatial-domains - Use image features for domain detection

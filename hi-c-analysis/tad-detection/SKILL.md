@@ -215,6 +215,6 @@ insulation[['chrom', 'start', 'end', 'log2_insulation_score_200000']].to_csv(
 
 ## Related Skills
 
-- **hic-data-io** - Load Hi-C matrices
-- **hic-visualization** - Visualize TADs on contact matrices
-- **compartment-analysis** - Compartments operate at larger scale than TADs
+- hic-data-io - Load Hi-C matrices
+- hic-visualization - Visualize TADs on contact matrices
+- compartment-analysis - Compartments operate at larger scale than TADs

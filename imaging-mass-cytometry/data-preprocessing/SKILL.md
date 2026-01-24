@@ -257,5 +257,5 @@ process_batch('raw_images', 'processed_images')
 
 ## Related Skills
 
-- **cell-segmentation** - Segment preprocessed images
-- **spatial-transcriptomics/spatial-data-io** - Similar data loading concepts
+- cell-segmentation - Segment preprocessed images
+- spatial-transcriptomics/spatial-data-io - Similar data loading concepts

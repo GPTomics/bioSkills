@@ -219,6 +219,6 @@ pheatmap(t(data_top), annotation_col = annotation_row,
 
 ## Related Skills
 
-- **normalization-qc** - Data preparation
-- **pathway-mapping** - Functional interpretation
-- **multi-omics-integration/mixomics-analysis** - Advanced multivariate methods
+- normalization-qc - Data preparation
+- pathway-mapping - Functional interpretation
+- multi-omics-integration/mixomics-analysis - Advanced multivariate methods

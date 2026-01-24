@@ -357,9 +357,9 @@ generate_qc_report(ff)
 
 ## Related Skills
 
-**Workflow order:** cytometry-qc → doublet-detection → bead-normalization → clustering
+Workflow order: cytometry-qc → doublet-detection → bead-normalization → clustering
 
-- **compensation-transformation** - Data preprocessing before QC
-- **doublet-detection** - Run after QC: remove doublet events
-- **bead-normalization** - Run after doublet removal: correct signal drift
-- **clustering-phenotyping** - Analysis after all preprocessing
+- compensation-transformation - Data preprocessing before QC
+- doublet-detection - Run after QC: remove doublet events
+- bead-normalization - Run after doublet removal: correct signal drift
+- clustering-phenotyping - Analysis after all preprocessing

@@ -243,8 +243,8 @@ def detect_quality_encoding(filepath, sample_size=1000):
 
 ## Related Skills
 
-- **read-sequences** - Parse FASTQ files
-- **filter-sequences** - Filter reads by other criteria (length, content)
-- **paired-end-fastq** - Handle R1/R2 paired quality filtering
-- **sequence-statistics** - Generate summary statistics including quality
-- **alignment-files** - After filtering, align reads with bwa/bowtie2; quality scores in BAM
+- read-sequences - Parse FASTQ files
+- filter-sequences - Filter reads by other criteria (length, content)
+- paired-end-fastq - Handle R1/R2 paired quality filtering
+- sequence-statistics - Generate summary statistics including quality
+- alignment-files - After filtering, align reads with bwa/bowtie2; quality scores in BAM

@@ -266,12 +266,12 @@ extractTargets <- function(xdata, targets, mz_ppm = 10, rt_tol = 30) {
 
 ## Related Skills
 
-- **metabolomics/xcms-preprocessing** - XCMS parameters
-- **metabolomics/metabolite-annotation** - Compound identification
-- **metabolomics/normalization-qc** - QC and normalization methods
-- **metabolomics/statistical-analysis** - Statistical testing
-- **metabolomics/pathway-mapping** - KEGG/MetaboAnalyst
-- **metabolomics/lipidomics** - Lipid-specific analysis
-- **metabolomics/targeted-analysis** - Absolute quantification
-- **metabolomics/msdial-preprocessing** - MS-DIAL export processing
-- **multi-omics-integration/mofa-integration** - Integrate with other omics
+- metabolomics/xcms-preprocessing - XCMS parameters
+- metabolomics/metabolite-annotation - Compound identification
+- metabolomics/normalization-qc - QC and normalization methods
+- metabolomics/statistical-analysis - Statistical testing
+- metabolomics/pathway-mapping - KEGG/MetaboAnalyst
+- metabolomics/lipidomics - Lipid-specific analysis
+- metabolomics/targeted-analysis - Absolute quantification
+- metabolomics/msdial-preprocessing - MS-DIAL export processing
+- multi-omics-integration/mofa-integration - Integrate with other omics

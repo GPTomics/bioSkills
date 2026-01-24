@@ -261,7 +261,7 @@ edges.to_csv('communication_edges.csv', index=False)
 
 ## Related Skills
 
-- **spatial-neighbors** - Build spatial graphs (prerequisite)
-- **spatial-domains** - Identify cell types for communication analysis
-- **pathway-analysis** - Enrich communication genes for pathways
-- **single-cell/markers-annotation** - Annotate cell types
+- spatial-neighbors - Build spatial graphs (prerequisite)
+- spatial-domains - Identify cell types for communication analysis
+- pathway-analysis - Enrich communication genes for pathways
+- single-cell/markers-annotation - Annotate cell types

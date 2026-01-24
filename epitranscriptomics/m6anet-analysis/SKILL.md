@@ -76,6 +76,6 @@ m6a_sites = results[results['probability_modified'] > 0.9]
 
 ## Related Skills
 
-- **long-read-sequencing** - ONT data processing
-- **m6a-peak-calling** - MeRIP-seq alternative
-- **modification-visualization** - Plot m6A sites
+- long-read-sequencing - ONT data processing
+- m6a-peak-calling - MeRIP-seq alternative
+- modification-visualization - Plot m6A sites
