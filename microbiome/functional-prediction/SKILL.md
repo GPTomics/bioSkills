@@ -129,6 +129,6 @@ modules <- keggLink('module', 'ko')
 
 ## Related Skills
 
-- **amplicon-processing** - Generate ASV input
-- **metagenomics/functional-profiling** - Direct shotgun-based profiling
-- **pathway-analysis/kegg-pathways** - KEGG pathway enrichment
+- amplicon-processing - Generate ASV input
+- metagenomics/functional-profiling - Direct shotgun-based profiling
+- pathway-analysis/kegg-pathways - KEGG pathway enrichment

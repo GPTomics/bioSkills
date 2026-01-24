@@ -380,6 +380,6 @@ fig.savefig('genome_summary.png', dpi=300, bbox_inches='tight')
 ## Related Skills
 
 - data-visualization/genome-tracks - Linear genome visualization
-- hi-c-analysis/visualization - Hi-C-specific circos
+- hi-c-analysis/hic-visualization - Hi-C-specific circos
 - copy-number/cnv-visualization - CNV visualization
 - variant-calling/structural-variant-calling - SV data for circos

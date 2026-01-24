@@ -12,13 +12,10 @@ pip install biopython matplotlib
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Draw this Newick tree and save as PNG"
-
-> "Create a publication-quality tree figure with bootstrap values"
-
-> "Highlight the primate clade in red"
+Tell your AI agent what you want to do:
+- "Draw this Newick tree and save as PNG"
+- "Create a publication-quality tree figure with bootstrap values"
+- "Highlight the primate clade in red"
 
 ## Example Prompts
 

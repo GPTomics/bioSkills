@@ -13,13 +13,10 @@ pip install cooltools
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Analyze my Hi-C data for TADs and loops"
-
-> "Find A/B compartments in my Hi-C matrix"
-
-> "Process Hi-C FASTQ to contact matrix"
+Tell your AI agent what you want to do:
+- "Analyze my Hi-C data for TADs and loops"
+- "Find A/B compartments in my Hi-C matrix"
+- "Process Hi-C FASTQ to contact matrix"
 
 ## Example Prompts
 

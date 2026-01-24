@@ -224,6 +224,6 @@ dev.off()
 
 ## Related Skills
 
-- genome-intervals/bigwig-files - BigWig file handling
+- genome-intervals/bigwig-tracks - BigWig file handling
 - chip-seq/chipseq-visualization - ChIP-specific tracks
 - hi-c-analysis/hic-visualization - Hi-C contact maps

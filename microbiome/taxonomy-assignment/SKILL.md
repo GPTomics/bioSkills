@@ -144,6 +144,6 @@ taxa_names(ps) <- paste0('ASV', seq(ntaxa(ps)))
 
 ## Related Skills
 
-- **amplicon-processing** - Generate ASV table for classification
-- **diversity-analysis** - Analyze classified communities
-- **metagenomics/kraken-classification** - Read-level taxonomic classification
+- amplicon-processing - Generate ASV table for classification
+- diversity-analysis - Analyze classified communities
+- metagenomics/kraken-classification - Read-level taxonomic classification

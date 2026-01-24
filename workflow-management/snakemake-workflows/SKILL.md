@@ -7,7 +7,7 @@ primary_tool: Snakemake
 
 # Snakemake Workflows
 
-Compatible with Snakemake 7.x and 8.x. For Snakemake 8.0+, use `--executor` instead of `--cluster`.
+Compatible with Snakemake 7.x, 8.x, and 9.x. For Snakemake 8.0+, use `--executor` instead of `--cluster`.
 
 ## Basic Rule Structure
 

@@ -16,13 +16,10 @@ BiocManager::install(c('ChIPseeker', 'TxDb.Hsapiens.UCSC.hg38.knownGene', 'org.H
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run the ChIP-seq pipeline on my IP and Input samples"
-
-> "Call peaks from my H3K4me3 ChIP-seq data"
-
-> "Process my transcription factor ChIP-seq experiment"
+Tell your AI agent what you want to do:
+- "Run the ChIP-seq pipeline on my IP and Input samples"
+- "Call peaks from my H3K4me3 ChIP-seq data"
+- "Process my transcription factor ChIP-seq experiment"
 
 ## Example Prompts
 

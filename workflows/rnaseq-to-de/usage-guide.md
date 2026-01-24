@@ -18,13 +18,10 @@ install.packages(c('ggplot2', 'pheatmap', 'ggrepel'))
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run the RNA-seq to DE workflow on my FASTQ files"
-
-> "I have paired-end RNA-seq data, help me find differentially expressed genes"
-
-> "Process my RNA-seq from raw reads through DESeq2"
+Tell your AI agent what you want to do:
+- "Run the RNA-seq to DE workflow on my FASTQ files"
+- "I have paired-end RNA-seq data, help me find differentially expressed genes"
+- "Process my RNA-seq from raw reads through DESeq2"
 
 ## Example Prompts
 

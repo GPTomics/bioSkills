@@ -11,10 +11,10 @@ pip install miniwdl
 
 # Or install Cromwell (full-featured)
 # Download from: https://github.com/broadinstitute/cromwell/releases
-wget https://github.com/broadinstitute/cromwell/releases/download/86/cromwell-86.jar
+wget https://github.com/broadinstitute/cromwell/releases/download/91/cromwell-91.jar
 
 # Install womtool for validation
-wget https://github.com/broadinstitute/cromwell/releases/download/86/womtool-86.jar
+wget https://github.com/broadinstitute/cromwell/releases/download/91/womtool-91.jar
 
 # Docker required for containerized execution
 ```

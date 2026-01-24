@@ -221,5 +221,5 @@ gatk CallCopyRatioSegments -I $OUTDIR/tumor.cr.seg -O $OUTDIR/tumor.called.seg
 
 - copy-number/cnvkit-analysis - Alternative CNV caller
 - copy-number/cnv-visualization - Plotting results
-- alignment-files/alignment-statistics - Input BAM QC
+- alignment-files/bam-statistics - Input BAM QC
 - variant-calling/variant-calling - SNP calling for allelic counts

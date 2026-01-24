@@ -12,13 +12,10 @@ pip install biopython
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Root this tree using Mouse as outgroup"
-
-> "Remove all bacteria from this tree"
-
-> "Ladderize the tree for better visualization"
+Tell your AI agent what you want to do:
+- "Root this tree using Mouse as outgroup"
+- "Remove all bacteria from this tree"
+- "Ladderize the tree for better visualization"
 
 ## Example Prompts
 

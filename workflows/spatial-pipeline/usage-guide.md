@@ -12,13 +12,10 @@ pip install squidpy scanpy matplotlib
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Analyze my Visium spatial transcriptomics data"
-
-> "Find spatially variable genes in my tissue"
-
-> "Identify spatial domains in my sample"
+Tell your AI agent what you want to do:
+- "Analyze my Visium spatial transcriptomics data"
+- "Find spatially variable genes in my tissue"
+- "Identify spatial domains in my sample"
 
 ## Example Prompts
 

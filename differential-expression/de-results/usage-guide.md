@@ -15,13 +15,10 @@ install.packages('openxlsx')
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Extract significant genes with padj < 0.05 and |log2FC| > 1"
-
-> "Add gene symbols to my DESeq2 results"
-
-> "Export results to Excel with separate sheets for up and down genes"
+Tell your AI agent what you want to do:
+- "Extract significant genes with padj < 0.05 and |log2FC| > 1"
+- "Add gene symbols to my DESeq2 results"
+- "Export results to Excel with separate sheets for up and down genes"
 
 ## Example Prompts
 

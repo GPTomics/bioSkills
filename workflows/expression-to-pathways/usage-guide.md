@@ -12,13 +12,10 @@ BiocManager::install(c('clusterProfiler', 'org.Hs.eg.db', 'ReactomePA', 'enrichp
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run pathway enrichment on my DE genes"
-
-> "What biological processes are enriched in my significant genes?"
-
-> "Perform GSEA on my RNA-seq results"
+Tell your AI agent what you want to do:
+- "Run pathway enrichment on my DE genes"
+- "What biological processes are enriched in my significant genes?"
+- "Perform GSEA on my RNA-seq results"
 
 ## Example Prompts
 

@@ -16,13 +16,10 @@ BiocManager::install(c('DiffBind', 'ChIPseeker'))
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run the ATAC-seq pipeline on my samples"
-
-> "Call accessibility peaks from my ATAC-seq data"
-
-> "Find differential accessibility between treatment and control"
+Tell your AI agent what you want to do:
+- "Run the ATAC-seq pipeline on my samples"
+- "Call accessibility peaks from my ATAC-seq data"
+- "Find differential accessibility between treatment and control"
 
 ## Example Prompts
 

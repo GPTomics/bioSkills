@@ -14,13 +14,10 @@ BiocManager::install('edgeR')
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run edgeR analysis on my count matrix with treated vs control comparison"
-
-> "Perform differential expression with edgeR controlling for batch"
-
-> "Get top differentially expressed genes with FDR < 0.05"
+Tell your AI agent what you want to do:
+- "Run edgeR analysis on my count matrix with treated vs control comparison"
+- "Perform differential expression with edgeR controlling for batch"
+- "Get top differentially expressed genes with FDR < 0.05"
 
 ## Example Prompts
 

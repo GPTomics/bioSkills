@@ -2,7 +2,7 @@
 name: bio-spatial-transcriptomics-spatial-multiomics
 description: Analyze high-resolution spatial platforms like Slide-seq, Stereo-seq, and Visium HD. Use when working with subcellular resolution or high-density spatial data.
 tool_type: python
-primary_tool: Squidpy
+primary_tool: squidpy
 ---
 
 # Spatial Multi-omics Analysis
@@ -146,7 +146,7 @@ adata = sc.read_h5ad('visium_hd_8um.h5ad')
 
 ## Related Skills
 
-- **spatial-transcriptomics/spatial-preprocessing** - Standard spatial analysis
-- **single-cell/preprocessing** - scRNA-seq concepts
-- **spatial-transcriptomics/image-analysis** - Morphology processing
-- **single-cell/cell-annotation** - Cell type assignment
+- spatial-transcriptomics/spatial-preprocessing - Standard spatial analysis
+- single-cell/preprocessing - scRNA-seq concepts
+- spatial-transcriptomics/image-analysis - Morphology processing
+- single-cell/cell-annotation - Cell type assignment
