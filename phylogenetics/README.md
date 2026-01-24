@@ -4,7 +4,7 @@
 
 Phylogenetic tree analysis using Biopython's Bio.Phylo module. Covers reading/writing tree files, manipulating tree structure (rooting, pruning, ladderizing), visualizing trees with matplotlib, and building trees from sequence alignments.
 
-**Tool type:** python | **Primary tools:** Bio.Phylo, Bio.Phylo.TreeConstruction
+**Tool type:** python, cli | **Primary tools:** Bio.Phylo, IQ-TREE2, RAxML-ng
 
 ## Skills
 
@@ -14,6 +14,7 @@ Phylogenetic tree analysis using Biopython's Bio.Phylo module. Covers reading/wr
 | tree-visualization | Draw trees with matplotlib, customize labels and colors, export figures |
 | tree-manipulation | Root, prune, ladderize, collapse, and modify tree structure |
 | distance-calculations | Compute distance matrices, build NJ/UPGMA/parsimony trees, bootstrap consensus |
+| modern-tree-inference | Build ML trees with IQ-TREE2/RAxML-ng, model selection, ultrafast bootstrap |
 
 ## Example Prompts
 
@@ -31,11 +32,17 @@ Phylogenetic tree analysis using Biopython's Bio.Phylo module. Covers reading/wr
 - "Create a bootstrap consensus with 1000 replicates"
 - "Calculate pairwise distances between all taxa"
 - "Build UPGMA tree from distance matrix"
+- "Run IQ-TREE2 with ultrafast bootstrap on my alignment"
+- "Find the best substitution model and build an ML tree"
+- "Analyze my multi-gene dataset with partitioned models"
 
 ## Requirements
 
 ```bash
 pip install biopython matplotlib numpy
+
+# For modern ML inference
+conda install -c bioconda iqtree raxml-ng
 ```
 
 ## Related Skills

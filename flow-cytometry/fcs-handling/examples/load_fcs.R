@@ -1,5 +1,11 @@
 library(flowCore)
 
+# Public flow cytometry data sources:
+# - FlowRepository: https://flowrepository.org (FR-FCM-ZZPH for CyTOF)
+# - ImmPort: https://www.immport.org (immunology FCS files)
+# - Cytobank: https://community.cytobank.org (public experiments)
+# - Bioconductor: flowWorkspaceData package has example FCS files
+
 # Load FCS files
 fcs_files <- list.files('data', pattern = '\\.fcs$', full.names = TRUE)
 cat('Found', length(fcs_files), 'FCS files\n')

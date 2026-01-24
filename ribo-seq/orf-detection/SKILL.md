@@ -1,7 +1,7 @@
 ---
 name: bio-ribo-seq-orf-detection
-description: Detect actively translated open reading frames from Ribo-seq data including canonical ORFs, uORFs, and novel ORFs. Use when identifying translated regions beyond annotated coding sequences.
-tool_type: python
+description: Detect and quantify translated ORFs from Ribo-seq data including uORFs and novel ORFs using RiboCode and ORFquant. Use when identifying translated regions beyond annotated coding sequences or quantifying ORF-level translation.
+tool_type: mixed
 primary_tool: RiboCode
 ---
 
@@ -151,6 +151,110 @@ def find_uorfs(transcript, cds_start):
 | internal | Within CDS, different frame |
 | noncoding | In annotated non-coding RNA |
 | novel | Unannotated region |
+
+## ORFquant for ORF Quantification
+
+ORFquant provides transcript-level and ORF-level quantification from Ribo-seq data.
+
+### Installation
+
+```r
+# Install from Bioconductor
+BiocManager::install('ORFik')
+# ORFquant is part of the ORFik ecosystem
+```
+
+### Basic ORF Quantification
+
+```r
+library(ORFik)
+library(GenomicFeatures)
+
+# Load annotation
+txdb <- makeTxDbFromGFF('annotation.gtf')
+
+# Load Ribo-seq data
+riboseq <- fimport('riboseq.bam')
+
+# Get CDS regions
+cds <- cdsBy(txdb, by = 'tx', use.names = TRUE)
+
+# Calculate ORF-level RPKM
+# fpkm: Fragments Per Kilobase per Million mapped reads
+orf_counts <- countOverlaps(cds, riboseq)
+orf_lengths <- sum(width(cds))
+total_reads <- length(riboseq)
+orf_fpkm <- (orf_counts * 1e9) / (orf_lengths * total_reads)
+```
+
+### P-site Corrected Quantification
+
+```r
+library(ORFik)
+
+# Load with P-site offset correction
+# p_offsets=c(12,12,12): P-site offset for 28-30nt reads. Determine from metagene.
+riboseq <- fimport('riboseq.bam', p_offsets = c(12, 12, 12), lengths = 28:30)
+
+# Count P-sites per ORF
+psite_counts <- countOverlaps(cds, riboseq)
+```
+
+### Detect and Quantify Novel ORFs
+
+```r
+library(ORFik)
+
+# Find candidate ORFs in 5' UTRs
+utr5 <- fiveUTRsByTranscript(txdb, use.names = TRUE)
+uorf_candidates <- findORFs(utr5, startCodon = 'ATG', longestORF = FALSE,
+                            minimumLength = 9)  # 9 codons minimum
+
+# Quantify uORFs
+uorf_counts <- countOverlaps(uorf_candidates, riboseq)
+
+# Filter by coverage
+# min_count=10: Minimum reads for confident detection.
+active_uorfs <- uorf_candidates[uorf_counts >= 10]
+```
+
+### ORFquant Output Interpretation
+
+```r
+# Create ORF summary table
+orf_summary <- data.frame(
+    orf_id = names(cds),
+    length = sum(width(cds)),
+    counts = orf_counts,
+    fpkm = orf_fpkm
+)
+
+# Classify by expression
+# fpkm>1: Low expression threshold. Adjust based on library depth.
+orf_summary$expressed <- orf_summary$fpkm > 1
+
+write.csv(orf_summary, 'orf_quantification.csv', row.names = FALSE)
+```
+
+### Compare ORF Expression Across Conditions
+
+```r
+library(DESeq2)
+
+# Build count matrix for multiple samples
+orf_count_matrix <- cbind(
+    sample1 = countOverlaps(cds, riboseq1),
+    sample2 = countOverlaps(cds, riboseq2),
+    sample3 = countOverlaps(cds, riboseq3),
+    sample4 = countOverlaps(cds, riboseq4)
+)
+
+# Run DESeq2 for differential translation
+coldata <- data.frame(condition = c('control', 'control', 'treatment', 'treatment'))
+dds <- DESeqDataSetFromMatrix(orf_count_matrix, coldata, ~ condition)
+dds <- DESeq(dds)
+results <- results(dds)
+```
 
 ## Related Skills
 

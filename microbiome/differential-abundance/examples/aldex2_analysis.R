@@ -3,6 +3,12 @@ library(ALDEx2)
 library(phyloseq)
 library(ggplot2)
 
+# Public microbiome datasets:
+# - Bioconductor: microbiomeDataSets package (curated phyloseq objects)
+# - curatedMetagenomicData package (1000s of samples)
+# - HMP: https://hmpdacc.org (Human Microbiome Project)
+# - Example: data('GlobalPatterns', package = 'phyloseq')
+
 ps <- readRDS('phyloseq_object.rds')
 
 # Filter low-abundance taxa

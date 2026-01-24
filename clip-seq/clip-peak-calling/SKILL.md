@@ -1,6 +1,6 @@
 ---
 name: bio-clip-seq-clip-peak-calling
-description: Call protein-RNA binding site peaks from CLIP-seq data using CLIPper, Piranha, or other peak callers. Use when identifying RBP binding sites from aligned CLIP reads.
+description: Call protein-RNA binding site peaks from CLIP-seq data using CLIPper, PureCLIP, or Piranha. Use when identifying RBP binding sites from aligned CLIP reads.
 tool_type: cli
 primary_tool: CLIPper
 ---
@@ -44,6 +44,88 @@ clipper \
 | --superlocal | Use superlocal background |
 | --gene | Custom gene annotation BED |
 | --save-pickle | Save intermediate data |
+
+## PureCLIP (HMM-Based)
+
+PureCLIP uses an HMM to model crosslink sites, incorporating enrichment and truncation signals.
+
+```bash
+# Installation
+conda install -c bioconda pureclip
+
+# Basic peak calling
+pureclip \
+    -i deduped.bam \
+    -bai deduped.bam.bai \
+    -g genome.fa \
+    -o crosslink_sites.bed \
+    -or binding_regions.bed \
+    -nt 4
+
+# -nt 4: Number of threads. Adjust based on CPU cores.
+# -o: Single-nucleotide crosslink sites
+# -or: Broader binding regions
+```
+
+### PureCLIP Options
+
+| Option | Description |
+|--------|-------------|
+| -i | Input BAM file |
+| -bai | BAM index file |
+| -g | Reference genome FASTA |
+| -o | Crosslink sites output |
+| -or | Binding regions output |
+| -nt | Number of threads |
+| -iv | Interval file to restrict analysis |
+| -dm | Min distance for merging |
+
+### PureCLIP with Input Control
+
+```bash
+# With SMInput control BAM
+pureclip \
+    -i clip.bam \
+    -bai clip.bam.bai \
+    -g genome.fa \
+    -ibam sminput.bam \
+    -ibai sminput.bam.bai \
+    -o crosslinks.bed \
+    -or regions.bed \
+    -nt 8
+
+# -ibam/-ibai: Input control BAM for background modeling
+```
+
+### PureCLIP Output
+
+```bash
+# Crosslink sites BED contains:
+# chr start end name score strand
+
+# Score interpretation:
+# Higher scores = more confident crosslink sites
+
+# Filter by score
+# score>=3: Medium confidence. Use 5+ for high confidence.
+awk '$5 >= 3' crosslink_sites.bed > filtered_sites.bed
+```
+
+### PureCLIP for Different CLIP Types
+
+```bash
+# eCLIP (recommended settings)
+pureclip -i eclip.bam -bai eclip.bam.bai -g genome.fa \
+    -o sites.bed -or regions.bed -nt 4 -dm 8
+
+# iCLIP (single-nucleotide resolution)
+pureclip -i iclip.bam -bai iclip.bam.bai -g genome.fa \
+    -o sites.bed -or regions.bed -nt 4
+
+# PAR-CLIP (T-to-C transitions)
+pureclip -i parclip.bam -bai parclip.bam.bai -g genome.fa \
+    -o sites.bed -or regions.bed -nt 4
+```
 
 ## Piranha
 

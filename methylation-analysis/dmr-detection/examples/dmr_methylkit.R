@@ -2,6 +2,12 @@ library(methylKit)
 library(annotatr)
 library(GenomicRanges)
 
+# Public methylation data sources:
+# - GEO: GSE86833 (WGBS from various tissues)
+# - GEO: GSE105018 (RRBS tumor vs normal)
+# - ENCODE: ENCSR000COQ (bismark coverage files)
+# - Bioconductor: bsseqData package has example .cov files
+
 file_list <- list('ctrl1.bismark.cov.gz', 'ctrl2.bismark.cov.gz',
                    'treat1.bismark.cov.gz', 'treat2.bismark.cov.gz')
 sample_ids <- c('ctrl_1', 'ctrl_2', 'treat_1', 'treat_2')

@@ -6,6 +6,13 @@ library(apeglm)
 library(ggplot2)
 library(pheatmap)
 
+# Public RNA-seq datasets:
+# - Bioconductor: airway package (GSE52778, dexamethasone treatment)
+# - recount3: https://rna.recount.bio (precomputed counts for GEO/SRA)
+# - ENCODE: https://www.encodeproject.org (cell line RNA-seq)
+# - GTEx: https://gtexportal.org (tissue expression)
+# - GEO: GSE81089, GSE130963 (treatment studies with Salmon-compatible FASTQ)
+
 # Configuration
 samples <- c('control_1', 'control_2', 'control_3', 'treated_1', 'treated_2', 'treated_3')
 conditions <- factor(c(rep('control', 3), rep('treated', 3)))

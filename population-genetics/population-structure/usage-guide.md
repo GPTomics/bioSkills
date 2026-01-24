@@ -13,6 +13,9 @@ conda install -c bioconda plink2
 # ADMIXTURE
 conda install -c bioconda admixture
 
+# FlashPCA2 (for large datasets)
+conda install -c bioconda flashpca
+
 # Visualization
 pip install pandas matplotlib
 ```
@@ -21,9 +24,9 @@ pip install pandas matplotlib
 
 Tell your AI agent what you want to do:
 - "Run PCA on my genetic data"
+- "Run fast PCA on biobank-scale data with FlashPCA2"
 - "Estimate ancestry proportions with ADMIXTURE"
 - "Check for population stratification before GWAS"
-- "Identify outlier samples in my dataset"
 - "Plot PC1 vs PC2 colored by population"
 
 ## Example Prompts
@@ -34,6 +37,8 @@ Tell your AI agent what you want to do:
 > "Run PCA and identify any outlier samples"
 
 > "Generate a PCA plot colored by self-reported ancestry"
+
+> "Run FlashPCA2 on my large dataset (100k+ samples)"
 
 ### Admixture Analysis
 > "Run ADMIXTURE for K=2 through K=6 and find the best K"
@@ -65,6 +70,7 @@ Tell your AI agent what you want to do:
 - Choose K with lowest cross-validation error
 - Outliers may indicate sample swaps, contamination, or unique ancestry
 - Remove related individuals (IBD > 0.125) before analysis
+- Use FlashPCA2 for biobank-scale data (100k+ samples) for better performance
 
 ## Quick Reference
 

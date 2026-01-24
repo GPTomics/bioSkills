@@ -179,6 +179,90 @@ ax.set_ylabel('Ancestry proportion')
 plt.savefig('admixture_barplot.png', dpi=150, bbox_inches='tight')
 ```
 
+## FlashPCA2 (Fast PCA for Large Datasets)
+
+FlashPCA2 is optimized for very large datasets (100,000+ samples). Uses randomized algorithms for speed.
+
+### Installation
+
+```bash
+# From conda
+conda install -c bioconda flashpca
+
+# Or download binaries from GitHub
+# https://github.com/gabraham/flashpca
+```
+
+### Basic Usage
+
+```bash
+# Standard PCA
+flashpca2 --bfile data --ndim 10 --outpc pcs.txt --outvec loadings.txt --outval eigenvalues.txt
+
+# --ndim 10: Number of PCs to compute
+# --outpc: Principal components output
+# --outvec: Eigenvectors (variant loadings)
+# --outval: Eigenvalues
+```
+
+### FlashPCA2 Options
+
+| Option | Description |
+|--------|-------------|
+| --bfile | PLINK binary prefix |
+| --ndim | Number of PCs (default 10) |
+| --outpc | PC scores output file |
+| --outvec | Eigenvectors output |
+| --outval | Eigenvalues output |
+| --numthreads | CPU threads to use |
+| --mem | Memory limit (GB) |
+| --seed | Random seed for reproducibility |
+
+### Large Dataset Settings
+
+```bash
+# For biobank-scale data (>100k samples)
+# numthreads=16: Adjust to available cores.
+# mem=64: Memory in GB. Increase for larger datasets.
+flashpca2 \
+    --bfile large_data \
+    --ndim 20 \
+    --numthreads 16 \
+    --mem 64 \
+    --outpc pcs.txt \
+    --outval eigenvalues.txt \
+    --seed 42
+```
+
+### FlashPCA2 vs PLINK2
+
+| Feature | FlashPCA2 | PLINK2 |
+|---------|-----------|--------|
+| Speed (100k samples) | Faster | Good |
+| Memory efficiency | Better | Good |
+| Randomized algorithm | Yes | Optional (approx) |
+| Part of standard toolkit | No | Yes |
+
+Use FlashPCA2 for biobank-scale data; PLINK2 sufficient for most studies.
+
+### Parse FlashPCA2 Output
+
+```python
+import pandas as pd
+
+# Load PCs
+pcs = pd.read_csv('pcs.txt', sep='\t', header=None)
+pcs.columns = ['FID', 'IID'] + [f'PC{i}' for i in range(1, len(pcs.columns) - 1)]
+
+# Load eigenvalues
+eigenvals = pd.read_csv('eigenvalues.txt', header=None)[0].values
+var_explained = eigenvals / eigenvals.sum() * 100
+
+print('Variance explained:')
+for i, ve in enumerate(var_explained[:10], 1):
+    print(f'  PC{i}: {ve:.2f}%')
+```
+
 ## MDS (Alternative to PCA)
 
 ```bash
