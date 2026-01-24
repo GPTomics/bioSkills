@@ -3,6 +3,14 @@ library(phyloseq)
 library(vegan)
 library(ggplot2)
 
+# Public microbiome datasets:
+# - Qiita: https://qiita.ucsd.edu (16S/metagenomics studies)
+# - Earth Microbiome Project: https://earthmicrobiome.org/data-and-code
+# - HMP: https://hmpdacc.org (Human Microbiome Project)
+# - Bioconductor: microbiomeDataSets package with curated phyloseq objects
+# - MicrobiomeDB: https://microbiomedb.org
+# Example: data('GlobalPatterns', package = 'phyloseq') for built-in demo
+
 seqtab <- readRDS('seqtab_nochim.rds')
 taxa <- readRDS('taxa.rds')
 metadata <- read.csv('sample_metadata.csv', row.names = 1)

@@ -9,6 +9,13 @@ import os
 sc.settings.verbosity = 1
 sc.settings.set_figure_params(dpi=100, facecolor='white')
 
+# Public scRNA-seq datasets:
+# - 10x Genomics: https://www.10xgenomics.com/datasets (PBMC 3k, 10k datasets)
+# - CELLxGENE: https://cellxgene.cziscience.com (curated annotated datasets)
+# - GEO: GSE149173 (COVID-19 PBMC), GSE136831 (human lung)
+# - Human Cell Atlas: https://data.humancellatlas.org
+# - Scanpy built-in: sc.datasets.pbmc3k_processed()
+
 # Configuration
 data_path = 'filtered_feature_bc_matrix.h5'
 output_dir = 'scrnaseq_results_scanpy'

@@ -10,6 +10,9 @@ Detect actively translated open reading frames from Ribo-seq data, including can
 pip install RiboCode
 # or
 conda install -c bioconda ribocode riborf
+
+# For ORF quantification (R)
+# BiocManager::install('ORFik')
 ```
 
 ## Quick Start
@@ -18,7 +21,7 @@ Tell your AI agent:
 - "Find translated ORFs in my Ribo-seq data"
 - "Detect uORFs in my genes"
 - "Run RiboCode to identify novel translated regions"
-- "Find actively translated non-coding RNAs"
+- "Quantify ORF-level translation with ORFquant"
 
 ## Example Prompts
 
@@ -44,7 +47,11 @@ Tell your AI agent:
 
 > "Find translated regions in long non-coding RNAs"
 
-> "Identify internal out-of-frame ORFs"
+### Quantification
+
+> "Quantify ORF-level translation with ORFik"
+
+> "Compare ORF expression across conditions"
 
 ## What the Agent Will Do
 
@@ -61,3 +68,4 @@ Tell your AI agent:
 - **uORFs** can regulate downstream CDS translation
 - **Novel ORFs** may encode micropeptides
 - **Binomial test** assesses 3-nt periodicity significance
+- **ORFquant/ORFik** provides quantitative ORF expression for differential analysis

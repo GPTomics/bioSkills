@@ -4,13 +4,14 @@
 
 Analysis of pooled CRISPR knockout and activation screens for gene essentiality and functional genomics.
 
-**Tool type:** cli | **Primary tools:** MAGeCK, CRISPResso2, BAGEL2
+**Tool type:** cli | **Primary tools:** MAGeCK, JACKS, CRISPResso2, BAGEL2
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
 | mageck-analysis | MAGeCK workflow for CRISPR screen analysis |
+| jacks-analysis | JACKS for joint sgRNA efficacy and gene essentiality modeling |
 | crispresso-editing | CRISPResso2 for CRISPR editing analysis |
 | screen-qc | Quality control for pooled CRISPR screens |
 | hit-calling | Statistical methods for identifying screen hits |
@@ -24,6 +25,8 @@ Analysis of pooled CRISPR knockout and activation screens for gene essentiality 
 - "Assess editing efficiency with CRISPResso2"
 - "Identify essential genes from my dropout screen"
 - "Calculate gene-level fitness scores with BAGEL2"
+- "Run JACKS to model sgRNA efficacy across screens"
+- "Jointly analyze multiple CRISPR screens with JACKS"
 
 ## Requirements
 
@@ -36,6 +39,9 @@ pip install CRISPResso2
 
 # BAGEL2
 pip install bagel
+
+# JACKS
+pip install jacks
 
 # Python dependencies
 pip install scipy>=1.8.0 pandas numpy matplotlib seaborn biopython scikit-learn

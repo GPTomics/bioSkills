@@ -4,7 +4,7 @@
 
 Protein structure analysis using Biopython's Bio.PDB module. Covers reading/writing PDB and mmCIF files, navigating the SMCRA hierarchy (Structure-Model-Chain-Residue-Atom), geometric calculations, superimposition, and working with AlphaFold predictions.
 
-**Tool type:** python | **Primary tools:** Bio.PDB, Bio.PDB.Superimposer
+**Tool type:** python | **Primary tools:** Bio.PDB, ESMFold, Chai-1
 
 ## Skills
 
@@ -14,7 +14,8 @@ Protein structure analysis using Biopython's Bio.PDB module. Covers reading/writ
 | structure-navigation | Navigate SMCRA hierarchy, extract sequences, handle disorder |
 | geometric-analysis | Distances, angles, dihedrals, neighbor search, superimposition, RMSD, SASA |
 | structure-modification | Transform coordinates, remove/add entities, modify properties |
-| alphafold-predictions | Download and analyze AlphaFold predicted structures, pLDDT confidence |
+| alphafold-predictions | Download and analyze AlphaFold Database structures, pLDDT confidence |
+| modern-structure-prediction | Predict structures with ESMFold, AlphaFold3, Chai-1, Boltz-1 |
 
 ## Example Prompts
 
@@ -34,11 +35,17 @@ Protein structure analysis using Biopython's Bio.PDB module. Covers reading/writ
 - "Download the AlphaFold structure for this UniProt ID"
 - "Analyze the pLDDT confidence scores"
 - "Plot the predicted aligned error (PAE)"
+- "Predict the structure of this sequence with ESMFold"
+- "Run AlphaFold3 on my protein complex"
+- "Compare predictions from ESMFold, Chai-1, and Boltz-1"
 
 ## Requirements
 
 ```bash
-pip install biopython numpy
+pip install biopython numpy requests
+
+# For modern structure prediction
+pip install fair-esm chai-lab boltz
 ```
 
 ## Related Skills

@@ -4,7 +4,7 @@
 
 Analyze ribosome profiling (Ribo-seq) data to study translation at single-codon resolution, including periodicity QC, ORF detection, and translation efficiency calculation.
 
-**Tool type:** mixed | **Primary tools:** Plastid, RiboCode, riborex
+**Tool type:** mixed | **Primary tools:** Plastid, RiboCode, ORFik, riborex
 
 ## Skills
 
@@ -12,7 +12,7 @@ Analyze ribosome profiling (Ribo-seq) data to study translation at single-codon 
 |-------|-------------|
 | riboseq-preprocessing | Size selection, rRNA removal, and alignment for ribosome footprints |
 | ribosome-periodicity | Validate 3-nucleotide periodicity and calculate P-site offsets |
-| orf-detection | Detect translated ORFs including uORFs and novel ORFs |
+| orf-detection | Detect and quantify translated ORFs with RiboCode and ORFquant |
 | translation-efficiency | Calculate translation efficiency from Ribo-seq and RNA-seq |
 | ribosome-stalling | Detect ribosome pausing and stalling at specific codons |
 
@@ -24,6 +24,8 @@ Analyze ribosome profiling (Ribo-seq) data to study translation at single-codon 
 - "Calculate translation efficiency for my genes"
 - "Detect ribosome stalling sites"
 - "Generate metagene plots around start codons"
+- "Quantify ORF-level translation with ORFquant"
+- "Compare ORF expression across conditions"
 
 ## Requirements
 
@@ -34,8 +36,8 @@ pip install plastid
 # RiboCode
 pip install RiboCode
 
-# Differential TE (R)
-BiocManager::install(c('riborex', 'Ribo-seQC'))
+# Differential TE and ORF quantification (R)
+BiocManager::install(c('riborex', 'Ribo-seQC', 'ORFik'))
 
 # Alignment
 conda install -c bioconda star bowtie2 sortmerna

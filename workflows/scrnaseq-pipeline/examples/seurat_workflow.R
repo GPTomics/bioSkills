@@ -5,6 +5,13 @@ library(scDblFinder)
 library(ggplot2)
 library(dplyr)
 
+# Public scRNA-seq datasets:
+# - 10x Genomics: https://www.10xgenomics.com/datasets (PBMC 3k, 10k)
+# - SeuratData package: InstallData('pbmc3k') for built-in tutorial data
+# - CELLxGENE: https://cellxgene.cziscience.com (curated annotated datasets)
+# - GEO: GSE149173 (COVID-19 PBMC), GSE126030 (multi-tissue)
+# - Human Cell Atlas: https://data.humancellatlas.org
+
 # Configuration
 data_dir <- 'filtered_feature_bc_matrix'
 output_dir <- 'scrnaseq_results'

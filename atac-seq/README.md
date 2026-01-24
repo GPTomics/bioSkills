@@ -4,7 +4,7 @@
 
 Analyze ATAC-seq data for chromatin accessibility profiling. Covers peak calling with MACS3, quality control metrics, differential accessibility analysis, and transcription factor footprinting.
 
-**Tool type:** mixed | **Primary tools:** MACS3, ATACseqQC, DiffBind, TOBIAS
+**Tool type:** mixed | **Primary tools:** MACS3, DiffBind, chromVAR, TOBIAS
 
 ## Skills
 
@@ -15,6 +15,7 @@ Analyze ATAC-seq data for chromatin accessibility profiling. Covers peak calling
 | differential-accessibility | Find differentially accessible regions between conditions |
 | footprinting | Detect transcription factor binding sites within accessible regions |
 | nucleosome-positioning | Extract nucleosome positions with NucleoATAC, ATACseqQC |
+| motif-deviation | TF motif accessibility variability with chromVAR |
 
 ## Example Prompts
 
@@ -28,6 +29,8 @@ Analyze ATAC-seq data for chromatin accessibility profiling. Covers peak calling
 - "Run TOBIAS for footprinting"
 - "Generate ATAC-seq QC report"
 - "Separate nucleosome-free and mono-nucleosomal reads"
+- "Run chromVAR to find variable TF motifs"
+- "Identify differential motif accessibility between conditions"
 
 ## Requirements
 
@@ -47,7 +50,7 @@ conda install -c bioconda tobias
 ```
 
 ```r
-BiocManager::install(c('DiffBind', 'ATACseqQC', 'ChIPseeker'))
+BiocManager::install(c('DiffBind', 'ATACseqQC', 'ChIPseeker', 'chromVAR', 'motifmatchr'))
 ```
 
 ## Related Skills
