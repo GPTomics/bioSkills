@@ -10,14 +10,21 @@ treatment <- c(0, 0, 1, 1)
 meth_obj <- methRead(location = file_list, sample.id = as.list(sample_ids), treatment = treatment,
                       assembly = 'hg38', pipeline = 'bismarkCoverage')
 
+# lo.count=10: Minimum 10 reads per CpG. Standard for reliable methylation calls.
+# hi.perc=99.9: Remove top 0.1% coverage (likely PCR duplicates or repeat regions).
 meth_filt <- filterByCoverage(meth_obj, lo.count = 10, hi.perc = 99.9)
 
+# win.size=1000: 1kb windows are standard for DMR detection. Use 500bp for finer resolution.
+# cov.bases=3: Require at least 3 CpGs per window for statistical reliability.
 tiles <- tileMethylCounts(meth_filt, win.size = 1000, step.size = 1000, cov.bases = 3)
 
 tiles_united <- unite(tiles, destrand = TRUE)
 
 diff_tiles <- calculateDiffMeth(tiles_united, overdispersion = 'MN', mc.cores = 4)
 
+# difference=25: Minimum 25% methylation difference. Commonly used threshold.
+# Use 10% for subtle effects, 30-50% for strong effects.
+# qvalue=0.01: FDR-adjusted p-value cutoff. Use 0.05 for exploratory, 0.01 for stringent.
 dmrs <- getMethylDiff(diff_tiles, difference = 25, qvalue = 0.01)
 dmrs_hyper <- getMethylDiff(diff_tiles, difference = 25, qvalue = 0.01, type = 'hyper')
 dmrs_hypo <- getMethylDiff(diff_tiles, difference = 25, qvalue = 0.01, type = 'hypo')

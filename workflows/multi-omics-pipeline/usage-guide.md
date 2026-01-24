@@ -4,6 +4,37 @@
 
 This workflow integrates multiple molecular data types (transcriptomics, proteomics, metabolomics, etc.) to discover shared biological signals and cross-modal biomarkers.
 
+## Prerequisites
+
+```r
+BiocManager::install(c('MOFA2', 'mixOmics'))
+install.packages(c('SNFtool', 'pheatmap'))
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Integrate my transcriptomics and proteomics data"
+- "Run MOFA2 on my multi-omics dataset"
+- "Find shared factors across my omics modalities"
+
+## Example Prompts
+
+### Basic Integration
+> "I have RNA-seq and proteomics from the same samples, integrate them with MOFA2"
+
+> "Find shared biological signals across my multi-omics data"
+
+### Supervised Analysis
+> "Use DIABLO to find multi-omics biomarkers that predict treatment response"
+
+> "Run supervised multi-omics analysis with patient outcomes"
+
+### Patient Stratification
+> "Cluster patients using multi-omics data with SNF"
+
+> "Find patient subtypes from my integrated omics data"
+
 ## When to Use This Pipeline
 
 - Studies with multiple omics measurements
@@ -155,6 +186,14 @@ This workflow integrates multiple molecular data types (transcriptomics, proteom
 2. Run pathway enrichment
 3. Connect to clinical variables
 4. Validate key features
+
+## Tips
+
+- **Sample overlap**: Ensure samples are matched across modalities (same patients/conditions)
+- **Normalization**: Pre-normalize each modality separately before integration
+- **Missing views**: MOFA2 handles missing views better than DIABLO
+- **Feature selection**: Select top variable features per modality to reduce noise
+- **Interpretation**: Run pathway enrichment on top-weighted features per factor
 
 ## References
 

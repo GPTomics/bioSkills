@@ -6,6 +6,8 @@ library(ggplot2)
 ps <- readRDS('phyloseq_object.rds')
 
 # Filter low-abundance taxa
+# 0.1 (10%): Require taxa present in at least 10% of samples. Standard prevalence filter.
+# mean(x) > 10: Require mean abundance >10 reads. Removes rare taxa with unreliable estimates.
 ps_filt <- filter_taxa(ps, function(x) sum(x > 0) > 0.1 * nsamples(ps), TRUE)
 ps_filt <- filter_taxa(ps_filt, function(x) mean(x) > 10, TRUE)
 cat('Taxa after filtering:', ntaxa(ps_filt), '\n')
@@ -18,12 +20,15 @@ groups <- as.character(sample_data(ps_filt)$Group)
 cat('Groups:', paste(unique(groups), collapse = ', '), '\n')
 
 # Run ALDEx2
+# mc.samples=128: Monte Carlo samples for posterior. 128 is standard; use 256+ for publication.
 cat('\nRunning ALDEx2 (this may take a few minutes)...\n')
 aldex_out <- aldex(otu, groups, mc.samples = 128, test = 'welch',
                    effect = TRUE, include.sample.summary = FALSE, denom = 'all')
 
 # Summarize results
 aldex_out$taxon <- rownames(aldex_out)
+# q<0.05: FDR threshold. Use 0.1 for exploratory, 0.01 for stringent.
+# |effect|>1: Minimum effect size. 1.0 is moderate; 0.5 for small effects, 2.0 for large.
 aldex_out$significant <- aldex_out$we.eBH < 0.05 & abs(aldex_out$effect) > 1
 
 cat('\nResults summary:\n')

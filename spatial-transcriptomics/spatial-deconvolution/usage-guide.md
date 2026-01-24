@@ -19,11 +19,9 @@ pip install tangram-sc
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Deconvolve my Visium data using this scRNA-seq reference"
-
-> "Estimate cell type proportions in each spot"
+Tell your AI agent what you want to do:
+- "Deconvolve my Visium data using this scRNA-seq reference"
+- "Estimate cell type proportions in each spot"
 
 ## Example Prompts
 

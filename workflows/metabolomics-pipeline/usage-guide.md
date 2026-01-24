@@ -4,6 +4,37 @@
 
 This workflow processes raw mass spectrometry data through peak detection, alignment, normalization, statistical analysis, and pathway interpretation.
 
+## Prerequisites
+
+```r
+BiocManager::install(c('xcms', 'CAMERA', 'MetaboAnalystR'))
+install.packages(c('metablastr', 'pheatmap'))
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run the metabolomics pipeline on my mzML files"
+- "Process my LC-MS data and find differential metabolites"
+- "Analyze my lipidomics experiment"
+
+## Example Prompts
+
+### Basic Analysis
+> "I have mzML files from an untargeted metabolomics study, run the full pipeline"
+
+> "Process my LC-MS/MS data with XCMS and run differential analysis"
+
+### Normalization and QC
+> "Apply QC-based batch correction to my metabolomics data"
+
+> "Normalize my metabolomics data and check sample quality with PCA"
+
+### Pathway Analysis
+> "Find enriched metabolic pathways in my differential metabolites"
+
+> "Annotate my significant features against HMDB and run pathway enrichment"
+
 ## When to Use This Pipeline
 
 - Untargeted metabolomics studies
@@ -131,6 +162,14 @@ Sample3.mzML,Treatment,1,4
 | qc_pca.png | PCA quality check |
 | volcano_metabolites.png | Differential analysis plot |
 | pathway_overview.png | Enriched pathways |
+
+## Tips
+
+- **QC samples**: Inject pooled QC every 5-10 samples for batch correction
+- **Peak detection**: Adjust peakwidth based on your chromatography (UPLC: 5-30, standard LC: 10-60)
+- **Missing values**: High missing values may indicate poor sample quality
+- **Annotation confidence**: MS/MS matching provides higher confidence than m/z alone
+- **mzML conversion**: Convert vendor files using ProteoWizard msConvert
 
 ## References
 

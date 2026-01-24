@@ -1,6 +1,6 @@
 ---
 name: bio-metagenomics-functional-profiling
-description: Profile functional potential of metagenomes using HUMAnN3 and similar tools. Use when you need pathway abundances, gene family counts, or functional annotations from metagenomic data.
+description: Profile functional potential of metagenomes using HUMAnN3 and similar tools. Use when obtaining pathway abundances, gene family counts, or functional annotations from metagenomic data.
 tool_type: cli
 primary_tool: humann
 ---

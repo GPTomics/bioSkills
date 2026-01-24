@@ -1,5 +1,5 @@
 ---
-name: bio-database-access-uniprot-access
+name: bio-uniprot-access
 description: Access UniProt protein database for sequences, annotations, and functional information. Use when you need protein data, GO terms, domain annotations, or protein-protein interactions.
 tool_type: python
 primary_tool: requests

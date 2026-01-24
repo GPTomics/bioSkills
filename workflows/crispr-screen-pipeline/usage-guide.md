@@ -4,6 +4,37 @@
 
 This workflow takes raw FASTQ files from pooled CRISPR screens through guide counting, quality control, statistical analysis, and hit calling to identify genes affecting a phenotype.
 
+## Prerequisites
+
+```bash
+pip install mageck mageck-vispr
+conda install -c bioconda mageck
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run the CRISPR screen pipeline on my FASTQ files"
+- "Count guides and run MAGeCK on my dropout screen"
+- "Analyze my CRISPRi screen for essential genes"
+
+## Example Prompts
+
+### Basic Analysis
+> "I have FASTQ files from a CRISPR knockout screen, run the full pipeline"
+
+> "Process my pooled screen with MAGeCK RRA"
+
+### Screen Types
+> "Analyze my drug resistance screen for enriched guides"
+
+> "Find essential genes in my dropout screen using BAGEL2"
+
+### Custom Analysis
+> "Run MAGeCK MLE with my multi-condition design"
+
+> "Compare my early vs late timepoints in a fitness screen"
+
 ## When to Use This Pipeline
 
 - Pooled CRISPR knockout/knockdown screens
@@ -86,6 +117,14 @@ Guides targeting resistance genes become enriched.
 | negative_screen.sgrna_summary.txt | Guide-level statistics |
 | negative_hits.csv | Called hit genes |
 | volcano_plot.png | Visualization |
+
+## Tips
+
+- **Library file**: Ensure sgRNA sequences match your library exactly
+- **Replicates**: 3+ biological replicates improve hit confidence
+- **Normalization**: Use non-targeting controls if available
+- **Multiple methods**: Run both MAGeCK and BAGEL2 for confident hits
+- **Positive controls**: Include known essential/drug-target genes to validate screen
 
 ## References
 

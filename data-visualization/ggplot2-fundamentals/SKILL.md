@@ -2,7 +2,7 @@
 name: bio-data-visualization-ggplot2-fundamentals
 description: Create publication-quality scientific figures with ggplot2 including scatter plots, boxplots, heatmaps, and multi-panel layouts. Use when creating static figures for papers, presentations, or reports in R.
 tool_type: r
-primary_tool: ggplot2, patchwork
+primary_tool: ggplot2
 ---
 
 # ggplot2 Fundamentals

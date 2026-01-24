@@ -1,8 +1,39 @@
-# Proteomics Pipeline
+# Proteomics Pipeline Usage Guide
 
 ## Overview
 
 End-to-end workflow for label-free proteomics analysis from MaxQuant/DIA-NN output to differential protein abundance.
+
+## Prerequisites
+
+```r
+BiocManager::install(c('limma', 'DEP', 'MSstats'))
+install.packages(c('pheatmap', 'ggplot2'))
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run the proteomics pipeline on my MaxQuant output"
+- "Find differentially expressed proteins between conditions"
+- "Process my DIA-NN results and run differential analysis"
+
+## Example Prompts
+
+### Basic Analysis
+> "I have proteinGroups.txt from MaxQuant, run the full pipeline"
+
+> "Normalize my proteomics data and find differential proteins"
+
+### QC and Preprocessing
+> "Check sample quality with PCA and correlation heatmap"
+
+> "Impute missing values in my proteomics data using MinProb"
+
+### Differential Analysis
+> "Run limma to find proteins changed between treatment and control"
+
+> "Use MSstats for differential analysis with my peptide-level data"
 
 ## Pipeline Stages
 
@@ -72,3 +103,11 @@ Sample4,Treatment,2
 - 2000-5000 quantified proteins (cell lysate)
 - 50-500 differential proteins (10%)
 - Fold changes typically 1.5-4x
+
+## Tips
+
+- **Missing values**: Use MinProb for MNAR (abundance-dependent), KNN for MAR
+- **Normalization**: Median centering is standard; quantile if distributions vary
+- **Filtering**: Remove proteins with >50% missing values before imputation
+- **Replicates**: Minimum 3 biological replicates per condition
+- **Contaminants**: Always filter MaxQuant contaminants and reverse sequences

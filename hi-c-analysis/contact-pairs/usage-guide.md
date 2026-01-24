@@ -12,11 +12,9 @@ conda install -c bioconda pairtools cooler
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Process my Hi-C BAM file with pairtools"
-
-> "Filter valid pairs from my pairs file"
+Tell your AI agent what you want to do:
+- "Process my Hi-C BAM file with pairtools"
+- "Filter valid pairs from my pairs file"
 
 ## Example Prompts
 

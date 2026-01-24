@@ -12,11 +12,9 @@ pip install squidpy scanpy pandas
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Find spatially variable genes"
-
-> "Calculate Moran's I for my spatial data"
+Tell your AI agent what you want to do:
+- "Find spatially variable genes"
+- "Calculate Moran's I for my spatial data"
 
 ## Example Prompts
 

@@ -14,11 +14,9 @@ pip install hic2cool
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Load my Hi-C cooler file"
-
-> "Convert .hic to cooler format"
+Tell your AI agent what you want to do:
+- "Load my Hi-C cooler file"
+- "Convert .hic to cooler format"
 
 ## Example Prompts
 

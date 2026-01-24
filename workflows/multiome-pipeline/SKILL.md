@@ -2,7 +2,7 @@
 name: bio-workflows-multiome-pipeline
 description: End-to-end multiome workflow for joint scRNA-seq + scATAC-seq analysis. Covers data loading, separate modality processing, and WNN integration with Seurat/Signac. Use when analyzing joint scRNA+scATAC data.
 tool_type: r
-primary_tool: Seurat, Signac
+primary_tool: Seurat
 workflow: true
 depends_on:
   - single-cell/data-io

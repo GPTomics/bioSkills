@@ -2,7 +2,7 @@
 name: bio-bedgraph-handling
 description: Create, manipulate, and convert bedGraph files for genome browser visualization. Covers bedGraph format, conversion to/from bigWig, normalization, and signal processing. Use when handling coverage and signal tracks from ChIP-seq, ATAC-seq, or RNA-seq.
 tool_type: mixed
-primary_tool: bedtools, UCSC tools, pyBigWig
+primary_tool: pyBigWig
 ---
 
 # bedGraph Handling

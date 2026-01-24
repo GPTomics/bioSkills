@@ -4,6 +4,37 @@
 
 This workflow processes flow cytometry data from raw FCS files through compensation, transformation, clustering or gating, and differential analysis.
 
+## Prerequisites
+
+```r
+BiocManager::install(c('CATALYST', 'flowCore', 'diffcyt'))
+install.packages(c('FlowSOM', 'uwot'))
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run the cytometry pipeline on my FCS files"
+- "Cluster my CyTOF data and find differential populations"
+- "Analyze my immunophenotyping experiment"
+
+## Example Prompts
+
+### Basic Analysis
+> "I have FCS files from a CyTOF experiment, run the full pipeline"
+
+> "Cluster my flow cytometry data with FlowSOM"
+
+### Differential Analysis
+> "Compare immune populations between treatment and control groups"
+
+> "Find differentially abundant cell types in my flow data"
+
+### Customization
+> "Use manual gating instead of clustering for my data"
+
+> "Run differential state analysis on my T cell markers"
+
 ## When to Use This Pipeline
 
 - Multi-color flow cytometry panels
@@ -132,6 +163,14 @@ Best for: Well-defined populations, lower dimensions
 | umap_clusters.png | Cluster visualization |
 | abundance_boxplots.png | Population frequencies |
 | da_volcano.png | Differential abundance plot |
+
+## Tips
+
+- **Panel file**: Essential for correct channel-to-marker mapping
+- **Cofactor**: Use 5 for CyTOF, 150 for conventional flow
+- **Batch effects**: Include batch in metadata if samples were processed separately
+- **Replicates**: Minimum 3 biological replicates per condition for statistical testing
+- **Marker classes**: Separate lineage (type) from functional (state) markers
 
 ## References
 

@@ -1,8 +1,39 @@
-# Microbiome Pipeline
+# Microbiome Pipeline Usage Guide
 
 ## Overview
 
 Complete 16S rRNA amplicon sequencing workflow from raw FASTQ reads to differential abundance testing using compositionally-aware methods.
+
+## Prerequisites
+
+```r
+BiocManager::install(c('dada2', 'phyloseq', 'ALDEx2'))
+install.packages(c('vegan', 'ggplot2'))
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run the microbiome pipeline on my 16S FASTQ files"
+- "Process my amplicon data with DADA2 and run diversity analysis"
+- "Find differentially abundant taxa between my groups"
+
+## Example Prompts
+
+### Basic Analysis
+> "I have 16S rRNA sequencing data, run the full pipeline"
+
+> "Process my paired-end amplicon reads and assign taxonomy"
+
+### Diversity Analysis
+> "Calculate alpha and beta diversity for my microbiome samples"
+
+> "Run PERMANOVA to test if microbial communities differ between groups"
+
+### Differential Abundance
+> "Find taxa that differ between treatment and control using ALDEx2"
+
+> "Run compositional differential abundance analysis on my microbiome data"
 
 ## Pipeline Stages
 
@@ -96,3 +127,11 @@ Maximum expected errors:
 - Insufficient replication
 - High inter-individual variation
 - Solution: Increase n, reduce FDR stringency
+
+## Tips
+
+- **Primer trimming**: Remove primer sequences before DADA2 processing
+- **truncLen**: Set based on quality profiles, ensure 20bp overlap for merging
+- **Replicates**: Microbiome studies typically need more replicates (n>=5) due to high variability
+- **Compositionality**: Use ALDEx2 or ANCOM-BC, not standard differential tests
+- **Reference database**: SILVA 138 or GTDB for taxonomy assignment

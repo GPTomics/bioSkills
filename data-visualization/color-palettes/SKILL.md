@@ -2,7 +2,7 @@
 name: bio-data-visualization-color-palettes
 description: Select and apply colorblind-friendly palettes for scientific figures using viridis, RColorBrewer, and custom color schemes. Use when selecting colorblind-friendly palettes for figures.
 tool_type: mixed
-primary_tool: viridis, RColorBrewer, matplotlib
+primary_tool: viridis
 ---
 
 # Color Palettes

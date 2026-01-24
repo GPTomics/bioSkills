@@ -146,7 +146,7 @@ adata = sc.read_h5ad('visium_hd_8um.h5ad')
 
 ## Related Skills
 
-- **spatial-transcriptomics/basic-analysis** - Standard spatial analysis
-- **single-cell/basic-analysis** - scRNA-seq concepts
-- **image-analysis** - Morphology processing
+- **spatial-transcriptomics/spatial-preprocessing** - Standard spatial analysis
+- **single-cell/preprocessing** - scRNA-seq concepts
+- **spatial-transcriptomics/image-analysis** - Morphology processing
 - **single-cell/cell-annotation** - Cell type assignment

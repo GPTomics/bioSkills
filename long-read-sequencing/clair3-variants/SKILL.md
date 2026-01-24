@@ -230,5 +230,5 @@ singularity exec clair3.sif run_clair3.sh \
 
 - variant-calling/bcftools-basics - VCF manipulation
 - variant-calling/filtering-best-practices - Quality filtering
-- long-read-sequencing/read-qc - Input quality control
-- long-read-sequencing/alignment - Mapping with minimap2
+- long-read-sequencing/long-read-qc - Input quality control
+- long-read-sequencing/long-read-alignment - Mapping with minimap2

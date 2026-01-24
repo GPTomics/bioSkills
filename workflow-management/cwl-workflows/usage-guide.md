@@ -20,13 +20,10 @@ pip install toil[cwl]
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Create a CWL workflow for variant calling"
-
-> "Convert my shell pipeline to CWL"
-
-> "Run this CWL workflow with Singularity"
+Tell your AI agent what you want to do:
+- "Create a CWL workflow for variant calling"
+- "Convert my shell pipeline to CWL"
+- "Run this CWL workflow with Singularity"
 
 ## Example Prompts
 

@@ -2,7 +2,7 @@
 name: bio-data-visualization-multipanel-figures
 description: Combine multiple plots into publication-ready multi-panel figures using patchwork, cowplot, and gridExtra with shared legends and annotations. Use when combining multiple plots into publication figures.
 tool_type: r
-primary_tool: patchwork, cowplot
+primary_tool: patchwork
 ---
 
 # Multi-Panel Figure Assembly

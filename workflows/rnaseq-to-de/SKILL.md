@@ -2,7 +2,7 @@
 name: bio-workflows-rnaseq-to-de
 description: End-to-end RNA-seq workflow from FASTQ files to differential expression results. Covers QC, quantification (Salmon or STAR+featureCounts), and DESeq2 analysis with visualization. Use when running RNA-seq from FASTQ to DE results.
 tool_type: mixed
-primary_tool: Salmon, DESeq2
+primary_tool: DESeq2
 workflow: true
 depends_on:
   - read-qc/fastp-workflow

@@ -1,6 +1,6 @@
 ---
 name: bio-rna-quantification-featurecounts-counting
-description: Count reads per gene from aligned BAM files using Subread featureCounts. Use when you have BAM files from STAR/HISAT2 and need gene-level counts for DESeq2/edgeR.
+description: Count reads per gene from aligned BAM files using Subread featureCounts. Use when processing BAM files from STAR/HISAT2 to generate gene-level counts for DESeq2/edgeR.
 tool_type: cli
 primary_tool: featureCounts
 ---

@@ -10,7 +10,7 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 
 | Skill | Description |
 |-------|-------------|
-| basecalling | Convert raw signal to sequences with Dorado/Guppy |
+| basecalling | Convert raw signal to sequences with Dorado (Guppy is deprecated) |
 | long-read-alignment | Align long reads with minimap2 |
 | medaka-polishing | Polish assemblies and call variants with medaka |
 | clair3-variants | Deep learning variant calling with Clair3 |
