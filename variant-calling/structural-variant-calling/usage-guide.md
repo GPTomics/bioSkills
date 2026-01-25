@@ -4,6 +4,20 @@
 
 Structural variants (SVs) are genomic alterations typically >50bp that include deletions, insertions, inversions, duplications, and translocations. Short-read SV calling uses paired-end and split-read information to detect these events.
 
+## Prerequisites
+
+```bash
+conda install -c bioconda manta delly smoove survivor annotsv bcftools pysam
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Call structural variants from my BAM file using multiple callers"
+- "Run somatic SV calling on my tumor-normal pair with Manta and Delly"
+- "Filter SV calls to keep only high-confidence variants with PE and SR support"
+- "Annotate structural variants with gene overlaps and pathogenicity predictions"
+
 ## SV Detection Signatures
 
 | Signature | SV Type | Evidence |
@@ -217,3 +231,13 @@ truvari bench \
 | Both together | Comprehensive SV detection |
 
 For complete structural variation analysis, combine SV callers with CNV detection tools.
+
+## Example Prompts
+
+> "Call structural variants from my BAM file using multiple callers and merge the results"
+
+> "Run somatic SV calling on my tumor-normal pair with Manta and Delly"
+
+> "Filter my SV calls to keep only high-confidence variants with PE and SR support"
+
+> "Annotate my structural variants with gene overlaps and pathogenicity predictions"

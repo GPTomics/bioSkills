@@ -1,5 +1,7 @@
 # Consensus Sequences Usage Guide
 
+## Overview
+
 This guide covers generating sample-specific sequences by applying variants to a reference.
 
 ## Prerequisites
@@ -7,6 +9,14 @@ This guide covers generating sample-specific sequences by applying variants to a
 - bcftools installed (`conda install -c bioconda bcftools`)
 - Reference FASTA (same one used for variant calling)
 - VCF file must be indexed (`bcftools index input.vcf.gz`)
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Generate a consensus FASTA by applying my VCF variants to the reference"
+- "Extract both haplotypes for a specific gene region from my phased VCF"
+- "Create consensus sequences for all samples in my multi-sample VCF"
+- "Mask low-coverage regions with N characters in my consensus sequence"
 
 ## Understanding Consensus Generation
 
@@ -332,6 +342,16 @@ Variants at the same position or overlapping indels. This is usually handled aut
 ```bash
 bcftools consensus -f reference.fa input.vcf.gz 2>&1 | grep -i "overlap"
 ```
+
+## Example Prompts
+
+> "Generate a consensus FASTA sequence by applying my VCF variants to the reference"
+
+> "Extract both haplotypes for a specific gene region from my phased VCF"
+
+> "Create consensus sequences for all samples in my multi-sample VCF"
+
+> "Mask low-coverage regions in my consensus sequence with N characters"
 
 ## See Also
 

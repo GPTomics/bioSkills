@@ -1,11 +1,21 @@
 # VCF Statistics Usage Guide
 
+## Overview
+
 This guide covers generating variant statistics and quality metrics.
 
 ## Prerequisites
 
 - bcftools installed (`conda install -c bioconda bcftools`)
 - plot-vcfstats (comes with bcftools, requires python and matplotlib)
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Generate comprehensive statistics for my VCF including Ti/Tv ratio"
+- "Compare variant statistics before and after filtering"
+- "Create QC plots showing depth and quality distributions"
+- "Check for sample swaps or contamination in my cohort VCF"
 
 ## bcftools stats Overview
 
@@ -388,6 +398,16 @@ Check:
 # Verify reference matches
 bcftools norm -c w -f reference.fa input.vcf.gz > /dev/null
 ```
+
+## Example Prompts
+
+> "Generate comprehensive statistics for my VCF file including Ti/Tv ratio"
+
+> "Compare variant statistics before and after filtering"
+
+> "Create QC plots showing depth and quality distributions"
+
+> "Check for sample swaps or contamination in my cohort VCF"
 
 ## See Also
 

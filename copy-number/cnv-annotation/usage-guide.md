@@ -4,6 +4,21 @@
 
 CNV annotation adds biological context to copy number calls by identifying affected genes, pathways, and clinical significance. This is essential for interpreting CNV findings in research and clinical contexts.
 
+## Prerequisites
+
+```bash
+conda install -c bioconda annotsv pybedtools
+pip install pandas
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Annotate my CNV segments with overlapping genes and cancer gene flags"
+- "Filter out common CNVs using population frequency data from DGV"
+- "Run AnnotSV on my structural variant VCF for comprehensive annotation"
+- "Add ClinVar pathogenicity annotations to my CNV calls"
+
 ## Annotation Resources
 
 | Resource | Content | Format |
@@ -220,6 +235,16 @@ def generate_report(annotated, output_prefix):
 
     return stats
 ```
+
+## Example Prompts
+
+> "Annotate my CNV segments with overlapping genes and cancer gene census flags"
+
+> "Filter out common CNVs from my callset using DGV population data"
+
+> "Add ClinVar annotations to my CNV calls and prioritize pathogenic variants"
+
+> "Run AnnotSV on my structural variant VCF to get comprehensive annotations"
 
 ## Integration with Pathway Analysis
 

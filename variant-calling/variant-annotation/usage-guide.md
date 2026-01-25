@@ -1,5 +1,7 @@
 # Variant Annotation Usage Guide
 
+## Overview
+
 This guide covers adding annotations to VCF files and predicting functional consequences.
 
 ## Prerequisites
@@ -7,6 +9,14 @@ This guide covers adding annotations to VCF files and predicting functional cons
 - bcftools installed (`conda install -c bioconda bcftools`)
 - Annotation databases (dbSNP, gnomAD, ClinVar, etc.)
 - For consequence prediction: reference FASTA and GFF3 gene annotation
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Add rsIDs from dbSNP to my VCF file"
+- "Annotate my variants with allele frequencies from gnomAD"
+- "Predict functional consequences of my variants using bcftools csq"
+- "Add ClinVar clinical significance annotations to my VCF"
 
 ## bcftools annotate Overview
 
@@ -362,6 +372,16 @@ bcftools annotate -a database.vcf.gz -c INFO/AF \
     -r chr1,chr2,chr3 \
     input.vcf.gz -Oz -o annotated.vcf.gz
 ```
+
+## Example Prompts
+
+> "Add rsIDs from dbSNP to my VCF file"
+
+> "Annotate my variants with allele frequencies from gnomAD"
+
+> "Predict functional consequences of my variants using bcftools csq"
+
+> "Add ClinVar clinical significance annotations to my VCF"
 
 ## See Also
 

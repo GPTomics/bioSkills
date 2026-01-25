@@ -4,6 +4,21 @@
 
 Effective CNV visualization helps identify patterns, validate calls, and communicate findings. This guide covers genome-wide profiles, region-specific plots, and cohort-level comparisons.
 
+## Prerequisites
+
+```bash
+conda install -c bioconda cnvkit
+pip install matplotlib seaborn pandas plotly
+```
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Create a genome-wide CNV scatter plot from my CNVkit results"
+- "Generate a heatmap comparing CNV profiles across all samples"
+- "Plot chromosome 17 with TP53 and BRCA1 gene annotations"
+- "Create an interactive CNV plot for collaborators"
+
 ## Key Plot Types
 
 | Plot Type | Use Case |
@@ -217,6 +232,16 @@ def interactive_cnv_plot(cnr, cns):
 fig = interactive_cnv_plot(cnr, cns)
 fig.write_html('cnv_interactive.html')
 ```
+
+## Example Prompts
+
+> "Create a genome-wide CNV scatter plot from my CNVkit results"
+
+> "Generate a heatmap comparing CNV profiles across all samples in my cohort"
+
+> "Plot chromosome 17 with TP53 and BRCA1 gene annotations highlighted"
+
+> "Create an interactive CNV plot I can share with collaborators"
 
 ## Tips for Publication Figures
 

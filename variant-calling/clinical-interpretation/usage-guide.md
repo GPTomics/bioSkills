@@ -1,6 +1,8 @@
 # Clinical Interpretation Usage Guide
 
-Prioritize and classify variants for clinical significance.
+## Overview
+
+Prioritize and classify variants for clinical significance using ClinVar annotations, population frequencies, and ACMG classification guidelines.
 
 ## Prerequisites
 
@@ -94,6 +96,23 @@ def prioritize_variant(v):
 | CADD | Deleteriousness scores |
 
 ## Reporting Considerations
+
+- Always include variant evidence and classification rationale
+- VUS variants may be reclassified with new evidence
+- Consider family segregation data when available
+- Follow laboratory/institutional reporting guidelines
+
+## Example Prompts
+
+> "Annotate my VCF with ClinVar clinical significance"
+
+> "Filter for pathogenic and likely pathogenic variants"
+
+> "Prioritize variants by clinical relevance"
+
+> "Apply ACMG classification criteria to my variants"
+
+## Tips
 
 - Always include variant evidence and classification rationale
 - VUS variants may be reclassified with new evidence

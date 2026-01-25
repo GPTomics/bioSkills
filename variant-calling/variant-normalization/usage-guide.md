@@ -1,5 +1,7 @@
 # Variant Normalization Usage Guide
 
+## Overview
+
 This guide covers normalizing VCF files for consistent variant representation.
 
 ## Prerequisites
@@ -7,6 +9,14 @@ This guide covers normalizing VCF files for consistent variant representation.
 - bcftools installed (`conda install -c bioconda bcftools`)
 - Reference FASTA file (same one used for variant calling)
 - Reference must be indexed (`samtools faidx reference.fa`)
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Normalize my VCF by left-aligning indels and splitting multiallelic sites"
+- "Prepare my VCF for annotation by normalizing variants against the reference"
+- "Compare variants from two different callers after normalizing both VCFs"
+- "Split multiallelic sites but keep SNPs and indels separate"
 
 ## Why Normalization Matters
 
@@ -301,6 +311,16 @@ Variants may already be normalized. Check:
 ```bash
 bcftools norm -f reference.fa input.vcf.gz 2>&1 | grep "records modified"
 ```
+
+## Example Prompts
+
+> "Normalize my VCF by left-aligning indels and splitting multiallelic sites"
+
+> "Prepare my VCF for annotation by normalizing variants against the reference"
+
+> "Compare variants from two different callers after normalizing both VCFs"
+
+> "Split multiallelic sites but keep SNPs and indels separate"
 
 ## See Also
 

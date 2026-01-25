@@ -1,5 +1,7 @@
 # Variant Calling Usage Guide
 
+## Overview
+
 This guide covers calling SNPs and indels from aligned reads using bcftools.
 
 ## Prerequisites
@@ -8,6 +10,14 @@ This guide covers calling SNPs and indels from aligned reads using bcftools.
 - Sorted, indexed BAM file
 - Reference FASTA (same one used for alignment)
 - Reference must be indexed (`samtools faidx reference.fa`)
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Call SNPs and indels from my aligned BAM file"
+- "Run variant calling on multiple samples together for joint genotyping"
+- "Call variants only in my target regions defined by a BED file"
+- "Generate a VCF with depth and allelic depth annotations"
 
 ## Understanding the Workflow
 
@@ -339,6 +349,16 @@ bcftools mpileup -f reference.fa -a DP,AD,ADF,ADR input.bam | \
 # Check depths
 bcftools query -f '%CHROM\t%POS\t%INFO/DP\n' variants.vcf
 ```
+
+## Example Prompts
+
+> "Call SNPs and indels from my aligned BAM file using bcftools"
+
+> "Run variant calling on multiple samples together for joint genotyping"
+
+> "Call variants only in my target regions defined by a BED file"
+
+> "Generate a VCF with depth and allelic depth annotations"
 
 ## See Also
 
