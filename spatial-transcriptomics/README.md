@@ -4,7 +4,7 @@
 
 Analyze spatial transcriptomics data from Visium, Xenium, MERFISH, and other platforms using Squidpy and SpatialData.
 
-**Tool type:** python | **Primary tools:** Squidpy, SpatialData, Scanpy
+**Tool type:** python | **Primary tools:** Squidpy, SpatialData, Scanpy, scimap
 
 ## Skills
 
@@ -20,6 +20,7 @@ Analyze spatial transcriptomics data from Visium, Xenium, MERFISH, and other pla
 | spatial-communication | Ligand-receptor analysis and cell-cell interactions |
 | spatial-deconvolution | Estimate cell type composition per spot |
 | spatial-multiomics | Analyze high-resolution platforms (Slide-seq, Stereo-seq, Visium HD) |
+| spatial-proteomics | Analyze CODEX, IMC, MIBI spatial proteomics data |
 
 ## Example Prompts
 
@@ -40,11 +41,13 @@ Analyze spatial transcriptomics data from Visium, Xenium, MERFISH, and other pla
 - "Analyze my Slide-seq data"
 - "Process Stereo-seq at bin level"
 - "Work with Visium HD subcellular resolution"
+- "Analyze my CODEX spatial proteomics data"
+- "Find spatial interactions between cell types in IMC data"
 
 ## Requirements
 
 ```bash
-pip install squidpy spatialdata spatialdata-io scanpy anndata
+pip install squidpy spatialdata spatialdata-io scanpy anndata scimap
 ```
 
 ## Related Skills

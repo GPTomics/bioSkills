@@ -97,7 +97,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **methylation-analysis** | 4 | Bismark, methylKit, bsseq | Bisulfite alignment, methylation calling, DMRs |
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
 | **metagenomics** | 7 | Kraken2, MetaPhlAn, Bracken, HUMAnN | Taxonomic classification, abundance estimation, functional profiling, AMR detection |
-| **long-read-sequencing** | 7 | Dorado, minimap2, Clair3, IsoSeq3, SQANTI3 | Basecalling, alignment, polishing, variant calling, SV calling, Iso-Seq isoform QC |
+| **long-read-sequencing** | 8 | Dorado, minimap2, Clair3, modkit, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, methylation, Iso-Seq |
 | **read-qc** | 7 | FastQC, MultiQC, fastp, Trimmomatic, Cutadapt | Quality reports, adapter trimming, filtering, UMIs |
 | **genome-intervals** | 7 | BEDTools, pybedtools, pyBigWig | BED/GTF operations, interval arithmetic, bedGraph, bigWig |
 | **population-genetics** | 6 | PLINK, FlashPCA2, ADMIXTURE, scikit-allel | GWAS, biobank-scale PCA, admixture, selection statistics |
@@ -109,17 +109,18 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **atac-seq** | 6 | MACS3, DiffBind, chromVAR, TOBIAS | ATAC-seq peaks, differential accessibility, footprinting, TF motif deviation |
 | **genome-assembly** | 8 | SPAdes, Flye, hifiasm, QUAST, BUSCO | Assembly, polishing, scaffolding, quality assessment |
 | **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
-| **spatial-transcriptomics** | 10 | Squidpy, SpatialData, Scanpy | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution |
+| **spatial-transcriptomics** | 11 | Squidpy, SpatialData, Scanpy, scimap | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution, spatial proteomics |
 | **hi-c-analysis** | 8 | cooler, cooltools, pairtools, HiCExplorer | Contact matrices, compartments, TADs, loops, differential |
 | **workflows** | 28 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics |
 | **proteomics** | 9 | pyOpenMS, MSstats, limma, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
-| **crispr-screens** | 7 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, editing QC |
+| **crispr-screens** | 8 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, base/prime editing |
 | **metabolomics** | 8 | XCMS, MetaboAnalystR, lipidr, MS-DIAL | Peak detection, annotation, normalization, pathway mapping, lipidomics, targeted |
 | **imaging-mass-cytometry** | 6 | steinbock, squidpy, napari | IMC preprocessing, segmentation, spatial analysis, annotation, QC |
 | **flow-cytometry** | 8 | flowCore, CATALYST, CytoML | FCS handling, compensation, gating, clustering, differential, QC |
-| **reporting** | 2 | RMarkdown, Quarto, Jupyter | Reproducible analysis reports in HTML, PDF, Word |
+| **reporting** | 5 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
+| **experimental-design** | 4 | RNASeqPower, ssizeRNA, qvalue, sva | Power analysis, sample size, multiple testing, batch design |
 | **workflow-management** | 4 | Snakemake, Nextflow, cwltool, Cromwell | Scalable pipeline frameworks with containers |
 | **data-visualization** | 8 | ggplot2, matplotlib, plotly, ComplexHeatmap | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
 | **tcr-bcr-analysis** | 5 | MiXCR, VDJtools, Immcantation, scirpy | TCR/BCR repertoire analysis, clonotype assembly, diversity metrics |
@@ -129,7 +130,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **clip-seq** | 5 | CLIPper, PureCLIP, umi_tools, HOMER | Protein-RNA interactions, crosslink detection, binding site motifs |
 | **clinical-databases** | 5 | myvariant, requests, pandas | Clinical variant queries, ClinVar/gnomAD access, variant prioritization |
 
-**Total: 312 skills across 46 categories**
+**Total: 322 skills across 47 categories**
 
 ## Example Usage
 
@@ -188,6 +189,12 @@ Once skills are deployed, ask your agent naturally:
 "Look up clinical significance of my variants in ClinVar"
 "Track clonal lineages using CRISPR barcodes"
 "Analyze my Perturb-seq CRISPR screen"
+"How many samples do I need for my RNA-seq experiment?"
+"Calculate power for detecting 2-fold changes"
+"Analyze my base editing experiment for C-to-T conversion"
+"Call methylation from my nanopore BAM file"
+"Generate a MultiQC report from my pipeline outputs"
+"Export my figure at 300 DPI for journal submission"
 ```
 
 The agent will select appropriate tools based on context.
@@ -204,7 +211,7 @@ Key requirements:
 
 ## Quality Assurance
 
-All 312 skills have been audited against [Claude Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) (January 2026). The repository is 100% compliant with:
+All 322 skills have been audited against [Claude Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) (January 2026). The repository is 100% compliant with:
 - SKILL.md description includes "Use when..." trigger context
 - Third-person descriptions (no "you" or "your")
 - Single `primary_tool` value per skill
