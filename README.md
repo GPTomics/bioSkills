@@ -85,9 +85,9 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **sequence-io** | 9 | Bio.SeqIO | Read, write, convert FASTA/FASTQ/GenBank and 40+ formats |
 | **sequence-manipulation** | 7 | Bio.Seq, Bio.SeqUtils | Transcription, translation, motif search, sequence properties |
 | **database-access** | 10 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API | NCBI/UniProt queries, SRA downloads, BLAST, homology searches |
-| **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, validation |
+| **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics, validation |
 | **variant-calling** | 13 | bcftools, cyvcf2, Manta, Delly, VEP, SnpEff | VCF/BCF calling, SVs, filtering, annotation, clinical interpretation |
-| **alignment** | 4 | Bio.Align, Bio.AlignIO | Pairwise and multiple sequence alignment, alignment I/O |
+| **alignment** | 4 | Bio.Align, Bio.AlignIO | Pairwise and multiple sequence alignment, MSA statistics, alignment I/O |
 | **phylogenetics** | 5 | Bio.Phylo, IQ-TREE2, RAxML-ng | Tree I/O, visualization, ML inference with model selection, ultrafast bootstrap |
 | **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
 | **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
@@ -201,6 +201,18 @@ Key requirements:
 - `primary_tool` must be a single value (not comma-separated)
 - Quick Start uses bullets; Example Prompts use blockquotes
 - Examples must document magic numbers with rationale
+
+## Quality Assurance
+
+All 312 skills have been audited against [Claude Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) (January 2026). The repository is 100% compliant with:
+- SKILL.md description includes "Use when..." trigger context
+- Third-person descriptions (no "you" or "your")
+- Single `primary_tool` value per skill
+- Quick Start uses bullets; Example Prompts use blockquotes
+- All required sections present in usage-guide.md
+- Related Skills references are valid and unformatted
+
+See `AUDIT_PLAN.md` for full audit details.
 
 ## License
 
