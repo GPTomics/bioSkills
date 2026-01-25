@@ -309,7 +309,7 @@ singularity exec sqanti3.sif \
 
 ## Related Skills
 
-- **long-read-sequencing/basecalling** - ONT/PacBio basics
-- **rna-quantification/alignment-free-quant** - Expression analysis
-- **genome-intervals/gtf-gff-handling** - GTF/GFF handling
-- **differential-expression/dexseq-analysis** - Differential isoform usage
+- long-read-sequencing/basecalling - ONT/PacBio basics
+- rna-quantification/alignment-free-quant - Expression analysis
+- genome-intervals/gtf-gff-handling - GTF/GFF handling
+- differential-expression/dexseq-analysis - Differential isoform usage

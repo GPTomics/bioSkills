@@ -329,6 +329,6 @@ Need to BLAST a sequence?
 
 ## Related Skills
 
-- **local-blast** - Run BLAST locally for faster, unlimited searches
-- **entrez-fetch** - Fetch full records for BLAST hits
-- **sequence-io** - Read query sequences from files
+- local-blast - Run BLAST locally for faster, unlimited searches
+- entrez-fetch - Fetch full records for BLAST hits
+- sequence-io - Read query sequences from files

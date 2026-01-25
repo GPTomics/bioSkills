@@ -82,6 +82,6 @@ def assess_missing_values(df, intensity_cols):
 
 ## Related Skills
 
-- **quantification** - Process imported data for quantification
-- **peptide-identification** - Identify peptides from raw spectra
-- **expression-matrix/counts-ingest** - Similar data loading patterns
+- quantification - Process imported data for quantification
+- peptide-identification - Identify peptides from raw spectra
+- expression-matrix/counts-ingest - Similar data loading patterns

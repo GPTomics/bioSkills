@@ -115,6 +115,6 @@ out_its <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
 
 ## Related Skills
 
-- **taxonomy-assignment** - Assign taxonomy to ASVs
-- **read-qc/quality-reports** - Pre-DADA2 quality assessment
-- **diversity-analysis** - Analyze ASV table
+- taxonomy-assignment - Assign taxonomy to ASVs
+- read-qc/quality-reports - Pre-DADA2 quality assessment
+- diversity-analysis - Analyze ASV table

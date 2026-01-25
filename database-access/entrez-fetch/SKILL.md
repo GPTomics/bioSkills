@@ -308,7 +308,7 @@ Need to retrieve NCBI records?
 
 ## Related Skills
 
-- **entrez-search** - Find record IDs before fetching
-- **entrez-link** - Find related records in other databases
-- **batch-downloads** - Download large numbers of records efficiently
-- **sequence-io/read-sequences** - Parse downloaded sequences with SeqIO
+- entrez-search - Find record IDs before fetching
+- entrez-link - Find related records in other databases
+- batch-downloads - Download large numbers of records efficiently
+- sequence-io/read-sequences - Parse downloaded sequences with SeqIO

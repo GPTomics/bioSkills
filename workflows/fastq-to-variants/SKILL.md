@@ -345,10 +345,10 @@ echo "Filtered VCF: ${OUTDIR}/variants/cohort.filtered.vcf.gz"
 
 ## Related Skills
 
-- **read-qc/fastp-workflow** - Detailed QC options
-- **read-alignment/bwa-alignment** - BWA-MEM2 parameters
-- **alignment-files/duplicate-handling** - Duplicate marking details
-- **variant-calling/variant-calling** - bcftools calling options
-- **variant-calling/gatk-variant-calling** - GATK HaplotypeCaller details
-- **variant-calling/vcf-filtering** - Advanced filtering strategies
-- **variant-calling/variant-annotation** - Annotate variants with VEP
+- read-qc/fastp-workflow - Detailed QC options
+- read-alignment/bwa-alignment - BWA-MEM2 parameters
+- alignment-files/duplicate-handling - Duplicate marking details
+- variant-calling/variant-calling - bcftools calling options
+- variant-calling/gatk-variant-calling - GATK HaplotypeCaller details
+- variant-calling/vcf-filtering - Advanced filtering strategies
+- variant-calling/variant-annotation - Annotate variants with VEP

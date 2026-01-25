@@ -305,6 +305,6 @@ sig_genes <- subset(res, padj < 0.05 & abs(log2FoldChange) > 1)
 
 ## Related Skills
 
-- **edger-basics** - Alternative DE analysis with edgeR
-- **de-visualization** - MA plots, volcano plots, heatmaps
-- **de-results** - Extract and export significant genes
+- edger-basics - Alternative DE analysis with edgeR
+- de-visualization - MA plots, volcano plots, heatmaps
+- de-results - Extract and export significant genes

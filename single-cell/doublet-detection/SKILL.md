@@ -330,6 +330,6 @@ seurat_obj <- FindClusters(seurat_obj)
 
 ## Related Skills
 
-- **preprocessing** - QC before doublet detection
-- **clustering** - Run after filtering doublets
-- **data-io** - Load data before processing
+- preprocessing - QC before doublet detection
+- clustering - Run after filtering doublets
+- data-io - Load data before processing

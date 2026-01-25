@@ -196,7 +196,7 @@ sample3	Treatment	Day7
 
 ## Related Skills
 
-- **amplicon-processing** - DADA2 R workflow alternative
-- **taxonomy-assignment** - More database options
-- **diversity-analysis** - phyloseq R alternative
-- **differential-abundance** - ALDEx2/ANCOM-BC in R
+- amplicon-processing - DADA2 R workflow alternative
+- taxonomy-assignment - More database options
+- diversity-analysis - phyloseq R alternative
+- differential-abundance - ALDEx2/ANCOM-BC in R

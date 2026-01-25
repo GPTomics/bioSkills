@@ -258,9 +258,9 @@ for fasta_file in Path('input/').glob('*.fasta'):
 
 ## Related Skills
 
-- **read-sequences** - Core parsing functions for each file
-- **write-sequences** - Write processed outputs
-- **sequence-statistics** - Generate per-file statistics
-- **format-conversion** - Batch format conversion
-- **compressed-files** - Handle compressed files in batch
-- **database-access** - Batch download sequences from NCBI
+- read-sequences - Core parsing functions for each file
+- write-sequences - Write processed outputs
+- sequence-statistics - Generate per-file statistics
+- format-conversion - Batch format conversion
+- compressed-files - Handle compressed files in batch
+- database-access - Batch download sequences from NCBI

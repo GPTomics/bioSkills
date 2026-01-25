@@ -186,6 +186,6 @@ mageck-vispr run \
 
 ## Related Skills
 
-- **screen-qc** - Quality control before MAGeCK
-- **hit-calling** - Alternative hit calling methods
-- **pathway-analysis** - Downstream enrichment analysis
+- screen-qc - Quality control before MAGeCK
+- hit-calling - Alternative hit calling methods
+- pathway-analysis - Downstream enrichment analysis

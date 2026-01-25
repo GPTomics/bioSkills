@@ -252,5 +252,5 @@ def atac_qc_report(bam_file, peaks_file, output_prefix):
 ## Related Skills
 
 - atac-seq/atac-peak-calling - Peak calling
-- alignment-files/alignment-statistics - Alignment QC
+- alignment-files/bam-statistics - Alignment QC
 - chip-seq/chipseq-visualization - Visualization approaches

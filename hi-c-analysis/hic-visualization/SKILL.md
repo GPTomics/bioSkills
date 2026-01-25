@@ -272,7 +272,7 @@ plt.savefig('pileup.png', dpi=150)
 
 ## Related Skills
 
-- **hic-data-io** - Load contact matrices
-- **tad-detection** - Generate TADs to visualize
-- **loop-calling** - Generate loops to visualize
-- **compartment-analysis** - Visualize compartments
+- hic-data-io - Load contact matrices
+- tad-detection - Generate TADs to visualize
+- loop-calling - Generate loops to visualize
+- compartment-analysis - Visualize compartments

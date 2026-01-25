@@ -38,5 +38,5 @@ findMotifs.pl peaks.fa fasta output_dir \
 
 ## Related Skills
 
-- **clip-peak-calling** - Get peaks
-- **chip-seq/motif-analysis** - General motif concepts
+- clip-peak-calling - Get peaks
+- chip-seq/motif-analysis - General motif concepts

@@ -335,8 +335,8 @@ echo "Pipeline complete. Peaks: ${OUTDIR}/peaks/consensus_peaks.narrowPeak"
 
 ## Related Skills
 
-- **atac-seq/atac-peak-calling** - MACS3 ATAC parameters
-- **atac-seq/atac-qc** - TSS enrichment, FRiP details
-- **atac-seq/differential-accessibility** - DiffBind for ATAC
-- **atac-seq/footprinting** - TOBIAS and HINT details
-- **chip-seq/peak-annotation** - Annotate ATAC peaks to genes
+- atac-seq/atac-peak-calling - MACS3 ATAC parameters
+- atac-seq/atac-qc - TSS enrichment, FRiP details
+- atac-seq/differential-accessibility - DiffBind for ATAC
+- atac-seq/footprinting - TOBIAS and HINT details
+- chip-seq/peak-annotation - Annotate ATAC peaks to genes

@@ -224,6 +224,6 @@ nhood_df.to_csv('neighborhood_enrichment.csv')
 
 ## Related Skills
 
-- **phenotyping** - Assign cell types first
-- **spatial-transcriptomics/spatial-statistics** - Similar spatial methods
-- **single-cell/cell-communication** - Interaction concepts
+- phenotyping - Assign cell types first
+- spatial-transcriptomics/spatial-statistics - Similar spatial methods
+- single-cell/cell-communication - Interaction concepts

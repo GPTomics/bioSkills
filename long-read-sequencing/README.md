@@ -4,7 +4,7 @@
 
 Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers alignment with minimap2, polishing, variant calling with medaka and Clair3, and structural variant detection with Sniffles.
 
-**Tool type:** cli | **Primary tools:** Dorado, minimap2, Clair3, IsoSeq3, SQANTI3
+**Tool type:** cli | **Primary tools:** Dorado, minimap2, Clair3, modkit, IsoSeq3
 
 ## Skills
 
@@ -17,6 +17,7 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 | structural-variants | Detect SVs from long reads |
 | long-read-qc | Quality control for long reads |
 | isoseq-analysis | PacBio Iso-Seq isoform discovery with IsoSeq3, SQANTI3 QC, differential isoforms |
+| nanopore-methylation | Call 5mC methylation directly from ONT reads with modkit |
 
 ## Example Prompts
 
@@ -34,6 +35,8 @@ Analysis of long-read sequencing data from Oxford Nanopore and PacBio. Covers al
 - "Process my Iso-Seq data"
 - "Discover novel isoforms from PacBio"
 - "QC my transcript assembly with SQANTI"
+- "Call methylation from my nanopore BAM file"
+- "Generate a bedMethyl file from my ONT data"
 
 ## Requirements
 
@@ -55,6 +58,9 @@ conda install -c bioconda nanoplot chopper
 
 # Iso-Seq tools
 conda install -c bioconda pbccs lima isoseq3 sqanti3
+
+# Methylation calling
+# modkit: https://github.com/nanoporetech/modkit
 ```
 
 ## Related Skills

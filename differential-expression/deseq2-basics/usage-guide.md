@@ -14,13 +14,10 @@ BiocManager::install(c('DESeq2', 'apeglm'))
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run DESeq2 on my count matrix with treated vs control comparison"
-
-> "Analyze differential expression controlling for batch effects"
-
-> "Get significantly differentially expressed genes with padj < 0.05"
+Tell your AI agent what you want to do:
+- "Run DESeq2 on my count matrix with treated vs control comparison"
+- "Analyze differential expression controlling for batch effects"
+- "Get significantly differentially expressed genes with padj < 0.05"
 
 ## Example Prompts
 

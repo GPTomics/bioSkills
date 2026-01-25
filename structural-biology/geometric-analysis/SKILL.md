@@ -456,7 +456,7 @@ print(f'Buried: {len(buried)}, Exposed: {len(exposed)}')
 
 ## Related Skills
 
-- **structure-io** - Parse and write structure files
-- **structure-navigation** - Access chains, residues, atoms
-- **structure-modification** - Transform coordinates, modify structures
-- **alignment** - Sequence alignment for structure comparison
+- structure-io - Parse and write structure files
+- structure-navigation - Access chains, residues, atoms
+- structure-modification - Transform coordinates, modify structures
+- alignment - Sequence alignment for structure comparison

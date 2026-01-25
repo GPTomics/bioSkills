@@ -208,6 +208,6 @@ adata.obs[['cell_id', 'cell_type', 'centroid_x', 'centroid_y']].to_csv('cell_phe
 
 ## Related Skills
 
-- **cell-segmentation** - Generate single-cell data
-- **spatial-analysis** - Analyze spatial patterns of cell types
-- **single-cell/cell-annotation** - Similar annotation concepts
+- cell-segmentation - Generate single-cell data
+- spatial-analysis - Analyze spatial patterns of cell types
+- single-cell/cell-annotation - Similar annotation concepts

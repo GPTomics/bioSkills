@@ -1,11 +1,11 @@
 ---
-name: bio-alignment-statistics
+name: bio-alignment-files-bam-statistics
 description: Generate alignment statistics using samtools flagstat, stats, depth, and coverage. Use when assessing alignment quality, calculating coverage, or generating QC reports.
 tool_type: cli
 primary_tool: samtools
 ---
 
-# Alignment Statistics
+# BAM Statistics
 
 Generate alignment statistics using samtools and pysam.
 
@@ -313,8 +313,8 @@ print(f'Min: {min(sizes)}, Max: {max(sizes)}')
 
 ## Related Skills
 
-- **sam-bam-basics** - View alignment files
-- **alignment-indexing** - idxstats requires index
-- **duplicate-handling** - Check duplicate rates
-- **alignment-filtering** - Filter before stats
-- **sequence-io/sequence-statistics** - FASTA/FASTQ statistics
+- sam-bam-basics - View alignment files
+- alignment-indexing - idxstats requires index
+- duplicate-handling - Check duplicate rates
+- alignment-filtering - Filter before stats
+- sequence-io/sequence-statistics - FASTA/FASTQ statistics

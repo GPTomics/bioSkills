@@ -295,8 +295,8 @@ Flag breakdowns:
 
 ## Related Skills
 
-- **sam-bam-basics** - View and understand alignment files
-- **alignment-sorting** - Sort before/after filtering
-- **alignment-indexing** - Required for region filtering
-- **duplicate-handling** - Mark duplicates before filtering
-- **alignment-statistics** - Check filter effects
+- sam-bam-basics - View and understand alignment files
+- alignment-sorting - Sort before/after filtering
+- alignment-indexing - Required for region filtering
+- duplicate-handling - Mark duplicates before filtering
+- bam-statistics - Check filter effects

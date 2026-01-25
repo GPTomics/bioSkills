@@ -234,7 +234,7 @@ dc.plot_barplot(de_results, 'TP53', top_n=20)
 
 ## Related Skills
 
-- **single-cell/preprocessing** - scRNA-seq preprocessing
-- **single-cell/markers-annotation** - DE and marker gene concepts
-- **single-cell/batch-integration** - Multi-sample integration
-- **crispr-screens/mageck-analysis** - Bulk screen analysis
+- single-cell/preprocessing - scRNA-seq preprocessing
+- single-cell/markers-annotation - DE and marker gene concepts
+- single-cell/batch-integration - Multi-sample integration
+- crispr-screens/mageck-analysis - Bulk screen analysis

@@ -217,6 +217,6 @@ adata.write('imc_segmented.h5ad')
 
 ## Related Skills
 
-- **data-preprocessing** - Prepare images before segmentation
-- **phenotyping** - Classify segmented cells
-- **spatial-analysis** - Analyze cell spatial relationships
+- data-preprocessing - Prepare images before segmentation
+- phenotyping - Classify segmented cells
+- spatial-analysis - Analyze cell spatial relationships

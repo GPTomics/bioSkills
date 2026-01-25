@@ -13,13 +13,10 @@ BiocManager::install(c('Signac', 'EnsDb.Hsapiens.v86', 'BSgenome.Hsapiens.UCSC.h
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Analyze my 10X Multiome data"
-
-> "Integrate scRNA and scATAC from the same cells"
-
-> "Run WNN clustering on my multiome experiment"
+Tell your AI agent what you want to do:
+- "Analyze my 10X Multiome data"
+- "Integrate scRNA and scATAC from the same cells"
+- "Run WNN clustering on my multiome experiment"
 
 ## Example Prompts
 

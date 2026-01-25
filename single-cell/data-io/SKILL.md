@@ -285,6 +285,6 @@ seurat_obj <- LoadH5Seurat('data.h5seurat')
 
 ## Related Skills
 
-- **preprocessing** - QC filtering and normalization after loading
-- **clustering** - Dimensionality reduction and clustering
-- **markers-annotation** - Find marker genes and annotate cell types
+- preprocessing - QC filtering and normalization after loading
+- clustering - Dimensionality reduction and clustering
+- markers-annotation - Find marker genes and annotate cell types

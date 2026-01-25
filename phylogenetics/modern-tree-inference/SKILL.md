@@ -248,7 +248,7 @@ raxml-ng --msa alignment.fasta --model GTR+G --seed 12345 --bs-trees 100
 
 ## Related Skills
 
-- **tree-io** - Read and convert output tree files
-- **tree-visualization** - Visualize trees with bootstrap support
-- **distance-calculations** - Compare with distance-based methods
-- **alignment** - Prepare alignments for tree inference
+- tree-io - Read and convert output tree files
+- tree-visualization - Visualize trees with bootstrap support
+- distance-calculations - Compare with distance-based methods
+- alignment - Prepare alignments for tree inference

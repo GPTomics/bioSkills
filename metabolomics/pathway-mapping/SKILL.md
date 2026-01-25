@@ -215,6 +215,6 @@ export_pathways(pathway_results, 'pathway_enrichment.csv')
 
 ## Related Skills
 
-- **metabolite-annotation** - Identify metabolites first
-- **statistical-analysis** - Get significant metabolites
-- **pathway-analysis** - Similar enrichment concepts for genes
+- metabolite-annotation - Identify metabolites first
+- statistical-analysis - Get significant metabolites
+- pathway-analysis - Similar enrichment concepts for genes

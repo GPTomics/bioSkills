@@ -16,13 +16,10 @@ conda install -c bioconda gatk4
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Call variants from my whole genome sequencing FASTQ files"
-
-> "Run the FASTQ to variants pipeline on my exome data"
-
-> "I have paired-end DNA reads, help me find variants"
+Tell your AI agent what you want to do:
+- "Call variants from my whole genome sequencing FASTQ files"
+- "Run the FASTQ to variants pipeline on my exome data"
+- "I have paired-end DNA reads, help me find variants"
 
 ## Example Prompts
 

@@ -320,7 +320,7 @@ def sequence_to_alignment_position(record, seq_pos):
 
 ## Related Skills
 
-- **alignment-io** - Read/write alignment files in various formats
-- **pairwise-alignment** - Create pairwise alignments
-- **alignment-statistics** - Calculate conservation metrics
-- **sequence-manipulation/motif-search** - Search for patterns
+- alignment-io - Read/write alignment files in various formats
+- pairwise-alignment - Create pairwise alignments
+- msa-statistics - Calculate conservation metrics
+- sequence-manipulation/motif-search - Search for patterns

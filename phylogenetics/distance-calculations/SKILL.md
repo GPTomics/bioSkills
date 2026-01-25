@@ -280,8 +280,8 @@ Phylo.write(consensus_tree, 'bootstrap_consensus.nwk', 'newick')
 
 ## Related Skills
 
-- **tree-io** - Save constructed trees to files
-- **tree-visualization** - Draw resulting trees
-- **tree-manipulation** - Root and process built trees
-- **alignment-io** - Read alignments for tree building
-- **alignment-statistics** - Alignment quality before tree building
+- tree-io - Save constructed trees to files
+- tree-visualization - Draw resulting trees
+- tree-manipulation - Root and process built trees
+- alignment-io - Read alignments for tree building
+- msa-statistics - Alignment quality before tree building

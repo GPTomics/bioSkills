@@ -1,5 +1,7 @@
 # Somatic Variant Pipeline Usage Guide
 
+## Overview
+
 Call somatic mutations from tumor-normal paired samples.
 
 ## Prerequisites
@@ -146,6 +148,16 @@ bcftools view -f PASS filtered.vcf.gz | bcftools stats -
 - Use gnomAD as germline resource
 - Panel of normals reduces false positives
 - Check tumor purity affects sensitivity
+
+## Example Prompts
+
+> "Call somatic mutations from my tumor-normal BAM pair using Mutect2"
+
+> "Run the complete somatic variant pipeline with contamination estimation"
+
+> "Create a panel of normals for somatic variant calling"
+
+> "Annotate my somatic variants with VEP or Funcotator"
 
 ## See Also
 

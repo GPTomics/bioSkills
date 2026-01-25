@@ -398,7 +398,7 @@ cat relatedness.txt
 
 ## Related Skills
 
-- **vcf-basics** - View and query VCF files
-- **vcf-filtering** - Evaluate filter impact
-- **vcf-manipulation** - Compare call sets
-- **variant-calling** - Assess calling quality
+- vcf-basics - View and query VCF files
+- vcf-filtering - Evaluate filter impact
+- vcf-manipulation - Compare call sets
+- variant-calling - Assess calling quality

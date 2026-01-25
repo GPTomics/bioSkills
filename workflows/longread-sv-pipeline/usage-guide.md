@@ -12,13 +12,10 @@ conda install -c bioconda minimap2 samtools sniffles cutesv nanoplot bcftools
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Detect structural variants from my Nanopore data"
-
-> "Run the long-read SV pipeline on my PacBio HiFi reads"
-
-> "Find deletions and insertions in my ONT sequencing"
+Tell your AI agent what you want to do:
+- "Detect structural variants from my Nanopore data"
+- "Run the long-read SV pipeline on my PacBio HiFi reads"
+- "Find deletions and insertions in my ONT sequencing"
 
 ## Example Prompts
 

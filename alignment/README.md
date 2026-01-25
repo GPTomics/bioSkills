@@ -13,7 +13,7 @@ Sequence alignment using Biopython's Bio.Align and Bio.AlignIO modules for pairw
 | pairwise-alignment | Global/local alignment using PairwiseAligner (Needleman-Wunsch, Smith-Waterman) |
 | alignment-io | Read, write, convert MSA files (Clustal, PHYLIP, Stockholm, FASTA) |
 | msa-parsing | Parse and analyze MSA content: gaps, conservation, filtering, consensus |
-| alignment-statistics | Calculate identity, conservation scores, entropy, substitution patterns |
+| msa-statistics | Calculate identity, conservation scores, entropy, substitution patterns |
 
 ## Example Prompts
 

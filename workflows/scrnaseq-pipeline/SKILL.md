@@ -326,9 +326,9 @@ cat('Pipeline complete. Object saved to:', output_dir, '\n')
 
 ## Related Skills
 
-- **single-cell/data-io** - Loading different formats
-- **single-cell/preprocessing** - QC details
-- **single-cell/doublet-detection** - Doublet methods comparison
-- **single-cell/clustering** - Clustering parameters
-- **single-cell/markers-annotation** - Annotation strategies
-- **single-cell/multimodal-integration** - CITE-seq, multiome
+- single-cell/data-io - Loading different formats
+- single-cell/preprocessing - QC details
+- single-cell/doublet-detection - Doublet methods comparison
+- single-cell/clustering - Clustering parameters
+- single-cell/markers-annotation - Annotation strategies
+- single-cell/multimodal-integration - CITE-seq, multiome

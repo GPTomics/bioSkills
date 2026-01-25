@@ -178,5 +178,5 @@ bismark --genome /path/to/genome_folder/ --hisat2 \
 
 - methylation-calling - Extract methylation from Bismark BAM
 - methylkit-analysis - Import Bismark output to R
-- sequence-io - FASTQ handling
-- alignment-files - BAM manipulation
+- sequence-io/read-sequences - FASTQ handling
+- alignment-files/sam-bam-basics - BAM manipulation

@@ -141,6 +141,6 @@ def plot_diversity(stats_df, metric='shannon_wiener_index_mean'):
 
 ## Related Skills
 
-- **mixcr-analysis** - Generate input clonotype tables
-- **repertoire-visualization** - Visualize VDJtools output
-- **immcantation-analysis** - BCR-specific phylogenetics
+- mixcr-analysis - Generate input clonotype tables
+- repertoire-visualization - Visualize VDJtools output
+- immcantation-analysis - BCR-specific phylogenetics

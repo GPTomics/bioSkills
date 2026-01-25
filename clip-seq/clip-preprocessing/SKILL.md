@@ -117,6 +117,6 @@ def clip_qc(bam_path):
 
 ## Related Skills
 
-- **clip-alignment** - Align preprocessed reads
-- **read-qc/umi-processing** - General UMI handling
-- **clip-peak-calling** - Call peaks from aligned reads
+- clip-alignment - Align preprocessed reads
+- read-qc/umi-processing - General UMI handling
+- clip-peak-calling - Call peaks from aligned reads

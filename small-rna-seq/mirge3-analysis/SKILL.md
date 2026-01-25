@@ -153,6 +153,6 @@ def summarize_isomirs(isomir_counts):
 
 ## Related Skills
 
-- **smrna-preprocessing** - Prepare reads for miRge3
-- **mirdeep2-analysis** - Alternative with novel miRNA discovery
-- **differential-mirna** - DE analysis of miRge3 counts
+- smrna-preprocessing - Prepare reads for miRge3
+- mirdeep2-analysis - Alternative with novel miRNA discovery
+- differential-mirna - DE analysis of miRge3 counts

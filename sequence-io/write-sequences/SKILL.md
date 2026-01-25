@@ -170,8 +170,8 @@ All sequences must be same length. IDs truncated to 10 characters.
 
 ## Related Skills
 
-- **read-sequences** - Read sequences before modifying and writing
-- **format-conversion** - Direct format conversion without intermediate processing
-- **filter-sequences** - Filter sequences before writing subset
-- **sequence-manipulation/seq-objects** - Create SeqRecord objects to write
-- **alignment-files** - For SAM/BAM output, use samtools/pysam
+- read-sequences - Read sequences before modifying and writing
+- format-conversion - Direct format conversion without intermediate processing
+- filter-sequences - Filter sequences before writing subset
+- sequence-manipulation/seq-objects - Create SeqRecord objects to write
+- alignment-files - For SAM/BAM output, use samtools/pysam

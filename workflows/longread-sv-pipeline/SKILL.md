@@ -255,7 +255,7 @@ echo "SVs: $(bcftools view -H ${OUTDIR}/sv/${SAMPLE}.filtered.vcf.gz | wc -l)"
 
 ## Related Skills
 
-- **long-read-sequencing/long-read-alignment** - minimap2 details
-- **long-read-sequencing/structural-variants** - Sniffles, cuteSV options
-- **long-read-sequencing/long-read-qc** - NanoPlot metrics
-- **variant-calling/structural-variant-calling** - Short-read SV methods
+- long-read-sequencing/long-read-alignment - minimap2 details
+- long-read-sequencing/structural-variants - Sniffles, cuteSV options
+- long-read-sequencing/long-read-qc - NanoPlot metrics
+- variant-calling/structural-variant-calling - Short-read SV methods

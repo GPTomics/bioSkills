@@ -16,13 +16,10 @@ BiocManager::install(c('methylKit', 'genomation'))
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run the methylation pipeline on my bisulfite-seq data"
-
-> "Find differentially methylated regions between treatment and control"
-
-> "Align my WGBS data with Bismark and call methylation"
+Tell your AI agent what you want to do:
+- "Run the methylation pipeline on my bisulfite-seq data"
+- "Find differentially methylated regions between treatment and control"
+- "Align my WGBS data with Bismark and call methylation"
 
 ## Example Prompts
 

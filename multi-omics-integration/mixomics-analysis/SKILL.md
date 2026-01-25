@@ -170,7 +170,7 @@ auc_diablo <- auroc(diablo, roc.block = 'RNA', roc.comp = 1)
 
 ## Related Skills
 
-- **mofa-integration** - Unsupervised multi-omics
-- **data-harmonization** - Preprocess before integration
-- **differential-expression** - Single-omics analysis
-- **pathway-analysis** - Interpret selected features
+- mofa-integration - Unsupervised multi-omics
+- data-harmonization - Preprocess before integration
+- differential-expression - Single-omics analysis
+- pathway-analysis - Interpret selected features

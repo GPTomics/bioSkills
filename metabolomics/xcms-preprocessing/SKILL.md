@@ -207,6 +207,6 @@ write.csv(export_df, 'metaboanalyst_input.csv', row.names = FALSE)
 
 ## Related Skills
 
-- **metabolite-annotation** - Identify metabolites
-- **normalization-qc** - Normalize feature table
-- **statistical-analysis** - Differential analysis
+- metabolite-annotation - Identify metabolites
+- normalization-qc - Normalize feature table
+- statistical-analysis - Differential analysis

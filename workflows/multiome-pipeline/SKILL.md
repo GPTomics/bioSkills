@@ -272,7 +272,7 @@ cat('Clusters:', length(unique(seurat_obj$seurat_clusters)), '\n')
 
 ## Related Skills
 
-- **single-cell/data-io** - Loading 10X data
-- **single-cell/preprocessing** - QC and normalization
-- **single-cell/multimodal-integration** - WNN details
-- **single-cell/scatac-analysis** - ATAC-specific processing
+- single-cell/data-io - Loading 10X data
+- single-cell/preprocessing - QC and normalization
+- single-cell/multimodal-integration - WNN details
+- single-cell/scatac-analysis - ATAC-specific processing

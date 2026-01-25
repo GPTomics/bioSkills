@@ -230,6 +230,6 @@ report <- generate_qc_report(data_corrected, sample_info)
 
 ## Related Skills
 
-- **xcms-preprocessing** - Generate feature table
-- **statistical-analysis** - Downstream analysis
-- **differential-expression/batch-correction** - Similar concepts
+- xcms-preprocessing - Generate feature table
+- statistical-analysis - Downstream analysis
+- differential-expression/batch-correction - Similar concepts

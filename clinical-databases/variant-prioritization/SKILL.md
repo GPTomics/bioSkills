@@ -186,7 +186,7 @@ def assign_tiers(df):
 
 ## Related Skills
 
-- **clinvar-lookup** - ClinVar pathogenicity queries
-- **gnomad-frequencies** - Population frequency filtering
-- **variant-calling/clinical-interpretation** - ACMG classification
-- **variant-calling/filtering-best-practices** - Quality filtering
+- clinvar-lookup - ClinVar pathogenicity queries
+- gnomad-frequencies - Population frequency filtering
+- variant-calling/clinical-interpretation - ACMG classification
+- variant-calling/filtering-best-practices - Quality filtering

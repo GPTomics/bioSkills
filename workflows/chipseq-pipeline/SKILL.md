@@ -255,8 +255,8 @@ echo "Pipeline complete. Peaks: ${OUTDIR}/peaks/experiment_peaks.narrowPeak"
 
 ## Related Skills
 
-- **chip-seq/peak-calling** - MACS3 parameters and options
-- **chip-seq/peak-annotation** - ChIPseeker annotation details
-- **chip-seq/differential-binding** - Compare conditions with DiffBind
-- **chip-seq/chipseq-qc** - Comprehensive QC metrics
-- **chip-seq/motif-analysis** - Find enriched motifs in peaks
+- chip-seq/peak-calling - MACS3 parameters and options
+- chip-seq/peak-annotation - ChIPseeker annotation details
+- chip-seq/differential-binding - Compare conditions with DiffBind
+- chip-seq/chipseq-qc - Comprehensive QC metrics
+- chip-seq/motif-analysis - Find enriched motifs in peaks

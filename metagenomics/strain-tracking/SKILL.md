@@ -270,5 +270,5 @@ print(cluster_df.groupby('cluster').size())
 
 - metagenomics/kraken-classification - Taxonomic classification
 - genome-assembly/contamination-detection - Contamination screening
-- phylogenetics/tree-building - Phylogenetic analysis
+- phylogenetics/modern-tree-inference - Phylogenetic analysis
 - metagenomics/metaphlan-profiling - Species profiling

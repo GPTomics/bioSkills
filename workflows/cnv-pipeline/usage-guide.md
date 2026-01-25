@@ -15,13 +15,10 @@ pip install cnvkit
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Detect CNVs from my exome sequencing data"
-
-> "Run CNVkit on my tumor-normal pair"
-
-> "Find copy number changes in my samples"
+Tell your AI agent what you want to do:
+- "Detect CNVs from my exome sequencing data"
+- "Run CNVkit on my tumor-normal pair"
+- "Find copy number changes in my samples"
 
 ## Example Prompts
 

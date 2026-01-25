@@ -141,6 +141,6 @@ def query_spdi(rsid):
 
 ## Related Skills
 
-- **myvariant-queries** - Aggregated variant queries
-- **clinvar-lookup** - ClinVar pathogenicity
-- **database-access/entrez-search** - General Entrez queries
+- myvariant-queries - Aggregated variant queries
+- clinvar-lookup - ClinVar pathogenicity
+- database-access/entrez-search - General Entrez queries

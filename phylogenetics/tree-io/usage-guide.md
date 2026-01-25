@@ -12,13 +12,10 @@ pip install biopython
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Read this Newick tree file and show me the taxa"
-
-> "Convert my Nexus tree to Newick format"
-
-> "Parse this PhyloXML file and list the bootstrap values"
+Tell your AI agent what you want to do:
+- "Read this Newick tree file and show me the taxa"
+- "Convert my Nexus tree to Newick format"
+- "Parse this PhyloXML file and list the bootstrap values"
 
 ## Example Prompts
 

@@ -226,7 +226,7 @@ for clade in tree.find_clades():
 
 ## Related Skills
 
-- **tree-visualization** - Draw and export tree figures
-- **tree-manipulation** - Root, prune, and modify tree structure
-- **distance-calculations** - Compute distances and build trees from alignments
-- **alignment-io** - Read MSA files for tree construction
+- tree-visualization - Draw and export tree figures
+- tree-manipulation - Root, prune, and modify tree structure
+- distance-calculations - Compute distances and build trees from alignments
+- alignment-io - Read MSA files for tree construction

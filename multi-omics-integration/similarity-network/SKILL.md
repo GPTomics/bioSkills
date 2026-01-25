@@ -185,6 +185,6 @@ fused_with_clinical <- SNF(list(aff1, aff2, aff3, aff_clinical), K = K, t = 20)
 
 ## Related Skills
 
-- **mofa-integration** - Factor-based integration
-- **mixomics-analysis** - Supervised integration
-- **single-cell/clustering** - Single-cell clustering methods
+- mofa-integration - Factor-based integration
+- mixomics-analysis - Supervised integration
+- single-cell/clustering - Single-cell clustering methods

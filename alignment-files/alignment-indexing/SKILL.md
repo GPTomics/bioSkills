@@ -222,8 +222,8 @@ with pysam.FastaFile('reference.fa') as ref:
 
 ## Related Skills
 
-- **sam-bam-basics** - View and convert alignment files
-- **alignment-sorting** - Sort BAM files (required before indexing)
-- **alignment-filtering** - Filter by regions using index
-- **alignment-statistics** - Use idxstats for quick counts
-- **sequence-io/read-sequences** - Index FASTA with SeqIO.index_db()
+- sam-bam-basics - View and convert alignment files
+- alignment-sorting - Sort BAM files (required before indexing)
+- alignment-filtering - Filter by regions using index
+- bam-statistics - Use idxstats for quick counts
+- sequence-io/read-sequences - Index FASTA with SeqIO.index_db()

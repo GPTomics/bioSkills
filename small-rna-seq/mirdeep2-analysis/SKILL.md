@@ -155,6 +155,6 @@ def parse_quantifier_output(csv_path):
 
 ## Related Skills
 
-- **smrna-preprocessing** - Prepare reads for miRDeep2
-- **mirge3-analysis** - Faster quantification alternative
-- **differential-mirna** - DE analysis of miRNA counts
+- smrna-preprocessing - Prepare reads for miRDeep2
+- mirge3-analysis - Faster quantification alternative
+- differential-mirna - DE analysis of miRNA counts

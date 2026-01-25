@@ -12,13 +12,10 @@ pip install biopython numpy
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Build a neighbor joining tree from this alignment"
-
-> "Calculate the distance matrix for these sequences"
-
-> "Create a bootstrap consensus tree with 100 replicates"
+Tell your AI agent what you want to do:
+- "Build a neighbor joining tree from this alignment"
+- "Calculate the distance matrix for these sequences"
+- "Create a bootstrap consensus tree with 100 replicates"
 
 ## Example Prompts
 

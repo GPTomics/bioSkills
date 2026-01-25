@@ -33,6 +33,14 @@ conda install -c bioconda gatk4
    - Aligned, sorted, indexed BAM files
    - 5-10+ normal samples for PON
 
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run the GATK CNV workflow on my tumor-normal WGS pair"
+- "Create a panel of normals from my cohort for GATK CNV calling"
+- "Compare GATK and CNVkit results to identify high-confidence CNVs"
+- "Generate CNV plots from GATK ModelSegments output"
+
 ## Creating Interval Files
 
 ```bash
@@ -205,3 +213,13 @@ cnvkit_segs = pd.read_csv('tumor.cns', sep='\t')
 ```
 
 Both tools should be run and results compared for high-confidence calls.
+
+## Example Prompts
+
+> "Run the GATK CNV workflow on my tumor-normal WGS pair"
+
+> "Create a panel of normals from my cohort for GATK CNV calling"
+
+> "Compare GATK and CNVkit results to identify high-confidence CNV calls"
+
+> "Generate CNV plots from GATK ModelSegments output"

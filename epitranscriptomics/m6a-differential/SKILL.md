@@ -63,6 +63,6 @@ ggplot(diff_sites, aes(x = log2FoldChange, y = -log10(padj))) +
 
 ## Related Skills
 
-- **m6a-peak-calling** - Identify peaks first
-- **differential-expression** - Similar statistical concepts
-- **modification-visualization** - Plot differential sites
+- m6a-peak-calling - Identify peaks first
+- differential-expression - Similar statistical concepts
+- modification-visualization - Plot differential sites

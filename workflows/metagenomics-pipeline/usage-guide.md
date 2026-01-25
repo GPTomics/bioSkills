@@ -18,13 +18,10 @@ kraken2-build --build --db kraken2_db
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run the metagenomics pipeline on my shotgun metagenomic data"
-
-> "Classify my metagenomic reads and get species abundances"
-
-> "Profile pathways in my gut microbiome samples"
+Tell your AI agent what you want to do:
+- "Run the metagenomics pipeline on my shotgun metagenomic data"
+- "Classify my metagenomic reads and get species abundances"
+- "Profile pathways in my gut microbiome samples"
 
 ## Example Prompts
 

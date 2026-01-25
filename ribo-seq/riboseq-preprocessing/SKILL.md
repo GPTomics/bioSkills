@@ -137,6 +137,6 @@ def filter_by_length(bam_in, bam_out, min_len=28, max_len=32):
 
 ## Related Skills
 
-- **ribosome-periodicity** - Validate preprocessing quality
-- **read-qc** - General quality control
-- **read-alignment** - Alignment concepts
+- ribosome-periodicity - Validate preprocessing quality
+- read-qc - General quality control
+- read-alignment - Alignment concepts

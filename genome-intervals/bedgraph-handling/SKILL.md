@@ -310,7 +310,7 @@ cat sample.bedgraph >> track.bedgraph
 
 ## Related Skills
 
-- **coverage-analysis** - Generate coverage from alignments
-- **bigwig-tracks** - Work with bigWig format
-- **chipseq-visualization** - Visualize signal tracks
-- **alignment-files** - BAM file processing
+- coverage-analysis - Generate coverage from alignments
+- bigwig-tracks - Work with bigWig format
+- chipseq-visualization - Visualize signal tracks
+- alignment-files - BAM file processing

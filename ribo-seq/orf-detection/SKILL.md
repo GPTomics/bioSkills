@@ -258,6 +258,6 @@ results <- results(dds)
 
 ## Related Skills
 
-- **ribosome-periodicity** - Validate ORF calling
-- **translation-efficiency** - Quantify ORF translation
-- **differential-expression** - Compare ORF expression
+- ribosome-periodicity - Validate ORF calling
+- translation-efficiency - Quantify ORF translation
+- differential-expression - Compare ORF expression

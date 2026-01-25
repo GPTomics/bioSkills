@@ -291,6 +291,6 @@ write.csv(top_markers, file = 'top_markers.csv', row.names = FALSE)
 
 ## Related Skills
 
-- **clustering** - Must cluster before finding markers
-- **preprocessing** - Data must be normalized
-- **data-io** - Export annotated data
+- clustering - Must cluster before finding markers
+- preprocessing - Data must be normalized
+- data-io - Export annotated data

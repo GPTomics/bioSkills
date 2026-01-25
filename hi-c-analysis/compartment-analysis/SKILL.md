@@ -235,6 +235,6 @@ print(f'B compartment expression: {b_expr.mean():.2f}')
 
 ## Related Skills
 
-- **matrix-operations** - Prepare matrices for compartment analysis
-- **hic-visualization** - Visualize compartments
-- **chip-seq** - Correlate with histone marks
+- matrix-operations - Prepare matrices for compartment analysis
+- hic-visualization - Visualize compartments
+- chip-seq - Correlate with histone marks

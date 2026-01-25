@@ -272,7 +272,7 @@ adata_vis.write_h5ad('spatial_deconvolved.h5ad')
 
 ## Related Skills
 
-- **spatial-data-io** - Load spatial data
-- **single-cell/data-io** - Load scRNA-seq reference
-- **spatial-visualization** - Visualize deconvolution results
-- **single-cell/markers-annotation** - Annotate reference cell types
+- spatial-data-io - Load spatial data
+- single-cell/data-io - Load scRNA-seq reference
+- spatial-visualization - Visualize deconvolution results
+- single-cell/markers-annotation - Annotate reference cell types

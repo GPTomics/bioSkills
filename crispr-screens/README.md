@@ -13,6 +13,7 @@ Analysis of pooled CRISPR knockout and activation screens for gene essentiality 
 | mageck-analysis | MAGeCK workflow for CRISPR screen analysis |
 | jacks-analysis | JACKS for joint sgRNA efficacy and gene essentiality modeling |
 | crispresso-editing | CRISPResso2 for CRISPR editing analysis |
+| base-editing-analysis | Analyze base editing and prime editing outcomes |
 | screen-qc | Quality control for pooled CRISPR screens |
 | hit-calling | Statistical methods for identifying screen hits |
 | library-design | sgRNA selection and library composition |
@@ -23,6 +24,8 @@ Analysis of pooled CRISPR knockout and activation screens for gene essentiality 
 - "Analyze my CRISPR knockout screen with MAGeCK"
 - "Compare treatment vs control screen results"
 - "Assess editing efficiency with CRISPResso2"
+- "Analyze my base editing experiment for C-to-T conversion"
+- "Quantify prime editing outcomes from my amplicon data"
 - "Identify essential genes from my dropout screen"
 - "Calculate gene-level fitness scores with BAGEL2"
 - "Run JACKS to model sgRNA efficacy across screens"

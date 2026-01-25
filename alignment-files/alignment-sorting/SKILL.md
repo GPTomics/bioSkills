@@ -270,7 +270,7 @@ samtools sort -@ 8 -m 4G -l 1 -o sorted.bam input.bam
 
 ## Related Skills
 
-- **sam-bam-basics** - View and convert alignment files
-- **alignment-indexing** - Index after coordinate sorting
-- **duplicate-handling** - Requires name-sorted input for fixmate
-- **alignment-filtering** - Filter before or after sorting
+- sam-bam-basics - View and convert alignment files
+- alignment-indexing - Index after coordinate sorting
+- duplicate-handling - Requires name-sorted input for fixmate
+- alignment-filtering - Filter before or after sorting

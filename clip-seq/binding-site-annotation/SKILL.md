@@ -42,5 +42,5 @@ def annotate_peaks(peaks_bed, annotation_gtf):
 
 ## Related Skills
 
-- **clip-peak-calling** - Get peaks
-- **genome-intervals** - Interval operations
+- clip-peak-calling - Get peaks
+- genome-intervals - Interval operations

@@ -256,8 +256,8 @@ echo "Bracken abundances: ${OUTDIR}/bracken/"
 
 ## Related Skills
 
-- **metagenomics/kraken-classification** - Kraken2 details
-- **metagenomics/metaphlan-profiling** - MetaPhlAn parameters
-- **metagenomics/abundance-estimation** - Bracken options
-- **metagenomics/functional-profiling** - HUMAnN workflow
-- **metagenomics/metagenome-visualization** - Plotting functions
+- metagenomics/kraken-classification - Kraken2 details
+- metagenomics/metaphlan-profiling - MetaPhlAn parameters
+- metagenomics/abundance-estimation - Bracken options
+- metagenomics/functional-profiling - HUMAnN workflow
+- metagenomics/metagenome-visualization - Plotting functions

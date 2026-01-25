@@ -223,8 +223,8 @@ Need to work with strand orientation?
 
 ## Related Skills
 
-- **seq-objects** - Create Seq objects to complement
-- **transcription-translation** - Six-frame translation uses reverse complement
-- **motif-search** - Search both strands for motifs
-- **restriction-analysis** - Restriction sites are often palindromic
-- **alignment-files** - BAM FLAG indicates read strand; use samtools view -f 16 for reverse
+- seq-objects - Create Seq objects to complement
+- transcription-translation - Six-frame translation uses reverse complement
+- motif-search - Search both strands for motifs
+- restriction-analysis - Restriction sites are often palindromic
+- alignment-files - BAM FLAG indicates read strand; use samtools view -f 16 for reverse

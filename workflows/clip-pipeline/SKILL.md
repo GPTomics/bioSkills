@@ -241,8 +241,8 @@ echo "Pipeline complete for $SAMPLE"
 
 ## Related Skills
 
-- **clip-seq/clip-preprocessing** - Detailed preprocessing
-- **clip-seq/clip-alignment** - Alignment optimization
-- **clip-seq/clip-peak-calling** - Peak caller comparison
-- **clip-seq/binding-site-annotation** - Feature annotation
-- **clip-seq/clip-motif-analysis** - Motif discovery
+- clip-seq/clip-preprocessing - Detailed preprocessing
+- clip-seq/clip-alignment - Alignment optimization
+- clip-seq/clip-peak-calling - Peak caller comparison
+- clip-seq/binding-site-annotation - Feature annotation
+- clip-seq/clip-motif-analysis - Motif discovery

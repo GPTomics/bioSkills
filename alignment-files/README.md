@@ -14,7 +14,7 @@ Working with SAM/BAM/CRAM alignment files using samtools and pysam. Covers the s
 | alignment-indexing | Create BAI/CSI indices, enable random region access |
 | alignment-sorting | Sort by coordinate or name, merge BAM files, collate pairs |
 | duplicate-handling | Mark and remove PCR/optical duplicates |
-| alignment-statistics | Flagstat, depth, coverage, QC metrics |
+| bam-statistics | Flagstat, depth, coverage, QC metrics |
 | alignment-validation | Insert size, proper pairing, strand balance, MAPQ distribution |
 | alignment-filtering | Filter by flags, quality, regions, subsample reads |
 | reference-operations | Index FASTA, create dictionaries, generate consensus |

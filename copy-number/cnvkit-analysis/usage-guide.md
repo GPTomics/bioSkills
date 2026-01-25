@@ -4,7 +4,7 @@
 
 CNVkit is the standard tool for detecting copy number variants from targeted sequencing (exome, gene panels). It uses both on-target and off-target reads to infer copy number across the genome.
 
-## Installation
+## Prerequisites
 
 ```bash
 conda install -c bioconda cnvkit
@@ -13,6 +13,14 @@ pip install cnvkit
 ```
 
 Dependencies: R with DNAcopy package (for CBS segmentation).
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Run CNVkit on my tumor-normal exome pair to call copy number variants"
+- "Build a panel of normals from my control samples for CNV calling"
+- "Export my CNVkit segments to VCF format for downstream analysis"
+- "Check quality metrics for my CNVkit run and identify noisy samples"
 
 ## Input Requirements
 
@@ -173,3 +181,13 @@ deleted = cns[(cns['log2'] < -0.5) & (cns['cn'] <= 1)]
 # Genes in amplified regions
 print(amplified[['chromosome', 'start', 'end', 'gene', 'log2', 'cn']])
 ```
+
+## Example Prompts
+
+> "Run CNVkit on my tumor-normal exome pair and call copy number variants"
+
+> "Build a panel of normals from my 10 control samples for CNV calling"
+
+> "Export my CNVkit segments to VCF format for integration with SNV calls"
+
+> "Check the quality metrics for my CNVkit run and identify noisy samples"

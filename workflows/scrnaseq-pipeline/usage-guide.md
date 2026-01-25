@@ -19,13 +19,10 @@ pip install scanpy scrublet anndata
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Analyze my 10X single-cell data from start to finish"
-
-> "Run the scRNA-seq pipeline on my PBMC data"
-
-> "Cluster my single-cell data and find marker genes"
+Tell your AI agent what you want to do:
+- "Analyze my 10X single-cell data from start to finish"
+- "Run the scRNA-seq pipeline on my PBMC data"
+- "Cluster my single-cell data and find marker genes"
 
 ## Example Prompts
 

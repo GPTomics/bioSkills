@@ -240,7 +240,7 @@ write.csv(results_table, 'lipidomics_results.csv', row.names = FALSE)
 
 ## Related Skills
 
-- **xcms-preprocessing** - Peak detection for lipidomics
-- **metabolite-annotation** - General annotation methods
-- **statistical-analysis** - Multivariate analysis
-- **pathway-mapping** - Lipid pathway enrichment
+- xcms-preprocessing - Peak detection for lipidomics
+- metabolite-annotation - General annotation methods
+- statistical-analysis - Multivariate analysis
+- pathway-mapping - Lipid pathway enrichment

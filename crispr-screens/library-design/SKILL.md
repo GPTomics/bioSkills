@@ -378,7 +378,7 @@ def design_cas12a_guides(gene_sequence, n_guides=4):
 
 ## Related Skills
 
-- **mageck-analysis** - Analyze screen results
-- **crispresso-editing** - Validate editing efficiency
-- **screen-qc** - QC sequencing data
-- **hit-calling** - Identify screen hits
+- mageck-analysis - Analyze screen results
+- crispresso-editing - Validate editing efficiency
+- screen-qc - QC sequencing data
+- hit-calling - Identify screen hits

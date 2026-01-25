@@ -325,6 +325,6 @@ Running BLAST locally?
 
 ## Related Skills
 
-- **blast-searches** - Remote BLAST via NCBI (no installation needed)
-- **sequence-io** - Read/write FASTA files for queries
-- **batch-downloads** - Download sequences to build local databases
+- blast-searches - Remote BLAST via NCBI (no installation needed)
+- sequence-io - Read/write FASTA files for queries
+- batch-downloads - Download sequences to build local databases

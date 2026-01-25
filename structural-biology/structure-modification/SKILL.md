@@ -429,7 +429,7 @@ io.save('merged.pdb')
 
 ## Related Skills
 
-- **structure-io** - Parse and write structure files
-- **structure-navigation** - Access chains, residues, atoms
-- **geometric-analysis** - Calculate distances, angles, RMSD
-- **sequence-manipulation** - Generate sequences from modified structures
+- structure-io - Parse and write structure files
+- structure-navigation - Access chains, residues, atoms
+- geometric-analysis - Calculate distances, angles, RMSD
+- sequence-manipulation - Generate sequences from modified structures

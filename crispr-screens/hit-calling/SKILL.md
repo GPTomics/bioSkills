@@ -227,6 +227,6 @@ plt.savefig('hit_ranking.png', dpi=150)
 
 ## Related Skills
 
-- **mageck-analysis** - MAGeCK workflow
-- **screen-qc** - QC before hit calling
-- **pathway-analysis** - Functional analysis of hits
+- mageck-analysis - MAGeCK workflow
+- screen-qc - QC before hit calling
+- pathway-analysis - Functional analysis of hits

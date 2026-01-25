@@ -174,6 +174,6 @@ sce_corrected <- fastMNN(sce, batch = sce$batch)
 
 ## Related Skills
 
-- **gating-analysis** - Manual alternative
-- **differential-analysis** - Compare clusters between conditions
-- **single-cell/clustering** - Similar concepts for scRNA-seq
+- gating-analysis - Manual alternative
+- differential-analysis - Compare clusters between conditions
+- single-cell/clustering - Similar concepts for scRNA-seq

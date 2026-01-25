@@ -297,7 +297,7 @@ echo "Results: ${OUTDIR}/gwas.*.glm.*"
 
 ## Related Skills
 
-- **population-genetics/plink-basics** - PLINK file formats and commands
-- **population-genetics/population-structure** - PCA and admixture
-- **population-genetics/association-testing** - Statistical models
-- **population-genetics/linkage-disequilibrium** - LD concepts
+- population-genetics/plink-basics - PLINK file formats and commands
+- population-genetics/population-structure - PCA and admixture
+- population-genetics/association-testing - Statistical models
+- population-genetics/linkage-disequilibrium - LD concepts

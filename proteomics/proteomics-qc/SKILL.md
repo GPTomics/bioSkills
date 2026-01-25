@@ -183,7 +183,7 @@ def generate_qc_report(intensity_matrix, sample_info):
 
 ## Related Skills
 
-- **data-import** - Load data before QC
-- **quantification** - Normalization after QC
-- **differential-abundance** - Analysis after QC passes
-- **data-visualization/heatmaps-clustering** - QC heatmaps
+- data-import - Load data before QC
+- quantification - Normalization after QC
+- differential-abundance - Analysis after QC passes
+- data-visualization/heatmaps-clustering - QC heatmaps

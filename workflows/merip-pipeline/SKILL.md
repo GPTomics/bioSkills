@@ -196,7 +196,7 @@ echo "=== Complete ==="
 
 ## Related Skills
 
-- **epitranscriptomics/m6a-peak-calling** - Detailed peak calling options
-- **epitranscriptomics/m6a-differential** - Differential analysis methods
-- **epitranscriptomics/modification-visualization** - Visualization techniques
-- **chip-seq/peak-calling** - Similar IP-based peak calling concepts
+- epitranscriptomics/m6a-peak-calling - Detailed peak calling options
+- epitranscriptomics/m6a-differential - Differential analysis methods
+- epitranscriptomics/modification-visualization - Visualization techniques
+- chip-seq/peak-calling - Similar IP-based peak calling concepts

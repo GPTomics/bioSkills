@@ -15,13 +15,10 @@ install.packages(c('qqman', 'ggplot2'))
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Run a GWAS on my genotype data"
-
-> "Find variants associated with my phenotype"
-
-> "Perform case-control association testing"
+Tell your AI agent what you want to do:
+- "Run a GWAS on my genotype data"
+- "Find variants associated with my phenotype"
+- "Perform case-control association testing"
 
 ## Example Prompts
 

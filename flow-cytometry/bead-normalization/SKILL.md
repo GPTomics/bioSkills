@@ -257,10 +257,10 @@ write.FCS(ff_clean, 'normalized_sample.fcs')
 
 ## Related Skills
 
-**Workflow order:** cytometry-qc → doublet-detection → bead-normalization → clustering
+Workflow order: cytometry-qc → doublet-detection → bead-normalization → clustering
 
-- **cytometry-qc** - Run first: identify drift and quality issues
-- **doublet-detection** - Run before: remove doublets prior to normalization
-- **compensation-transformation** - Initial data preprocessing
-- **clustering-phenotyping** - Analysis after normalization
-- **differential-analysis** - Batch-aware statistical testing
+- cytometry-qc - Run first: identify drift and quality issues
+- doublet-detection - Run before: remove doublets prior to normalization
+- compensation-transformation - Initial data preprocessing
+- clustering-phenotyping - Analysis after normalization
+- differential-analysis - Batch-aware statistical testing

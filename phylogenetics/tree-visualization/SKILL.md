@@ -250,6 +250,6 @@ For radial (circular) tree layouts, use external tools like ETE3 or DendroPy.
 
 ## Related Skills
 
-- **tree-io** - Read and write tree files
-- **tree-manipulation** - Ladderize and reroot before visualization
-- **distance-calculations** - Build trees from alignments for visualization
+- tree-io - Read and write tree files
+- tree-manipulation - Ladderize and reroot before visualization
+- distance-calculations - Build trees from alignments for visualization

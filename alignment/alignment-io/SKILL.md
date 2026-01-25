@@ -249,7 +249,7 @@ Align.write(alignment, 'output.fasta', 'fasta')
 
 ## Related Skills
 
-- **pairwise-alignment** - Create pairwise alignments with PairwiseAligner
-- **msa-parsing** - Analyze alignment content and annotations
-- **alignment-statistics** - Calculate conservation and identity
-- **sequence-io/format-conversion** - Convert sequence (non-alignment) formats
+- pairwise-alignment - Create pairwise alignments with PairwiseAligner
+- msa-parsing - Analyze alignment content and annotations
+- msa-statistics - Calculate conservation and identity
+- sequence-io/format-conversion - Convert sequence (non-alignment) formats

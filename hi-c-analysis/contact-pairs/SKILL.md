@@ -255,6 +255,6 @@ echo "Done processing $SAMPLE"
 
 ## Related Skills
 
-- **hic-data-io** - Work with cooler matrices
-- **matrix-operations** - Balance resulting matrices
-- **read-alignment** - Align Hi-C reads before processing
+- hic-data-io - Work with cooler matrices
+- matrix-operations - Balance resulting matrices
+- read-alignment - Align Hi-C reads before processing

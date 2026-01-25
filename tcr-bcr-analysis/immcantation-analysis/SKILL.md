@@ -149,6 +149,6 @@ plotGeneUsage(v_usage, gene = 'v_call')
 
 ## Related Skills
 
-- **mixcr-analysis** - Generate input clonotype data
-- **vdjtools-analysis** - Diversity metrics (TCR-focused)
-- **phylogenetics** - General tree concepts
+- mixcr-analysis - Generate input clonotype data
+- vdjtools-analysis - Diversity metrics (TCR-focused)
+- phylogenetics - General tree concepts

@@ -198,7 +198,7 @@ cnvkit.py sex *.cnr *.cnn
 
 ## Related Skills
 
-- alignment-files/alignment-statistics - QC of input BAMs
+- alignment-files/bam-statistics - QC of input BAMs
 - copy-number/cnv-visualization - Advanced plotting
 - copy-number/cnv-annotation - Gene-level annotation
 - long-read-sequencing/structural-variants - Complementary SV calling

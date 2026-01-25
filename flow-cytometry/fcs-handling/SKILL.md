@@ -186,6 +186,6 @@ df_all <- bind_rows(df_all)
 
 ## Related Skills
 
-- **compensation-transformation** - Apply compensation and transforms
-- **gating-analysis** - Define cell populations
-- **clustering-phenotyping** - Unsupervised analysis
+- compensation-transformation - Apply compensation and transforms
+- gating-analysis - Define cell populations
+- clustering-phenotyping - Unsupervised analysis

@@ -12,13 +12,10 @@ conda install -c bioconda spades flye minimap2 bwa samtools pilon medaka quast b
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Assemble my bacterial genome from Illumina reads"
-
-> "Run de novo assembly on my Nanopore data"
-
-> "Polish my assembly with short reads"
+Tell your AI agent what you want to do:
+- "Assemble my bacterial genome from Illumina reads"
+- "Run de novo assembly on my Nanopore data"
+- "Polish my assembly with short reads"
 
 ## Example Prompts
 

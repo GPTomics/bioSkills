@@ -288,7 +288,7 @@ plotVariability(variability)
 
 ## Related Skills
 
-- **differential-accessibility** - Peak-level differential analysis with DiffBind
-- **footprinting** - TF footprinting with TOBIAS
-- **atac-qc** - Quality control before chromVAR
-- **chip-seq/motif-analysis** - Alternative motif enrichment approaches
+- differential-accessibility - Peak-level differential analysis with DiffBind
+- footprinting - TF footprinting with TOBIAS
+- atac-qc - Quality control before chromVAR
+- chip-seq/motif-analysis - Alternative motif enrichment approaches

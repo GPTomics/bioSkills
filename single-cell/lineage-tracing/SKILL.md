@@ -292,7 +292,7 @@ for clone in expanded[:5]:
 
 ## Related Skills
 
-- **single-cell/trajectory-inference** - Pseudotime inference
-- **single-cell/preprocessing** - Preprocessing
-- **phylogenetics/tree-building** - Tree concepts
-- **single-cell/clustering-annotation** - Cell type assignment
+- single-cell/trajectory-inference - Pseudotime inference
+- single-cell/preprocessing - Preprocessing
+- phylogenetics/tree-building - Tree concepts
+- single-cell/clustering-annotation - Cell type assignment

@@ -123,6 +123,6 @@ ggplot(aldex_results, aes(x = effect, y = -log10(we.eBH))) +
 
 ## Related Skills
 
-- **diversity-analysis** - Identify overall differences first
-- **differential-expression/deseq2-basics** - Similar concepts
-- **pathway-analysis** - Enrichment of differential taxa
+- diversity-analysis - Identify overall differences first
+- differential-expression/deseq2-basics - Similar concepts
+- pathway-analysis - Enrichment of differential taxa

@@ -300,6 +300,6 @@ Need to find related records?
 
 ## Related Skills
 
-- **entrez-search** - Search databases before linking
-- **entrez-fetch** - Retrieve records after finding linked IDs
-- **batch-downloads** - Download many linked records efficiently
+- entrez-search - Search databases before linking
+- entrez-fetch - Retrieve records after finding linked IDs
+- batch-downloads - Download many linked records efficiently

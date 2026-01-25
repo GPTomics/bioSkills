@@ -198,9 +198,9 @@ protein_matrix <- diann %>%
 
 ## Related Skills
 
-- **proteomics/data-import** - Load MS data formats
-- **proteomics/proteomics-qc** - Quality control before analysis
-- **proteomics/quantification** - Normalization methods
-- **proteomics/differential-abundance** - Statistical testing details
-- **proteomics/ptm-analysis** - Phosphoproteomics and other PTMs
-- **data-visualization/specialized-omics-plots** - Volcano plots
+- proteomics/data-import - Load MS data formats
+- proteomics/proteomics-qc - Quality control before analysis
+- proteomics/quantification - Normalization methods
+- proteomics/differential-abundance - Statistical testing details
+- proteomics/ptm-analysis - Phosphoproteomics and other PTMs
+- data-visualization/specialized-omics-plots - Volcano plots

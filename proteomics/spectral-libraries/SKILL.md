@@ -245,6 +245,6 @@ def irt_to_nrt(irt, gradient_length=60):
 
 ## Related Skills
 
-- **dia-analysis** - Use libraries in DIA workflows
-- **peptide-identification** - Generate search results for library building
-- **data-import** - Load MS data for library generation
+- dia-analysis - Use libraries in DIA workflows
+- peptide-identification - Generate search results for library building
+- data-import - Load MS data for library generation

@@ -292,6 +292,6 @@ seurat_obj$UMAP_2 <- umap_coords[, 2]
 
 ## Related Skills
 
-- **preprocessing** - Data must be preprocessed before clustering
-- **markers-annotation** - Find markers for each cluster
-- **data-io** - Save clustered results
+- preprocessing - Data must be preprocessed before clustering
+- markers-annotation - Find markers for each cluster
+- data-io - Save clustered results

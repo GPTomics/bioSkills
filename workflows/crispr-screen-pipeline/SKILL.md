@@ -249,10 +249,10 @@ mageck test -k counts.txt -t Treated -c Control -n crispri_screen
 
 ## Related Skills
 
-- **crispr-screens/screen-qc** - Detailed QC metrics
-- **crispr-screens/mageck-analysis** - MAGeCK parameters
-- **crispr-screens/hit-calling** - Hit calling methods
-- **crispr-screens/crispresso-editing** - Individual editing analysis
-- **crispr-screens/library-design** - sgRNA selection and library design
-- **crispr-screens/batch-correction** - Multi-batch normalization
-- **pathway-analysis/enrichment-analysis** - Pathway enrichment of hits
+- crispr-screens/screen-qc - Detailed QC metrics
+- crispr-screens/mageck-analysis - MAGeCK parameters
+- crispr-screens/hit-calling - Hit calling methods
+- crispr-screens/crispresso-editing - Individual editing analysis
+- crispr-screens/library-design - sgRNA selection and library design
+- crispr-screens/batch-correction - Multi-batch normalization
+- pathway-analysis/enrichment-analysis - Pathway enrichment of hits

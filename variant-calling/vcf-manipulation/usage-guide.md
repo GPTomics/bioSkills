@@ -1,5 +1,7 @@
 # VCF Manipulation Usage Guide
 
+## Overview
+
 This guide covers merging, concatenating, sorting, and comparing VCF files.
 
 ## Prerequisites
@@ -7,6 +9,14 @@ This guide covers merging, concatenating, sorting, and comparing VCF files.
 - bcftools installed (`conda install -c bioconda bcftools`)
 - Input VCFs should be compressed (`.vcf.gz`) and indexed for most operations
 - Index files with `bcftools index input.vcf.gz`
+
+## Quick Start
+
+Tell your AI agent what you want to do:
+- "Merge VCF files from different samples into a single cohort VCF"
+- "Concatenate per-chromosome VCFs into a genome-wide file"
+- "Compare two variant callsets and find shared and unique variants"
+- "Extract specific samples from a multi-sample VCF"
 
 ## Understanding Merge vs Concat
 
@@ -385,6 +395,16 @@ bcftools reheader -s rename.txt input.vcf.gz -o renamed.vcf.gz
 # Or force merge
 bcftools merge --force-samples file1.vcf.gz file2.vcf.gz -Oz -o merged.vcf.gz
 ```
+
+## Example Prompts
+
+> "Merge VCF files from different samples into a single cohort VCF"
+
+> "Concatenate per-chromosome VCFs into a genome-wide file"
+
+> "Compare two variant callsets and find shared and unique variants"
+
+> "Extract specific samples from a multi-sample VCF"
 
 ## See Also
 

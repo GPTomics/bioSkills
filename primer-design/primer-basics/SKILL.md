@@ -263,7 +263,7 @@ print(df)
 
 ## Related Skills
 
-- **qpcr-primers** - Design primers with internal probes for qPCR
-- **primer-validation** - Check primers for specificity and secondary structures
-- **sequence-io** - Load template sequences
-- **database-access/local-blast** - BLAST primers for specificity checking
+- qpcr-primers - Design primers with internal probes for qPCR
+- primer-validation - Check primers for specificity and secondary structures
+- sequence-io - Load template sequences
+- database-access/local-blast - BLAST primers for specificity checking

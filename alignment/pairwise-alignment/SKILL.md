@@ -218,7 +218,7 @@ Need full-length comparison?
 
 ## Related Skills
 
-- **alignment-io** - Save alignments to files in various formats
-- **msa-parsing** - Work with multiple sequence alignments
-- **alignment-statistics** - Calculate identity, similarity metrics
-- **sequence-manipulation/motif-search** - Pattern matching in sequences
+- alignment-io - Save alignments to files in various formats
+- msa-parsing - Work with multiple sequence alignments
+- msa-statistics - Calculate identity, similarity metrics
+- sequence-manipulation/motif-search - Pattern matching in sequences

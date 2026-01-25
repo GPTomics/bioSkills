@@ -13,13 +13,10 @@ BiocManager::install('EnhancedVolcano')  # Optional
 
 ## Quick Start
 
-Ask your AI agent:
-
-> "Create a volcano plot from my DESeq2 results"
-
-> "Make a heatmap of the top 50 differentially expressed genes"
-
-> "Generate a PCA plot colored by treatment group"
+Tell your AI agent what you want to do:
+- "Create a volcano plot from my DESeq2 results"
+- "Make a heatmap of the top 50 differentially expressed genes"
+- "Generate a PCA plot colored by treatment group"
 
 ## Example Prompts
 

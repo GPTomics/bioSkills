@@ -236,6 +236,6 @@ print(f'Valid cooler: {is_valid}')
 
 ## Related Skills
 
-- **matrix-operations** - Balance and normalize matrices
-- **hic-visualization** - Visualize contact matrices
-- **contact-pairs** - Process raw Hi-C pairs
+- matrix-operations - Balance and normalize matrices
+- hic-visualization - Visualize contact matrices
+- contact-pairs - Process raw Hi-C pairs

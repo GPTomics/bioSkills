@@ -350,6 +350,6 @@ random_tree = Tree.randomized(taxa, branch_length=1.0)
 
 ## Related Skills
 
-- **tree-io** - Read and write tree files
-- **tree-visualization** - Draw modified trees
-- **distance-calculations** - Build trees from alignments
+- tree-io - Read and write tree files
+- tree-visualization - Draw modified trees
+- distance-calculations - Build trees from alignments

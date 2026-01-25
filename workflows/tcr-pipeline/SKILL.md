@@ -59,6 +59,6 @@ vdjtools PlotFancyVJUsage vdjtools/clones.txt usage/
 
 ## Related Skills
 
-- **tcr-bcr-analysis/mixcr-analysis** - Detailed MiXCR usage
-- **tcr-bcr-analysis/vdjtools-analysis** - Diversity metrics
-- **tcr-bcr-analysis/repertoire-visualization** - Plots
+- tcr-bcr-analysis/mixcr-analysis - Detailed MiXCR usage
+- tcr-bcr-analysis/vdjtools-analysis - Diversity metrics
+- tcr-bcr-analysis/repertoire-visualization - Plots

@@ -264,7 +264,7 @@ cat ${OUTDIR}/quast/report.txt
 
 ## Related Skills
 
-- **genome-assembly/short-read-assembly** - SPAdes details
-- **genome-assembly/long-read-assembly** - Flye, Canu, Hifiasm
-- **genome-assembly/assembly-polishing** - Pilon, medaka, Racon
-- **genome-assembly/assembly-qc** - QUAST, BUSCO metrics
+- genome-assembly/short-read-assembly - SPAdes details
+- genome-assembly/long-read-assembly - Flye, Canu, Hifiasm
+- genome-assembly/assembly-polishing - Pilon, medaka, Racon
+- genome-assembly/assembly-qc - QUAST, BUSCO metrics

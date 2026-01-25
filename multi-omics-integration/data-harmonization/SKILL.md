@@ -205,7 +205,7 @@ write.csv(scaled_meth, 'harmonized_methylation.csv')
 
 ## Related Skills
 
-- **mofa-integration** - Use harmonized data in MOFA2
-- **mixomics-analysis** - Use harmonized data in mixOmics
-- **differential-expression/batch-correction** - RNA-seq batch correction
-- **proteomics/proteomics-qc** - Proteomics-specific QC
+- mofa-integration - Use harmonized data in MOFA2
+- mixomics-analysis - Use harmonized data in mixOmics
+- differential-expression/batch-correction - RNA-seq batch correction
+- proteomics/proteomics-qc - Proteomics-specific QC

@@ -298,6 +298,6 @@ seurat_obj <- SCTransform(seurat_obj, vars.to.regress = 'percent.mt', verbose = 
 
 ## Related Skills
 
-- **data-io** - Load data before preprocessing
-- **clustering** - PCA and clustering after preprocessing
-- **markers-annotation** - Find markers after clustering
+- data-io - Load data before preprocessing
+- clustering - PCA and clustering after preprocessing
+- markers-annotation - Find markers after clustering

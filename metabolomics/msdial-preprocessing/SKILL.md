@@ -283,7 +283,7 @@ normalize_pqn <- function(data) {
 
 ## Related Skills
 
-- **xcms-preprocessing** - Alternative preprocessing with XCMS
-- **metabolite-annotation** - Additional annotation methods
-- **normalization-qc** - Detailed normalization approaches
-- **lipidomics** - Lipid-specific MS-DIAL workflows
+- xcms-preprocessing - Alternative preprocessing with XCMS
+- metabolite-annotation - Additional annotation methods
+- normalization-qc - Detailed normalization approaches
+- lipidomics - Lipid-specific MS-DIAL workflows

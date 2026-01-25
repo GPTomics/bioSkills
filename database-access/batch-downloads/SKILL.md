@@ -359,6 +359,6 @@ Need to download many NCBI records?
 
 ## Related Skills
 
-- **entrez-search** - Build search queries for batch downloads
-- **entrez-fetch** - Single record fetching
-- **sra-data** - For raw sequencing data (use SRA toolkit instead)
+- entrez-search - Build search queries for batch downloads
+- entrez-fetch - Single record fetching
+- sra-data - For raw sequencing data (use SRA toolkit instead)

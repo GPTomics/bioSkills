@@ -190,5 +190,5 @@ export(dmr_gr, 'dmrs.gff3', format = 'GFF3')
 
 - methylkit-analysis - Single CpG analysis
 - methylation-calling - Generate input files
-- pathway-analysis - Functional annotation of DMR genes
-- differential-expression - Compare with expression changes
+- pathway-analysis/go-enrichment - Functional annotation of DMR genes
+- differential-expression/deseq2-basics - Compare with expression changes

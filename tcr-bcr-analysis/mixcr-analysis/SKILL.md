@@ -132,6 +132,6 @@ def load_mixcr_clones(filepath):
 
 ## Related Skills
 
-- **vdjtools-analysis** - Downstream diversity analysis
-- **scirpy-analysis** - Single-cell VDJ integration
-- **repertoire-visualization** - Visualize MiXCR output
+- vdjtools-analysis - Downstream diversity analysis
+- scirpy-analysis - Single-cell VDJ integration
+- repertoire-visualization - Visualize MiXCR output

@@ -163,6 +163,6 @@ plot_ordination(ps, ord_nmds, color = 'Group') +
 
 ## Related Skills
 
-- **amplicon-processing** - Generate ASV table
-- **differential-abundance** - Identify taxa driving differences
-- **data-visualization/ggplot2-fundamentals** - Custom diversity plots
+- amplicon-processing - Generate ASV table
+- differential-abundance - Identify taxa driving differences
+- data-visualization/ggplot2-fundamentals - Custom diversity plots

@@ -154,8 +154,8 @@ Converting formats?
 
 ## Related Skills
 
-- **read-sequences** - Parse sequences for custom conversion logic
-- **write-sequences** - Write converted sequences with modifications
-- **batch-processing** - Convert multiple files at once
-- **compressed-files** - Handle compressed input/output during conversion
-- **alignment-files** - For SAM/BAM/CRAM conversion, use samtools view
+- read-sequences - Parse sequences for custom conversion logic
+- write-sequences - Write converted sequences with modifications
+- batch-processing - Convert multiple files at once
+- compressed-files - Handle compressed input/output during conversion
+- alignment-files - For SAM/BAM/CRAM conversion, use samtools view

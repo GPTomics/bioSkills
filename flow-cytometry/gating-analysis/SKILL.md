@@ -171,6 +171,6 @@ gatingset_to_flowjo(gs, 'analysis.wsp')
 
 ## Related Skills
 
-- **compensation-transformation** - Preprocess before gating
-- **clustering-phenotyping** - Unsupervised alternative
-- **differential-analysis** - Compare gated populations
+- compensation-transformation - Preprocess before gating
+- clustering-phenotyping - Unsupervised alternative
+- differential-analysis - Compare gated populations

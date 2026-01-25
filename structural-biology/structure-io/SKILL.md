@@ -277,7 +277,7 @@ with warnings.catch_warnings(record=True) as w:
 
 ## Related Skills
 
-- **structure-navigation** - Traverse SMCRA hierarchy to access chains, residues, atoms
-- **geometric-analysis** - Measure distances, angles, and superimpose structures
-- **structure-modification** - Modify coordinates and properties before writing
-- **database-access** - Fetch structure metadata from NCBI/UniProt
+- structure-navigation - Traverse SMCRA hierarchy to access chains, residues, atoms
+- geometric-analysis - Measure distances, angles, and superimpose structures
+- structure-modification - Modify coordinates and properties before writing
+- database-access - Fetch structure metadata from NCBI/UniProt
