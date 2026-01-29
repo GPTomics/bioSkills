@@ -289,5 +289,5 @@ bcftools query -f '%AF\n' somatic_final.vcf.gz | \
 - variant-calling/gatk-variant-calling - Germline variant calling
 - variant-calling/filtering-best-practices - Filtering strategies
 - variant-calling/variant-annotation - VEP/SnpEff annotation
-- copy-number/cnvkit - Somatic CNV calling
-- workflows/variant-to-annotation - Germline pipeline
+- copy-number/cnvkit-analysis - Somatic CNV calling
+- variant-calling/variant-annotation - Germline pipeline

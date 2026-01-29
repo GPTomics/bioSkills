@@ -1,7 +1,7 @@
 ---
 name: bio-data-visualization-multipanel-figures
-description: Combine multiple plots into publication-ready multi-panel figures using patchwork, cowplot, and gridExtra with shared legends and annotations. Use when combining multiple plots into publication figures.
-tool_type: r
+description: Combine multiple plots into publication-ready multi-panel figures using patchwork, cowplot, or matplotlib GridSpec with shared legends and panel labels. Use when combining multiple plots into publication figures.
+tool_type: mixed
 primary_tool: patchwork
 ---
 
@@ -196,6 +196,55 @@ figure <- (p_volcano | p_pca) / (p_heatmap | p_boxplot) +
     )
 
 ggsave('Figure1.pdf', figure, width = 180, height = 160, units = 'mm')
+```
+
+## matplotlib GridSpec (Python)
+
+```python
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+
+fig = plt.figure(figsize=(12, 8))
+gs = GridSpec(2, 3, figure=fig)
+
+ax1 = fig.add_subplot(gs[0, 0])    # Top left
+ax2 = fig.add_subplot(gs[0, 1:])   # Top right, spans 2 columns
+ax3 = fig.add_subplot(gs[1, :])    # Bottom, spans all columns
+
+# Add plots to each axis
+ax1.plot(x, y)
+ax2.scatter(x, y)
+ax3.bar(x, y)
+
+plt.tight_layout()
+```
+
+## matplotlib Panel Labels
+
+```python
+# Add panel labels
+for ax, label in zip([ax1, ax2, ax3], ['A', 'B', 'C']):
+    ax.text(-0.1, 1.1, label, transform=ax.transAxes,
+            fontsize=14, fontweight='bold', va='top')
+```
+
+## matplotlib Subfigures
+
+```python
+# matplotlib 3.4+ subfigures for complex layouts
+fig = plt.figure(figsize=(12, 8))
+subfigs = fig.subfigures(1, 2, width_ratios=[2, 1])
+
+axs_left = subfigs[0].subplots(2, 1)
+ax_right = subfigs[1].subplots(1, 1)
+```
+
+## Publication Export
+
+```python
+# Python
+fig.savefig('figure1.pdf', bbox_inches='tight')
+fig.savefig('figure1.png', dpi=300, bbox_inches='tight')
 ```
 
 ## Related Skills

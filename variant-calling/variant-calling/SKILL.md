@@ -233,6 +233,6 @@ bcftools mpileup -Ou -f reference.fa input.bam | bcftools call -mv -Ou | \
 ## Related Skills
 
 - vcf-basics - View and query resulting VCF
-- vcf-filtering - Filter variants by quality
+- filtering-best-practices - Filter variants by quality
 - variant-normalization - Normalize indels
 - alignment-files/pileup-generation - Alternative pileup generation

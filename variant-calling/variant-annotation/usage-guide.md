@@ -388,4 +388,4 @@ bcftools annotate -a database.vcf.gz -c INFO/AF \
 - [bcftools annotate documentation](http://www.htslib.org/doc/bcftools.html#annotate)
 - [bcftools csq documentation](http://www.htslib.org/doc/bcftools.html#csq)
 - **variant-normalization** - Normalize before annotating
-- **vcf-filtering** - Filter by annotations
+- **filtering-best-practices** - Filter by annotations

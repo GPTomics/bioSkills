@@ -83,7 +83,8 @@ null_mean = gene_lfc['mean_lfc'].median()
 null_std = gene_lfc['mean_lfc'].std()
 gene_lfc['z_score'] = (gene_lfc['mean_lfc'] - null_mean) / null_std
 gene_lfc['pvalue'] = 2 * stats.norm.sf(abs(gene_lfc['z_score']))
-gene_lfc['fdr'] = stats.false_discovery_control(gene_lfc['pvalue'])
+from statsmodels.stats.multitest import multipletests
+_, gene_lfc['fdr'], _, _ = multipletests(gene_lfc['pvalue'], method='fdr_bh')
 
 # Call hits
 essential = gene_lfc[(gene_lfc['z_score'] < -2) & (gene_lfc['fdr'] < 0.1)]

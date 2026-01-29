@@ -122,15 +122,15 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **reporting** | 5 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
 | **experimental-design** | 4 | RNASeqPower, ssizeRNA, qvalue, sva | Power analysis, sample size, multiple testing, batch design |
 | **workflow-management** | 4 | Snakemake, Nextflow, cwltool, Cromwell | Scalable pipeline frameworks with containers |
-| **data-visualization** | 8 | ggplot2, matplotlib, plotly, ComplexHeatmap | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos |
+| **data-visualization** | 11 | ggplot2, matplotlib, plotly, ComplexHeatmap | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos, UpSet, volcano |
 | **tcr-bcr-analysis** | 5 | MiXCR, VDJtools, Immcantation, scirpy | TCR/BCR repertoire analysis, clonotype assembly, diversity metrics |
 | **small-rna-seq** | 5 | miRDeep2, miRge3, cutadapt, DESeq2 | miRNA/piRNA analysis, differential expression, target prediction |
 | **ribo-seq** | 5 | Plastid, RiboCode, ORFik, riborex | Ribosome profiling, translation efficiency, ORF detection |
 | **epitranscriptomics** | 5 | exomePeak2, MACS3, m6Anet, Guitar | RNA modifications (m6A), MeRIP-seq, ONT direct RNA |
 | **clip-seq** | 5 | CLIPper, PureCLIP, umi_tools, HOMER | Protein-RNA interactions, crosslink detection, binding site motifs |
-| **clinical-databases** | 5 | myvariant, requests, pandas | Clinical variant queries, ClinVar/gnomAD access, variant prioritization |
+| **clinical-databases** | 10 | myvariant, requests, pandas, SigProfiler | Clinical variant queries, ClinVar/gnomAD, pharmacogenomics, TMB, HLA, PRS, signatures |
 
-**Total: 322 skills across 47 categories**
+**Total: 330 skills across 47 categories**
 
 ## Example Usage
 
@@ -208,18 +208,6 @@ Key requirements:
 - `primary_tool` must be a single value (not comma-separated)
 - Quick Start uses bullets; Example Prompts use blockquotes
 - Examples must document magic numbers with rationale
-
-## Quality Assurance
-
-All 322 skills have been audited against [Claude Skills Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) (January 2026). The repository is 100% compliant with:
-- SKILL.md description includes "Use when..." trigger context
-- Third-person descriptions (no "you" or "your")
-- Single `primary_tool` value per skill
-- Quick Start uses bullets; Example Prompts use blockquotes
-- All required sections present in usage-guide.md
-- Related Skills references are valid and unformatted
-
-See `AUDIT_PLAN.md` for full audit details.
 
 ## License
 

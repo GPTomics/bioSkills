@@ -279,6 +279,6 @@ print(f'Percentage: {multiallelic/total*100:.1f}%')
 ## Related Skills
 
 - variant-calling - Generate VCF files
-- vcf-filtering - Filter after normalization
+- filtering-best-practices - Filter after normalization
 - vcf-manipulation - Compare normalized VCFs
 - variant-annotation - Annotate normalized variants

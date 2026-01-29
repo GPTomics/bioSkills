@@ -199,5 +199,5 @@ seurat_obj <- FindNeighbors(seurat_obj, reduction = 'harmony', dims = 1:30)
 ## Related Skills
 
 - differential-expression/deseq2-basics - DE with batch in design
-- single-cell/clustering-annotation - Integration methods
+- single-cell/clustering - Integration methods
 - expression-matrix/matrix-operations - Data transformation

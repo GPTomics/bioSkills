@@ -213,6 +213,6 @@ DotPlot(seurat_obj, features = unlist(canonical_markers), group.by = 'predicted_
 
 ## Related Skills
 
-- single-cell/clustering-annotation - Manual marker-based annotation
+- single-cell/clustering - Manual marker-based annotation
 - single-cell/cell-communication - Use annotated types for CCC
 - single-cell/trajectory-inference - Trajectory on annotated data

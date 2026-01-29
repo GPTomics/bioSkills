@@ -373,6 +373,6 @@ gatk VariantFiltration -R $REF -V ${SAMPLE}.vcf.gz \
 
 - variant-calling - bcftools alternative
 - alignment-files - BAM preprocessing
-- vcf-filtering - Post-calling filtering
+- filtering-best-practices - Post-calling filtering
 - variant-normalization - Normalize before annotation
 - vep-snpeff-annotation - Annotate final calls

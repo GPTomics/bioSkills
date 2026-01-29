@@ -232,7 +232,7 @@ li.pl.factor_loadings(adata, factor_idx=0)
 
 ## Related Skills
 
-- single-cell/clustering-annotation - Define cell types first
+- single-cell/clustering - Define cell types first
 - single-cell/trajectory-inference - Communication along trajectory
 - spatial-transcriptomics/spatial-communication - Spatial context
-- pathway-analysis/enrichment-analysis - Pathway enrichment of targets
+- pathway-analysis/go-enrichment - Pathway enrichment of targets

@@ -338,5 +338,5 @@ mofa <- create_mofa_from_Seurat(seurat_obj, groups = 'cell_type',
 - multi-omics-integration/mixomics-analysis - mixOmics methods
 - multi-omics-integration/similarity-network - SNF method
 - multi-omics-integration/data-harmonization - Preprocessing
-- pathway-analysis/enrichment-analysis - Factor interpretation
+- pathway-analysis/go-enrichment - Factor interpretation
 - differential-expression/batch-correction - Batch effects

@@ -255,4 +255,4 @@ mageck test -k counts.txt -t Treated -c Control -n crispri_screen
 - crispr-screens/crispresso-editing - Individual editing analysis
 - crispr-screens/library-design - sgRNA selection and library design
 - crispr-screens/batch-correction - Multi-batch normalization
-- pathway-analysis/enrichment-analysis - Pathway enrichment of hits
+- pathway-analysis/go-enrichment - Pathway enrichment of hits
