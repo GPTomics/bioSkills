@@ -190,6 +190,6 @@ sc.pl.draw_graph(adata, color='dpt_pseudotime')
 
 ## Related Skills
 
-- single-cell/clustering-annotation - Prerequisite clustering
+- single-cell/clustering - Prerequisite clustering
 - single-cell/cell-communication - Downstream signaling analysis
 - differential-expression/deseq2-basics - DE along trajectory

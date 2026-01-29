@@ -311,4 +311,4 @@ echo "Report: ${OUTPUT_PREFIX}_report.tsv"
 - variant-calling/variant-annotation - VEP/SnpEff annotation
 - variant-calling/filtering-best-practices - Quality filtering
 - database-access/entrez-fetch - Download ClinVar/OMIM data
-- pathway-analysis/enrichment-analysis - Gene set analysis
+- pathway-analysis/go-enrichment - Gene set analysis

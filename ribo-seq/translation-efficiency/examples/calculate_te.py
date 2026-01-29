@@ -84,9 +84,9 @@ def differential_te(te_matrix, condition_labels):
 
     df = pd.DataFrame(results)
 
-    # FDR correction
-    from scipy.stats import false_discovery_control
-    df['padj'] = false_discovery_control(df['pvalue'], method='bh')
+    # FDR correction using statsmodels for broader compatibility
+    from statsmodels.stats.multitest import multipletests
+    _, df['padj'], _, _ = multipletests(df['pvalue'], method='fdr_bh')
 
     return df.sort_values('padj')
 

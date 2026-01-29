@@ -8,6 +8,10 @@ Combine individual ggplot2 plots into publication-ready multi-panel figures with
 install.packages(c('patchwork', 'cowplot', 'gridExtra'))
 ```
 
+```bash
+pip install matplotlib numpy
+```
+
 ## Quick Start
 Tell your AI agent what you want to do:
 - "Combine my volcano plot and PCA into one figure"
@@ -39,11 +43,12 @@ Tell your AI agent what you want to do:
 
 ## Tool Comparison
 
-| Package | Strengths |
-|---------|-----------|
-| patchwork | Intuitive operators, ggplot2 native |
-| cowplot | Simple API, good for basic layouts |
-| gridExtra | Fine control, complex arrangements |
+| Package | Language | Strengths |
+|---------|----------|-----------|
+| patchwork | R | Intuitive operators, ggplot2 native |
+| cowplot | R | Simple API, good for basic layouts |
+| gridExtra | R | Fine control, complex arrangements |
+| matplotlib GridSpec | Python | Full control, Python workflows |
 
 ## Common Layouts
 ```r
@@ -61,10 +66,12 @@ p1 + p2 + plot_layout(widths = c(2, 1))
 ```
 
 ## Tips
-- Use patchwork for most layouts (simplest syntax)
-- Add panel labels with `plot_annotation(tag_levels = 'A')`
-- Control relative sizes with `plot_layout(widths = ..., heights = ...)`
-- Collect legends with `plot_layout(guides = 'collect')`
+- Use patchwork for most R layouts (simplest syntax)
+- Add panel labels with `plot_annotation(tag_levels = 'A')` in R
+- Control relative sizes with `plot_layout(widths = ..., heights = ...)` in R
+- Collect legends with `plot_layout(guides = 'collect')` in R
+- Use GridSpec for Python workflows with full layout control
+- Standard sizes: 7" single column, 14" double column for journals
 
 ## Related Skills
 - **data-visualization/ggplot2-fundamentals** - Create individual plots

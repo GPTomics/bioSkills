@@ -413,5 +413,5 @@ bcftools norm -c w -f reference.fa input.vcf.gz > /dev/null
 
 - [bcftools stats documentation](http://www.htslib.org/doc/bcftools.html#stats)
 - [bcftools gtcheck documentation](http://www.htslib.org/doc/bcftools.html#gtcheck)
-- **vcf-filtering** - Filter based on statistics
+- **filtering-best-practices** - Filter based on statistics
 - **vcf-basics** - Query VCF data

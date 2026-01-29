@@ -10,7 +10,7 @@ depends_on:
   - alignment-files/alignment-sorting
   - alignment-files/duplicate-handling
   - variant-calling/variant-calling
-  - variant-calling/vcf-filtering
+  - variant-calling/filtering-best-practices
 qc_checkpoints:
   - after_qc: "Q30 >85%, adapter content <1%"
   - after_alignment: "Mapping rate >95%, properly paired >90%"
@@ -350,5 +350,5 @@ echo "Filtered VCF: ${OUTDIR}/variants/cohort.filtered.vcf.gz"
 - alignment-files/duplicate-handling - Duplicate marking details
 - variant-calling/variant-calling - bcftools calling options
 - variant-calling/gatk-variant-calling - GATK HaplotypeCaller details
-- variant-calling/vcf-filtering - Advanced filtering strategies
+- variant-calling/filtering-best-practices - Advanced filtering strategies
 - variant-calling/variant-annotation - Annotate variants with VEP

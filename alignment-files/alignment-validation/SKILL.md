@@ -351,4 +351,4 @@ validator.close()
 - bam-statistics - Basic flagstat and depth
 - duplicate-handling - Mark/remove duplicates
 - alignment-filtering - Filter low-quality reads
-- chipseq-qc - ChIP-specific metrics
+- chip-seq/chipseq-qc - ChIP-specific metrics

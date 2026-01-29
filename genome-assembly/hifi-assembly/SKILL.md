@@ -152,7 +152,7 @@ assembly = run_hifiasm('sample.hifi.fq.gz', 'sample_asm', threads=48, hic_r1='hi
 
 ## Related Skills
 
-- genome-assembly/quality-assessment - QUAST and BUSCO
+- genome-assembly/assembly-qc - QUAST and BUSCO
 - genome-assembly/scaffolding - YaHS Hi-C scaffolding
 - genome-assembly/contamination-detection - CheckM2 decontamination
 - long-read-sequencing/read-qc - HiFi quality control

@@ -318,6 +318,6 @@ Note: Use `bcftools consensus` for production - handles indels and edge cases pr
 ## Related Skills
 
 - variant-calling - Generate VCF for consensus
-- vcf-filtering - Filter variants before consensus
+- filtering-best-practices - Filter variants before consensus
 - variant-normalization - Normalize indels first
 - alignment-files/reference-operations - Reference manipulation

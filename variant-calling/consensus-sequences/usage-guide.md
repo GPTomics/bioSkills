@@ -357,5 +357,5 @@ bcftools consensus -f reference.fa input.vcf.gz 2>&1 | grep -i "overlap"
 
 - [bcftools consensus documentation](http://www.htslib.org/doc/bcftools.html#consensus)
 - **variant-calling** - Generate VCF files
-- **vcf-filtering** - Filter variants before consensus
+- **filtering-best-practices** - Filter variants before consensus
 - **variant-normalization** - Normalize variants first

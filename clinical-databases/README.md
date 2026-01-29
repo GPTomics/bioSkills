@@ -15,6 +15,11 @@ Query clinical and population genetics databases including ClinVar, dbSNP, gnomA
 | gnomad-frequencies | Population allele frequencies from gnomAD |
 | dbsnp-queries | rsID lookup and variant annotation |
 | variant-prioritization | Filter variants by pathogenicity and frequency criteria |
+| pharmacogenomics | PharmGKB/CPIC drug-gene interactions and star allele interpretation |
+| polygenic-risk | PRS calculation with PRSice-2, LDpred2 |
+| tumor-mutational-burden | TMB calculation with panel normalization |
+| hla-typing | HLA allele calling with OptiType, HLA-HD |
+| somatic-signatures | Mutational signature extraction with SigProfiler |
 
 ## Example Prompts
 
@@ -25,11 +30,21 @@ Query clinical and population genetics databases including ClinVar, dbSNP, gnomA
 - "Prioritize variants with AF < 0.01 and ClinVar pathogenic"
 - "Get OMIM disease associations for these genes"
 - "Batch annotate my VCF with ClinVar and gnomAD"
+- "What is my CYP2D6 metabolizer status for *1/*4?"
+- "Calculate polygenic risk score from my GWAS summary stats"
+- "Calculate tumor mutational burden from my somatic VCF"
+- "Run HLA typing on my WES data"
+- "Extract mutational signatures from my tumor samples"
 
 ## Requirements
 
 ```bash
-pip install myvariant requests pandas cyvcf2
+pip install myvariant requests pandas cyvcf2 SigProfilerExtractor
+```
+
+```r
+# For LDpred2
+install.packages('bigsnpr')
 ```
 
 ## Related Skills

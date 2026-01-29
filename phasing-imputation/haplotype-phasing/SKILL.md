@@ -166,5 +166,5 @@ unzip plink.GRCh38.map.zip
 
 - phasing-imputation/genotype-imputation - Impute after phasing
 - phasing-imputation/reference-panels - Get reference data
-- variant-calling/vcf-filtering - Prepare input VCF
+- variant-calling/filtering-best-practices - Prepare input VCF
 - population-genetics/linkage-disequilibrium - LD analysis

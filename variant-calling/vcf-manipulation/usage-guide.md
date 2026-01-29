@@ -412,4 +412,4 @@ bcftools merge --force-samples file1.vcf.gz file2.vcf.gz -Oz -o merged.vcf.gz
 - [bcftools concat documentation](http://www.htslib.org/doc/bcftools.html#concat)
 - [bcftools isec documentation](http://www.htslib.org/doc/bcftools.html#isec)
 - **vcf-basics** - View and query VCF files
-- **vcf-filtering** - Filter variants before manipulation
+- **filtering-best-practices** - Filter variants before manipulation

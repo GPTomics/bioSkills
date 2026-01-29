@@ -232,5 +232,5 @@ See **long-read-sequencing/structural-variants** for long-read SV workflows.
 
 - long-read-sequencing/structural-variants - Long-read SV calling
 - copy-number/cnvkit-analysis - Copy number variants
-- variant-calling/vcf-filtering - Filter VCF files
+- variant-calling/filtering-best-practices - Filter VCF files
 - alignment-files/alignment-filtering - Prepare BAM files

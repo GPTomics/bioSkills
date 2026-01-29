@@ -365,5 +365,5 @@ bcftools query -f '%CHROM\t%POS\t%INFO/DP\n' variants.vcf
 - [bcftools mpileup documentation](http://www.htslib.org/doc/bcftools.html#mpileup)
 - [bcftools call documentation](http://www.htslib.org/doc/bcftools.html#call)
 - **vcf-basics** - View and query resulting VCF files
-- **vcf-filtering** - Filter variants by quality
+- **filtering-best-practices** - Filter variants by quality
 - **variant-normalization** - Normalize indels after calling

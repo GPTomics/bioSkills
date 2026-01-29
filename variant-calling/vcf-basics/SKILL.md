@@ -304,6 +304,6 @@ vcf.close()
 ## Related Skills
 
 - variant-calling - Generate VCF from alignments
-- vcf-filtering - Filter variants by quality/criteria
+- filtering-best-practices - Filter variants by quality/criteria
 - vcf-manipulation - Merge, concat, intersect VCFs
 - alignment-files/pileup-generation - Generate pileup for calling

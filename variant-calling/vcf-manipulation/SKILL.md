@@ -373,6 +373,6 @@ print(f'Unique to sample2: {unique}')
 ## Related Skills
 
 - vcf-basics - View and query VCF files
-- vcf-filtering - Filter variants before manipulation
+- filtering-best-practices - Filter variants before manipulation
 - variant-normalization - Normalize before comparing
 - vcf-statistics - Compare statistics after manipulation

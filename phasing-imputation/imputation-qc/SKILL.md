@@ -241,5 +241,5 @@ echo "Final variants: $(bcftools view -H ${OUTPUT}_nodup.vcf.gz | wc -l)"
 ## Related Skills
 
 - phasing-imputation/genotype-imputation - Generate imputed data
-- variant-calling/vcf-filtering - VCF filtering operations
+- variant-calling/filtering-best-practices - VCF filtering operations
 - population-genetics/association-testing - GWAS with imputed data
