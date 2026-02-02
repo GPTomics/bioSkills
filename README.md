@@ -91,7 +91,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **phylogenetics** | 5 | Bio.Phylo, IQ-TREE2, RAxML-ng | Tree I/O, visualization, ML inference with model selection, ultrafast bootstrap |
 | **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
 | **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
-| **single-cell** | 13 | Seurat, Scanpy, Pertpy, Cassiopeia | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing |
+| **single-cell** | 14 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication |
 | **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 4 | Bismark, methylKit, bsseq | Bisulfite alignment, methylation calling, DMRs |
@@ -111,7 +111,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
 | **spatial-transcriptomics** | 11 | Squidpy, SpatialData, Scanpy, scimap | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution, spatial proteomics |
 | **hi-c-analysis** | 8 | cooler, cooltools, pairtools, HiCExplorer | Contact matrices, compartments, TADs, loops, differential |
-| **workflows** | 28 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics |
+| **workflows** | 32 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling |
 | **proteomics** | 9 | pyOpenMS, MSstats, limma, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
@@ -129,8 +129,13 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **epitranscriptomics** | 5 | exomePeak2, MACS3, m6Anet, Guitar | RNA modifications (m6A), MeRIP-seq, ONT direct RNA |
 | **clip-seq** | 5 | CLIPper, PureCLIP, umi_tools, HOMER | Protein-RNA interactions, crosslink detection, binding site motifs |
 | **clinical-databases** | 10 | myvariant, requests, pandas, SigProfiler | Clinical variant queries, ClinVar/gnomAD, pharmacogenomics, TMB, HLA, PRS, signatures |
+| **genome-engineering** | 5 | crisprscan, Cas-OFFinder, PrimeDesign | CRISPR guide design, off-target prediction, prime/base editing, HDR templates |
+| **systems-biology** | 5 | cobrapy, CarveMe, memote | Flux balance analysis, metabolic reconstruction, model curation, gene essentiality |
+| **epidemiological-genomics** | 5 | mlst, TreeTime, TransPhylo, AMRFinderPlus | Pathogen typing, phylodynamics, transmission networks, AMR surveillance |
+| **immunoinformatics** | 5 | mhcflurry, pVACtools, BepiPred | MHC binding prediction, neoantigen identification, epitope prediction |
+| **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference |
 
-**Total: 330 skills across 47 categories**
+**Total: 356 skills across 52 categories**
 
 ## Example Usage
 
@@ -195,6 +200,18 @@ Once skills are deployed, ask your agent naturally:
 "Call methylation from my nanopore BAM file"
 "Generate a MultiQC report from my pipeline outputs"
 "Export my figure at 300 DPI for journal submission"
+"Design guides to knock out BRCA1"
+"Check off-target sites for my guide sequence"
+"Run FBA on my metabolic model"
+"Find essential genes in the E. coli model"
+"Type my Salmonella isolates with MLST"
+"Build a time-scaled phylogeny for this outbreak"
+"Predict MHC binding for these peptides"
+"Find neoantigens from my somatic VCF"
+"Detect synteny blocks between human and mouse"
+"Test for positive selection on this gene"
+"Find orthologs of BRCA1 across vertebrates"
+"Analyze metabolite-receptor signaling between cell types"
 ```
 
 The agent will select appropriate tools based on context.

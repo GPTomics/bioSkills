@@ -38,6 +38,10 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | riboseq-pipeline | Ribo-seq from FASTQ to translation efficiency |
 | merip-pipeline | MeRIP-seq from FASTQ to m6A peaks |
 | clip-pipeline | CLIP-seq from FASTQ to binding sites and motifs |
+| neoantigen-pipeline | Somatic variants to ranked vaccine candidates |
+| outbreak-pipeline | Pathogen isolates to transmission networks |
+| crispr-editing-pipeline | Target to CRISPR constructs with branching strategies |
+| metabolic-modeling-pipeline | Genome to flux predictions with iterative curation |
 
 ## Example Prompts
 
@@ -61,6 +65,10 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 - "Process my Ribo-seq to translation efficiency"
 - "Run m6A analysis from MeRIP-seq data"
 - "Find RBP binding sites from my CLIP-seq data"
+- "Find neoantigens from my somatic VCF for vaccine design"
+- "Investigate this outbreak with genomic data"
+- "Design CRISPR guides to knock out my target gene"
+- "Build a metabolic model from my genome annotation"
 
 ## Requirements
 

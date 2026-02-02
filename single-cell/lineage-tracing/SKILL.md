@@ -294,5 +294,5 @@ for clone in expanded[:5]:
 
 - single-cell/trajectory-inference - Pseudotime inference
 - single-cell/preprocessing - Preprocessing
-- phylogenetics/tree-building - Tree concepts
+- phylogenetics/modern-tree-inference - Tree inference concepts
 - single-cell/clustering - Cell type assignment
