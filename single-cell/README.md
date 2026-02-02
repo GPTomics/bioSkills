@@ -4,7 +4,7 @@
 
 Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the complete workflow from loading data through quality control, normalization, clustering, marker gene identification, and cell type annotation.
 
-**Tool type:** mixed | **Primary tools:** Seurat, Scanpy, Pertpy, Cassiopeia
+**Tool type:** mixed | **Primary tools:** Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost
 
 ## Skills
 
@@ -23,6 +23,7 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 | scatac-analysis | Single-cell ATAC-seq with Signac and ArchR |
 | perturb-seq | Analyze Perturb-seq/CROP-seq with Pertpy, Mixscape; guide assignment, DE, pathway enrichment |
 | lineage-tracing | Reconstruct lineages from CRISPR barcodes with Cassiopeia, CoSpar; tree inference, fate mapping |
+| metabolite-communication | Metabolite-mediated cell-cell communication with MeboCost |
 
 ## Example Prompts
 
@@ -50,6 +51,8 @@ Single-cell RNA-seq analysis using Seurat (R) and Scanpy (Python). Covers the co
 - "Find genes affected by each perturbation"
 - "Build lineage tree from CRISPR barcodes"
 - "Track clonal dynamics with CoSpar"
+- "Analyze metabolite-receptor signaling between cell types"
+- "Find metabolite-mediated communication in my tumor microenvironment"
 
 ## Requirements
 
@@ -66,8 +69,8 @@ BiocManager::install('scDblFinder')
 install.packages('Signac')
 BiocManager::install(c('chromVAR', 'motifmatchr', 'JASPAR2020'))
 
-# Python (Perturbation and lineage)
-pip install pertpy cassiopeia-lineage cospar
+# Python (Perturbation, lineage, and metabolite communication)
+pip install pertpy cassiopeia-lineage cospar mebocost
 ```
 
 ## Related Skills
