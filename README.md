@@ -136,7 +136,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 366 skills across 53 categories**
+**Total: 367 skills across 53 categories**
 
 ## Example Usage
 
