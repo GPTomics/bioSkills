@@ -14,11 +14,9 @@ pip install primer3-py biopython pandas
 
 Ask your AI agent:
 
-> "Design qPCR primers with a TaqMan probe for my gene"
-
-> "Design SYBR Green primers for this sequence"
-
-> "Find qPCR primers that span exon 2-3 junction"
+- "Design qPCR primers with a TaqMan probe for my gene"
+- "Design SYBR Green primers for this sequence"
+- "Find qPCR primers that span exon 2-3 junction"
 
 ## Example Prompts
 

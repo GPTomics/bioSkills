@@ -178,5 +178,5 @@ def enrich_target_genes(targets, background=None):
 ## Related Skills
 
 - differential-mirna - Get DE miRNAs for target prediction
-- pathway-analysis - Enrich target gene functions
-- database-access - Query biological databases
+- pathway-analysis/go-enrichment - Enrich target gene functions
+- database-access/entrez-fetch - Query biological databases

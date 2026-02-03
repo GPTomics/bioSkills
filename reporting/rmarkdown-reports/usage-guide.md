@@ -62,5 +62,5 @@ Tell your AI agent what you want to do:
 - Use `fig.width` and `fig.height` chunk options to control figure sizing
 
 ## Related Skills
-- **reporting/quarto-reports** - Next-gen alternative with multi-language support
-- **data-visualization/ggplot2-fundamentals** - Creating publication-quality figures
+- reporting/quarto-reports - Next-gen alternative with multi-language support
+- data-visualization/ggplot2-fundamentals - Creating publication-quality figures

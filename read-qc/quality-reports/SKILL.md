@@ -187,4 +187,4 @@ quality_sequence    error   20
 
 - adapter-trimming - Remove adapters detected by FastQC
 - fastp-workflow - All-in-one QC and trimming
-- sequence-io - FASTQ file reading/writing
+- sequence-io/read-sequences - FASTQ file reading/writing

@@ -88,5 +88,5 @@ nextflow run nf-core/rnaseq -profile docker
 - Consider nf-core pipelines before building from scratch
 
 ## Related Skills
-- **workflow-management/snakemake-workflows** - Python-based alternative with make-like syntax
-- **workflows/** - Pre-built analysis pipelines
+- workflow-management/snakemake-workflows - Python-based alternative with make-like syntax
+- workflows - Pre-built analysis pipelines

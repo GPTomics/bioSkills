@@ -177,4 +177,4 @@ awk 'OFS="\t" {print $6, $8, $9, $1, $12, ($5=="+")?"+":"-"}' alignments.paf > a
 
 - medaka-polishing - Polish consensus with medaka
 - structural-variants - Call SVs from alignments
-- alignment-files - BAM manipulation
+- alignment-files/sam-bam-basics - BAM manipulation

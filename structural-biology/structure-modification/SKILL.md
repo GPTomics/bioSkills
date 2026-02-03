@@ -432,4 +432,4 @@ io.save('merged.pdb')
 - structure-io - Parse and write structure files
 - structure-navigation - Access chains, residues, atoms
 - geometric-analysis - Calculate distances, angles, RMSD
-- sequence-manipulation - Generate sequences from modified structures
+- sequence-manipulation/seq-objects - Generate sequences from modified structures

@@ -207,4 +207,4 @@ report = generate_qc_report(count_matrix, genes)
 
 - mageck-analysis - Run MAGeCK after QC
 - hit-calling - Downstream analysis
-- read-qc - General NGS QC
+- read-qc/quality-reports - General NGS QC

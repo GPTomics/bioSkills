@@ -96,6 +96,6 @@ toil-cwl-runner --batchSystem slurm workflow.cwl inputs.yaml
 - Register workflows on Dockstore or WorkflowHub for sharing
 
 ## Related Skills
-- **workflow-management/wdl-workflows** - Alternative portable workflow language
-- **workflow-management/snakemake-workflows** - Python-based alternative
-- **workflow-management/nextflow-pipelines** - Groovy-based alternative with nf-core community
+- workflow-management/wdl-workflows - Alternative portable workflow language
+- workflow-management/snakemake-workflows - Python-based alternative
+- workflow-management/nextflow-pipelines - Groovy-based alternative with nf-core community

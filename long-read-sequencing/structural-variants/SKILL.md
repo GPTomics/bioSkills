@@ -181,4 +181,4 @@ bcftools annotate -a gnomad_sv.vcf.gz -c INFO svs.vcf > svs.annotated.vcf
 
 - long-read-alignment - Generate input BAM
 - medaka-polishing - Polish assembly with SVs
-- variant-calling - Short-read comparison
+- variant-calling/structural-variant-calling - Short-read SV comparison

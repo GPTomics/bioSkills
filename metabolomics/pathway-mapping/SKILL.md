@@ -217,4 +217,4 @@ export_pathways(pathway_results, 'pathway_enrichment.csv')
 
 - metabolite-annotation - Identify metabolites first
 - statistical-analysis - Get significant metabolites
-- pathway-analysis - Similar enrichment concepts for genes
+- pathway-analysis/kegg-pathways - Similar enrichment concepts for genes

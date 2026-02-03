@@ -1,5 +1,5 @@
 ---
-name: bio-chip-seq-motif-analysis
+name: bio-chipseq-motif-analysis
 description: De novo motif discovery and known motif enrichment analysis using HOMER and MEME-ChIP. Identify transcription factor binding motifs in ChIP-seq, ATAC-seq, or other genomic peak data. Use when finding enriched DNA motifs in peak sequences.
 tool_type: cli
 primary_tool: HOMER

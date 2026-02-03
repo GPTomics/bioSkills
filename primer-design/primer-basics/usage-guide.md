@@ -14,11 +14,9 @@ pip install primer3-py biopython
 
 Ask your AI agent:
 
-> "Design primers for this sequence"
-
-> "Find primers that amplify a 200bp region around position 500"
-
-> "Design primers with Tm around 60C"
+- "Design primers for this sequence"
+- "Find primers that amplify a 200bp region around position 500"
+- "Design primers with Tm around 60C"
 
 ## Example Prompts
 

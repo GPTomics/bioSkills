@@ -275,6 +275,6 @@ chr1    300     400     3.1
 ## Related Skills
 
 - bigwig-tracks - Convert bedGraph to bigWig
-- alignment-files - BAM processing
+- alignment-files/sam-bam-basics - BAM processing
 - interval-arithmetic - Intersect with regions
-- chip-seq - Peak coverage analysis
+- chip-seq/chipseq-visualization - Peak coverage analysis

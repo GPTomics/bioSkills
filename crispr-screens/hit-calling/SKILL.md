@@ -230,4 +230,4 @@ plt.savefig('hit_ranking.png', dpi=150)
 
 - mageck-analysis - MAGeCK workflow
 - screen-qc - QC before hit calling
-- pathway-analysis - Functional analysis of hits
+- pathway-analysis/go-enrichment - Functional analysis of hits

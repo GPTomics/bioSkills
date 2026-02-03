@@ -374,4 +374,4 @@ Need sequence properties?
 - sequence-io/sequence-statistics - File-level statistics (N50, totals)
 - codon-usage - GC123 for codon position analysis
 - transcription-translation - Translate before protein analysis
-- alignment-files - samtools stats for alignment-level GC and quality stats
+- alignment-files/bam-statistics - samtools stats for alignment-level GC and quality stats

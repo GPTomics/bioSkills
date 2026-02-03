@@ -125,4 +125,4 @@ ggplot(aldex_results, aes(x = effect, y = -log10(we.eBH))) +
 
 - diversity-analysis - Identify overall differences first
 - differential-expression/deseq2-basics - Similar concepts
-- pathway-analysis - Enrichment of differential taxa
+- pathway-analysis/go-enrichment - Enrichment of differential taxa

@@ -368,5 +368,5 @@ Note: fastp extracts UMIs but doesn't deduplicate - use umi_tools dedup after al
 
 - fastp-workflow - Simple UMI extraction during preprocessing
 - quality-filtering - QC before UMI extraction
-- alignment-files - BAM sorting/indexing required before dedup
-- single-cell - scRNA-seq workflows use UMI counting
+- alignment-files/sam-bam-basics - BAM sorting/indexing required before dedup
+- single-cell/preprocessing - scRNA-seq workflows use UMI counting

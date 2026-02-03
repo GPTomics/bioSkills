@@ -98,6 +98,6 @@ miniwdl run workflow.wdl sample_id=test fastq=reads.fq.gz
 - GATK workflows are available at github.com/gatk-workflows
 
 ## Related Skills
-- **workflow-management/cwl-workflows** - Alternative portable workflow language
-- **workflow-management/snakemake-workflows** - Python-based alternative
-- **workflow-management/nextflow-pipelines** - Groovy-based alternative with nf-core
+- workflow-management/cwl-workflows - Alternative portable workflow language
+- workflow-management/snakemake-workflows - Python-based alternative
+- workflow-management/nextflow-pipelines - Groovy-based alternative with nf-core

@@ -315,4 +315,4 @@ plink2 --bfile input --update-name update.txt --make-bed --out output
 
 - association-testing - GWAS with filtered data
 - population-structure - PCA after QC
-- vcf-basics - VCF format before conversion
+- variant-calling/vcf-basics - VCF format before conversion

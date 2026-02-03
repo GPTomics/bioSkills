@@ -334,4 +334,4 @@ pybedtools.set_tempdir('/tmp/pybedtools')
 - interval-arithmetic - intersect, subtract, merge operations
 - gtf-gff-handling - annotation file parsing
 - coverage-analysis - depth calculations
-- alignment-files - BAM to BED conversion
+- alignment-files/sam-bam-basics - BAM to BED conversion

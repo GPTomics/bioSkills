@@ -322,4 +322,4 @@ df = gtfparse.read_gtf('annotation.gtf',
 - bed-file-basics - BED format and conversion
 - interval-arithmetic - Gene/exon overlap analysis
 - proximity-operations - TSS proximity analysis
-- differential-expression - Gene coordinate mapping
+- differential-expression/de-results - Gene coordinate mapping

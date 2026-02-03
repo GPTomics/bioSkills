@@ -175,5 +175,5 @@ CRISPRessoCompare \
 ## Related Skills
 
 - screen-qc - QC for editing experiments
-- read-alignment - Align reads for WGS analysis
-- variant-calling - Detect editing-induced variants
+- read-alignment/bwa-alignment - Align reads for WGS analysis
+- variant-calling/variant-calling - Detect editing-induced variants

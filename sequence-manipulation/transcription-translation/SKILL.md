@@ -214,4 +214,4 @@ Need to convert sequence?
 - reverse-complement - Translate both strands (six-frame translation)
 - codon-usage - Analyze codon bias in coding sequences
 - sequence-io/read-sequences - Parse GenBank files with CDS features
-- database-access - Fetch CDS sequences from NCBI for translation
+- database-access/entrez-fetch - Fetch CDS sequences from NCBI for translation
