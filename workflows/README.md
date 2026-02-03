@@ -42,6 +42,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | outbreak-pipeline | Pathogen isolates to transmission networks |
 | crispr-editing-pipeline | Target to CRISPR constructs with branching strategies |
 | metabolic-modeling-pipeline | Genome to flux predictions with iterative curation |
+| biomarker-pipeline | End-to-end biomarker discovery from expression to validated panels |
 
 ## Example Prompts
 

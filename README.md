@@ -134,8 +134,9 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **epidemiological-genomics** | 5 | mlst, TreeTime, TransPhylo, AMRFinderPlus | Pathogen typing, phylodynamics, transmission networks, AMR surveillance |
 | **immunoinformatics** | 5 | mhcflurry, pVACtools, BepiPred | MHC binding prediction, neoantigen identification, epitope prediction |
 | **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference |
+| **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 360 skills across 52 categories**
+**Total: 366 skills across 53 categories**
 
 ## Example Usage
 
@@ -212,6 +213,10 @@ Once skills are deployed, ask your agent naturally:
 "Test for positive selection on this gene"
 "Find orthologs of BRCA1 across vertebrates"
 "Analyze metabolite-receptor signaling between cell types"
+"Select biomarker genes using Boruta feature selection"
+"Explain my classifier predictions with SHAP values"
+"Run nested cross-validation on my diagnostic classifier"
+"Build a survival model with Kaplan-Meier and Cox regression"
 ```
 
 The agent will select appropriate tools based on context.
