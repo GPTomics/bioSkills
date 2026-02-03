@@ -14,11 +14,9 @@ pip install primer3-py pandas
 
 Ask your AI agent:
 
-> "Check my primers for dimers"
-
-> "Validate this primer pair"
-
-> "Does my primer form hairpins?"
+- "Check my primers for dimers"
+- "Validate this primer pair"
+- "Does my primer form hairpins?"
 
 ## Example Prompts
 

@@ -73,5 +73,5 @@ Tell your AI agent what you want to do:
 - Use `--rerun-incomplete` to resume after failed runs
 
 ## Related Skills
-- **workflow-management/nextflow-pipelines** - Alternative workflow framework with container-first design
-- **workflows/** - Pre-built analysis pipelines using Snakemake
+- workflow-management/nextflow-pipelines - Alternative workflow framework with container-first design
+- workflows - Pre-built analysis pipelines using Snakemake

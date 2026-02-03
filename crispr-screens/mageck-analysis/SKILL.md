@@ -188,4 +188,4 @@ mageck-vispr run \
 
 - screen-qc - Quality control before MAGeCK
 - hit-calling - Alternative hit calling methods
-- pathway-analysis - Downstream enrichment analysis
+- pathway-analysis/gsea - Downstream enrichment analysis

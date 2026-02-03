@@ -171,4 +171,4 @@ write.csv(as.data.frame(sig), 'DE_miRNAs_significant.csv')
 - mirge3-analysis - Get miRNA counts
 - mirdeep2-analysis - Alternative quantification
 - target-prediction - Predict targets of DE miRNAs
-- differential-expression - General DE analysis concepts
+- differential-expression/deseq2-basics - General DE analysis concepts

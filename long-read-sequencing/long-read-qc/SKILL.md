@@ -202,5 +202,5 @@ print(f'Mean quality: {np.mean(qualities):.1f}')
 ## Related Skills
 
 - long-read-alignment - Align filtered reads
-- sequence-io - FASTQ handling
+- sequence-io/fastq-quality - FASTQ quality analysis
 - medaka-polishing - Polish with filtered reads

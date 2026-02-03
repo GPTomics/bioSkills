@@ -314,4 +314,4 @@ wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes
 - bed-file-basics - BED format fundamentals
 - interval-arithmetic - intersect, subtract, merge
 - gtf-gff-handling - Extract TSS from annotations
-- chip-seq - Peak annotation
+- chip-seq/peak-annotation - Peak annotation

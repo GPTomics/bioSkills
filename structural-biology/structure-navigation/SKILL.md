@@ -319,4 +319,4 @@ for model in structure:
 - structure-io - Parse and write structure files
 - geometric-analysis - Measure distances, angles, RMSD
 - structure-modification - Modify coordinates and properties
-- sequence-manipulation - Work with extracted sequences
+- sequence-manipulation/seq-objects - Work with extracted sequences

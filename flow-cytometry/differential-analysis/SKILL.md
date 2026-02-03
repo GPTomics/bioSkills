@@ -197,4 +197,4 @@ res_list <- lapply(1:ncol(contrasts), function(i) {
 
 - clustering-phenotyping - Cluster data first
 - gating-analysis - Compare gated populations
-- differential-expression - Similar statistical concepts
+- differential-expression/de-results - Similar statistical concepts

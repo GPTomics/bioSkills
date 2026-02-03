@@ -312,5 +312,5 @@ cat sample.bedgraph >> track.bedgraph
 
 - coverage-analysis - Generate coverage from alignments
 - bigwig-tracks - Work with bigWig format
-- chipseq-visualization - Visualize signal tracks
-- alignment-files - BAM file processing
+- chip-seq/chipseq-visualization - Visualize signal tracks
+- alignment-files/sam-bam-basics - BAM file processing

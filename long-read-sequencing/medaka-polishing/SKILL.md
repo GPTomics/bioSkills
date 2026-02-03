@@ -156,4 +156,4 @@ medaka_consensus -i reads.fastq.gz -d draft.fa -o output \
 
 - long-read-alignment - Generate input alignments
 - structural-variants - Find SVs from polished assembly
-- variant-calling - Short-read variant calling comparison
+- variant-calling/variant-calling - Short-read variant calling comparison

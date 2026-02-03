@@ -236,4 +236,4 @@ bbduk.sh in=sample.fastq.gz out=clean.fastq.gz \
 
 - quality-reports - FastQC shows overrepresented sequences
 - adapter-trimming - Remove adapter contamination
-- metagenomics - Deeper taxonomic analysis
+- metagenomics/kraken-classification - Deeper taxonomic analysis

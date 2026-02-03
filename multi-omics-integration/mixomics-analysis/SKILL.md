@@ -172,5 +172,5 @@ auc_diablo <- auroc(diablo, roc.block = 'RNA', roc.comp = 1)
 
 - mofa-integration - Unsupervised multi-omics
 - data-harmonization - Preprocess before integration
-- differential-expression - Single-omics analysis
-- pathway-analysis - Interpret selected features
+- differential-expression/de-results - Single-omics analysis
+- pathway-analysis/go-enrichment - Interpret selected features

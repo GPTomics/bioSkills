@@ -283,4 +283,4 @@ coords, model = allel.pca(gn, n_components=10, scaler='patterson')
 
 - selection-statistics - Fst, Tajima's D, iHS with scikit-allel
 - linkage-disequilibrium - LD calculations in Python
-- vcf-basics - VCF format and bcftools
+- variant-calling/vcf-basics - VCF format and bcftools

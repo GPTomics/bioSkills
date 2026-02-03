@@ -326,6 +326,6 @@ print(df)
 ## Related Skills
 
 - coverage-analysis - Generate bedGraph input
-- chip-seq - ChIP-seq signal tracks
-- alignment-files - BAM to coverage
+- chip-seq/chipseq-visualization - ChIP-seq signal tracks
+- alignment-files/bam-statistics - BAM to coverage
 - interval-arithmetic - Region operations

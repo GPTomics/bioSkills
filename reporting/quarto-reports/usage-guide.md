@@ -67,5 +67,5 @@ Tell your AI agent what you want to do:
 - Preview live changes with `quarto preview` during development
 
 ## Related Skills
-- **reporting/rmarkdown-reports** - R Markdown for R-only workflows
-- **data-visualization/ggplot2-fundamentals** - Creating visualizations for reports
+- reporting/rmarkdown-reports - R Markdown for R-only workflows
+- data-visualization/ggplot2-fundamentals - Creating visualizations for reports

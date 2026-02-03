@@ -171,5 +171,5 @@ write.csv(var_exp$r2_per_factor, 'mofa_variance_explained.csv')
 
 - mixomics-analysis - Supervised multi-omics integration
 - data-harmonization - Preprocess data before MOFA
-- pathway-analysis - Interpret MOFA factors
+- pathway-analysis/go-enrichment - Interpret MOFA factors
 - single-cell/multimodal-integration - Single-cell multi-omics

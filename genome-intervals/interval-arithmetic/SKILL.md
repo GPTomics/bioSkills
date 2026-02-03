@@ -462,4 +462,4 @@ cat rep1.bed rep2.bed rep3.bed | bedtools sort | bedtools merge -d 100 > consens
 - bed-file-basics - BED format and creation
 - proximity-operations - closest, window, flank, slop
 - coverage-analysis - coverage calculations
-- chip-seq - peak file operations
+- chip-seq/peak-calling - peak file operations

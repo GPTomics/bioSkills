@@ -217,4 +217,4 @@ Need to work with sequence data?
 - transcription-translation - Transform Seq objects (DNA to protein)
 - reverse-complement - Get reverse complement of Seq
 - sequence-slicing - Slice and extract from Seq/SeqRecord
-- database-access - Fetch sequences from NCBI as SeqRecords
+- database-access/entrez-fetch - Fetch sequences from NCBI as SeqRecords

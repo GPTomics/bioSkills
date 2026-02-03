@@ -135,7 +135,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **immunoinformatics** | 5 | mhcflurry, pVACtools, BepiPred | MHC binding prediction, neoantigen identification, epitope prediction |
 | **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference |
 
-**Total: 356 skills across 52 categories**
+**Total: 360 skills across 52 categories**
 
 ## Example Usage
 

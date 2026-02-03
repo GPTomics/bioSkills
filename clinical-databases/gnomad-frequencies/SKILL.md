@@ -168,4 +168,4 @@ rare_ht = ht.filter(ht.freq[0].AF < 0.01)
 
 - myvariant-queries - Aggregated queries including gnomAD
 - variant-prioritization - Filter by frequency thresholds
-- population-genetics - Population stratification analysis
+- population-genetics/population-structure - Population stratification analysis
