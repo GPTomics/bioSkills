@@ -111,7 +111,10 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
 | **spatial-transcriptomics** | 11 | Squidpy, SpatialData, Scanpy, scimap | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution, spatial proteomics |
 | **hi-c-analysis** | 8 | cooler, cooltools, pairtools, HiCExplorer | Contact matrices, compartments, TADs, loops, differential |
-| **workflows** | 32 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling |
+| **alternative-splicing** | 6 | rMATS-turbo, SUPPA2, IsoformSwitchAnalyzeR | Splicing quantification, differential splicing, isoform switching, sashimi visualization |
+| **chemoinformatics** | 7 | RDKit, DeepChem, AutoDock Vina | Molecular I/O, descriptors, similarity, ADMET, virtual screening, reaction enumeration |
+| **liquid-biopsy** | 6 | ichorCNA, fgbio, VarDict, FinaleToolkit | cfDNA preprocessing, fragmentomics, tumor fraction, ctDNA mutations, longitudinal monitoring |
+| **workflows** | 35 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy |
 | **proteomics** | 9 | pyOpenMS, MSstats, limma, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
@@ -136,90 +139,92 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 367 skills across 53 categories**
+**Total: 388 skills across 56 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally:
+Once skills are deployed, ask your agent naturally. Here are 50 examples across common workflows—the full collection covers 388 skills across 56 categories:
 
 ```
-"QC my paired-end FASTQ files and trim adapters"
-"Align my RNA-seq reads to the human genome"
-"Call variants from my whole-exome BAM files"
-"Find structural variants in my tumor-normal pair"
-"Annotate my VCF with clinical significance scores"
-"Run differential expression on my count matrix, treated vs control"
-"Analyze my time-series RNA-seq experiment"
-"What pathways are enriched in my upregulated genes?"
-"Load my 10X data, remove doublets, and cluster"
-"Integrate these three scRNA-seq batches and find markers"
-"Infer developmental trajectories from my single-cell data"
-"What ligand-receptor pairs are active between my cell types?"
-"Annotate cell types in my PBMC dataset"
-"Call peaks from my ATAC-seq and check TSS enrichment"
-"Find transcription factor footprints in my accessibility data"
-"Run chromVAR to find variable TF motifs across my ATAC-seq samples"
-"Compare ChIP-seq binding between treatment and control"
-"Identify super-enhancers from my H3K27ac ChIP-seq"
-"Find A/B compartments and TADs in my Hi-C data"
-"Detect chromatin loops from my contact matrix"
-"What species are in my metagenomic sample?"
-"Process my 16S amplicon data and assign taxonomy"
-"Find differentially abundant taxa between my sample groups"
-"Screen my metagenome for antibiotic resistance genes"
-"Run a GWAS on my case-control genotypes"
-"Calculate population differentiation statistics"
-"Call variants from my Oxford Nanopore data"
-"Find structural variants in my long-read data"
-"Assemble my PacBio HiFi reads and check completeness"
-"Scaffold my draft assembly using Hi-C"
-"Quantify proteins from my DIA mass spec data"
-"Find differentially abundant proteins between conditions"
-"Process my LC-MS metabolomics data and normalize"
-"Annotate my metabolite features with pathway information"
-"Analyze my CRISPR dropout screen and find hits"
-"Jointly analyze multiple CRISPR screens with JACKS for sgRNA efficacy"
-"Find spatially variable genes in my Visium data"
-"Deconvolve cell types in my spatial transcriptomics spots"
-"Cluster my CyTOF data and compare populations between groups"
-"Segment cells from my imaging mass cytometry and analyze neighborhoods"
-"Integrate my transcriptomics and proteomics datasets"
-"Predict my protein structure with ESMFold"
-"Build an ML phylogenetic tree with IQ-TREE2 and ultrafast bootstrap"
-"Create a clustered heatmap of my top DE genes"
-"Analyze my TCR repertoire and calculate diversity"
-"Find differentially expressed miRNAs and their targets"
-"Calculate translation efficiency from Ribo-seq data"
-"Detect m6A modifications from MeRIP-seq"
-"Find RBP binding sites from my CLIP-seq data"
-"Look up clinical significance of my variants in ClinVar"
-"Track clonal lineages using CRISPR barcodes"
-"Analyze my Perturb-seq CRISPR screen"
-"How many samples do I need for my RNA-seq experiment?"
-"Calculate power for detecting 2-fold changes"
-"Analyze my base editing experiment for C-to-T conversion"
-"Call methylation from my nanopore BAM file"
-"Generate a MultiQC report from my pipeline outputs"
-"Export my figure at 300 DPI for journal submission"
-"Design guides to knock out BRCA1"
-"Check off-target sites for my guide sequence"
-"Run FBA on my metabolic model"
-"Find essential genes in the E. coli model"
-"Type my Salmonella isolates with MLST"
-"Build a time-scaled phylogeny for this outbreak"
-"Predict MHC binding for these peptides"
-"Find neoantigens from my somatic VCF"
-"Detect synteny blocks between human and mouse"
-"Test for positive selection on this gene"
-"Find orthologs of BRCA1 across vertebrates"
-"Analyze metabolite-receptor signaling between cell types"
-"Select biomarker genes using Boruta feature selection"
-"Explain my classifier predictions with SHAP values"
-"Run nested cross-validation on my diagnostic classifier"
-"Build a survival model with Kaplan-Meier and Cox regression"
+# RNA-seq & Differential Expression
+"I have RNA-seq counts from treated vs control samples - find the differentially expressed genes"
+"Run the complete RNA-seq pipeline from my FASTQ files to a list of DE genes"
+"What biological pathways are enriched in my upregulated genes?"
+"Run GSEA to see if whole pathways are up or down in my treatment"
+"Align my paired-end RNA-seq reads to the human genome with STAR"
+"Count reads per gene from my aligned BAM files"
+
+# Single-Cell Analysis
+"I just got my 10X scRNA-seq data - filter out low-quality cells and normalize"
+"Cluster my single-cell data and help me figure out what cell types they are"
+"Find marker genes for each cluster so I can annotate cell types"
+"Reconstruct the differentiation trajectory and find branch points in my data"
+"Which ligand-receptor pairs show active communication between my cell types?"
+
+# Variant Calling & Clinical Genomics
+"Call somatic variants from my tumor-normal BAM files"
+"I found a BRCA1 variant in my patient - is it pathogenic according to ACMG guidelines?"
+"Which of my variants are already known to be disease-causing in ClinVar?"
+"What's the population frequency of this variant in gnomAD?"
+"Annotate my VCF with gene names, functional effects, and clinical databases"
+"Find structural variants like deletions and duplications in my WGS data"
+"My patient has CYP2D6 variants - what's their metabolizer phenotype?"
+
+# Epigenomics & Chromatin
+"Call peaks from my ChIP-seq data for this transcription factor"
+"Identify open chromatin regions from my ATAC-seq samples"
+"Find differentially methylated regions between tumor and normal"
+"Identify TADs and chromatin loops from my Hi-C contact matrix"
+
+# Experimental Design & QC
+"How many replicates do I need to detect 2-fold changes with 80% power?"
+"Check the quality of my sequencing data before I start analysis"
+"What's the alignment rate and coverage quality in my BAM files?"
+"Generate a MultiQC report summarizing all my pipeline outputs"
+
+# Protein & Structure
+"Predict the 3D structure of my protein sequence using AlphaFold"
+"Find differentially abundant proteins between my treatment conditions"
+
+# CRISPR & Genome Engineering
+"Design guide RNAs to knock out TP53 with minimal off-targets"
+"Analyze my CRISPR dropout screen to find essential genes"
+
+# Pipelines & Reproducibility
+"Set up a Snakemake workflow so I can rerun this analysis on 50 samples"
+"Run a complete biomarker discovery pipeline with proper cross-validation"
+
+# Sequences & Databases
+"Download gene sequences and annotations from NCBI for my gene list"
+"Design PCR primers to amplify a 500bp region of this gene"
+"Read my FASTA files and extract specific sequences"
+
+# Spatial & Tissue Analysis
+"Identify spatially distinct tissue regions in my Visium data"
+"What species are present in my metagenomic sample?"
+
+# Long-Read Sequencing
+"Basecall my Oxford Nanopore fast5 files with high accuracy"
+"Assess if my genome assembly is complete and high quality"
+
+# Specialized Analysis
+"Analyze differential exon usage to detect alternative splicing changes"
+"Extract and analyze TCR sequences from my T cell RNA-seq"
+"Build a survival model to find genes associated with patient outcomes"
+"Use machine learning to discover biomarkers that predict treatment response"
+"Validate my predictive model with proper cross-validation to avoid overfitting"
+
+# Immunotherapy & Cancer
+"Predict neoantigens from tumor mutations for immunotherapy"
+"Determine HLA type from RNA-seq for neoantigen prediction"
+"Detect ultra-low frequency mutations in my liquid biopsy cfDNA"
+
+# Phylogenetics & Evolution
+"Build a phylogenetic tree and visualize evolutionary relationships"
+"Find orthologs of my human gene across vertebrate species"
 ```
 
-The agent will select appropriate tools based on context.
+The agent will select appropriate tools based on context. See the Skill Categories table above for the complete list of available skills.
 
 ## Contributing
 
