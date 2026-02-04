@@ -43,6 +43,8 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | crispr-editing-pipeline | Target to CRISPR constructs with branching strategies |
 | metabolic-modeling-pipeline | Genome to flux predictions with iterative curation |
 | biomarker-pipeline | End-to-end biomarker discovery from expression to validated panels |
+| splicing-pipeline | Alternative splicing from FASTQ to differential splicing with sashimi plots |
+| liquid-biopsy-pipeline | cfDNA analysis for tumor fraction estimation and mutation detection |
 
 ## Example Prompts
 
@@ -70,6 +72,9 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 - "Investigate this outbreak with genomic data"
 - "Design CRISPR guides to knock out my target gene"
 - "Build a metabolic model from my genome annotation"
+- "Analyze differential splicing between my conditions"
+- "Estimate tumor fraction from my plasma cfDNA"
+- "Run a complete liquid biopsy pipeline for my samples"
 
 ## Requirements
 
@@ -90,3 +95,5 @@ BiocManager::install(c('DESeq2', 'Seurat', 'clusterProfiler'))
 - **differential-expression** - DE analysis details
 - **single-cell** - Single-cell analysis details
 - **variant-calling** - Variant calling details
+- **alternative-splicing** - Splicing analysis skills
+- **liquid-biopsy** - cfDNA analysis skills
