@@ -197,6 +197,8 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 # Pipelines & Reproducibility
 "Set up a Snakemake workflow so I can rerun this analysis on 50 samples"
 "Run a complete biomarker discovery pipeline with proper cross-validation"
+"Annotate my new genome assembly end-to-end from repeats to functional annotation"
+"Run post-GWAS causal inference on my summary statistics"
 
 # Sequences & Databases
 "Download gene sequences and annotations from NCBI for my gene list"

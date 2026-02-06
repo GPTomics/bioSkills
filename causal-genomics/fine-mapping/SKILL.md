@@ -89,7 +89,7 @@ print(top_pip)
 # Too high: Increases computation but rarely hurts results (SuSiE prunes excess)
 #
 # Guidelines:
-# L = 1: When you expect a single causal variant
+# L = 1: Single causal variant expected
 # L = 5: Most GWAS loci
 # L = 10: Default, works well for most cases
 # L = 20: Very complex loci (e.g., HLA region)
