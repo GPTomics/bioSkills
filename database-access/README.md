@@ -20,6 +20,7 @@ Access NCBI and UniProt databases, download sequences, query SRA/GEO, and run BL
 | local-blast | Local BLAST databases and searches with BLAST+ |
 | sequence-similarity | PSI-BLAST, HMMER, reciprocal best hits for remote homologs |
 | uniprot-access | Query UniProt protein database, ID mapping, batch retrieval |
+| interaction-databases | Query STRING, BioGRID, IntAct protein interaction databases |
 
 ## Example Prompts
 
@@ -40,6 +41,8 @@ Access NCBI and UniProt databases, download sequences, query SRA/GEO, and run BL
 - "Find all human kinases in UniProt"
 - "Download the UniProt entry for P53_HUMAN"
 - "Map these gene symbols to UniProt IDs"
+- "Get protein-protein interactions for my gene list from STRING"
+- "Build an interaction network from BioGRID and IntAct"
 
 ## Requirements
 
@@ -63,3 +66,5 @@ conda install -c bioconda hmmer
 - **sequence-manipulation** - Work with downloaded sequences
 - **alignment-files** - Process alignments after downloading from SRA
 - **variant-calling** - Analyze variants from downloaded data
+- **gene-regulatory-networks** - Network analysis from interaction data
+- **data-visualization** - Visualize interaction networks
