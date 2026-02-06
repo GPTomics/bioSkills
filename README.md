@@ -84,7 +84,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 |----------|--------|---------------|-------------|
 | **sequence-io** | 9 | Bio.SeqIO | Read, write, convert FASTA/FASTQ/GenBank and 40+ formats |
 | **sequence-manipulation** | 7 | Bio.Seq, Bio.SeqUtils | Transcription, translation, motif search, sequence properties |
-| **database-access** | 10 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API | NCBI/UniProt queries, SRA downloads, BLAST, homology searches |
+| **database-access** | 11 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API, STRINGdb | NCBI/UniProt queries, SRA downloads, BLAST, homology searches, interaction databases |
 | **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics, validation |
 | **variant-calling** | 13 | bcftools, cyvcf2, Manta, Delly, VEP, SnpEff | VCF/BCF calling, SVs, filtering, annotation, clinical interpretation |
 | **alignment** | 4 | Bio.Align, Bio.AlignIO | Pairwise and multiple sequence alignment, MSA statistics, alignment I/O |
@@ -114,7 +114,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **alternative-splicing** | 6 | rMATS-turbo, SUPPA2, IsoformSwitchAnalyzeR | Splicing quantification, differential splicing, isoform switching, sashimi visualization |
 | **chemoinformatics** | 7 | RDKit, DeepChem, AutoDock Vina | Molecular I/O, descriptors, similarity, ADMET, virtual screening, reaction enumeration |
 | **liquid-biopsy** | 6 | ichorCNA, fgbio, VarDict, FinaleToolkit | cfDNA preprocessing, fragmentomics, tumor fraction, ctDNA mutations, longitudinal monitoring |
-| **workflows** | 35 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy |
+| **workflows** | 38 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics |
 | **proteomics** | 9 | pyOpenMS, MSstats, limma, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
@@ -125,7 +125,7 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **reporting** | 5 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
 | **experimental-design** | 4 | RNASeqPower, ssizeRNA, qvalue, sva | Power analysis, sample size, multiple testing, batch design |
 | **workflow-management** | 4 | Snakemake, Nextflow, cwltool, Cromwell | Scalable pipeline frameworks with containers |
-| **data-visualization** | 11 | ggplot2, matplotlib, plotly, ComplexHeatmap | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos, UpSet, volcano |
+| **data-visualization** | 12 | ggplot2, matplotlib, plotly, ComplexHeatmap, NetworkX | Publication-quality figures, heatmaps, interactive plots, genome tracks, circos, UpSet, volcano, networks |
 | **tcr-bcr-analysis** | 5 | MiXCR, VDJtools, Immcantation, scirpy | TCR/BCR repertoire analysis, clonotype assembly, diversity metrics |
 | **small-rna-seq** | 5 | miRDeep2, miRge3, cutadapt, DESeq2 | miRNA/piRNA analysis, differential expression, target prediction |
 | **ribo-seq** | 5 | Plastid, RiboCode, ORFik, riborex | Ribosome profiling, translation efficiency, ORF detection |
@@ -137,13 +137,17 @@ Codex and Gemini installers convert to the Agent Skills standard (`examples/` ->
 | **epidemiological-genomics** | 5 | mlst, TreeTime, TransPhylo, AMRFinderPlus | Pathogen typing, phylodynamics, transmission networks, AMR surveillance |
 | **immunoinformatics** | 5 | mhcflurry, pVACtools, BepiPred | MHC binding prediction, neoantigen identification, epitope prediction |
 | **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference |
+| **genome-annotation** | 6 | Bakta, BRAKER3, eggNOG-mapper, RepeatMasker | Prokaryotic/eukaryotic annotation, functional assignment, repeats, ncRNA, annotation transfer |
+| **gene-regulatory-networks** | 5 | pySCENIC, SCENIC+, WGCNA, CellOracle | Co-expression networks, regulon inference, multiomics GRN, perturbation simulation |
+| **causal-genomics** | 5 | TwoSampleMR, coloc, susieR, MR-PRESSO | Mendelian randomization, colocalization, fine-mapping, mediation, pleiotropy |
+| **rna-structure** | 3 | ViennaRNA, Infernal, ShapeMapper2 | RNA secondary structure prediction, ncRNA search, structure probing |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 388 skills across 56 categories**
+**Total: 412 skills across 60 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are 50 examples across common workflows—the full collection covers 388 skills across 56 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 412 skills across 60 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -218,6 +222,25 @@ Once skills are deployed, ask your agent naturally. Here are 50 examples across 
 "Predict neoantigens from tumor mutations for immunotherapy"
 "Determine HLA type from RNA-seq for neoantigen prediction"
 "Detect ultra-low frequency mutations in my liquid biopsy cfDNA"
+
+# Genome Annotation
+"Annotate my newly assembled bacterial genome with Bakta"
+"Run BRAKER3 gene prediction on my eukaryotic assembly"
+"Assign functional annotations with eggNOG-mapper and InterProScan"
+
+# Gene Regulatory Networks
+"Infer transcription factor regulons from my single-cell data with pySCENIC"
+"Build a co-expression network and find hub genes with WGCNA"
+"Simulate what happens if I knock out this transcription factor"
+
+# Causal Genomics
+"Run Mendelian randomization to test if BMI causes heart disease"
+"Test whether my GWAS hit and eQTL share the same causal variant"
+"Fine-map my GWAS locus to identify the most likely causal variants"
+
+# RNA Structure
+"Predict the secondary structure and folding energy of my RNA sequence"
+"Search for ncRNA homologs in my transcript using Rfam"
 
 # Phylogenetics & Evolution
 "Build a phylogenetic tree and visualize evolutionary relationships"

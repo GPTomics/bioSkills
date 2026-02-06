@@ -45,6 +45,9 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | biomarker-pipeline | End-to-end biomarker discovery from expression to validated panels |
 | splicing-pipeline | Alternative splicing from FASTQ to differential splicing with sashimi plots |
 | liquid-biopsy-pipeline | cfDNA analysis for tumor fraction estimation and mutation detection |
+| genome-annotation-pipeline | Assembled contigs to functional annotation for prokaryotic and eukaryotic genomes |
+| grn-pipeline | Single-cell data to regulon discovery and perturbation simulation via pySCENIC/SCENIC+ |
+| causal-genomics-pipeline | GWAS summary statistics to causal inference via MR, colocalization, and fine-mapping |
 
 ## Example Prompts
 
@@ -75,6 +78,9 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 - "Analyze differential splicing between my conditions"
 - "Estimate tumor fraction from my plasma cfDNA"
 - "Run a complete liquid biopsy pipeline for my samples"
+- "Annotate my newly assembled genome from scratch"
+- "Build gene regulatory networks from my single-cell data"
+- "Run post-GWAS causal inference on my summary statistics"
 
 ## Requirements
 
@@ -97,3 +103,6 @@ BiocManager::install(c('DESeq2', 'Seurat', 'clusterProfiler'))
 - **variant-calling** - Variant calling details
 - **alternative-splicing** - Splicing analysis skills
 - **liquid-biopsy** - cfDNA analysis skills
+- **genome-annotation** - Genome annotation skills
+- **gene-regulatory-networks** - GRN inference skills
+- **causal-genomics** - Causal inference from GWAS

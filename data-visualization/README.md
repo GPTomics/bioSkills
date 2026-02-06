@@ -21,6 +21,7 @@ Publication-quality data visualization for bioinformatics using ggplot2 and matp
 | upset-plots | UpSet plots for set intersection visualization |
 | volcano-customization | Customized volcano plots with labels and thresholds |
 | genome-browser-tracks | Genome browser figures with pyGenomeTracks, IGV |
+| network-visualization | Biological network diagrams with NetworkX, PyVis, Cytoscape |
 
 ## Example Prompts
 
@@ -35,6 +36,8 @@ Publication-quality data visualization for bioinformatics using ggplot2 and matp
 - "Label the top 20 genes on my volcano plot"
 - "Combine 4 plots into a 2x2 grid with panel labels"
 - "Generate genome browser figures for my ChIP-seq peaks"
+- "Visualize my protein interaction network with degree-based sizing"
+- "Create an interactive HTML network from my GRN results"
 
 ## Requirements
 
@@ -54,3 +57,5 @@ pip install matplotlib seaborn plotly bokeh pyGenomeTracks upsetplot adjustText
 - **differential-expression/de-visualization** - Expression-specific plots
 - **pathway-analysis/enrichment-visualization** - Enrichment plots
 - **reporting** - Figures in reports
+- **gene-regulatory-networks** - GRN data for network visualization
+- **database-access** - Interaction data for network plots
