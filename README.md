@@ -1,6 +1,6 @@
 # bioSkills
 
-A collection of skills that guide AI coding agents (Claude Code, Codex, Gemini) through common bioinformatics tasks.
+A collection of skills that guide AI coding agents (Claude Code, OpenAI Codex, Google Gemini, OpenClaw) through common bioinformatics tasks.
 
 ## Project Goal
 
@@ -50,6 +50,7 @@ git clone https://github.com/your-username/bioSkills.git
 cd bioSkills
 ./install-claude.sh                              # Install globally
 ./install-claude.sh --project /path/to/project   # Or install to specific project
+./install-claude.sh --categories "single-cell,variant-calling"  # Install specific categories
 ./install-claude.sh --list                       # List available skills
 ./install-claude.sh --validate                   # Validate all skills
 ./install-claude.sh --update                     # Only update changed skills
@@ -61,6 +62,8 @@ cd bioSkills
 ```bash
 ./install-codex.sh                               # Install globally
 ./install-codex.sh --project /path/to/project    # Or install to specific project
+./install-codex.sh --categories "single-cell,variant-calling"  # Install specific categories
+./install-codex.sh --list                        # List available skills
 ./install-codex.sh --validate                    # Validate all skills
 ./install-codex.sh --update                      # Only update changed skills
 ./install-codex.sh --uninstall                   # Remove all bio-* skills
@@ -71,12 +74,28 @@ cd bioSkills
 ```bash
 ./install-gemini.sh                              # Install globally
 ./install-gemini.sh --project /path/to/project   # Or install to specific project
+./install-gemini.sh --categories "single-cell,variant-calling"  # Install specific categories
+./install-gemini.sh --list                       # List available skills
 ./install-gemini.sh --validate                   # Validate all skills
 ./install-gemini.sh --update                     # Only update changed skills
 ./install-gemini.sh --uninstall                  # Remove all bio-* skills
 ```
 
-Codex and Gemini installers convert to the Agent Skills standard (`examples/` -> `scripts/`, `usage-guide.md` -> `references/`).
+### OpenClaw
+
+```bash
+./install-openclaw.sh                            # Install all skills globally
+./install-openclaw.sh --categories "single-cell,variant-calling"  # Install specific categories
+./install-openclaw.sh --project /path/to/workspace  # Install to workspace
+./install-openclaw.sh --tool-type-metadata       # Add OpenClaw dependency metadata
+./install-openclaw.sh --dry-run                  # Preview install + token estimate
+./install-openclaw.sh --list                     # List available skills
+./install-openclaw.sh --validate                 # Validate all skills
+./install-openclaw.sh --update                   # Only update changed skills
+./install-openclaw.sh --uninstall                # Remove all bio-* skills
+```
+
+All installers support `--categories` for selective installation and `--dry-run` for previewing. Codex and Gemini convert to the Agent Skills standard (`examples/` -> `scripts/`, `usage-guide.md` -> `references/`). OpenClaw keeps the original directory structure and optionally adds dependency metadata with `--tool-type-metadata`.
 
 ## Skill Categories
 
