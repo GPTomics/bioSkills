@@ -83,6 +83,8 @@ cd bioSkills
 
 ### OpenClaw
 
+Install directly from [ClawHub](https://clawhub.ai/djemec/bioskills), or use the install script:
+
 ```bash
 ./install-openclaw.sh                            # Install all skills globally
 ./install-openclaw.sh --categories "single-cell,variant-calling"  # Install specific categories
