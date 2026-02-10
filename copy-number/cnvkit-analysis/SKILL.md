@@ -57,6 +57,13 @@ cnvkit.py batch tumor.bam \
     --output-dir results/
 ```
 
+## bedGraph Input (Privacy-Preserving)
+
+```bash
+# Generate bedGraph: bedtools genomecov -ibam sample.bam -bg | bgzip > sample.bed.gz && tabix -p bed sample.bed.gz
+cnvkit.py coverage sample.bed.gz targets.target.bed -o sample.targetcoverage.cnn
+```
+
 ## Step-by-Step Pipeline
 
 ```bash
@@ -89,6 +96,12 @@ cnvkit.py segment sample.cnr -o sample.cns
 # Use HMM for better performance
 cnvkit.py segment sample.cnr --method hmm -o sample.cns
 
+# HMM for tumor samples (broader state transitions for heterogeneity)
+cnvkit.py segment sample.cnr --method hmm-tumor -o sample.cns
+
+# HMM for germline (tighter priors around diploid)
+cnvkit.py segment sample.cnr --method hmm-germline -o sample.cns
+
 # Adjust smoothing
 cnvkit.py segment sample.cnr --smooth-cbs -o sample.cns
 ```
@@ -120,6 +133,9 @@ cnvkit.py export vcf sample.call.cns -o sample.cnv.vcf
 
 # Export segments for GISTIC2
 cnvkit.py export seg *.cns -o samples.seg
+
+# Markers file for GISTIC2 (pairs with 'export seg' above: segments + markers)
+cnvkit.py export gistic *.cnr -o samples.markers
 
 # Export for Nexus
 cnvkit.py export nexus-basic sample.cnr -o sample.nexus.txt
@@ -162,10 +178,9 @@ cns = cnvlib.read('sample.cns')
 # Filter by chromosome
 chr17 = cnr[cnr.chromosome == 'chr17']
 
-# Get amplifications
+# log2 > 0.5 (~3+ copies): moderate amplification filter
 amps = cns[cns['log2'] > 0.5]
-
-# Get deletions
+# log2 < -0.5 (~1 copy): moderate deletion filter
 dels = cns[cns['log2'] < -0.5]
 
 # Export
@@ -183,6 +198,13 @@ cnvkit.py sex *.cnr *.cnn
 
 # Median absolute deviation (lower is better)
 # Biweight midvariance (sample heterogeneity)
+
+# Per-segment confidence intervals
+cnvkit.py segmetrics sample.cnr -s sample.cns --ci --pi -o sample.segmetrics.cns
+
+# Gene-level CNV detection with confidence intervals
+# 10 bootstrap iterations (default 100); reduce for speed, increase for publication CIs
+cnvkit.py genemetrics sample.cnr -s sample.cns --threshold 0.2 --ci --bootstrap 10 -o sample.genemetrics.tsv
 ```
 
 ## Key Parameters
@@ -190,10 +212,11 @@ cnvkit.py sex *.cnr *.cnn
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | --method | hybrid | hybrid, wgs, amplicon |
-| --segment-method | cbs | cbs, hmm, haar, none |
-| --drop-low-coverage | on | Drop low-coverage bins |
+| --segment-method | cbs | cbs, hmm, hmm-tumor, hmm-germline, haar, flasso, none |
+| --drop-low-coverage | off | Drop low-coverage bins |
 | --purity | 1.0 | Tumor purity (0-1) |
 | --ploidy | 2 | Sample ploidy |
+| --center | none | Log2 centering for call: mean, median, mode, biweight |
 | --thresholds | -1.1,-0.25,0.2,0.7 | CN state thresholds |
 
 ## Related Skills
@@ -201,4 +224,5 @@ cnvkit.py sex *.cnr *.cnn
 - alignment-files/bam-statistics - QC of input BAMs
 - copy-number/cnv-visualization - Advanced plotting
 - copy-number/cnv-annotation - Gene-level annotation
+- copy-number/gatk-cnv - GATK alternative CNV caller
 - long-read-sequencing/structural-variants - Complementary SV calling

@@ -7,9 +7,11 @@ CNVkit is the standard tool for detecting copy number variants from targeted seq
 ## Prerequisites
 
 ```bash
+# Requires Python >= 3.10, NumPy 2.x, Pandas 3.x compatible
 conda install -c bioconda cnvkit
 # or
 pip install cnvkit
+# For HMM segmentation: pomegranate >= 1.0 (installed automatically)
 ```
 
 Dependencies: R with DNAcopy package (for CBS segmentation).
@@ -21,6 +23,7 @@ Tell your AI agent what you want to do:
 - "Build a panel of normals from my control samples for CNV calling"
 - "Export my CNVkit segments to VCF format for downstream analysis"
 - "Check quality metrics for my CNVkit run and identify noisy samples"
+- "Generate bedGraph coverage files for sharing without exposing raw sequences"
 
 ## Input Requirements
 
@@ -93,6 +96,22 @@ for tumor in tumor*.bam; do
 done
 ```
 
+## Privacy-Preserving Workflow (bedGraph)
+
+CNVkit accepts pre-computed bedGraph files in place of BAMs, enabling coverage sharing without exposing raw sequences:
+
+```bash
+# Step 1: Generate bedGraph from BAM
+bedtools genomecov -ibam tumor.bam -bg | bgzip > tumor.bed.gz
+tabix -p bed tumor.bed.gz
+
+# Step 2: Use bedGraph as input to CNVkit coverage
+cnvkit.py coverage tumor.bed.gz targets.target.bed -o tumor.targetcoverage.cnn
+cnvkit.py coverage tumor.bed.gz antitargets.bed -o tumor.antitargetcoverage.cnn
+
+# Step 3: Continue with fix/segment/call as normal
+```
+
 ## Interpreting Results
 
 ### CNR file (copy ratios)
@@ -129,6 +148,21 @@ cnvkit.py metrics *.cnr -s *.cns
 cnvkit.py sex *.cnr *.cnn
 ```
 
+## Detailed Metrics
+
+Both `segmetrics` and `genemetrics` share most statistics flags: `--ci`, `--pi`, `--iqr`, `--alpha`, `--bootstrap`, `--mean`, `--median`, `--stdev`, `--sem`, `--mad`.
+
+Two key differences: (1) t-test flag naming -- `segmetrics` uses `--t-test` (hyphenated), `genemetrics` uses `--ttest` (no hyphen); (2) `--smooth-bootstrap` exists only in `segmetrics` (smoothed CI).
+
+```bash
+# Per-segment confidence intervals and prediction intervals
+cnvkit.py segmetrics sample.cnr -s sample.cns --ci --pi --bootstrap 100 -o sample.segmetrics.cns
+
+# Gene-level CNV report with confidence intervals
+# 0.2: CNVkit default gain/loss log2 threshold (2^0.2 ~ 15% copy number change)
+cnvkit.py genemetrics sample.cnr -s sample.cns --threshold 0.2 --ci --bootstrap 100 -o sample.genemetrics.tsv
+```
+
 ## Common Issues
 
 ### Noisy data
@@ -136,8 +170,8 @@ cnvkit.py sex *.cnr *.cnn
 # Increase smoothing during segmentation
 cnvkit.py segment sample.cnr --smooth-cbs -o sample.cns
 
-# Or use HMM which is more robust
-cnvkit.py segment sample.cnr --method hmm -o sample.cns
+# Or use HMM which handles tumor heterogeneity better than CBS
+cnvkit.py segment sample.cnr --method hmm-tumor -o sample.cns
 ```
 
 ### Low coverage samples
@@ -191,3 +225,30 @@ print(amplified[['chromosome', 'start', 'end', 'gene', 'log2', 'cn']])
 > "Export my CNVkit segments to VCF format for integration with SNV calls"
 
 > "Check the quality metrics for my CNVkit run and identify noisy samples"
+
+> "Generate per-segment confidence intervals and identify genes with significant copy number changes"
+
+## What the Agent Will Do
+
+1. Prepare target and antitarget regions from capture BED
+2. Calculate coverage from BAM or bedGraph input
+3. Build or apply a reference from normal samples
+4. Segment and call copy number states
+5. Generate plots and export results
+6. Run quality metrics and gene-level reports
+
+## Tips
+
+- **Panel of normals** - Use 5-10+ normal samples for best results
+- **HMM segmentation** - hmm-tumor handles noisy tumor data better than CBS
+- **MAD threshold** - Check MAD < 0.5 in metrics output as a quality indicator
+- **Purity/ploidy** - Use --purity and --ploidy when values are known for more accurate calls
+- **bedGraph input** - Enables sharing coverage data without exposing raw sequences
+
+## Related Skills
+
+- alignment-files/bam-statistics - QC of input BAMs
+- copy-number/cnv-visualization - Advanced CNV plotting
+- copy-number/cnv-annotation - Gene-level annotation of CNV calls
+- copy-number/gatk-cnv - Alternative CNV caller
+- long-read-sequencing/structural-variants - Complementary SV calling

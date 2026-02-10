@@ -37,4 +37,13 @@ cnvkit.py diagram ${OUTPUT_DIR}/*.cnr \
     -s ${OUTPUT_DIR}/*.cns \
     -o ${OUTPUT_DIR}/diagram.pdf
 
+echo "Running quality metrics..."
+SAMPLE=$(basename $TUMOR_BAM .bam)
+cnvkit.py metrics ${OUTPUT_DIR}/${SAMPLE}.cnr -s ${OUTPUT_DIR}/${SAMPLE}.cns
+
+echo "Gene-level report..."
+# 0.2: CNVkit default gain/loss log2 threshold (2^0.2 ~ 15% copy number change)
+cnvkit.py genemetrics ${OUTPUT_DIR}/${SAMPLE}.cnr -s ${OUTPUT_DIR}/${SAMPLE}.cns \
+    --threshold 0.2 -o ${OUTPUT_DIR}/${SAMPLE}.genemetrics.tsv
+
 echo "Results in: $OUTPUT_DIR"
