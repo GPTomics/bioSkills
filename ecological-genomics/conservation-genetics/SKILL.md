@@ -83,15 +83,15 @@ Detects autozygous segments indicating recent inbreeding:
 library(detectRUNS)
 
 # Input: PLINK .ped/.map files
-# consecutiveRuns: SNP-by-SNP scanning (preferred for SNP arrays/WGS)
-runs <- consecutiveRuns(
+# consecutiveRUNS.run: file-based SNP-by-SNP scanning (preferred for SNP arrays/WGS)
+runs <- consecutiveRUNS.run(
     genotypeFile = 'genotypes.ped',
     mapFile = 'genotypes.map',
     minSNP = 20,        # min SNPs in a run; 20 prevents false positives from short homozygous stretches
     minLengthBps = 1e6, # 1 Mb minimum; shorter ROH are often not due to IBD
     maxGap = 1e6,       # max gap between consecutive SNPs within a run
-    maxOppWindow = 1,   # max opposing homozygotes allowed (genotyping errors)
-    maxMissWindow = 2   # max missing genotypes allowed per window
+    maxOppRun = 1,      # max opposing homozygotes allowed (genotyping errors)
+    maxMissRun = 2      # max missing genotypes allowed per run
 )
 
 # Summary statistics
@@ -101,9 +101,8 @@ summary_runs <- summaryRuns(runs, genotypeFile = 'genotypes.ped',
 # F_ROH: inbreeding coefficient from ROH
 # F_ROH = total ROH length / autosomal genome length
 # <0.0625: background; 0.0625-0.125: offspring of half-cousins; >0.125: moderate inbreeding
-genome_length_bp <- 2.5e9  # adjust to species genome size
-froh <- Froh_inbreeding(runs, mapFile = 'genotypes.map',
-                         genome_wide = TRUE, genomeLength = genome_length_bp)
+# Froh_inbreeding calculates genome length automatically from the map file
+froh <- Froh_inbreeding(runs, mapFile = 'genotypes.map', genome_wide = TRUE)
 
 cat('F_ROH per individual:\n')
 print(froh)
@@ -120,7 +119,7 @@ print(froh)
 
 ```r
 # Plot ROH length distribution by population
-plot_ROHclasses(runs, class_breaks = c(0, 1e6, 4e6, 16e6, Inf))
+plot_DistributionRuns(runs)
 ```
 
 ## Effective Population Size (Ne)
@@ -129,39 +128,42 @@ plot_ROHclasses(runs, class_breaks = c(0, 1e6, 4e6, 16e6, Inf))
 
 Estimates Ne changes over the last ~200 generations from LD patterns:
 
-```r
-library(GONE2)
-
-# Input: PLINK bed/bim/fam files
+```bash
+# GONE2 is a standalone CLI tool (esrud/GONE2), not an R package
+# Input: PLINK bed/bim/fam or VCF
 # Requires at least 10,000 SNPs and 50 individuals for reliable estimates
-gone_result <- gone('genotypes', hc = 0.05, num_threads = 4)
 
-# hc=0.05: maximum recombination distance in Morgans (~5 cM); default inter-SNP distance cutoff
-# Smaller hc focuses on more recent generations
+# -t 4: threads; -u 0.05: upper recombination rate bound (default; pairs with r > 0.05 excluded)
+# Smaller -u focuses on more recent generations
+./gone2 -t 4 -u 0.05 genotypes.vcf
+```
 
-# Plot Ne trajectory
+```r
+# Parse GONE2 output (tab-separated: generation, Ne, CI_low, CI_high)
+gone_out <- read.table('OUTPUT_GONE2', header = TRUE, sep = '\t')
+
 pdf('gone2_ne_trajectory.pdf', width = 8, height = 5)
-plot(gone_result$generation, gone_result$Ne,
+plot(gone_out$generation, gone_out$Ne,
      type = 'l', lwd = 2, col = 'blue',
      xlab = 'Generations ago', ylab = 'Effective population size (Ne)',
      main = 'Recent Ne Trajectory (GONE2)', log = 'y')
 dev.off()
 
-cat('Current Ne estimate:', gone_result$Ne[1], '\n')
+cat('Current Ne estimate:', gone_out$Ne[1], '\n')
 ```
 
 ### NeEstimator: Contemporary Ne (LD Method)
 
-```bash
-# NeEstimator v2 command-line usage
-# --method LD: linkage disequilibrium method (single time point)
-# --pcrit 0.02: allele frequency threshold; excludes rare alleles
-# 0.02 balances bias (lower pcrit) vs precision (higher pcrit)
-NeEstimator --input genotypes.gen --method LD --pcrit 0.02 \
-    --output ne_results.txt
-
-# Parse results
-# Reports point estimate and 95% CI (jackknife or parametric)
+```text
+# NeEstimator v2 uses an option file (.ne2), not command-line flags
+# Create option file specifying input, method, and parameters:
+#   Input: genepop or FSTAT format genotype file
+#   Method: LD (linkage disequilibrium, single time point)
+#   Pcrit: 0.02 (exclude alleles with frequency < 2%)
+#     0.02 balances bias (lower pcrit) vs precision (higher pcrit)
+#   Output: tab-separated with Ne point estimate and 95% CI (jackknife + parametric)
+# Run: java -jar NeEstimator.jar option_file.ne2
+# Build from GitHub: bunop/NeEstimator2.X (requires JDK 1.8+ and Apache Ant)
 ```
 
 ### Stairway Plot 2: Demographic History from SFS
@@ -238,12 +240,17 @@ library(hierfstat)
 bstats <- basic.stats(data_hf)
 he_obs <- bstats$perloc$Hs
 
-# Heq under IAM: expected He given observed allele count k per locus
-# Heq_IAM = 1 - 1/k (for diploid data)
+# Heq under IAM: expected He given observed allele count k and sample size
+# For microsatellites with k>2 alleles, Heq is simulated (use BOTTLENECK software)
+# For biallelic SNPs (k=2), use 2*p*(1-p) equilibrium or simulation-based approach
+# Simple approximation for microsatellites (k alleles):
 k_alleles <- sapply(data_hf[, -1], function(x) length(unique(na.omit(x))))
+n_samples <- nrow(data_hf)
+# Ewens sampling formula approximation (valid for microsatellites, not biallelic SNPs)
 heq_iam <- 1 - 1 / k_alleles
 
 # Wilcoxon signed-rank test: He > Heq indicates bottleneck
+# NOTE: for biallelic SNPs, use BOTTLENECK software (simulates expected Heq given k and n)
 wilcox.test(he_obs, heq_iam, paired = TRUE, alternative = 'greater')
 ```
 

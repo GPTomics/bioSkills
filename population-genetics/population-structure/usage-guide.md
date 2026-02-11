@@ -129,3 +129,10 @@ done
 
 - [ADMIXTURE Manual](https://dalexander.github.io/admixture/admixture-manual.pdf)
 - [PLINK PCA Documentation](https://www.cog-genomics.org/plink/2.0/strat)
+
+## Related Skills
+
+- plink-basics - Data preparation and QC
+- linkage-disequilibrium - LD pruning details
+- association-testing - Use PCs as covariates
+- ecological-genomics/landscape-genomics - Population structure correction for GEA

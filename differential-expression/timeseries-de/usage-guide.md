@@ -68,3 +68,14 @@ Tell your AI agent what you want to do:
 - Test for group:time interaction to find condition-specific temporal dynamics
 - Use ns() for natural splines or bs() for B-splines in design formulas
 - maSigPro works well for experiments with multiple conditions and many timepoints
+
+## Related Skills
+
+- differential-expression/deseq2-basics - Standard DE analysis
+- differential-expression/de-visualization - Visualize results
+- differential-expression/batch-correction - Handle batch effects
+- pathway-analysis/go-enrichment - Functional analysis of clusters
+- temporal-genomics/circadian-rhythms - Circadian rhythm detection for time-course data
+- temporal-genomics/temporal-clustering - Cluster genes by temporal expression profile
+- temporal-genomics/trajectory-modeling - GAM trajectory fitting for temporal expression data
+- temporal-genomics/temporal-grn - Dynamic GRN inference from bulk time-series data

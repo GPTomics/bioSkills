@@ -1,29 +1,30 @@
-library(GONE2)
 library(ggplot2)
 
 # --- GONE2: Recent Ne Trajectory from Linkage Disequilibrium ---
-# Requires PLINK bed/bim/fam files
+# GONE2 is a standalone CLI tool (esrud/GONE2), not an R package
+# Requires PLINK bed/bim/fam or VCF files
 # Minimum: 10,000 SNPs and 50 diploid individuals for reliable estimates
 
-# hc=0.05: maximum recombination distance in Morgans (~5 cM)
+# Run GONE2 from command line first:
+# ./gone2 -t 4 -u 0.05 genotypes.vcf
+# -t 4: threads; -u 0.05: upper recombination rate bound (default; pairs with r > 0.05 excluded)
 # Captures Ne changes over ~200 recent generations
-# Smaller values (0.01) focus on the most recent generations
-# Larger values (0.1) extend further back but with less resolution
-gone_result <- gone('genotypes', hc = 0.05, num_threads = 4)
+# Smaller -u (0.01) focuses on the most recent generations
+# Larger -u (0.1) extends further back but with less resolution
+
+# Parse GONE2 output file (tab-separated: generation, Ne columns)
+ne_df <- read.table('OUTPUT_GONE2', header = TRUE, sep = '\t')
 
 cat('--- GONE2 Ne Trajectory ---\n')
-cat('Generations estimated:', length(gone_result$generation), '\n')
-cat('Most recent Ne:', gone_result$Ne[1], '\n')
-cat('Oldest Ne:', gone_result$Ne[length(gone_result$Ne)], '\n')
-
-# Ne trajectory data
-ne_df <- data.frame(generation = gone_result$generation, Ne = gone_result$Ne)
+cat('Generations estimated:', nrow(ne_df), '\n')
+cat('Most recent Ne:', ne_df$Ne[1], '\n')
+cat('Oldest Ne:', ne_df$Ne[nrow(ne_df)], '\n')
 
 # --- Conservation threshold assessment ---
 # Ne < 50: critical risk of inbreeding depression (Franklin 1980, 50/500 rule)
 # Ne < 500: insufficient for long-term adaptive potential
 # Ne > 500: genetically viable population
-current_ne <- gone_result$Ne[1]
+current_ne <- ne_df$Ne[1]
 if (current_ne < 50) {
     cat('\nWARNING: Ne < 50 - critical inbreeding risk\n')
 } else if (current_ne < 500) {
@@ -62,20 +63,20 @@ if (nrow(ne_df) >= 10) {
     }
 }
 
-# --- NeEstimator LD Method (R interface) ---
+# --- NeEstimator LD Method ---
 # For quick contemporary Ne estimate without the full GONE2 trajectory
-# This section shows how to prepare input and parse output
-
-# Generate genepop format for NeEstimator
-# NeEstimator CLI command:
-# NeEstimator --input genotypes.gen --method LD --pcrit 0.02 --output ne_ld.txt
+# NeEstimator v2 uses an option file (.ne2), not command-line flags
+# Build from GitHub: bunop/NeEstimator2.X (requires JDK 1.8+ and Apache Ant)
+# Run: java -jar NeEstimator.jar option_file.ne2
 #
-# pcrit=0.02: exclude alleles with frequency < 2%
-# Lower pcrit (0.01) includes more rare alleles but increases downward bias
-# Higher pcrit (0.05) reduces bias but loses information
+# Key options in .ne2 file:
+#   Input file: genepop or FSTAT format
+#   Method: LD (linkage disequilibrium)
+#   Pcrit: 0.02 (exclude alleles < 2% frequency)
+#     Lower pcrit (0.01) includes more rare alleles but increases downward bias
+#     Higher pcrit (0.05) reduces bias but loses information
 #
-# Parse NeEstimator output:
-# Ne point estimate, 95% CI (jackknife), parametric CI
+# Output: tab-separated with Ne point estimate, 95% CI (jackknife + parametric)
 
 # --- Stairway Plot 2 blueprint preparation ---
 # Generates the blueprint file from a site frequency spectrum (SFS)

@@ -87,3 +87,11 @@ Tell your AI agent what you want to do:
 | Wilcoxon | Alpha diversity, 2 groups |
 | PERMANOVA | Beta diversity group differences |
 | betadisper | Test dispersion homogeneity |
+
+## Related Skills
+
+- amplicon-processing - Generate ASV table
+- differential-abundance - Identify taxa driving differences
+- data-visualization/ggplot2-fundamentals - Custom diversity plots
+- ecological-genomics/biodiversity-metrics - Hill number coverage-based rarefaction for ecological data
+- ecological-genomics/community-ecology - Constrained ordination and indicator species

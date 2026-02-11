@@ -160,8 +160,8 @@ Comprehensive framework with both scripted and interactive (Shiny) interfaces.
 library(DiscoRhythm)
 
 # Scripted analysis pipeline
-se <- discoGetSimu()
-disco_results <- discoMain(se, period = 24, method = c('JTK', 'Cosinor'))
+se <- discoGetSimu(TRUE)
+disco_results <- discoBatch(se, report = NULL, osc_period = 24)
 ```
 
 ## Parameter Guide

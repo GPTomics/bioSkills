@@ -133,6 +133,7 @@ Time-series clustering with Dynamic Time Warping (DTW) distance.
 import numpy as np
 from tslearn.clustering import TimeSeriesKMeans
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance
+from tslearn.utils import to_time_series_dataset
 from sklearn.metrics import silhouette_score
 
 # expr_mat: numpy array of shape (n_genes, n_timepoints)
@@ -144,8 +145,10 @@ expr_scaled = TimeSeriesScalerMeanVariance().fit_transform(expr_mat[:, :, np.new
 model = TimeSeriesKMeans(n_clusters=8, metric='dtw', max_iter=50, random_state=42)
 labels = model.fit_predict(expr_scaled)
 
-# Silhouette score for cluster quality (range -1 to 1; >0.25 is reasonable for temporal data)
-sil = silhouette_score(expr_scaled.squeeze(), labels, metric='dtw')
+# sklearn silhouette_score does not support DTW; precompute distance matrix
+from tslearn.metrics import cdist_dtw
+dist_matrix = cdist_dtw(expr_scaled)
+sil = silhouette_score(dist_matrix, labels, metric='precomputed')
 ```
 
 ### Cluster Number Selection with Silhouette

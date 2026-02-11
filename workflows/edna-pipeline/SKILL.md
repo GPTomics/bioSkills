@@ -136,7 +136,7 @@ obi grep -p 'sequence["count"] >= 2' reads/dereplicated reads/denoised
 
 # Denoise (remove PCR/sequencing errors)
 # ratio 0.05: sequences <5% abundance of a 1-mismatch parent are merged
-obi denoise -r 0.05 reads/denoised reads/cleaned
+obi clean -s merged_sample -r 0.05 -H reads/denoised reads/cleaned
 ```
 
 ### Path B: DADA2 (R)
@@ -255,7 +255,7 @@ if ((n_before - n_after) / n_before > 0.5) {
 ```bash
 # ecotag assigns taxonomy using LCA algorithm against reference database
 # Reference databases: EMBL, BOLD, MIDORI2, UNITE (marker-dependent)
-obi ecotag -R reads/refdb reads/cleaned reads/assigned
+obi ecotag -R reads/refdb --taxonomy reads/taxonomy reads/cleaned reads/assigned
 
 # Filter by assignment quality (species-level for COI)
 obi grep -p 'sequence["best_identity"] >= 0.97' reads/assigned reads/filtered_assigned

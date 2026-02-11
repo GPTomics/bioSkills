@@ -119,10 +119,11 @@ acf_values, confint = acf(values, nlags=18, alpha=0.05)
 # Periodic signal produces peaks at multiples of the period
 # Find first significant peak after lag 0
 # Peaks above upper confidence bound indicate significant autocorrelation
-peak_lags, _ = find_peaks(acf_values[1:], height=confint[1:, 1] - acf_values[1:])
-if len(peak_lags) > 0:
-    # First peak lag corresponds to the fundamental period
-    fundamental_period = (peak_lags[0] + 1) * sampling_interval
+peak_lags, _ = find_peaks(acf_values[1:])
+significant_peaks = peak_lags[acf_values[peak_lags + 1] > confint[peak_lags + 1, 1]]
+if len(significant_peaks) > 0:
+    # First significant peak lag corresponds to the fundamental period
+    fundamental_period = (significant_peaks[0] + 1) * sampling_interval
 ```
 
 ## Wavelet Time-Frequency Decomposition (pywt)
@@ -140,7 +141,7 @@ import numpy as np
 wavelet = 'cmor1.5-1.0'
 
 # Scales correspond to periods being tested
-# scales = sampling_rate * period / (2 * center_freq)
+# scales = center_freq * period * sampling_rate
 # For 4h sampling, test periods 8-72h
 sampling_rate = 1 / 4.0
 center_freq = pywt.central_frequency(wavelet)

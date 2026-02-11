@@ -40,8 +40,8 @@ k_range = range(2, 11)
 sil_scores = []
 for k in k_range:
     # metric='softdtw': differentiable approximation of DTW, faster for large datasets
-    # gamma_sdtw=0.5: smoothing parameter; lower = closer to true DTW, higher = smoother
-    model = TimeSeriesKMeans(n_clusters=k, metric='softdtw', gamma_sdtw=0.5, max_iter=30, random_state=42)
+    # metric_params={'gamma': 0.5}: smoothing parameter; lower = closer to true DTW, higher = smoother
+    model = TimeSeriesKMeans(n_clusters=k, metric='softdtw', metric_params={'gamma': 0.5}, max_iter=30, random_state=42)
     labels = model.fit_predict(expr_scaled)
     # Euclidean silhouette as computational shortcut; DTW silhouette is O(n^2 * T^2)
     sil = silhouette_score(expr_scaled.squeeze(), labels, metric='euclidean')
@@ -51,7 +51,7 @@ best_k = list(k_range)[np.argmax(sil_scores)]
 print(f'Best k by silhouette: {best_k} (score: {max(sil_scores):.3f})')
 
 # --- Cluster with optimal k ---
-model = TimeSeriesKMeans(n_clusters=best_k, metric='softdtw', gamma_sdtw=0.5, max_iter=50, random_state=42)
+model = TimeSeriesKMeans(n_clusters=best_k, metric='softdtw', metric_params={'gamma': 0.5}, max_iter=50, random_state=42)
 labels = model.fit_predict(expr_scaled)
 
 for k in range(best_k):

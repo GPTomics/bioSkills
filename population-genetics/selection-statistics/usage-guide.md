@@ -115,3 +115,10 @@ Use diversity-based methods:
 
 - [Selection Tutorial](https://github.com/cggh/scikit-allel/tree/master/docs)
 - [vcftools Manual](https://vcftools.github.io/man_latest.html)
+
+## Related Skills
+
+- scikit-allel-analysis - Data loading and basic statistics
+- population-structure - Population assignment for Fst
+- linkage-disequilibrium - EHH depends on LD patterns
+- ecological-genomics/landscape-genomics - Genotype-environment association for non-model organisms
