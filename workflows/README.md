@@ -48,6 +48,8 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | genome-annotation-pipeline | Assembled contigs to functional annotation for prokaryotic and eukaryotic genomes |
 | grn-pipeline | Single-cell data to regulon discovery and perturbation simulation via pySCENIC/SCENIC+ |
 | causal-genomics-pipeline | GWAS summary statistics to causal inference via MR, colocalization, and fine-mapping |
+| timecourse-pipeline | Expression matrix to temporal patterns via Mfuzz clustering, rhythm detection, and GAM fitting |
+| edna-pipeline | eDNA amplicons to community ecology via OBITools3/DADA2, iNEXT, and vegan |
 
 ## Example Prompts
 
@@ -81,6 +83,8 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 - "Annotate my newly assembled genome from scratch"
 - "Build gene regulatory networks from my single-cell data"
 - "Run post-GWAS causal inference on my summary statistics"
+- "Analyze my time-course expression experiment end to end"
+- "Process my eDNA water samples through the full biodiversity pipeline"
 
 ## Requirements
 
@@ -106,3 +110,5 @@ BiocManager::install(c('DESeq2', 'Seurat', 'clusterProfiler'))
 - **genome-annotation** - Genome annotation skills
 - **gene-regulatory-networks** - GRN inference skills
 - **causal-genomics** - Causal inference from GWAS
+- **temporal-genomics** - Circadian rhythms, temporal clustering, trajectory modeling
+- **ecological-genomics** - eDNA metabarcoding, biodiversity metrics, community ecology

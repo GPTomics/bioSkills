@@ -1,12 +1,12 @@
 ---
 name: bioskills
-description: "Installs 412 bioinformatics skills covering sequence analysis, RNA-seq, single-cell, variant calling, metagenomics, structural biology, and 54 more categories. Use when setting up bioinformatics capabilities or when a bioinformatics task requires specialized skills not yet installed."
+description: "Installs 425 bioinformatics skills covering sequence analysis, RNA-seq, single-cell, variant calling, metagenomics, structural biology, and 56 more categories. Use when setting up bioinformatics capabilities or when a bioinformatics task requires specialized skills not yet installed."
 metadata: {"openclaw":{"requires":{"anyBins":["python3","Rscript"]},"os":["darwin","linux"],"emoji":"🧬"}}
 ---
 
 # bioSkills Installer
 
-Meta-skill that installs the full bioSkills collection (412 skills across 60 categories) for bioinformatics analysis.
+Meta-skill that installs the full bioSkills collection (425 skills across 62 categories) for bioinformatics analysis.
 
 ## Installation
 
@@ -35,6 +35,7 @@ bash scripts/install-bioskills.sh --categories "single-cell,variant-calling,diff
 | Metagenomics & Microbiome | metagenomics, microbiome | 13 |
 | Genomics & Assembly | genome-assembly, genome-annotation, genome-intervals, genome-engineering, primer-design | 29 |
 | Regulatory & Causal | gene-regulatory-networks, causal-genomics, rna-structure | 13 |
+| Temporal & Ecological | temporal-genomics, ecological-genomics | 11 |
 | Immunology & Clinical | immunoinformatics, clinical-databases, tcr-bcr-analysis, epidemiological-genomics | 25 |
 | Specialized Omics | proteomics, metabolomics, alternative-splicing, chemoinformatics, liquid-biopsy | 36 |
 | RNA Biology | small-rna-seq, epitranscriptomics, clip-seq, ribo-seq | 20 |
@@ -43,7 +44,7 @@ bash scripts/install-bioskills.sh --categories "single-cell,variant-calling,diff
 | Screens & Cytometry | crispr-screens, flow-cytometry, imaging-mass-cytometry | 22 |
 | Pathway & Integration | pathway-analysis, multi-omics-integration, restriction-analysis | 14 |
 | Infrastructure | data-visualization, machine-learning, workflow-management, reporting, experimental-design, long-read-sequencing | 39 |
-| Workflows | End-to-end pipelines (FASTQ to results) | 38 |
+| Workflows | End-to-end pipelines (FASTQ to results) | 40 |
 
 ## After Installation
 
@@ -61,7 +62,7 @@ GitHub: https://github.com/GPTomics/bioSkills
 
 ## Related Skills
 
-After installation, 412 individual skills become available across these categories:
+After installation, 425 individual skills become available across these categories:
 sequence-io, sequence-manipulation, database-access, alignment, alignment-files,
 variant-calling, phylogenetics, differential-expression, structural-biology,
 single-cell, pathway-analysis, restriction-analysis, methylation-analysis,
@@ -76,4 +77,4 @@ tcr-bcr-analysis, small-rna-seq, epitranscriptomics, clip-seq, ribo-seq,
 genome-engineering, systems-biology, epidemiological-genomics,
 immunoinformatics, comparative-genomics, alternative-splicing,
 chemoinformatics, liquid-biopsy, genome-annotation, gene-regulatory-networks,
-causal-genomics, rna-structure, workflows
+causal-genomics, rna-structure, temporal-genomics, ecological-genomics, workflows

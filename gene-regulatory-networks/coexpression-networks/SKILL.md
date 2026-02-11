@@ -226,3 +226,4 @@ pywgcna.analyseWGCNA()
 - differential-networks - Compare networks between conditions
 - differential-expression/deseq2-basics - DE analysis to prioritize network genes
 - differential-expression/batch-correction - Remove batch effects before network construction
+- temporal-genomics/temporal-grn - Dynamic GRN inference from bulk time-series data

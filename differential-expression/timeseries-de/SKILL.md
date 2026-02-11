@@ -334,3 +334,7 @@ cat('Significant genes:', length(all_sig), '\n')
 - differential-expression/de-visualization - Visualize results
 - differential-expression/batch-correction - Handle batch effects
 - pathway-analysis/go-enrichment - Functional analysis of clusters
+- temporal-genomics/circadian-rhythms - Circadian rhythm detection for time-course data
+- temporal-genomics/temporal-clustering - Cluster genes by temporal expression profile
+- temporal-genomics/trajectory-modeling - GAM trajectory fitting for temporal expression data
+- temporal-genomics/temporal-grn - Dynamic GRN inference from bulk time-series data

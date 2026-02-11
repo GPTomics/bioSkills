@@ -135,7 +135,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **alternative-splicing** | 6 | rMATS-turbo, SUPPA2, IsoformSwitchAnalyzeR | Splicing quantification, differential splicing, isoform switching, sashimi visualization |
 | **chemoinformatics** | 7 | RDKit, DeepChem, AutoDock Vina | Molecular I/O, descriptors, similarity, ADMET, virtual screening, reaction enumeration |
 | **liquid-biopsy** | 6 | ichorCNA, fgbio, VarDict, FinaleToolkit | cfDNA preprocessing, fragmentomics, tumor fraction, ctDNA mutations, longitudinal monitoring |
-| **workflows** | 38 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics |
+| **workflows** | 40 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics, time-course, eDNA |
 | **proteomics** | 9 | pyOpenMS, MSstats, limma, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
@@ -162,13 +162,15 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **gene-regulatory-networks** | 5 | pySCENIC, SCENIC+, WGCNA, CellOracle | Co-expression networks, regulon inference, multiomics GRN, perturbation simulation |
 | **causal-genomics** | 5 | TwoSampleMR, coloc, susieR, MR-PRESSO | Mendelian randomization, colocalization, fine-mapping, mediation, pleiotropy |
 | **rna-structure** | 3 | ViennaRNA, Infernal, ShapeMapper2 | RNA secondary structure prediction, ncRNA search, structure probing |
+| **temporal-genomics** | 5 | CosinorPy, Mfuzz, mgcv, statsmodels, scipy | Circadian rhythms, temporal clustering, trajectory modeling, dynamic GRN inference, periodicity detection |
+| **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 412 skills across 60 categories**
+**Total: 425 skills across 62 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 412 skills across 60 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 425 skills across 62 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -264,6 +266,17 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 # RNA Structure
 "Predict the secondary structure and folding energy of my RNA sequence"
 "Search for ncRNA homologs in my transcript using Rfam"
+
+# Temporal Analysis
+"Test which genes have circadian expression patterns in my time-course data"
+"Cluster my temporally variable genes by expression profile shape"
+"Find periodic patterns of unknown period in my unevenly sampled time-series"
+
+# Ecological Genomics
+"Process my eDNA water samples to identify fish species present"
+"Compare biodiversity across my sampling sites using Hill number rarefaction"
+"Find loci under local adaptation across an elevation gradient"
+"Estimate effective population size for my endangered species"
 
 # Phylogenetics & Evolution
 "Build a phylogenetic tree and visualize evolutionary relationships"

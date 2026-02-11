@@ -330,3 +330,4 @@ done
 - plink-basics - Data preparation and QC
 - linkage-disequilibrium - LD pruning details
 - association-testing - Use PCs as covariates
+- ecological-genomics/landscape-genomics - Population structure correction for GEA
