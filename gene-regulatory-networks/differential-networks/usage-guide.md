@@ -72,3 +72,4 @@ Tell your AI agent what you want to do:
 - scenic-regulons - TF regulon inference from scRNA-seq with pySCENIC
 - differential-expression/deseq2-basics - DE analysis to complement network rewiring
 - pathway-analysis/go-enrichment - Functional enrichment of rewired gene sets
+- temporal-genomics/temporal-grn - Time-delayed regulatory inference from temporal data

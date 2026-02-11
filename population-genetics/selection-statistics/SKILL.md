@@ -229,3 +229,4 @@ plt.savefig('selection_scan.png', dpi=150)
 - scikit-allel-analysis - Data loading and basic statistics
 - population-structure - Population assignment for Fst
 - linkage-disequilibrium - EHH depends on LD patterns
+- ecological-genomics/landscape-genomics - Genotype-environment association for non-model organisms

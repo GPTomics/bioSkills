@@ -72,3 +72,4 @@ Tell your AI agent what you want to do:
 - differential-expression/deseq2-basics - DE analysis for gene prioritization
 - differential-expression/batch-correction - Remove batch effects before network construction
 - pathway-analysis/go-enrichment - Functional enrichment of gene modules
+- temporal-genomics/temporal-grn - Dynamic GRN inference from bulk time-series data

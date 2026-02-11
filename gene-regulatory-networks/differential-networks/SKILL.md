@@ -254,3 +254,4 @@ plt.savefig('differential_network.pdf', bbox_inches='tight')
 - coexpression-networks - Build WGCNA networks for individual conditions
 - scenic-regulons - TF regulon inference from scRNA-seq
 - differential-expression/deseq2-basics - DE analysis to complement network rewiring
+- temporal-genomics/temporal-grn - Time-delayed regulatory inference from temporal data

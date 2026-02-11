@@ -166,3 +166,5 @@ plot_ordination(ps, ord_nmds, color = 'Group') +
 - amplicon-processing - Generate ASV table
 - differential-abundance - Identify taxa driving differences
 - data-visualization/ggplot2-fundamentals - Custom diversity plots
+- ecological-genomics/biodiversity-metrics - Hill number coverage-based rarefaction for ecological data
+- ecological-genomics/community-ecology - Constrained ordination and indicator species
