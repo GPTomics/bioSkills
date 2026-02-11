@@ -122,7 +122,7 @@ temporal_genes = expr.index[fdr < 0.05].tolist()
 
 ```r
 # Gate 1: Sufficient temporal genes detected
-sig_genes <- temporal_results[temporal_results$FDR < 0.05, ]
+sig_genes <- temporal_results[temporal_results$adj.P.Val < 0.05, ]
 n_sig <- nrow(sig_genes)
 message(sprintf('Significant temporal genes: %d', n_sig))
 if (n_sig < 100) message('WARNING: Few temporal genes. Check time point spacing or consider relaxing FDR.')
@@ -138,7 +138,7 @@ message(sprintf('Residual mean: %.4f, SD: %.4f', mean(residuals), sd(residuals))
 ```r
 # FDR <0.05: Standard threshold for temporal DE
 # More permissive (0.1) acceptable for exploratory clustering
-sig_genes <- rownames(temporal_results[temporal_results$FDR < 0.05, ])
+sig_genes <- rownames(temporal_results[temporal_results$adj.P.Val < 0.05, ])
 expr_sig <- expr[sig_genes, ]
 message(sprintf('Genes passing FDR <0.05: %d', length(sig_genes)))
 ```
@@ -173,9 +173,9 @@ core_genes <- acore(eset, cl, min.acore = 0.5)
 
 ```python
 from tslearn.clustering import TimeSeriesKMeans
-from sklearn.preprocessing import StandardScaler
 
-expr_scaled = StandardScaler().fit_transform(expr_sig.values)
+# Row-wise z-scoring: normalize each gene across its timepoints (not per-timepoint)
+expr_scaled = (expr_sig.values - expr_sig.values.mean(axis=1, keepdims=True)) / expr_sig.values.std(axis=1, keepdims=True)
 
 # n_clusters: 4-20 depending on complexity; evaluate with silhouette score
 model = TimeSeriesKMeans(n_clusters=8, metric='softdtw', metric_params={'gamma': 0.01},

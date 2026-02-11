@@ -91,14 +91,15 @@ obi grep -p "sequence[\"count\"] >= ${MIN_COUNT}" "$OBI_DIR"/dereplicated "$OBI_
 
 # --- Step 6: Denoise (remove PCR/sequencing errors) ---
 # ratio 0.05: sequences <5% abundance of a 1-mismatch parent are merged
-obi denoise -r 0.05 "$OBI_DIR"/denoised "$OBI_DIR"/cleaned
+# -s merged_sample: per-sample denoising; -r 0.05: ratio threshold; -H: head sequences only
+obi clean -s merged_sample -r 0.05 -H "$OBI_DIR"/denoised "$OBI_DIR"/cleaned
 
 echo "=== Sequences after chimera removal ==="
-obi stat "$OBI_DIR"/cleaned
+obi stats "$OBI_DIR"/cleaned
 
 # --- Step 7: Taxonomy assignment ---
 # ecotag uses LCA algorithm against reference database
-obi ecotag -R "$REF_DB" "$OBI_DIR"/cleaned "$OBI_DIR"/assigned
+obi ecotag -R "$REF_DB" --taxonomy "$OBI_DIR"/taxonomy "$OBI_DIR"/cleaned "$OBI_DIR"/assigned
 
 # Filter by assignment quality
 obi grep -p "sequence[\"best_identity\"] >= ${MIN_IDENTITY}" \

@@ -79,7 +79,9 @@ for g in range(n_genes):
     gene_power = lombscargle(times, gene_signal, angular_freqs, normalize=True)
     max_power = np.max(gene_power)
     all_periods.append(periods[np.argmax(gene_power)])
-    # Use null distribution from above for genome-wide FAP estimation
+    # Reuse null from single-gene permutation: valid when all genes share the same
+    # observation times and frequency grid. For real data with per-gene missing values
+    # or different sampling patterns, compute a separate null per gene.
     all_fap.append(np.mean(null_max_powers >= max_power))
 
 # BH FDR correction for multiple testing

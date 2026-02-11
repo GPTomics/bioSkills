@@ -59,16 +59,17 @@ obi grep -p 'len(sequence) >= 100 and len(sequence) <= 500' \
 obi ngsfilter -t ngsfilter.txt -u EDNA/unassigned \
     EDNA/length_filtered EDNA/demux
 
-# Dereplicate
+# Dereplicate (obi uniq creates merged_sample attribute automatically)
 obi uniq EDNA/demux EDNA/derep
-# Initialize merged_sample attribute for per-sample count tracking after uniq
-obi annotate --set-tag merged_sample='{}' EDNA/derep
 
 # Remove singletons (count >= 2 removes PCR/sequencing errors)
 obi grep -p 'sequence["count"] >= 2' EDNA/derep EDNA/no_singletons
 
 # Denoise (remove PCR/sequencing errors)
-obi denoise -r 0.05 EDNA/no_singletons EDNA/denoised
+# obi clean: denoises by merging low-abundance variants into parent sequences
+# -s merged_sample: per-sample denoising (critical for multi-sample datasets)
+# -r 0.05: ratio threshold; -H: keep only head sequences (discard variants)
+obi clean -s merged_sample -r 0.05 -H EDNA/no_singletons EDNA/denoised
 
 # Taxonomy assignment against reference database
 obi ecotag -R EDNA/refdb --taxonomy EDNA/taxonomy EDNA/denoised EDNA/assigned

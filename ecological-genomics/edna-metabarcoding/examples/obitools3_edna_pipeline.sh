@@ -54,11 +54,12 @@ obi grep -p 'sequence["count"] >= 2' "${DMS}/derep" "${DMS}/no_singletons"
 # --- Step 7: Denoise ---
 # ratio=0.05: sequences with <5% abundance of a more abundant 1-mismatch parent
 # are merged into the parent (removes PCR/sequencing errors)
-obi denoise -r 0.05 "${DMS}/no_singletons" "${DMS}/denoised"
+# -s merged_sample: per-sample denoising; -r 0.05: ratio threshold; -H: head sequences only
+obi clean -s merged_sample -r 0.05 -H "${DMS}/no_singletons" "${DMS}/denoised"
 
 # --- Step 8: Import reference database ---
 obi import --fasta-input "$REFDB_FASTA" "${DMS}/refdb"
-obi import --taxdump taxdump/ "${DMS}/taxonomy"
+obi import --taxdump taxdump.tar.gz "${DMS}/taxonomy"
 
 # --- Step 9: Taxonomy assignment ---
 # ecotag uses LCA algorithm against the reference database

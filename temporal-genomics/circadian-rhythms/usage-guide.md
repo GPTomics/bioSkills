@@ -13,8 +13,8 @@ pip install cosinorpy pandas numpy statsmodels matplotlib
 
 ### R
 ```r
-install.packages('data.table')
-BiocManager::install(c('MetaCycle', 'rain', 'DiscoRhythm'))
+install.packages(c('data.table', 'MetaCycle'))
+BiocManager::install(c('rain', 'DiscoRhythm'))
 ```
 
 ### Data Requirements

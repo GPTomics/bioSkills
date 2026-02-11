@@ -16,8 +16,12 @@ n_genes = n_tfs + n_targets
 gene_names = [f'TF{i+1}' for i in range(n_tfs)] + [f'target{i+1}' for i in range(n_targets)]
 expr_mat = np.zeros((n_genes, n_timepoints))
 
+# AR(1) stationary variance: sigma_e^2 / (1 - phi^2)
+# phi=0.7, sigma_e=0.5 -> stationary sd ≈ 0.70
+ar_sd = 0.5 / np.sqrt(1 - 0.7**2)
+
 for i in range(n_tfs):
-    expr_mat[i, 0] = np.random.uniform(6, 10)
+    expr_mat[i, 0] = np.random.normal(0, ar_sd)
     for t in range(1, n_timepoints):
         # AR(1) process: autoregressive with coefficient 0.7; persistent but mean-reverting
         expr_mat[i, t] = 0.7 * expr_mat[i, t - 1] + np.random.normal(0, 0.5)
@@ -26,7 +30,7 @@ n_true_edges = 10
 true_edges = []
 for j in range(n_targets):
     target_idx = n_tfs + j
-    expr_mat[target_idx, 0] = np.random.uniform(6, 10)
+    expr_mat[target_idx, 0] = np.random.normal(0, ar_sd)
     if j < n_true_edges:
         # Assign a causal TF with lag-1 influence
         causal_tf = j % n_tfs
