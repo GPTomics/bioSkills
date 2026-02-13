@@ -4,7 +4,7 @@
 # Bundled with the bioskills meta-skill for ClawHub distribution
 #
 # Usage:
-#   bash install-bioskills.sh                              # Install all 412 skills
+#   bash install-bioskills.sh                              # Install all 425 skills
 #   bash install-bioskills.sh --categories "single-cell,variant-calling"  # Selective
 #   bash install-bioskills.sh --update                     # Only update changed skills
 #   bash install-bioskills.sh --uninstall                  # Remove all bio-* skills
