@@ -1,3 +1,4 @@
+# Reference: vegan 2.6+ | Verify API if version differs
 library(pcadapt)
 library(qvalue)
 

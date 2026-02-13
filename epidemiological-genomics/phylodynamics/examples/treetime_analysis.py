@@ -1,4 +1,5 @@
 '''Time-scaled phylogenetics with TreeTime'''
+# Reference: biopython 1.83+, treetime 0.11+, scanpy 1.10+ | Verify API if version differs
 
 from datetime import datetime
 import pandas as pd

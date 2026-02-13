@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: metaphlan
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, MetaPhlAn 4.1+, minimap2 2.26+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MetaPhlAn 4 Profiling
+
+**"Profile the species composition of my metagenome"** → Determine species-level relative abundances from shotgun metagenomic reads using clade-specific marker gene alignment.
+- CLI: `metaphlan sample.fastq --input_type fastq -o profile.txt`
 
 MetaPhlAn 4 uses ~5M clade-specific markers from 26,970 species-level genome bins. Supports both short reads (bowtie2) and long reads (minimap2).
 
@@ -28,7 +42,7 @@ metaphlan reads_R1.fastq.gz,reads_R2.fastq.gz \
     --mapout sample.map.bz2
 ```
 
-## Save Mapping Output for Reuse (MetaPhlAn 4.2+)
+## Save Mapping Output for Reuse
 
 ```bash
 # First run - save intermediate mapping
@@ -71,7 +85,7 @@ metaphlan sample.fastq.gz \
 # Download database (done automatically on first run)
 metaphlan --install
 
-# Or specify database location (MetaPhlAn 4.2+)
+# Or specify database location
 metaphlan --install --db_dir /path/to/db
 ```
 
@@ -168,7 +182,7 @@ metaphlan sample.fastq.gz \
     --output_file profile.txt
 ```
 
-## Key Parameters (MetaPhlAn 4.2+)
+## Key Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|

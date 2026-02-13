@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: viridis
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Color Palettes
+
+**"Choose colors for a biological visualization"** → Select appropriate color palettes for sequential data (expression levels), diverging data (fold changes), or categorical data (cell types/clusters).
+- Python: `seaborn.color_palette()`, `matplotlib.colormaps`
+- R: `RColorBrewer::brewer.pal()`, `viridis::viridis()`
 
 ## Palette Types
 
@@ -152,6 +167,10 @@ sns.heatmap(data, cmap='RdBu_r', center=0, vmin=-2, vmax=2)
 ```
 
 ## Colorblind Simulation
+
+**Goal:** Verify that a chosen palette remains distinguishable under common forms of color vision deficiency.
+
+**Approach:** Use the colorspace package to simulate deuteranopia and protanopia transformations on the palette colors and visually inspect the result.
 
 ```r
 library(colorspace)

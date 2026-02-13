@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: bedtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, pandas 2.2+, pybedtools 0.9+, pysam 0.22+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CNV Annotation
+
+**"Annotate my CNV calls with gene names"** → Overlap CNV segments with gene annotations, clinical databases, and pathway information to identify affected genes and assess clinical significance.
+- CLI: `bedtools intersect -a cnvs.bed -b genes.bed`
+- Python: `pybedtools.BedTool().intersect()`
 
 ## Annotate with Gene Names (bedtools)
 
@@ -34,6 +50,10 @@ cnvkit.py batch tumor.bam --normal normal.bam \
 ```
 
 ## Python: Comprehensive Annotation
+
+**Goal:** Annotate CNV segments with all overlapping genes using interval intersection.
+
+**Approach:** Convert CNV segments and gene annotations to BedTool objects, intersect to find overlapping genes, and aggregate gene names per CNV segment.
 
 ```python
 import pandas as pd
@@ -81,6 +101,10 @@ def annotate_cnvs(cns_file, gene_bed, output=None):
 
 ## Annotate with Cancer Gene Census
 
+**Goal:** Flag known cancer-associated genes within CNV regions.
+
+**Approach:** Load the COSMIC Cancer Gene Census, cross-reference with genes overlapping CNVs, and tag matching genes.
+
 ```python
 import pandas as pd
 
@@ -104,6 +128,10 @@ def annotate_cancer_genes(cnv_genes, cgc_file):
 ```
 
 ## Annotate with ACMG/ClinVar
+
+**Goal:** Identify pathogenic ClinVar variants within CNV regions for clinical interpretation.
+
+**Approach:** Query the ClinVar VCF for each CNV region using pysam, collect pathogenic variants and their associated genes.
 
 ```python
 def annotate_clinvar_cnvs(cnv_bed, clinvar_vcf):
@@ -176,6 +204,10 @@ AnnotSV \
 ```
 
 ## R: Gene Enrichment of CNV Regions
+
+**Goal:** Determine whether amplified or deleted genes are enriched for specific biological pathways.
+
+**Approach:** Extract genes from amplified CNV regions, convert to Entrez IDs, and run GO and KEGG enrichment with clusterProfiler.
 
 ```r
 library(clusterProfiler)

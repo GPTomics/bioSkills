@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: NCBI BLAST+ 2.15+ | Verify API if version differs
 # Create BLAST databases from FASTA files
 
 # Create nucleotide database

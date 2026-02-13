@@ -1,4 +1,5 @@
 '''Probabilistic motif searching with PWM/PSSM'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio import motifs
 from Bio.Seq import Seq
 

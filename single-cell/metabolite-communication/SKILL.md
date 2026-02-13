@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: MeboCost
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolite-Mediated Cell Communication
+
+**"Analyze metabolic crosstalk between cell types"** → Predict metabolite secretion-sensing interactions between cell populations based on enzyme and transporter expression patterns.
+- Python: `mebocost.MeboCost(adata, groupby='cell_type')` → `run_mebocost()`
 
 ## MeboCost Overview
 
@@ -15,6 +28,10 @@ MeboCost infers metabolite-mediated communication by:
 3. Computing communication scores between cell types
 
 ## Basic Workflow
+
+**Goal:** Infer metabolite-mediated cell-cell communication from scRNA-seq data by predicting which cell types secrete and sense specific metabolites.
+
+**Approach:** Initialize a MeboCost object from an AnnData with cell type annotations, run permutation-based communication inference to score metabolite secretion-sensing interactions, then filter for statistically significant pairs.
 
 ```python
 import mebocost as mbc

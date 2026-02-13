@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: NetworkX
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Network Visualization
+
+**"Visualize a biological network"** → Display protein-protein interaction, gene regulatory, or pathway networks as node-edge graphs.
+- Python: `networkx` + `matplotlib`, `pyvis.network.Network()` (interactive)
+- CLI: Cytoscape with `py4cytoscape` for programmatic control
 
 Visualize biological networks with static (matplotlib), interactive (PyVis), and publication-quality (Cytoscape) approaches.
 
@@ -95,6 +109,10 @@ def draw_weighted_network(G, pos=None, weight_key='weight'):
 ```
 
 ### Community Detection Coloring
+
+**Goal:** Color network nodes by community membership to reveal modular structure.
+
+**Approach:** Run greedy modularity community detection, map each node to its community index, and render with a qualitative colormap where each community gets a distinct color.
 
 ```python
 from networkx.algorithms.community import greedy_modularity_communities
@@ -281,6 +299,10 @@ def style_ppi_network(G, pos=None, score_key='score'):
 ```
 
 ### GRN Directed Network
+
+**Goal:** Visualize a gene regulatory network with distinct styling for TFs vs targets and activating vs repressing edges.
+
+**Approach:** Separate edges by regulation type, draw activating edges as solid green arrows and repressing edges as dashed red arrows, style TF nodes as diamonds and target nodes as circles.
 
 ```python
 def draw_grn(G, pos=None):

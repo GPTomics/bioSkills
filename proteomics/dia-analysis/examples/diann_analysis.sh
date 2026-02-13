@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # DIA-NN library-free proteomics analysis
 
 set -e

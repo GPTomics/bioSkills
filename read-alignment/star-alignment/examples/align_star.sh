@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: STAR 2.7.11+, Subread 2.0+, fastp 0.23+, kallisto 0.50+ | Verify API if version differs
 # RNA-seq alignment with STAR
 
 set -euo pipefail

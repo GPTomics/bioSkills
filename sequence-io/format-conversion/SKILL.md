@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: Bio.SeqIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Format Conversion
+
+**"Convert this file to a different format"** → Read records in one format, optionally add missing annotations, and write in the target format.
+- Python: `SeqIO.convert()` for direct conversion, or `SeqIO.parse()` + `SeqIO.write()` when modifications are needed (BioPython)
+- CLI: `seqkit seq` (SeqKit) for FASTA/FASTQ; `samtools view` for SAM/BAM/CRAM
 
 Convert sequence files between formats using Biopython's Bio.SeqIO module.
 
@@ -62,6 +76,12 @@ SeqIO.convert('reads.fastq', 'fastq', 'reads.fasta', 'fasta')
 ```
 
 ### FASTA to GenBank (requires molecule_type)
+
+**Goal:** Convert FASTA to GenBank format, which requires molecule_type annotation.
+
+**Approach:** Stream records through a generator that injects the missing annotation, then write.
+
+**Reference (BioPython 1.83+):**
 ```python
 records = SeqIO.parse('input.fasta', 'fasta')
 def add_molecule_type(records):
@@ -73,6 +93,12 @@ SeqIO.write(add_molecule_type(records), 'output.gb', 'genbank')
 ```
 
 ### FASTA to FASTQ (add dummy quality)
+
+**Goal:** Convert FASTA to FASTQ by assigning uniform placeholder quality scores.
+
+**Approach:** Stream records through a generator that adds phred_quality to each, then write as FASTQ.
+
+**Reference (BioPython 1.83+):**
 ```python
 def add_quality(records, quality=30):
     for record in records:
@@ -84,6 +110,12 @@ SeqIO.write(add_quality(records), 'output.fastq', 'fastq')
 ```
 
 ### Batch Convert Multiple Files
+
+**Goal:** Convert all files of one format in a directory to another format.
+
+**Approach:** Glob for input files, apply `SeqIO.convert()` to each, and report per-file counts.
+
+**Reference (BioPython 1.83+):**
 ```python
 from pathlib import Path
 

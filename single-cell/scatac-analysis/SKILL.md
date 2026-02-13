@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: Signac
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MACS2 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # scATAC-seq Analysis
+
+**"Analyze my single-cell ATAC-seq data"** → Process peak-barcode matrices, perform QC/filtering, reduce dimensions with LSI, cluster cells, call peaks per cluster, and score motif activity.
+- R: `Signac::CreateChromatinAssay()` → `RunTFIDF()` → `FindTopFeatures()` → `RunSVD()`
+- R: `ArchR::createArrowFiles()` for large datasets
 
 Analyze single-cell chromatin accessibility data to identify cell types and regulatory elements.
 
@@ -19,6 +33,10 @@ Analyze single-cell chromatin accessibility data to identify cell types and regu
 | SnapATAC2 | Python | Fast, scalable |
 
 ## Signac (R/Seurat)
+
+**Goal:** Process scATAC-seq data through QC, normalization, dimensionality reduction, and clustering to identify cell types by chromatin accessibility.
+
+**Approach:** Create a ChromatinAssay from a peak-barcode matrix with fragment files, compute QC metrics (TSS enrichment, nucleosome signal), normalize with TF-IDF, reduce dimensions with LSI (SVD), then cluster and annotate using gene activity scores.
 
 ### Installation
 

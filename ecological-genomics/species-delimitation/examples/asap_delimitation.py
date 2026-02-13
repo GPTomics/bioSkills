@@ -1,3 +1,4 @@
+# Reference: biopython 1.83+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
 from Bio import AlignIO
 from scipy.cluster.hierarchy import fcluster, linkage, dendrogram
 from scipy.spatial.distance import squareform

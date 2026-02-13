@@ -5,9 +5,26 @@ tool_type: mixed
 primary_tool: biomaRt
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Gene ID Mapping
 
 ## Python: mygene
+
+**Goal:** Convert between gene identifier systems (Ensembl, Entrez, Symbol, UniProt) using the MyGene.info API.
+
+**Approach:** Query mygene with source IDs, specifying scopes and target fields, to build an ID mapping dictionary.
+
+**"Convert my Ensembl gene IDs to gene symbols"** → Query a gene annotation service to map between identifier systems, handling one-to-many mappings.
 
 ```python
 import mygene
@@ -32,6 +49,10 @@ results = mg.querymany(ensembl_ids, scopes='ensembl.gene',
 ```
 
 ## Python: pyensembl
+
+**Goal:** Map gene identifiers using a local Ensembl database for offline, fast lookups.
+
+**Approach:** Load a specific Ensembl release and query gene objects by ID or name.
 
 ```python
 from pyensembl import EnsemblRelease
@@ -72,6 +93,10 @@ converted = gp.biomart.ensembl2name(gene_list, organism='hsapiens')
 
 ## R: biomaRt
 
+**Goal:** Map gene identifiers using the Ensembl BioMart web service in R.
+
+**Approach:** Connect to the Ensembl BioMart and retrieve attribute mappings for a list of gene IDs.
+
 ```r
 library(biomaRt)
 
@@ -102,6 +127,10 @@ listAttributes(ensembl)
 
 ## R: org.db Packages
 
+**Goal:** Map gene identifiers using Bioconductor organism annotation packages for fast local lookups.
+
+**Approach:** Use mapIds from AnnotationDbi with organism-specific org.db packages.
+
 ```r
 library(org.Hs.eg.db)  # Human
 library(AnnotationDbi)
@@ -120,6 +149,12 @@ keytypes(org.Hs.eg.db)
 ```
 
 ## Apply Mapping to Count Matrix
+
+**Goal:** Replace gene IDs in a count matrix index with a different identifier type.
+
+**Approach:** Map IDs via mygene, update the DataFrame index, and aggregate duplicates by summing.
+
+**"Convert the gene IDs in my count matrix from Ensembl to symbols"** → Map the row index to a new ID type, handling version suffixes and duplicate mappings by summation.
 
 ```python
 import pandas as pd
@@ -157,6 +192,10 @@ counts_symbols = map_count_matrix_ids(counts, 'ensembl.gene', 'symbol')
 
 ## R Equivalent
 
+**Goal:** Replace gene IDs in an R count matrix using biomaRt with duplicate aggregation.
+
+**Approach:** Query BioMart for the mapping, merge with the count matrix, and sum duplicate rows.
+
 ```r
 library(biomaRt)
 
@@ -191,6 +230,10 @@ map_count_matrix_ids <- function(counts, from_type='ensembl_gene_id', to_type='h
 ```
 
 ## Handle Unmapped IDs
+
+**Goal:** Track and gracefully handle gene IDs that fail to map to the target identifier system.
+
+**Approach:** Keep original IDs for unmapped genes and report mapping success rate.
 
 ```python
 def robust_id_mapping(gene_ids, from_type, to_type, species='human'):

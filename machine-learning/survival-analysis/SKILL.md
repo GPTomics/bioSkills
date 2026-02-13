@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: lifelines
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Survival Prediction with lifelines
 
+**"Analyze patient survival data"** → Estimate survival curves (Kaplan-Meier), compare groups (log-rank test), and model time-to-event outcomes with Cox proportional hazards regression.
+- Python: `lifelines.KaplanMeierFitter()`, `lifelines.CoxPHFitter()`
+
 ## Kaplan-Meier Curves
+
+**Goal:** Estimate and visualize the survival probability function from time-to-event data.
+
+**Approach:** Fit a nonparametric Kaplan-Meier estimator to censored survival data and plot the step function.
 
 ```python
 from lifelines import KaplanMeierFitter
@@ -27,6 +44,10 @@ plt.savefig('km_curve.png', dpi=150)
 ```
 
 ## Compare Groups with Log-Rank Test
+
+**Goal:** Test whether survival distributions differ significantly between risk groups.
+
+**Approach:** Fit separate Kaplan-Meier curves per group, overlay them, and apply a log-rank test for statistical comparison.
 
 ```python
 from lifelines import KaplanMeierFitter
@@ -55,6 +76,10 @@ plt.savefig('km_comparison.png', dpi=150)
 
 ## Cox Proportional Hazards Regression
 
+**Goal:** Model the effect of covariates on survival time using a semi-parametric hazard model.
+
+**Approach:** Fit a Cox PH model to extract hazard ratios, confidence intervals, and a concordance index for predictive accuracy.
+
 ```python
 from lifelines import CoxPHFitter
 
@@ -75,6 +100,10 @@ print(f'C-index: {cph.concordance_index_:.3f}')
 ```
 
 ## Multivariate Cox Model
+
+**Goal:** Assess the independent prognostic value of clinical and molecular features in a single model.
+
+**Approach:** Combine clinical covariates and gene expression values into a regularized Cox model to identify independently prognostic variables.
 
 ```python
 from lifelines import CoxPHFitter
@@ -97,6 +126,10 @@ cph.print_summary()
 
 ## Predict Risk Scores
 
+**Goal:** Stratify patients into risk groups based on a fitted Cox model.
+
+**Approach:** Compute partial hazard scores from model coefficients and split at the median to define high/low risk groups for downstream KM visualization.
+
 ```python
 # Partial hazard (risk score)
 risk_scores = cph.predict_partial_hazard(cox_df)
@@ -107,12 +140,20 @@ df['risk_group'] = (risk_scores > risk_scores.median()).map({True: 'high', False
 
 ## Check Proportional Hazards Assumption
 
+**Goal:** Verify that the proportional hazards assumption holds for all covariates.
+
+**Approach:** Run the built-in Schoenfeld residual tests and inspect diagnostic plots for time-varying effects.
+
 ```python
 # Test PH assumption
 cph.check_assumptions(df, p_value_threshold=0.05, show_plots=True)
 ```
 
 ## Survival at Specific Time
+
+**Goal:** Extract survival probability estimates at clinically meaningful time points.
+
+**Approach:** Query the fitted Kaplan-Meier survival function at specific durations and report the median survival time.
 
 ```python
 # Survival probability at specific times
@@ -124,6 +165,10 @@ print(f'Median survival: {kmf.median_survival_time_:.1f}')
 ```
 
 ## Feature Selection for Survival
+
+**Goal:** Screen thousands of genes to identify those significantly associated with patient survival.
+
+**Approach:** Fit univariate Cox models for each gene, extract hazard ratios and p-values, and rank candidates for multivariate modeling.
 
 ```python
 from lifelines import CoxPHFitter

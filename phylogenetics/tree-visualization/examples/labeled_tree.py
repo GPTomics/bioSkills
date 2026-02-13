@@ -1,4 +1,5 @@
 '''Draw tree with custom labels and branch lengths'''
+# Reference: biopython 1.83+, matplotlib 3.8+ | Verify API if version differs
 
 from Bio import Phylo
 from io import StringIO

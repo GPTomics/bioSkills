@@ -1,4 +1,5 @@
 '''Multi-locus sequence typing for bacterial isolates'''
+# Reference: mlst 2.23+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bedtools 2.31+, samtools 1.19+ | Verify API if version differs
 # Convert BAM to normalized bigWig via bedGraph
 
 BAM=$1

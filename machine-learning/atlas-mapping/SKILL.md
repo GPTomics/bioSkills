@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: scvi-tools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, scanpy 1.10+, scvi-tools 1.1+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Transfer Learning for Single-Cell Data
 
+**"Map my scRNA-seq data onto a reference atlas"** → Transfer cell type labels from a pre-trained reference model to query cells using architectural surgery (scArches) without retraining.
+- Python: `scvi.model.SCVI.load_query_data()` → `get_latent_representation()` → `scanpy.tl.ingest()`
+
 ## scVI Reference Mapping (scArches)
+
+**Goal:** Map query single-cell data onto a pre-trained reference model to obtain a shared latent embedding.
+
+**Approach:** Load a pre-trained scVI model, prepare query data with matching gene sets, then perform surgical fine-tuning that updates only query-specific parameters.
 
 ```python
 import scvi
@@ -40,6 +57,10 @@ adata_query.obsm['X_scVI'] = query_model.get_latent_representation()
 
 ## scANVI for Label Transfer
 
+**Goal:** Transfer cell type labels from a labeled reference atlas to unlabeled query data.
+
+**Approach:** Train a semi-supervised scANVI model on the reference, then map query cells via surgical fine-tuning and predict labels with confidence scores.
+
 ```python
 import scvi
 import scanpy as sc
@@ -71,6 +92,10 @@ adata_query.obsm['X_scANVI'] = query_scanvi.get_latent_representation()
 
 ## Prediction Confidence
 
+**Goal:** Assess reliability of transferred labels and flag cells that may represent novel types.
+
+**Approach:** Extract soft prediction probabilities from the scANVI model and identify low-confidence assignments below a threshold.
+
 ```python
 # Get prediction probabilities
 soft_predictions = query_scanvi.predict(soft=True)
@@ -83,6 +108,10 @@ print(f'Low confidence predictions: {low_conf.sum()} ({low_conf.mean():.1%})')
 ```
 
 ## Joint Embedding Visualization
+
+**Goal:** Visualize reference and query cells together to assess integration quality.
+
+**Approach:** Concatenate reference and query datasets, compute UMAP from the shared latent representation, and color by dataset and cell type.
 
 ```python
 import scanpy as sc

@@ -17,7 +17,20 @@ qc_checkpoints:
   - after_diversity: "Rarefaction curves approaching asymptote; sample completeness >80%"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DADA2 1.30+, FastQC 0.12+, MultiQC 1.21+, cutadapt 4.4+, phyloseq 1.46+, vegan 2.6+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # eDNA Metabarcoding Pipeline
+
+**"Process my eDNA samples from raw reads to community ecology"** → Orchestrate primer removal, denoising (OBITools3 or DADA2), contamination filtering, taxonomy assignment, Hill number diversity estimation, and constrained ordination for species-environment analysis.
 
 Complete workflow from raw amplicon sequences to community ecology analysis, supporting
 both OBITools3 and DADA2 processing paths.

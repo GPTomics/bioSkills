@@ -5,9 +5,27 @@ tool_type: python
 primary_tool: scipy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Batch Correction
 
+**"Correct batch effects in my CRISPR screens"** → Normalize and harmonize sgRNA count data across screen batches to remove systematic technical variation while preserving biological signal.
+- Python: `scipy`/`sklearn` for median normalization and batch correction
+- CLI: `mageck test` with batch-aware design
+
 ## Median Normalization
+
+**Goal:** Remove systematic library-size differences between batches.
+
+**Approach:** Scale each sample within a batch so that sample medians match a global median, correcting for sequencing depth variation.
 
 ```python
 import numpy as np
@@ -120,6 +138,10 @@ normalized, factors = normalize_to_controls(counts_df, nontargeting)
 
 ## Batch Effect Removal with ComBat
 
+**Goal:** Remove batch effects using empirical Bayes adjustment while preserving biological signal.
+
+**Approach:** Log-transform counts, apply pyCombat with a batch vector, and back-transform to count space.
+
 ```python
 def combat_correction(counts_df, batch_vector, guide_cols=None):
     '''ComBat batch correction for count data.'''
@@ -212,6 +234,10 @@ print(corr_df)
 ```
 
 ## Batch QC Metrics
+
+**Goal:** Quantify batch effect magnitude to determine whether correction is needed.
+
+**Approach:** Run PCA on log-transformed counts, compute between-batch vs within-batch variance ratio, and assess whether batch structure dominates the first principal components.
 
 ```python
 def batch_qc_metrics(counts_df, batch_vector, sample_cols):

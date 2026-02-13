@@ -5,7 +5,22 @@ tool_type: r
 primary_tool: DiffCorr
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Differential Networks
+
+**"Compare gene co-expression networks between my disease and control groups"** → Test whether gene-gene correlations differ significantly between two conditions using Fisher's z-transform, identifying gained, lost, and reversed regulatory relationships.
+- R: `DiffCorr::comp.2.cc.fdr()` for differential correlation analysis
+- Python: custom Fisher z-test with `scipy.stats` and `statsmodels` for FDR correction
 
 Compare co-expression and regulatory networks between biological conditions to identify rewired gene-gene relationships.
 
@@ -121,6 +136,10 @@ table(sig_dgca$Classes)
 
 ## Python NetworkX Approach
 
+**Goal:** Identify gene pairs whose co-expression relationship changes significantly between two conditions using a Python-native workflow.
+
+**Approach:** Compute per-condition Pearson correlation matrices, test each gene pair for differential correlation using Fisher's z-transform, apply BH FDR correction, then classify edges as gained, lost, or reversed based on correlation magnitude thresholds.
+
 ```python
 import pandas as pd
 import numpy as np
@@ -211,6 +230,10 @@ print(significant['edge_type'].value_counts())
 ```
 
 ### Visualize Differential Network
+
+**Goal:** Render the rewired gene-gene connections as a color-coded network graph distinguishing gained, lost, and reversed edges.
+
+**Approach:** Build a NetworkX graph from significant rewired edges, assign edge colors by change type, and draw with a spring layout.
 
 ```python
 import matplotlib.pyplot as plt

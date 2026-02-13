@@ -1,4 +1,5 @@
 '''Load 10X Visium spatial transcriptomics data'''
+# Reference: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, spatialdata 0.1+, squidpy 1.3+ | Verify API if version differs
 
 import squidpy as sq
 import scanpy as sc

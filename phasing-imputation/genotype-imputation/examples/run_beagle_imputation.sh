@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+, pandas 2.2+ | Verify API if version differs
 # Genotype imputation with Beagle
 
 set -euo pipefail

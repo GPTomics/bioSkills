@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: phyloseq
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MetaPhlAn 4.1+, ggplot2 3.5+, matplotlib 3.8+, pandas 2.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, seaborn 0.13+, vegan 2.6+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metagenome Visualization
+
+**"Visualize the taxonomic composition of my metagenomes"** → Create publication-quality figures (stacked bars, heatmaps, ordination plots) from taxonomic profiling output to compare community composition across samples.
+- R: `phyloseq::plot_bar()`, `microbiome` package
+- Python: `matplotlib`/`seaborn` with pandas for custom compositions
 
 ## Python - Stacked Bar Plot
 
@@ -81,6 +97,10 @@ plt.savefig('pca.png', dpi=300)
 ```
 
 ## R - phyloseq Setup
+
+**Goal:** Convert a MetaPhlAn merged abundance table into a phyloseq object for ecological analysis and visualization in R.
+
+**Approach:** Filter to species-level rows, clean taxonomy names, build an OTU table and sample metadata data frame, and assemble into a phyloseq object.
 
 ```r
 library(phyloseq)

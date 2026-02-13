@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, edgeR 4.0+ | Verify API if version differs
 # Filter and summarize DESeq2 results
 
 library(DESeq2)

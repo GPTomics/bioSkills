@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: msdial
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, pandas 2.2+, scanpy 1.10+, xcms 4.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MS-DIAL Preprocessing
+
+**"Process my LC-MS data with MS-DIAL"** → Detect chromatographic peaks, align across samples, annotate metabolites, and export a feature table for statistical analysis.
+- CLI: MS-DIAL GUI or console mode for peak picking and alignment
 
 ## MS-DIAL GUI Workflow
 
@@ -134,6 +149,10 @@ Identification score cut off=80
 ```
 
 ## Python Processing of MS-DIAL Output
+
+**Goal:** Convert MS-DIAL alignment results into a clean, filtered, log-transformed feature matrix for downstream statistical analysis.
+
+**Approach:** Parse MS-DIAL CSV export to separate feature metadata from intensity values, filter by fill percentage, log2-transform, and export as a tidy matrix.
 
 ```python
 import pandas as pd

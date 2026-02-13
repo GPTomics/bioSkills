@@ -1,4 +1,5 @@
 '''Load and filter MaxQuant proteinGroups.txt output'''
+# Reference: msnbase 2.28+, pandas 2.2+ | Verify API if version differs
 import pandas as pd
 import numpy as np
 

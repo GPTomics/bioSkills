@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: CheckM2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Contamination Detection
+
+**"Check my assembly for contamination"** → Evaluate genome completeness and detect contaminating sequences using marker gene sets or chimeric contig detection.
+- CLI: `checkm2 predict --input assembly.fa`, `gunc run`, `gtdbtk classify_wf`
 
 ## CheckM2 (Recommended)
 
@@ -116,6 +130,10 @@ join -t$'\t' -1 1 -2 1 \
 
 ## Comprehensive QC Pipeline
 
+**Goal:** Run a multi-tool quality assessment on genome assemblies combining completeness, contamination, chimerism, and taxonomic classification.
+
+**Approach:** Execute CheckM2 for completeness/contamination, GUNC for chimerism detection, and GTDB-Tk for taxonomic assignment in sequence, producing complementary QC reports.
+
 ```bash
 #!/bin/bash
 GENOMES_DIR=$1
@@ -142,6 +160,10 @@ echo "QC complete!"
 ```
 
 ## Filter by Quality Standards
+
+**Goal:** Classify assembled genomes into MIMAG quality tiers (high/medium) by combining CheckM2 and GUNC results.
+
+**Approach:** Merge CheckM2 completeness/contamination scores with GUNC chimerism flags, then apply MIMAG thresholds (>90% complete, <5% contamination, not chimeric for high quality).
 
 ```python
 import pandas as pd

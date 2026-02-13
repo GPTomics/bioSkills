@@ -1,4 +1,5 @@
 '''Kaplan-Meier survival analysis with log-rank test'''
+# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 from lifelines import KaplanMeierFitter

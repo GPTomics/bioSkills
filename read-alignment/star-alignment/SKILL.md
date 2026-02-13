@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: STAR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: STAR 2.7.11+, Subread 2.0+, fastp 0.23+, kallisto 0.50+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # STAR RNA-seq Alignment
+
+**"Align RNA-seq reads with STAR"** → Map RNA-seq reads to a reference genome with fast, sensitive splice-aware alignment. Preferred for large datasets and downstream fusion/chimeric read detection.
+- CLI: `STAR --runMode alignReads --genomeDir index/ --readFilesIn R1.fq R2.fq --outSAMtype BAM SortedByCoordinate`
 
 ## Generate Genome Index
 

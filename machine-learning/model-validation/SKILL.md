@@ -5,13 +5,30 @@ tool_type: python
 primary_tool: sklearn
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Cross-Validation for Biomedical Data
+
+**"Properly validate my omics classifier"** → Use nested cross-validation with stratified splits to get unbiased performance estimates while tuning hyperparameters on small biomedical datasets.
+- Python: `sklearn.model_selection.cross_val_score()` with `StratifiedKFold` inner/outer loops
 
 ## Why Nested CV Matters
 
 Simple train/test splits overestimate performance on small omics datasets. Nested CV provides unbiased estimates by separating hyperparameter tuning from performance evaluation.
 
 ## Nested Cross-Validation
+
+**Goal:** Obtain unbiased performance estimates by separating hyperparameter tuning from evaluation.
+
+**Approach:** Use an outer CV loop for scoring and an inner CV loop for grid search, preventing information leakage between tuning and evaluation.
 
 ```python
 from sklearn.model_selection import cross_val_score, StratifiedKFold, GridSearchCV
@@ -50,6 +67,10 @@ print(f'Nested CV AUC: {np.mean(nested_scores):.3f} +/- {np.std(nested_scores):.
 
 ## Stratified K-Fold
 
+**Goal:** Evaluate model performance while preserving class proportions in each fold.
+
+**Approach:** Split data into stratified folds and compute cross-validated scores to account for class imbalance.
+
 ```python
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 
@@ -60,6 +81,10 @@ print(f'CV AUC: {scores.mean():.3f} +/- {scores.std():.3f}')
 ```
 
 ## Repeated Stratified K-Fold
+
+**Goal:** Produce more stable performance estimates by averaging across multiple CV repetitions.
+
+**Approach:** Repeat stratified K-fold splitting with different random seeds and aggregate scores across all iterations.
 
 ```python
 from sklearn.model_selection import RepeatedStratifiedKFold
@@ -72,6 +97,10 @@ print(f'Repeated CV AUC: {scores.mean():.3f} +/- {scores.std():.3f}')
 
 ## Leave-One-Out (Small Datasets)
 
+**Goal:** Maximize training data when sample size is very small (n < 30).
+
+**Approach:** Hold out one sample at a time for testing and train on all remaining samples, then aggregate predictions.
+
 ```python
 from sklearn.model_selection import LeaveOneOut, cross_val_predict
 
@@ -83,6 +112,10 @@ print(f'LOO AUC: {auc:.3f}')
 ```
 
 ## Group-Aware Splits
+
+**Goal:** Prevent data leakage when samples from the same patient or batch are correlated.
+
+**Approach:** Use group-aware splitting to ensure all samples from a single group stay in the same fold.
 
 ```python
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
@@ -104,6 +137,10 @@ scores = cross_val_score(pipe, X, y, cv=group_cv, groups=groups, scoring='roc_au
 | High variance | RepeatedStratifiedKFold | More stable estimates |
 
 ## Avoiding Data Leakage
+
+**Goal:** Ensure feature selection does not use test-fold information, which inflates performance estimates.
+
+**Approach:** Embed feature selection inside a pipeline so it executes independently within each CV fold.
 
 ```python
 # WRONG: Feature selection before CV

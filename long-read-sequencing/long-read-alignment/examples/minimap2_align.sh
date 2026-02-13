@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: minimap2 2.26+, samtools 1.19+ | Verify API if version differs
 
 REFERENCE="reference.fa"
 READS="reads.fastq.gz"

@@ -4,6 +4,7 @@ CRISPR editing pipeline: target to delivery-ready constructs.
 Supports knockout, base editing, and HDR knockin designs.
 Requires: biopython, pandas, numpy, matplotlib, primer3-py
 '''
+# Reference: biopython 1.83+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, primer3-py 2.0+ | Verify API if version differs
 import re
 import json
 import pandas as pd

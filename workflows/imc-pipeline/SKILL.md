@@ -13,7 +13,21 @@ depends_on:
   - imaging-mass-cytometry/quality-metrics
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cellpose 3.0+, anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scvi-tools 1.1+, squidpy 1.3+, steinbock 0.16+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Imaging Mass Cytometry Pipeline
+
+**"Process my imaging mass cytometry data from images to spatial analysis"** → Orchestrate image preprocessing (steinbock), cell segmentation (Cellpose), phenotyping (FlowSOM/scanpy), spatial neighborhood analysis (squidpy), and tissue community detection.
 
 ## Pipeline Overview
 

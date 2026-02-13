@@ -5,11 +5,25 @@ tool_type: python
 primary_tool: Bio.AlignIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MSA Parsing and Analysis
 
 Parse multiple sequence alignments to extract information, analyze content, and prepare for downstream analysis.
 
 ## Required Import
+
+**Goal:** Load modules for parsing, analyzing, and manipulating multiple sequence alignments.
+
+**Approach:** Import AlignIO for reading, Counter for column analysis, and alignment classes for constructing modified alignments.
 
 ```python
 from Bio import AlignIO
@@ -20,6 +34,10 @@ from collections import Counter
 ```
 
 ## Loading Alignments
+
+**Goal:** Read an MSA file and inspect its dimensions.
+
+**Approach:** Use `AlignIO.read()` specifying the file and format.
 
 ```python
 from Bio import AlignIO
@@ -60,6 +78,10 @@ for record in alignment:
 ```
 
 ## Column-wise Analysis
+
+**Goal:** Analyze alignment content column by column to assess composition, conservation, and variability.
+
+**Approach:** Use column indexing (`alignment[:, idx]`) and Counter to examine character frequencies at each position.
 
 ### Get Single Column
 ```python
@@ -105,6 +127,10 @@ mostly_conserved = find_conserved_positions(alignment, threshold=0.8)
 ```
 
 ## Gap Analysis
+
+**Goal:** Quantify gap distribution across sequences and columns to identify problematic regions or sequences.
+
+**Approach:** Count gap characters per sequence and per column, then identify positions exceeding a gap fraction threshold.
 
 ### Count Gaps Per Sequence
 ```python
@@ -157,6 +183,12 @@ cleaned = remove_gappy_columns(alignment, threshold=0.5)
 ```
 
 ## Consensus Sequence
+
+**"Get consensus sequence"** → Derive a single representative sequence from an MSA based on majority-rule voting at each column.
+
+**Goal:** Generate a consensus sequence from the alignment using a frequency threshold.
+
+**Approach:** At each column, select the most common non-gap character if it exceeds the threshold; otherwise mark as ambiguous.
 
 ### Simple Majority Consensus
 ```python
@@ -213,6 +245,10 @@ ungapped = extract_ungapped_regions(alignment, ref_idx=0)
 ```
 
 ## Sequence Filtering
+
+**Goal:** Subset an alignment to retain only sequences matching specific criteria (ID pattern, gap content, uniqueness).
+
+**Approach:** Iterate over alignment records, apply filter conditions, and reconstruct a new MultipleSeqAlignment from matching records.
 
 ### Filter by Sequence ID Pattern
 ```python
@@ -274,6 +310,10 @@ for record in alignment:
 ```
 
 ## Position Mapping
+
+**Goal:** Convert between alignment column coordinates and ungapped sequence coordinates.
+
+**Approach:** Walk through the sequence tracking gap characters to map between the two coordinate systems.
 
 ### Map Alignment Position to Sequence Position
 ```python

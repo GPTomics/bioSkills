@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: bwa-mem2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # BWA-MEM2 Alignment
+
+**"Align reads with BWA"** → Map DNA reads to a reference genome using BWA-MEM2, the standard aligner for whole-genome and exome sequencing.
+- CLI: `bwa-mem2 mem -t 8 ref.fa R1.fq R2.fq | samtools sort -o aligned.bam`
 
 ## Build Index
 
@@ -49,6 +62,10 @@ samtools index aligned.sorted.bam
 ```
 
 ## Mark Duplicates Pipeline
+
+**Goal:** Produce a duplicate-marked, sorted BAM file from raw reads in a single streaming pipeline.
+
+**Approach:** Pipe BWA-MEM2 output through samtools fixmate (to add mate score tags), coordinate sort, and markdup in a single command chain to avoid intermediate files.
 
 ```bash
 # Full pipeline: align, fixmate, sort, markdup

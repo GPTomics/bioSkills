@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: featureCounts
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, HISAT2 2.2.1+, STAR 2.7.11+, Subread 2.0+, edgeR 4.0+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # featureCounts Counting
+
+**"Count reads per gene from my BAM files"** → Assign aligned reads to genomic features using a GTF annotation to produce a gene-by-sample count matrix for DE analysis.
+- CLI: `featureCounts -a genes.gtf -o counts.txt sample1.bam sample2.bam`
 
 Count reads mapping to genomic features (genes, exons) from BAM files.
 

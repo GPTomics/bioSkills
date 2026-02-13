@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: pyGenomeTracks
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GenomicRanges 1.54+, bedtools 2.31+, deepTools 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Genome Track Visualization
+
+**"Plot genomic data tracks"** → Create stacked track visualizations of coverage, peaks, annotations, and signals across a genomic region.
+- Python: `pyGenomeTracks`, `matplotlib` with custom track panels
+- R: `Gviz::plotTracks()` (Bioconductor)
 
 ## pyGenomeTracks (Python/CLI)
 
@@ -92,6 +108,10 @@ tracks.plot('output.png', 'chr1', 1000000, 2000000)
 ```
 
 ## Gviz (R)
+
+**Goal:** Create a stacked genome track visualization combining ideogram, coverage, peaks, and gene annotations.
+
+**Approach:** Construct individual Gviz tracks (ideogram, genome axis, DataTrack from BigWig, AnnotationTrack from BED, GeneRegionTrack from TxDb), then render with plotTracks specifying the genomic region.
 
 ```r
 library(Gviz)

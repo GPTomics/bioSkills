@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BUSCO 5.5+, HISAT2 2.2.1+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
 # Eukaryotic gene prediction with GALBA using protein-only evidence
 set -euo pipefail
 

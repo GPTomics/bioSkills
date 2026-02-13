@@ -1,4 +1,5 @@
 '''Basic sequence writing examples'''
+# Reference: biopython 1.83+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord

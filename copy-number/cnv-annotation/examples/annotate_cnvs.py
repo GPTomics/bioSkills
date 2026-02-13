@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Annotate CNV calls with genes'''
+# Reference: bedtools 2.31+, pandas 2.2+, pybedtools 0.9+, pysam 0.22+ | Verify API if version differs
 
 import pybedtools
 import pandas as pd

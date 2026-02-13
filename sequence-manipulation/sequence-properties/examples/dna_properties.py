@@ -1,4 +1,5 @@
 '''DNA sequence property calculations'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.SeqUtils import gc_fraction, molecular_weight, MeltingTemp
 

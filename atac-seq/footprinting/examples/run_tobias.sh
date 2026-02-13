@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bedtools 2.31+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, pyBigWig 0.3+, samtools 1.19+ | Verify API if version differs
 # TF footprinting with TOBIAS
 
 set -euo pipefail

@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: FinaleToolkit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, pandas 2.2+, pysam 0.22+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Fragment Analysis
+
+**"Analyze cfDNA fragment patterns for cancer detection"** → Extract fragmentomics features (size distributions, nucleosome positioning, DELFI profiles) from cfDNA for tumor detection and tissue-of-origin analysis.
+- Python: `FinaleToolkit` or `Griffin` for fragment feature extraction
+- Python: `pysam` for custom fragmentomics analysis
 
 Analyze cfDNA fragmentomics for cancer detection and characterization.
 
@@ -121,6 +135,10 @@ def run_griffin(bam_path, sites_bed, output_dir):
 ```
 
 ## Genome-Wide Fragmentation Profile
+
+**Goal:** Generate a genome-wide map of short-to-long fragment ratios across fixed-size bins, replicating the DELFI approach for cancer detection from cfDNA fragmentomics.
+
+**Approach:** Iterate over proper-pair fragments in each genomic bin, classify each as short (100-150 bp) or long (151-220 bp), and compute the short/long ratio per bin as the fragmentation feature vector.
 
 ```python
 import pysam

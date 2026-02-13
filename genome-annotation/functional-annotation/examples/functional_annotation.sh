@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+ | Verify API if version differs
 # Functional annotation with eggNOG-mapper and InterProScan
 set -euo pipefail
 

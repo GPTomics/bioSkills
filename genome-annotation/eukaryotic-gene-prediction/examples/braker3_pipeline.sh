@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BUSCO 5.5+, HISAT2 2.2.1+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
 # Eukaryotic gene prediction with BRAKER3 using RNA-seq and protein evidence
 set -euo pipefail
 

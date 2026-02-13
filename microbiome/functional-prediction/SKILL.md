@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: picrust2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Biostrings 2.70+, ggplot2 3.5+, pandas 2.2+, phyloseq 1.46+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Functional Prediction with PICRUSt2
+
+**"Predict functional pathways from my 16S data"** → Infer metagenome functional content from marker gene (16S/ITS) ASV tables using phylogenetic placement and gene content prediction.
+- CLI: `picrust2_pipeline.py -s seqs.fna -i table.biom -o output/`
 
 ## Prepare Input Files
 
@@ -44,6 +59,10 @@ picrust2_pipeline.py \
 ```
 
 ## Step-by-Step Pipeline
+
+**Goal:** Predict functional metagenome content from 16S ASVs using the full PICRUSt2 pipeline with explicit control over each step.
+
+**Approach:** Place ASV sequences into a reference tree, predict gene content via hidden-state prediction, infer per-sample metagenome abundances, and reconstruct MetaCyc pathways.
 
 ```bash
 # 1. Place sequences in reference tree

@@ -1,4 +1,5 @@
 '''Consensus hit calling from multiple methods'''
+# Reference: mageck 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
 import pandas as pd
 import numpy as np
 

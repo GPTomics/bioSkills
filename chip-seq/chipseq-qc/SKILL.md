@@ -5,13 +5,31 @@ tool_type: mixed
 primary_tool: deepTools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MACS3 3.0+, Subread 2.0+, bedtools 2.31+, deepTools 3.5+, pybedtools 0.9+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ChIP-seq Quality Control
+
+**"Assess the quality of my ChIP-seq experiment"** → Compute FRiP, cross-correlation (NSC/RSC), library complexity, and IDR replicate concordance to evaluate enrichment success.
+- CLI: `deeptools plotFingerprint`, `phantompeakqualtools run_spp.R`
+- Python: `pysam` + `pybedtools` for custom QC metrics
 
 Quality metrics for assessing ChIP-seq experiment success and replicate reproducibility.
 
 ## FRiP (Fraction of Reads in Peaks)
 
-Measures the proportion of reads falling within called peaks. Higher values indicate stronger enrichment.
+**Goal:** Quantify enrichment strength by measuring the proportion of reads falling within called peaks.
+
+**Approach:** Count reads overlapping peak regions and divide by total mapped reads.
 
 ### Calculate FRiP with bedtools
 
@@ -71,7 +89,9 @@ print(f'FRiP: {frip:.4f}')
 
 ## Cross-Correlation Analysis (NSC/RSC)
 
-Strand cross-correlation analysis measures ChIP enrichment by calculating correlation between read coverage on forward and reverse strands.
+**Goal:** Assess ChIP enrichment quality by measuring strand cross-correlation signal.
+
+**Approach:** Calculate correlation between forward and reverse strand read coverage at varying shifts to detect fragment-length enrichment.
 
 ### Run phantompeakqualtools
 
@@ -138,7 +158,9 @@ print(paste('Fragment length:', binding_characteristics$peak$x))
 
 ## Library Complexity (NRF, PBC1, PBC2)
 
-Measures of library complexity to detect PCR amplification issues.
+**Goal:** Detect PCR amplification artifacts by measuring library complexity metrics.
+
+**Approach:** Calculate the fraction of unique reads and positional redundancy to assess PCR bottlenecking.
 
 ### Calculate with bedtools
 
@@ -176,7 +198,9 @@ bedtools bamtobed -i chip.bam | \
 
 ## IDR (Irreproducibility Discovery Rate)
 
-Measures consistency between biological replicates by comparing ranked peak lists.
+**Goal:** Assess replicate concordance by measuring consistency of ranked peak lists.
+
+**Approach:** Compare signal-ranked peaks from two replicates using IDR statistical framework to identify reproducible peaks.
 
 ### Run IDR Analysis
 
@@ -258,6 +282,10 @@ idr --samples pseudo1_peaks.narrowPeak pseudo2_peaks.narrowPeak \
 
 ## deepTools QC Metrics
 
+**Goal:** Visualize ChIP enrichment and sample correlation using deepTools fingerprint and correlation plots.
+
+**Approach:** Generate cumulative read coverage curves and pairwise sample correlation matrices from BAM files.
+
 ### plotFingerprint
 
 ```bash
@@ -307,6 +335,10 @@ plotCorrelation \
 ```
 
 ## Complete QC Pipeline
+
+**Goal:** Run all major ChIP-seq QC metrics in a single automated script.
+
+**Approach:** Combine FRiP, cross-correlation, library complexity, and fingerprint analysis into one pipeline.
 
 ```bash
 #!/bin/bash

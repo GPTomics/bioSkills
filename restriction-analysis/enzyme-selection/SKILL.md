@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.Restriction
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Enzyme Selection
+
+**"Find enzymes that cut my sequence once"** → Search restriction enzyme databases by cut frequency, overhang type, commercial availability, or compatible ends for cloning.
+- Python: `Bio.Restriction.Analysis(rb, seq)` with `RestrictionBatch` filters
 
 ## Find Enzymes by Cut Frequency
 

@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: TreeTime
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, TreeTime 0.11+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Phylodynamics
+
+**"Build a time-scaled tree for my outbreak"** → Estimate divergence times and molecular clock rates from dated sequences to reconstruct outbreak timing and evolutionary dynamics.
+- Python: `treetime.TreeTime()` for maximum likelihood time-scaled trees
+- CLI: `treetime --tree tree.nwk --aln aln.fasta --dates dates.tsv`
 
 ## TreeTime Basic Usage
 
@@ -60,6 +75,10 @@ treetime mugration --tree tree.nwk --states locations.tsv \
 ```
 
 ## Date File Format
+
+**Goal:** Prepare a correctly formatted date file mapping sample names to decimal-year collection dates for TreeTime input.
+
+**Approach:** Extract name and date columns from metadata, convert dates to decimal year format, and write as a tab-separated file with 'name' and 'date' headers.
 
 ```python
 def prepare_date_file(metadata, name_col, date_col, output_path):
@@ -131,6 +150,10 @@ def interpret_clock_rate(rate, genome_length):
 ```
 
 ## Skyline Plot (Population Dynamics)
+
+**Goal:** Extract effective population size trajectory over time from a TreeTime coalescent skyline analysis.
+
+**Approach:** Parse the skyline JSON output from TreeTime to retrieve time points and corresponding Ne estimates for plotting population dynamics.
 
 ```python
 def extract_skyline(treetime_results_dir):

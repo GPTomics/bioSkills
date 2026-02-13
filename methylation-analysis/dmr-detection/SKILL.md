@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: methylKit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GenomicRanges 1.54+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # DMR Detection
+
+**"Find differentially methylated regions"** → Identify contiguous genomic regions with statistically significant methylation differences between conditions using tiling, smoothing, or kernel-based approaches.
+- R: `methylKit::tileMethylCounts()` + `calculateDiffMeth()`, `bsseq::BSmooth()`, `DMRcate::dmrcate()`
 
 ## methylKit Tile-Based DMRs
 
@@ -73,6 +86,10 @@ dmr_ranges <- extractRanges(dmr_results)
 ```
 
 ## Annotate DMRs with Genes
+
+**Goal:** Map differentially methylated regions to overlapping genes, promoters, and CpG islands for biological interpretation.
+
+**Approach:** Build a genome annotation set with annotatr, convert DMRs to GRanges, and intersect with genomic features to classify each DMR by functional context.
 
 ```r
 library(annotatr)

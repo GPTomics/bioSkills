@@ -1,3 +1,4 @@
+# Reference: Bismark 0.24+, Bowtie2 2.5.3+, FastQC 0.12+, Trim Galore 0.6.10+, fastp 0.23+, methylKit 1.28+ | Verify API if version differs
 # Complete methylation analysis with methylKit
 
 library(methylKit)

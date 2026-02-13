@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: Salmon 1.10+ | Verify API if version differs
 # Isoform switching analysis with IsoformSwitchAnalyzeR
 # Identifies switches and predicts functional consequences
 

@@ -1,3 +1,4 @@
+# Reference: pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
 import scanpy as sc
 import celltypist
 import matplotlib.pyplot as plt

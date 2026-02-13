@@ -5,9 +5,26 @@ tool_type: r
 primary_tool: CATALYST
 ---
 
+## Version Compatibility
+
+Reference examples tested with: flowCore 2.14+, ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Bead Normalization
 
+**"Normalize my CyTOF data using beads"** → Correct instrument signal drift over acquisition time using EQ calibration bead intensities for consistent measurements across runs.
+- R: `CATALYST::normCytof()` for EQ bead normalization
+
 ## CyTOF EQ Bead Normalization
+
+**Goal:** Identify EQ normalization bead events in CyTOF data for signal calibration.
+
+**Approach:** Score events by mean scaled intensity in known bead channels (Ce140, Eu151, Eu153, Ho165, Lu175) and threshold at the 99th percentile.
 
 ```r
 library(CATALYST)
@@ -35,6 +52,10 @@ cat('Identified', sum(is_bead), 'bead events (', round(mean(is_bead) * 100, 2), 
 
 ## Calculate Normalization Factors
 
+**Goal:** Compute per-channel normalization factors by comparing sample bead intensities to a reference.
+
+**Approach:** Calculate median bead intensity per channel, then divide reference values by sample values to obtain correction factors.
+
 ```r
 # For each acquisition, calculate median bead intensity
 # Compare to reference to get normalization factor
@@ -60,6 +81,10 @@ print(round(norm_factors, 3))
 ```
 
 ## Apply Normalization
+
+**Goal:** Correct marker intensities using bead-derived normalization factors and remove bead events.
+
+**Approach:** Multiply marker channels by the geometric mean of bead factors, then filter out bead events from the flowFrame.
 
 ```r
 # Apply normalization to all marker channels (not scatter)
@@ -87,6 +112,10 @@ cat('Final cell count:', nrow(ff_clean), '\n')
 ```
 
 ## Time-Based Drift Correction
+
+**Goal:** Remove signal drift that accumulates during long CyTOF acquisitions.
+
+**Approach:** Bin bead events by acquisition time, fit LOESS to per-bin median intensities, and scale all events to a reference level.
 
 ```r
 # Correct for signal drift over acquisition time
@@ -133,6 +162,10 @@ ff_drift_corrected <- correct_drift(ff)
 
 ## Batch Normalization with CytoNorm
 
+**Goal:** Harmonize marker distributions across batches using shared reference samples.
+
+**Approach:** Train spline-based CytoNorm models on reference samples run in all batches, then apply the learned transformations to normalize new samples.
+
 ```r
 # CytoNorm for cross-batch normalization using reference samples
 
@@ -167,6 +200,10 @@ normalized_files <- CytoNorm.normalize(
 
 ## Quantile Normalization
 
+**Goal:** Align marker distributions across samples by mapping to a common reference distribution.
+
+**Approach:** Rank-order values per channel per sample and replace with interpolated reference quantiles computed from all samples.
+
 ```r
 # Simple quantile normalization across samples
 
@@ -198,6 +235,10 @@ quantile_normalize <- function(fs, channels) {
 
 ## CATALYST-Based Normalization
 
+**Goal:** Normalize CyTOF data using CATALYST's built-in bead handling and time-drift correction.
+
+**Approach:** Use prepData with by_time=TRUE to automatically correct time-dependent drift during SCE construction.
+
 ```r
 library(CATALYST)
 
@@ -215,6 +256,10 @@ sce <- prepData(fs, panel, md,
 ```
 
 ## Visualization
+
+**Goal:** Visualize bead signal drift and assess normalization effects.
+
+**Approach:** Plot bead channel intensity over acquisition time with LOESS trend, and compare marker distributions before and after normalization.
 
 ```r
 library(ggplot2)
@@ -246,6 +291,10 @@ ggplot(compare_df, aes(x = Value, fill = Status)) +
 ```
 
 ## Export Normalized Data
+
+**Goal:** Save normalized and bead-free data for downstream analysis.
+
+**Approach:** Write the cleaned flowFrame to a new FCS file using write.FCS.
 
 ```r
 # Save normalized FCS files

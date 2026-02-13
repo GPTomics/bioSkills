@@ -15,7 +15,19 @@ qc_checkpoints:
   - after_interpretation: "Top 20 SHAP features: >50% overlap with selected features"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Biomarker Discovery Pipeline
+
+**"Build a validated biomarker panel from my omics data"** → Orchestrate feature selection (Boruta/LASSO), nested cross-validation classifier training, and SHAP interpretation to produce a robust, validated biomarker signature.
 
 Complete pipeline from expression data to validated biomarker panels with classifier.
 

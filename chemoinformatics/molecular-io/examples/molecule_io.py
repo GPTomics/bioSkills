@@ -3,6 +3,7 @@
 Molecular I/O operations with RDKit.
 Reading, writing, and standardizing molecular structures.
 '''
+# Reference: rdkit 2024.03+ | Verify API if version differs
 
 from rdkit import Chem
 from rdkit.Chem import AllChem

@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: bedtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Interval Arithmetic
+
+**"Perform set operations on genomic intervals"** → Intersect, subtract, merge, or complement BED/GFF intervals to identify overlapping or unique regions.
+- CLI: `bedtools intersect -a file1.bed -b file2.bed`, `bedtools merge`, `bedtools subtract`
+- Python: `a.intersect(b)`, `a.subtract(b)`, `a.merge()` (pybedtools)
 
 Core set operations on genomic intervals using bedtools (CLI) and pybedtools (Python).
 
@@ -314,7 +329,9 @@ shuffled.saveas('shuffled.bed')
 
 ## Map - Transfer Values Between Files
 
-Map overlapping B values onto A intervals with aggregation.
+**Goal:** Transfer and aggregate numeric values from overlapping intervals in file B onto each interval in file A.
+
+**Approach:** Use bedtools map to find all B intervals overlapping each A interval, then apply aggregation operations (mean, sum, count, collapse) on specified B columns to produce a single summary value per A interval.
 
 ### CLI
 

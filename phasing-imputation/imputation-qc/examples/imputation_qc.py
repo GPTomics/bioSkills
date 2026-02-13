@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''QC metrics for imputation results'''
+# Reference: bcftools 1.19+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 from cyvcf2 import VCF
 import numpy as np

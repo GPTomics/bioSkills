@@ -1,4 +1,5 @@
 '''Check for palindromic sequences (restriction sites)'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 from Bio.Seq import Seq
 
 def is_palindrome(seq):

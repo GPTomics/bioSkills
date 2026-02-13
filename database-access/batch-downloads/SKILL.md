@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.Entrez
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Batch Downloads
+
+**"Download thousands of sequences from NCBI"** → Search NCBI with history server, then batch-fetch results with rate limiting and retry logic.
+- Python: `Entrez.esearch()`, `Entrez.efetch()` with `usehistory='y'` (BioPython)
 
 Download large numbers of records from NCBI efficiently using the history server, batching, and proper rate limiting.
 
@@ -54,6 +67,11 @@ print(f"Found {total} records, stored in history")
 
 ## Core Pattern: Batch Download
 
+**Goal:** Download all records matching a search query, handling NCBI rate limits and large result sets.
+
+**Approach:** Search with history server enabled to store results on NCBI, then fetch in batches using `WebEnv`/`query_key` with appropriate delays.
+
+**Reference (BioPython 1.83+):**
 ```python
 from Bio import Entrez, SeqIO
 import time
@@ -61,7 +79,6 @@ import time
 Entrez.email = 'your.email@example.com'
 
 def batch_download(db, term, output_file, rettype='fasta', batch_size=500):
-    # Search with history
     handle = Entrez.esearch(db=db, term=term, usehistory='y')
     search = Entrez.read(handle)
     handle.close()

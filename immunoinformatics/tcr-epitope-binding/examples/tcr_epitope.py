@@ -1,4 +1,5 @@
 '''TCR-epitope specificity prediction'''
+# Reference: mixcr 4.6+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+ | Verify API if version differs
 
 import pandas as pd
 from difflib import SequenceMatcher

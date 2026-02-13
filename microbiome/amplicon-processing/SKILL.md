@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: dada2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DADA2 1.30+, cutadapt 4.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Amplicon Processing with DADA2
+
+**"Process my 16S amplicon data to get ASVs"** → Denoise amplicon sequencing reads into exact amplicon sequence variants (ASVs) through quality filtering, error model learning, and chimera removal.
+- R: `dada2::filterAndTrim()` → `learnErrors()` → `dada()` → `removeBimeraDenovo()`
 
 ## Complete DADA2 Workflow
 
@@ -91,6 +104,10 @@ sum(seqtab_nochim) / sum(seqtab)
 ```
 
 ## Track Reads Through Pipeline
+
+**Goal:** Generate a per-sample summary table showing how many reads survived each DADA2 processing step for quality assessment.
+
+**Approach:** Extract read counts from each pipeline stage (filtering, denoising, merging, chimera removal) and combine into a single tracking matrix.
 
 ```r
 getN <- function(x) sum(getUniques(x))

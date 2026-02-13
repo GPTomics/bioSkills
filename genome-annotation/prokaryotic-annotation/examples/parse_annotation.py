@@ -2,6 +2,7 @@
 '''
 Parse prokaryotic genome annotation GFF3 output and compute QC metrics.
 '''
+# Reference: busco 5.5+, scanpy 1.10+ | Verify API if version differs
 
 import gffutils
 import pandas as pd

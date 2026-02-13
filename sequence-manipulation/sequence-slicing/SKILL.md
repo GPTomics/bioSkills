@@ -5,9 +5,25 @@ tool_type: python
 primary_tool: Bio.Seq
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Sequence Slicing
 
 Extract, slice, and concatenate sequences using Biopython's Seq objects.
+
+**"Extract a subsequence"** → Use Python slicing on Seq objects with 0-based half-open coordinates.
+- Python: `seq[start:end]` (BioPython Seq)
+
+**"Join exons into mRNA"** → Extract multiple regions and concatenate them.
+- Python: `sum((seq[s:e] for s, e in coords), Seq(''))` or `+` operator
 
 ## Required Import
 
@@ -112,6 +128,10 @@ joined = Seq(linker.join(str(s) for s in seqs))
 ```
 
 ### Extract Multiple Regions
+
+**Goal:** Splice non-contiguous regions (e.g., exons) into a single continuous sequence.
+
+**Approach:** Extract each region by coordinates and concatenate with `+` or `sum()`.
 
 ```python
 def extract_regions(seq, regions):

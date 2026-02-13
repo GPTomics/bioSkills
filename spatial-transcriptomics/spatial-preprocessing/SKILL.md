@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Preprocessing
+
+**"Preprocess my spatial transcriptomics data"** → Calculate spatial QC metrics (genes/spot, mitochondrial fraction), filter spots by expression and tissue coverage, normalize, and select variable genes.
+- Python: `scanpy.pp.calculate_qc_metrics()` → `filter_cells()` → `normalize_total()` on spatial AnnData
 
 QC, filtering, normalization, and feature selection for spatial data.
 
@@ -20,6 +33,10 @@ import matplotlib.pyplot as plt
 
 ## Calculate QC Metrics
 
+**Goal:** Compute per-spot and per-gene quality control statistics.
+
+**Approach:** Use Scanpy's `calculate_qc_metrics` to generate total counts, gene counts, and other summary statistics.
+
 ```python
 # Calculate standard QC metrics
 sc.pp.calculate_qc_metrics(adata, inplace=True)
@@ -31,6 +48,10 @@ print(adata.var[['total_counts', 'n_cells_by_counts']].describe())
 
 ## Calculate Mitochondrial Content
 
+**Goal:** Quantify mitochondrial gene expression as a quality indicator.
+
+**Approach:** Flag MT-prefixed genes, then compute percentage of counts from mitochondrial genes per spot.
+
 ```python
 # Mark mitochondrial genes
 adata.var['mt'] = adata.var_names.str.startswith('MT-')
@@ -41,6 +62,10 @@ print(f"Mean MT%: {adata.obs['pct_counts_mt'].mean():.1f}")
 ```
 
 ## Visualize QC Metrics on Tissue
+
+**Goal:** Display QC metrics overlaid on tissue coordinates to identify spatial patterns in data quality.
+
+**Approach:** Use Squidpy or Scanpy spatial plots with QC metric columns as color variables.
 
 ```python
 # Plot QC metrics spatially
@@ -65,6 +90,10 @@ plt.tight_layout()
 
 ## Filter Spots
 
+**Goal:** Remove low-quality spots based on count, gene, and mitochondrial thresholds.
+
+**Approach:** Apply sequential filters for minimum counts, minimum genes, and maximum mitochondrial percentage.
+
 ```python
 # Filter based on QC metrics
 print(f'Before filtering: {adata.n_obs} spots')
@@ -81,6 +110,10 @@ print(f'After filtering: {adata.n_obs} spots')
 
 ## Filter Genes
 
+**Goal:** Remove lowly expressed genes detected in very few spots.
+
+**Approach:** Apply a minimum cell count threshold to drop genes with negligible spatial coverage.
+
 ```python
 # Remove genes detected in few spots
 print(f'Before filtering: {adata.n_vars} genes')
@@ -89,6 +122,10 @@ print(f'After filtering: {adata.n_vars} genes')
 ```
 
 ## Normalization
+
+**Goal:** Normalize count data to remove library size effects and prepare for downstream analysis.
+
+**Approach:** Store raw counts as a layer, normalize to median total counts, then log-transform.
 
 ```python
 # Store raw counts
@@ -103,6 +140,10 @@ sc.pp.log1p(adata)
 
 ## SCTransform-like Normalization
 
+**Goal:** Apply variance-stabilizing normalization analogous to Seurat's SCTransform.
+
+**Approach:** Compute Pearson residuals from raw counts using Scanpy's experimental module.
+
 ```python
 # Pearson residuals normalization (similar to SCTransform)
 # Requires raw counts
@@ -115,6 +156,10 @@ adata.layers['pearson'] = adata_raw.X.copy()
 
 ## Highly Variable Genes
 
+**Goal:** Identify genes with high expression variability for feature selection.
+
+**Approach:** Use Scanpy's HVG detection with the Seurat v3 flavor on raw count data.
+
 ```python
 # Find HVGs
 sc.pp.highly_variable_genes(adata, n_top_genes=2000, flavor='seurat_v3', layer='counts')
@@ -125,6 +170,10 @@ sc.pl.highly_variable_genes(adata)
 ```
 
 ## Spatially Variable Genes
+
+**Goal:** Identify genes whose expression varies significantly across tissue space.
+
+**Approach:** Build a spatial neighbor graph, then compute Moran's I autocorrelation to rank genes by spatial variability.
 
 ```python
 # Compute spatial neighbors first
@@ -140,6 +189,10 @@ print(svg.head(20))
 ```
 
 ## Combine HVG and SVG
+
+**Goal:** Create a unified gene set that captures both expression variability and spatial patterning.
+
+**Approach:** Take the union of highly variable genes and top spatially variable genes for downstream analysis.
 
 ```python
 # Get union of highly variable and spatially variable genes
@@ -171,6 +224,10 @@ sc.pl.pca_variance_ratio(adata, n_pcs=50)
 ```
 
 ## Complete Preprocessing Pipeline
+
+**Goal:** Execute a full spatial preprocessing workflow from raw data to PCA-ready AnnData.
+
+**Approach:** Chain QC, filtering, normalization, HVG selection, scaling, and PCA into a single pipeline.
 
 ```python
 import squidpy as sq

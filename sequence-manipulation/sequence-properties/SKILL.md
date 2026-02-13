@@ -5,9 +5,25 @@ tool_type: python
 primary_tool: Bio.SeqUtils
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Sequence Properties
 
 Calculate physical and chemical properties of biological sequences using Biopython.
+
+**"Calculate GC content"** → Compute the fraction of G+C bases in a nucleotide sequence.
+- Python: `gc_fraction(seq)` (BioPython SeqUtils)
+
+**"Analyze protein properties"** → Compute MW, pI, stability, hydrophobicity from an amino acid sequence.
+- Python: `ProteinAnalysis(str_seq)` (BioPython ProtParam)
 
 ## Required Imports
 
@@ -145,6 +161,10 @@ three_letter = seq3('MAGW', join='-')  # Returns 'Met-Ala-Gly-Trp'
 
 ## Protein Properties
 
+**Goal:** Compute physical and chemical properties of a protein from its amino acid sequence.
+
+**Approach:** Create a `ProteinAnalysis` object, then call property methods. Remove stop codons (`*`) and non-standard residues (`X`) before analysis.
+
 ### Using ProteinAnalysis
 
 ```python
@@ -258,6 +278,10 @@ def gc_skew_analysis(seq, window=1000):
 ```
 
 ### Full Protein Analysis Report
+
+**Goal:** Generate a comprehensive summary of protein biophysical properties.
+
+**Approach:** Compute all key metrics from a single `ProteinAnalysis` object and return as a dictionary.
 
 ```python
 from Bio.SeqUtils.ProtParam import ProteinAnalysis

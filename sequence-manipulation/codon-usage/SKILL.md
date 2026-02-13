@@ -5,9 +5,25 @@ tool_type: python
 primary_tool: Bio.SeqUtils.CodonUsage
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Codon Usage
 
 Analyze codon usage patterns and calculate codon adaptation metrics using Biopython.
+
+**"Analyze codon usage"** → Count codons in a coding sequence, compute frequencies and bias metrics.
+- Python: `Counter` on 3-mers + `CodonAdaptationIndex` (BioPython)
+
+**"Optimize codons for expression"** → Replace codons with host-preferred synonymous codons using a preference table.
+- Python: custom mapping dict + `Seq()` (BioPython)
 
 ## Required Imports
 
@@ -20,6 +36,10 @@ from collections import Counter
 ```
 
 ## Basic Codon Counting
+
+**Goal:** Tabulate codon frequencies in a coding sequence.
+
+**Approach:** Split the sequence into triplets from the reading frame start, then count with `Counter`.
 
 ### Count Codons in Sequence
 
@@ -45,6 +65,10 @@ def codon_frequencies(seq):
 ```
 
 ## Codon Adaptation Index (CAI)
+
+**Goal:** Measure how well a gene's codon usage matches highly expressed genes in a target organism.
+
+**Approach:** Train a CAI index from a reference set of highly expressed genes, then score query sequences (0-1 scale, higher = better adapted).
 
 ### Using CodonUsage Module
 
@@ -81,9 +105,11 @@ cai.set_cai_index(custom_index)
 
 ## Synonymous Codon Usage
 
-### RSCU (Relative Synonymous Codon Usage)
+**Goal:** Quantify bias in synonymous codon usage to detect selection or mutational pressure.
 
-RSCU = (observed codon frequency) / (expected frequency if all synonymous codons were used equally)
+**Approach:** Calculate RSCU — the ratio of observed to expected frequency assuming equal usage of synonymous codons. RSCU = 1.0 means no bias; >1 overused, <1 underused.
+
+### RSCU (Relative Synonymous Codon Usage)
 
 ```python
 from Bio.Data import CodonTable
@@ -225,6 +251,10 @@ def compare_codon_usage(seq1, seq2):
 ```
 
 ### Optimize Codons for Expression
+
+**Goal:** Replace codons with host-preferred synonymous alternatives to maximize protein expression.
+
+**Approach:** Map each amino acid to its most-preferred codon in the target host, then reconstruct the DNA sequence.
 
 ```python
 def optimize_codons(protein_seq, preferred_codons):

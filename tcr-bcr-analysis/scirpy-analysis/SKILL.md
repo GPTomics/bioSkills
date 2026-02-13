@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: scirpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MiXCR 4.6+, VDJtools 1.2.1+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # scirpy Analysis
 
+**"Analyze single-cell TCR/BCR with gene expression"** → Integrate immune receptor clonotype data with scRNA-seq gene expression for joint analysis of clonal expansion and cell state.
+- Python: `scirpy.io.read_10x_vdj()`, `scirpy.tl.clonal_expansion()`, `scirpy.tl.clonotype_network()`
+
 ## Load VDJ Data
+
+**Goal:** Import single-cell VDJ annotations and integrate them with an existing scRNA-seq AnnData object.
+
+**Approach:** Read 10x filtered_contig_annotations or AIRR-format files and attach receptor metadata to the AnnData obs.
 
 ```python
 import scirpy as ir
@@ -24,6 +41,10 @@ ir.io.read_airr(adata, 'airr_rearrangement.tsv')
 ```
 
 ## Quality Control
+
+**Goal:** Identify cells with aberrant chain pairing (doublets, orphan chains, ambiguous pairings).
+
+**Approach:** Run scirpy chain QC to categorize cells by receptor chain status and visualize QC distributions.
 
 ```python
 # QC for receptor chains

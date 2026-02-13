@@ -5,11 +5,26 @@ tool_type: cli
 primary_tool: BLAST+
 ---
 
+## Version Compatibility
+
+Reference examples tested with: NCBI BLAST+ 2.15+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Local BLAST
+
+**"Run a BLAST search against my custom database"** → Build a local BLAST database and search it with query sequences, returning tabular results with identity and e-value.
+- CLI: `makeblastdb`, `blastn`/`blastp` (NCBI BLAST+)
+- Python: `subprocess` wrapper for BLAST+
 
 Run BLAST searches locally using NCBI BLAST+ command-line tools.
 
-## Installation
+## Installation (NCBI BLAST+)
 
 ```bash
 # macOS
@@ -38,7 +53,7 @@ blastn -version
 
 ## Creating BLAST Databases
 
-### makeblastdb - Create Database
+### makeblastdb - Create Database (NCBI BLAST+)
 
 ```bash
 # Create nucleotide database
@@ -77,7 +92,7 @@ my_db.nto  # Index (if parse_seqids)
 
 ## Running BLAST Searches
 
-### Basic Usage
+### Basic Usage (NCBI BLAST+)
 
 ```bash
 # BLASTN
@@ -149,20 +164,22 @@ blastn -query query.fa -db my_db -outfmt "6 qseqid sseqid pident length evalue s
 
 ### Create Database and Search
 
+**Goal:** Build a custom BLAST database from reference sequences and search it with a query.
+
+**Approach:** Index the reference with `makeblastdb`, then run the appropriate BLAST program with tabular output.
+
+**Reference (NCBI BLAST+ 2.15+):**
 ```bash
 #!/bin/bash
-# Create database from reference sequences
 makeblastdb -in reference.fasta -dbtype nucl -out ref_db -parse_seqids
 
-# Run BLAST
 blastn -query query.fasta -db ref_db -out results.txt \
     -outfmt 6 -evalue 1e-10 -num_threads 4
 
-# View results
 head results.txt
 ```
 
-### BLAST with Tabular Output
+### BLAST with Tabular Output (NCBI BLAST+)
 
 ```bash
 #!/bin/bash
@@ -174,7 +191,7 @@ blastn -query query.fasta -db my_db \
     -out results.tsv
 ```
 
-### Filter and Sort Results
+### Filter and Sort Results (NCBI BLAST+)
 
 ```bash
 # Get hits with >90% identity
@@ -187,7 +204,7 @@ sort -t$'\t' -k11 -g results.tsv
 sort -t$'\t' -k1,1 -k11,11g results.tsv | sort -t$'\t' -k1,1 -u
 ```
 
-### Batch BLAST Multiple Files
+### Batch BLAST Multiple Files (NCBI BLAST+)
 
 ```bash
 #!/bin/bash
@@ -203,6 +220,11 @@ done
 
 ### Python Wrapper
 
+**Goal:** Run a complete local BLAST workflow (build database, search, parse results) from Python.
+
+**Approach:** Wrap `makeblastdb` and BLAST programs via `subprocess`, then parse the default tabular output into structured dictionaries.
+
+**Reference (NCBI BLAST+ 2.15+):**
 ```python
 import subprocess
 import os
@@ -230,7 +252,6 @@ def parse_blast_tabular(filename):
             hits.append(hit)
     return hits
 
-# Example usage
 make_blast_db('reference.fasta', 'ref_db')
 run_blast('query.fasta', 'ref_db', 'results.tsv')
 hits = parse_blast_tabular('results.tsv')
@@ -240,21 +261,23 @@ for hit in hits[:5]:
 
 ### Reciprocal Best BLAST
 
+**Goal:** Identify putative orthologs between two species using reciprocal best BLAST hits.
+
+**Approach:** BLAST species A against B and B against A (keeping best hit each), then find pairs where each is the other's top hit.
+
+**Reference (NCBI BLAST+ 2.15+):**
 ```bash
 #!/bin/bash
-# Forward BLAST: A vs B
 blastp -query species_A.fasta -db species_B_db -outfmt 6 -evalue 1e-5 \
     -max_target_seqs 1 -out A_vs_B.tsv
 
-# Reverse BLAST: B vs A
 blastp -query species_B.fasta -db species_A_db -outfmt 6 -evalue 1e-5 \
     -max_target_seqs 1 -out B_vs_A.tsv
 
-# Find reciprocal best hits
 awk 'NR==FNR {a[$1]=$2; next} $2 in a && a[$2]==$1' A_vs_B.tsv B_vs_A.tsv
 ```
 
-### Extract Hit Sequences
+### Extract Hit Sequences (NCBI BLAST+)
 
 ```bash
 # Get subject sequence by ID (requires -parse_seqids)
@@ -267,7 +290,7 @@ blastdbcmd -db my_db -entry_batch ids.txt -out hits.fasta
 blastdbcmd -db my_db -entry all -out all_seqs.fasta
 ```
 
-## Prebuilt Databases
+## Prebuilt Databases (NCBI BLAST+)
 
 Download from NCBI:
 ```bash

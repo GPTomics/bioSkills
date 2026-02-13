@@ -1,3 +1,4 @@
+# Reference: CEMiTool 1.26+ | Verify API if version differs
 # Automated co-expression analysis with CEMiTool
 
 library(CEMiTool)

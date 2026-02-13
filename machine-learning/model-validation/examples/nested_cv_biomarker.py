@@ -1,4 +1,5 @@
 '''Nested cross-validation for unbiased biomarker classifier evaluation'''
+# Reference: numpy 1.26+, scikit-learn 1.4+ | Verify API if version differs
 
 import pandas as pd
 import numpy as np

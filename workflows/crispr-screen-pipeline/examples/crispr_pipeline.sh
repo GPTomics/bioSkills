@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MAGeCK 0.5+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # Complete CRISPR screen analysis pipeline
 
 # Configuration

@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: WGCNA
 ---
 
+## Version Compatibility
+
+Reference examples tested with: WGCNA 1.72+, CEMiTool 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion("<pkg>")` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Co-expression Networks
+
+**"Find co-expression modules and hub genes from my RNA-seq data"** → Build a weighted gene co-expression network, detect modules of co-regulated genes via hierarchical clustering, and correlate modules with sample traits to identify hub genes.
+- R: `WGCNA::blockwiseModules()` for network construction and module detection
+- R: `CEMiTool::cemitool()` for automated co-expression analysis
 
 Build weighted gene co-expression networks to identify modules of co-regulated genes and relate them to sample traits.
 
@@ -107,6 +121,10 @@ labeledHeatmap(Matrix = module_trait_cor,
 
 ### Hub Gene Identification
 
+**Goal:** Identify the most influential genes within a co-expression module by combining module membership with trait association.
+
+**Approach:** Correlate each gene's expression with its module eigengene (module membership) and with the trait of interest (gene significance), then select genes exceeding both thresholds; additionally rank by intramodular connectivity (kWithin).
+
 ```r
 # Gene module membership (correlation with module eigengene)
 module_of_interest <- 'turquoise'
@@ -134,6 +152,10 @@ top_hubs <- connectivity[module_genes, ] %>%
 ```
 
 ### Export for Cytoscape
+
+**Goal:** Export a co-expression module as an edge/node list for interactive network visualization in Cytoscape.
+
+**Approach:** Recompute the TOM (Topological Overlap Matrix) for the module of interest, threshold weak connections, and export as Cytoscape-compatible edge and node files.
 
 ```r
 # Export top connections for network visualization

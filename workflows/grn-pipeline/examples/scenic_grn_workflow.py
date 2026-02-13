@@ -1,4 +1,5 @@
 '''pySCENIC RNA-only GRN inference pipeline.'''
+# Reference: anndata 0.10+, pandas 2.2+, scanpy 1.10+, scipy 1.12+ | Verify API if version differs
 
 import scanpy as sc
 import pandas as pd

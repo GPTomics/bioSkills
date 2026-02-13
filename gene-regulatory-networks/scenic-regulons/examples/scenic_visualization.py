@@ -6,6 +6,7 @@ Requires:
 - auc_matrix.csv: AUCell scores from pySCENIC
 - rss_scores.csv: regulon specificity scores
 '''
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, seaborn 0.13+ | Verify API if version differs
 
 import pandas as pd
 import numpy as np

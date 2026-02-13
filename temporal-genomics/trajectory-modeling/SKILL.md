@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: mgcv
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), numpy 1.26+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Temporal Trajectory Modeling
+
+**"Fit smooth curves to my gene expression time series"** → Model continuous temporal trajectories using generalized additive models (GAMs) or spline regression, test for condition differences, and detect changepoints where dynamics shift abruptly.
+- R: `mgcv::gam()` for GAM fitting with smooth terms
+- Python: `ruptures` for changepoint detection in temporal profiles
 
 Fits smooth non-linear curves to gene expression time series using generalized additive models (GAMs) and detects abrupt changes in temporal dynamics using changepoint algorithms.
 
@@ -19,7 +34,11 @@ Fits smooth non-linear curves to gene expression time series using generalized a
 
 ## mgcv GAM (R)
 
-### Basic GAM Fitting
+**Goal:** Fit smooth non-linear curves to gene expression time series and test for significant temporal trends or condition differences.
+
+**Approach:** Use generalized additive models with penalized smooth terms to capture non-linear dynamics, compare trajectories between conditions using interaction smooths, and extract predicted values with confidence intervals.
+
+### Basic GAM Fitting (R stats (base)+)
 
 ```r
 library(mgcv)
@@ -35,7 +54,7 @@ summary(fit)
 # p-value for s(time): tests whether the smooth term is significantly non-zero
 ```
 
-### Condition Comparison with GAM
+### Condition Comparison with GAM (R stats (base)+)
 
 ```r
 # 'by' argument fits separate smooths per condition
@@ -56,7 +75,7 @@ fit_diff <- gam(
 summary(fit_diff)
 ```
 
-### Model Diagnostics
+### Model Diagnostics (R stats (base)+)
 
 ```r
 # gam.check() provides residual plots and basis dimension checks
@@ -68,7 +87,7 @@ gam.check(fit)
 concurvity(fit_cond, full = TRUE)
 ```
 
-### Prediction and Visualization
+### Prediction and Visualization (R stats (base)+)
 
 ```r
 # Predict on fine time grid with confidence intervals
@@ -81,7 +100,7 @@ new_data$lower <- pred$fit - 1.96 * pred$se.fit
 new_data$upper <- pred$fit + 1.96 * pred$se.fit
 ```
 
-### Genome-Wide GAM Fitting
+### Genome-Wide GAM Fitting (R stats (base)+)
 
 ```r
 # Fit GAMs for all genes and test for significant temporal trends
@@ -166,7 +185,7 @@ penalty = np.log(n) * np.var(signal)
 changepoints = algo.predict(pen=penalty)
 ```
 
-### Binary Segmentation Alternative
+### Binary Segmentation Alternative (R stats (base)+)
 
 ```python
 # BinSeg: faster approximate method for long series

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GATK 4.5+, bcftools 1.19+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Prepare reference genome for analysis
 
 set -e

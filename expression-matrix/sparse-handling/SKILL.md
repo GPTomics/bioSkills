@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: scipy.sparse
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Sparse Matrix Handling
+
+**"Convert counts to sparse matrix"** → Store zero-heavy expression data (especially single-cell) in memory-efficient sparse format.
+- Python: `scipy.sparse.csr_matrix(dense_array)`, `anndata.X` stores sparse by default
+- Python: `scipy.io.mmread('matrix.mtx')` for Market Matrix format (10x Genomics)
 
 ## Check Sparsity
 
@@ -180,6 +194,10 @@ sparse_expressed = sparse_matrix[expressed, :]
 ```
 
 ## Normalization on Sparse
+
+**Goal:** Apply CPM normalization and log transformation to a sparse count matrix without converting to dense format.
+
+**Approach:** Compute library sizes from column sums, broadcast scaling factors with sparse multiply for CPM, then transform only the nonzero data array in-place with log1p.
 
 ```python
 import numpy as np

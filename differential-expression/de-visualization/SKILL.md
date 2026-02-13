@@ -5,6 +5,16 @@ tool_type: r
 primary_tool: DESeq2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, limma 3.58+, matplotlib 3.8+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # DE Visualization
 
 Create visualizations for differential expression analysis using DESeq2 and edgeR built-in plotting functions.
@@ -37,6 +47,12 @@ BiocManager::install('EnhancedVolcano')
 ```
 
 ## MA Plot
+
+**Goal:** Visualize the relationship between mean expression and log fold change to assess DE results.
+
+**Approach:** Plot log fold change against mean normalized counts, highlighting significant genes.
+
+**"Make an MA plot of my DE results"** → Plot mean expression vs. fold change with significant genes colored, using plotMA or ggplot2.
 
 ### DESeq2 MA Plot
 
@@ -77,6 +93,12 @@ abline(h = c(-1, 1), col = 'blue', lty = 2)
 ```
 
 ## Volcano Plot
+
+**Goal:** Display statistical significance against fold change magnitude to identify the most important DE genes.
+
+**Approach:** Plot -log10(p-value) vs. log2 fold change with threshold lines and optional gene labels.
+
+**"Create a volcano plot of differentially expressed genes"** → Scatter plot of fold change vs. significance with colored significance regions and labeled top hits.
 
 ### Basic Volcano Plot
 
@@ -131,6 +153,12 @@ EnhancedVolcano(res,
 
 ## PCA Plot
 
+**Goal:** Assess sample clustering and identify batch effects or outliers via dimensionality reduction.
+
+**Approach:** Apply variance-stabilizing transformation then project samples onto principal components, coloring by experimental variables.
+
+**"Show me a PCA plot of my samples"** → Perform PCA on transformed expression data and visualize sample separation by condition and batch.
+
 ### DESeq2 PCA
 
 ```r
@@ -170,6 +198,12 @@ legend('topright', legend = levels(group), col = 1:nlevels(group), pch = 16)
 ```
 
 ## Heatmaps
+
+**Goal:** Visualize expression patterns of significant genes across samples to reveal clusters and condition effects.
+
+**Approach:** Z-score normalize VST-transformed counts for significant genes and cluster with pheatmap, annotating by condition.
+
+**"Make a heatmap of the top differentially expressed genes"** → Extract significant genes, z-score normalize, and create a clustered heatmap with sample annotations.
 
 ### Top DE Genes Heatmap
 
@@ -243,6 +277,10 @@ pheatmap(mat,
 
 ## Dispersion Plot
 
+**Goal:** Assess the fit of the dispersion model to verify DE analysis assumptions.
+
+**Approach:** Plot gene-wise, fitted, and final dispersion estimates against mean expression.
+
 ### DESeq2
 
 ```r
@@ -256,6 +294,10 @@ plotBCV(y, main = 'Biological Coefficient of Variation')
 ```
 
 ## Counts Plot for Individual Genes
+
+**Goal:** Visualize expression of a specific gene across samples and conditions.
+
+**Approach:** Extract per-sample counts for a gene and plot by condition using plotCounts or ggplot2.
 
 ### DESeq2
 
@@ -290,6 +332,10 @@ ggplot(df, aes(x = group, y = cpm, color = group)) +
 
 ## P-value Histogram
 
+**Goal:** Diagnose the quality of the DE analysis by examining the raw p-value distribution.
+
+**Approach:** Histogram of raw p-values; a uniform distribution with a peak near zero indicates a well-calibrated test.
+
 ```r
 # Check p-value distribution (should be uniform under null with peak near 0)
 res_df <- as.data.frame(res)
@@ -300,6 +346,10 @@ ggplot(res_df, aes(x = pvalue)) +
 ```
 
 ## Saving Plots
+
+**Goal:** Export publication-quality plots in vector or raster formats.
+
+**Approach:** Use pdf/png devices or ggsave with appropriate resolution and dimensions.
 
 ```r
 # Save as PDF (vector)
@@ -319,6 +369,10 @@ ggsave('plot.png', p, width = 8, height = 6, dpi = 300)
 ```
 
 ## Color Palettes
+
+**Goal:** Select appropriate color schemes for heatmaps and categorical data.
+
+**Approach:** Use RColorBrewer palettes -- diverging for expression, sequential for distances, qualitative for groups.
 
 ```r
 # For heatmaps

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+, samtools 1.19+ | Verify API if version differs
 # Structural variant calling with Manta and Delly
 
 set -euo pipefail

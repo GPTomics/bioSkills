@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GenomicRanges 1.54+ | Verify API if version differs
 # IGV batch script for generating genome browser snapshots
 #
 # Usage: igv -b igv_batch.txt

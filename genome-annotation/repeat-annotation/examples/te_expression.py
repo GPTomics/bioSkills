@@ -2,6 +2,7 @@
 '''
 TE expression analysis with TEtranscripts output.
 '''
+# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

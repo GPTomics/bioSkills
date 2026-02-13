@@ -1,4 +1,5 @@
 '''Calculate pairwise distances between taxa in a tree'''
+# Reference: biopython 1.83+, ncbi blast+ 2.15+ | Verify API if version differs
 
 from Bio import Phylo
 from io import StringIO

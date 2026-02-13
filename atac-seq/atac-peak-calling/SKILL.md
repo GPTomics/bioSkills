@@ -5,9 +5,26 @@ tool_type: cli
 primary_tool: macs3
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, MACS3 3.0+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ATAC-seq Peak Calling
 
+**"Call peaks from my ATAC-seq data"** → Identify open chromatin regions using ATAC-specific parameters (no input control, shifted Tn5 cut sites, paired-end mode).
+- CLI: `macs3 callpeak -t atac.bam -f BAMPE -g hs --nomodel --shift -75 --extsize 150`
+
 ## Basic MACS3 for ATAC-seq
+
+**Goal:** Identify open chromatin regions from ATAC-seq data using ATAC-specific peak calling parameters.
+
+**Approach:** Run MACS3 in paired-end mode with Tn5 shift correction, no model building, and duplicate retention since ATAC-seq generates natural duplicates at accessible sites.
 
 ```bash
 # Standard ATAC-seq peak calling
@@ -65,6 +82,10 @@ macs3 callpeak -f BAM -t sample.bam \
 
 ## Call Peaks on NFR Only
 
+**Goal:** Call peaks using only nucleosome-free fragments for sharper regulatory element detection.
+
+**Approach:** Filter BAM to fragments <100 bp (NFR), then call peaks with adjusted shift/extsize parameters matching the shorter fragment size.
+
 ```bash
 # First, filter to nucleosome-free reads (<100bp fragments)
 samtools view -h sample.bam | \
@@ -101,6 +122,10 @@ macs3 callpeak \
 ```
 
 ## Batch Processing
+
+**Goal:** Call peaks on multiple ATAC-seq samples in one pass.
+
+**Approach:** Loop over BAM files and run MACS3 with consistent ATAC-specific parameters for each sample.
 
 ```bash
 #!/bin/bash
@@ -168,6 +193,10 @@ macs3 callpeak -t merged.bam -f BAMPE -g hs -n merged ...
 ```
 
 ## IDR for Replicate Consistency
+
+**Goal:** Identify reproducible peaks across biological replicates using the Irreproducible Discovery Rate framework.
+
+**Approach:** Call peaks on each replicate independently, then run IDR to score peak reproducibility and filter to a high-confidence set.
 
 ```bash
 # Call peaks on each replicate

@@ -1,4 +1,5 @@
 '''Design guides for cytosine and adenine base editing'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.Seq import Seq
 import re

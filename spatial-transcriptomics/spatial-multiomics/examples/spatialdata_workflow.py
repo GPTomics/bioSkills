@@ -1,4 +1,5 @@
 '''Multi-modal spatial analysis with SpatialData'''
+# Reference: cellpose 3.0+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, scipy 1.12+, spatialdata 0.1+, squidpy 1.3+ | Verify API if version differs
 import spatialdata as sd
 from spatialdata_io import xenium, visium_hd
 import scanpy as sc

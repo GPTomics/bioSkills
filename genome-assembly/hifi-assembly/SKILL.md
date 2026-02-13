@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: hifiasm
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BUSCO 5.5+, QUAST 5.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # HiFi Assembly
 
+**"Assemble a genome from HiFi reads"** → Build a phased, reference-quality diploid assembly from PacBio HiFi reads with optional trio or Hi-C phasing for full haplotype resolution.
+- CLI: `hifiasm -o output reads.fq.gz`
+
 ## Basic Assembly
+
+**Goal:** Produce a primary contig assembly from PacBio HiFi reads.
+
+**Approach:** Run hifiasm with default parameters and convert GFA output to FASTA.
 
 ```bash
 # Primary assembly (single haplotype consensus)
@@ -25,6 +43,10 @@ awk '/^S/{print ">"$2;print $3}' output_prefix.bp.p_ctg.gfa > assembly.fasta
 
 ## Trio-Binned Phasing
 
+**Goal:** Generate fully phased haplotype assemblies using parental short-read data.
+
+**Approach:** Build k-mer databases from parental reads with yak, then supply them to hifiasm for trio binning.
+
 ```bash
 # With parental short reads for trio binning
 hifiasm -o trio_asm -t 32 \
@@ -38,6 +60,10 @@ yak count -b37 -t16 -o maternal.yak maternal_R1.fq.gz maternal_R2.fq.gz
 ```
 
 ## Hi-C Phasing
+
+**Goal:** Phase haplotypes without parental data using chromatin proximity.
+
+**Approach:** Supply Hi-C paired-end reads to hifiasm for contact-based haplotype resolution.
 
 ```bash
 # Use Hi-C reads for phasing (no parents needed)
@@ -63,6 +89,10 @@ hifiasm -o hic_asm -t 32 \
 
 ## Purge Duplicates
 
+**Goal:** Control haplotype duplication levels in the primary assembly.
+
+**Approach:** Adjust the hifiasm purge level parameter based on sample heterozygosity.
+
 ```bash
 # Aggressive purging for high heterozygosity
 hifiasm -o asm -t 32 -l 2 reads.hifi.fastq.gz
@@ -72,6 +102,10 @@ hifiasm -o asm -t 32 -l 0 reads.hifi.fastq.gz
 ```
 
 ## Ultra-Long ONT Integration
+
+**Goal:** Improve contiguity across complex repeats by supplementing HiFi with ultra-long ONT reads.
+
+**Approach:** Supply ONT reads via the --ul flag to span regions that HiFi reads alone cannot resolve.
 
 ```bash
 # Combine HiFi accuracy with ONT length
@@ -83,6 +117,10 @@ hifiasm -o hybrid_asm -t 32 \
 ```
 
 ## Assembly Stats
+
+**Goal:** Evaluate assembly contiguity, completeness, and correctness.
+
+**Approach:** Compute summary statistics with seqkit/assembly-stats, run QUAST for contiguity metrics, and BUSCO for gene completeness.
 
 ```bash
 # Quick stats with seqkit
@@ -107,6 +145,10 @@ busco -i assembly.fasta -l mammalia_odb10 -o busco_out -m genome
 | 500 Mb | 40x | ~64 GB | 2-4 hours |
 
 ## Python Wrapper
+
+**Goal:** Provide a reusable Python interface for running hifiasm with various phasing modes.
+
+**Approach:** Wrap the hifiasm CLI call with optional Hi-C and ultra-long ONT parameters, then convert GFA output to FASTA.
 
 ```python
 import subprocess

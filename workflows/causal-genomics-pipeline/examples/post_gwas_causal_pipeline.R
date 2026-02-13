@@ -1,3 +1,4 @@
+# Reference: TwoSampleMR 0.5+, coloc 5.2+, susieR 0.12+ | Verify API if version differs
 # Complete post-GWAS causal inference pipeline
 # Mendelian randomization -> sensitivity analysis -> colocalization -> fine-mapping
 

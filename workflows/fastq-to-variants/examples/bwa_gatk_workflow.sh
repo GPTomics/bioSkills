@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BWA-MEM2 2.2.1+, Ensembl VEP 111+, GATK 4.5+, bcftools 1.19+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
 # Complete variant calling workflow: BWA-MEM2 + GATK HaplotypeCaller
 set -e
 

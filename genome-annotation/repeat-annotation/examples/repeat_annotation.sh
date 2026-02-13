@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: DESeq2 1.42+, STAR 2.7.11+, matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 # Repeat annotation with RepeatModeler and RepeatMasker
 set -euo pipefail
 

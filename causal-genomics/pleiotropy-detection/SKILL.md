@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: MR-PRESSO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MR-PRESSO 1.0+, TwoSampleMR 0.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion("<pkg>")` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Pleiotropy Detection
+
+**"Check my MR results for pleiotropic bias"** → Detect and correct for horizontal pleiotropy using outlier removal (MR-PRESSO), directional pleiotropy testing (MR-Egger intercept), and variant directionality filtering (Steiger) to validate causal inference results.
+- R: `MRPRESSO::mr_presso()` for global and distortion tests
+- R: `TwoSampleMR::mr_egger_regression()` for Egger intercept test
 
 ## Overview
 
@@ -20,6 +34,10 @@ Types of pleiotropy:
 - **Directional**: Pleiotropic effects are systematic (biases IVW, Egger detects this)
 
 ## MR-PRESSO
+
+**Goal:** Detect and remove pleiotropic outlier instruments from an MR analysis.
+
+**Approach:** Run MR-PRESSO to test for global pleiotropy, identify individual outlier SNPs, test whether their removal changes the causal estimate (distortion test), and obtain a corrected estimate.
 
 ```r
 # install.packages('remotes')
@@ -78,6 +96,10 @@ cat('Corrected IVW estimate:', main_results$`Causal Estimate`[2], '\n')
 
 ## MR-Egger Diagnostics
 
+**Goal:** Test for directional pleiotropy and obtain a pleiotropy-adjusted causal estimate.
+
+**Approach:** Fit MR-Egger regression where the intercept estimates average pleiotropic bias, and check I-squared for instrument strength under the NOME assumption.
+
 ```r
 library(TwoSampleMR)
 
@@ -109,6 +131,10 @@ if (isq < 0.9) cat('Warning: I-squared < 0.9; Egger estimate may be unreliable (
 ```
 
 ## Steiger Filtering
+
+**Goal:** Verify that instruments act in the correct causal direction (exposure -> outcome, not reverse).
+
+**Approach:** Apply the Steiger test to each instrument, remove those explaining more outcome variance than exposure variance, and re-run MR on filtered instruments.
 
 ```r
 library(TwoSampleMR)
@@ -169,6 +195,10 @@ exposure2 <- extract_instruments('ieu-a-302')  # HDL
 ```
 
 ## Comprehensive Sensitivity Framework
+
+**Goal:** Run a complete battery of MR sensitivity analyses to validate causal findings.
+
+**Approach:** Apply IVW, MR-Egger, weighted median, weighted mode, heterogeneity, Egger intercept, leave-one-out, and MR-PRESSO in a single function and summarize results.
 
 ```r
 library(TwoSampleMR)

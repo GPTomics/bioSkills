@@ -5,11 +5,28 @@ tool_type: python
 primary_tool: vina
 ---
 
+## Version Compatibility
+
+Reference examples tested with: AutoDock Vina 1.2+, RDKit 2024.03+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Virtual Screening
+
+**"Dock my compound library against a protein target"** → Perform structure-based virtual screening by preparing a receptor PDBQT, generating ligand conformers, defining a binding site box, and scoring each compound by predicted binding affinity using AutoDock Vina.
+- Python: `vina.Vina()` for docking, `AllChem.EmbedMolecule()` (RDKit) for conformer generation
 
 Screen compound libraries against protein targets using molecular docking.
 
 ## Receptor Preparation
+
+**Goal:** Prepare a protein structure for molecular docking.
+
+**Approach:** Remove waters and heteroatoms from the PDB, add hydrogens at physiological pH, assign Gasteiger charges, and convert to PDBQT format using Open Babel.
 
 ```python
 from rdkit import Chem
@@ -48,6 +65,10 @@ def prepare_receptor(pdb_file, output_pdbqt, remove_waters=True, add_hydrogens=T
 
 ## Ligand Preparation
 
+**Goal:** Convert a SMILES string into a docking-ready 3D ligand file.
+
+**Approach:** Generate a 3D conformer with ETKDGv3, optimize geometry with MMFF, write to MOL, and convert to PDBQT with Gasteiger charges via Open Babel.
+
 ```python
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -81,6 +102,10 @@ def prepare_ligand(smiles, output_pdbqt):
 ```
 
 ## Docking with Vina
+
+**Goal:** Dock a single ligand into a protein binding site and retrieve predicted binding affinities.
+
+**Approach:** Initialize Vina with the receptor, set the search space around the binding site, dock with specified exhaustiveness, and extract ranked poses with energies.
 
 ```python
 from vina import Vina
@@ -120,6 +145,10 @@ def dock_ligand(receptor_pdbqt, ligand_pdbqt, center, box_size, exhaustiveness=8
 ```
 
 ## Virtual Screening Pipeline
+
+**Goal:** Screen an entire compound library against a protein target and rank by binding affinity.
+
+**Approach:** Prepare each ligand from SMILES, dock against the pre-computed receptor maps, save top poses, and compile results into a sorted DataFrame.
 
 ```python
 import os
@@ -190,6 +219,10 @@ def virtual_screen(receptor_pdbqt, ligand_smiles_dict, center, box_size,
 ```
 
 ## Binding Site Definition
+
+**Goal:** Define the docking search box around a protein binding site.
+
+**Approach:** If a co-crystallized ligand is available, compute its centroid and bounding box with padding; otherwise fall back to the protein center with a default box size.
 
 ```python
 def find_binding_site(receptor_pdb, ligand_pdb=None, padding=5.0):

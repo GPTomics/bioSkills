@@ -5,7 +5,19 @@ tool_type: cli
 primary_tool: GATK Mutect2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: CNVkit 0.9+, Ensembl VEP 111+, GATK 4.5+, SnpEff 5.2+, bcftools 1.19+, picard 3.1+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Somatic Variant Pipeline
+
+**"Call somatic mutations from my tumor-normal pair"** → Orchestrate alignment, Mutect2 somatic calling, contamination filtering, variant annotation (Funcotator/VEP), TMB calculation, and mutational signature analysis.
 
 Complete workflow for calling somatic mutations from tumor-normal paired samples.
 

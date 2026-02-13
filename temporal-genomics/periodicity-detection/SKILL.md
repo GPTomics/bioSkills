@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: scipy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pwr 1.3+, scipy 1.12+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Periodicity Detection
+
+**"Find periodic patterns of unknown period in my time-series data"** → Compute frequency spectra using Lomb-Scargle periodograms (handles irregular sampling), identify significant spectral peaks, and detect transient periodicity via continuous wavelet transforms.
+- Python: `scipy.signal.lombscargle()` for Lomb-Scargle periodogram
+- Python: `pywt.cwt()` for wavelet time-frequency decomposition
 
 Discovers periodic signals of unknown frequency in time-series omics data. Handles irregular sampling, identifies dominant oscillation periods, and detects transient or time-varying periodicity through spectral and time-frequency methods.
 
@@ -18,6 +32,10 @@ Discovers periodic signals of unknown frequency in time-series omics data. Handl
 5. For transient periodicity, apply wavelet time-frequency decomposition
 
 ## Lomb-Scargle Periodogram (scipy)
+
+**Goal:** Discover periodic signals of unknown frequency in time-series expression data, especially with irregular sampling.
+
+**Approach:** Compute a Lomb-Scargle periodogram over a frequency grid spanning biologically plausible periods, identify statistically significant spectral peaks using false alarm probabilities, and convert peak frequencies to period estimates.
 
 Handles irregularly sampled time series without interpolation. Standard method for astronomical and biological time-series with uneven sampling.
 

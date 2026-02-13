@@ -17,7 +17,20 @@ qc_checkpoints:
   - after_essentiality: "Core essential genes match literature >70%"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: COBRApy 0.29+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolic Modeling Pipeline
+
+**"Build and analyze a metabolic model for my organism"** → Orchestrate CarveMe reconstruction, memote quality scoring, gap-filling, FBA/FVA flux analysis, gene essentiality prediction, and context-specific model building from expression data.
 
 Complete workflow for genome-scale metabolic modeling: from protein sequences to flux predictions and phenotype analysis.
 

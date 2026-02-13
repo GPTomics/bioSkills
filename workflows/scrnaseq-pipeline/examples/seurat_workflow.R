@@ -1,3 +1,4 @@
+# Reference: Cell Ranger 8.0+, ggplot2 3.5+, numpy 1.26+, scanpy 1.10+ | Verify API if version differs
 # Complete single-cell RNA-seq workflow with Seurat
 
 library(Seurat)

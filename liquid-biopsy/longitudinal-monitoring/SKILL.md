@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: pandas
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Longitudinal Monitoring
+
+**"Track ctDNA levels over my patient's treatment"** → Monitor tumor fraction and mutation dynamics across serial liquid biopsy timepoints for treatment response assessment and early relapse detection.
+- Python: `pandas` + `matplotlib` for trend analysis and molecular response classification
 
 Track ctDNA dynamics over treatment for response assessment and relapse detection.
 
@@ -211,6 +224,10 @@ def plot_ctdna_dynamics(patient_data, treatment_lines=None, output_file=None):
 ```
 
 ## Clinical Integration
+
+**Goal:** Generate a structured monitoring report combining tumor fraction dynamics, mutation clearance status, and molecular response classification for clinical decision support.
+
+**Approach:** Aggregate tumor fraction trend analysis, mutation tracking pivot tables, and response criteria into a single report dictionary with standardized molecular response categories.
 
 ```python
 def generate_monitoring_report(patient_id, tf_data, mutation_data, imaging_data=None):

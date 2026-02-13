@@ -5,6 +5,7 @@ Requires:
 - clustered.h5ad: preprocessed scRNA-seq with UMAP and cell type labels
 - atac_peaks.bed: accessible chromatin regions (from scATAC or bulk ATAC)
 '''
+# Reference: anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import scanpy as sc
 import celloracle as co

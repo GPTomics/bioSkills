@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: Rsamtools 2.18+, matplotlib 3.8+, numpy 1.26+, pyBigWig 0.3+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Nucleosome positioning analysis from ATAC-seq
 
 library(ATACseqQC)

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: minimap2 2.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # SQANTI3 quality control for Iso-Seq isoforms
 
 TRANSCRIPTS=$1     # clustered.hq.fasta from Iso-Seq3

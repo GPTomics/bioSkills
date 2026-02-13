@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: statsmodels
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, pandas 2.2+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Temporal Gene Regulatory Network Inference
+
+**"Infer causal regulatory relationships from my time-series expression data"** → Identify time-delayed TF-target regulatory edges from bulk temporal expression using Granger causality testing, dynGENIE3 tree-based ODE inference, or dynamic Bayesian networks.
+- Python: `statsmodels.tsa.stattools.grangercausalitytests()` for Granger causality
+- R: `dynGENIE3::dynGENIE3()` for ODE-based GRN inference from time series
 
 Infers directed, time-delayed regulatory relationships from bulk time-series expression data. Captures how transcription factor activity propagates through gene regulatory networks over time.
 
@@ -18,6 +33,10 @@ Infers directed, time-delayed regulatory relationships from bulk time-series exp
 5. Compare networks across conditions or time windows
 
 ## Granger Causality (Python/statsmodels)
+
+**Goal:** Identify time-delayed regulatory relationships between transcription factors and target genes from time-series expression data.
+
+**Approach:** Test pairwise Granger causality between TF-target pairs by checking whether past TF expression values improve prediction of future target levels, then correct for multiple testing across all tested pairs.
 
 Tests whether past values of gene X improve prediction of gene Y beyond past values of Y alone. Significant Granger causality suggests X temporally influences Y.
 

@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: pyGenomeTracks
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GenomicRanges 1.54+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Genome Browser Tracks
+
+**"Create genome browser track visualizations"** → Generate publication-quality track plots or automate IGV screenshots showing aligned reads, coverage, and annotations at specific loci.
+- Python: `pyGenomeTracks` for static multi-track figures
+- CLI: IGV batch scripting for screenshots
 
 ## pyGenomeTracks INI Configuration
 
@@ -211,6 +227,10 @@ exit                        # Exit IGV
 ```
 
 ## Gviz (R)
+
+**Goal:** Create a multi-track genome browser figure combining coverage, peaks, and gene models at a specific locus.
+
+**Approach:** Build individual Gviz track objects (axis, gene model from TxDb, BigWig data track, BED annotation track), then compose and render with plotTracks.
 
 ```r
 library(Gviz)

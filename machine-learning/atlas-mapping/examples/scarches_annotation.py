@@ -1,4 +1,5 @@
 '''scArches transfer learning for single-cell annotation'''
+# Reference: anndata 0.10+, scanpy 1.10+, scvi-tools 1.1+ | Verify API if version differs
 
 import scvi
 import scanpy as sc

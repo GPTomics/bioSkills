@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, vegan 2.6+ | Verify API if version differs
 library(indicspecies)
 library(vegan)
 

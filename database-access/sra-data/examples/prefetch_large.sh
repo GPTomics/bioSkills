@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, Entrez Direct 21.0+, SRA Toolkit 3.0+ | Verify API if version differs
 # Prefetch large SRA files before converting (more reliable)
 
 SRR="${1:-SRR12345678}"

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Batch AMR screening for multiple assemblies'''
+# Reference: amrfinderplus 3.12+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

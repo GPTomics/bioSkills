@@ -1,4 +1,5 @@
 '''Basic examples of creating and using Seq objects'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq, MutableSeq
 from Bio.SeqRecord import SeqRecord
 

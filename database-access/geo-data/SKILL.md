@@ -5,9 +5,24 @@ tool_type: python
 primary_tool: Bio.Entrez
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # GEO Data
 
 Query and access Gene Expression Omnibus datasets using Biopython's Entrez module.
+
+**"Find expression datasets in GEO"** → Search GEO for microarray/RNA-seq datasets by organism, tissue, or condition, then download expression matrices or link to SRA runs.
+- Python: `Entrez.esearch(db='gds', term=...)` (BioPython)
+- CLI: `esearch -db gds -query "term"` (Entrez Direct)
 
 ## Required Setup
 
@@ -125,6 +140,10 @@ summary['ptechType']     # Platform technology
 
 ### Search and List GEO Series
 
+**Goal:** Find GEO experiment series matching a query and retrieve their metadata summaries.
+
+**Approach:** Search the gds database with entry_type filtering, then fetch summaries for matched IDs to extract accessions, titles, organisms, and sample counts.
+
 ```python
 from Bio import Entrez
 
@@ -207,7 +226,9 @@ print(f"Download from: {ftp_link}")
 
 ### Link GEO to SRA
 
-Many GEO RNA-seq datasets have associated SRA data.
+**Goal:** Find the raw sequencing runs (SRA accessions) associated with a GEO series for downloading FASTQ files.
+
+**Approach:** Search for the GSE accession in the gds database, use ELink to cross-reference to SRA, then fetch SRA summaries to extract run metadata.
 
 ```python
 def geo_to_sra(gse_accession):
@@ -273,7 +294,9 @@ for ds in datasets:
 
 ### Download GEO Data (GEOparse)
 
-For full data parsing, use the GEOparse library:
+**Goal:** Download a complete GEO series including sample metadata and expression data for local analysis.
+
+**Approach:** Use GEOparse to fetch and parse the GSE record, then access sample metadata via the gsms dictionary and expression values via pivot_samples.
 
 ```python
 # pip install GEOparse

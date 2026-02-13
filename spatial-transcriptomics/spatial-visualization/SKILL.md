@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Visualization
+
+**"Plot gene expression on my tissue section"** → Overlay gene expression, cluster assignments, or continuous scores on spatial coordinates with optional histology image background.
+- Python: `squidpy.pl.spatial_scatter(adata, color='gene')`, `scanpy.pl.spatial(adata, color='leiden')`
 
 Create visualizations for spatial transcriptomics data.
 
@@ -18,6 +31,10 @@ import matplotlib.pyplot as plt
 ```
 
 ## Basic Spatial Plot
+
+**Goal:** Create a spatial scatter plot with spots colored by a variable of interest.
+
+**Approach:** Use Squidpy's `spatial_scatter` to overlay expression or metadata values on tissue coordinates.
 
 ```python
 # Plot spots colored by a variable
@@ -62,6 +79,10 @@ sc.pl.spatial(
 ```
 
 ## Gene Expression on Tissue
+
+**Goal:** Visualize gene expression patterns overlaid on tissue spatial coordinates.
+
+**Approach:** Plot individual or multiple genes using Scanpy's spatial plot with configurable colormaps and value ranges.
 
 ```python
 # Single gene
@@ -120,6 +141,10 @@ plt.savefig('annotated.png', dpi=300)
 
 ## Co-expression Plot
 
+**Goal:** Visualize co-localization of two genes using dual-channel RGB encoding.
+
+**Approach:** Normalize expression of each gene to [0,1], assign to red and green channels, and render as a scatter plot.
+
 ```python
 # Visualize co-expression of two genes
 import numpy as np
@@ -158,6 +183,10 @@ sq.pl.co_occurrence(adata, cluster_key='leiden')
 
 ## Interactive Visualization with Napari
 
+**Goal:** Explore spatial data interactively with zoomable tissue images and spot overlays.
+
+**Approach:** Load tissue images and spot coordinates into napari layers for pan-and-zoom exploration.
+
 ```python
 import napari
 
@@ -179,6 +208,10 @@ napari.run()
 
 ## Save Publication-Quality Figures
 
+**Goal:** Export high-resolution spatial plots suitable for publication.
+
+**Approach:** Configure frameless spatial plots with appropriate DPI and save as both PDF and PNG.
+
 ```python
 import matplotlib.pyplot as plt
 
@@ -197,6 +230,10 @@ plt.savefig('figure.png', dpi=300, bbox_inches='tight')
 ```
 
 ## Multi-Panel Figure
+
+**Goal:** Assemble a composite figure combining spatial plots, gene expression, UMAP, and violin plots.
+
+**Approach:** Create a 2x3 subplot grid with different visualization types for comprehensive data overview.
 
 ```python
 fig = plt.figure(figsize=(15, 10))

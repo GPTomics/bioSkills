@@ -1,4 +1,5 @@
 '''Infer pathogen transmission networks'''
+# Reference: biopython 1.83+, treetime 0.11+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import pandas as pd
 import numpy as np

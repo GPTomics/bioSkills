@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Salmon 1.10+, fastp 0.23+, kallisto 0.50+, pandas 2.2+ | Verify API if version differs
 # kallisto quantification workflow
 
 TRANSCRIPTOME="transcripts.fa"

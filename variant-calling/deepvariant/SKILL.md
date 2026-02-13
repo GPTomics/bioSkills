@@ -5,9 +5,23 @@ tool_type: cli
 primary_tool: DeepVariant
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # DeepVariant Variant Calling
 
 ## Installation
+
+**Goal:** Install DeepVariant via Docker or Singularity container.
+
+**Approach:** Pull the pre-built container image matching the target platform (CPU or GPU).
 
 ### Docker (Recommended)
 
@@ -25,6 +39,12 @@ singularity pull docker://google/deepvariant:1.6.1
 ```
 
 ## Basic Usage
+
+**Goal:** Call germline variants from aligned reads using DeepVariant's deep learning model.
+
+**Approach:** Run the all-in-one `run_deepvariant` wrapper specifying model type, reference, reads, and output paths.
+
+**"Call variants with DeepVariant"** → Convert aligned read pileups into image tensors, classify with a CNN, and output genotyped VCF.
 
 ### One-Step Run (run_deepvariant)
 
@@ -51,6 +71,10 @@ docker run -v "${PWD}:/input" -v "${PWD}/output:/output" \
 | `HYBRID_PACBIO_ILLUMINA` | Mixed | Hybrid assemblies |
 
 ## Step-by-Step Workflow
+
+**Goal:** Run DeepVariant in three explicit stages for more control over intermediate outputs.
+
+**Approach:** Generate pileup image tensors (make_examples), classify with the CNN (call_variants), then merge and genotype (postprocess_variants).
 
 For more control, run each step separately:
 
@@ -90,6 +114,10 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
 
 ## GPU Acceleration
 
+**Goal:** Speed up DeepVariant inference using GPU hardware.
+
+**Approach:** Use the GPU-enabled container image with Docker `--gpus` flag.
+
 ```bash
 docker run --gpus all -v "${PWD}:/data" \
     google/deepvariant:1.6.1-gpu \
@@ -103,6 +131,10 @@ docker run --gpus all -v "${PWD}:/data" \
 
 ## PacBio HiFi Calling
 
+**Goal:** Call variants from PacBio HiFi long reads.
+
+**Approach:** Use the PACBIO model type which is trained on HiFi read characteristics.
+
 ```bash
 docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
@@ -114,6 +146,10 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
 ```
 
 ## ONT Calling
+
+**Goal:** Call variants from Oxford Nanopore long reads.
+
+**Approach:** Use the ONT_R104 model type trained on Nanopore R10.4 chemistry.
 
 ```bash
 docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
@@ -127,6 +163,10 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
 
 ## Exome/Targeted Sequencing
 
+**Goal:** Call variants from exome or targeted panel data.
+
+**Approach:** Use WES model type with a BED file restricting calling to target regions.
+
 ```bash
 docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
@@ -139,6 +179,10 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
 ```
 
 ## Joint Calling with GLnexus
+
+**Goal:** Perform joint genotyping across a cohort from DeepVariant gVCFs.
+
+**Approach:** Generate per-sample gVCFs, then merge and jointly genotype with GLnexus using a DeepVariant-specific config.
 
 For multi-sample cohorts, use gVCFs with GLnexus:
 
@@ -174,6 +218,10 @@ docker run -v "${PWD}:/data" quay.io/mlin/glnexus:v1.4.1 \
 
 ## Output Quality Metrics
 
+**Goal:** Assess the quality of DeepVariant calls.
+
+**Approach:** Generate summary statistics with bcftools stats and check Ti/Tv ratio as a quality indicator.
+
 ```bash
 # Variant statistics
 bcftools stats output.vcf.gz > stats.txt
@@ -187,6 +235,10 @@ bcftools stats output.vcf.gz | grep TSTV
 
 ## Benchmarking Against Truth Set
 
+**Goal:** Evaluate DeepVariant accuracy against a GIAB truth set.
+
+**Approach:** Run hap.py to compute precision, recall, and F1 for SNPs and indels.
+
 ```bash
 # Using hap.py for GIAB benchmarking
 docker run -v "${PWD}:/data" jmcdani20/hap.py:latest \
@@ -199,6 +251,10 @@ docker run -v "${PWD}:/data" jmcdani20/hap.py:latest \
 ```
 
 ## Complete Workflow Script
+
+**Goal:** Run DeepVariant end-to-end with indexing and statistics in a single script.
+
+**Approach:** Wrap run_deepvariant, bcftools index, and bcftools stats in a parameterized shell script.
 
 ```bash
 #!/bin/bash

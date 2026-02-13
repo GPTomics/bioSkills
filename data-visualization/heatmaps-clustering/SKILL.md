@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: ComplexHeatmap
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Heatmaps and Clustering
+
+**"Create a clustered heatmap"** → Visualize expression matrices or distance matrices with hierarchical clustering dendrograms.
+- R: `pheatmap::pheatmap(mat)`, `ComplexHeatmap::Heatmap(mat)`
+- Python: `seaborn.clustermap(df)`, `scanpy.pl.heatmap(adata)`
 
 ## pheatmap (R) - Quick Heatmaps
 
@@ -75,6 +90,10 @@ Heatmap(mat, name = 'Z-score', col = col_fun,
 ```
 
 ## ComplexHeatmap with Annotations
+
+**Goal:** Create a richly annotated heatmap with sample metadata, gene annotations, and split panels for grouped comparisons.
+
+**Approach:** Define column and row HeatmapAnnotation objects with categorical colors and quantitative bar plots, then render with Heatmap using row_split and column_split for grouped display.
 
 ```r
 # Column annotation

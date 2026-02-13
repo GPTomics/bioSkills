@@ -5,9 +5,27 @@ tool_type: python
 primary_tool: CRISPResso2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: CRISPResso2 2.2+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Base Editing Analysis
 
+**"Analyze my base editing outcomes"** → Quantify base editing efficiency, bystander edits, and indel frequencies from amplicon sequencing data for CBE, ABE, and prime editing experiments.
+- CLI: `CRISPResso --fastq_r1 reads.fq --amplicon_seq ATGC --base_editor_output`
+
 ## CRISPResso2 for Base Editing
+
+**Goal:** Quantify base editing efficiency and bystander edits from amplicon sequencing.
+
+**Approach:** Run CRISPResso with --base_editor_output and the expected edited amplicon sequence to measure target base conversion, bystander edits, and indel frequencies.
 
 ```bash
 # Analyze base editing with expected outcome

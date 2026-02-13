@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: patchwork
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Multi-Panel Figure Assembly
+
+**"Combine multiple plots into one figure"** → Arrange subplots into a publication-ready multi-panel layout with shared legends and consistent sizing.
+- R: `patchwork::wrap_plots()`, `cowplot::plot_grid()`
+- Python: `matplotlib.pyplot.subplots()`, `fig.add_subplot()`
 
 ## patchwork Basics
 
@@ -172,6 +187,10 @@ ggsave('figure.pdf', combined, width = 180, height = 150, units = 'mm')
 ```
 
 ## Complex Publication Figure
+
+**Goal:** Assemble a complete multi-panel figure combining volcano, PCA, heatmap, and boxplot panels with consistent theming.
+
+**Approach:** Create individual themed ggplot objects, arrange with patchwork operators (| for horizontal, / for vertical), add panel labels, collect shared legends, and export at journal-specified dimensions.
 
 ```r
 # Create themed plots

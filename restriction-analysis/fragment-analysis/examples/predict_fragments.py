@@ -1,4 +1,5 @@
 '''Predict restriction digest fragments'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import SeqIO
 from Bio.Restriction import EcoRI, BamHI, HindIII

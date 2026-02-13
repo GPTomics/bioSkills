@@ -3,6 +3,7 @@
 Single-cell splicing analysis using BRIE2.
 Estimates PSI values with uncertainty quantification for sparse scRNA-seq data.
 '''
+# Reference: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import subprocess
 from pathlib import Path

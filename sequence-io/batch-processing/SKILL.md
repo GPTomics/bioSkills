@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.SeqIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Batch Processing
+
+**"Process all my sequence files in a directory"** → Iterate, merge, split, convert, and generate summary statistics across multiple sequence files.
+- Python: `SeqIO.parse()`, `Path.glob()` (BioPython, pathlib)
 
 Process multiple sequence files efficiently using Biopython.
 
@@ -56,6 +69,12 @@ print(f'Merged {count} records')
 ```
 
 ### Merge with Source Tracking
+
+**Goal:** Combine sequences from multiple files into one, tagging each record with its source filename.
+
+**Approach:** Stream records from each file through a generator that appends source metadata to the description.
+
+**Reference (BioPython 1.83+):**
 ```python
 def records_with_source(directory, pattern, format):
     for filepath in Path(directory).glob(pattern):
@@ -81,6 +100,12 @@ SeqIO.write(merge_files(files, 'fasta'), 'combined.fasta', 'fasta')
 ## Split Files
 
 ### Split by Number of Records
+
+**Goal:** Divide a large sequence file into smaller chunks of N records each.
+
+**Approach:** Consume the iterator in fixed-size batches using `islice`, writing each batch to a numbered output file.
+
+**Reference (BioPython 1.83+):**
 ```python
 from itertools import islice
 
@@ -100,6 +125,12 @@ split_file('large.fasta', 'fasta', 1000, 'split')
 ```
 
 ### Split by Sequence ID Prefix
+
+**Goal:** Group sequences into separate files based on a shared ID prefix (e.g., sample or chromosome).
+
+**Approach:** Parse all records into a prefix-keyed dictionary, then write each group to its own file.
+
+**Reference (BioPython 1.83+):**
 ```python
 from collections import defaultdict
 
@@ -201,6 +232,12 @@ print(f'Average length: {total_bp / total_seqs:.0f}')
 ```
 
 ### Per-File Summary Report
+
+**Goal:** Generate a CSV summary of sequence counts and length statistics for every file in a directory.
+
+**Approach:** Iterate files, compute per-file stats, collect into a list of dicts, and write as CSV.
+
+**Reference (BioPython 1.83+):**
 ```python
 from pathlib import Path
 import csv

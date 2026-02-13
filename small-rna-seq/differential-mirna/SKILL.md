@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: DESeq2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Differential miRNA Expression
+
+**"Find differentially expressed miRNAs between my conditions"** → Perform statistical testing on miRNA count matrices to identify miRNAs with significant expression changes, accounting for small RNA-specific normalization considerations.
+- R: `DESeq2::DESeq()` or `edgeR::glmQLFTest()` on miRNA count data
 
 ## Load miRNA Count Data
 
@@ -24,6 +37,10 @@ coldata <- data.frame(
 ```
 
 ## DESeq2 Analysis
+
+**Goal:** Identify miRNAs with significant expression changes between experimental conditions, accounting for small RNA-specific normalization.
+
+**Approach:** Create a DESeqDataSet from miRNA counts, filter low-expressed miRNAs using a lower threshold than mRNA (10 reads total), run the DESeq2 pipeline, and extract results with BH-corrected p-values.
 
 ```r
 # Create DESeq2 dataset

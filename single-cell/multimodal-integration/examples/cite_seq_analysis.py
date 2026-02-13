@@ -1,3 +1,4 @@
+# Reference: numpy 1.26+, scanpy 1.10+ | Verify API if version differs
 import muon as mu
 import scanpy as sc
 import anndata as ad

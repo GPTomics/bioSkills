@@ -1,3 +1,4 @@
+# Reference: R stats (base), numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 library(mgcv)
 
 set.seed(42)

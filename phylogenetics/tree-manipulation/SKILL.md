@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.Phylo
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Tree Manipulation
+
+**"Root and prune my phylogenetic tree"** → Modify tree topology by rooting with outgroups or midpoint, pruning taxa, collapsing low-support clades, ladderizing branches, or extracting subtrees.
+- Python: `tree.root_with_outgroup()`, `tree.prune()`, `tree.ladderize()` (Bio.Phylo)
 
 Modify phylogenetic tree structure: rooting, pruning, ladderizing, and subtree extraction.
 

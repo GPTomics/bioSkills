@@ -5,9 +5,27 @@ tool_type: python
 primary_tool: Plastid
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pysam 0.22+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Ribosome Periodicity Analysis
 
+**"Check if my Ribo-seq data shows triplet periodicity"** → Validate Ribo-seq library quality by verifying 3-nucleotide translocation patterns and calculating P-site offsets from metagene profiles.
+- Python: `plastid` for P-site offset calculation and metagene analysis
+
 ## 3-Nucleotide Periodicity
+
+**Goal:** Verify that Ribo-seq reads exhibit the expected 3-nucleotide translocation pattern characteristic of active translation.
+
+**Approach:** Load P-site mapped reads and compute metagene profiles around start codons to check for triplet periodicity.
 
 Ribosomes move 3 nucleotides per codon. Good Ribo-seq data shows strong periodicity:
 
@@ -24,6 +42,10 @@ alignments = BAMGenomeArray('riboseq.bam', mapping=FivePrimeMapFactory())
 ```
 
 ## Calculate P-site Offset
+
+**Goal:** Determine the optimal P-site offset from the 5' end of ribosome footprints for accurate codon-level positioning.
+
+**Approach:** Run metagene analysis around annotated start codons and identify the offset that aligns the signal peak with the AUG position.
 
 ```python
 from plastid import metagene_analysis
@@ -54,6 +76,10 @@ def determine_psite_offset(bam_path, annotation_file):
 ```
 
 ## Metagene Plots
+
+**Goal:** Visualize the metagene profile around start codons with frame-colored bars and a periodicity power spectrum.
+
+**Approach:** Plot read counts by reading frame and compute FFT to confirm a dominant period of 3 nucleotides.
 
 ```python
 def plot_metagene(metagene_data, offset=12):
@@ -89,6 +115,10 @@ def plot_metagene(metagene_data, offset=12):
 ```
 
 ## Assess by Read Length
+
+**Goal:** Evaluate 3-nucleotide periodicity strength for each read length to identify the most informative footprint sizes.
+
+**Approach:** Group reads by query length, compute periodicity score per group, and retain lengths with strong triplet signal.
 
 ```python
 def periodicity_by_length(bam_path, annotation_file):
@@ -129,6 +159,10 @@ Common P-site offsets by read length (5' end mapping):
 | 32 nt | 14 |
 
 ## Validate with RiboCode
+
+**Goal:** Run an automated periodicity and ORF detection pipeline as an independent validation of data quality.
+
+**Approach:** Execute RiboCode's one-step command, which internally assesses periodicity and generates diagnostic plots.
 
 ```bash
 # RiboCode includes periodicity analysis

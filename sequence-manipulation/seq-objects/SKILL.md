@@ -5,9 +5,24 @@ tool_type: python
 primary_tool: Bio.Seq
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Seq Objects
 
 Create and manipulate biological sequence objects using Biopython.
+
+**"Create a sequence object"** → Wrap a raw string in a typed sequence container for biological operations.
+- Immutable: `Seq('ATGC')` (BioPython) — string-like, supports complement/translate
+- Mutable: `MutableSeq('ATGC')` (BioPython) — supports in-place edits
+- Annotated: `SeqRecord(Seq(...), id=...)` (BioPython) — adds metadata for file I/O
 
 ## Required Imports
 
@@ -90,7 +105,9 @@ record.dbxrefs       # Database cross-references
 
 ### SeqRecord Methods
 
-Transform entire records while preserving metadata:
+**Goal:** Transform entire records while preserving metadata.
+
+**Approach:** Use SeqRecord methods that return new records with features remapped to new coordinates.
 
 ```python
 # Reverse complement (preserves ID, updates features)

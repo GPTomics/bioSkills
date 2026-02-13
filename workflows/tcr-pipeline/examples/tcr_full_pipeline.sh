@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MiXCR 4.6+, VDJtools 1.2.1+ | Verify API if version differs
 # Complete TCR repertoire analysis pipeline
 
 R1=$1

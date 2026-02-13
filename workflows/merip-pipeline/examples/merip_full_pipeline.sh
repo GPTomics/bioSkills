@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: DESeq2 1.42+, MACS3 3.0+, STAR 2.7.11+, bedtools 2.31+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
 # Complete MeRIP-seq pipeline
 
 SAMPLE_SHEET=$1    # CSV: sample,read1,read2,type (IP or Input),condition

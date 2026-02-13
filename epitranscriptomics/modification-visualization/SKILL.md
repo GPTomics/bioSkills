@@ -5,7 +5,22 @@ tool_type: r
 primary_tool: Guitar
 ---
 
+## Version Compatibility
+
+Reference examples tested with: deepTools 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Modification Visualization
+
+**"Visualize m6A distribution around stop codons"** → Create metagene plots and genome browser tracks showing RNA modification patterns relative to transcript landmarks (5'UTR, CDS, 3'UTR, stop codon).
+- R: `Guitar::GuitarPlot()` for metagene distribution plots
+- CLI: `deeptools computeMatrix` → `plotHeatmap` for modification heatmaps
 
 ## Metagene Plots with Guitar
 
@@ -26,6 +41,10 @@ GuitarPlot(
 ```
 
 ## Custom Metagene with deepTools
+
+**Goal:** Create a metagene profile showing m6A enrichment distribution relative to gene body landmarks (TSS, TES).
+
+**Approach:** Compute the log2 IP/input ratio as a bigWig track with bamCompare, then build a signal matrix over scaled gene regions with computeMatrix and render as a profile plot.
 
 ```bash
 # Create bigWig from IP/Input ratio

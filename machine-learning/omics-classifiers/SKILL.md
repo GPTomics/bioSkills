@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: sklearn
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, pandas 2.2+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Classification Models for Omics Data
 
+**"Build a classifier from my gene expression data"** → Train RandomForest, XGBoost, or logistic regression models on omics features with proper preprocessing and evaluation metrics.
+- Python: `sklearn.ensemble.RandomForestClassifier()`, `xgboost.XGBClassifier()`
+
 ## Core Workflow
+
+**Goal:** Train a classification model on omics data and evaluate its predictive performance.
+
+**Approach:** Build a scaled pipeline with a Random Forest classifier, fit on training data, and assess with ROC-AUC on held-out test data.
 
 ```python
 from sklearn.model_selection import train_test_split
@@ -33,6 +50,10 @@ print(f'ROC-AUC: {roc_auc_score(y_test, y_prob):.3f}')
 
 ## XGBoost Classifier
 
+**Goal:** Train a gradient-boosted tree classifier using the sklearn-compatible XGBoost API.
+
+**Approach:** Configure XGBClassifier with proper parameter names (avoiding deprecated aliases) and wrap in a scaling pipeline.
+
 ```python
 from xgboost import XGBClassifier
 
@@ -51,6 +72,10 @@ pipe.fit(X_train, y_train)
 ```
 
 ## Logistic Regression with Regularization
+
+**Goal:** Build an interpretable linear classifier that simultaneously selects sparse biomarker features.
+
+**Approach:** Use L1-regularized logistic regression with built-in cross-validation for penalty selection, then extract nonzero coefficients as selected features.
 
 ```python
 from sklearn.linear_model import LogisticRegressionCV
@@ -74,6 +99,10 @@ selected = X.columns[feature_mask]
 
 ## ROC Curve Visualization
 
+**Goal:** Generate a publication-quality ROC curve showing classifier discrimination ability.
+
+**Approach:** Compute false/true positive rates from predicted probabilities and plot with AUC annotation.
+
 ```python
 fpr, tpr, _ = roc_curve(y_test, y_prob)
 auc = roc_auc_score(y_test, y_prob)
@@ -89,6 +118,10 @@ plt.savefig('roc_curve.png', dpi=150)
 
 ## Multi-class Classification
 
+**Goal:** Handle classification tasks with more than two classes while addressing class imbalance.
+
+**Approach:** Encode labels numerically and use balanced class weights to upweight underrepresented classes during training.
+
 ```python
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import LabelEncoder
@@ -101,6 +134,10 @@ rf = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_st
 ```
 
 ## Feature Importance from Trees
+
+**Goal:** Rank features by their contribution to tree-based classifier predictions.
+
+**Approach:** Extract Gini importances from a fitted Random Forest and sort to identify top contributing features.
 
 ```python
 import pandas as pd

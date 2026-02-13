@@ -1,3 +1,4 @@
+# Reference: MACS3 3.0+, clusterProfiler 4.10+ | Verify API if version differs
 library(ChIPseeker)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(org.Hs.eg.db)

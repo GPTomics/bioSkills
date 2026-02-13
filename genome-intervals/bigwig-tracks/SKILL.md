@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: pyBigWig
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, numpy 1.26+, pandas 2.2+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # BigWig Tracks
+
+**"Read and create BigWig files"** → Access indexed binary signal tracks for efficient region queries and genome browser display.
+- Python: `pyBigWig.open('file.bw')` (pyBigWig)
+- CLI: `bigWigToBedGraph`, `bedGraphToBigWig` (UCSC tools)
 
 BigWig is an indexed binary format for continuous genomic data. Efficient for genome browsers and programmatic access.
 
@@ -146,6 +161,10 @@ bw.close()
 ```
 
 ### Extract for BED Regions
+
+**Goal:** Extract mean bigWig signal values for a set of genomic regions defined in a BED file.
+
+**Approach:** Open the bigWig file with pyBigWig, iterate through BED intervals, query the mean signal per region, and collect results into a pandas DataFrame.
 
 ```python
 import pyBigWig

@@ -5,7 +5,19 @@ tool_type: mixed
 primary_tool: CLIPper
 ---
 
+## Version Compatibility
+
+Reference examples tested with: FastQC 0.12+, STAR 2.7.11+, bedtools 2.31+, cutadapt 4.4+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CLIP-seq Pipeline
+
+**"Analyze my CLIP-seq data from FASTQ to binding sites and motifs"** → Orchestrate UMI extraction, adapter trimming, STAR alignment, PCR deduplication, CLIPper/PureCLIP peak calling, binding site annotation, and HOMER motif enrichment.
 
 ## Pipeline Overview
 

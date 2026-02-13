@@ -1,4 +1,5 @@
 '''Prioritize variants for rare disease analysis'''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import myvariant
 import pandas as pd

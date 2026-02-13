@@ -5,9 +5,28 @@ tool_type: mixed
 primary_tool: SigProfilerExtractor
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MutationalPatterns 3.12+, SigProfilerExtractor 1.1+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Somatic Mutational Signatures
 
+**"Extract mutational signatures from my tumor samples"** → Decompose somatic mutation catalogs into mutational signatures (SBS, DBS, ID) to identify DNA damage mechanisms and mutagenic processes in cancer genomes.
+- Python: `SigProfilerExtractor.sigpro()` for de novo signature extraction
+- R: `MutationalPatterns::fit_to_signatures()` for fitting to COSMIC signatures
+
 ## SigProfiler Workflow
+
+**Goal:** Extract de novo mutational signatures and decompose to COSMIC reference signatures from somatic VCFs.
+
+**Approach:** Generate a 96-trinucleotide-context mutation matrix with SigProfilerMatrixGenerator, extract signatures via NMF with SigProfilerExtractor, and fit to COSMIC with SigProfilerAssignment.
 
 ### Install and Generate Matrix
 
@@ -66,6 +85,10 @@ Analyze.cosmic_fit(
 
 ## MutationalPatterns (R)
 
+**Goal:** Analyze mutational spectra and fit to COSMIC signatures using the MutationalPatterns R package.
+
+**Approach:** Load VCFs as GRanges, generate a 96-context mutation matrix against the reference genome, then fit to known COSMIC signatures or extract de novo via NMF.
+
 ### Load and Analyze
 
 ```r
@@ -123,6 +146,10 @@ plot_cosine_heatmap(cos_sim)
 
 ## COSMIC Signature Etiology
 
+**Goal:** Interpret extracted signatures by mapping them to known mutagenic processes (e.g., UV, smoking, MMR deficiency).
+
+**Approach:** Look up each dominant signature in a COSMIC etiology reference table and filter by contribution threshold.
+
 ```python
 # Common COSMIC signatures and their etiologies
 SIGNATURE_ETIOLOGY = {
@@ -175,6 +202,10 @@ def interpret_signatures(contributions):
 
 ## Cosine Similarity
 
+**Goal:** Quantify how closely an extracted signature matches a COSMIC reference signature.
+
+**Approach:** Compute cosine similarity between the two 96-dimensional signature vectors.
+
 ```python
 import numpy as np
 
@@ -190,6 +221,10 @@ def cosine_similarity(sig1, sig2):
 ```
 
 ## Clinical Applications
+
+**Goal:** Translate dominant mutational signatures into actionable clinical recommendations (e.g., PARP inhibitor eligibility).
+
+**Approach:** Map signature identities to therapy implications and recommended confirmatory tests.
 
 ```python
 def signature_clinical_implications(dominant_signatures):

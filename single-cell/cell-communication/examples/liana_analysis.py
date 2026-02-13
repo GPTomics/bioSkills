@@ -1,3 +1,4 @@
+# Reference: liana-py 1.2+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 import scanpy as sc
 import liana as li
 import pandas as pd

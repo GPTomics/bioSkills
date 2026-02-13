@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: cromwell
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BWA 0.7.17+, FastQC 0.12+, GATK 4.5+, Nextflow 23.10+, Salmon 1.10+, Snakemake 8.0+, fastp 0.23+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # WDL Workflows
+
+**"Build a WDL pipeline for Terra/AnVIL execution"** → Define tasks and workflows in WDL (Workflow Description Language) for execution on Cromwell, miniwdl, or cloud platforms (Terra, AnVIL) with built-in GATK best practices support.
+- CLI: `cromwell run workflow.wdl` or `miniwdl run workflow.wdl` for execution
+- WDL: version 1.0 task/workflow syntax with scatter-gather parallelism
 
 ## Basic Task Definition
 

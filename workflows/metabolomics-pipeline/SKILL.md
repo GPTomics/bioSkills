@@ -15,7 +15,19 @@ depends_on:
   - metabolomics/msdial-preprocessing
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MSnbase 2.28+, ggplot2 3.5+, limma 3.58+, scanpy 1.10+, xcms 4.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolomics Pipeline
+
+**"Process my LC-MS metabolomics data end-to-end"** → Orchestrate XCMS peak detection, RT alignment, grouping, normalization/QC, metabolite annotation, statistical analysis, and pathway mapping for untargeted metabolomics.
 
 ## Pipeline Overview
 

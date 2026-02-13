@@ -5,9 +5,28 @@ tool_type: python
 primary_tool: memote
 ---
 
+## Version Compatibility
+
+Reference examples tested with: COBRApy 0.29+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Model Curation
 
+**"Validate and improve the quality of my metabolic model"** → Score a genome-scale model against SBML community standards using memote, then gap-fill blocked reactions and fix stoichiometric inconsistencies using COBRApy to ensure biologically meaningful predictions.
+- CLI: `memote report snapshot` for quality scoring
+- Python: `cobra.flux_analysis.gapfilling.gapfill()` for gap-filling
+
 ## Memote Quality Assessment
+
+**Goal:** Evaluate the quality and standards compliance of a genome-scale metabolic model to identify areas needing curation.
+
+**Approach:** Run memote snapshot to score the model against SBML community standards, then use the Python API to inspect individual test failures and guide manual fixes.
 
 ```bash
 # Install memote

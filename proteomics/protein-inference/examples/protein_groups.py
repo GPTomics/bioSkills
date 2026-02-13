@@ -1,4 +1,5 @@
 '''Create protein groups from peptide-spectrum matches'''
+# Reference: pyopenms 3.1+ | Verify API if version differs
 import pandas as pd
 from collections import defaultdict
 

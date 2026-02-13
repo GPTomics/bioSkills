@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BUSCO 5.5+, BWA 0.7.17+, Flye 2.9+, QUAST 5.2+, SPAdes 3.15+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
 # Bacterial genome assembly from ONT + Illumina reads
 set -e
 

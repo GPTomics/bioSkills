@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: cobrapy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: COBRApy 0.29+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Gene Essentiality Analysis
 
+**"Predict which genes are essential for growth in my organism"** → Perform in silico single and double gene knockouts on a metabolic model, identifying genes whose deletion abolishes growth and synthetic lethal pairs for drug target discovery.
+- Python: `cobra.flux_analysis.single_gene_deletion()`, `cobra.flux_analysis.double_gene_deletion()` (COBRApy)
+
 ## Single Gene Knockouts
+
+**Goal:** Identify essential genes by simulating single gene deletions and measuring growth impact on a metabolic model.
+
+**Approach:** Perform in silico single gene deletions across all model genes, compare post-deletion growth to wild-type, and classify genes as essential (lethal), growth-reducing, or non-essential based on growth ratio thresholds.
 
 ```python
 import cobra

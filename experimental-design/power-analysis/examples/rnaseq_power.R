@@ -1,3 +1,4 @@
+# Reference: RNASeqPower 1.42+ | Verify API if version differs
 # RNA-seq Power Analysis Examples
 # Demonstrates power calculations for sequencing experiments
 

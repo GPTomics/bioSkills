@@ -5,11 +5,28 @@ tool_type: python
 primary_tool: requests
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # AlphaFold Predictions
+
+**"Get the AlphaFold predicted structure for my protein"** → Download pre-computed AlphaFold structures by UniProt ID and assess prediction quality via per-residue pLDDT confidence scores.
+- Python: `requests.get(f'https://alphafold.ebi.ac.uk/files/AF-{uniprot}-F1-model_v4.pdb')`
 
 Download and analyze AlphaFold predicted protein structures from the AlphaFold Protein Structure Database.
 
 ## Download Structures
+
+**Goal:** Retrieve pre-computed AlphaFold protein structure predictions and assess prediction quality via pLDDT confidence scores.
+
+**Approach:** Query the AlphaFold Protein Structure Database API by UniProt accession to download PDB/CIF files, then extract per-residue pLDDT scores from B-factor columns to identify high-confidence and disordered regions.
 
 ### Single Structure by UniProt ID
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Convert between SAM/BAM/CRAM formats
 
 set -e

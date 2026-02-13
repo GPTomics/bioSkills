@@ -1,4 +1,5 @@
 '''Splitting sequences into chunks and windows'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 from Bio.Seq import Seq
 
 seq = Seq('ATGCGATCGATCGATCGATCGATCG')

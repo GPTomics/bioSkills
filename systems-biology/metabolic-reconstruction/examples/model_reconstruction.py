@@ -1,4 +1,5 @@
 '''Build metabolic models from genome sequences'''
+# Reference: cobrapy 0.29+, ncbi blast+ 2.15+ | Verify API if version differs
 
 import subprocess
 import cobra

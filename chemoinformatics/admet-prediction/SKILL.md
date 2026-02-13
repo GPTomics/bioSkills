@@ -5,11 +5,28 @@ tool_type: python
 primary_tool: ADMETlab
 ---
 
+## Version Compatibility
+
+Reference examples tested with: RDKit 2024.03+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ADMET Prediction
+
+**"Predict the drug-likeness and toxicity of my compounds"** → Estimate ADMET properties (bioavailability, CYP inhibition, hERG liability, toxicity) for candidate molecules using the ADMETlab 3.0 API or RDKit PAINS/structural alert filters, producing a safety/drugability profile for lead prioritization.
+- Python: ADMETlab 3.0 REST API via `requests`, `FilterCatalog` for PAINS (RDKit)
 
 Predict absorption, distribution, metabolism, excretion, and toxicity properties.
 
 ## ADMETlab 3.0 API
+
+**Goal:** Predict ADMET properties for a batch of compounds using a web API.
+
+**Approach:** Submit SMILES to the ADMETlab 3.0 REST endpoint and parse the returned JSON into a DataFrame of 119 endpoint predictions with uncertainty estimates.
 
 ADMETlab 3.0 provides 119 endpoints with uncertainty estimates.
 
@@ -76,6 +93,10 @@ model = dc.models.GraphConvModel(
 
 ## PAINS Filter
 
+**Goal:** Remove pan-assay interference compounds that produce false positives in biological screens.
+
+**Approach:** Build a PAINS FilterCatalog and test each molecule; compounds matching any PAINS pattern are flagged and separated from clean compounds.
+
 ```python
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
@@ -110,6 +131,10 @@ def filter_pains(molecules):
 ```
 
 ## Lipinski and Beyond
+
+**Goal:** Assess drug-likeness of a molecule using multiple criteria beyond Lipinski Rule of 5.
+
+**Approach:** Calculate Lipinski properties (MW, LogP, HBD, HBA), count violations, check Veber oral bioavailability criteria (rotatable bonds, TPSA), and compute QED score.
 
 ```python
 from rdkit import Chem
@@ -155,6 +180,10 @@ def calculate_druglikeness(mol):
 ```
 
 ## Prioritization Pipeline
+
+**Goal:** Rank compounds through a multi-stage ADMET filter to identify drug-like leads.
+
+**Approach:** Apply sequential Lipinski, Veber, and QED filters to progressively eliminate compounds that fail drug-likeness criteria.
 
 ```python
 def prioritize_compounds(molecules):

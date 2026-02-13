@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Basic circos plot with pyCircos'''
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 from pycircos import Gcircle, Garc
 import numpy as np

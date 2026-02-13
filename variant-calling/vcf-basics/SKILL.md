@@ -5,6 +5,17 @@ tool_type: cli
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # VCF/BCF Basics
 
 View and query variant files using bcftools and cyvcf2.
@@ -57,6 +68,12 @@ Followed by sample columns
 
 ## bcftools view
 
+**Goal:** View, subset, and convert VCF/BCF files from the command line.
+
+**Approach:** Use bcftools view with flags for header control, region selection, sample extraction, and format conversion.
+
+**"Show me what's in this VCF file"** → Display VCF contents with optional filtering by header, region, or sample.
+
 ### View VCF
 ```bash
 bcftools view input.vcf.gz | head
@@ -88,6 +105,12 @@ bcftools view -s ^sample3 input.vcf.gz
 ```
 
 ## bcftools query
+
+**Goal:** Extract specific fields from a VCF in a custom tabular format.
+
+**Approach:** Use bcftools query with format specifiers for CHROM, POS, INFO, and FORMAT fields.
+
+**"Extract positions and genotypes from my VCF"** → Pull specific columns from variant records into a flat text format.
 
 Extract specific fields in custom format.
 
@@ -137,6 +160,10 @@ bcftools query -H -f '%CHROM\t%POS\t%REF\t%ALT\n' input.vcf.gz
 
 ## Format Conversion
 
+**Goal:** Convert between VCF, compressed VCF, and BCF formats.
+
+**Approach:** Use bcftools view with output format flags (-Ov, -Oz, -Ob) and bgzip/index for compression and indexing.
+
 ### VCF to BCF
 ```bash
 bcftools view -Ob -o output.bcf input.vcf.gz
@@ -183,6 +210,12 @@ bcftools index -t input.vcf.gz
 | `0\|1` | Phased heterozygous |
 
 ## cyvcf2 Python Alternative
+
+**Goal:** Read, query, and write VCF files programmatically in Python.
+
+**Approach:** Use cyvcf2's VCF reader to iterate variants, access properties/INFO/FORMAT fields, and write filtered output with Writer.
+
+**"Parse this VCF in Python"** → Open VCF with cyvcf2 and iterate variant records with attribute-style access to fields.
 
 ### Open and Iterate
 ```python

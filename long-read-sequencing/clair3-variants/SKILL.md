@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: Clair3
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DeepVariant 1.6+, Entrez Direct 21.0+, bcftools 1.19+, minimap2 2.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Clair3 Variant Calling
+
+**"Call variants from my long-read data"** → Use deep learning to identify germline SNPs and small indels from ONT or PacBio aligned reads with high accuracy.
+- CLI: `run_clair3.sh --bam_fn=sample.bam --ref_fn=ref.fa --platform=ont`
 
 ## Basic Usage
 
@@ -138,6 +152,10 @@ bcftools view -v indels clair3_output/merge_output.vcf.gz -Oz -o indels.vcf.gz
 ```
 
 ## Python Wrapper
+
+**Goal:** Run Clair3 variant calling and quality filtering from Python with platform-specific model auto-detection.
+
+**Approach:** Build the Clair3 command dynamically from parameters, execute via subprocess, then filter the output VCF with bcftools.
 
 ```python
 import subprocess

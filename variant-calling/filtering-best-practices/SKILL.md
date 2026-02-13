@@ -5,6 +5,17 @@ tool_type: mixed
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, bcftools 1.19+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Variant Filtering Best Practices
 
 ## Filter Selection Decision Tree
@@ -18,6 +29,12 @@ Is dataset large enough for VQSR? (>30 exomes or WGS)
 ```
 
 ## GATK Hard Filter Thresholds
+
+**Goal:** Apply GATK-recommended annotation thresholds to separate true variants from artifacts.
+
+**Approach:** Use VariantFiltration with per-metric filter expressions for SNPs and indels separately.
+
+**"Filter my variants using GATK best practices"** → Apply fixed annotation thresholds (QD, FS, MQ, SOR, RankSum) to flag low-quality variants.
 
 ```bash
 # SNPs
@@ -57,6 +74,10 @@ gatk VariantFiltration \
 | GQ | Genotype Quality | >20 (confidence in genotype) |
 
 ## bcftools filter
+
+**Goal:** Filter variants using bcftools expression syntax with soft or hard removal.
+
+**Approach:** Use -e (exclude) or -i (include) with expressions on QUAL, INFO, and FORMAT fields; use -s for soft filtering.
 
 ### Soft vs Hard Filtering
 
@@ -117,6 +138,10 @@ bcftools filter -i 'INFO/DP!="."' input.vcf.gz  # Include only if DP exists
 
 ## bcftools view Filtering
 
+**Goal:** Select variants by type, region, or sample using bcftools view.
+
+**Approach:** Use type flags (-v/-V), region flags (-r/-R), and sample flags (-s/-S) for structured subsetting.
+
 ### Filter by Variant Type
 
 ```bash
@@ -151,6 +176,10 @@ bcftools view -s ^sample3,sample4 input.vcf.gz -o subset.vcf.gz
 
 ## Depth Filtering
 
+**Goal:** Remove variants at extreme depth values that suggest mapping artifacts or duplications.
+
+**Approach:** Calculate depth percentiles, then filter to the middle 90% of the distribution.
+
 ```bash
 # Calculate depth percentiles
 bcftools query -f '%DP\n' input.vcf | \
@@ -163,6 +192,10 @@ bcftools filter -i 'INFO/DP>10 && INFO/DP<200' input.vcf -o depth_filtered.vcf
 
 ## Allele Frequency Filters
 
+**Goal:** Filter variants by minor allele frequency and allelic balance.
+
+**Approach:** Apply thresholds on INFO/AF for population frequency and AD ratios for heterozygote balance.
+
 ```bash
 # Minor allele frequency filter (population data)
 bcftools filter -i 'INFO/AF>0.01 && INFO/AF<0.99' input.vcf -o maf_filtered.vcf
@@ -174,6 +207,10 @@ bcftools filter -i 'GT="het" -> (AD[1]/(AD[0]+AD[1]) > 0.2 && AD[1]/(AD[0]+AD[1]
 
 ## Region-Based Filtering
 
+**Goal:** Include or exclude variants based on genomic region annotations.
+
+**Approach:** Use bcftools view with BED files to restrict to target regions or exclude blacklisted areas.
+
 ```bash
 # Exclude problematic regions
 bcftools view -T ^blacklist.bed input.vcf -o filtered.vcf
@@ -183,6 +220,10 @@ bcftools view -R exons.bed input.vcf -o exonic.vcf
 ```
 
 ## Sample-Level Filtering
+
+**Goal:** Remove low-quality samples and sites with excessive missing genotypes.
+
+**Approach:** Compute per-sample missingness with bcftools stats, exclude failing samples, and filter sites by F_MISSING threshold.
 
 ```bash
 # Missing genotype rate per sample
@@ -196,6 +237,10 @@ bcftools filter -i 'F_MISSING<0.05' input.vcf -o site_filtered.vcf
 ```
 
 ## Variant Type-Specific Filters
+
+**Goal:** Apply different quality thresholds to SNPs and indels.
+
+**Approach:** Separate by type, apply type-appropriate thresholds (e.g., FS<60 for SNPs, FS<200 for indels), then merge back.
 
 ```bash
 # Separate SNPs and indels for different filters
@@ -212,6 +257,10 @@ bcftools concat snps_filtered.vcf indels_filtered.vcf | bcftools sort -o merged.
 
 ## Multi-Step Pipeline Filtering
 
+**Goal:** Chain multiple filter criteria in a single pipeline with optional soft filter labels.
+
+**Approach:** Pipe through successive bcftools filter commands, using -s for named soft filters and -f PASS for final hard extraction.
+
 ```bash
 bcftools filter -e 'QUAL<30' input.vcf.gz | \
     bcftools filter -e 'INFO/DP<10' | \
@@ -226,6 +275,10 @@ bcftools view -f PASS marked.vcf.gz -Oz -o pass_only.vcf.gz
 ```
 
 ## Somatic Variant Filters
+
+**Goal:** Filter somatic variants from tumor-normal calling with caller-specific criteria.
+
+**Approach:** Use GATK FilterMutectCalls with contamination/segmentation tables, then apply additional bcftools thresholds on TLOD and VAF.
 
 ```bash
 # Mutect2 specific
@@ -242,6 +295,10 @@ bcftools filter -i 'INFO/TLOD>6.3 && FMT/AF[0]>0.05 && FMT/DP[0]>20' \
 ```
 
 ## Python Filtering (cyvcf2)
+
+**Goal:** Filter variants programmatically in Python for custom multi-metric criteria.
+
+**Approach:** Iterate with cyvcf2, evaluate QUAL/INFO/FORMAT fields per variant, and write passing records with Writer.
 
 ```python
 from cyvcf2 import VCF, Writer
@@ -300,6 +357,10 @@ vcf.close()
 ```
 
 ## Validate Filtering
+
+**Goal:** Assess the impact of filtering on variant quality and retention.
+
+**Approach:** Compare before/after bcftools stats, check Ti/Tv ratio improvement, and count variants per filter label.
 
 ```bash
 # Compare before/after stats

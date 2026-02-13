@@ -1,3 +1,4 @@
+# Reference: ReactomePA 1.46+, clusterProfiler 4.10+, rWikiPathways 1.24+ | Verify API if version differs
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(enrichplot)

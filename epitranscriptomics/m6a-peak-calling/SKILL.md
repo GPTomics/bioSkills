@@ -5,9 +5,28 @@ tool_type: mixed
 primary_tool: exomePeak2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MACS3 3.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # m6A Peak Calling
 
+**"Call m6A peaks from my MeRIP-seq data"** → Identify m6A-modified RNA regions by comparing immunoprecipitated (IP) and input samples using statistical enrichment testing.
+- R: `exomePeak2::exomePeak2()` for GC-bias aware peak calling
+- CLI: `macs3 callpeak` as an alternative broad peak caller
+
 ## exomePeak2 (Recommended)
+
+**Goal:** Identify m6A-enriched regions by comparing IP and input samples with GC-bias correction and replicate-aware statistical testing.
+
+**Approach:** Provide IP and input BAM files along with a gene annotation to exomePeak2, which models read counts in sliding windows across the transcriptome and calls significant enrichment peaks.
 
 ```r
 library(exomePeak2)

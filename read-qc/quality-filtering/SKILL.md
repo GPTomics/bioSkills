@@ -5,9 +5,23 @@ tool_type: cli
 primary_tool: trimmomatic
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Trimmomatic 0.39+, cutadapt 4.4+, fastp 0.23+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Quality Filtering
 
 Trim low-quality bases and filter reads using Trimmomatic sliding window or fastp quality filtering.
+
+**"Filter reads by quality"** → Remove low-quality bases and discard reads below quality/length thresholds.
+- CLI: `trimmomatic PE` with SLIDINGWINDOW and MINLEN options
+- CLI: `fastp --qualified_quality_phred 20 --length_required 50`
 
 ## Trimmomatic Quality Operations
 

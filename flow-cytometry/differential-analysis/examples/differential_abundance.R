@@ -1,3 +1,4 @@
+# Reference: R stats (base), edgeR 4.0+, ggplot2 3.5+, limma 3.58+ | Verify API if version differs
 library(CATALYST)
 library(diffcyt)
 

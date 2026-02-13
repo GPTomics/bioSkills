@@ -5,9 +5,20 @@ tool_type: cli
 primary_tool: GATK
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Joint Calling
 
-Call variants jointly across multiple samples for improved accuracy and consistent genotyping.
+**"Joint genotype my cohort samples"** → Combine per-sample gVCFs into a single cohort callset with consistent genotyping across all sites, enabling VQSR and population-level analysis.
+- CLI: `gatk HaplotypeCaller -ERC GVCF` → `gatk GenomicsDBImport` → `gatk GenotypeGVCFs`
 
 ## Why Joint Calling?
 
@@ -241,6 +252,10 @@ gatk VariantFiltration \
 ```
 
 ## Complete Pipeline Script
+
+**Goal:** Run the full joint calling workflow from BAMs to filtered cohort VCF.
+
+**Approach:** Generate per-sample gVCFs, import into GenomicsDB, joint genotype, then index and compute statistics.
 
 ```bash
 #!/bin/bash

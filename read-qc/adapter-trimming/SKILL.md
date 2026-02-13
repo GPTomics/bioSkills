@@ -5,9 +5,23 @@ tool_type: cli
 primary_tool: cutadapt
 ---
 
+## Version Compatibility
+
+Reference examples tested with: FastQC 0.12+, Trimmomatic 0.39+, cutadapt 4.4+, fastp 0.23+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Adapter Trimming
 
 Remove sequencing adapters from reads using Cutadapt (precise, flexible) or Trimmomatic (paired-end optimized).
+
+**"Trim adapters from reads"** → Remove sequencing adapter sequences from FASTQ reads to prevent adapter contamination in downstream alignment.
+- CLI: `cutadapt -a ADAPTER -o out.fq in.fq` or `trimmomatic PE` with ILLUMINACLIP
+- CLI: `fastp -i in.fq -o out.fq` (auto-detects adapters)
 
 ## Common Adapter Sequences
 

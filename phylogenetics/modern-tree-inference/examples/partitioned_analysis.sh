@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: IQ-TREE 2.2+ | Verify API if version differs
 # Partitioned analysis for multi-gene datasets with IQ-TREE2
 
 # Input files

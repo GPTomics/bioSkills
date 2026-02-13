@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: MASH
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, MetaPhlAn 4.1+, numpy 1.26+, pandas 2.2+, samtools 1.19+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Strain Tracking
+
+**"Track bacterial strains across my samples"** → Resolve sub-species variation using genome sketching (Mash/sourmash), average nucleotide identity (fastANI), or within-sample strain profiling (inStrain) for outbreak tracking and transmission analysis.
+- CLI: `mash dist`, `sourmash compare`, `fastANI`, `inStrain profile`
 
 Identify and track bacterial strains at sub-species resolution.
 
@@ -194,6 +208,10 @@ cat instrain_output/output/genome_info.tsv
 ```
 
 ## Complete Workflow: Outbreak Tracking
+
+**Goal:** Identify potential outbreak clusters by computing pairwise genomic distances across isolate genomes using multiple complementary methods.
+
+**Approach:** Sketch genomes with MASH for fast distance estimation, compute ANI with fastANI for accurate species-level resolution, compare sourmash signatures for containment analysis, and cluster close matches to identify transmission pairs.
 
 ```bash
 #!/bin/bash

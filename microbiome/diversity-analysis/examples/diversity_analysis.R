@@ -1,3 +1,4 @@
+# Reference: R stats (base), ggplot2 3.5+, phyloseq 1.46+, scanpy 1.10+, vegan 2.6+ | Verify API if version differs
 # Alpha and beta diversity analysis with phyloseq
 library(phyloseq)
 library(vegan)

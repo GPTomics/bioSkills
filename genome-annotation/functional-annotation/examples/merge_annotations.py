@@ -2,6 +2,7 @@
 '''
 Merge eggNOG-mapper and InterProScan functional annotations.
 '''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 from pathlib import Path

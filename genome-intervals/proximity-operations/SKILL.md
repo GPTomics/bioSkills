@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: bedtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Proximity Operations
+
+**"Find nearest features or extend intervals"** → Identify the closest genomic feature to each interval, or expand intervals by a fixed flank size.
+- CLI: `bedtools closest -a peaks.bed -b genes.bed`, `bedtools slop -b 1000`
+- Python: `a.closest(b)`, `a.slop(b=1000, g=genome)` (pybedtools)
 
 Operations for finding nearby features and extending intervals using bedtools and pybedtools.
 
@@ -266,6 +281,10 @@ within_100kb.saveas('peaks_with_nearby_genes.bed')
 ```
 
 ### Enhancer-Gene Assignment
+
+**Goal:** Link putative enhancers to potential target genes based on genomic proximity within a defined distance window.
+
+**Approach:** Use bedtools window with a large symmetric window (e.g., 1Mb) to find all TSS sites near each enhancer, producing an enhancer-gene pair list for downstream regulatory analysis.
 
 ```python
 import pybedtools

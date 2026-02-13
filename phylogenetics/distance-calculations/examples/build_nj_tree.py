@@ -1,4 +1,5 @@
 '''Build a Neighbor Joining tree from a multiple sequence alignment'''
+# Reference: biopython 1.83+, ncbi blast+ 2.15+ | Verify API if version differs
 
 from Bio import AlignIO, Phylo
 from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceTreeConstructor

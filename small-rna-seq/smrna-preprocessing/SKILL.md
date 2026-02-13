@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: cutadapt
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cutadapt 4.4+, fastp 0.23+, matplotlib 3.8+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Small RNA Preprocessing
 
+**"Preprocess my small RNA-seq reads"** → Remove 3' adapter sequences and size-select reads in the small RNA range (18-30 nt for miRNA, 24-32 nt for piRNA) before quantification or discovery.
+- CLI: `cutadapt -a ADAPTER -m 18 -M 30 -o trimmed.fastq input.fastq`
+
 ## Adapter Trimming with Cutadapt
+
+**Goal:** Remove 3' adapter sequences and size-select reads in the small RNA range.
+
+**Approach:** Run cutadapt with the kit-specific adapter, minimum/maximum length filters, and discard reads without adapter.
 
 Small RNA libraries have specific 3' adapters that must be removed:
 

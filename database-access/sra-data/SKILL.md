@@ -5,9 +5,24 @@ tool_type: cli
 primary_tool: sra-tools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+, SRA Toolkit 3.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # SRA Data
 
 Download raw sequencing data from the Sequence Read Archive using the SRA toolkit.
+
+**"Download FASTQ from SRA"** → Fetch raw sequencing reads from an SRA accession as FASTQ files.
+- CLI: `fasterq-dump SRR_ACCESSION` (SRA Toolkit)
+- Python: `subprocess.run(['fasterq-dump', accession])` or `Entrez.efetch()` for metadata
 
 ## Installation
 
@@ -191,6 +206,10 @@ rm -f ~/ncbi/sra/${SRR}.sra
 
 ### Batch Download Script
 
+**Goal:** Download, validate, and convert multiple SRA accessions from a list file in a single automated run.
+
+**Approach:** Loop through accessions, prefetch each .sra file for resumable downloading, validate integrity with vdb-validate, then convert to FASTQ with fasterq-dump.
+
 ```bash
 #!/bin/bash
 # download_sra.sh - Download multiple SRA runs
@@ -251,6 +270,10 @@ download_sra('SRR12345678', outdir='./data', threads=8)
 ```
 
 ### Find SRA Accessions with Entrez
+
+**Goal:** Discover SRA run accessions for a BioProject or search query without browsing the SRA website.
+
+**Approach:** Search the SRA database via Entrez, then fetch run info in CSV format and parse out the run accessions (SRR IDs).
 
 ```python
 from Bio import Entrez

@@ -1,4 +1,5 @@
 '''Clean alignment by removing gappy columns and sequences'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment

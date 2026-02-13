@@ -1,3 +1,4 @@
+# Reference: bedtools 2.31+, samtools 1.19+ | Verify API if version differs
 import pyBigWig
 import argparse
 import sys

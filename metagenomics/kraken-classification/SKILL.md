@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: kraken2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Kraken2 2.1+, MetaPhlAn 4.1+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Kraken2 Classification
+
+**"Classify what organisms are in my metagenomic sample"** → Assign taxonomic labels to sequencing reads using exact k-mer matching against a reference database for fast initial classification.
+- CLI: `kraken2 --db db --paired R1.fastq R2.fastq --report report.txt`
 
 ## Basic Classification
 
@@ -76,6 +90,10 @@ kraken2 --db /path/to/kraken2_db \
 ```
 
 ## Build Custom Database
+
+**Goal:** Create a custom Kraken2 database with specific organism libraries for targeted classification.
+
+**Approach:** Download NCBI taxonomy, add desired library sequences (bacteria, archaea, viral), build the k-mer index, and clean up intermediate files.
 
 ```bash
 # Download taxonomy

@@ -5,7 +5,23 @@ tool_type: cli
 primary_tool: ViennaRNA
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Infernal 1.1+, matplotlib 3.8+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Secondary Structure Prediction
+
+**"Predict the secondary structure of my RNA sequence"** → Compute minimum free energy (MFE) folding, base-pair probabilities via partition function, and consensus structures from alignments using thermodynamic models.
+- CLI: `RNAfold` for single-sequence MFE/partition folding
+- CLI: `RNAalifold` for consensus structure from alignment
+- CLI: `RNAcofold` for RNA-RNA interaction structure
 
 Predict RNA secondary structures using thermodynamic models. ViennaRNA provides MFE folding, partition function analysis, consensus structure prediction from alignments, and RNA-RNA interaction prediction.
 

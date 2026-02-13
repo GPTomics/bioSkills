@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.SeqIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # FASTQ Quality Scores
+
+**"Filter my FASTQ reads by quality score"** → Access, analyze, and filter Phred quality scores, trim low-quality bases, and generate per-position quality profiles.
+- Python: `SeqIO.parse()` with `letter_annotations['phred_quality']` (BioPython)
 
 Analyze and manipulate FASTQ quality scores using Biopython.
 
@@ -83,6 +96,12 @@ SeqIO.write(trimmed, 'trimmed.fastq', 'fastq')
 ```
 
 ### Sliding Window Quality Trim
+
+**Goal:** Trim a read at the first position where average quality in a sliding window drops below threshold.
+
+**Approach:** Slide a fixed-size window across quality scores; when the window average falls below the cutoff, truncate the record at that position.
+
+**Reference (BioPython 1.83+):**
 ```python
 def sliding_window_trim(record, window_size=5, min_avg_qual=20):
     quals = record.letter_annotations['phred_quality']
@@ -108,6 +127,12 @@ print(f'Max quality: {max(all_quals)}')
 ```
 
 ### Per-Position Quality Profile
+
+**Goal:** Compute mean quality at each read position to identify systematic quality drops (e.g., read-end degradation).
+
+**Approach:** Accumulate quality scores by position across all reads, then compute per-position means.
+
+**Reference (BioPython 1.83+):**
 ```python
 from collections import defaultdict
 
@@ -208,9 +233,13 @@ SeqIO.write(records, 'standard_reads.fastq', 'fastq')
 
 ### Auto-Detect Quality Encoding
 
+**Goal:** Determine which FASTQ quality encoding (Sanger, Solexa, or Illumina 1.3+) a file uses.
+
+**Approach:** Sample quality lines, find the minimum ASCII value, and compare against known offset ranges.
+
+**Reference (BioPython 1.83+):**
 ```python
 def detect_quality_encoding(filepath, sample_size=1000):
-    '''Guess FASTQ quality encoding from ASCII values'''
     min_qual = 126
     max_qual = 0
     count = 0

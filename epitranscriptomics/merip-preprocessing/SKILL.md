@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: STAR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: STAR 2.7.11+, deepTools 3.5+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MeRIP-seq Preprocessing
 
+**"Preprocess my MeRIP-seq IP and input samples"** → Align and QC methylated RNA immunoprecipitation sequencing data, comparing IP enrichment to input for downstream m6A peak calling.
+- CLI: `STAR` for splice-aware alignment, `samtools` for post-processing, `deepTools` for QC
+
 ## Alignment with STAR
+
+**Goal:** Align MeRIP-seq IP and input samples to the genome with splice-aware mapping for downstream peak calling.
+
+**Approach:** Build a STAR genome index with gene annotations, then loop through all IP and input samples to produce coordinate-sorted BAM files.
 
 ```bash
 # Build index (once)

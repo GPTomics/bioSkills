@@ -1,4 +1,5 @@
 '''Superimpose two structures and calculate RMSD'''
+# Reference: biopython 1.83+, numpy 1.26+ | Verify API if version differs
 
 from Bio.PDB import PDBParser, Superimposer, PDBIO
 

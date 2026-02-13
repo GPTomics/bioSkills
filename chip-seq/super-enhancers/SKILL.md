@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: ROSE
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GenomicRanges 1.54+, bedtools 2.31+, ggplot2 3.5+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Super-Enhancer Calling
+
+**"Identify super-enhancers from H3K27ac ChIP-seq"** → Stitch nearby enhancer peaks and rank by signal to find large regulatory domains controlling cell identity genes.
+- CLI: `ROSE_main.py -g hg38 -i peaks.gff -r chip.bam -c input.bam`
 
 Identify super-enhancers (SEs) - large clusters of enhancers that control cell identity genes.
 
@@ -34,6 +48,10 @@ cd ROSE
 3. **Genome annotation** - TSS annotations
 
 ### Run ROSE
+
+**Goal:** Identify super-enhancers by stitching nearby enhancer peaks and ranking by H3K27ac signal.
+
+**Approach:** Run ROSE_main.py with a GFF peak file, ChIP-seq BAM, and optional input control to stitch enhancers within 12.5 kb, rank by signal, and identify the inflection point separating super-enhancers from typical enhancers.
 
 ```bash
 # Basic usage
@@ -123,6 +141,10 @@ EOF
 
 ## Custom Hockey Stick Analysis (R)
 
+**Goal:** Classify enhancers as super-enhancers vs typical using a custom hockey stick plot and inflection-point detection.
+
+**Approach:** Rank enhancers by normalized signal, compute the slope at each point, find where the tangent exceeds 1 (inflection point), and classify all enhancers above the inflection as super-enhancers.
+
 ```r
 library(ggplot2)
 
@@ -186,6 +208,10 @@ bedtools closest -a super_enhancers.bed -b genes.bed -d > se_gene_assignment.txt
 ```
 
 ### Compare Conditions
+
+**Goal:** Find super-enhancers gained or lost between two experimental conditions.
+
+**Approach:** Convert super-enhancer tables to GRanges objects and use subsetByOverlaps with invert to identify condition-specific super-enhancers.
 
 ```r
 # Load SE from two conditions

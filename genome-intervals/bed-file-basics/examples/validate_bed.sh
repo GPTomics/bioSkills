@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+, bedtools 2.31+, pandas 2.2+ | Verify API if version differs
 # Validate BED file format and content
 
 BED_FILE="${1:-input.bed}"

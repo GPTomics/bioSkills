@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: flowCore
 ---
 
+## Version Compatibility
+
+Reference examples tested with: flowCore 2.14+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Compensation and Transformation
+
+**"Compensate and transform my flow cytometry data"** → Correct spectral overlap between fluorophores using a compensation matrix and apply biexponential/arcsinh transforms for visualization and analysis.
+- R: `flowCore::compensate()` then `flowCore::transform()` with `estimateLogicle()`
 
 ## Load Compensation Matrix
 
@@ -116,6 +129,10 @@ p1 + p2
 ```
 
 ## Complete Preprocessing Pipeline
+
+**Goal:** Apply a standard compensation-then-transformation workflow to all samples in a flowSet.
+
+**Approach:** Define a reusable preprocessing function that first applies the spillover compensation matrix, then auto-estimates and applies logicle transformation on marker channels, and map it across all samples with fsApply.
 
 ```r
 preprocess_flow <- function(fcs, comp_matrix, marker_channels) {

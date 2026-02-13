@@ -5,11 +5,28 @@ tool_type: mixed
 primary_tool: Seurat
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Marker Genes and Cell Type Annotation
 
 Find differentially expressed genes between clusters and annotate cell types.
 
 ## Scanpy (Python)
+
+**Goal:** Identify cluster-specific marker genes, score gene sets, and annotate cell types using Scanpy.
+
+**Approach:** Perform differential expression testing between clusters with Wilcoxon rank-sum, visualize markers with dot plots and heatmaps, and assign cell type labels manually.
+
+**"Find marker genes for each cluster"** → Test each cluster against all others for differentially expressed genes and rank by statistical significance and fold change.
 
 ### Required Imports
 
@@ -139,6 +156,10 @@ top_markers.to_csv('top_markers.csv', index=False)
 ---
 
 ## Seurat (R)
+
+**Goal:** Identify cluster-specific marker genes, score gene modules, and annotate cell types using Seurat.
+
+**Approach:** Run FindAllMarkers with Wilcoxon or MAST tests, visualize with FeaturePlot/DotPlot/DoHeatmap, and rename cluster identities with cell type labels.
 
 ### Required Libraries
 

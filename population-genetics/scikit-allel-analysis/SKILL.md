@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: scikit-allel
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, matplotlib 3.8+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # scikit-allel Analysis
+
+**"Analyze population genetics in Python"** → Read VCF files into efficient array structures, compute allele frequencies, diversity statistics, PCA, and selection scans using scikit-allel.
+- Python: `allel.read_vcf()`, `allel.GenotypeArray()`, `allel.mean_pairwise_difference()`
 
 Python library for population genetics analysis with efficient array data structures.
 
@@ -253,6 +267,10 @@ pos_filtered = positions[flt]
 ```
 
 ## Complete Workflow Example
+
+**Goal:** Load VCF data, filter to segregating biallelic variants, compute summary diversity statistics, and run PCA in a single Python workflow.
+
+**Approach:** Read VCF into GenotypeArray, apply segregating and biallelic filters, calculate nucleotide diversity and heterozygosity from allele counts, then perform Patterson PCA on the alt-allele count matrix.
 
 ```python
 import allel

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, numpy 1.26+ | Verify API if version differs
 
 READS="reads.fastq.gz"
 OUTPUT_DIR="qc_output"

@@ -1,4 +1,5 @@
 '''Read and inspect a multiple sequence alignment'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import AlignIO
 

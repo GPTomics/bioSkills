@@ -1,4 +1,5 @@
 '''Analyze metabolite-mediated cell-cell communication'''
+# Reference: matplotlib 3.8+, scanpy 1.10+ | Verify API if version differs
 
 import scanpy as sc
 import pandas as pd

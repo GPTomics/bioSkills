@@ -5,7 +5,22 @@ tool_type: r
 primary_tool: susieR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Fine-Mapping
+
+**"Narrow my GWAS locus to the likely causal variant"** → Compute posterior inclusion probabilities (PIPs) for each variant and construct credible sets containing the causal variant at a specified confidence level, accounting for LD and multiple causal signals.
+- R: `susieR::susie_rss()` for SuSiE fine-mapping from summary statistics
+- CLI: `finemap --sss` for shotgun stochastic search
 
 ## Overview
 
@@ -16,6 +31,10 @@ Fine-mapping narrows GWAS association signals to identify likely causal variants
 - **L** - Number of independent causal signals at the locus
 
 ## SuSiE (Sum of Single Effects)
+
+**Goal:** Fine-map a GWAS locus to identify likely causal variants and credible sets from individual-level data.
+
+**Approach:** Fit SuSiE's sum-of-single-effects model on the genotype matrix, then extract 95% credible sets (each containing the causal variant) and per-variant posterior inclusion probabilities.
 
 ```r
 library(susieR)
@@ -49,6 +68,10 @@ for (i in top_variants) {
 ```
 
 ## SuSiE with Summary Statistics (susie_rss)
+
+**Goal:** Fine-map a GWAS locus using summary statistics and an LD reference matrix (no individual-level data needed).
+
+**Approach:** Compute Z-scores from beta/SE, provide a matched-ancestry LD correlation matrix, and run susie_rss to identify credible sets and PIPs.
 
 ```r
 library(susieR)
@@ -136,6 +159,10 @@ if (any(eigenvalues < 0)) {
 ```
 
 ## FINEMAP
+
+**Goal:** Fine-map a locus using an alternative shotgun stochastic search algorithm.
+
+**Approach:** Prepare .z (summary stats), .ld (LD matrix), and .master (config) files, then run FINEMAP to compute per-variant PIPs and causal configurations.
 
 ```bash
 # FINEMAP: alternative fine-mapping tool using shotgun stochastic search

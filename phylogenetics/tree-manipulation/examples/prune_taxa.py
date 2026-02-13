@@ -1,4 +1,5 @@
 '''Prune taxa from a phylogenetic tree'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import Phylo
 from io import StringIO

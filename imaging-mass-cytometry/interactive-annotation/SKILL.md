@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: napari
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Interactive Annotation
+
+**"Manually annotate cell types in my IMC data"** → Interactively label cells using napari visualization with marker overlays for training classifiers or validating automated phenotyping results.
+- Python: `napari.Viewer()` with label layer for interactive annotation
 
 ## Napari-Based Annotation
 
@@ -114,6 +127,10 @@ print(training_df['cell_type'].value_counts())
 ```
 
 ## Semi-Automated Annotation
+
+**Goal:** Propagate a small set of manual cell type annotations to all unannotated cells using marker expression similarity.
+
+**Approach:** Train a k-nearest-neighbors classifier on manually annotated cells' marker intensities, predict labels for remaining cells, and report classification confidence to flag uncertain assignments for review.
 
 ```python
 from sklearn.neighbors import KNeighborsClassifier

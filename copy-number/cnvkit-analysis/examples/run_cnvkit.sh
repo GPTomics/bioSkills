@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GATK 4.5+, bedtools 2.31+ | Verify API if version differs
 # CNV calling with CNVkit
 
 set -euo pipefail

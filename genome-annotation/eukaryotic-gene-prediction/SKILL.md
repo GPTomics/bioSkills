@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: BRAKER3
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BUSCO 5.5+, HISAT2 2.2.1+, pandas 2.2+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Eukaryotic Gene Prediction
+
+**"Predict genes in my eukaryotic genome"** → Identify protein-coding gene structures (exons, introns, UTRs) using RNA-seq alignment evidence and/or protein homology to train ab initio predictors.
+- CLI: `braker.pl --genome=assembly.fa --bam=rnaseq.bam --prot_seq=proteins.fa` (BRAKER3)
 
 Predict protein-coding genes in eukaryotic genomes using evidence-based methods. BRAKER3 combines RNA-seq and protein homology evidence for the most accurate predictions. GALBA provides an alternative when only protein evidence is available.
 
@@ -143,6 +157,10 @@ busco -i assembly_softmasked.fasta -m genome -l embryophyta_odb10 -o busco_genom
 | High duplication | Check for retained duplicates vs artifacts |
 
 ## Python: Parse Gene Models
+
+**Goal:** Compute summary statistics for predicted gene models to assess annotation quality and compare against known species benchmarks.
+
+**Approach:** Load the GFF3 into a gffutils database, iterate through gene and transcript features to compute counts, exons per transcript, intron lengths, and single-exon gene fraction.
 
 ```python
 import gffutils

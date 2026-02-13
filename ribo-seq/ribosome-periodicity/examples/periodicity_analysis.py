@@ -1,4 +1,5 @@
 '''Analyze 3-nucleotide periodicity in Ribo-seq data'''
+# Reference: matplotlib 3.8+, numpy 1.26+, pysam 0.22+, scipy 1.12+ | Verify API if version differs
 
 import pysam
 import numpy as np

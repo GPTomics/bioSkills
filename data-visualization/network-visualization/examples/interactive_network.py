@@ -1,4 +1,5 @@
 '''Interactive HTML network visualization with PyVis'''
+# Reference: matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 
 import networkx as nx
 import numpy as np

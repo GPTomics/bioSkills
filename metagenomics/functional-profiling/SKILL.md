@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: humann
 ---
 
+## Version Compatibility
+
+Reference examples tested with: HUMAnN 3.8+, MetaPhlAn 4.1+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Functional Profiling
+
+**"What metabolic pathways are present in my metagenome?"** → Profile functional potential of metagenomic samples to obtain pathway abundances and gene family counts using translated search against UniRef and MetaCyc.
+- CLI: `humann --input reads.fastq --output results/` (HUMAnN3)
 
 Profile the functional potential of metagenomic samples using HUMAnN3 to get pathway and gene family abundances.
 
@@ -185,6 +199,10 @@ humann_renorm_table -i merged.tsv -o merged_relab.tsv -u relab
 ```
 
 ### Python Analysis
+
+**Goal:** Identify differentially abundant metabolic pathways between conditions from HUMAnN3 output.
+
+**Approach:** Load unstratified pathway abundances, split samples by condition using metadata, run Mann-Whitney U tests per pathway, and apply FDR correction.
 
 ```python
 import pandas as pd

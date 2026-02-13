@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Convert between sequence file formats'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 
 from Bio import SeqIO
 import gzip

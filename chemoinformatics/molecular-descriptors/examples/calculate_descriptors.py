@@ -2,6 +2,7 @@
 '''
 Molecular descriptor and fingerprint calculation with RDKit.
 '''
+# Reference: rdkit 2024.03+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Lipinski

@@ -1,4 +1,5 @@
 '''Preprocess single-cell data with Scanpy'''
+# Reference: scanpy 1.10+ | Verify API if version differs
 
 import scanpy as sc
 

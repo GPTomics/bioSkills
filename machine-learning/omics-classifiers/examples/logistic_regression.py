@@ -1,4 +1,5 @@
 '''L1-regularized logistic regression for sparse biomarker selection'''
+# Reference: matplotlib 3.8+, pandas 2.2+, scikit-learn 1.4+ | Verify API if version differs
 
 import pandas as pd
 from sklearn.model_selection import train_test_split

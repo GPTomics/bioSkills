@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: steinbock
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, steinbock 0.16+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # IMC Data Preprocessing
+
+**"Preprocess my imaging mass cytometry data"** → Load MCD files, apply hot pixel removal, channel cropping, and signal normalization to prepare multiplexed images for segmentation and analysis.
+- CLI: `steinbock preprocess` for automated IMC preprocessing pipeline
 
 ## Load MCD Files with steinbock
 
@@ -79,6 +93,10 @@ img_clean = np.stack([remove_hot_pixels(img[c]) for c in range(img.shape[0])])
 ```
 
 ## Spillover Correction
+
+**Goal:** Remove channel crosstalk caused by isotope impurities in IMC data so that each channel reflects only its intended metal target.
+
+**Approach:** Invert the measured spillover matrix (channels x channels) and multiply each pixel's channel vector by the inverse, clipping negative values to zero.
 
 ```python
 import numpy as np

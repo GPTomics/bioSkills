@@ -5,11 +5,30 @@ tool_type: mixed
 primary_tool: obitools3
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DADA2 1.30+, cutadapt 4.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # eDNA Metabarcoding
+
+**"Process my eDNA samples to identify species"** → Transform raw amplicon reads (COI, 12S, rbcL, ITS) into species occurrence tables through primer removal, denoising (DADA2 ASVs), taxonomy assignment against reference databases (BOLD, MIDORI2), and contamination filtering with decontam.
+- CLI: `cutadapt` for primer removal, `obi` (OBITools3) for paired-end assembly
+- R: `dada2::filterAndTrim()` → `dada()` → `assignTaxonomy()` for ASV pipeline
 
 Processes environmental DNA amplicon reads into species occurrence tables with taxonomy assignment, contamination filtering, and occupancy modeling.
 
 ## Primer Removal with Cutadapt
+
+**Goal:** Remove amplicon primers from paired-end eDNA reads while discarding untrimmed read pairs.
+
+**Approach:** Use cutadapt linked adapter trimming with marker-specific primer sequences and minimum overlap enforcement.
 
 Linked adapter trimming removes primer pairs while discarding reads lacking primers:
 
@@ -37,6 +56,10 @@ cutadapt -g 'CTTGGTCATTTAGAGGAAGTAA;min_overlap=18' \
 ```
 
 ## OBITools3 Pipeline
+
+**Goal:** Process paired-end eDNA reads through the full OBITools3 workflow to produce a taxonomy-assigned species table.
+
+**Approach:** Import reads, align pairs, filter by score/length, demultiplex, dereplicate, denoise with obi clean, assign taxonomy with ecotag, and export.
 
 Full pipeline from paired-end reads to taxonomy table:
 
@@ -79,6 +102,10 @@ obi export --tab-output EDNA/assigned > species_table.tsv
 ```
 
 ## DADA2 Pipeline for eDNA
+
+**Goal:** Generate amplicon sequence variants (ASVs) from eDNA reads with error correction and chimera removal.
+
+**Approach:** Run the DADA2 workflow: filter/trim, learn error rates, denoise, merge pairs, remove chimeras, and assign taxonomy against a reference database.
 
 DADA2 provides an alternative ASV-based approach:
 
@@ -138,6 +165,10 @@ wget https://reference-midori.info/download/Databases/MIDORI2_DADA2/COI/MIDORI2_
 
 ## Contamination Filtering
 
+**Goal:** Identify and remove contaminant ASVs introduced during DNA extraction, PCR, or sequencing.
+
+**Approach:** Apply decontam frequency/prevalence methods using negative controls and DNA concentrations, then remove tag-jumping artifacts with microDecon.
+
 ### decontam (frequency/prevalence method)
 
 ```r
@@ -171,6 +202,10 @@ cleaned_table <- decon_result$decon.table
 ```
 
 ## Occupancy Modeling with occumb
+
+**Goal:** Correct species occurrence estimates for imperfect detection across replicated eDNA samples.
+
+**Approach:** Fit a multi-species occupancy model via MCMC (JAGS) on a 3D array of replicated read counts to estimate true occupancy probabilities.
 
 Corrects for imperfect detection in metabarcoding replicates:
 

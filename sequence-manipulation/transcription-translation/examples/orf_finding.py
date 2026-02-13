@@ -1,4 +1,5 @@
 '''Finding open reading frames in all six frames'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 
 def six_frame_translation(seq):

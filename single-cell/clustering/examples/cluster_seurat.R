@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, matplotlib 3.8+, scanpy 1.10+ | Verify API if version differs
 # Cluster single-cell data with Seurat
 
 library(Seurat)

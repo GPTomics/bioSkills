@@ -5,7 +5,20 @@ tool_type: mixed
 primary_tool: Plastid
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, STAR 2.7.11+, cutadapt 4.4+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Ribo-seq Pipeline
+
+**"Analyze my ribosome profiling data from FASTQ to translation efficiency"** → Orchestrate adapter trimming, rRNA depletion, genome alignment, periodicity QC, ORF detection (RiboCode), stalling analysis, and translation efficiency estimation (riborex).
 
 ## Pipeline Overview
 

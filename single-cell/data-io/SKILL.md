@@ -5,11 +5,28 @@ tool_type: mixed
 primary_tool: Seurat
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cell Ranger 8.0+, anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Single-Cell Data I/O
 
 Read, write, and create single-cell data objects for analysis.
 
 ## Scanpy (Python)
+
+**Goal:** Load, create, and save single-cell data objects using Scanpy and AnnData.
+
+**Approach:** Read 10X Genomics output, CSV, or Loom formats into AnnData objects, manipulate metadata and layers, and write to h5ad format.
+
+**"Load my 10X data"** → Read Cell Ranger output directory or h5 file into an AnnData object with expression matrix, cell barcodes, and gene annotations.
 
 ### Required Imports
 
@@ -137,6 +154,10 @@ adata.layers['counts'] = adata.X.copy()
 
 ## Seurat (R)
 
+**Goal:** Load, create, and save single-cell data objects using Seurat.
+
+**Approach:** Read 10X Genomics output into Seurat objects, manipulate metadata, merge samples, and serialize with RDS or h5Seurat formats.
+
 ### Required Libraries
 
 ```r
@@ -243,6 +264,10 @@ merged <- JoinLayers(merged)
 ---
 
 ## Format Conversion
+
+**Goal:** Convert single-cell data objects between Seurat (R) and AnnData (Python) formats.
+
+**Approach:** Use SeuratDisk as an intermediary to convert via h5Seurat/h5ad bridge files.
 
 ### Seurat to AnnData
 

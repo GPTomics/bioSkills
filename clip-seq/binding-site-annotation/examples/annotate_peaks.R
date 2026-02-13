@@ -1,3 +1,4 @@
+# Reference: bedtools 2.31+, pandas 2.2+ | Verify API if version differs
 # Annotate CLIP-seq peaks
 
 library(ChIPseeker)

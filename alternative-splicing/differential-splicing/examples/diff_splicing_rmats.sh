@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: STAR 2.7.11+, pandas 2.2+ | Verify API if version differs
 # Differential splicing analysis with rMATS-turbo
 # Compares splicing between two conditions
 

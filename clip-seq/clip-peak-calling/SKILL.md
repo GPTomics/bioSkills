@@ -5,9 +5,28 @@ tool_type: cli
 primary_tool: CLIPper
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MACS3 3.0+, bedtools 2.31+, pandas 2.2+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CLIP-seq Peak Calling
 
+**"Call binding sites from my CLIP-seq data"** → Identify protein-RNA interaction sites from aligned CLIP reads using specialized peak callers that model crosslink-induced signatures.
+- CLI: `clipper -b aligned.bam -s hg38 -o peaks.bed` (CLIPper)
+- CLI: `pureclip -i aligned.bam -bai aligned.bam.bai -g genome.fa -o sites.bed` (PureCLIP)
+
 ## CLIPper (Recommended)
+
+**Goal:** Identify protein-RNA binding sites from aligned CLIP-seq reads.
+
+**Approach:** Run CLIPper on deduplicated BAM with species-specific gene annotations to call peaks with FDR control and superlocal background correction.
 
 ```bash
 # Basic peak calling
@@ -46,6 +65,10 @@ clipper \
 | --save-pickle | Save intermediate data |
 
 ## PureCLIP (HMM-Based)
+
+**Goal:** Identify single-nucleotide crosslink sites using a hidden Markov model that jointly models enrichment and truncation signals.
+
+**Approach:** Run PureCLIP with aligned BAM and genome FASTA to produce both single-nucleotide crosslink sites and broader binding regions, optionally using an input control BAM.
 
 PureCLIP uses an HMM to model crosslink sites, incorporating enrichment and truncation signals.
 
@@ -169,6 +192,10 @@ macs3 callpeak \
 ```
 
 ## Strand-Specific Peak Calling
+
+**Goal:** Call CLIP-seq peaks separately on each strand for strand-specific binding analysis.
+
+**Approach:** Split the BAM into plus and minus strand reads using samtools flag filtering, call peaks on each strand independently, and merge.
 
 ```bash
 # Split BAM by strand

@@ -1,3 +1,4 @@
+# Reference: r stats (base), pandas 2.2+, statsmodels 0.14+ | Verify API if version differs
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

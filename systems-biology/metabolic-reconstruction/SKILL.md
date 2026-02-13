@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: CarveMe
 ---
 
+## Version Compatibility
+
+Reference examples tested with: COBRApy 0.29+, NCBI BLAST+ 2.15+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolic Reconstruction
+
+**"Build a metabolic model for my organism from its genome"** → Generate a genome-scale metabolic model by mapping protein sequences to a universal reaction database, then gap-filling to ensure growth capability on specified media.
+- CLI: `carve` (CarveMe) for automated reconstruction from protein FASTA
+- CLI: `gapseq find` + `gapseq draft` + `gapseq fill` for pathway-based reconstruction
 
 ## CarveMe (Recommended)
 

@@ -1,4 +1,5 @@
 '''Analyze alignment composition and conservation'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import AlignIO
 from collections import Counter

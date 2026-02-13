@@ -1,3 +1,4 @@
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 # Complete single-cell RNA-seq workflow with Scanpy
 
 import scanpy as sc

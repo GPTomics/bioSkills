@@ -1,4 +1,5 @@
 '''Global pairwise alignment examples with different scoring schemes'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.Align import PairwiseAligner, substitution_matrices
 from Bio.Seq import Seq

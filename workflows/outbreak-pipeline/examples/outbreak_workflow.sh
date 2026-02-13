@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: AMRFinderPlus 3.12+, BioPython 1.83+, IQ-TREE 2.2+, Nextclade 3.3+, TreeTime 0.11+, matplotlib 3.8+, mlst 2.23+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 # Outbreak investigation pipeline: MLST typing, AMR, phylodynamics, transmission
 # Requires: mlst, abricate, snippy, iqtree2, treetime
 set -e

@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: ERGO-II
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MiXCR 4.6+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # TCR-Epitope Binding
+
+**"Predict which epitopes my TCRs recognize"** → Match T-cell receptors to their cognate epitopes using deep learning models for TCR antigen specificity prediction.
+- Python: ERGO-II model for TCR-epitope binding prediction
 
 ## ERGO-II Model
 
@@ -152,6 +165,10 @@ def match_to_vdjdb(tcr_sequences, vdjdb_path='vdjdb.tsv'):
 ```
 
 ## TCR Clustering
+
+**Goal:** Group TCRs that likely recognize the same epitope based on CDR3 sequence similarity, enabling specificity group discovery from large repertoire datasets.
+
+**Approach:** Compute pairwise Levenshtein distances between CDR3 sequences, apply hierarchical clustering with average linkage, and cut the dendrogram at a maximum edit distance threshold to define specificity groups.
 
 ```python
 def cluster_tcrs_by_specificity(tcr_sequences, method='levenshtein'):

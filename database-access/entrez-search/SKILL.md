@@ -5,9 +5,23 @@ tool_type: python
 primary_tool: Bio.Entrez
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Entrez Search
 
 Search NCBI databases using Biopython's Entrez module (ESearch, EInfo, EGQuery utilities).
+
+**"Search NCBI for records"** → Query any NCBI database by keyword, organism, or field-qualified terms and retrieve matching record IDs.
+- Python: `Entrez.esearch(db=..., term=...)` (BioPython)
+- CLI: `esearch -db nucleotide -query "term"` (Entrez Direct)
 
 ## Required Setup
 
@@ -187,6 +201,10 @@ print(f'Retrieved {len(ids)} of {total} total records')
 
 ### Paginated Search for Large Results
 
+**Goal:** Retrieve all matching record IDs when the result set exceeds the default return limit.
+
+**Approach:** First query with retmax=0 to get the total count, then page through results in batches using retstart offsets.
+
 ```python
 def search_all_ids(db, term, batch_size=10000):
     all_ids = []
@@ -205,6 +223,10 @@ def search_all_ids(db, term, batch_size=10000):
 ```
 
 ### Search with History Server (for Large Results)
+
+**Goal:** Store search results on the NCBI server for efficient subsequent batch fetching without re-sending IDs.
+
+**Approach:** Run esearch with usehistory='y' to get a WebEnv session key and QueryKey, then pass those to efetch for server-side retrieval.
 
 ```python
 # Store results on NCBI server for subsequent fetching

@@ -5,6 +5,17 @@ tool_type: cli
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Variant Normalization
 
 Left-align indels and split multiallelic sites using bcftools norm.
@@ -26,6 +37,12 @@ Normalization ensures consistent representation for:
 - Merging VCF files
 
 ## bcftools norm
+
+**Goal:** Left-align indels and check reference allele consistency.
+
+**Approach:** Use bcftools norm with a reference FASTA to shift indels to the leftmost position and optionally fix/exclude REF mismatches.
+
+**"Normalize my VCF before comparing callers"** → Left-align indel representations and split multiallelic sites for consistent variant comparison.
 
 ### Left-Align Indels
 
@@ -49,6 +66,10 @@ Check modes (`-c`):
 - `s` - Set correct REF from reference
 
 ## Multiallelic Sites
+
+**Goal:** Convert multiallelic sites to biallelic records or vice versa.
+
+**Approach:** Use bcftools norm -m flags to split (decompose) or join (merge) multiallelic records.
 
 ### Split Multiallelic to Biallelic
 
@@ -100,6 +121,10 @@ bcftools norm -m+any input.vcf.gz -Oz -o merged.vcf.gz
 
 ## Combined Normalization
 
+**Goal:** Left-align indels and split multiallelic sites in a single pass.
+
+**Approach:** Combine -f (reference) and -m-any (split) flags in one bcftools norm invocation.
+
 ### Standard Normalization Pipeline
 
 ```bash
@@ -127,6 +152,10 @@ Duplicate removal options (`-d`):
 
 ## Fixing Reference Alleles
 
+**Goal:** Correct or remove variants whose REF allele does not match the reference genome.
+
+**Approach:** Use bcftools norm -c with mode s (set correct REF) or x (exclude mismatches).
+
 ### Fix Mismatches from Reference
 
 ```bash
@@ -144,6 +173,10 @@ bcftools norm -f reference.fa -c x input.vcf.gz -Oz -o clean.vcf.gz
 Removes variants where REF doesn't match reference.
 
 ## Atomize Complex Variants
+
+**Goal:** Decompose multi-nucleotide polymorphisms (MNPs) into individual SNP records.
+
+**Approach:** Use bcftools norm --atomize to break complex substitutions into atomic single-base changes.
 
 ### Split MNPs to SNPs
 
@@ -181,6 +214,10 @@ Tags original record for reference.
 
 ## Common Workflows
 
+**Goal:** Apply normalization as a preprocessing step for downstream analyses.
+
+**Approach:** Normalize both VCFs identically before comparison, annotation, or GWAS preparation.
+
 ### Before Comparing Callers
 
 ```bash
@@ -212,6 +249,10 @@ bcftools index gwas_ready.vcf.gz
 ```
 
 ## cyvcf2 Normalization Check
+
+**Goal:** Assess how many variants require normalization before running bcftools norm.
+
+**Approach:** Iterate with cyvcf2 and count multiallelic sites and complex (MNP) variants.
 
 ### Check if Variants Need Normalization
 

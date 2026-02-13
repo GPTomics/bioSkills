@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bracken 2.9+, Kraken2 2.1+, MetaPhlAn 4.1+, pandas 2.2+ | Verify API if version differs
 
 KRAKEN_DB="/path/to/kraken2_db"
 REPORTS_DIR="kraken_reports"

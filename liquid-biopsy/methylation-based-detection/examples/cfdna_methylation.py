@@ -2,6 +2,7 @@
 '''
 cfDNA methylation analysis for cancer detection.
 '''
+# Reference: bismark 0.24+, numpy 1.26+, pandas 2.2+, pysam 0.22+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

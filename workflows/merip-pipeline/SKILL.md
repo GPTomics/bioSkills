@@ -5,7 +5,20 @@ tool_type: mixed
 primary_tool: exomePeak2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, MACS3 3.0+, STAR 2.7.11+, bedtools 2.31+, fastp 0.23+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MeRIP-seq Pipeline
+
+**"Analyze my MeRIP-seq data from FASTQ to differential m6A peaks"** → Orchestrate read alignment (STAR), m6A peak calling (exomePeak2/MACS3), differential modification testing, and metagene/Guitar visualization of modification sites.
 
 ## Pipeline Overview
 

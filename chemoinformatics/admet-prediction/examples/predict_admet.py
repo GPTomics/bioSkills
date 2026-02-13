@@ -2,6 +2,7 @@
 '''
 ADMET prediction and drug-likeness filtering.
 '''
+# Reference: rdkit 2024.03+, pandas 2.2+ | Verify API if version differs
 
 import requests
 import pandas as pd

@@ -4,6 +4,7 @@ Metabolic modeling pipeline: genome to flux predictions.
 Covers reconstruction, curation, FBA, and gene essentiality.
 Requires: cobra, carveme, memote, pandas, numpy, matplotlib
 '''
+# Reference: cobrapy 0.29+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, seaborn 0.13+ | Verify API if version differs
 import subprocess
 import json
 import pandas as pd

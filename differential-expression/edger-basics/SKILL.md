@@ -5,6 +5,16 @@ tool_type: r
 primary_tool: edgeR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, edgeR 4.0+, limma 3.58+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # edgeR Basics
 
 Differential expression analysis using edgeR's quasi-likelihood framework for RNA-seq count data.
@@ -26,6 +36,12 @@ BiocManager::install('edgeR')
 
 ## Creating DGEList Object
 
+**Goal:** Construct an edgeR container from a count matrix with sample group information.
+
+**Approach:** Wrap raw counts and group labels into a DGEList object for normalization and testing.
+
+**"Load my RNA-seq counts into edgeR"** → Create a DGEList from a count matrix with sample group assignments and optional gene annotations.
+
 ```r
 # From count matrix
 # counts: matrix with genes as rows, samples as columns
@@ -40,6 +56,12 @@ y
 ```
 
 ## Standard edgeR Workflow (Quasi-Likelihood)
+
+**Goal:** Run the complete edgeR QL pipeline from raw counts to differentially expressed gene lists.
+
+**Approach:** Filter, normalize (TMM), estimate dispersions, fit quasi-likelihood GLM, and test coefficients with the QL F-test.
+
+**"Find differentially expressed genes between my groups"** → Test for significant expression differences using negative binomial models with quasi-likelihood F-tests.
 
 ```r
 # Create DGEList
@@ -70,6 +92,10 @@ topTags(qlf)
 
 ## Filtering Low-Expression Genes
 
+**Goal:** Remove genes with insufficient expression to reduce noise and multiple testing burden.
+
+**Approach:** Apply automatic or manual CPM/count thresholds requiring expression in a minimum number of samples.
+
 ```r
 # Automatic filtering (recommended)
 keep <- filterByExpr(y, group = group)
@@ -86,6 +112,10 @@ y <- y[keep, , keep.lib.sizes = FALSE]
 
 ## Normalization Methods
 
+**Goal:** Correct for differences in library composition between samples.
+
+**Approach:** Compute TMM (or alternative) normalization factors that adjust effective library sizes.
+
 ```r
 # TMM normalization (default, recommended)
 y <- calcNormFactors(y, method = 'TMM')
@@ -100,6 +130,10 @@ y$samples$norm.factors
 ```
 
 ## Design Matrices
+
+**Goal:** Define the linear model structure for the experimental design.
+
+**Approach:** Build model matrices encoding group, batch, and interaction terms for the GLM.
 
 ```r
 # Simple two-group comparison
@@ -117,6 +151,10 @@ colnames(design) <- levels(group)
 ```
 
 ## Dispersion Estimation
+
+**Goal:** Estimate biological variability (dispersion) to parameterize the negative binomial model.
+
+**Approach:** Compute common, trended, and gene-wise dispersions using empirical Bayes moderation.
 
 ```r
 # Estimate all dispersions
@@ -138,6 +176,10 @@ plotBCV(y)
 
 ## Quasi-Likelihood Testing
 
+**Goal:** Test for differential expression using the quasi-likelihood framework for robust inference.
+
+**Approach:** Fit a QL GLM and test individual coefficients, contrasts, or multiple coefficients simultaneously.
+
 ```r
 # Fit QL model
 fit <- glmQLFit(y, design)
@@ -154,6 +196,10 @@ qlf <- glmQLFTest(fit, coef = 2:3)
 ```
 
 ## Making Contrasts
+
+**Goal:** Define specific pairwise or complex group comparisons for testing.
+
+**Approach:** Use makeContrasts with a no-intercept design to specify arbitrary between-group differences.
 
 ```r
 # Design without intercept
@@ -177,6 +223,10 @@ qlf_drugA <- glmQLFTest(fit, contrast = contrast[, 'DrugAVsControl'])
 ```
 
 ## Accessing Results
+
+**Goal:** Retrieve and filter DE results from the fitted model.
+
+**Approach:** Use topTags to extract ranked gene lists with FDR-corrected p-values.
 
 ```r
 # Top differentially expressed genes
@@ -204,6 +254,10 @@ de_genes <- topTags(qlf, n = Inf, p.value = 0.05)$table
 
 ## Alternative: Exact Test (Classic edgeR)
 
+**Goal:** Perform a simple two-group DE test without a design matrix.
+
+**Approach:** Use the classic edgeR exact test based on the negative binomial distribution.
+
 ```r
 # For simple two-group comparison only
 y <- DGEList(counts = counts, group = group)
@@ -217,6 +271,10 @@ topTags(et)
 
 ## Alternative: glmLRT (Likelihood Ratio Test)
 
+**Goal:** Test for DE using likelihood ratio tests as an alternative to the QL F-test.
+
+**Approach:** Fit a standard GLM and compare nested models via the likelihood ratio statistic.
+
 ```r
 # Fit GLM
 fit <- glmFit(y, design)
@@ -228,6 +286,10 @@ topTags(lrt)
 
 ## Treat Test (Log Fold Change Threshold)
 
+**Goal:** Test whether genes exceed a minimum fold change threshold, not just differ from zero.
+
+**Approach:** Use glmTreat to apply a fold change threshold directly in the statistical test.
+
 ```r
 # Test for |logFC| > threshold
 tr <- glmTreat(fit, coef = 2, lfc = log2(1.5))  # |FC| > 1.5
@@ -235,6 +297,10 @@ topTags(tr)
 ```
 
 ## Multi-Factor Designs
+
+**Goal:** Test for condition effects while adjusting for batch or other covariates.
+
+**Approach:** Include nuisance variables in the design matrix so the QL test controls for them.
 
 ```r
 # Design with batch correction
@@ -248,6 +314,10 @@ qlf <- glmQLFTest(fit, coef = ncol(design))
 ```
 
 ## Getting Normalized Counts
+
+**Goal:** Obtain normalized expression values for visualization and downstream analysis.
+
+**Approach:** Compute CPM or log-CPM values using TMM-adjusted library sizes.
 
 ```r
 # Counts per million (CPM)
@@ -264,6 +334,10 @@ log_cpm <- cpm(y, log = TRUE, prior.count = 2)
 ```
 
 ## Exporting Results
+
+**Goal:** Save DE results and normalized counts to files for sharing or downstream tools.
+
+**Approach:** Extract all results via topTags and write as CSV alongside CPM values.
 
 ```r
 # Get all results

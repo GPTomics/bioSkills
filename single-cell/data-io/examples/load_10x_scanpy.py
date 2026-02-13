@@ -1,4 +1,5 @@
 '''Load 10X Genomics data with Scanpy - multiple formats'''
+# Reference: cell ranger 8.0+, anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import scanpy as sc
 

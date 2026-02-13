@@ -1,3 +1,4 @@
+# Reference: macs2 2.2+, scanpy 1.10+ | Verify API if version differs
 import snapatac2 as snap
 import scanpy as sc
 import numpy as np

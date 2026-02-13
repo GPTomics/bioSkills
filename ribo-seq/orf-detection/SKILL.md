@@ -5,9 +5,29 @@ tool_type: mixed
 primary_tool: RiboCode
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, DESeq2 1.42+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ORF Detection
 
+**"Detect translated ORFs from my Ribo-seq data"** → Identify actively translated open reading frames including uORFs and novel ORFs using 3-nucleotide periodicity as evidence of active translation.
+- CLI: `RiboCode` for periodicity-based ORF detection
+- R: `ORFik` for ORF quantification and annotation
+
 ## RiboCode Workflow
+
+**Goal:** Detect actively translated ORFs from Ribo-seq data using 3-nucleotide periodicity as evidence of translation.
+
+**Approach:** Prepare transcript annotations, then run RiboCode with specified read lengths to identify ORFs with significant periodicity.
 
 ```bash
 # Step 1: Prepare annotation
@@ -30,6 +50,10 @@ RiboCode \
 
 ## One-Step RiboCode
 
+**Goal:** Run the complete ORF detection pipeline in a single command without separate annotation preparation.
+
+**Approach:** Use RiboCode_onestep which combines annotation preparation, offset determination, and ORF calling.
+
 ```bash
 # All-in-one command
 RiboCode_onestep \
@@ -49,6 +73,10 @@ RiboCode_onestep \
 | *_binomial_test.txt | Statistical test results |
 
 ## Parse RiboCode Results
+
+**Goal:** Load RiboCode ORF predictions and categorize them by type (annotated, uORF, dORF, novel).
+
+**Approach:** Read the tabular output into a DataFrame and split by the ORF_type column.
 
 ```python
 import pandas as pd
@@ -70,6 +98,10 @@ def load_ribocode_orfs(filepath):
 
 ## Alternative: RibORF
 
+**Goal:** Detect translated ORFs using a machine learning classifier as an alternative to periodicity-based methods.
+
+**Approach:** Run RibORF's random forest model on aligned Ribo-seq reads and genome annotation.
+
 ```bash
 # RibORF uses random forest classifier
 RibORF.py \
@@ -80,6 +112,10 @@ RibORF.py \
 ```
 
 ## Manual ORF Detection
+
+**Goal:** Find all potential ORFs in a sequence and filter by Ribo-seq coverage to identify translated ones.
+
+**Approach:** Scan all three reading frames for start-to-stop codon pairs, then retain ORFs with sufficient ribosome footprint coverage.
 
 ```python
 from Bio import SeqIO
@@ -124,6 +160,10 @@ def detect_translated_orfs(orfs, coverage_data, min_coverage=10):
 ```
 
 ## uORF Analysis
+
+**Goal:** Identify upstream open reading frames in the 5' UTR that may regulate main CDS translation.
+
+**Approach:** Extract the 5' UTR before the annotated CDS start and scan for ORFs, classifying each as contained or overlapping.
 
 ```python
 def find_uorfs(transcript, cds_start):

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Canu 2.2+, Flye 2.9+, hifiasm 0.19+, wtdbg2 2.5+ | Verify API if version differs
 # Long-read assembly with Flye
 set -euo pipefail
 

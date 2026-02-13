@@ -5,9 +5,28 @@ tool_type: mixed
 primary_tool: CellChat
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Cell-Cell Communication Analysis
 
+**"Infer cell-cell communication from my scRNA-seq data"** → Predict ligand-receptor interactions between cell types and visualize intercellular signaling networks.
+- R: `CellChat::createCellChat()` → `computeCommunProb()` → `netAnalysis()`
+- Python: `liana.method.cellchat()` (LIANA framework)
+
 ## CellChat (R)
+
+**Goal:** Infer and quantify intercellular communication networks from scRNA-seq data using curated ligand-receptor databases.
+
+**Approach:** Create a CellChat object from a Seurat object with cell type labels, select a signaling database subset, identify overexpressed ligands/receptors, compute communication probabilities using the trimean method, then aggregate into pathway-level networks.
 
 ```r
 library(CellChat)

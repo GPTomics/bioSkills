@@ -1,4 +1,5 @@
 '''Python wrapper for local BLAST operations'''
+# Reference: ncbi blast+ 2.15+ | Verify API if version differs
 import subprocess
 import os
 from pathlib import Path

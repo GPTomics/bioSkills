@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Count alleles at specific positions using pysam pileup'''
+# Reference: bcftools 1.19+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 
 import pysam
 import sys

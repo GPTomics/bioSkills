@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Cell Ranger 8.0+, FastQC 0.12+, GATK 4.5+, HISAT2 2.2.1+, MultiQC 1.21+, STAR 2.7.11+, Subread 2.0+, bcftools 1.19+, fastp 0.23+, kallisto 0.50+ | Verify API if version differs
 # MultiQC Report Generation Examples
 # Demonstrates various QC report configurations
 

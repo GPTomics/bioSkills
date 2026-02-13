@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: deepTools 3.5+ | Verify API if version differs
 # Metagene and heatmap visualization with deepTools
 
 IP_BAM=$1

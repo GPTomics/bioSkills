@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: skyline
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+, xcms 4.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Targeted Metabolomics Analysis
+
+**"Quantify specific metabolites from my MRM data"** → Perform absolute quantification using calibration curves, internal standards, and quality assessment for targeted metabolomics.
+- CLI: Skyline for peak integration and export
+- Python/R: calibration curve fitting and sample quantification
 
 ## Skyline Data Export Processing
 
@@ -188,6 +203,10 @@ quantify_sample <- function(sample_data, calibrations) {
 ```
 
 ## Python Workflow
+
+**Goal:** Perform absolute quantification of targeted metabolites from LC-MS/MRM data using weighted calibration curves and validation metrics.
+
+**Approach:** Fit weighted linear regression to standard curve data, back-calculate sample concentrations, compute CV and accuracy metrics, and visualize results.
 
 ```python
 import pandas as pd

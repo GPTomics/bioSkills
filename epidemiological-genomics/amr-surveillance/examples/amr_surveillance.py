@@ -1,4 +1,5 @@
 '''AMR gene detection and surveillance analysis'''
+# Reference: amrfinderplus 3.12+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

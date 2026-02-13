@@ -1,4 +1,5 @@
 '''Reading FASTQ files and working with quality scores'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio import SeqIO
 
 print('=== Parsing FASTQ with Quality Scores ===')

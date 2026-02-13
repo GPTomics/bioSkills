@@ -3,6 +3,7 @@
 Publication-ready figure export examples
 Demonstrates proper sizing, resolution, and formatting for journal submission
 """
+# Reference: matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: vegan
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, vegan 2.6+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Community Ecology
+
+**"Test how environmental variables structure my species communities"** → Link species composition to environmental gradients using constrained ordination (CCA, RDA, db-RDA), partition explained variation among predictor groups with varpart, and identify habitat indicator taxa with multipatt.
+- R: `vegan::cca()`, `vegan::rda()`, `vegan::dbrda()` for constrained ordination
+- R: `indicspecies::multipatt()` for indicator species analysis
 
 Analyzes species-environment relationships using constrained ordination, variance partitioning, and indicator species analysis.
 
@@ -104,6 +118,10 @@ anova(dbrda_result, by = 'margin', permutations = 999)
 
 ## Variance Partitioning
 
+**Goal:** Quantify the unique and shared contributions of environmental vs spatial predictors to community composition.
+
+**Approach:** Run varpart with the species matrix and predictor groups to decompose variation into unique and shared fractions, then test each unique fraction's significance with partial RDA conditioned on the other group.
+
 Quantifies the unique and shared contributions of 2-4 sets of explanatory variables:
 
 ```r
@@ -188,6 +206,10 @@ dca
 ```
 
 ## Publication-Quality Triplot
+
+**Goal:** Create a journal-ready CCA triplot showing sites, species, and environmental vectors in a single ordination figure.
+
+**Approach:** Extract site, species, and biplot scores from the CCA result, combine into data frames, and overlay points, text labels, and arrow segments in ggplot2.
 
 ```r
 library(ggplot2)

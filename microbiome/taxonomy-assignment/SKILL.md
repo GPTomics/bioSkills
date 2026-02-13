@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: dada2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DADA2 1.30+, QIIME2 2024.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Taxonomy Assignment
+
+**"Assign taxonomy to my ASVs"** → Classify amplicon sequence variants against reference databases (SILVA, GTDB, UNITE) using naive Bayes or exact-matching approaches for taxonomic annotation.
+- R: `dada2::assignTaxonomy()` with SILVA/GTDB reference
+- CLI: `qiime feature-classifier classify-sklearn` for QIIME2 workflows
 
 ## DADA2 Naive Bayes Classifier
 
@@ -79,6 +94,10 @@ taxa_rdp <- assignTaxonomy(seqtab_nochim, 'rdp_train_set_18.fa.gz',
 ```
 
 ## IDTAXA (DECIPHER) - Often More Accurate
+
+**Goal:** Classify ASVs using DECIPHER's tree-based IDTAXA classifier, which provides more conservative and often more accurate assignments than naive Bayes.
+
+**Approach:** Convert ASV sequences to DNAStringSet, classify against a pre-trained IDTAXA model, and convert the hierarchical output to a standard taxonomy matrix.
 
 ```r
 library(DECIPHER)

@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: Infernal
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Non-Coding RNA Annotation
+
+**"Find non-coding RNAs in my genome"** → Scan a genome assembly for rRNAs, tRNAs, snoRNAs, and other ncRNA families using covariance model search and specialized detectors.
+- CLI: `cmscan --rfam --tblout hits.tbl Rfam.cm assembly.fa` (Infernal), `tRNAscan-SE -o trnas.txt assembly.fa`
 
 Identify and annotate non-coding RNAs in genome assemblies using Infernal (general ncRNAs via Rfam covariance models) and tRNAscan-SE (specialized tRNA detection).
 
@@ -146,6 +160,10 @@ barrnap --kingdom euk --threads 4 genome.fasta > rrna.gff3
 ```
 
 ## Combining ncRNA Annotations
+
+**Goal:** Merge Infernal and tRNAscan-SE results into a unified ncRNA annotation, using the best tool for each RNA type.
+
+**Approach:** Parse Infernal tabular output and classify hits by Rfam family name into broad ncRNA categories, parse tRNAscan-SE GFF for tRNA calls, then combine by dropping Infernal tRNA hits (tRNAscan-SE is more accurate for tRNAs) and keeping Infernal for all other ncRNA types.
 
 ```python
 import pandas as pd

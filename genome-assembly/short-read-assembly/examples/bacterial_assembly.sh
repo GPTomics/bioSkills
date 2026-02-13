@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: FastQC 0.12+, MEGAHIT 1.2+, SPAdes 3.15+ | Verify API if version differs
 # Bacterial genome assembly with SPAdes
 set -euo pipefail
 

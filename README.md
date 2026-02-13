@@ -294,6 +294,9 @@ Key requirements:
 - `primary_tool` must be a single value (not comma-separated)
 - Quick Start uses bullets; Example Prompts use blockquotes
 - Examples must document magic numbers with rationale
+- Every SKILL.md with code needs a `## Version Compatibility` block listing reference package versions
+- Major multi-step code sections use Goal/Approach structure (intent survives version changes)
+- Example scripts include a version header comment: `# Reference: <package> <version>+ | Verify API if version differs`
 
 ## License
 

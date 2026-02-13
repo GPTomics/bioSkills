@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: cwltool
 ---
 
+## Version Compatibility
+
+Reference examples tested with: FastQC 0.12+, Nextflow 23.10+, Salmon 1.10+, Snakemake 8.0+, fastp 0.23+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CWL Workflows
+
+**"Write a portable CWL workflow for my analysis"** → Define tools and workflows in YAML using the Common Workflow Language standard for maximum cross-platform portability and sharing through workflow registries.
+- CLI: `cwltool` for local execution of CWL documents
+- YAML: CWL v1.2 CommandLineTool and Workflow class definitions
 
 ## Basic Tool Definition
 

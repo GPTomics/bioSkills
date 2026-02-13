@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+ | Verify API if version differs
 
 GENOME_DIR="genome"
 BAM_DIR="aligned"

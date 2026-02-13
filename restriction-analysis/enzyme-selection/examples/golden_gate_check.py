@@ -1,4 +1,5 @@
 '''Check sequence compatibility for Golden Gate cloning'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import SeqIO
 from Bio.Restriction import BsaI, BsmBI, BbsI, SapI, Analysis

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MiXCR 4.6+, pandas 2.2+ | Verify API if version differs
 # MiXCR workflow for TCR/BCR repertoire analysis
 
 R1=$1

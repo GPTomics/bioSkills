@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: dorado
 ---
 
+## Version Compatibility
+
+Reference examples tested with: samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Nanopore Basecalling
+
+**"Basecall my Nanopore data"** → Convert raw electrical signal (FAST5/POD5) into nucleotide sequences with quality scores, optionally detecting modified bases.
+- CLI: `dorado basecaller sup pod5/ > calls.bam` (recommended), `dorado basecaller sup,5mCG_5hmCG pod5/` (with modifications)
 
 Convert raw electrical signal from Nanopore sequencing into nucleotide sequences.
 
@@ -282,6 +295,10 @@ awk 'NR%4==2 {sum+=length($0); count++} END {print "Reads:", count, "Mean length
 | dna_r9.4.1_450bps_sup | High accuracy |
 
 ## Complete Pipeline
+
+**Goal:** Run the full Nanopore basecalling pipeline from raw signal data through quality-filtered reads with a QC report.
+
+**Approach:** Convert FAST5 to POD5 if needed, basecall with Dorado, convert to FASTQ, filter with chopper, and generate NanoPlot QC.
 
 ```bash
 #!/bin/bash

@@ -1,4 +1,5 @@
 '''Design PCR primers with primer3-py'''
+# Reference: biopython 1.83+, pandas 2.2+, primer3-py 2.0+ | Verify API if version differs
 
 import primer3
 from Bio import SeqIO

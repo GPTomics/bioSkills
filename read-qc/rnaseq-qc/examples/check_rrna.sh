@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: NCBI BLAST+ 2.15+, numpy 1.26+, picard 3.1+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Check rRNA contamination with SortMeRNA
 
 FASTQ=$1

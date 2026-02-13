@@ -5,6 +5,16 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Statistics
 
 Compute spatial statistics and identify spatially variable features.
@@ -19,6 +29,12 @@ import numpy as np
 ```
 
 ## Compute Spatial Autocorrelation (Moran's I)
+
+**Goal:** Identify genes whose expression is spatially autocorrelated across tissue.
+
+**Approach:** Build a spatial neighbor graph, then compute Moran's I statistic per gene to measure clustering of similar values.
+
+**"Find spatially variable genes"** -> Compute Moran's I autocorrelation on the spatial neighbor graph to rank genes by spatial patterning.
 
 ```python
 # Requires spatial neighbors
@@ -65,6 +81,10 @@ geary_results = adata.uns['gearyC']
 
 ## Co-occurrence Analysis
 
+**Goal:** Determine whether cell types co-localize or segregate in tissue space.
+
+**Approach:** Compute pairwise co-occurrence probabilities at multiple distance intervals using Squidpy.
+
 ```python
 # Analyze co-localization of cell types/clusters
 # First, ensure you have cluster labels
@@ -92,6 +112,10 @@ print(f'Distance intervals: {interval}')
 ```
 
 ## Neighborhood Enrichment
+
+**Goal:** Test whether cell type clusters are enriched or depleted in each other's spatial neighborhoods.
+
+**Approach:** Run permutation-based neighborhood enrichment test, yielding z-scores for each cluster pair.
 
 ```python
 # Test if clusters are enriched in each other's neighborhoods
@@ -168,6 +192,10 @@ print(f'Spatial correlation: r={r:.3f}, p={p:.2e}')
 
 ## Local Moran's I (LISA)
 
+**Goal:** Identify local hotspots and coldspots of gene expression in tissue space.
+
+**Approach:** Compute Local Indicators of Spatial Association (LISA) using PySAL, which assigns each spot to a cluster-outlier quadrant (HH, HL, LH, LL).
+
 ```python
 from esda.moran import Moran_Local
 from libpysal.weights import KNN
@@ -187,6 +215,10 @@ adata.obs['GENE1_lisa_q'] = lisa.q  # Quadrant (HH, HL, LH, LL)
 ```
 
 ## Batch Spatial Statistics
+
+**Goal:** Efficiently compute spatial autocorrelation for a large set of genes.
+
+**Approach:** Subset to highly variable genes before running Moran's I to reduce computation time.
 
 ```python
 # Compute Moran's I for top variable genes only

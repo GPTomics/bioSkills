@@ -1,4 +1,5 @@
 '''Design pegRNAs for prime editing experiments'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.Seq import Seq
 

@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+ | Verify API if version differs
 ## PIP visualization for fine-mapping results
 ##
 ## Generates PIP plots, combined GWAS + PIP panels, and credible set

@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: scimap
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, scanpy 1.10+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Proteomics Analysis
 
+**"Analyze my CODEX/IMC spatial proteomics data"** → Process multiplexed imaging data including cell segmentation, protein phenotyping, spatial neighborhood analysis, and protein colocalization scoring.
+- Python: `scimap.tl.phenotype_cells()`, `squidpy.gr.nhood_enrichment()`
+
 ## Data Loading
+
+**Goal:** Process multiplexed spatial proteomics data (CODEX/IMC/MIBI) through cell phenotyping, spatial neighborhood analysis, and protein colocalization scoring.
+
+**Approach:** Load the cell-by-marker intensity matrix with spatial coordinates into AnnData, normalize and rescale marker intensities, phenotype cells by marker expression gating, then analyze spatial neighborhoods and cell-cell interactions using scimap and squidpy.
 
 ```python
 import scimap as sm

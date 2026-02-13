@@ -5,13 +5,30 @@ tool_type: r
 primary_tool: RNASeqPower
 ---
 
+## Version Compatibility
+
+Reference examples tested with: RNASeqPower 1.42+, pwr 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion("<pkg>")` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Power Analysis for Sequencing Experiments
+
+**"How many replicates do I need for RNA-seq?"** → Calculate statistical power or minimum sample size given sequencing depth, biological variability, and expected effect size.
+- R: `RNASeqPower::rnapower()`, `pwr::pwr.t.test()`
 
 ## Core Concept
 
 Power = probability of detecting a true effect. Underpowered studies waste resources; overpowered studies are inefficient.
 
 ## RNA-seq Power Analysis
+
+**Goal:** Determine whether a planned RNA-seq experiment has sufficient statistical power to detect biologically meaningful fold changes, or calculate the minimum sample size needed for a target power.
+
+**Approach:** Provide sequencing depth, biological coefficient of variation, expected fold change, and significance level to rnapower, which uses a negative binomial model to compute power or required sample size.
 
 ```r
 library(RNASeqPower)

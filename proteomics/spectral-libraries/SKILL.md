@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: encyclopedia
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spectral Library Management
+
+**"Build a spectral library for DIA analysis"** → Create, filter, and manage spectral libraries from DDA experiments or predicted spectra for use in DIA quantification workflows.
+- CLI: `spectrast` (TPP) for consensus library building from search results
+- CLI: Prosit/DeepLC for deep learning-predicted spectral libraries
+- Python: `pandas` for library format conversion and quality filtering
 
 ## Build Library from DDA Data
 
@@ -195,6 +211,10 @@ print(charges.value_counts())
 ```
 
 ## Merge Libraries
+
+**Goal:** Combine multiple spectral libraries into a single non-redundant library, keeping the highest-quality spectra for each precursor.
+
+**Approach:** Concatenate library tables, rank precursors by total fragment intensity, and deduplicate by keeping the best-scoring entry per precursor-fragment combination.
 
 ```python
 import pandas as pd

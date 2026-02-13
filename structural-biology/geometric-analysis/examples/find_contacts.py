@@ -1,4 +1,5 @@
 '''Find residue contacts using NeighborSearch'''
+# Reference: biopython 1.83+, numpy 1.26+ | Verify API if version differs
 
 from Bio.PDB import PDBParser, NeighborSearch
 

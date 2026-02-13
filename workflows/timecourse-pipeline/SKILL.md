@@ -16,7 +16,20 @@ qc_checkpoints:
   - after_enrichment: "At least 3 clusters with significant GO terms at FDR <0.05"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, clusterProfiler 4.10+, limma 3.58+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Time-Course Analysis Pipeline
+
+**"Analyze my time-course expression data end-to-end"** → Orchestrate temporal differential expression, Mfuzz soft clustering, optional circadian rhythm detection, GAM trajectory fitting, changepoint detection, and per-cluster pathway enrichment.
 
 Complete workflow from expression matrix through temporal differential expression, soft clustering,
 optional rhythm detection, trajectory fitting, and per-cluster pathway enrichment.

@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # BAM Statistics
+
+**"Get alignment statistics and coverage from my BAM file"** → Generate read counts, mapping rates, per-chromosome statistics, depth profiles, and coverage summaries.
+- CLI: `samtools flagstat`, `samtools stats`, `samtools depth`, `samtools coverage` (samtools)
+- Python: `pysam.AlignmentFile` with `pileup()` and `get_index_statistics()` (pysam)
 
 Generate alignment statistics using samtools and pysam.
 
@@ -244,6 +259,12 @@ print(f'Mean depth: {depth:.1f}x')
 ```
 
 ### Coverage Statistics
+
+**Goal:** Compute coverage breadth and depth for a genomic region from a BAM file.
+
+**Approach:** Iterate pileup columns in the region, count covered positions and accumulate depth, then derive percentages and means.
+
+**Reference (pysam 0.22+):**
 ```python
 import pysam
 
@@ -273,6 +294,12 @@ print(f'Mean depth: {stats["mean_depth"]:.1f}x')
 ```
 
 ### Insert Size Distribution
+
+**Goal:** Compute the insert size distribution to assess library preparation quality.
+
+**Approach:** Iterate properly paired read1 records, accumulate template lengths into a Counter, then compute summary statistics.
+
+**Reference (pysam 0.22+):**
 ```python
 import pysam
 from collections import Counter

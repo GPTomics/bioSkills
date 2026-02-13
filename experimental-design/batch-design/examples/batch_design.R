@@ -1,3 +1,4 @@
+# Reference: limma 3.58+ | Verify API if version differs
 # Batch Design Examples
 # Demonstrates experimental design to minimize batch effects
 

@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, edgeR 4.0+, limma 3.58+, scanpy 1.10+ | Verify API if version differs
 # Basic edgeR workflow for differential expression analysis
 
 library(edgeR)

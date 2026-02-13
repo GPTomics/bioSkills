@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GATK 4.5+, bcftools 1.19+ | Verify API if version differs
 # Joint genotyping from GVCFs
 
 REF=$1

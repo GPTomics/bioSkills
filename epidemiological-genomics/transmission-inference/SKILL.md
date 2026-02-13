@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: TransPhylo
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, TreeTime 0.11+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Transmission Inference
+
+**"Infer who infected whom in my outbreak"** → Reconstruct transmission networks from genomic and epidemiological data to identify transmission pairs, superspreaders, and unsampled cases.
+- R: `TransPhylo::inferTTree()` for Bayesian transmission tree inference
 
 ## TransPhylo in R
 
@@ -95,6 +109,10 @@ superspreaders <- names(infections_per_case[infections_per_case > 3])
 
 ## Python Alternative: outbreaker2 Wrapper
 
+**Goal:** Infer likely transmission pairs from genomic distance and collection dates without requiring a dated phylogeny.
+
+**Approach:** For each pair of samples, check that the potential infector was sampled earlier, that the time interval is compatible with the generation time, and that the SNP distance is consistent with direct transmission.
+
 ```python
 def infer_transmission_simple(distance_matrix, dates, generation_time=5):
     '''Simplified transmission inference
@@ -151,6 +169,10 @@ def infer_transmission_simple(distance_matrix, dates, generation_time=5):
 ```
 
 ## Network Visualization
+
+**Goal:** Visualize the inferred transmission chain as a directed network graph showing who infected whom.
+
+**Approach:** Build a directed NetworkX graph from transmission pairs and render it with spring layout, directional arrows, and labeled nodes.
 
 ```python
 def plot_transmission_network(pairs_df, metadata=None):

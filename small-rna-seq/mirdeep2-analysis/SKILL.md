@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: miRDeep2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # miRDeep2 Analysis
+
+**"Discover novel miRNAs from my small RNA-seq data"** → Identify known and novel miRNAs by mapping reads to the genome and scoring precursor hairpin structures using a probabilistic model.
+- CLI: `mapper.pl` for read mapping, `miRDeep2.pl` for de novo miRNA prediction
 
 ## Workflow Overview
 
@@ -24,12 +38,20 @@ quantifier.pl -----> Quantify known miRNAs only (optional)
 
 ## Step 1: Prepare Genome Index
 
+**Goal:** Build a bowtie index from the reference genome for miRDeep2 read mapping.
+
+**Approach:** Run bowtie-build on the genome FASTA to create the index files required by mapper.pl.
+
 ```bash
 # Build bowtie index for miRDeep2 mapper
 bowtie-build genome.fa genome_index
 ```
 
 ## Step 2: Map Reads with mapper.pl
+
+**Goal:** Collapse identical reads and align them to the reference genome.
+
+**Approach:** Use mapper.pl to clip adapters, filter by length, collapse duplicates, and map with bowtie to produce ARF alignment files.
 
 ```bash
 # Collapse reads and map to genome
@@ -59,6 +81,10 @@ mapper.pl reads.fastq \
 
 ## Step 3: Run miRDeep2 Prediction
 
+**Goal:** Predict novel miRNAs and quantify known miRNAs from aligned small RNA reads.
+
+**Approach:** Run miRDeep2.pl with collapsed reads, genome, alignments, and miRBase references to score candidate miRNA loci.
+
 ```bash
 # Predict novel miRNAs
 miRDeep2.pl \
@@ -83,6 +109,10 @@ miRDeep2.pl \
 
 ## Prepare miRBase References
 
+**Goal:** Download and extract species-specific miRNA references from miRBase.
+
+**Approach:** Fetch mature and hairpin FASTA files from miRBase, then grep species-specific entries by prefix.
+
 ```bash
 # Download from miRBase
 wget https://www.mirbase.org/download/mature.fa
@@ -94,6 +124,10 @@ grep -A1 ">hsa-" hairpin.fa > hairpin_human.fa
 ```
 
 ## Step 4: Quantify Known miRNAs Only
+
+**Goal:** Quantify expression of known miRNAs without running novel discovery.
+
+**Approach:** Run quantifier.pl with hairpin and mature references against collapsed reads for fast quantification.
 
 ```bash
 # If not doing novel discovery
@@ -132,6 +166,10 @@ Key metrics:
 ```
 
 ## Parse Results in Python
+
+**Goal:** Load miRDeep2 prediction and quantification results into pandas DataFrames.
+
+**Approach:** Parse tab-delimited output files and filter novel miRNA predictions by confidence score threshold.
 
 ```python
 import pandas as pd

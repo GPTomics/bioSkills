@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, pandas 2.2+ | Verify API if version differs
 # Same-species annotation transfer with Liftoff
 set -euo pipefail
 

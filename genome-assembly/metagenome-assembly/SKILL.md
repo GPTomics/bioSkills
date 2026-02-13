@@ -5,13 +5,31 @@ tool_type: cli
 primary_tool: metaFlye
 ---
 
+## Version Compatibility
+
+Reference examples tested with: QUAST 5.2+, SPAdes 3.15+, minimap2 2.26+, pandas 2.2+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metagenome Assembly
+
+**"Assemble genomes from my metagenome data"** → Reconstruct individual microbial genomes (MAGs) from mixed community sequencing reads using metagenome-aware assemblers and binning.
+- CLI: `flye --meta --nano-raw reads.fq` (long-read), `metaspades.py -1 R1.fq -2 R2.fq` (short-read)
 
 ## Overview
 
 Metagenome assembly reconstructs genomes from mixed microbial communities. Long reads enable recovery of complete circular genomes and resolution of strain-level differences.
 
 ## metaFlye (Long Reads)
+
+**Goal:** Assemble metagenome contigs from long reads handling uneven coverage across species.
+
+**Approach:** Run Flye in --meta mode which accounts for varying coverage depths in mixed communities.
 
 ```bash
 # ONT metagenome assembly
@@ -34,6 +52,10 @@ flye --pacbio-hifi reads.hifi.fastq.gz \
 
 ## metaSPAdes (Short Reads)
 
+**Goal:** Assemble metagenome contigs from Illumina paired-end reads.
+
+**Approach:** Run metaSPAdes which uses multi-kmer de Bruijn graph assembly optimized for metagenomes.
+
 ```bash
 # Illumina paired-end metagenome
 metaspades.py -1 R1.fastq.gz -2 R2.fastq.gz \
@@ -49,6 +71,10 @@ metaspades.py \
 ```
 
 ## Hybrid Assembly
+
+**Goal:** Combine long-read contiguity with short-read accuracy in metagenome assembly.
+
+**Approach:** Assemble with metaFlye from long reads, then polish the assembly with Pilon using short reads.
 
 ```bash
 # Combine short and long reads
@@ -87,6 +113,12 @@ pilon --genome flye_hybrid/assembly.fasta \
 
 ## Binning Workflow
 
+**Goal:** Recover individual genomes (MAGs) from a metagenome assembly.
+
+**Approach:** Map reads back to the assembly for coverage, compute per-contig depth, bin with MetaBAT2, and assess quality with CheckM2.
+
+"Bin the contigs from my metagenome assembly into individual genomes" --> Map reads for coverage, cluster contigs by composition and coverage, then evaluate bins.
+
 ```bash
 # Step 1: Map reads back to assembly
 minimap2 -ax map-ont -t 32 assembly.fasta reads.fastq.gz | \
@@ -103,6 +135,10 @@ checkm2 predict --input bins/ --output-directory checkm2_out -x fa --threads 32
 ```
 
 ## SemiBin2 (Deep Learning Binning)
+
+**Goal:** Improve MAG recovery using deep learning-based contig binning.
+
+**Approach:** Run SemiBin2 which trains a neural network on contig composition and coverage for more accurate bin assignments.
 
 ```bash
 # Single-sample binning
@@ -121,6 +157,10 @@ SemiBin2 multi_easy_bin \
 
 ## Quality Assessment
 
+**Goal:** Evaluate assembly contiguity, bin completeness, and taxonomic composition.
+
+**Approach:** Run seqkit for basic stats, CheckM2 for bin quality, GTDB-Tk for taxonomy, and MetaQUAST for assembly metrics.
+
 ```bash
 # Assembly stats
 seqkit stats assembly.fasta
@@ -137,6 +177,10 @@ metaquast.py -o metaquast_out assembly.fasta -t 32
 
 ## Circular Genome Detection
 
+**Goal:** Identify complete circular genomes (e.g., bacterial chromosomes, plasmids) in the assembly.
+
+**Approach:** Parse Flye's assembly_info.txt for circularity flags and extract matching contigs.
+
 ```bash
 # Flye marks circular contigs in assembly_info.txt
 grep "Y" flye_meta/assembly_info.txt | cut -f1 > circular_contigs.txt
@@ -146,6 +190,10 @@ seqkit grep -f circular_contigs.txt assembly.fasta > circular_genomes.fasta
 ```
 
 ## Python Pipeline
+
+**Goal:** Provide a reusable Python workflow from metagenome assembly through binning to quality assessment.
+
+**Approach:** Chain metaFlye assembly, MetaBAT2 binning, and CheckM2 quality filtering, returning high-quality MAGs.
 
 ```python
 import subprocess

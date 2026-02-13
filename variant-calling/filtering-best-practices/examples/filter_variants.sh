@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GATK 4.5+, bcftools 1.19+, numpy 1.26+ | Verify API if version differs
 set -euo pipefail
 
 INPUT_VCF=$1

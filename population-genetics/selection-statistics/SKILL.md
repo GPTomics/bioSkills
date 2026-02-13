@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: scikit-allel
 ---
 
+## Version Compatibility
+
+Reference examples tested with: STAR 2.7.11+, matplotlib 3.8+, numpy 1.26+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Selection Statistics
+
+**"Scan my population data for signs of natural selection"** → Calculate selection statistics (Fst, Tajima's D, iHS, XP-EHH) to detect selective sweeps and departures from neutrality.
+- Python: `allel.moving_hudson_fst()`, `allel.ihs()`, `allel.xpehh()` (scikit-allel)
+- CLI: `vcftools --weir-fst-pop` for pairwise Fst
 
 Detect natural selection signatures using diversity statistics and extended haplotype homozygosity.
 
@@ -187,6 +202,10 @@ css = composite_score(fst_per_snp, tajD_values, np.abs(ihs_values))
 ```
 
 ## Complete Selection Scan
+
+**Goal:** Scan a genomic region for signatures of natural selection using multiple complementary statistics.
+
+**Approach:** Filter to segregating biallelic variants, compute windowed Tajima's D for neutrality departures and windowed nucleotide diversity for reduced variation, then visualize both statistics along the chromosome.
 
 ```python
 import allel

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: DESeq2 1.42+, STAR 2.7.11+, Salmon 1.10+, Subread 2.0+, fastp 0.23+, ggplot2 3.5+, kallisto 0.50+, scanpy 1.10+ | Verify API if version differs
 # Complete RNA-seq workflow: STAR + featureCounts + DESeq2
 set -e
 

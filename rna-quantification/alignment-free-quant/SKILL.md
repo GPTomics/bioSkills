@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: salmon
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Salmon 1.10+, fastp 0.23+, kallisto 0.50+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Alignment-Free Quantification
+
+**"Quantify gene expression without alignment"** → Estimate transcript abundances directly from FASTQ reads using pseudo-alignment or selective alignment, bypassing genome mapping.
+- CLI: `salmon quant -i index -l A -1 R1.fq.gz -2 R2.fq.gz -o quant/`, `kallisto quant -i index -o output R1.fq.gz R2.fq.gz`
 
 Quantify transcript abundance directly from FASTQ reads using pseudo-alignment (kallisto) or selective alignment (Salmon).
 

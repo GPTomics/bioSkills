@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BBTools 39.0+, Bowtie2 2.5.3+, FastQ Screen 0.15+, FastQC 0.12+, MultiQC 1.21+ | Verify API if version differs
 # Screen FASTQ files for contamination
 # Usage: ./screen_samples.sh <fastq_dir> <output_dir>
 

@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: MetaboAnalystR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ReactomePA 1.46+, clusterProfiler 4.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolomics Pathway Mapping
+
+**"Map my metabolites to pathways"** → Perform pathway enrichment and topology analysis using KEGG, Reactome, or MetaboAnalyst to interpret metabolomics results in biochemical context.
+- R: `MetaboAnalystR::SetMetabolomeFilter()` → `PerformDetailMatch()` → pathway topology
 
 ## KEGG Pathway Enrichment
 
@@ -129,6 +142,10 @@ pathview(cpd.data = metabolite_data,
 ```
 
 ## Network-Based Analysis
+
+**Goal:** Visualize metabolite-pathway relationships as a bipartite network for identifying pathway crosstalk and hub metabolites.
+
+**Approach:** Extract metabolite-pathway edges from enrichment results, build an igraph network, and annotate nodes by type for interactive visualization.
 
 ```r
 library(igraph)

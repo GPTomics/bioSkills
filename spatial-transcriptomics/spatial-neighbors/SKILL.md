@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Neighbor Graphs
+
+**"Build a spatial neighborhood graph"** → Construct spatial connectivity graphs using k-nearest neighbors, Delaunay triangulation, or radius-based methods for downstream spatial statistics.
+- Python: `squidpy.gr.spatial_neighbors(adata, coord_type='generic', n_neighs=6)`
 
 Build spatial neighbor graphs for connectivity-based analyses.
 
@@ -18,6 +31,10 @@ import numpy as np
 ```
 
 ## Build K-Nearest Neighbors Graph
+
+**Goal:** Construct a spatial KNN graph connecting each spot to its nearest spatial neighbors.
+
+**Approach:** Use Squidpy's `spatial_neighbors` with k-nearest neighbors on coordinate distances.
 
 ```python
 # Build spatial KNN graph
@@ -95,6 +112,10 @@ sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
 
 ## Combine Spatial and Expression Neighbors
 
+**Goal:** Create a unified neighbor graph that balances spatial proximity with expression similarity.
+
+**Approach:** Build separate spatial and expression neighbor graphs, normalize each, then combine with a tunable weight parameter.
+
 ```python
 # Build both graphs
 sq.gr.spatial_neighbors(adata, n_neighs=6, coord_type='generic')
@@ -115,6 +136,10 @@ adata.obsp['combined_connectivities'] = combined
 ```
 
 ## Visualize Neighbor Graph
+
+**Goal:** Display the spatial neighbor graph overlaid on tissue coordinates for visual inspection.
+
+**Approach:** Draw edges between connected spots and scatter plot the spot positions.
 
 ```python
 import matplotlib.pyplot as plt
@@ -138,6 +163,10 @@ plt.title('Spatial neighbor graph')
 ```
 
 ## Compute Graph Statistics
+
+**Goal:** Calculate summary statistics of the spatial neighbor graph (nodes, edges, connectivity).
+
+**Approach:** Convert the sparse connectivity matrix to a NetworkX graph and compute standard graph metrics.
 
 ```python
 import networkx as nx

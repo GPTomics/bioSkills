@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: STAR 2.7.11+, eggNOG-mapper 2.1+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # SHAPE-MaP analysis with ShapeMapper2.
 # Processes modified and untreated samples to generate per-nucleotide reactivities.
 

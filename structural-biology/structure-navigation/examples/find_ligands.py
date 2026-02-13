@@ -1,4 +1,5 @@
 '''Find and list all ligands in a structure'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.PDB import PDBParser
 

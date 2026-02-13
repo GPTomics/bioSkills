@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: shap
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Model Interpretation for Omics Classifiers
 
-## SHAP TreeExplainer (v0.47+ API)
+**"Which genes drive my classifier's predictions?"** → Compute per-feature attribution scores using SHAP values or LIME to explain which genes or features contribute most to model decisions.
+- Python: `shap.TreeExplainer(model).shap_values(X)`, `lime.lime_tabular.LimeTabularExplainer()`
+
+## SHAP TreeExplainer
+
+**Goal:** Compute exact SHAP values for tree-based models to quantify each feature's contribution to predictions.
+
+**Approach:** Use TreeExplainer for polynomial-time exact Shapley value computation on Random Forest or boosted tree models.
 
 ```python
 import shap

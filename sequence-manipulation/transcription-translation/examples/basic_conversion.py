@@ -1,4 +1,5 @@
 '''Basic transcription and translation examples'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 
 # Transcription: DNA to RNA

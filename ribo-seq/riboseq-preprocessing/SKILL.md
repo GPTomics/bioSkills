@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: bowtie2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, STAR 2.7.11+, cutadapt 4.4+, numpy 1.26+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Ribo-seq Preprocessing
+
+**"Preprocess my ribosome profiling data"** → Trim adapters, size-select ribosome-protected fragments (26-34 nt), remove rRNA contamination, and align to the transcriptome for translation analysis.
+- CLI: `cutadapt` → `bowtie2` (rRNA removal) → `STAR` (genome alignment)
 
 ## Workflow Overview
 
@@ -30,6 +44,10 @@ Quality filtered BAM
 
 ## Adapter Trimming
 
+**Goal:** Remove 3' adapter sequences from ribosome footprint reads to recover the true insert.
+
+**Approach:** Run cutadapt with the known adapter sequence and length filters to discard fragments outside the expected footprint range.
+
 ```bash
 # Trim 3' adapter
 cutadapt \
@@ -42,6 +60,10 @@ cutadapt \
 
 ## Size Selection
 
+**Goal:** Retain only reads corresponding to ribosome-protected fragments (typically 28-32 nt).
+
+**Approach:** Apply minimum and maximum length filters with cutadapt to select the footprint size range.
+
 ```bash
 # Select ribosome footprint size range
 # Typical: 28-32 nt (protected by ribosome)
@@ -53,6 +75,10 @@ cutadapt \
 ```
 
 ## rRNA Removal
+
+**Goal:** Deplete ribosomal RNA reads that typically constitute the majority of a Ribo-seq library.
+
+**Approach:** Align reads against rRNA reference databases using SortMeRNA or Bowtie2 and collect only unmapped (non-rRNA) reads.
 
 ```bash
 # Option 1: SortMeRNA (comprehensive)
@@ -76,6 +102,10 @@ bowtie2 -x rRNA_index \
 
 ## Alignment to Transcriptome
 
+**Goal:** Map cleaned ribosome footprint reads to the genome or transcriptome for positional analysis.
+
+**Approach:** Align with STAR (spliced) or Bowtie2 (transcriptome) using stringent filters for uniquely mapped reads with few mismatches.
+
 ```bash
 # STAR alignment (spliced)
 STAR --runMode alignReads \
@@ -97,6 +127,10 @@ bowtie2 -x transcriptome_index \
 ```
 
 ## Quality Metrics
+
+**Goal:** Assess preprocessing success by checking read length distribution and mapping rates.
+
+**Approach:** Extract read lengths from the aligned BAM and run samtools flagstat to verify expected footprint sizes and mapping efficiency.
 
 ```bash
 # Check read length distribution

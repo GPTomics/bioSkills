@@ -1,4 +1,5 @@
 '''Viral variant surveillance with Nextclade'''
+# Reference: nextclade 3.3+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

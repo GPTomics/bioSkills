@@ -12,7 +12,19 @@ depends_on:
   - proteomics/differential-abundance
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MSnbase 2.28+, ggplot2 3.5+, limma 3.58+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Proteomics Pipeline
+
+**"Process my proteomics data from raw MS files to differential abundance"** → Orchestrate data import (pyopenms/MaxQuant), QC assessment, protein quantification, normalization, differential abundance testing (MSstats/limma), and PTM analysis.
 
 ## Pipeline Overview
 

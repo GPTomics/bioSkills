@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: STAR 2.7.11+, pandas 2.2+ | Verify API if version differs
 # Differential splicing analysis with leafcutter
 # Intron cluster-based approach for novel junction discovery
 

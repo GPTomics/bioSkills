@@ -5,9 +5,28 @@ tool_type: mixed
 primary_tool: bagel2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CRISPR Screen Hit Calling
 
+**"Identify essential genes from my CRISPR screen"** → Call significant gene hits from sgRNA count data using statistical methods that account for guide-level variability and multiple testing.
+- CLI: `BAGEL.py bf` for Bayes factor essentiality scoring
+- Python: `drugZ` for fold-change based analysis
+
 ## BAGEL2 Analysis
+
+**Goal:** Identify essential genes using Bayesian classification against reference gene sets.
+
+**Approach:** Calculate sgRNA fold changes, compute Bayes Factors using known essential and non-essential gene sets as training data, and assess precision-recall at different thresholds.
 
 ```bash
 # BAGEL2 for Bayesian gene essentiality
@@ -53,6 +72,10 @@ drugz.py \
 
 ## Custom Hit Calling in Python
 
+**Goal:** Call screen hits using a z-score approach without external tools.
+
+**Approach:** RPM-normalize counts, compute per-sgRNA log2 fold changes, aggregate to gene level, derive z-scores from the null distribution, and apply FDR correction.
+
 ```python
 import pandas as pd
 import numpy as np
@@ -95,6 +118,10 @@ print(f'Resistance genes: {len(resistance)}')
 ```
 
 ## Robust Rank Aggregation (MAGeCK-style)
+
+**Goal:** Rank genes by combining evidence across multiple sgRNAs using the RRA algorithm.
+
+**Approach:** Rank sgRNA-level p-values, compute per-gene RRA scores using beta-distribution modeling of rank uniformity, and select genes with significantly non-uniform guide rankings.
 
 ```python
 from scipy.stats import rankdata, norm
@@ -146,6 +173,10 @@ second_best = second_best_lfc(lfc, genes)
 ```
 
 ## Compare Methods
+
+**Goal:** Identify high-confidence hits by requiring agreement across multiple analysis methods.
+
+**Approach:** Load gene-level results from MAGeCK, BAGEL2, and DrugZ, merge on gene name, and flag consensus hits called by two or more methods.
 
 ```python
 # Load results from different methods

@@ -5,9 +5,28 @@ tool_type: cli
 primary_tool: tobias
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, pyBigWig 0.3+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # TF Footprinting
 
+**"Identify TF binding footprints in my ATAC-seq data"** → Detect protected DNA regions within accessible chromatin where bound transcription factors block Tn5 insertion.
+- CLI: `TOBIAS ATACorrect` → `TOBIAS FootprintScores` → `TOBIAS BINDetect`
+
 ## TOBIAS Workflow
+
+**Goal:** Identify transcription factor binding footprints within accessible chromatin regions.
+
+**Approach:** Correct Tn5 insertion bias, compute per-base footprint scores, then detect bound/unbound TF motif sites using the three-step TOBIAS pipeline.
 
 ```bash
 # 1. Correct Tn5 bias
@@ -36,6 +55,10 @@ tobias BINDetect \
 ```
 
 ## TOBIAS Differential Footprinting
+
+**Goal:** Compare TF binding between two conditions to identify regulators with differential activity.
+
+**Approach:** Provide two bias-corrected signal tracks to BINDetect, which scores each motif site for differential binding between conditions.
 
 ```bash
 # Compare conditions
@@ -112,6 +135,10 @@ tobias PlotAggregate \
 ```
 
 ## Python: Custom Footprint Analysis
+
+**Goal:** Extract and visualize aggregate ATAC-seq signal around predicted TF binding sites.
+
+**Approach:** Sample bigWig signal values in windows centered on motif sites, average across all sites, and plot the characteristic V-shaped footprint.
 
 ```python
 import pyBigWig

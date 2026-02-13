@@ -5,9 +5,24 @@ tool_type: mixed
 primary_tool: BLAST+
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, NCBI BLAST+ 2.15+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Sequence Similarity Searches
 
 Advanced methods for finding homologous sequences beyond standard BLAST.
+
+**"Find distant homologs"** → Use iterative search (PSI-BLAST) or profile HMMs (HMMER) to detect remote sequence similarity that standard BLAST misses.
+- CLI: `psiblast -query seq.fa -db nr -num_iterations 3` or `hmmsearch profile.hmm seqdb`
+- Python: `NcbipsiblastCommandline()` (BioPython)
 
 ## PSI-BLAST (Position-Specific Iterated BLAST)
 
@@ -150,6 +165,10 @@ awk 'FNR==NR {a[$1]=$2; next} $2 in a && a[$2]==$1 {print $1"\t"$2}' \
 
 ### Python RBH Script
 
+**Goal:** Identify orthologous gene pairs between two species using the reciprocal best hit criterion.
+
+**Approach:** Parse forward and reverse BLAST results to extract the top hit per query, then retain only pairs where each sequence is the other's best match.
+
 ```python
 def find_rbh(forward_blast, reverse_blast):
     '''Find reciprocal best hits from BLAST results'''
@@ -277,6 +296,10 @@ cp species_*.fasta proteomes/
 | > 0.01 | Not significant |
 
 ## Complete Ortholog Finding Pipeline
+
+**Goal:** Run an end-to-end reciprocal best hit ortholog analysis from two proteome FASTA files.
+
+**Approach:** Build BLAST databases for both species, run bidirectional best-hit searches, and extract reciprocal pairs using awk.
 
 ```bash
 #!/bin/bash

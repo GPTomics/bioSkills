@@ -5,7 +5,19 @@ tool_type: cli
 primary_tool: MiXCR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MiXCR 4.6+, VDJtools 1.2.1+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # TCR/BCR Analysis Pipeline
+
+**"Analyze my TCR/BCR repertoire sequencing data end-to-end"** → Orchestrate MiXCR clonotype extraction, VDJtools diversity/repertoire analysis, Immcantation SHM and lineage analysis, and visualization of V/J gene usage and clonal dynamics.
 
 ## Pipeline Overview
 

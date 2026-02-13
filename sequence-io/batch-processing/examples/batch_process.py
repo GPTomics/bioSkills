@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Batch process multiple sequence files'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import SeqIO
 from pathlib import Path

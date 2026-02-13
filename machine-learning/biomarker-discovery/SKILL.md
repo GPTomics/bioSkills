@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: boruta
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, pandas 2.2+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Feature Selection for Biomarker Discovery
+
+**"Find the best biomarkers in my omics data"** → Select informative features using all-relevant selection (Boruta), minimum redundancy (mRMR), or regularization (LASSO) to identify candidate biomarkers.
+- Python: `BorutaPy(rf, n_estimators='auto')`, `sklearn.linear_model.LassoCV()`
 
 ## Boruta All-Relevant Selection
 
@@ -109,6 +122,10 @@ pipe = Pipeline([
 | Univariate | Fast | Ignores interactions | Pre-filtering |
 
 ## Stability Selection
+
+**Goal:** Identify biomarkers that are robustly selected across different data subsets, filtering out features that are only informative in specific subsamples.
+
+**Approach:** Run LASSO feature selection on many bootstrap resamples, count how often each feature is selected across all iterations, and retain only features selected in more than 60% of bootstrap samples.
 
 ```python
 from sklearn.linear_model import LogisticRegression

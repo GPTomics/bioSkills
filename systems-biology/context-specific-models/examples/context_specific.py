@@ -1,4 +1,5 @@
 '''Build tissue and condition-specific metabolic models'''
+# Reference: cobrapy 0.29+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 import cobra
 import numpy as np

@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, R stats (base), ReactomePA 1.46+, clusterProfiler 4.10+, ggplot2 3.5+ | Verify API if version differs
 # Complete pathway enrichment analysis from DE results
 
 library(clusterProfiler)

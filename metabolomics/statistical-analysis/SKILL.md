@@ -5,9 +5,25 @@ tool_type: r
 primary_tool: mixOmics
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolomics Statistical Analysis
 
 ## Univariate Analysis
+
+**Goal:** Identify differentially abundant metabolites between experimental groups using feature-wise statistical tests.
+
+**Approach:** Apply t-tests to each feature independently, then correct for multiple testing with Benjamini-Hochberg FDR.
+
+**"Find the differentially abundant metabolites between my groups"** → Apply univariate and multivariate statistical methods to identify metabolites with significant abundance differences.
 
 ```r
 library(tidyverse)
@@ -32,6 +48,10 @@ cat('Significant features (FDR<0.05):', nrow(sig_features), '\n')
 
 ## Fold Change Calculation
 
+**Goal:** Quantify the magnitude and direction of abundance changes between groups.
+
+**Approach:** Compute group means for each feature and calculate log2 fold change as the ratio of group means.
+
 ```r
 # Calculate fold change between groups
 calculate_fc <- function(data, groups) {
@@ -49,6 +69,10 @@ fc_results <- calculate_fc(data, groups)
 ```
 
 ## Volcano Plot
+
+**Goal:** Visualize both statistical significance and effect size for all features in a single plot.
+
+**Approach:** Plot log2 fold change (x-axis) vs -log10 p-value (y-axis), highlighting features passing both thresholds.
 
 ```r
 library(ggplot2)
@@ -70,6 +94,10 @@ ggsave('volcano_plot.png', width = 8, height = 6)
 ```
 
 ## PCA
+
+**Goal:** Explore overall sample variation and detect outliers or batch effects in an unsupervised manner.
+
+**Approach:** Perform PCA on the feature matrix and plot the first two principal components colored by experimental group.
 
 ```r
 library(pcaMethods)
@@ -96,6 +124,10 @@ top_pc1 <- loadings[order(abs(loadings$PC1), decreasing = TRUE)[1:20], ]
 ```
 
 ## PLS-DA
+
+**Goal:** Build a supervised classification model that maximizes separation between experimental groups.
+
+**Approach:** Fit a PLS-DA model with cross-validation to determine optimal components, then extract VIP scores to rank discriminatory features.
 
 ```r
 library(mixOmics)
@@ -125,6 +157,10 @@ print(top_vip)
 
 ## sPLS-DA (Sparse)
 
+**Goal:** Perform feature selection simultaneously with classification to identify a minimal discriminatory feature set.
+
+**Approach:** Tune the number of features to retain per component via cross-validation, then fit a sparse PLS-DA model.
+
 ```r
 # Tune number of features to select
 tune_splsda <- tune.splsda(as.matrix(data), groups, ncomp = 3,
@@ -142,6 +178,10 @@ cat('Selected features (comp 1):', length(selected_features), '\n')
 ```
 
 ## OPLS-DA (Orthogonal PLS-DA)
+
+**Goal:** Separate group-predictive variation from orthogonal (within-group) variation for cleaner class separation.
+
+**Approach:** Fit an OPLS-DA model using ropls, then use the S-plot to identify features with high predictive weight and correlation.
 
 ```r
 library(ropls)
@@ -165,6 +205,10 @@ top_vip <- sort(vip_scores, decreasing = TRUE)[1:20]
 
 ## Random Forest
 
+**Goal:** Rank features by importance using a non-linear ensemble classifier.
+
+**Approach:** Train a Random Forest on the feature matrix, then extract MeanDecreaseAccuracy to identify the most discriminatory features.
+
 ```r
 library(randomForest)
 
@@ -180,6 +224,10 @@ varImpPlot(rf_model, n.var = 20)
 ```
 
 ## ROC Analysis
+
+**Goal:** Evaluate the diagnostic performance of candidate biomarker metabolites.
+
+**Approach:** Generate ROC curves and compute AUC for individual features using pROC.
 
 ```r
 library(pROC)
@@ -200,6 +248,10 @@ for (feat in biomarkers) {
 ```
 
 ## Heatmap
+
+**Goal:** Visualize abundance patterns of top differential features across all samples.
+
+**Approach:** Select top significant features, create an annotated heatmap with hierarchical clustering using pheatmap.
 
 ```r
 library(pheatmap)

@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.motifs
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Motif Search
+
+**"Search for a sequence motif or binding site pattern"** → Scan sequences for patterns using IUPAC ambiguity codes, regex, or position weight matrices to locate transcription factor binding sites, regulatory elements, or custom motifs.
+- Python: `Bio.motifs` for PWM scanning, `re` for regex pattern matching
 
 Find patterns and motifs in biological sequences using Biopython and regex.
 
@@ -204,15 +217,18 @@ print(f'Min score: {min_score:.3f}')
 
 ### PSSM Search
 
+**Goal:** Scan a sequence for matches to a position-specific scoring matrix (motif model) above a significance threshold.
+
+**Approach:** Build a PSSM from a normalized position weight matrix, then search the target sequence (optionally both strands).
+
+**Reference (BioPython 1.83+):**
 ```python
 seq = Seq('ATGCTACAAGCTACGATACTA')
 
-# Search with threshold
 for position, score in pssm.search(seq, threshold=3.0):
     match = seq[position:position + len(m.consensus)]
     print(f'Position {position}: {match} (score: {score:.2f})')
 
-# Search both strands
 for position, score in pssm.search(seq, threshold=3.0, both=True):
     print(f'Position {position}: score {score:.2f}')
 ```

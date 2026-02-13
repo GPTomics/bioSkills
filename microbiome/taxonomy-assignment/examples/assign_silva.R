@@ -1,3 +1,4 @@
+# Reference: DADA2 1.30+, QIIME2 2024.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
 # Assign taxonomy to ASVs using SILVA database
 library(dada2)
 

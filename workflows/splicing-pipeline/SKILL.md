@@ -5,7 +5,21 @@ tool_type: mixed
 primary_tool: rMATS-turbo
 ---
 
+## Version Compatibility
+
+Reference examples tested with: STAR 2.7.11+, fastp 0.23+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Alternative Splicing Analysis Pipeline
+
+**"Analyze alternative splicing from my RNA-seq data"** → Orchestrate STAR alignment, PSI quantification (rMATS-turbo/SUPPA2), differential splicing detection, isoform switching analysis (IsoformSwitchAnalyzeR), sashimi plot visualization, and junction QC.
 
 Complete workflow from raw RNA-seq to differential splicing results.
 

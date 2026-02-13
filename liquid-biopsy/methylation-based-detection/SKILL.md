@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: MethylDackel
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bismark 0.24+, numpy 1.26+, pandas 2.2+, pysam 0.22+, scipy 1.12+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Methylation-Based Detection
+
+**"Detect cancer from cfDNA methylation patterns"** → Analyze cell-free DNA methylation for multi-cancer early detection and tissue-of-origin classification using bisulfite or enzymatic conversion.
+- CLI: `MethylDackel extract` for methylation calling from cfDNA bisulfite data
 
 Analyze cfDNA methylation for cancer detection and tissue-of-origin analysis.
 
@@ -123,6 +137,10 @@ def find_differentially_methylated_regions(cancer_samples, normal_samples, min_d
 ```
 
 ## Tissue Deconvolution
+
+**Goal:** Estimate the tissue-of-origin composition of cfDNA by decomposing its methylation profile against a reference atlas of tissue-specific methylomes.
+
+**Approach:** Align sample beta values to reference atlas regions, then solve for non-negative tissue proportions using constrained least squares (NNLS) and normalize to sum to one.
 
 ```python
 def tissue_deconvolution(sample_meth, reference_atlas):

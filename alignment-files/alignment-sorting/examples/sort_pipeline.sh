@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Align, sort, and index reads
 
 set -e

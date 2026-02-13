@@ -1,4 +1,5 @@
 '''Download search results as FASTA in batches'''
+# Reference: biopython 1.83+, entrez direct 21.0+ | Verify API if version differs
 from Bio import Entrez
 import time
 

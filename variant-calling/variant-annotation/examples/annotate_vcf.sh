@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+ | Verify API if version differs
 # Annotate VCF with rsIDs and population frequencies
 
 set -e

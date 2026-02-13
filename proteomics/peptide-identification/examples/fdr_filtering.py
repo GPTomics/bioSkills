@@ -1,4 +1,5 @@
 '''Calculate FDR and filter PSMs using target-decoy approach'''
+# Reference: msnbase 2.28+ | Verify API if version differs
 import pandas as pd
 import numpy as np
 

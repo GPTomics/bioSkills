@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, picard 3.1+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Reference Panels
+
+**"Set up reference panels for imputation"** → Download, prepare, and manage reference panels (1000 Genomes, HRC, TOPMed) for genotype phasing and imputation, including population subsetting and format conversion.
+- CLI: `bcftools view -S panel_samples.txt` for subsetting, `bcftools norm` for normalization
 
 ## 1000 Genomes Phase 3 (GRCh38)
 

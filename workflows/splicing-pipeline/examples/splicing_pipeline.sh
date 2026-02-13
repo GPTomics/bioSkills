@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: STAR 2.7.11+, fastp 0.23+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # Complete alternative splicing analysis pipeline
 set -e
 

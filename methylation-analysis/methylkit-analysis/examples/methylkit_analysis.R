@@ -1,3 +1,4 @@
+# Reference: Bismark 0.24+, methylKit 1.28+ | Verify API if version differs
 library(methylKit)
 
 file_list <- list('ctrl1.bismark.cov.gz', 'ctrl2.bismark.cov.gz',

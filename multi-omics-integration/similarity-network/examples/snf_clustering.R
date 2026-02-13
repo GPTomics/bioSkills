@@ -1,3 +1,4 @@
+# Reference: scanpy 1.10+ | Verify API if version differs
 library(SNFtool)
 
 # Generate synthetic multi-omics data

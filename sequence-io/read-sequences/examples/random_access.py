@@ -1,4 +1,5 @@
 '''Random access to sequences using to_dict() and index()'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio import SeqIO
 
 # Method 1: to_dict() - loads all into memory

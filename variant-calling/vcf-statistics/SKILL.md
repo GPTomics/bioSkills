@@ -5,6 +5,17 @@ tool_type: cli
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # VCF Statistics
 
 Generate statistics and quality metrics using bcftools.
@@ -18,6 +29,12 @@ Generate statistics and quality metrics using bcftools.
 | `bcftools query` | Custom summaries |
 
 ## bcftools stats
+
+**Goal:** Generate comprehensive variant statistics including counts, Ti/Tv ratio, and quality distributions.
+
+**Approach:** Run bcftools stats and parse section-tagged output lines (SN, TSTV, AF, QUAL, DP).
+
+**"How many variants are in this VCF?"** → Compute summary counts, substitution types, and quality distributions from variant records.
 
 ### Basic Statistics
 
@@ -91,6 +108,10 @@ bcftools stats -R exome.bed input.vcf.gz > exome_stats.txt
 
 ## Plotting Statistics
 
+**Goal:** Visualize variant statistics as publication-quality plots.
+
+**Approach:** Pipe bcftools stats output to plot-vcfstats to generate PDF and PNG plots.
+
 ### Generate Plots
 
 ```bash
@@ -110,6 +131,10 @@ plot-vcfstats -p comparison_dir comparison.txt
 ```
 
 ## bcftools gtcheck
+
+**Goal:** Verify sample identity and detect sample swaps by comparing genotype concordance.
+
+**Approach:** Use bcftools gtcheck to compute pairwise discordance rates between samples or against a reference panel.
 
 ### Check Sample Identity
 
@@ -149,6 +174,10 @@ bcftools gtcheck -g 1000genomes.vcf.gz unknown_sample.vcf.gz
 ```
 
 ## Quick Statistics with Query
+
+**Goal:** Compute targeted summary statistics using bcftools query and shell tools.
+
+**Approach:** Extract specific fields with bcftools query/view and aggregate with awk for counts, means, and distributions.
 
 ### Count Variants
 
@@ -214,6 +243,10 @@ bcftools query -f '%INFO/AF\n' input.vcf.gz | \
 
 ## Sample Statistics
 
+**Goal:** Compute per-sample variant counts, genotype distributions, and missingness rates.
+
+**Approach:** Use bcftools query/view/stats per sample to tabulate sample-level metrics.
+
 ### List Samples
 
 ```bash
@@ -243,6 +276,10 @@ bcftools stats -s - input.vcf.gz | grep "^PSC"
 ```
 
 ## cyvcf2 Statistics
+
+**Goal:** Compute variant statistics programmatically in Python for custom analyses.
+
+**Approach:** Iterate variants with cyvcf2, accumulate counts by type, and compute quality/genotype distributions with numpy.
 
 ### Basic Counts
 
@@ -337,6 +374,10 @@ print(f'Ti/Tv ratio: {ratio:.2f}')
 ```
 
 ## Common Workflows
+
+**Goal:** Run standard QC and comparison workflows for variant call evaluation.
+
+**Approach:** Combine bcftools stats, grep, and plot-vcfstats for before/after filtering comparisons and sample relatedness checks.
 
 ### Quality Control Report
 

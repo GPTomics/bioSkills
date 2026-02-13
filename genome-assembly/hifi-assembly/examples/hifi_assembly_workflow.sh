@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BUSCO 5.5+, QUAST 5.2+ | Verify API if version differs
 # HiFi genome assembly workflow with hifiasm
 
 set -euo pipefail

@@ -5,6 +5,16 @@ tool_type: cli
 primary_tool: gatk
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # GATK Variant Calling
 
 GATK HaplotypeCaller is the gold standard for germline variant calling. This skill covers the GATK Best Practices workflow.
@@ -16,6 +26,12 @@ BAM files should be preprocessed:
 2. Base quality score recalibration (BQSR) - optional but recommended
 
 ## Single-Sample Calling
+
+**Goal:** Call germline SNPs and indels from a single sample using HaplotypeCaller.
+
+**Approach:** Run local de novo assembly of haplotypes in active regions to detect variants with optional annotation enrichment.
+
+**"Call variants from my BAM file using GATK"** → Perform local haplotype assembly and genotyping on aligned reads using HaplotypeCaller.
 
 ### Basic HaplotypeCaller
 
@@ -62,6 +78,10 @@ gatk HaplotypeCaller \
 ```
 
 ## GVCF Workflow (Recommended for Cohorts)
+
+**Goal:** Enable joint genotyping across a cohort by generating per-sample genomic VCFs.
+
+**Approach:** Call each sample in GVCF mode (-ERC GVCF), combine into a GenomicsDB or merged GVCF, then jointly genotype.
 
 The GVCF workflow enables joint genotyping across samples for better variant calls.
 
@@ -117,6 +137,10 @@ gatk GenotypeGVCFs \
 ```
 
 ## Variant Quality Score Recalibration (VQSR)
+
+**Goal:** Apply machine learning-based variant filtering using known truth/training sets.
+
+**Approach:** Build a Gaussian mixture model from annotation values at known sites, then apply a sensitivity threshold to classify variants.
 
 Machine learning-based filtering using known variant sites. Requires many variants (WGS preferred).
 
@@ -175,6 +199,10 @@ gatk ApplyVQSR \
 
 ## Hard Filtering (When VQSR Not Suitable)
 
+**Goal:** Apply fixed-threshold filters when the dataset is too small for VQSR.
+
+**Approach:** Separate SNPs and indels, apply GATK-recommended annotation thresholds, then merge results.
+
 For small datasets, exomes, or single samples where VQSR fails.
 
 ### Extract SNPs and Indels
@@ -230,6 +258,10 @@ gatk MergeVcfs \
 
 ## Base Quality Score Recalibration (BQSR)
 
+**Goal:** Correct systematic errors in base quality scores before variant calling.
+
+**Approach:** Model quality score errors at known variant sites with BaseRecalibrator, then apply corrections with ApplyBQSR.
+
 Preprocessing step to correct systematic errors in base quality scores.
 
 ### Step 1: BaseRecalibrator
@@ -254,6 +286,10 @@ gatk ApplyBQSR \
 ```
 
 ## Parallel Processing
+
+**Goal:** Reduce wall-clock time for variant calling on large datasets.
+
+**Approach:** Scatter by chromosome or interval, run HaplotypeCaller in parallel, then gather results.
 
 ### Scatter by Interval
 
@@ -289,6 +325,10 @@ gatk HaplotypeCaller \
 
 ## CNN Score Variant Filter (Deep Learning)
 
+**Goal:** Filter variants using a deep learning model as an alternative to VQSR.
+
+**Approach:** Score variants with CNNScoreVariants using reference context, then filter by tranche sensitivity.
+
 Alternative to VQSR using convolutional neural network.
 
 ### Score Variants
@@ -315,6 +355,10 @@ gatk FilterVariantTranches \
 ```
 
 ## Complete Single-Sample Pipeline
+
+**Goal:** Run the full GATK best practices workflow from BQSR through filtered variants.
+
+**Approach:** Chain BaseRecalibrator, ApplyBQSR, HaplotypeCaller (GVCF mode), GenotypeGVCFs, and hard filtering.
 
 ```bash
 #!/bin/bash

@@ -1,4 +1,5 @@
 '''Generate bootstrap consensus tree from alignment'''
+# Reference: biopython 1.83+, ncbi blast+ 2.15+ | Verify API if version differs
 
 from Bio import Phylo
 from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceTreeConstructor

@@ -1,4 +1,5 @@
 '''In silico gene knockout analysis'''
+# Reference: cobrapy 0.29+ | Verify API if version differs
 
 import cobra
 from cobra.flux_analysis import single_gene_deletion

@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: JACKS
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # JACKS CRISPR Screen Analysis
+
+**"Analyze multiple CRISPR screens jointly with JACKS"** → Model sgRNA efficacy and gene essentiality simultaneously across multiple screens, accounting for variable guide efficiency.
+- Python: `jacks.infer_JACKS()` for joint analysis across experiments
 
 JACKS jointly models sgRNA efficacy and gene essentiality across multiple experiments. It infers both gene-level fitness effects and sgRNA-specific efficiency.
 
@@ -70,6 +84,10 @@ python -m jacks.run_JACKS \
 
 ### Python API
 
+**Goal:** Run JACKS joint analysis to simultaneously model sgRNA efficacy and gene essentiality across experiments.
+
+**Approach:** Load count data, guide-gene mapping, and replicate map; separate control and treatment samples; then run MCMC inference to estimate gene fitness effects and per-sgRNA efficiency.
+
 ```python
 from jacks import infer
 import pandas as pd
@@ -107,6 +125,10 @@ jacks_results = infer.run_inference(
 
 ## Interpret Gene Results
 
+**Goal:** Classify genes as essential or enriched from JACKS output scores.
+
+**Approach:** Load the gene results table, filter by JACKS score direction and FDR significance, and rank to identify top essential (negative effect) and enriched (positive effect) genes.
+
 ```python
 import pandas as pd
 import numpy as np
@@ -131,6 +153,10 @@ print(f'Enriched genes: {len(enriched)}')
 ```
 
 ## sgRNA Efficacy Analysis
+
+**Goal:** Assess sgRNA performance to identify low-efficacy guides for library optimization.
+
+**Approach:** Load per-sgRNA efficacy estimates from JACKS output, flag guides below an efficacy threshold, and aggregate by gene to evaluate library-level guide quality.
 
 ```python
 import pandas as pd

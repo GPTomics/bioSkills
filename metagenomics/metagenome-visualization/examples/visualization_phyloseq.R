@@ -1,3 +1,4 @@
+# Reference: MetaPhlAn 4.1+, ggplot2 3.5+, matplotlib 3.8+, pandas 2.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, seaborn 0.13+, vegan 2.6+ | Verify API if version differs
 library(phyloseq)
 library(ggplot2)
 library(vegan)

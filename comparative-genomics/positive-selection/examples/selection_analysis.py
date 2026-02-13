@@ -1,4 +1,5 @@
 '''Positive selection analysis with PAML codeml'''
+# Reference: biopython 1.83+, hyphy 2.5+, paml 4.10+, scipy 1.12+ | Verify API if version differs
 
 import os
 import subprocess

@@ -1,3 +1,4 @@
+# Reference: numpy 1.26+, pandas 2.2+, plotly 5.18+ | Verify API if version differs
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd

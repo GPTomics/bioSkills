@@ -5,9 +5,26 @@ tool_type: r
 primary_tool: SNFtool
 ---
 
+## Version Compatibility
+
+Reference examples tested with: scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Similarity Network Fusion
 
+**"Stratify patients using multi-omics data"** → Fuse omics-specific patient similarity networks into a unified network for subtype discovery and clustering.
+- R: `SNFtool::SNF()` to fuse networks, `spectralClustering()` for subtyping
+
 ## Basic SNF Workflow
+
+**Goal:** Fuse multiple omics-specific patient similarity networks into a single unified network.
+
+**Approach:** Compute per-omics distance and affinity matrices, then iteratively fuse with SNF.
 
 ```r
 library(SNFtool)
@@ -44,6 +61,10 @@ fused <- SNF(list(aff1, aff2, aff3), K = K, t = 20)
 
 ## Cluster Patients
 
+**Goal:** Identify patient subtypes from the fused similarity network using spectral clustering.
+
+**Approach:** Estimate optimal cluster count from the fused graph, then apply spectral clustering.
+
 ```r
 # Determine optimal number of clusters
 estimateNumberOfClustersGivenGraph(fused, NUMC = 2:10)
@@ -60,6 +81,10 @@ sample_info <- data.frame(
 ```
 
 ## Visualize Network
+
+**Goal:** Display the fused patient network as a graph and heatmap with cluster annotations.
+
+**Approach:** Convert the fused matrix to an igraph object, filter weak edges, and render with cluster coloring.
 
 ```r
 library(igraph)
@@ -86,6 +111,10 @@ pheatmap(fused, cluster_rows = TRUE, cluster_cols = TRUE,
 
 ## Normalized Mutual Information
 
+**Goal:** Evaluate clustering quality by comparing SNF clusters against known subtypes and single-omics baselines.
+
+**Approach:** Compute NMI between predicted clusters and true labels for fused vs individual affinity networks.
+
 ```r
 # Compare with known labels
 true_labels <- read.csv('phenotype.csv')$Subtype
@@ -107,6 +136,10 @@ cat('NMI Fused:', nmi, '\n')
 
 ## Feature Ranking with SNF
 
+**Goal:** Rank features by their contribution to the SNF-derived patient clusters.
+
+**Approach:** Perform ANOVA per feature across cluster assignments, ranking by F-statistic p-value.
+
 ```r
 # Rank features by their contribution to clustering
 # Using network-based method
@@ -126,6 +159,10 @@ top_meth <- rank_features(data2, clusters)
 ```
 
 ## Survival Analysis with Clusters
+
+**Goal:** Assess clinical relevance of SNF clusters by comparing survival outcomes between subtypes.
+
+**Approach:** Fit Kaplan-Meier curves per cluster and test significance with the log-rank test.
 
 ```r
 library(survival)
@@ -147,6 +184,10 @@ survdiff(Surv(Time, Event) ~ Cluster, data = surv_data)
 ```
 
 ## Parameter Tuning
+
+**Goal:** Optimize SNF hyperparameters (K neighbors, alpha) for best clustering performance.
+
+**Approach:** Grid search over K and alpha values, evaluating each combination by NMI against known labels.
 
 ```r
 # Grid search over K and alpha
@@ -170,6 +211,10 @@ cat('Best parameters: K =', best$K, ', alpha =', best$alpha, '\n')
 ```
 
 ## Integration with Clinical Features
+
+**Goal:** Incorporate clinical variables as an additional data view in the SNF fusion.
+
+**Approach:** Encode clinical features numerically, compute a clinical affinity matrix, and include it in the SNF fusion step.
 
 ```r
 # Add clinical features as another view

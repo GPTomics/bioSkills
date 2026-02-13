@@ -1,3 +1,4 @@
+# Reference: GenomicRanges 1.54+, deepTools 3.5+ | Verify API if version differs
 library(ChIPseeker)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(ggplot2)

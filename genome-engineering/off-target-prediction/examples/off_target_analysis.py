@@ -1,4 +1,5 @@
 '''Off-target prediction for CRISPR guides'''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 

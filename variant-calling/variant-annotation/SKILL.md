@@ -5,6 +5,17 @@ tool_type: mixed
 primary_tool: VEP
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Variant Annotation
 
 ## Tool Comparison
@@ -17,6 +28,12 @@ primary_tool: VEP
 | ANNOVAR | Flexible databases | Moderate | TXT |
 
 ## bcftools annotate
+
+**Goal:** Add or remove INFO/ID annotations from external databases using bcftools.
+
+**Approach:** Match variants by position and allele against annotation VCF/BED/TAB files, copying specified columns.
+
+**"Add rsIDs to my VCF from dbSNP"** → Match variant positions against a database and copy identifiers or annotation fields into the VCF.
 
 ### Add Annotations from Database
 
@@ -74,6 +91,10 @@ bcftools annotate --set-id '%CHROM\_%POS\_%REF\_%ALT' input.vcf.gz -Oz -o with_i
 
 ## bcftools csq
 
+**Goal:** Predict functional consequences of variants using gene annotations.
+
+**Approach:** Map variants to GFF3 gene models and classify as synonymous, missense, frameshift, etc.
+
 Simple consequence prediction using GFF annotation.
 
 ```bash
@@ -91,6 +112,12 @@ bcftools csq -f reference.fa -g genes.gff3.gz input.vcf.gz -Oz -o consequences.v
 | `splice_donor/acceptor` | Affects splicing |
 
 ## Ensembl VEP
+
+**Goal:** Annotate variants comprehensively with consequence, impact, pathogenicity scores, and population frequencies.
+
+**Approach:** Run VEP with offline cache, enabling SIFT, PolyPhen, HGVS, frequency, and plugin-based predictions.
+
+**"Annotate my variants with functional consequences"** → Predict coding effects, impact severity, and pathogenicity using Ensembl's Variant Effect Predictor.
 
 ### Installation
 
@@ -170,6 +197,10 @@ vep -i input.vcf -o output.vcf --vcf \
 
 ## SnpEff
 
+**Goal:** Annotate variants with gene effects and impact categories using SnpEff.
+
+**Approach:** Run SnpEff ann against a genome database, then use SnpSift for database cross-referencing and filtering.
+
 ### Installation
 
 ```bash
@@ -232,6 +263,10 @@ SnpSift filter "(exists CLNSIG) & (CLNSIG has 'Pathogenic')" input.vcf > pathoge
 
 ## ANNOVAR
 
+**Goal:** Annotate variants with gene, frequency, and pathogenicity databases using ANNOVAR.
+
+**Approach:** Run table_annovar.pl with multiple protocols (gene, filter, region) against downloaded annotation databases.
+
 ### Installation
 
 ```bash
@@ -254,6 +289,10 @@ table_annovar.pl input.vcf humandb/ \
 ```
 
 ## Python: Parse Annotated VCF
+
+**Goal:** Extract and interpret annotation fields from VEP CSQ or SnpEff ANN strings in Python.
+
+**Approach:** Parse pipe-delimited annotation strings against the header-defined field order, then filter by impact or consequence.
 
 ### Parse VEP CSQ
 
@@ -303,6 +342,10 @@ for variant in VCF('snpeff_output.vcf'):
 ```
 
 ## Complete Annotation Pipeline
+
+**Goal:** Run a full annotation workflow from normalization through VEP annotation to impact filtering.
+
+**Approach:** Normalize variants, annotate with VEP (--everything --pick), then filter for HIGH/MODERATE impact.
 
 ```bash
 #!/bin/bash

@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.Phylo.TreeConstruction
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, NCBI BLAST+ 2.15+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Distance Calculations and Tree Building
+
+**"Build a phylogenetic tree from my alignment"** → Compute evolutionary distance matrices from sequence alignments and construct neighbor-joining or UPGMA trees with bootstrap support.
+- Python: `Bio.Phylo.TreeConstruction.DistanceCalculator()`, `DistanceTreeConstructor()`
 
 Compute distances from alignments and construct phylogenetic trees.
 
@@ -236,6 +249,10 @@ print(f'Human-Mouse distance: Tree1={d1:.4f}, Tree2={d2:.4f}')
 ```
 
 ## Complete Pipeline: Alignment to Bootstrapped Tree
+
+**Goal:** Build a phylogenetic tree from a sequence alignment with bootstrap support assessment for branch confidence.
+
+**Approach:** Read the alignment, compute an identity-based distance matrix, construct a neighbor-joining tree, then generate a majority-rule bootstrap consensus from 100 replicates.
 
 ```python
 from Bio import AlignIO, Phylo

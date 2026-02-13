@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: PrimeDesign
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Prime Editing Design
+
+**"Design a prime editing guide for my point mutation"** → Generate pegRNA sequences (spacer, scaffold, RT template, PBS) for precise genomic modifications without double-strand breaks, optimizing PBS length and RT template for editing efficiency.
+- Python: PrimeDesign algorithms with `Bio.Seq` for sequence handling
 
 ## pegRNA Structure
 
@@ -168,6 +181,10 @@ def design_rt_template(edit_type, target_seq, nick_pos, **edit_params):
 ```
 
 ## PE3 Nicking Guide Design
+
+**Goal:** Design a second nicking guide for the PE3 prime editing strategy to improve editing efficiency by nicking the non-edited strand.
+
+**Approach:** Search for PAM sites 40-100bp from the pegRNA nick site on the opposite strand, score candidates by proximity to the optimal 50-80bp distance, and return ranked options.
 
 ```python
 def design_pe3_nick_guide(target_seq, pegrna_nick_pos, edit_pos):

@@ -2,6 +2,7 @@
 '''
 Reaction enumeration for virtual library generation.
 '''
+# Reference: rdkit 2024.03+ | Verify API if version differs
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors

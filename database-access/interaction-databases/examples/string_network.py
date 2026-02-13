@@ -1,4 +1,5 @@
 '''Query STRING REST API for protein interactions and build a NetworkX graph'''
+# Reference: biopython 1.83+, pandas 2.2+ | Verify API if version differs
 
 import requests
 import pandas as pd

@@ -1,3 +1,4 @@
+# Reference: clusterProfiler 4.10+, ggplot2 3.5+, scanpy 1.10+ | Verify API if version differs
 library(MOFA2)
 library(ggplot2)
 

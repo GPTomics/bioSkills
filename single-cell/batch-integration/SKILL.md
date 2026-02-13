@@ -5,6 +5,17 @@ tool_type: mixed
 primary_tool: Harmony
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, scanpy 1.10+, scikit-learn 1.4+, scvi-tools 1.1+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Batch Integration
 
 Integrate multiple scRNA-seq datasets to remove batch effects while preserving biological variation.
@@ -19,6 +30,12 @@ Integrate multiple scRNA-seq datasets to remove batch effects while preserving b
 | fastMNN | Fast | Good | MNN-based correction |
 
 ## Harmony (R/Python)
+
+**Goal:** Remove batch effects from merged scRNA-seq datasets using Harmony's iterative correction of PCA embeddings.
+
+**Approach:** Run PCA on merged data, iteratively adjust embeddings to mix batches while preserving biological variation, and use corrected embeddings for downstream analysis.
+
+**"Integrate my batches"** → Merge samples, preprocess jointly, correct technical variation in the embedding space, and cluster on corrected coordinates.
 
 ### R with Seurat
 
@@ -79,7 +96,9 @@ sc.tl.leiden(adata)
 
 ## scVI (Python)
 
-Deep learning-based integration for large datasets.
+**Goal:** Integrate batches using a deep generative model that learns a shared latent space.
+
+**Approach:** Train a variational autoencoder (scVI) conditioned on batch to learn batch-invariant latent representations, then use the latent space for clustering and visualization.
 
 ```python
 import scvi
@@ -129,6 +148,10 @@ adata.obs['predicted_type'] = model.predict()
 ```
 
 ## Seurat Integration (R)
+
+**Goal:** Integrate batches using Seurat's anchor-based framework (CCA or RPCA).
+
+**Approach:** Find shared biological anchors between datasets via canonical correlation analysis, then use anchors to correct expression values into a unified space.
 
 ### CCA-based Integration
 
@@ -195,6 +218,10 @@ reducedDim(sce, 'MNN') <- reducedDim(corrected, 'corrected')
 
 ## Evaluate Integration
 
+**Goal:** Assess whether integration successfully removed batch effects while preserving biological variation.
+
+**Approach:** Compute mixing metrics (LISI, silhouette scores) and visualize batch versus cell-type separation before and after integration.
+
 ### Mixing Metrics (R)
 
 ```r
@@ -233,6 +260,10 @@ celltype_sil = silhouette_score(adata.obsm['X_scVI'], adata.obs['cell_type'])
 ```
 
 ## Complete Workflow
+
+**Goal:** Run end-to-end multi-sample integration from raw 10X files to clustered, integrated UMAP.
+
+**Approach:** Load and merge samples, preprocess jointly, integrate with Harmony, and perform downstream clustering on corrected embeddings.
 
 ```r
 library(Seurat)

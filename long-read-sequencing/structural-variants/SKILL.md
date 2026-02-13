@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: sniffles
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Structural Variant Detection
+
+**"Call structural variants from my long reads"** → Detect large deletions, insertions, inversions, duplications, and translocations with precise breakpoint resolution from ONT or PacBio alignments.
+- CLI: `sniffles --input aligned.bam --vcf svs.vcf`, `cuteSV aligned.bam ref.fa svs.vcf output/`
 
 ## Sniffles2 - Basic SV Calling
 
@@ -32,6 +45,10 @@ sniffles --input aligned.bam \
 ```
 
 ## Sniffles2 - Population Calling
+
+**Goal:** Jointly call and genotype structural variants across a cohort of long-read samples for population-level SV analysis.
+
+**Approach:** Generate per-sample SNF signature files from individual BAMs, then merge and jointly genotype all samples in a single Sniffles2 call.
 
 ```bash
 # Step 1: Call SVs per sample with SNF output

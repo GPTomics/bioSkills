@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GenomicRanges 1.54+, bedtools 2.31+, ggplot2 3.5+, samtools 1.19+ | Verify API if version differs
 # Super-enhancer calling with ROSE
 
 set -euo pipefail

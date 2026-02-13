@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, DESeq2 1.42+, pandas 2.2+ | Verify API if version differs
 # ORF detection from Ribo-seq using RiboCode
 
 BAM=$1

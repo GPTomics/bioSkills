@@ -16,7 +16,20 @@ qc_checkpoints:
   - after_template: "Homology arms verified, PAM disrupted in donor"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, primer3-py 2.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CRISPR Editing Pipeline
+
+**"Design a complete CRISPR editing experiment for my target gene"** → Orchestrate guide RNA design, off-target assessment, and strategy-specific template design (knockout, base editing, HDR knock-in, or prime editing) to produce delivery-ready constructs.
 
 Complete workflow for CRISPR experiment design: from target gene to delivery-ready constructs with branching paths for different editing strategies.
 

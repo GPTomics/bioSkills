@@ -1,3 +1,4 @@
+# Reference: Cell Ranger 8.0+, MACS3 3.0+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 # FigR: TF-gene regulatory inference from paired scRNA+scATAC
 
 library(FigR)

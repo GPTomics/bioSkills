@@ -1,4 +1,5 @@
 '''Basic examples of reading sequences with Bio.SeqIO'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio import SeqIO
 
 # Parse multiple sequences from FASTA

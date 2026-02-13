@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Analysis for IMC
+
+**"Analyze spatial cell interactions in my IMC data"** → Build spatial neighborhood graphs, test for cell-cell interaction enrichment, and identify spatial domains from multiplexed imaging data.
+- Python: `squidpy.gr.spatial_neighbors()`, `squidpy.gr.nhood_enrichment()`
 
 ## Build Spatial Graph
 
@@ -77,6 +90,10 @@ interaction = adata.uns['cell_type_interactions']
 ```
 
 ## Custom Neighborhood Analysis
+
+**Goal:** Characterize the local cellular microenvironment around each cell by quantifying the cell type composition of its spatial neighbors.
+
+**Approach:** Multiply the spatial connectivity matrix by a one-hot encoding of cell types, then normalize each row to produce fractional neighborhood composition vectors per cell.
 
 ```python
 import pandas as pd

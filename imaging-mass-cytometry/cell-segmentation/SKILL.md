@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: cellpose
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cellpose 3.0+, anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, steinbock 0.16+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Cell Segmentation for IMC
+
+**"Segment cells from my IMC images"** → Identify individual cell boundaries in multiplexed imaging data using deep learning (Cellpose) or watershed-based approaches for single-cell extraction.
+- Python: `cellpose.models.Cellpose()` for deep learning segmentation
+- CLI: `steinbock segment` for pipeline-based segmentation
 
 ## Cellpose Segmentation
 
@@ -98,6 +113,10 @@ steinbock segment deepcell \
 ```
 
 ## Extract Single-Cell Data
+
+**Goal:** Convert a segmented cell mask and multi-channel image stack into a per-cell expression matrix suitable for downstream phenotyping and spatial analysis.
+
+**Approach:** Iterate over regionprops of the label mask, compute mean intensity per channel within each cell's pixels, and collect morphological features (area, centroid, eccentricity) into a structured DataFrame.
 
 ```python
 from skimage import measure

@@ -5,9 +5,28 @@ tool_type: cli
 primary_tool: mageck
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MAGeCK CRISPR Screen Analysis
 
+**"Analyze my pooled CRISPR screen with MAGeCK"** → Count sgRNA reads, normalize across samples, and rank genes by enrichment or depletion using the MAGeCK robust rank aggregation algorithm.
+- CLI: `mageck count` → `mageck test` for standard analysis
+- CLI: `mageck mle` for multi-condition designs
+
 ## Count sgRNAs from FASTQ
+
+**Goal:** Quantify sgRNA representation from raw sequencing data.
+
+**Approach:** Map FASTQ reads to the sgRNA library sequences with MAGeCK count, producing a normalized count matrix and QC summary across all samples.
 
 ```bash
 # Count reads mapping to sgRNA library
@@ -37,6 +56,10 @@ TP53_1	TP53	CCATTGTTCAATATCGTCCG
 
 ## MAGeCK Test (RRA Algorithm)
 
+**Goal:** Identify genes significantly enriched or depleted between treatment and control conditions.
+
+**Approach:** Run MAGeCK test with robust rank aggregation, which ranks sgRNAs by fold change, tests whether per-gene sgRNA rankings deviate from uniform, and reports gene-level significance with FDR correction.
+
 ```bash
 # Compare treatment vs control
 mageck test \
@@ -53,6 +76,10 @@ mageck test \
 ```
 
 ## MAGeCK MLE (Maximum Likelihood)
+
+**Goal:** Estimate gene effects in complex experimental designs with multiple conditions or covariates.
+
+**Approach:** Define a design matrix specifying sample-condition relationships, then run MAGeCK MLE which fits a generalized linear model to estimate per-gene beta scores (effect sizes) for each condition.
 
 ```bash
 # Create design matrix
@@ -74,6 +101,10 @@ mageck mle \
 ```
 
 ## Interpret Results
+
+**Goal:** Extract significant essential and resistance genes from MAGeCK output.
+
+**Approach:** Load the gene summary table, filter by negative-selection FDR for dropout/essential genes and positive-selection FDR for enriched/resistance genes, and rank by MAGeCK score.
 
 ```python
 import pandas as pd

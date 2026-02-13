@@ -2,6 +2,7 @@
 '''
 Compare original and transferred annotations for quality assessment.
 '''
+# Reference: biopython 1.83+, pandas 2.2+ | Verify API if version differs
 
 import gffutils
 import pandas as pd

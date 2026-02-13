@@ -1,4 +1,5 @@
 '''Extract a single chain from a structure'''
+# Reference: biopython 1.83+, scanpy 1.10+ | Verify API if version differs
 
 from Bio.PDB import PDBParser, PDBIO, Select
 

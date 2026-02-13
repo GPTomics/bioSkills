@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: bedtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, numpy 1.26+, pandas 2.2+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Coverage Analysis
+
+**"Calculate sequencing coverage"** → Compute per-base or per-region depth from BAM files to assess sequencing adequacy.
+- CLI: `bedtools genomecov -ibam input.bam`, `samtools depth input.bam`
+- Python: `pybedtools.BedTool('input.bam').genome_coverage()` (pybedtools)
 
 Calculate coverage and depth across genomic regions using bedtools and pybedtools.
 
@@ -174,6 +189,10 @@ print(stats)
 ```
 
 ### Coverage Distribution
+
+**Goal:** Parse a genome-wide coverage histogram to calculate mean sequencing depth and visualize the depth distribution.
+
+**Approach:** Run bedtools genomecov to produce a histogram, parse the genome-wide depth and fraction columns, and compute weighted mean depth from the distribution.
 
 ```python
 import pybedtools

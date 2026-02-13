@@ -5,6 +5,16 @@ tool_type: r
 primary_tool: clusterProfiler
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Gene Set Enrichment Analysis (GSEA)
 
 ## Core Concept
@@ -12,6 +22,12 @@ primary_tool: clusterProfiler
 GSEA uses **all genes ranked by a statistic** (log2FC, signed p-value) rather than a subset of significant genes. It finds gene sets where members are enriched at the top or bottom of the ranked list.
 
 ## Prepare Ranked Gene List
+
+**Goal:** Create a sorted named vector of gene-level statistics suitable for GSEA input.
+
+**Approach:** Extract fold changes (or other statistics) from DE results, name by gene ID, and sort in decreasing order.
+
+**"Run GSEA on my differential expression results"** → Rank all genes by expression statistic and test whether predefined gene sets cluster toward the extremes of the ranked list.
 
 ```r
 library(clusterProfiler)
@@ -29,6 +45,10 @@ gene_list <- sort(gene_list, decreasing = TRUE)
 
 ## Convert Gene IDs for GSEA
 
+**Goal:** Map gene symbols to Entrez IDs while preserving the ranked statistic values.
+
+**Approach:** Use bitr for ID conversion, then rebuild the named sorted vector with Entrez IDs as names.
+
 ```r
 # Convert symbols to Entrez IDs
 gene_ids <- bitr(names(gene_list), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
@@ -40,6 +60,10 @@ gene_list_entrez <- sort(gene_list_entrez, decreasing = TRUE)
 ```
 
 ## Alternative Ranking Statistics
+
+**Goal:** Choose a ranking metric that balances magnitude and significance for GSEA.
+
+**Approach:** Use signed p-value (-log10(p) * sign(FC)) or Wald statistic as alternatives to raw log2 fold change.
 
 ```r
 # Signed p-value (recommended for detecting both up and down)
@@ -54,6 +78,10 @@ gene_list <- sort(gene_list, decreasing = TRUE)
 ```
 
 ## GSEA with GO
+
+**Goal:** Detect coordinated expression changes across GO gene sets without requiring a significance cutoff.
+
+**Approach:** Run gseGO on a ranked gene list, testing whether GO term members are enriched at the top or bottom of the list.
 
 ```r
 gse_go <- gseGO(
@@ -73,6 +101,10 @@ gse_go <- setReadable(gse_go, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
 
 ## GSEA with KEGG
 
+**Goal:** Identify KEGG pathways with coordinated expression changes across all genes.
+
+**Approach:** Run gseKEGG on the ranked gene list using KEGG pathway definitions.
+
 ```r
 gse_kegg <- gseKEGG(
     geneList = gene_list_entrez,
@@ -89,6 +121,10 @@ gse_kegg <- setReadable(gse_kegg, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
 
 ## GSEA with Custom Gene Sets
 
+**Goal:** Run GSEA against user-provided or non-standard gene set collections.
+
+**Approach:** Load a GMT file and use the generic GSEA function with TERM2GENE mapping.
+
 ```r
 # Read GMT file (Gene Matrix Transposed)
 gene_sets <- read.gmt('msigdb_hallmarks.gmt')
@@ -103,6 +139,10 @@ gse_custom <- GSEA(
 ```
 
 ## MSigDB Gene Sets
+
+**Goal:** Run GSEA using curated gene set collections from the Molecular Signatures Database.
+
+**Approach:** Retrieve gene sets via msigdbr, format as TERM2GENE data frame, and run GSEA.
 
 ```r
 # Use msigdbr package for MSigDB gene sets
@@ -159,6 +199,10 @@ results <- as.data.frame(gse_go)
 | eps | 1e-10 | Boundary for p-value calculation |
 
 ## Export Results
+
+**Goal:** Save GSEA results and extract leading edge genes for downstream analysis.
+
+**Approach:** Convert enrichment object to data frame, export to CSV, and parse core_enrichment for driving genes.
 
 ```r
 results_df <- as.data.frame(gse_go)

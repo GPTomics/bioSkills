@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Generate QC report from BAM file'''
+# Reference: pysam 0.22+, samtools 1.19+ | Verify API if version differs
 
 import pysam
 import sys

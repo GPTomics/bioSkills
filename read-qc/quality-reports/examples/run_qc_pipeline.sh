@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+ | Verify API if version differs
 # Quality control pipeline for FASTQ files
 # Usage: ./run_qc_pipeline.sh <input_dir> <output_dir>
 

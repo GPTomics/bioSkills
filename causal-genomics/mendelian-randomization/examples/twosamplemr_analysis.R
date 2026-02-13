@@ -1,3 +1,4 @@
+# Reference: TwoSampleMR 0.5+ | Verify API if version differs
 ## Two-sample Mendelian randomization with TwoSampleMR
 ##
 ## Demonstrates: instrument selection, clumping, harmonization,

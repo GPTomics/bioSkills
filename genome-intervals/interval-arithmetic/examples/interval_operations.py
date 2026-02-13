@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Demonstrate core interval arithmetic operations with pybedtools.'''
+# Reference: bedtools 2.31+ | Verify API if version differs
 
 import pybedtools
 

@@ -5,7 +5,21 @@ tool_type: mixed
 primary_tool: cooltools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, pybedtools 0.9+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Chromatin Loop Calling
+
+**"Call chromatin loops from my Hi-C data"** → Detect point enrichments in contact matrices representing CTCF-mediated loops and enhancer-promoter interactions.
+- Python: `cooltools.dots()` or `chromosight detect --pattern=loops`
 
 Detect chromatin loops and point interactions from Hi-C data.
 
@@ -158,6 +172,10 @@ print(f'Condition 2 specific: {len(loops2) - len(set(range(len(loops2))) - set([
 ```
 
 ## Aggregate Peak Analysis (APA)
+
+**Goal:** Assess the overall strength and validity of called loops by stacking contact sub-matrices centered on loop anchors and averaging the signal.
+
+**Approach:** For each loop, extract a fixed-size snippet from the contact matrix centered on the loop anchor pair, then compute the element-wise mean across all snippets to produce an aggregate enrichment map.
 
 ```python
 # Stack loops and compute average signal

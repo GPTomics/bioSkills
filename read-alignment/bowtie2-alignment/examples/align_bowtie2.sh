@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: samtools 1.19+ | Verify API if version differs
 # Alignment with Bowtie2 (ATAC-seq, ChIP-seq)
 
 set -euo pipefail

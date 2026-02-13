@@ -17,7 +17,20 @@ qc_checkpoints:
   - after_clustering: "Clusters are biologically meaningful"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cell Ranger 8.0+, ggplot2 3.5+, numpy 1.26+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Single-Cell RNA-seq Pipeline
+
+**"Analyze my single-cell RNA-seq data from counts to cell types"** → Orchestrate QC filtering, normalization (scanpy/Seurat), batch integration (scVI/Harmony), clustering, marker detection, cell type annotation, and trajectory inference.
 
 Complete workflow from 10X Genomics Cell Ranger output to annotated cell types.
 

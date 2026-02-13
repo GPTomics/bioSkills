@@ -2,6 +2,7 @@
 '''
 Parse Infernal cmscan/cmsearch output and summarize ncRNA family assignments.
 '''
+# Reference: biopython 1.83+, infernal 1.1+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 from pathlib import Path

@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, ggplot2 3.5+, limma 3.58+, scanpy 1.10+ | Verify API if version differs
 library(DESeq2)
 library(sva)
 library(limma)

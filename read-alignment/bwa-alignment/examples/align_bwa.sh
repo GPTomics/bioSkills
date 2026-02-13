@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GATK 4.5+, samtools 1.19+ | Verify API if version differs
 # DNA alignment with BWA-MEM2
 
 set -euo pipefail

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GenomicRanges 1.54+, deepTools 3.5+ | Verify API if version differs
 
 BAM_FILE="sample.bam"
 OUTPUT_DIR="visualization"

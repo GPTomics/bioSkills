@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+ | Verify API if version differs
 # Normalize VCF file: left-align indels and split multiallelic sites
 
 set -e

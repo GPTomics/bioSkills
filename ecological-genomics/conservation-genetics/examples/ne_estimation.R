@@ -1,3 +1,4 @@
+# Reference: bcftools 1.19+ | Verify API if version differs
 library(ggplot2)
 
 # --- GONE2: Recent Ne Trajectory from Linkage Disequilibrium ---

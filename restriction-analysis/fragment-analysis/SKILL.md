@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.Restriction
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Fragment Analysis
+
+**"Predict fragment sizes from a restriction digest"** → Simulate enzyme digestion to get fragment lengths, sequences, and gel electrophoresis patterns including double digests.
+- Python: `Bio.Restriction` analysis with `catalyze()` for fragment details
 
 ## Get Fragment Sizes
 

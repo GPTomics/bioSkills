@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BUSCO 5.5+, QUAST 5.2+, SPAdes 3.15+, pandas 2.2+ | Verify API if version differs
 # Assembly QC with QUAST and BUSCO
 set -euo pipefail
 

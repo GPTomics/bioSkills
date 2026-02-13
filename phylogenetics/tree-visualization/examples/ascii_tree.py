@@ -1,4 +1,5 @@
 '''Display ASCII representation of a tree'''
+# Reference: biopython 1.83+, matplotlib 3.8+ | Verify API if version differs
 
 from Bio import Phylo
 from io import StringIO

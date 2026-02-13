@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Analyze FASTQ quality scores'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import SeqIO
 import numpy as np

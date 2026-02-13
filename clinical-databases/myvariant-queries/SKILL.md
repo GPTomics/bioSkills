@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: myvariant
 ---
 
+## Version Compatibility
+
+Reference examples tested with: SnpEff 5.2+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MyVariant.info Queries
+
+**"Annotate my variants from multiple databases at once"** → Query the myvariant.info aggregation API to retrieve ClinVar, gnomAD, dbSNP, COSMIC, and other annotations in a single request per variant.
+- Python: `myvariant.MyVariantInfo().getvariants(ids, fields='clinvar,gnomad,dbnsfp')`
 
 ## Required Imports
 
@@ -21,6 +34,10 @@ mv = myvariant.MyVariantInfo()
 
 ## Query Single Variant
 
+**Goal:** Retrieve aggregated annotations for a single variant from multiple databases in one request.
+
+**Approach:** Query myvariant.info by HGVS notation or rsID, which returns ClinVar, gnomAD, dbSNP, COSMIC, and CADD data.
+
 ```python
 # Query by HGVS notation (recommended)
 result = mv.getvariant('chr7:g.140453136A>T')
@@ -33,6 +50,10 @@ result = mv.getvariant('BRAF:p.V600E')
 ```
 
 ## Query Multiple Variants
+
+**Goal:** Batch-query up to 1000 variants in a single API call with field selection for efficiency.
+
+**Approach:** Pass a list of variant identifiers to `getvariants()` with specific field filters to minimize response size.
 
 ```python
 variants = [
@@ -52,6 +73,10 @@ results = mv.getvariants(
 ```
 
 ## Search Variants
+
+**Goal:** Search for variants by gene, clinical significance, or genomic region using query syntax.
+
+**Approach:** Use Lucene-style query strings with `mv.query()` to filter by gene symbol, ClinVar fields, or coordinate ranges.
 
 ```python
 # Search by gene
@@ -84,6 +109,10 @@ Common field paths for annotations:
 
 ## Extract Specific Annotations
 
+**Goal:** Extract ClinVar classification, gnomAD frequency, and CADD score from a variant result.
+
+**Approach:** Navigate the nested JSON response using dictionary access to reach specific annotation fields.
+
 ```python
 result = mv.getvariant('chr7:g.140453136A>T')
 
@@ -98,6 +127,10 @@ cadd_phred = result.get('cadd', {}).get('phred')
 ```
 
 ## Batch Processing with DataFrame
+
+**Goal:** Convert batch variant query results into a structured pandas DataFrame for downstream analysis.
+
+**Approach:** Query multiple rsIDs with selected fields, extract key annotations per variant, and assemble into a DataFrame.
 
 ```python
 import pandas as pd
@@ -117,6 +150,10 @@ df = pd.DataFrame(records)
 ```
 
 ## Rate Limiting
+
+**Goal:** Handle large variant sets exceeding the 1000-variant-per-request API limit.
+
+**Approach:** Split variants into chunks and query sequentially, relying on myvariant's built-in rate limiting.
 
 ```python
 # myvariant handles rate limiting automatically

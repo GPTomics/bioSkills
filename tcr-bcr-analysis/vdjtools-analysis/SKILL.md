@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: VDJtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MiXCR 4.6+, VDJtools 1.2.1+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # VDJtools Analysis
 
+**"Compute diversity and overlap for my TCR repertoires"** → Calculate repertoire diversity metrics, sample overlap, and perform statistical comparisons between immune repertoire samples.
+- CLI: `vdjtools CalcDiversityStats`, `vdjtools OverlapPair`, `vdjtools PlotFancySpectratype`
+
 ## Basic Usage
+
+**Goal:** Run VDJtools commands for immune repertoire analysis.
+
+**Approach:** Invoke VDJtools via Java JAR or wrapper script with appropriate subcommand and options.
 
 ```bash
 # VDJtools requires Java
@@ -18,6 +36,10 @@ vdjtools <command> [options]
 ```
 
 ## Calculate Diversity Metrics
+
+**Goal:** Compute repertoire diversity indices (Shannon, Simpson, Chao1, Gini) across samples.
+
+**Approach:** Run CalcDiversityStats with a metadata file linking sample files to sample IDs and conditions.
 
 ```bash
 # Basic diversity (Shannon, Simpson, Chao1, etc.)
@@ -44,6 +66,10 @@ vdjtools CalcDiversityStats \
 
 ## Sample Comparison
 
+**Goal:** Quantify clonotype sharing and repertoire overlap between samples or conditions.
+
+**Approach:** Compute pairwise overlap metrics (Jaccard, Morisita-Horn, F2) on amino acid clonotype identities.
+
 ```bash
 # Find overlapping clonotypes
 vdjtools OverlapPair \
@@ -61,6 +87,10 @@ vdjtools CalcPairwiseDistances \
 
 ## Spectratype Analysis
 
+**Goal:** Analyze CDR3 length distributions and V/J gene segment usage patterns across samples.
+
+**Approach:** Generate spectratype (CDR3 length histogram) and segment usage tables via VDJtools commands.
+
 ```bash
 # CDR3 length distribution (spectratype)
 vdjtools CalcSpectratype \
@@ -74,6 +104,10 @@ vdjtools CalcSegmentUsage \
 ```
 
 ## Clonal Tracking
+
+**Goal:** Track individual clonotype frequencies across longitudinal timepoints and identify public clones shared across individuals.
+
+**Approach:** Use TrackClonotypes for temporal tracking and JoinSamples to find public (cross-individual) clonotypes.
 
 ```bash
 # Track clones across timepoints
@@ -103,6 +137,10 @@ count   frequency   CDR3nt  CDR3aa  V   D   J
 
 ## Convert from MiXCR
 
+**Goal:** Convert MiXCR clonotype output into VDJtools-compatible format.
+
+**Approach:** Use VDJtools Convert command specifying MiXCR as the source software format.
+
 ```bash
 # Convert MiXCR output to VDJtools format
 vdjtools Convert \
@@ -112,6 +150,10 @@ vdjtools Convert \
 ```
 
 ## Parse VDJtools Output in Python
+
+**Goal:** Load VDJtools diversity statistics and overlap matrices into Python for custom analysis and plotting.
+
+**Approach:** Read tab-delimited VDJtools output files into pandas DataFrames and visualize diversity comparisons.
 
 ```python
 import pandas as pd

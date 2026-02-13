@@ -1,4 +1,5 @@
 '''m6Anet workflow for ONT direct RNA m6A detection'''
+# Reference: minimap2 2.26+, pandas 2.2+ | Verify API if version differs
 import subprocess
 from pathlib import Path
 import pandas as pd

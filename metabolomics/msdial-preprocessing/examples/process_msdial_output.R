@@ -1,3 +1,4 @@
+# Reference: numpy 1.26+, pandas 2.2+, scanpy 1.10+, xcms 4.0+ | Verify API if version differs
 library(tidyverse)
 
 # === CONFIGURATION ===

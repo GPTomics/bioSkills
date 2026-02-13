@@ -5,11 +5,28 @@ tool_type: r
 primary_tool: tximport
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, Salmon 1.10+, edgeR 4.0+, kallisto 0.50+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # tximport Workflow
+
+**"Import Salmon/kallisto results into DESeq2"** → Summarize transcript-level abundance estimates to gene-level counts with proper length-offset correction for use in DESeq2 or edgeR.
+- R: `tximport::tximport(files, type='salmon', tx2gene=tx2gene)`
 
 Import transcript-level estimates from Salmon, kallisto, or other quantifiers into R for gene-level differential expression analysis.
 
 ## Basic tximport
+
+**Goal:** Import transcript-level quantifications from Salmon or kallisto into R as gene-level counts with proper length-offset correction for DESeq2 or edgeR.
+
+**Approach:** Create a transcript-to-gene mapping from a GTF or biomaRt, then run tximport on the quantification files to produce a gene-level count matrix with length-scaled TPM offsets.
 
 ```r
 library(tximport)

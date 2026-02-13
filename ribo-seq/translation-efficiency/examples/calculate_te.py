@@ -1,4 +1,5 @@
 '''Calculate translation efficiency from Ribo-seq and RNA-seq'''
+# Reference: numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
 
 import pandas as pd
 import numpy as np

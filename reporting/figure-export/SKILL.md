@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: matplotlib
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Publication-Ready Figure Export
+
+**"Export figures for publication"** → Save plots as high-resolution PDF/SVG/TIFF with journal-required DPI and dimensions.
+- Python: `fig.savefig('fig.pdf', dpi=300, bbox_inches='tight')`
+- R: `ggsave('fig.pdf', width=7, height=5, units='in')`
 
 ## Python (matplotlib)
 

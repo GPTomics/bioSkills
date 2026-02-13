@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: fgbio
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BWA 0.7.17+, fgbio 2.1+, matplotlib 3.8+, numpy 1.26+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # cfDNA Preprocessing
+
+**"Preprocess my cfDNA sequencing data"** → Process cell-free DNA reads with UMI extraction, consensus calling, and error suppression for sensitive variant detection.
+- CLI: `fgbio FastqToBam` → `fgbio GroupReadsByUmi` → `fgbio CallMolecularConsensusReads`
 
 Preprocess cell-free DNA sequencing data with UMI-aware deduplication.
 
@@ -62,6 +76,10 @@ fgbio FilterConsensusReads \
 ```
 
 ## Python Implementation
+
+**Goal:** Run the complete cfDNA UMI-consensus pipeline from raw BAM to error-suppressed consensus reads in a single Python function call.
+
+**Approach:** Chain fgbio operations (UMI extraction, grouping, consensus calling, filtering) with BWA alignment, handling intermediate files and cleanup within the function.
 
 ```python
 import subprocess

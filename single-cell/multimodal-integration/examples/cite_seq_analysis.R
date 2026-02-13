@@ -1,3 +1,4 @@
+# Reference: numpy 1.26+, scanpy 1.10+ | Verify API if version differs
 library(Seurat)
 
 data <- Read10X('filtered_feature_bc_matrix/')

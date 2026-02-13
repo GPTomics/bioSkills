@@ -5,7 +5,20 @@ tool_type: mixed
 primary_tool: miRDeep2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, cutadapt 4.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Small RNA-seq Pipeline
+
+**"Analyze my small RNA-seq data from FASTQ to differential miRNAs"** → Orchestrate adapter trimming (cutadapt), miRNA quantification (miRDeep2/miRge3), novel miRNA discovery, differential expression (DESeq2), and target prediction (miRanda).
 
 ## Pipeline Overview
 

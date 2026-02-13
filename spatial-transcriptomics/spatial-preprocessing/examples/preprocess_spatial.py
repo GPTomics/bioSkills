@@ -1,4 +1,5 @@
 '''Preprocess spatial transcriptomics data'''
+# Reference: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, squidpy 1.3+ | Verify API if version differs
 
 import squidpy as sq
 import scanpy as sc

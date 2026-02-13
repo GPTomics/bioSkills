@@ -1,4 +1,5 @@
 '''Explore NCBI database structure with Entrez.einfo()'''
+# Reference: biopython 1.83+, entrez direct 21.0+ | Verify API if version differs
 from Bio import Entrez
 
 Entrez.email = 'your.email@example.com'

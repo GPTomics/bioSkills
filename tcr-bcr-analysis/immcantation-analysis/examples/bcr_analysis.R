@@ -1,3 +1,4 @@
+# Reference: MiXCR 4.6+, ggplot2 3.5+ | Verify API if version differs
 # BCR repertoire analysis with Immcantation
 
 library(alakazam)

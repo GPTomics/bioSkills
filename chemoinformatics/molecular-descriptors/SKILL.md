@@ -5,11 +5,28 @@ tool_type: python
 primary_tool: RDKit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: RDKit 2024.03+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Molecular Descriptors
+
+**"Calculate molecular fingerprints for my compound library"** → Compute structural fingerprints (Morgan/ECFP, MACCS keys) and physicochemical descriptors (Lipinski, QED, TPSA) for molecules, producing feature vectors for similarity analysis or ML models.
+- Python: `AllChem.GetMorganFingerprintAsBitVect()`, `Descriptors.MolWt()`, `QED.qed()` (RDKit)
 
 Calculate fingerprints and physicochemical properties for molecules.
 
 ## Morgan Fingerprints (ECFP)
+
+**Goal:** Generate circular fingerprints that encode local chemical environments for similarity searching and ML models.
+
+**Approach:** Use GetMorganFingerprintAsBitVect with a chosen radius (2 for ECFP4, 3 for ECFP6) and bit length, optionally including chirality information.
 
 ```python
 from rdkit import Chem
@@ -89,6 +106,10 @@ qed_score = qed(mol)
 
 ## Complete Descriptor Set
 
+**Goal:** Calculate all available RDKit molecular descriptors for feature-rich ML input.
+
+**Approach:** Build a MolecularDescriptorCalculator from the full descriptor list and apply it to each molecule, producing a descriptor DataFrame.
+
 ```python
 from rdkit.Chem import Descriptors
 from rdkit.ML.Descriptors import MoleculeDescriptors
@@ -108,6 +129,10 @@ desc_df = pd.DataFrame([descriptors], columns=descriptor_names)
 ```
 
 ## 3D Conformer Descriptors
+
+**Goal:** Compute 3D shape descriptors (asphericity, eccentricity, radius of gyration) from molecular conformers.
+
+**Approach:** Generate a 3D conformer with ETKDGv3, optimize geometry with MMFF, then calculate 3D descriptors from the conformer coordinates.
 
 ```python
 from rdkit import Chem
@@ -137,6 +162,10 @@ rog = Descriptors3D.RadiusOfGyration(mol)
 ```
 
 ## Batch Descriptor Calculation
+
+**Goal:** Calculate a standard set of descriptors across an entire compound library.
+
+**Approach:** Iterate over molecules, compute selected descriptors for each, and collect results into a DataFrame.
 
 ```python
 def calculate_descriptors_batch(molecules, descriptor_names=None):

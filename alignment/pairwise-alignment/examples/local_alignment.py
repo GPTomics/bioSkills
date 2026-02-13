@@ -1,4 +1,5 @@
 '''Local alignment to find best matching regions'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.Align import PairwiseAligner
 from Bio.Seq import Seq

@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: cooltools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Hi-C Differential Analysis
+
+**"Compare Hi-C contacts between my conditions"** → Compute log2 fold-change contact maps, identify statistically significant differential interactions, and visualize changes in 3D genome organization.
+- Python: `cooltools` for expected values, custom differential analysis with `scipy.stats`
 
 Compare Hi-C contact matrices between conditions.
 
@@ -119,6 +132,10 @@ mat2_norm = clr2.matrix(balance=True).fetch(region) * scale2
 ```
 
 ## Statistical Testing (Per-Pixel)
+
+**Goal:** Identify individual contact pixels that are statistically significantly different between two conditions using biological replicates.
+
+**Approach:** For each pixel position, collect values across replicates in both conditions, apply a per-pixel t-test or Mann-Whitney U test, then correct for multiple testing with FDR.
 
 ```python
 def differential_test(matrices1, matrices2, method='ttest'):

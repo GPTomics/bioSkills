@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Biostrings 2.70+, ggplot2 3.5+, pandas 2.2+, phyloseq 1.46+, scanpy 1.10+ | Verify API if version differs
 # Run PICRUSt2 functional prediction pipeline
 
 # Input files (exported from R/phyloseq)

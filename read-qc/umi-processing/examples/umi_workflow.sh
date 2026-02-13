@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+, samtools 1.19+ | Verify API if version differs
 # UMI processing workflow for RNA-seq
 set -euo pipefail
 

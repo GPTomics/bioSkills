@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: phyloseq
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), ggplot2 3.5+, phyloseq 1.46+, scanpy 1.10+, vegan 2.6+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Diversity Analysis
+
+**"Compare microbial diversity across my samples"** → Calculate alpha diversity (within-sample richness/evenness) and beta diversity (between-sample dissimilarity) to test for community composition differences across groups.
+- R: `phyloseq::estimate_richness()` for alpha, `phyloseq::ordinate()` for beta
+- R: `vegan::adonis2()` for PERMANOVA testing
 
 ## Create phyloseq Object
 
@@ -55,6 +69,10 @@ ggplot(alpha_div, aes(x = Group, y = Shannon, fill = Group)) +
 ```
 
 ## Faith's Phylogenetic Diversity
+
+**Goal:** Calculate phylogenetic alpha diversity (Faith's PD) from ASV data by building a de novo phylogeny and summing branch lengths.
+
+**Approach:** Align ASV sequences with DECIPHER, construct a neighbor-joining tree with phangorn, root at midpoint, and compute PD using picante.
 
 ```r
 library(picante)

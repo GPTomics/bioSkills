@@ -15,7 +15,19 @@ qc_checkpoints:
   - enrichment_qc: "Reasonable number of terms, p-values not all significant"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, R stats (base), ReactomePA 1.46+, clusterProfiler 4.10+, ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Expression to Pathways Workflow
+
+**"Find enriched pathways from my differential expression results"** → Orchestrate GO enrichment (clusterProfiler), GSEA, KEGG/Reactome pathway mapping, and enrichment visualization from DE gene lists or ranked gene lists.
 
 Convert differential expression results into biological insights through functional enrichment analysis.
 

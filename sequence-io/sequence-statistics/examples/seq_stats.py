@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Calculate sequence statistics'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 
 from Bio import SeqIO
 from Bio.SeqUtils import gc_fraction

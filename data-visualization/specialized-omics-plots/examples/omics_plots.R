@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
 library(ggplot2)
 library(ggrepel)
 library(patchwork)

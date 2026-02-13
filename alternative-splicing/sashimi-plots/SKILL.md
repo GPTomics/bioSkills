@@ -5,11 +5,30 @@ tool_type: python
 primary_tool: ggsashimi
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Sashimi Plot Visualization
 
 Create sashimi plots to visualize splicing events with read coverage and junction counts.
 
 ## ggsashimi Usage
+
+**Goal:** Generate sashimi plots showing read coverage and junction counts for a genomic region.
+
+**Approach:** Define sample groupings in a TSV file, then run ggsashimi with genomic coordinates and annotation.
+
+**"Visualize a splicing event"** -> Plot RNA-seq coverage tracks with splice junction arcs grouped by condition.
+- Python/CLI: `ggsashimi.py` (ggsashimi)
+- CLI: `rmats2sashimiplot` (rMATS-specific)
 
 ```python
 import subprocess
@@ -38,6 +57,10 @@ subprocess.run([
 ```
 
 ## Batch Plotting Significant Events
+
+**Goal:** Automatically generate sashimi plots for all significant differential splicing events.
+
+**Approach:** Load rMATS results, filter for significant events, extract flanking coordinates, and iterate ggsashimi over each event.
 
 ```python
 import subprocess
@@ -73,6 +96,10 @@ for idx, event in significant.head(20).iterrows():
 
 ## rmats2sashimiplot
 
+**Goal:** Create sashimi plots directly from rMATS differential splicing output.
+
+**Approach:** Point rmats2sashimiplot at rMATS result files and BAM groups with condition labels.
+
 ```bash
 # For rMATS output specifically
 rmats2sashimiplot \
@@ -88,6 +115,10 @@ rmats2sashimiplot \
 ```
 
 ## Customization Options
+
+**Goal:** Fine-tune sashimi plot appearance for publication-quality figures.
+
+**Approach:** Adjust ggsashimi visual parameters including intron shrinking, y-axis scaling, aggregation mode, and output format.
 
 ```python
 # Advanced ggsashimi options

@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, seaborn 0.13+ | Verify API if version differs
 library(DESeq2)
 library(pheatmap)
 library(ggplot2)

@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: pairtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cooler 0.9+, pairtools 1.1+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Hi-C Contact Pairs Processing
+
+**"Process my Hi-C read pairs"** → Parse aligned Hi-C reads into contact pairs, filter duplicates, classify pair types (cis/trans), and generate contact statistics.
+- CLI: `pairtools parse` → `pairtools sort` → `pairtools dedup` → `pairtools stats`
 
 Process Hi-C read pairs with pairtools.
 
@@ -219,6 +233,10 @@ print(pairs['pair_type'].value_counts())
 ```
 
 ## Full Processing Pipeline
+
+**Goal:** Process raw Hi-C alignments into a balanced contact matrix ready for downstream analysis (TADs, loops, compartments).
+
+**Approach:** Chain pairtools operations (parse, restrict, sort, dedup, select) into a single pipeline, then aggregate valid pairs into a cooler matrix file.
 
 ```bash
 #!/bin/bash

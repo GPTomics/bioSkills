@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: SCENIC+
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cell Ranger 8.0+, MACS3 3.0+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Multiomics GRN Inference
+
+**"Build an enhancer-driven gene regulatory network from my multiome data"** → Integrate scRNA-seq and scATAC-seq to identify eRegulons: transcription factor-enhancer-target gene triplets linking TF binding to chromatin accessibility and gene expression changes.
+- Python: SCENIC+ pipeline with `scenicplus` for eRegulon assembly
+- Python: `pycisTopic` for topic modeling of scATAC-seq regions
 
 Build enhancer-driven gene regulatory networks from paired single-cell RNA-seq and ATAC-seq data. SCENIC+ extends SCENIC by linking TFs to their enhancers and target genes through eRegulons.
 
@@ -83,6 +98,10 @@ cistopic_obj.add_LDA_model(model)
 
 ## SCENIC+ Workflow
 
+**Goal:** Assemble enhancer-driven gene regulatory networks (eRegulons) linking transcription factors to their target enhancers and downstream genes from paired scRNA+scATAC data.
+
+**Approach:** Create a SCENICPLUS object from preprocessed scRNA-seq AnnData and cisTopic ATAC object, then run the complete pipeline which performs motif enrichment, region-to-gene linking, and eRegulon assembly.
+
 ```python
 import scenicplus
 from scenicplus.scenicplus_class import SCENICPLUS
@@ -116,6 +135,10 @@ run_scenicplus(
 ```
 
 ## eRegulon Interpretation
+
+**Goal:** Summarize the discovered eRegulons to identify the most active transcription factors and distinguish activating from repressive regulation.
+
+**Approach:** Parse the eRegulon metadata table to count regions and target genes per TF, then separate activating (+) and repressive (-) eRegulons by their name suffix.
 
 ```python
 import pandas as pd

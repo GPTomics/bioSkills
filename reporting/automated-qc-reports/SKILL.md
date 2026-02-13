@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: multiqc
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cell Ranger 8.0+, FastQC 0.12+, GATK 4.5+, HISAT2 2.2.1+, MultiQC 1.21+, STAR 2.7.11+, Subread 2.0+, bcftools 1.19+, fastp 0.23+, kallisto 0.50+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Automated QC Reports with MultiQC
+
+**"Aggregate QC results into one report"** → Combine outputs from FastQC, samtools, Picard, and other tools into a single interactive HTML report.
+- CLI: `multiqc .` (scans current directory for recognized tool outputs)
 
 ## Basic Usage
 

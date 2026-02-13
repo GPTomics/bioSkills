@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: RDKit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: RDKit 2024.03+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Substructure Search
+
+**"Filter my library for compounds containing a specific functional group"** → Search molecular collections for substructure matches using SMARTS patterns, identifying compounds that contain specified chemical moieties, scaffolds, or pharmacophore features.
+- Python: `mol.HasSubstructMatch()`, `Chem.MolFromSmarts()` (RDKit)
 
 Find molecules containing specific structural patterns using SMARTS.
 
@@ -40,6 +53,10 @@ print(f'Hydroxyl positions: {matches}')
 | Halogen | `[F,Cl,Br,I]` | Any halogen |
 
 ## Library Filtering
+
+**Goal:** Filter a molecular library to retain only compounds containing (or lacking) a specific structural pattern.
+
+**Approach:** Parse a SMARTS pattern and test each molecule for a substructure match, returning those that pass the inclusion or exclusion criterion.
 
 ```python
 from rdkit import Chem
@@ -79,6 +96,10 @@ clean = filter_by_substructure(library, '[N+]([O-])=O', exclude=True)  # No nitr
 ```
 
 ## Multiple Pattern Filtering
+
+**Goal:** Apply multiple inclusion and exclusion substructure filters to narrow a compound set.
+
+**Approach:** Sequentially apply SMARTS-based inclusion filters (must match all) then exclusion filters (must match none) to progressively narrow the library.
 
 ```python
 def filter_multiple_patterns(molecules, include_patterns=None, exclude_patterns=None):

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, MACS3 3.0+, samtools 1.19+ | Verify API if version differs
 # ATAC-seq peak calling with MACS3
 
 set -euo pipefail

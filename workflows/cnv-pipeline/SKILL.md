@@ -14,7 +14,19 @@ qc_checkpoints:
   - after_annotation: "Known CNVs detected if present"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: CNVkit 0.9+, GATK 4.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CNV Pipeline
+
+**"Detect copy number variants from my sequencing data"** → Orchestrate CNVkit coverage analysis, segmentation, calling, visualization, and annotation for exome or targeted sequencing panels.
 
 Complete workflow for detecting copy number variants from exome or targeted sequencing data.
 

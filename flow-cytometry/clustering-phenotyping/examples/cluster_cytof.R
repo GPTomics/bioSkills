@@ -1,3 +1,4 @@
+# Reference: FlowSOM 2.10+, scanpy 1.10+ | Verify API if version differs
 library(CATALYST)
 library(SingleCellExperiment)
 

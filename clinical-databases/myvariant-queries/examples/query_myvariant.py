@@ -1,4 +1,5 @@
 '''Query myvariant.info for variant annotations from multiple databases'''
+# Reference: snpeff 5.2+, pandas 2.2+ | Verify API if version differs
 
 import myvariant
 import pandas as pd

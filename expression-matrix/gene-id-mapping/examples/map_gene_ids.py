@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Map between gene ID systems'''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import mygene
 import pandas as pd

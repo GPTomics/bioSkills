@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, spatialdata 0.1+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Data I/O
+
+**"Load my Visium spatial data"** → Read spatial transcriptomics outputs (Visium, Xenium, MERFISH, Slide-seq) into AnnData objects with spatial coordinates and tissue images.
+- Python: `squidpy.read.visium('spaceranger_out/')`, `spatialdata.read_zarr()`
 
 Load and work with spatial transcriptomics data from various platforms.
 
@@ -20,6 +33,10 @@ import spatialdata_io as sdio
 ```
 
 ## Load 10X Visium Data
+
+**Goal:** Load Visium spatial transcriptomics data from Space Ranger output into an AnnData object.
+
+**Approach:** Use Squidpy's `read.visium` to parse the output directory, which loads expression, spatial coordinates, and tissue images.
 
 ```python
 # Load Space Ranger output (standard method)
@@ -36,6 +53,10 @@ print(f'Library ID: {library_id}')
 
 ## Load Visium with Scanpy
 
+**Goal:** Load Visium data using Scanpy's built-in reader as an alternative to Squidpy.
+
+**Approach:** Use `sc.read_visium` to parse Space Ranger output, then access images and scale factors from `adata.uns['spatial']`.
+
 ```python
 # Alternative using Scanpy directly
 adata = sc.read_visium('path/to/spaceranger/output/')
@@ -47,6 +68,10 @@ scale_factor = adata.uns['spatial'][library_id]['scalefactors']['tissue_hires_sc
 
 ## Load 10X Xenium Data
 
+**Goal:** Load single-cell resolution Xenium spatial data.
+
+**Approach:** Use Squidpy's `read.xenium` to parse Xenium output, yielding per-cell expression and coordinates.
+
 ```python
 # Load Xenium output
 adata = sq.read.xenium('path/to/xenium/output/')
@@ -57,6 +82,10 @@ print(f"Cell coordinates: {adata.obsm['spatial'].shape}")
 ```
 
 ## Load with SpatialData (Recommended for New Projects)
+
+**Goal:** Load spatial data into SpatialData objects for unified multi-modal representation.
+
+**Approach:** Use spatialdata-io readers per platform, which organize expression, shapes, and images into a single object.
 
 ```python
 import spatialdata_io as sdio
@@ -75,6 +104,10 @@ images = sdata.images  # Tissue images
 ```
 
 ## Load MERFISH Data
+
+**Goal:** Load MERFISH (Vizgen MERSCOPE) spatial data.
+
+**Approach:** Use spatialdata-io or Squidpy readers to parse MERSCOPE output with cell-by-gene counts and metadata.
 
 ```python
 # MERFISH (Vizgen MERSCOPE)
@@ -119,6 +152,10 @@ if 'spatial' in adata.uns:
 ```
 
 ## Create Spatial AnnData from Scratch
+
+**Goal:** Construct a spatial AnnData object from raw expression and coordinate arrays.
+
+**Approach:** Build an AnnData with spatial coordinates in `obsm['spatial']` and minimal metadata in `uns['spatial']` for Squidpy compatibility.
 
 ```python
 import numpy as np
@@ -172,6 +209,10 @@ print(f"Spot diameter: {scalef['spot_diameter_fullres']}")
 
 ## Convert Between Formats
 
+**Goal:** Convert spatial data between SpatialData and AnnData representations.
+
+**Approach:** Extract tables and coordinate arrays from SpatialData, then save as h5ad or zarr.
+
 ```python
 # SpatialData to AnnData
 sdata = sdio.visium('path/to/data/')
@@ -186,6 +227,10 @@ sdata.write('spatial_data.zarr')
 ```
 
 ## Load Multiple Samples
+
+**Goal:** Load and merge spatial data from multiple Visium samples into a single AnnData.
+
+**Approach:** Iterate over sample directories, tag each with a sample label, then concatenate with `ad.concat`.
 
 ```python
 # Load and concatenate multiple Visium samples
@@ -203,6 +248,10 @@ print(f'Combined: {adata_combined.n_obs} spots')
 ```
 
 ## Subset by Spatial Region
+
+**Goal:** Extract spots within a rectangular spatial region of interest.
+
+**Approach:** Apply coordinate-based boolean masking on `obsm['spatial']` to filter spots by x/y bounds.
 
 ```python
 # Select spots in a rectangular region

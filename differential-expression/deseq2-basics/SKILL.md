@@ -5,6 +5,16 @@ tool_type: r
 primary_tool: DESeq2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, Salmon 1.10+, edgeR 4.0+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # DESeq2 Basics
 
 Differential expression analysis using DESeq2 for RNA-seq count data.
@@ -26,6 +36,12 @@ BiocManager::install('apeglm')
 ```
 
 ## Creating DESeqDataSet
+
+**Goal:** Construct a DESeqDataSet object from various input formats for DE analysis.
+
+**Approach:** Wrap count data and sample metadata into the DESeq2 container, specifying the experimental design formula.
+
+**"Load my RNA-seq counts into DESeq2"** → Create a DESeqDataSet from a count matrix, SummarizedExperiment, or tximport object with sample metadata and a design formula.
 
 ### From Count Matrix
 
@@ -54,6 +70,12 @@ dds <- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ condition)
 
 ## Standard DESeq2 Workflow
 
+**Goal:** Run the complete DESeq2 pipeline from raw counts to shrunken log fold change estimates.
+
+**Approach:** Create dataset, pre-filter low-count genes, set reference level, run size factor estimation + dispersion estimation + Wald test, then apply LFC shrinkage.
+
+**"Find differentially expressed genes between treated and control"** → Test for significant expression changes between conditions using negative binomial models with empirical Bayes shrinkage.
+
 ```r
 # Create DESeqDataSet
 dds <- DESeqDataSetFromMatrix(countData = counts,
@@ -79,6 +101,10 @@ resLFC <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')
 
 ## Design Formulas
 
+**Goal:** Specify the experimental design to model biological and nuisance variables.
+
+**Approach:** Build R formula objects that encode condition, batch, and interaction terms for the GLM.
+
 ```r
 # Simple two-group comparison
 design = ~ condition
@@ -94,6 +120,10 @@ design = ~ genotype + treatment
 ```
 
 ## Specifying Contrasts
+
+**Goal:** Extract results for specific pairwise or complex comparisons from a fitted DESeq2 model.
+
+**Approach:** Use coefficient names or contrast vectors to define which groups to compare.
 
 ```r
 # See available coefficients
@@ -111,6 +141,10 @@ res <- results(dds, contrast = list('conditionB', 'conditionA'))
 
 ## Log Fold Change Shrinkage
 
+**Goal:** Reduce noisy fold change estimates for low-count genes to improve ranking and visualization.
+
+**Approach:** Apply empirical Bayes shrinkage (apeglm, ashr, or normal) to moderate log fold changes toward zero.
+
 ```r
 # apeglm method (default, recommended)
 resLFC <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')
@@ -124,6 +158,10 @@ resLFC <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'normal')
 
 ## Setting Significance Thresholds
 
+**Goal:** Control the stringency of differential expression calls using adjusted p-value and fold change cutoffs.
+
+**Approach:** Set alpha for multiple testing correction and optionally apply a minimum log fold change threshold.
+
 ```r
 # Default: padj < 0.1
 res <- results(dds)
@@ -136,6 +174,10 @@ res <- results(dds, lfcThreshold = 1)  # |log2FC| > 1
 ```
 
 ## Accessing DESeq2 Results
+
+**Goal:** Retrieve, filter, and sort DE results for downstream use.
+
+**Approach:** Extract results as a data frame, subset by significance, and order by p-value or fold change.
 
 ```r
 # Summary of results
@@ -167,6 +209,10 @@ res_df <- as.data.frame(res)
 
 ## Normalization and Counts
 
+**Goal:** Obtain normalized expression values suitable for visualization and cross-sample comparison.
+
+**Approach:** Extract size-factor-normalized counts or apply variance-stabilizing / rlog transformations.
+
 ```r
 # Get normalized counts
 normalized_counts <- counts(dds, normalized = TRUE)
@@ -183,6 +229,10 @@ rld <- rlog(dds, blind = FALSE)
 
 ## Multi-Factor Designs
 
+**Goal:** Account for batch or other nuisance variables while testing the effect of interest.
+
+**Approach:** Include batch as a covariate in the design formula so DESeq2 adjusts for it during testing.
+
 ```r
 # Design with batch correction
 dds <- DESeqDataSetFromMatrix(countData = counts,
@@ -195,6 +245,10 @@ res <- results(dds, name = 'condition_treated_vs_control')
 ```
 
 ## Interaction Models
+
+**Goal:** Identify genes whose response to treatment differs between genotypes (or other factor combinations).
+
+**Approach:** Fit a model with interaction terms and test the interaction coefficient for significance.
 
 ```r
 # Interaction between genotype and treatment
@@ -215,6 +269,10 @@ res_interaction <- results(dds, contrast = list(
 
 ## Likelihood Ratio Test
 
+**Goal:** Test whether a factor (e.g., condition) explains significant variance compared to a reduced model.
+
+**Approach:** Compare full and reduced GLMs using a likelihood ratio test instead of Wald tests.
+
 ```r
 # Compare full vs reduced model
 dds <- DESeq(dds, test = 'LRT', reduced = ~ batch)
@@ -224,6 +282,10 @@ res <- results(dds)
 ```
 
 ## Pre-Filtering Strategies
+
+**Goal:** Remove uninformative genes to reduce multiple testing burden and improve statistical power.
+
+**Approach:** Apply count-based filters requiring minimum expression across a threshold number of samples.
 
 ```r
 # Remove genes with low counts
@@ -254,6 +316,10 @@ dds_genes <- dds[rownames(dds) %in% gene_list,]
 ```
 
 ## Exporting Results
+
+**Goal:** Save DE results and normalized counts to files for sharing or downstream tools.
+
+**Approach:** Convert results to data frames and write as CSV files.
 
 ```r
 # Write to CSV

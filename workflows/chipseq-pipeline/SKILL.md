@@ -17,7 +17,20 @@ qc_checkpoints:
   - after_peaks: "FRiP >1% (ideally >5%), peak count reasonable"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, MACS3 3.0+, bedtools 2.31+, fastp 0.23+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ChIP-seq Pipeline
+
+**"Process my ChIP-seq data from FASTQ to annotated peaks"** → Orchestrate QC, Bowtie2 alignment, duplicate removal, MACS3 peak calling, ChIPseeker annotation, and QC metrics (FRiP, strand cross-correlation).
 
 Complete workflow from raw ChIP-seq FASTQ files to annotated peaks.
 

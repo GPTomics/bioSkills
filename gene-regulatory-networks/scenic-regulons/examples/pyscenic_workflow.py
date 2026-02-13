@@ -7,6 +7,7 @@ Requires:
 - hg38 ranking databases (.feather files)
 - motifs-v9-nr.hgnc-m0.001-o0.0.tbl: motif annotations
 '''
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, seaborn 0.13+ | Verify API if version differs
 
 import os
 import glob

@@ -5,6 +5,18 @@ tool_type: mixed
 primary_tool: rMATS-turbo
 ---
 
+## Version Compatibility
+
+Reference examples tested with: STAR 2.7.11+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Differential Splicing
 
 Detect differential alternative splicing events between experimental conditions.
@@ -18,6 +30,15 @@ Detect differential alternative splicing events between experimental conditions.
 | leafcutter | BAM | Intron clustering | Novel events, no annotation bias |
 
 ## rMATS-turbo Analysis
+
+**Goal:** Detect statistically significant differential splicing events between two conditions from BAM files.
+
+**Approach:** Run rMATS-turbo on condition-grouped BAMs, then filter results by FDR and delta PSI thresholds.
+
+**"Find differential splicing between conditions"** -> Compare junction-level inclusion across sample groups with statistical testing.
+- CLI/Python: `rmats.py` + pandas filtering (rMATS-turbo)
+- Python/CLI: `suppa.py diffSplice` (SUPPA2, TPM-based)
+- R: `leafcutter_ds.R` (leafcutter, annotation-free)
 
 ```bash
 # Create sample lists (one BAM path per line)
@@ -62,6 +83,10 @@ significant = significant[
 
 ## SUPPA2 Differential Analysis
 
+**Goal:** Identify differential splicing from transcript quantification without alignment.
+
+**Approach:** Compare per-event PSI distributions between conditions using SUPPA2 empirical p-value calculation.
+
 ```python
 import subprocess
 
@@ -90,6 +115,10 @@ significant = diff[
 ```
 
 ## leafcutter Analysis
+
+**Goal:** Detect differential intron usage without relying on transcript annotation.
+
+**Approach:** Extract junctions from BAMs, cluster introns by shared splice sites, then test differential usage between groups.
 
 ```r
 library(leafcutter)
@@ -126,6 +155,10 @@ system('leafcutter_ds.R --num_threads 4 leafcutter_perind_numers.counts.gz group
 | Stringent | > 0.2 | < 0.01 | High-confidence set |
 
 ## Result Prioritization
+
+**Goal:** Rank differential splicing events by combined statistical and biological significance.
+
+**Approach:** Compute a composite score from FDR and effect size, then select top-scoring events for follow-up.
 
 ```python
 # Prioritize by effect size and significance

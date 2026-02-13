@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.PDB
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Geometric Analysis
+
+**"Calculate RMSD between two protein structures"** → Measure atomic distances/angles/dihedrals, superimpose structures, compute RMSD, and find inter-residue contacts.
+- Python: `Bio.PDB.Superimposer()` for RMSD, `NeighborSearch` for contacts
 
 Measure distances, angles, and dihedrals. Superimpose structures and calculate RMSD. Find neighbor atoms and contacts.
 

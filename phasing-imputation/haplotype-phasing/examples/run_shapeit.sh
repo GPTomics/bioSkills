@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+ | Verify API if version differs
 # Haplotype phasing with SHAPEIT5
 
 set -euo pipefail

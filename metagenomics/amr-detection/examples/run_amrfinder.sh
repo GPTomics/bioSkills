@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: AMRFinderPlus 3.12+, pandas 2.2+ | Verify API if version differs
 # AMR detection with AMRFinderPlus
 
 set -euo pipefail

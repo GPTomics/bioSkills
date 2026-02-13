@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: rmarkdown
 ---
 
+## Version Compatibility
+
+Reference examples tested with: rmarkdown 2.25+, knitr 1.45+, DESeq2 1.42+, ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # R Markdown Reports
+
+**"Create an R Markdown report"** → Write reproducible R-based documents combining code chunks, results, and narrative that render to HTML/PDF/Word.
+- R: `rmarkdown::render('report.Rmd')`, or Knit button in RStudio
 
 ## Basic Document Structure
 

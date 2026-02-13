@@ -1,3 +1,4 @@
+# Reference: DADA2 1.30+, ggplot2 3.5+, phyloseq 1.46+, scanpy 1.10+, vegan 2.6+ | Verify API if version differs
 # Complete 16S microbiome workflow: FASTQ to differential abundance
 library(dada2)
 library(phyloseq)

@@ -5,9 +5,24 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Alignment Sorting
 
 Sort alignment files by coordinate or read name using samtools and pysam.
+
+**"Sort a BAM file"** → Reorder reads by genomic coordinate (for indexing/variant calling) or by name (for paired-end processing).
+- CLI: `samtools sort -o sorted.bam input.bam`
+- Python: `pysam.sort('-o', 'sorted.bam', 'input.bam')`
 
 ## Sort Orders
 
@@ -204,6 +219,10 @@ pysam.merge('-f', 'merged.bam', 'sample1.bam', 'sample2.bam', 'sample3.bam')
 ```
 
 ## Common Workflows
+
+**Goal:** Combine sorting with other alignment processing steps into efficient pipelines.
+
+**Approach:** Pipe aligner output directly into `samtools sort` to avoid writing unsorted intermediates, then index for downstream access.
 
 ### Align and Sort
 ```bash
