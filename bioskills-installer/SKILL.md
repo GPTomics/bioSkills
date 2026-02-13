@@ -10,7 +10,7 @@ Meta-skill that installs the full bioSkills collection (425 skills across 62 cat
 
 ## Installation
 
-Run the bundled install script to download and install all bioSkills:
+Run the bundled install script to install all bioSkills:
 
 ```bash
 bash scripts/install-bioskills.sh

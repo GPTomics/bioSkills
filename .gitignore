@@ -19,6 +19,7 @@
 *.rar
 *.tar
 *.zip
+*.sha256
 
 # Logs and databases #
 ######################
@@ -34,6 +35,7 @@
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+.claude*
 
 # Data Paths #
 ###################
