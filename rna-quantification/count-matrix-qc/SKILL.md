@@ -5,11 +5,30 @@ tool_type: mixed
 primary_tool: DESeq2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Count Matrix QC
+
+**"Check my count matrix for outliers and batch effects"** → Perform PCA, sample-sample correlation, library size assessment, and outlier detection before running differential expression.
+- R: `DESeq2::vst()` → `plotPCA()`, sample distance heatmap
+- Python: `sklearn.decomposition.PCA`, `seaborn.clustermap`
 
 Quality control and exploratory analysis of count matrices before differential expression.
 
 ## Load and Inspect Counts
+
+**Goal:** Assess count matrix quality before differential expression by detecting outliers, batch effects, and sample relationship problems.
+
+**Approach:** Load counts into DESeq2 or pandas, compute per-sample library size statistics, apply variance-stabilizing transformation, then run PCA and sample-sample correlation to identify outliers and batch structure.
 
 ### R
 

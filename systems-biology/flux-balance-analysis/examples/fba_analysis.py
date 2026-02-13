@@ -1,4 +1,5 @@
 '''Flux balance analysis with COBRApy'''
+# Reference: cobrapy 0.29+ | Verify API if version differs
 
 import cobra
 from cobra.flux_analysis import flux_variability_analysis, pfba

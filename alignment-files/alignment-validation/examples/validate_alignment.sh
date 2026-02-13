@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: matplotlib 3.8+, numpy 1.26+, picard 3.1+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Comprehensive alignment validation
 
 BAM=$1

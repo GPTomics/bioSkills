@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''View VCF file contents using cyvcf2'''
+# Reference: bcftools 1.19+, numpy 1.26+ | Verify API if version differs
 
 from cyvcf2 import VCF
 import sys

@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: gatk
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # GATK CNV Workflow
+
+**"Call CNVs using GATK best practices"** → Collect read counts, build a panel of normals, denoise tumor coverage, model segments with allelic counts, and call copy ratio states.
+- CLI: `gatk CollectReadCounts` → `gatk DenoiseReadCounts` → `gatk ModelSegments` → `gatk CallCopyRatioSegments`
 
 ## Somatic CNV Workflow Overview
 
@@ -20,6 +33,10 @@ primary_tool: gatk
 ```
 
 ## Step 1: Preprocess Intervals
+
+**Goal:** Prepare genomic intervals for read counting, handling both WES and WGS modes.
+
+**Approach:** Use PreprocessIntervals to bin or merge target intervals with appropriate padding.
 
 ```bash
 # For WES/targeted
@@ -40,6 +57,10 @@ gatk PreprocessIntervals \
 
 ## Step 2: Collect Read Counts
 
+**Goal:** Count reads per interval for each sample.
+
+**Approach:** Run CollectReadCounts on each BAM against the preprocessed intervals.
+
 ```bash
 # For each sample
 gatk CollectReadCounts \
@@ -51,6 +72,10 @@ gatk CollectReadCounts \
 ```
 
 ## Step 3: Create Panel of Normals
+
+**Goal:** Build a reference panel from multiple normal samples for denoising.
+
+**Approach:** Combine normal sample count HDF5 files into a single panel-of-normals using PCA-based denoising.
 
 ```bash
 # Combine multiple normal samples
@@ -64,6 +89,10 @@ gatk CreateReadCountPanelOfNormals \
 
 ## Step 4: Denoise Read Counts
 
+**Goal:** Remove systematic noise from tumor read counts using the panel of normals.
+
+**Approach:** Apply DenoiseReadCounts with the PoN to produce standardized and denoised copy ratio profiles.
+
 ```bash
 # Using panel of normals
 gatk DenoiseReadCounts \
@@ -75,6 +104,10 @@ gatk DenoiseReadCounts \
 
 ## Step 5: Collect Allelic Counts
 
+**Goal:** Capture allele-specific information at known heterozygous SNP sites for LOH detection.
+
+**Approach:** Run CollectAllelicCounts against common SNP sites to generate allelic count profiles.
+
 ```bash
 # From known SNP sites (for LOH detection)
 gatk CollectAllelicCounts \
@@ -85,6 +118,10 @@ gatk CollectAllelicCounts \
 ```
 
 ## Step 6: Model Segments
+
+**Goal:** Jointly segment copy ratio and allelic data to identify CNV regions.
+
+**Approach:** Run ModelSegments with denoised ratios and allelic counts from both tumor and matched normal.
 
 ```bash
 # Somatic with matched normal allelic counts
@@ -100,6 +137,10 @@ gatk ModelSegments \
 
 ## Step 7: Call Copy Ratio Segments
 
+**Goal:** Assign amplification, deletion, or neutral calls to each segment.
+
+**Approach:** Apply CallCopyRatioSegments to convert continuous log2 ratios into discrete CN states.
+
 ```bash
 gatk CallCopyRatioSegments \
     -I results/tumor.cr.seg \
@@ -107,6 +148,10 @@ gatk CallCopyRatioSegments \
 ```
 
 ## Plotting
+
+**Goal:** Visualize denoised copy ratios and modeled segments with allelic information.
+
+**Approach:** Use GATK PlotDenoisedCopyRatios and PlotModeledSegments to generate standardized plots.
 
 ```bash
 # Plot copy ratios and segments

@@ -1,3 +1,4 @@
+# Reference: ReactomePA 1.46+, clusterProfiler 4.10+ | Verify API if version differs
 library(MetaboAnalystR)
 
 # Significant metabolites (HMDB IDs)

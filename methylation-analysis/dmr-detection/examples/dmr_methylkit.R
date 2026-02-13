@@ -1,3 +1,4 @@
+# Reference: GenomicRanges 1.54+ | Verify API if version differs
 library(methylKit)
 library(annotatr)
 library(GenomicRanges)

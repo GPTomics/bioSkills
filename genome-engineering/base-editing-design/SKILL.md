@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: BE-Hive
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Base Editing Design
+
+**"Design a base editor guide for my C-to-T conversion"** → Identify guide sequences that position the target nucleotide within the editing window of cytosine (CBE) or adenine (ABE) base editors, predicting editing outcomes and bystander effects.
+- Python: editing window analysis with `Bio.Seq`, BE-Hive outcome prediction
 
 ## Base Editor Types
 
@@ -27,6 +40,10 @@ Editing window is typically positions 4-8 from PAM-distal end
 ```
 
 ## Find Editable Positions
+
+**Goal:** Identify guide sequences that place a target nucleotide within the base editor's editing window while minimizing bystander edits.
+
+**Approach:** Scan for PAM sites in both orientations, calculate where the target base falls within the spacer, filter guides where the target lands in the CBE (positions 4-8) or ABE (positions 4-7) editing window, and rank by fewest bystander bases in the window.
 
 ```python
 from Bio.Seq import Seq

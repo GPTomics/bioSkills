@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.PDB
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Structure Navigation
+
+**"Access residues and atoms in a PDB structure"** → Navigate the Structure-Model-Chain-Residue-Atom hierarchy to iterate over components, extract sequences, and access atomic coordinates.
+- Python: `structure[0]['A'][100]['CA'].get_vector()` for direct access
 
 Navigate the Structure-Model-Chain-Residue-Atom (SMCRA) hierarchy to access and iterate over structure components.
 

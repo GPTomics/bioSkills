@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: eggNOG-mapper
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Functional Annotation
+
+**"Functionally annotate my predicted proteins"** → Assign GO terms, KEGG orthologs, Pfam domains, and EC numbers to predicted protein sequences using orthology-based and domain-scan methods.
+- CLI: `emapper.py -i proteins.fa --output annotations` (eggNOG-mapper), `interproscan.sh -i proteins.fa` (InterProScan)
 
 Assign functional annotations (GO terms, KEGG orthologs, Pfam domains, EC numbers) to predicted protein sequences using eggNOG-mapper and InterProScan.
 
@@ -151,6 +165,10 @@ interproscan.sh \
 | TMHMM | Transmembrane helices |
 
 ## Merging eggNOG and InterProScan Results
+
+**Goal:** Combine functional annotations from eggNOG-mapper and InterProScan into a single per-protein table with unified GO terms.
+
+**Approach:** Parse the eggNOG annotation table and InterProScan TSV output separately, aggregate InterProScan hits per protein, merge on protein ID, and deduplicate GO terms from both sources.
 
 ```python
 import pandas as pd

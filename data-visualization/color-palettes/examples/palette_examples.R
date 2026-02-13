@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, matplotlib 3.8+, seaborn 0.13+ | Verify API if version differs
 library(ggplot2)
 library(RColorBrewer)
 library(viridis)

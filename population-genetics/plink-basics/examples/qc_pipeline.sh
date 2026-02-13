@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+ | Verify API if version differs
 # PLINK QC pipeline for population genetics
 # Usage: ./qc_pipeline.sh <input_vcf> <output_prefix>
 

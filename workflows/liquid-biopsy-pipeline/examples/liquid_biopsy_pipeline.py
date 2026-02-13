@@ -2,6 +2,7 @@
 '''
 Complete liquid biopsy analysis pipeline.
 '''
+# Reference: bwa 0.7.17+, vardict 1.8+, fgbio 2.1+, ichorcna 0.5+, numpy 1.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+, scanpy 1.10+ | Verify API if version differs
 
 import subprocess
 import pysam

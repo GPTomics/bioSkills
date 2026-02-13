@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+ | Verify API if version differs
 # GSEA with Gene Ontology
 
 library(clusterProfiler)

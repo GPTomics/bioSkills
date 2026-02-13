@@ -1,3 +1,4 @@
+# Reference: MACS3 3.0+ | Verify API if version differs
 # m6A peak calling with exomePeak2
 
 library(exomePeak2)

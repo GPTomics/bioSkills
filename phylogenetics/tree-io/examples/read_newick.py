@@ -1,4 +1,5 @@
 '''Read and inspect a Newick format phylogenetic tree'''
+# Reference: biopython 1.83+, scanpy 1.10+ | Verify API if version differs
 
 from Bio import Phylo
 from io import StringIO

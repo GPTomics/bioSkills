@@ -5,9 +5,30 @@ tool_type: mixed
 primary_tool: matplotlib
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CNV Visualization
 
+**"Plot my copy number profile"** → Create genome-wide scatter plots, segmentation views, and multi-sample heatmaps from CNV caller output.
+- CLI: `cnvkit.py scatter`, `cnvkit.py diagram`, `cnvkit.py heatmap`
+- Python: `matplotlib` for custom CNV plots
+- R: `ggplot2` for publication figures
+
 ## CNVkit Built-in Plots
+
+**Goal:** Generate standard CNV visualizations directly from CNVkit output files.
+
+**Approach:** Use CNVkit scatter, diagram, and heatmap commands for quick visual inspection.
 
 ```bash
 # Scatter plot with segments
@@ -27,6 +48,10 @@ cnvkit.py heatmap *.cns -c chr17:7500000-7700000 -o tp53_region.pdf
 ```
 
 ## Python: Genome-wide Profile
+
+**Goal:** Create a genome-wide CNV scatter plot with colored segments across all chromosomes.
+
+**Approach:** Calculate cumulative genomic positions, plot log2 ratios as gray dots, and overlay colored segment lines.
 
 ```python
 import pandas as pd
@@ -89,6 +114,10 @@ def plot_cnv_profile(cnr_file, cns_file, output=None):
 
 ## Python: Single Chromosome Plot
 
+**Goal:** Visualize the CNV profile of a single chromosome at higher resolution.
+
+**Approach:** Filter bins and segments to one chromosome, plot with gain/loss/neutral color coding.
+
 ```python
 def plot_chromosome(cnr, cns, chrom, ax=None):
     '''Plot CNV profile for single chromosome.'''
@@ -116,6 +145,10 @@ def plot_chromosome(cnr, cns, chrom, ax=None):
 ```
 
 ## Python: Cohort Heatmap
+
+**Goal:** Compare CNV patterns across multiple samples in a single heatmap.
+
+**Approach:** Load segment files for all samples, build a matrix of log2 ratios, and render with seaborn diverging colormap.
 
 ```python
 import seaborn as sns
@@ -148,6 +181,10 @@ def plot_cnv_heatmap(cns_files, region=None, output=None):
 ```
 
 ## R: ggplot2 Visualization
+
+**Goal:** Create a faceted genome-wide CNV profile using ggplot2.
+
+**Approach:** Plot bins as points with segment overlays, faceted by chromosome with free x-scales.
 
 ```r
 library(ggplot2)
@@ -182,6 +219,10 @@ plot_cnv_profile <- function(cnr_file, cns_file) {
 ```
 
 ## Circos-style Plot
+
+**Goal:** Display CNV data as a circular genome plot.
+
+**Approach:** Map segments to polar coordinates, render gain/loss bars around the genome circle using matplotlib polar projection.
 
 ```python
 def plot_circos_cnv(cns_file, output=None):
@@ -222,6 +263,10 @@ def plot_circos_cnv(cns_file, output=None):
 ```
 
 ## GATK Plot Commands
+
+**Goal:** Generate GATK-native CNV plots showing denoised ratios and modeled segments.
+
+**Approach:** Run PlotDenoisedCopyRatios and PlotModeledSegments on GATK CNV output files.
 
 ```bash
 # Denoised copy ratios

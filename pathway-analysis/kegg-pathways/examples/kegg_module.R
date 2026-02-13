@@ -1,3 +1,4 @@
+# Reference: R stats (base), clusterProfiler 4.10+ | Verify API if version differs
 # KEGG module and pathway comparison
 
 library(clusterProfiler)

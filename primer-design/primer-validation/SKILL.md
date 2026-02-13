@@ -5,9 +5,22 @@ tool_type: python
 primary_tool: primer3-py
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+, primer3-py 2.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Primer Validation
 
 Check primers for secondary structures, dimers, and other issues using primer3-py.
+
+**"Validate a primer pair"** → Check for hairpins, self-dimers, heterodimers, and 3' stability using thermodynamic calculations.
+- Python: `primer3.calc_hairpin()`, `primer3.calc_homodimer()`, `primer3.calc_heterodimer()` (primer3-py)
 
 ## Required Imports
 

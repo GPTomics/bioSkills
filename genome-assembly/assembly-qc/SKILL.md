@@ -5,9 +5,21 @@ tool_type: cli
 primary_tool: QUAST
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BUSCO 5.5+, QUAST 5.2+, SPAdes 3.15+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Assembly QC
 
-Evaluate genome assembly quality with contiguity metrics (QUAST) and gene completeness (BUSCO).
+**"Assess my genome assembly quality"** → Evaluate assembly contiguity (N50, total length, misassemblies) and gene completeness using conserved single-copy orthologs.
+- CLI: `quast assembly.fa -r reference.fa` (contiguity), `busco -i assembly.fa -l lineage` (completeness)
 
 ## Key Metrics
 
@@ -183,6 +195,10 @@ n - Total BUSCO groups
 
 ## Complete QC Workflow
 
+**Goal:** Run a comprehensive assembly quality assessment combining contiguity and completeness metrics.
+
+**Approach:** Execute QUAST for contiguity statistics and BUSCO for gene completeness, optionally with a reference genome.
+
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -224,6 +240,10 @@ echo "Reports saved to $OUTDIR"
 
 ## Compare Assemblies
 
+**Goal:** Evaluate multiple assemblies side-by-side to select the best one.
+
+**Approach:** Run QUAST with multiple input assemblies and labeled names, then generate BUSCO comparison plots.
+
 ### QUAST Comparison
 
 ```bash
@@ -251,6 +271,10 @@ generate_plot.py -wd . busco_spades busco_flye busco_canu
 
 ## Python: Parse QUAST Output
 
+**Goal:** Programmatically extract assembly metrics from QUAST reports.
+
+**Approach:** Read the tab-separated report.tsv file and transpose it for easy metric access.
+
 ```python
 import pandas as pd
 
@@ -266,6 +290,10 @@ print(f"# contigs: {stats['# contigs'].values[0]}")
 ```
 
 ## Python: Parse BUSCO Output
+
+**Goal:** Programmatically extract BUSCO completeness metrics from summary files.
+
+**Approach:** Parse the short_summary.txt file using regex to capture completeness, duplication, fragmentation, and missing percentages.
 
 ```python
 import re
@@ -294,6 +322,10 @@ print(f"Complete: {result['complete']}%")
 ```
 
 ## MetaQUAST (Metagenomes)
+
+**Goal:** Assess metagenome assembly quality accounting for multiple reference genomes.
+
+**Approach:** Run MetaQUAST which automatically identifies reference genomes and reports per-genome metrics.
 
 ```bash
 metaquast.py metagenome_assembly.fa -o metaquast_output -t 16

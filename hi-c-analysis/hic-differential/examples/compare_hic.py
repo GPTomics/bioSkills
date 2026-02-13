@@ -1,4 +1,5 @@
 '''Compare Hi-C contact matrices between conditions'''
+# Reference: cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
 
 import cooler
 import numpy as np

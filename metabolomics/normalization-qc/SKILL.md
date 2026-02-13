@@ -5,9 +5,25 @@ tool_type: r
 primary_tool: MetaboAnalystR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: xcms 4.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolomics Normalization and QC
 
 ## Load and Inspect Data
+
+**Goal:** Load the feature table and sample metadata, separating QC and biological samples for downstream processing.
+
+**Approach:** Read CSV files, partition by sample type, and assess missing value prevalence.
+
+**"Normalize my metabolomics data and correct for batch effects"** → Apply QC-based signal correction, handle missing values, transform intensities, and assess normalization quality via RSD and PCA.
 
 ```r
 library(tidyverse)
@@ -30,6 +46,10 @@ cat('Features with >50% missing:', sum(missing_pct > 50), '\n')
 ```
 
 ## QC-Based Normalization (QC-RSC)
+
+**Goal:** Remove injection-order-dependent signal drift using QC sample trends.
+
+**Approach:** Fit a LOESS curve to QC sample intensities over injection order, then correct all samples by dividing by the predicted drift and rescaling to the QC median.
 
 ```r
 # QC-based Robust Spline Correction
@@ -67,6 +87,10 @@ data_corrected <- qc_rsc_normalize(data, sample_info)
 
 ## Total Ion Current (TIC) Normalization
 
+**Goal:** Correct for differences in total signal intensity across samples.
+
+**Approach:** Divide each sample by its total intensity sum, then rescale to the median total intensity.
+
 ```r
 # Simple sum normalization
 tic_normalize <- function(data) {
@@ -79,6 +103,10 @@ data_tic <- tic_normalize(data)
 ```
 
 ## Probabilistic Quotient Normalization (PQN)
+
+**Goal:** Normalize samples while being robust to large fold changes in individual features.
+
+**Approach:** Compute a reference spectrum from sample medians, calculate per-sample quotients, and divide each sample by its median quotient.
 
 ```r
 pqn_normalize <- function(data) {
@@ -101,6 +129,10 @@ data_pqn <- pqn_normalize(data)
 
 ## Batch Correction (ComBat)
 
+**Goal:** Remove systematic technical variation between processing batches while preserving biological effects.
+
+**Approach:** Apply ComBat empirical Bayes batch correction on log-transformed data, using a design matrix to protect the biological variable of interest.
+
 ```r
 library(sva)
 
@@ -117,6 +149,10 @@ data_combat <- t(data_combat)
 ```
 
 ## Missing Value Handling
+
+**Goal:** Filter features with excessive missing values and impute remaining gaps for complete-case analysis.
+
+**Approach:** Remove features missing in more than 20% of samples (optionally per group), then impute via KNN or minimum-value replacement for left-censored data.
 
 ```r
 # Filter features with too many missing values
@@ -157,6 +193,10 @@ min_impute <- function(data) {
 
 ## Data Transformation
 
+**Goal:** Transform and scale feature intensities to approximate normality and equalize feature variance.
+
+**Approach:** Apply log2 transformation followed by Pareto scaling (divide by sqrt of SD) or auto-scaling (z-score).
+
 ```r
 # Log transformation
 data_log <- log2(data + 1)
@@ -175,6 +215,10 @@ data_auto <- scale(data_log)
 ```
 
 ## QC Assessment
+
+**Goal:** Evaluate normalization success by measuring QC sample reproducibility and visualizing sample clustering.
+
+**Approach:** Calculate relative standard deviation (RSD) across QC samples (target <30%) and compare PCA before and after correction.
 
 ```r
 # RSD in QC samples (should be <30%)
@@ -203,6 +247,10 @@ plot(pca_after$rotation[, 1:2], col = ifelse(rownames(pca_after$rotation) %in% q
 ```
 
 ## Quality Report
+
+**Goal:** Generate a summary report of key QC metrics for the processed dataset.
+
+**Approach:** Compute feature count, sample count, missing percentage, median RSD, and features passing RSD threshold.
 
 ```r
 generate_qc_report <- function(data, sample_info) {

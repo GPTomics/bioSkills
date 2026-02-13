@@ -1,4 +1,5 @@
 '''Find marker genes with Scanpy'''
+# Reference: pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import scanpy as sc
 import pandas as pd

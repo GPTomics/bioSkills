@@ -5,9 +5,23 @@ tool_type: python
 primary_tool: Bio.Entrez
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Entrez Link
 
 Navigate between NCBI databases using Biopython's Entrez module (ELink utility).
+
+**"Find related records across NCBI databases"** → Use ELink to discover cross-references (e.g., gene to protein, sequence to publication).
+- Python: `Entrez.elink(dbfrom=..., db=..., id=...)` (BioPython)
+- CLI: `elink -db protein -target gene` (Entrez Direct)
 
 ## Required Setup
 
@@ -180,6 +194,10 @@ for name, target in available.items():
 
 ### Navigate Gene -> Protein -> Structure
 
+**Goal:** Traverse multiple NCBI databases to find 3D structures associated with a gene of interest.
+
+**Approach:** Chain two ELink calls: first link from gene to RefSeq proteins, then link those protein IDs to the structure database.
+
 ```python
 def gene_to_structures(gene_id):
     # Gene to protein
@@ -207,6 +225,10 @@ print(f"Structure IDs: {structures[:5]}")
 ```
 
 ### Link Multiple IDs at Once
+
+**Goal:** Find cross-database links for a batch of source IDs in a single API call.
+
+**Approach:** Pass comma-joined IDs to ELink; the result contains one linkset per input ID, so iterate through the record list to map each source ID to its linked targets.
 
 ```python
 def batch_link(dbfrom, db, ids):

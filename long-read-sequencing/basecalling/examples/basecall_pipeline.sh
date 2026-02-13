@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: samtools 1.19+ | Verify API if version differs
 # Complete basecalling pipeline
 
 INPUT=$1

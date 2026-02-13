@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: pandas
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CRISPR Screen Quality Control
+
+**"Check the quality of my CRISPR screen"** → Assess screen quality through library representation, Gini index, replicate correlation, and essential gene recovery metrics before hit calling.
+- Python: `pandas` + `matplotlib` for QC metrics and diagnostic plots
 
 ## Load Count Data
 
@@ -27,6 +40,10 @@ print(f'Samples: {count_matrix.columns.tolist()}')
 
 ## Library Representation
 
+**Goal:** Assess whether the sgRNA library is adequately represented across all samples.
+
+**Approach:** Count zero-count and low-count sgRNAs per sample, flagging samples where dropout exceeds quality thresholds (>1% zero-count is warning, >5% is failure).
+
 ```python
 # Zero-count sgRNAs per sample
 zero_counts = (count_matrix == 0).sum()
@@ -46,6 +63,10 @@ for sample, pct in low_pct.items():
 ```
 
 ## Read Distribution (Gini Index)
+
+**Goal:** Quantify how evenly reads are distributed across sgRNAs within each sample.
+
+**Approach:** Calculate the Gini index (0 = perfect equality, 1 = complete inequality) from sorted non-zero counts, where values below 0.2 indicate good uniformity.
 
 ```python
 def gini_index(x):
@@ -92,6 +113,10 @@ plt.savefig('qc_distribution.png', dpi=150)
 
 ## Replicate Correlation
 
+**Goal:** Verify that biological and technical replicates are concordant.
+
+**Approach:** Compute pairwise Pearson correlations on log-transformed counts, display as a heatmap, and flag replicate pairs with correlation below 0.8.
+
 ```python
 # Correlation matrix
 log_counts = np.log10(count_matrix + 1)
@@ -114,6 +139,10 @@ for i, col1 in enumerate(count_matrix.columns):
 ```
 
 ## Essential Gene Recovery
+
+**Goal:** Confirm that the screen detects known essential genes as a positive control for screen quality.
+
+**Approach:** Load reference essential gene sets, score genes by MAGeCK negative-selection rank, and compute the AUROC for separating essential from non-essential genes.
 
 ```python
 # Load known essential genes (e.g., from Hart et al. or DepMap)
@@ -170,6 +199,10 @@ if cv > 0.5:
 ```
 
 ## QC Summary Report
+
+**Goal:** Generate a comprehensive pass/fail QC summary for a CRISPR screen.
+
+**Approach:** Aggregate zero-count percentage, mean Gini index, and minimum replicate correlation into a single report, applying quality thresholds to determine overall screen status.
 
 ```python
 def generate_qc_report(count_matrix, genes):

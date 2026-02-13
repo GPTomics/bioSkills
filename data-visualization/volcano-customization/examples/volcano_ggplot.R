@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 library(ggplot2)
 library(ggrepel)
 library(dplyr)

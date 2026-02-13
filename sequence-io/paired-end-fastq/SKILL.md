@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.SeqIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Paired-End FASTQ
+
+**"Work with my paired-end FASTQ files"** → Iterate R1/R2 pairs in sync, filter both mates together, interleave/deinterleave files, and auto-detect paired file naming.
+- Python: `SeqIO.parse()` with `zip()` iteration (BioPython)
 
 Handle paired-end sequencing data (R1/R2 files) using Biopython.
 
@@ -91,6 +104,12 @@ def filter_pairs_by_length(r1_file, r2_file, min_length=50):
 ```
 
 ### Memory-Efficient Paired Filtering
+
+**Goal:** Quality-filter paired reads while maintaining R1/R2 synchronization without loading all reads into memory.
+
+**Approach:** Stream both files in lockstep with `zip`, evaluate both mates, and write only pairs where both pass.
+
+**Reference (BioPython 1.83+):**
 ```python
 def filter_pairs_streaming(r1_in, r2_in, r1_out, r2_out, min_qual=25):
     r1_records = SeqIO.parse(r1_in, 'fastq')
@@ -114,6 +133,12 @@ print(f'{count} pairs passed filtering')
 ## Interleave Pairs
 
 ### Create Interleaved File
+
+**Goal:** Merge separate R1/R2 files into a single interleaved file (R1, R2, R1, R2, ...).
+
+**Approach:** Zip both iterators together and yield alternating records through a generator.
+
+**Reference (BioPython 1.83+):**
 ```python
 def interleave_pairs(r1_file, r2_file, output_file, format='fastq'):
     r1_records = SeqIO.parse(r1_file, format)

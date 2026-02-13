@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: cutadapt 4.4+, fastp 0.23+, matplotlib 3.8+ | Verify API if version differs
 # Preprocess small RNA-seq data for miRNA analysis
 
 INPUT=$1

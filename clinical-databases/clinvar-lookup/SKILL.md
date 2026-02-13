@@ -5,9 +5,28 @@ tool_type: python
 primary_tool: requests
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Entrez Direct 21.0+, bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ClinVar Lookup
 
 ## REST API Queries
+
+**Goal:** Retrieve ClinVar pathogenicity classifications and disease associations for variants via REST API.
+
+**Approach:** Query NCBI E-utilities endpoints with variant IDs, gene symbols, or HGVS notation and parse JSON responses.
+
+**"Look up this variant in ClinVar"** → Query ClinVar database for clinical significance, review status, and disease associations.
+- Python: `requests.get()` against NCBI E-utilities (requests)
+- CLI: `esearch`/`efetch` (Entrez Direct)
 
 ### Query by Variant ID
 
@@ -66,6 +85,10 @@ def search_clinvar_hgvs(hgvs):
 
 ## Local ClinVar VCF
 
+**Goal:** Query variants against a local ClinVar VCF for fast, offline pathogenicity lookups.
+
+**Approach:** Download the ClinVar VCF from NCBI FTP, then query by genomic coordinates using cyvcf2 or bcftools.
+
 ### Download ClinVar VCF
 
 ```bash
@@ -123,6 +146,10 @@ result = lookup_variant('7', 140453136, 'A', 'T')
 
 ## Parse ClinVar INFO Fields
 
+**Goal:** Classify variants into actionable pathogenicity categories from raw ClinVar CLNSIG values.
+
+**Approach:** Map ClinVar significance terms to simplified categories (pathogenic, benign, conflicting, VUS).
+
 ```python
 def parse_clinvar_significance(clnsig):
     '''Parse ClinVar CLNSIG field'''
@@ -140,6 +167,10 @@ def parse_clinvar_significance(clnsig):
 ```
 
 ## Batch Annotation with bcftools
+
+**Goal:** Annotate an entire VCF with ClinVar significance, review status, and disease names in one pass.
+
+**Approach:** Use bcftools annotate to transfer ClinVar INFO fields from the ClinVar VCF to the input VCF.
 
 ```bash
 # Annotate VCF with ClinVar

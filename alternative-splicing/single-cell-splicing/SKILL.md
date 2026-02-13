@@ -5,6 +5,16 @@ tool_type: python
 primary_tool: BRIE2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Single-Cell Splicing Analysis
 
 Analyze alternative splicing at single-cell resolution.
@@ -19,6 +29,14 @@ Analyze alternative splicing at single-cell resolution.
 Note: Avoid Whippet.jl (Julia 1.6.7 only, incompatible with Julia 1.9+)
 
 ## BRIE2 Analysis
+
+**Goal:** Estimate per-cell PSI values for splicing events with uncertainty quantification.
+
+**Approach:** Prepare splicing events from annotation, count reads per cell barcode, then fit a Bayesian variational inference model for probabilistic PSI estimation.
+
+**"Analyze splicing in single-cell data"** -> Estimate per-cell inclusion levels for splicing events with uncertainty.
+- Python: BRIE2 (probabilistic PSI, handles sparsity)
+- Python/R: leafcutter2 (intron clustering, NMD detection)
 
 ```python
 import brie
@@ -62,6 +80,10 @@ brie.fit(
 
 ## Cell-Type Specific Splicing
 
+**Goal:** Identify splicing events that vary between cell types.
+
+**Approach:** Compute mean PSI per cell type from BRIE2 output and rank events by cross-cell-type variance.
+
 ```python
 import numpy as np
 import pandas as pd
@@ -87,6 +109,10 @@ print(variable_events)
 ```
 
 ## leafcutter2 Analysis
+
+**Goal:** Detect differential intron usage in single-cell data with NMD-inducing splicing detection.
+
+**Approach:** Extract junctions from 10X BAMs with cell barcodes, cluster introns, and run differential analysis between cell groups.
 
 ```python
 import subprocess
@@ -124,6 +150,10 @@ subprocess.run([
 ```
 
 ## Pseudobulk Approach
+
+**Goal:** Increase statistical power for splicing analysis by aggregating single cells into pseudobulk samples.
+
+**Approach:** Sum junction counts within cell type groups, then apply bulk differential splicing methods to the aggregated counts.
 
 ```python
 import pandas as pd

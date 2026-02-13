@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.Phylo
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, matplotlib 3.8+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Tree Visualization
+
+**"Create a publication-quality tree figure"** → Draw and customize phylogenetic tree visualizations with colored branches, tip labels, and bootstrap support values using matplotlib.
+- Python: `Bio.Phylo.draw()` with matplotlib customization
 
 Draw phylogenetic trees using matplotlib integration.
 

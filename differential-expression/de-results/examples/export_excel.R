@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, edgeR 4.0+ | Verify API if version differs
 # Export DE results to Excel with multiple sheets
 
 library(openxlsx)

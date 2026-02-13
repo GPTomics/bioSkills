@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: pyOpenMS
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Post-Translational Modification Analysis
+
+**"Analyze phosphorylation sites from my proteomics data"** → Identify and quantify post-translational modifications including phosphorylation, acetylation, and ubiquitination with site localization and motif analysis.
+- Python: `pyopenms` for PTM-aware search, `scipy` for site-level statistics
+- CLI: MaxQuant with variable modifications for enrichment-based PTM analysis
 
 ## Common PTMs and Mass Shifts
 
@@ -24,6 +39,10 @@ PTM_MASSES = {
 ```
 
 ## Processing MaxQuant PTM Output
+
+**Goal:** Extract high-confidence phosphorylation sites from MaxQuant output with proper filtering and site annotation.
+
+**Approach:** Load the Phospho(STY)Sites table, remove reverse hits and contaminants, filter by localization probability, and construct gene-level site identifiers.
 
 ```python
 import pandas as pd

@@ -5,15 +5,30 @@ tool_type: mixed
 primary_tool: RSeQC
 ---
 
+## Version Compatibility
+
+Reference examples tested with: NCBI BLAST+ 2.15+, numpy 1.26+, picard 3.1+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # RNA-seq Quality Control
 
 RNA-seq specific QC metrics beyond general read quality.
+
+**"Check RNA-seq alignment quality"** → Assess gene body coverage, read distribution (exonic/intronic/intergenic), strand specificity, and rRNA contamination rate.
+- CLI: `infer_experiment.py`, `read_distribution.py` (RSeQC)
+- CLI: `picard CollectRnaSeqMetrics`
 
 ## rRNA Contamination Detection
 
 High rRNA content indicates failed rRNA depletion or polyA selection.
 
-### SortMeRNA
+### SortMeRNA (NCBI BLAST+)
 
 ```bash
 sortmerna \
@@ -30,7 +45,7 @@ rrna_pct=$(echo "scale=2; $rrna_count / $total_count * 100" | bc)
 echo "rRNA: ${rrna_pct}%"
 ```
 
-### BLAST Against rRNA
+### BLAST Against rRNA (NCBI BLAST+)
 
 ```bash
 seqkit sample -n 10000 sample.fastq.gz | seqkit fq2fa > sample_10k.fasta
@@ -47,7 +62,7 @@ blastn -query sample_10k.fasta -db rrna_db -outfmt 6 -evalue 1e-10 -max_target_s
 
 ## Strandedness Verification
 
-### RSeQC infer_experiment
+### RSeQC infer_experiment (NCBI BLAST+)
 
 ```bash
 infer_experiment.py -i aligned.bam -r genes.bed
@@ -68,7 +83,7 @@ Fraction of reads explained by "1+-,1-+,2++,2--": 0.0144  # Reverse (should be l
 | Reverse (Illumina) | ~1 | ~0 |
 | Unstranded | ~0.5 | ~0.5 |
 
-### Salmon Strandedness
+### Salmon Strandedness (NCBI BLAST+)
 
 ```bash
 salmon quant -i index -l A -r sample.fastq.gz -o quant/
@@ -79,7 +94,7 @@ grep "library_types" quant/lib_format_counts.json
 
 Check for 3' or 5' bias indicating RNA degradation.
 
-### RSeQC geneBody_coverage
+### RSeQC geneBody_coverage (NCBI BLAST+)
 
 ```bash
 geneBody_coverage.py \
@@ -99,7 +114,7 @@ geneBody_coverage.py \
 
 ## Read Distribution
 
-### RSeQC read_distribution
+### RSeQC read_distribution (NCBI BLAST+)
 
 ```bash
 read_distribution.py -i aligned.bam -r genes.bed > distribution.txt
@@ -118,7 +133,7 @@ read_distribution.py -i aligned.bam -r genes.bed > distribution.txt
 
 Measure of RNA degradation per transcript.
 
-### RSeQC tin
+### RSeQC tin (NCBI BLAST+)
 
 ```bash
 tin.py -i aligned.bam -r genes.bed > tin_scores.txt
@@ -134,7 +149,7 @@ tin.py -i aligned.bam -r genes.bed > tin_scores.txt
 
 ## Duplication Rate
 
-### Picard MarkDuplicates
+### Picard MarkDuplicates (NCBI BLAST+)
 
 ```bash
 java -jar picard.jar MarkDuplicates \
@@ -156,7 +171,7 @@ grep -A 1 "LIBRARY" dup_metrics.txt | tail -1 | cut -f9
 
 ## Insert Size (Paired-End)
 
-### Picard CollectInsertSizeMetrics
+### Picard CollectInsertSizeMetrics (NCBI BLAST+)
 
 ```bash
 java -jar picard.jar CollectInsertSizeMetrics \
@@ -210,7 +225,11 @@ Aggregate all QC metrics.
 multiqc fastqc/ star_output/ featurecounts/ -o multiqc_report/
 ```
 
-## Complete RNA-seq QC Pipeline
+## Complete RNA-seq QC Pipeline (NCBI BLAST+)
+
+**Goal:** Generate a comprehensive RNA-seq QC report covering strandedness, read distribution, gene body coverage, transcript integrity, duplication, and RNA-seq metrics.
+
+**Approach:** Run RSeQC tools (infer_experiment, read_distribution, geneBody_coverage, TIN) and Picard (MarkDuplicates, CollectRnaSeqMetrics) sequentially, appending all results to a single summary report file.
 
 ```bash
 #!/bin/bash

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MiXCR 4.6+, VDJtools 1.2.1+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 # VDJtools diversity and comparison analysis
 
 METADATA=$1

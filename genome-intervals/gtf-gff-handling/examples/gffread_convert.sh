@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bedtools 2.31+, pandas 2.2+ | Verify API if version differs
 # Convert between GTF and GFF3 formats using gffread
 
 # Check if gffread is available

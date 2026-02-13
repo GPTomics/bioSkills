@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: OptiType 1.3+, STAR 2.7.11+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
 # OptiType HLA Class I typing from WES/WGS
 #
 # Prerequisites:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Visualize CNV profiles'''
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, seaborn 0.13+ | Verify API if version differs
 
 import pandas as pd
 import matplotlib.pyplot as plt

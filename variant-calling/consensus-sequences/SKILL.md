@@ -5,9 +5,22 @@ tool_type: cli
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, bcftools 1.19+, bedtools 2.31+, minimap2 2.26+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Consensus Sequences
 
-Apply variants to reference FASTA using bcftools consensus.
+**"Generate a consensus sequence from my VCF"** → Apply called variants to a reference FASTA, producing a sample-specific genome with optional haplotype selection and low-coverage masking.
+- CLI: `bcftools consensus -f reference.fa input.vcf.gz`
+- Python: `cyvcf2` + `Bio.SeqIO` for simple SNP-only cases
 
 ## Basic Usage
 
@@ -180,6 +193,10 @@ bcftools consensus -f reference.fa -p "sample1_" input.vcf.gz > consensus.fa
 Sequences named: `sample1_chr1`, `sample1_chr2`, etc.
 
 ## Common Workflows
+
+**Goal:** Generate consensus sequences for downstream analyses like phylogenetics, viral surveillance, or gene-level comparison.
+
+**Approach:** Filter variants to high-quality calls, apply per-sample consensus generation, mask low-coverage regions with N, then combine for multi-sample workflows.
 
 ### Phylogenetic Analysis Preparation
 

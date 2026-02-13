@@ -1,4 +1,5 @@
 '''Create UpSet plots with upsetplot for set intersection visualization'''
+# Reference: matplotlib 3.8+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import matplotlib.pyplot as plt
 from upsetplot import from_contents, UpSet, plot

@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: bowtie2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Bowtie2 Alignment
+
+**"Align DNA reads with Bowtie2"** → Map short reads to a reference genome using Bowtie2's end-to-end or local alignment modes.
+- CLI: `bowtie2 -x index -1 R1.fq -2 R2.fq | samtools sort -o aligned.bam`
 
 ## Build Index
 

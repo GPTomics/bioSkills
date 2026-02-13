@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # Basic circos plot with circlize
 
 library(circlize)

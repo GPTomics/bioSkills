@@ -5,6 +5,16 @@ tool_type: python
 primary_tool: cell2location
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Deconvolution
 
 Estimate cell type composition in spatial spots using scRNA-seq references.
@@ -25,6 +35,12 @@ Deconvolution estimates cell type proportions in each spatial spot using a refer
 
 ## Using cell2location
 
+**Goal:** Estimate cell type abundances per spatial spot using a probabilistic model trained on scRNA-seq reference signatures.
+
+**Approach:** Train a regression model on reference scRNA-seq to extract cell type signatures, then decompose spatial spots using those signatures.
+
+**"Deconvolve my Visium spots into cell types"** -> Train a reference signature model on scRNA-seq, then map cell type abundances to spatial locations using cell2location.
+
 ```python
 import cell2location
 from cell2location.utils.filtering import filter_genes
@@ -44,6 +60,10 @@ adata_vis = adata_vis[:, intersect].copy()
 ```
 
 ## Train Reference Signature Model
+
+**Goal:** Learn cell type gene expression signatures from annotated single-cell reference data.
+
+**Approach:** Filter genes, set up a regression model on the scRNA-seq reference, train it, and export per-cell-type mean expression signatures.
 
 ```python
 # Select genes for deconvolution
@@ -67,6 +87,10 @@ ref_sig = adata_ref.varm['means_per_cluster_mu_fg']
 ```
 
 ## Run Spatial Deconvolution
+
+**Goal:** Decompose each spatial spot into cell type abundances using trained reference signatures.
+
+**Approach:** Set up the Cell2location model with reference signatures and expected cells per spot, then train on the spatial data.
 
 ```python
 # Ensure spatial data has same genes
@@ -105,6 +129,10 @@ adata_vis.obs['dominant_cell_type'] = cell_types[proportions.argmax(axis=1)]
 ```
 
 ## Using Tangram (Alternative)
+
+**Goal:** Map single-cell reference data to spatial locations using optimal transport.
+
+**Approach:** Find marker genes from the reference, align single cells to spatial spots using Tangram's mapping algorithm, then project cell type annotations.
 
 ```python
 import tangram as tg
@@ -172,6 +200,10 @@ weights <- normalize_weights(results$weights)
 
 ## Visualize Cell Type Proportions
 
+**Goal:** Display estimated cell type abundances as spatial heatmaps across the tissue.
+
+**Approach:** Plot each cell type's proportion as a separate spatial panel using Scanpy's spatial plot.
+
 ```python
 # Plot cell type abundances spatially
 cell_types_to_plot = ['T_cell', 'Macrophage', 'Epithelial', 'Fibroblast']
@@ -219,6 +251,10 @@ def plot_pie_spatial(adata, proportions, cell_types, spot_size=0.5):
 ```
 
 ## Evaluate Deconvolution Quality
+
+**Goal:** Validate deconvolution results by correlating estimated proportions with known marker gene expression.
+
+**Approach:** For each cell type, compute correlation between its estimated proportion and mean expression of canonical marker genes.
 
 ```python
 # Check correlation between expected and observed cell counts

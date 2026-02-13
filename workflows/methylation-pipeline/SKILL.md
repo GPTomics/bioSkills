@@ -16,7 +16,20 @@ qc_checkpoints:
   - after_calling: "Coverage distribution reasonable, no biased positions"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bismark 0.24+, Bowtie2 2.5.3+, FastQC 0.12+, Trim Galore 0.6.10+, fastp 0.23+, methylKit 1.28+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Methylation Pipeline
+
+**"Analyze my bisulfite sequencing data from FASTQ to DMRs"** → Orchestrate Bismark alignment, methylation calling, methylKit analysis, DMR detection, annotation with genomic features, and visualization of methylation patterns.
 
 Complete workflow from bisulfite sequencing FASTQ to differentially methylated regions.
 

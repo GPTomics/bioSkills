@@ -5,9 +5,23 @@ tool_type: cli
 primary_tool: fastqc
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Quality Reports
 
 Generate quality reports for FASTQ files using FastQC and aggregate multiple reports with MultiQC.
+
+**"Run quality control on FASTQ files"** → Generate per-base quality, adapter content, and duplication plots, then aggregate across samples.
+- CLI: `fastqc *.fastq.gz` then `multiqc .`
 
 ## FastQC - Single Sample Reports
 

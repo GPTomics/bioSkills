@@ -5,7 +5,23 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # SAM/BAM/CRAM Basics
+
+**"Read a BAM file"** → Open a binary alignment file and iterate over aligned reads with their mapping coordinates, flags, and quality scores.
+- Python: `pysam.AlignmentFile()` (pysam)
+- CLI: `samtools view` (samtools)
+- R: `scanBam()` (Rsamtools)
 
 View and convert alignment files using samtools and pysam.
 
@@ -76,6 +92,10 @@ samtools view -c input.bam
 
 ## Format Conversion
 
+**Goal:** Convert between SAM (text), BAM (binary), and CRAM (reference-compressed) alignment formats.
+
+**Approach:** Use `samtools view` with format flags (`-b` for BAM, `-C` for CRAM, `-h` for SAM with header). CRAM requires a reference FASTA with `-T`.
+
 ### BAM to SAM
 ```bash
 samtools view -h -o output.sam input.bam
@@ -140,6 +160,10 @@ samtools flags 147
 Example: `50M2I30M` = 50 bases match, 2 base insertion, 30 bases match
 
 ## pysam Python Alternative
+
+**Goal:** Read and manipulate alignment data programmatically in Python.
+
+**Approach:** Use `pysam.AlignmentFile` to open BAM/CRAM files, iterate over reads, and access properties like coordinates, flags, CIGAR, and tags.
 
 ### Open and Iterate
 ```python

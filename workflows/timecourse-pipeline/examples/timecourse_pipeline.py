@@ -1,4 +1,5 @@
 '''Time-course analysis pipeline: temporal DE, clustering, optional periodicity, GAM fitting, enrichment.'''
+# Reference: gseapy 1.1+, numpy 1.26+, pandas 2.2+, pygam 0.9+, scikit-learn 1.4+, scipy 1.12+, statsmodels 0.14+, tslearn 0.6+ | Verify API if version differs
 
 import pandas as pd
 import numpy as np

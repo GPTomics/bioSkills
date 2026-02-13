@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: bedtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, bedtools 2.31+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # BED File Basics
+
+**"Work with BED files"** → Read, create, and manipulate genomic interval files in BED format (0-based, half-open coordinates).
+- Python: `pybedtools.BedTool('file.bed')` (pybedtools)
+- CLI: `bedtools` commands
 
 BED (Browser Extensible Data) format stores genomic intervals. Uses 0-based, half-open coordinates.
 
@@ -115,6 +130,10 @@ bedtools sort -i input.bed > /dev/null 2>&1 && echo "Valid" || echo "Invalid"
 ```
 
 ### Python Validation
+
+**Goal:** Programmatically validate a BED file for common format errors before using it in downstream tools.
+
+**Approach:** Load the file with pybedtools, iterate through all intervals checking for negative coordinates and invalid ranges (start >= end), and return a pass/fail status with error description.
 
 ```python
 import pybedtools

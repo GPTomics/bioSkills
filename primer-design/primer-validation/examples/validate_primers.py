@@ -1,4 +1,5 @@
 '''Validate a primer pair for PCR'''
+# Reference: pandas 2.2+, primer3-py 2.0+ | Verify API if version differs
 
 import primer3
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: DADA2 1.30+, MAFFT 7.520+, QIIME2 2024.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
 # Complete QIIME2 16S analysis workflow
 
 set -e

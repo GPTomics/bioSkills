@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: MSstats
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MSnbase 2.28+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Protein Quantification
+
+**"Quantify proteins from my mass spec data"** → Extract protein abundances from MS data using label-free (LFQ, spectral counting), isobaric labeling (TMT, iTRAQ), or metabolic labeling (SILAC) approaches.
+- R: `MSstats::dataProcess()` for feature-to-protein summarization
+- Python: `pandas` for MaxLFQ-style normalization and ratio calculation
+- R: `MSnbase` for isobaric tag reporter ion extraction
 
 ## Label-Free Quantification (LFQ)
 
@@ -95,6 +111,10 @@ SILAC_SHIFTS = {
 ```
 
 ## MSstats Workflow (R)
+
+**Goal:** Convert MaxQuant output into normalized protein-level abundance estimates using MSstats feature-to-protein summarization.
+
+**Approach:** Reformat MaxQuant evidence and proteinGroups files into MSstats input format, then apply median equalization normalization with Tukey's median polish for protein-level summarization.
 
 ```r
 library(MSstats)

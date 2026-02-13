@@ -1,4 +1,5 @@
 '''Static network visualization with NetworkX and matplotlib'''
+# Reference: matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 
 import networkx as nx
 import matplotlib.pyplot as plt

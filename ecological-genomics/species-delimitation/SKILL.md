@@ -5,7 +5,24 @@ tool_type: mixed
 primary_tool: ASAP
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, numpy 1.26+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Species Delimitation
+
+**"Delineate species boundaries from my DNA barcoding data"** → Apply multiple delimitation methods (distance-based ASAP, tree-based bPTP/GMYC, coalescent BPP) to molecular data and compare results for multi-method consensus following integrative taxonomy best practice.
+- CLI: ASAP web tool or standalone for distance-based partitioning
+- Python: bPTP via `PTP-pyqt5` for Bayesian branching-rate analysis
+- R: `splits::gmyc()` for coalescent/speciation transition model
 
 Delimits putative species from molecular data using complementary distance-based, tree-based, and coalescent methods.
 
@@ -19,6 +36,10 @@ Delimits putative species from molecular data using complementary distance-based
 | BPP | Multi-locus alignment | Full coalescent model | Multi-locus, statistically rigorous | Computationally intensive |
 
 ## ASAP (Assemble Species by Automatic Partitioning)
+
+**Goal:** Partition aligned barcode sequences into putative species using pairwise genetic distances.
+
+**Approach:** Run ASAP with a substitution model (K2P, p-distance) and rank candidate partitions by asap-score.
 
 Distance-based method that finds the optimal partition of sequences into putative species:
 
@@ -77,6 +98,10 @@ for t in thresholds:
 
 ## bPTP (Bayesian Poisson Tree Processes)
 
+**Goal:** Delimit species by detecting the transition from speciation to coalescent branching rates on a phylogeny.
+
+**Approach:** Run Bayesian PTP MCMC on a rooted tree to obtain posterior support values for each species partition.
+
 Tree-based method that models speciation as a branching rate shift:
 
 ```bash
@@ -104,6 +129,10 @@ python -m PTP.PTP -t rooted_tree.nwk -o bptp_results \
 ```
 
 ## GMYC (Generalized Mixed Yule Coalescent)
+
+**Goal:** Identify the threshold on an ultrametric tree where branching shifts from interspecific (Yule) to intraspecific (coalescent) processes.
+
+**Approach:** Prepare an ultrametric tree with chronos, run single-threshold GMYC, evaluate with a likelihood ratio test, and extract species assignments.
 
 Models the transition between interspecific (Yule) and intraspecific (coalescent) branching rates on an ultrametric tree:
 
@@ -167,6 +196,10 @@ dev.off()
 
 ## BPP (Bayesian Phylogenetics and Phylogeography)
 
+**Goal:** Perform rigorous multi-locus species delimitation under the multispecies coalescent model.
+
+**Approach:** Configure BPP A10 analysis (joint delimitation + species tree estimation) with priors on theta and tau, then run MCMC to obtain posterior probabilities for each delimitation model.
+
 Full multispecies coalescent model for rigorous species delimitation:
 
 ```
@@ -217,6 +250,10 @@ burnin = 50000
 
 ## Multi-Method Comparison
 
+**Goal:** Evaluate concordance across multiple delimitation methods to identify robust consensus species boundaries.
+
+**Approach:** Compare partition vectors from ASAP, bPTP, and GMYC using the adjusted Rand index and count species per method.
+
 Compare delimitation results across methods to identify consensus species:
 
 ```r
@@ -250,6 +287,10 @@ cat('  GMYC:', length(unique(gmyc_partition)), '\n')
 ```
 
 ## Ultrametric Tree Preparation
+
+**Goal:** Convert a maximum-likelihood phylogeny into an ultrametric (time-calibrated) tree suitable for GMYC and other coalescent methods.
+
+**Approach:** Apply penalized likelihood (chronos) with a relaxed clock model, then verify and fix near-ultrametric rounding errors.
 
 Most tree-based methods require ultrametric input:
 

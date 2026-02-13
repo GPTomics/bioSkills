@@ -2,6 +2,7 @@
 '''
 cfDNA fragmentomics analysis for cancer detection.
 '''
+# Reference: numpy 1.26+, pandas 2.2+, pysam 0.22+ | Verify API if version differs
 
 import pysam
 import numpy as np

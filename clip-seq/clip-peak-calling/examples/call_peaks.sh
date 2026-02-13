@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MACS3 3.0+, bedtools 2.31+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
 # CLIP-seq peak calling
 
 BAM=$1

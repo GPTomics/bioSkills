@@ -1,4 +1,5 @@
 '''Creating annotated SeqRecords for file output'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqFeature import SeqFeature, FeatureLocation

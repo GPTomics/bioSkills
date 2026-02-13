@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: Bakta
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BUSCO 5.5+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Prokaryotic Genome Annotation
+
+**"Annotate my bacterial genome"** → Predict and functionally annotate coding sequences, rRNAs, tRNAs, and other features in a prokaryotic genome assembly.
+- CLI: `bakta --db db/ assembly.fa` (preferred), `prokka --outdir annot assembly.fa` (legacy)
 
 Annotate prokaryotic genomes with Bakta (preferred) or Prokka (legacy). Bakta provides more comprehensive functional annotation through up-to-date databases and NCBI-compatible output formatting.
 
@@ -108,6 +122,10 @@ prokka \
 | Speed | Moderate | Fast |
 
 ## Parsing Annotations with Python
+
+**Goal:** Load Bakta/Prokka GFF3 output into a queryable database to extract CDS features and compute annotation quality metrics like coding density.
+
+**Approach:** Create a gffutils in-memory database from the GFF3 file, iterate CDS features to extract locus tags and product names, and calculate coding density as total CDS bp divided by genome length.
 
 ```python
 import gffutils

@@ -5,9 +5,20 @@ tool_type: cli
 primary_tool: Pilon
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BWA 0.7.17+, QUAST 5.2+, minimap2 2.26+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Assembly Polishing
 
-Improve assembly accuracy by correcting errors using additional sequencing data.
+**"Polish my genome assembly"** → Iteratively correct base-level errors in a draft assembly using short-read or long-read alignments.
+- CLI: `pilon --genome draft.fa --frags short_reads.bam` (short-read), `medaka_polish` (ONT), `racon` (long-read)
 
 ## Polishing Strategies
 
@@ -210,6 +221,10 @@ cp $current racon_polished.fasta
 
 ## Complete Polishing Workflow
 
+**Goal:** Maximize assembly accuracy through iterative multi-tool polishing.
+
+**Approach:** Apply Racon with long reads, then medaka for ONT-specific error correction, then Pilon with short reads for final accuracy.
+
 ### ONT Assembly Polishing
 
 ```bash
@@ -294,6 +309,10 @@ nextPolish run.cfg
 ```
 
 ## Quality Assessment
+
+**Goal:** Measure the accuracy improvement from polishing.
+
+**Approach:** Compare original and polished assemblies with QUAST against a reference, and check alignment error rates.
 
 After polishing, assess improvement:
 

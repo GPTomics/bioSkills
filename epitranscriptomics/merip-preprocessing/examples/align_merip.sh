@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: STAR 2.7.11+, deepTools 3.5+, samtools 1.19+ | Verify API if version differs
 # MeRIP-seq alignment pipeline
 
 GENOME_DIR=$1

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, STAR 2.7.11+, samtools 1.19+ | Verify API if version differs
 # CLIP-seq alignment
 
 FASTQ=$1

@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: crispor
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, MAGeCK 0.5+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Library Design
 
+**"Design a custom CRISPR library for my screen"** → Select optimal sgRNAs for knockout, CRISPRi/a, or base editing libraries with on-target scoring, off-target filtering, and control guide design.
+- Python: CRISPOR-based scoring with `BioPython` for sequence handling
+
 ## sgRNA Selection Criteria
+
+**Goal:** Score and rank candidate sgRNAs for a target gene based on design quality metrics.
+
+**Approach:** Scan the gene sequence for PAM sites, extract 20-nt protospacer sequences, score each on GC content, poly-T avoidance, 5' G preference, and length, then return the top-ranked candidates.
 
 ```python
 import pandas as pd
@@ -75,6 +92,10 @@ print(guides[['sequence', 'position', 'strand', 'score', 'gc_content']])
 
 ## Library Composition
 
+**Goal:** Assemble a complete sgRNA library targeting a list of genes with appropriate controls.
+
+**Approach:** Design top-scoring guides for each gene, append non-targeting, essential-control, and safe-harbor-control guides, and compile into an ordered library table.
+
 ```python
 def design_library(gene_list, guides_per_gene=4, include_controls=True):
     '''Design complete library for gene list.'''
@@ -118,6 +139,10 @@ print(f'Genes: {library["gene"].nunique()}')
 ```
 
 ## Control Guide Design
+
+**Goal:** Design control guide sets for normalization and quality assessment in CRISPR screens.
+
+**Approach:** Generate random non-targeting sequences with acceptable GC content, add validated guides against known essential genes (positive controls) and safe-harbor loci (negative controls).
 
 ```python
 def design_control_guides(n_nontargeting=100, n_essential=20, n_nonessential=20):
@@ -190,6 +215,10 @@ def get_validated_guide(gene):
 
 ## Off-Target Analysis
 
+**Goal:** Filter library guides to remove those with excessive off-target genomic matches.
+
+**Approach:** Align each guide sequence against the genome with Bowtie allowing mismatches, count off-target hits within a mismatch threshold, and remove guides exceeding the maximum.
+
 ```python
 def check_offtargets(guide_sequence, genome_index, max_mismatches=3):
     '''Check for potential off-target sites.'''
@@ -235,6 +264,10 @@ def filter_by_offtargets(library_df, genome_index, max_offtargets=10):
 ```
 
 ## Oligo Design for Cloning
+
+**Goal:** Generate forward and reverse oligo sequences ready for ordering and cloning into a lentiviral vector.
+
+**Approach:** Add vector-specific adapter sequences (overhangs for BsmBI or BbsI restriction sites) to each guide and its reverse complement, formatted for the target vector backbone.
 
 ```python
 def design_oligos(library_df, vector='lentiGuide-Puro'):

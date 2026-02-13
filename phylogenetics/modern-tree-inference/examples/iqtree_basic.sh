@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: IQ-TREE 2.2+ | Verify API if version differs
 # Basic IQ-TREE2 analysis with automatic model selection and ultrafast bootstrap
 
 # Input: FASTA alignment

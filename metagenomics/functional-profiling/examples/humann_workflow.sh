@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: HUMAnN 3.8+, MetaPhlAn 4.1+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, seaborn 0.13+ | Verify API if version differs
 # HUMAnN3 functional profiling workflow
 
 THREADS=8

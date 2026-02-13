@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MACS2 2.2+, MACS3 3.0+ | Verify API if version differs
 
 CHIP_BAM="chip.sorted.bam"
 INPUT_BAM="input.sorted.bam"

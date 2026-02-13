@@ -5,13 +5,30 @@ tool_type: mixed
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, picard 3.1+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Alignment Validation
 
 Post-alignment quality control to verify alignment quality and identify issues.
 
+**"Check alignment quality"** → Compute post-alignment QC metrics (mapping rate, pairing, insert size, strand balance) to identify issues before downstream analysis.
+- CLI: `samtools flagstat`, `samtools stats`, Picard `CollectAlignmentSummaryMetrics`
+- Python: `pysam.AlignmentFile` iteration with metric calculations
+
 ## Insert Size Distribution
 
-Insert size should match library preparation protocol.
+**Goal:** Verify that the fragment length distribution matches the library preparation protocol.
+
+**Approach:** Extract template_length from properly paired reads and compare the distribution to expected values for the library type.
 
 ### samtools stats
 
@@ -225,6 +242,10 @@ java -jar picard.jar CollectAlignmentSummaryMetrics \
 | STRAND_BALANCE | Strand ratio | ~0.5 |
 
 ## Comprehensive Validation Script
+
+**Goal:** Run all key alignment QC checks in a single pass and generate a summary report.
+
+**Approach:** Combine samtools flagstat, stats, idxstats, and strand counts into one script that outputs pass/warn/fail calls.
 
 ```bash
 #!/bin/bash

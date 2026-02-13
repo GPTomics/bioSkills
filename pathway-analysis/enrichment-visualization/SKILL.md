@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: enrichplot
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Enrichment Visualization
+
+**"Create publication-quality plots from my enrichment analysis"** → Generate dotplots, gene-concept networks, enrichment maps, GSEA running score plots, and ridgeplots from clusterProfiler results.
+- R: `dotplot()`, `cnetplot()`, `emapplot()`, `gseaplot2()` (enrichplot)
 
 ## Scope
 
@@ -19,6 +32,10 @@ This skill covers **enrichplot package functions** designed for clusterProfiler 
 
 ## Setup
 
+**Goal:** Load required packages for visualizing enrichment analysis results.
+
+**Approach:** Import clusterProfiler, enrichplot, and ggplot2 which provide the plotting functions for enrichment objects.
+
 ```r
 library(clusterProfiler)
 library(enrichplot)
@@ -28,6 +45,10 @@ library(ggplot2)
 ```
 
 ## Dot Plot
+
+**Goal:** Summarize enrichment results showing gene ratio, count, and significance in a single figure.
+
+**Approach:** Use enrichplot dotplot which maps gene ratio to x-axis, term to y-axis, dot size to count, and color to p-value.
 
 Most common visualization - shows gene ratio, count, and significance.
 
@@ -57,6 +78,10 @@ barplot(ego, showCategory = 15, x = 'GeneRatio', color = 'p.adjust')
 
 ## Gene-Concept Network (cnetplot)
 
+**Goal:** Visualize which genes contribute to multiple enriched terms, revealing shared biology.
+
+**Approach:** Build a bipartite network connecting enriched terms to their member genes, optionally colored by fold change.
+
 Shows relationships between genes and enriched terms.
 
 ```r
@@ -74,6 +99,10 @@ cnetplot(ego, node_label = 'gene', cex_label_gene = 0.8)
 ```
 
 ## Enrichment Map (emapplot)
+
+**Goal:** Identify clusters of related enriched terms by visualizing shared gene overlap.
+
+**Approach:** Compute pairwise term similarity, then plot as a network where edges connect terms sharing genes.
 
 Shows term-term relationships based on shared genes.
 
@@ -169,6 +198,10 @@ heatplot(ego, showCategory = 15, foldChange = gene_list)
 
 ## Compare Multiple Analyses
 
+**Goal:** Visualize enrichment results side by side across multiple gene lists or conditions.
+
+**Approach:** Use dotplot on compareCluster output, optionally faceting by cluster.
+
 ```r
 # Compare clusters (from compareCluster)
 dotplot(ck, showCategory = 10)
@@ -178,6 +211,10 @@ dotplot(ck) + facet_grid(~Cluster)
 ```
 
 ## Customize ggplot2 Elements
+
+**Goal:** Fine-tune enrichment plots with custom titles, themes, colors, and text sizes.
+
+**Approach:** Chain ggplot2 modifiers onto enrichplot output since all functions return ggplot2 objects.
 
 All enrichplot functions return ggplot2 objects.
 
@@ -198,6 +235,10 @@ p + scale_color_viridis_c()
 ```
 
 ## Save Plots
+
+**Goal:** Export enrichment plots as publication-quality PDF or PNG files.
+
+**Approach:** Use base R pdf/png device functions or ggplot2 ggsave to write plots to files.
 
 ```r
 # PDF (vector, publication quality)

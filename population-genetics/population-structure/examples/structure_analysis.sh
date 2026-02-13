@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # Population structure analysis with PCA and Admixture
 # Usage: ./structure_analysis.sh <plink_prefix> <output_prefix> [max_K]
 

@@ -5,6 +5,16 @@ tool_type: r
 primary_tool: limma
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, limma 3.58+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Time-Series Differential Expression
 
 Identify genes with significant temporal expression patterns in time-course experiments.
@@ -19,6 +29,12 @@ Identify genes with significant temporal expression patterns in time-course expe
 | DESeq2 LRT | Discrete time comparisons |
 
 ## limma with Splines
+
+**Goal:** Identify genes with smooth temporal expression patterns using flexible spline models.
+
+**Approach:** Fit voom-transformed counts with natural spline basis functions in limma, testing spline coefficients for significance.
+
+**"Find genes that change over time in my RNA-seq experiment"** → Model temporal expression using spline regression and test whether spline terms are significantly non-zero.
 
 ### Setup
 
@@ -103,7 +119,9 @@ results <- topTable(fit2, coef='early_response', number=Inf)
 
 ## maSigPro
 
-Specialized for time-series analysis.
+**Goal:** Identify genes with significant temporal expression profiles using two-step polynomial regression.
+
+**Approach:** Apply global regression to find time-variable genes, then stepwise regression to refine significant profiles and cluster them.
 
 ### Installation
 
@@ -164,7 +182,9 @@ cluster_genes <- sigs$sig.genes$sig.profiles
 
 ## ImpulseDE2
 
-For impulse-like expression patterns.
+**Goal:** Detect genes with transient impulse-like expression patterns (rise then fall, or vice versa).
+
+**Approach:** Fit sigmoid-based impulse models to each gene and test for significant temporal dynamics.
 
 ### Installation
 
@@ -202,7 +222,9 @@ sig_genes <- impulse_results$dfImpulseDE2Results[
 
 ## DESeq2 Likelihood Ratio Test
 
-For discrete time points without assuming smooth curves.
+**Goal:** Test for any temporal effect across discrete time points without assuming a smooth curve.
+
+**Approach:** Compare a full model with time terms against a reduced model using a likelihood ratio test.
 
 ```r
 library(DESeq2)
@@ -223,6 +245,10 @@ sig_time <- results_lrt[results_lrt$padj < 0.05 & !is.na(results_lrt$padj), ]
 ```
 
 ## Visualization
+
+**Goal:** Display temporal expression trajectories for top significant genes across conditions.
+
+**Approach:** Plot per-gene expression over time with loess smoothing, faceted or as a grid of individual gene plots.
 
 ### Expression Profiles
 
@@ -280,6 +306,10 @@ pheatmap(mat_scaled,
 ```
 
 ## Complete Workflow
+
+**Goal:** Run an end-to-end time-series DE analysis combining limma splines and maSigPro.
+
+**Approach:** Normalize and filter counts, fit both models in parallel, then union the significant gene sets.
 
 ```r
 library(limma)

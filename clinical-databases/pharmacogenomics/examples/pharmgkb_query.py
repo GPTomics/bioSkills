@@ -1,4 +1,5 @@
 '''Query PharmGKB for pharmacogenomic annotations and interpret star alleles'''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import requests
 import time

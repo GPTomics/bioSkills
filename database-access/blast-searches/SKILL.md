@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: Bio.Blast.NCBIWWW
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, NCBI BLAST+ 2.15+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # BLAST Searches
+
+**"BLAST this sequence against NCBI"** → Submit a query sequence to NCBI BLAST servers, retrieve XML results, and parse hits with E-values and identity scores.
+- Python: `NCBIWWW.qblast()` + `NCBIXML.read()` (BioPython)
+- CLI: `blastn -remote -db nt -query seq.fa` (BLAST+)
+- R: `blast()` (rBLAST, local only)
 
 Run BLAST searches against NCBI databases using Biopython's Bio.Blast module.
 
@@ -203,6 +218,11 @@ with open('blast_results.xml') as f:
 
 ### Extract Top Hits
 
+**Goal:** Run a BLAST search and return a structured list of top hits with identity, coverage, and E-values.
+
+**Approach:** Submit query with `qblast`, parse the XML result, and extract key metrics from each alignment's best HSP.
+
+**Reference (BioPython 1.83+):**
 ```python
 def get_top_hits(sequence, program='blastn', database='nt', num_hits=10, evalue=0.01):
     result_handle = NCBIWWW.qblast(
@@ -271,6 +291,11 @@ def blast_multiple(fasta_file, program='blastn', database='nt'):
 
 ### Filter by Identity/Coverage
 
+**Goal:** Retain only BLAST hits meeting minimum identity and query coverage thresholds.
+
+**Approach:** Iterate all alignments and HSPs, compute identity and coverage fractions, and collect those passing both cutoffs.
+
+**Reference (BioPython 1.83+):**
 ```python
 def filter_blast_hits(blast_record, min_identity=0.9, min_coverage=0.8):
     query_length = blast_record.query_length

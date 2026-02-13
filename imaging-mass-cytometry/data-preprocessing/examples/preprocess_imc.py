@@ -1,4 +1,5 @@
 '''IMC data preprocessing'''
+# Reference: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, steinbock 0.16+ | Verify API if version differs
 import numpy as np
 import tifffile
 from scipy import ndimage

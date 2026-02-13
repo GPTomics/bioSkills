@@ -5,9 +5,25 @@ tool_type: r
 primary_tool: sva
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, ggplot2 3.5+, limma 3.58+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Batch Effect Correction
 
 ## ComBat-Seq (Count Data)
+
+**Goal:** Remove batch effects from raw count data while preserving biological group differences.
+
+**Approach:** Apply ComBat-Seq's negative binomial regression to adjust counts, keeping the integer nature of the data.
+
+**"Remove batch effects from my RNA-seq counts"** → Adjust raw count matrix for known batch labels using negative binomial modeling, preserving biological condition effects.
 
 ```r
 library(sva)
@@ -26,6 +42,10 @@ corrected_counts <- ComBat_seq(counts = as.matrix(counts),
 ```
 
 ## ComBat (Normalized Data)
+
+**Goal:** Remove batch effects from normalized (log-transformed or TPM) expression data.
+
+**Approach:** Apply parametric empirical Bayes adjustment to normalized expression while protecting biological covariates.
 
 ```r
 library(sva)
@@ -46,6 +66,10 @@ corrected_expr <- ComBat(dat = as.matrix(normalized_expr),
 
 ## limma removeBatchEffect
 
+**Goal:** Produce batch-corrected expression values for visualization while preserving group differences.
+
+**Approach:** Regress out the batch effect from normalized expression using limma's linear model.
+
 ```r
 library(limma)
 
@@ -62,6 +86,10 @@ corrected_expr <- removeBatchEffect(normalized_expr,
 
 ## DESeq2 Design Formula (Recommended for DE)
 
+**Goal:** Account for batch effects during DE testing without modifying the count data.
+
+**Approach:** Include batch as a covariate in the DESeq2 design formula so batch variance is modeled, not removed.
+
 ```r
 library(DESeq2)
 
@@ -77,6 +105,12 @@ res <- results(dds, contrast = c('condition', 'treatment', 'control'))
 ```
 
 ## Surrogate Variable Analysis (SVA)
+
+**Goal:** Discover and correct for unknown sources of variation (hidden batch effects).
+
+**Approach:** Estimate surrogate variables from the residual variation not explained by the biological model.
+
+**"Correct for unknown batch effects in my expression data"** → Estimate latent surrogate variables capturing unwanted variation, then include them as covariates in the DE model.
 
 ```r
 library(sva)
@@ -96,6 +130,10 @@ design_with_sv <- cbind(mod, svobj$sv)
 ```
 
 ## SVA with DESeq2
+
+**Goal:** Integrate surrogate variables into DESeq2 to adjust for hidden confounders during DE testing.
+
+**Approach:** Estimate SVs from normalized counts, add them to colData, and update the design formula.
 
 ```r
 library(DESeq2)
@@ -126,6 +164,10 @@ dds <- DESeq(dds)
 
 ## Visualize Batch Effects
 
+**Goal:** Confirm batch effect removal by comparing PCA plots before and after correction.
+
+**Approach:** Run PCA on pre- and post-correction expression, coloring points by batch and condition.
+
 ```r
 library(ggplot2)
 
@@ -151,6 +193,10 @@ p1 + p2
 
 ## Quantify Batch Effect
 
+**Goal:** Measure the proportion of variance attributable to batch versus biological condition.
+
+**Approach:** Correlate principal components with batch and condition labels, or use PVCA.
+
 ```r
 # PVCA - Principal Variance Component Analysis
 library(pvca)
@@ -168,6 +214,10 @@ cor(pca$x[, 1], as.numeric(as.factor(metadata$batch)))
 ```
 
 ## Harmony (Single-Cell Integration)
+
+**Goal:** Integrate single-cell data from multiple batches into a shared embedding.
+
+**Approach:** Apply Harmony to PCA embeddings to iteratively remove batch effects while preserving cell-type structure.
 
 ```r
 library(harmony)

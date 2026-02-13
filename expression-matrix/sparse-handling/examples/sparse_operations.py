@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Handle sparse count matrices for single-cell data'''
+# Reference: numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 import scipy.sparse as sp
 import anndata as ad

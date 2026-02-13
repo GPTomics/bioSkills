@@ -1,4 +1,5 @@
 '''Cell phenotyping from IMC data'''
+# Reference: flowsom 2.10+, anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
 import anndata as ad
 import scanpy as sc
 import numpy as np

@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: bracken
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bracken 2.9+, Kraken2 2.1+, MetaPhlAn 4.1+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Abundance Estimation with Bracken
+
+**"Get species-level abundances from my Kraken2 results"** → Redistribute reads assigned to higher taxonomic levels down to species using Bracken's Bayesian re-estimation for more accurate abundance profiles.
+- CLI: `bracken -d db -i kraken2.report -o bracken.output -r 150 -l S`
 
 ## Basic Abundance Estimation
 
@@ -126,6 +140,10 @@ df.to_csv('bracken_relative_abundance.txt', sep='\t', index=False)
 ```
 
 ## Create Abundance Matrix
+
+**Goal:** Merge per-sample Bracken outputs into a single species-by-sample abundance matrix for downstream statistical analysis.
+
+**Approach:** Load each Bracken output, extract species names and read counts, iteratively outer-merge on species name, and fill missing values with zero.
 
 ```python
 import pandas as pd

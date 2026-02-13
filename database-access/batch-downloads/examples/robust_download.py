@@ -1,4 +1,5 @@
 '''Robust batch download with retry logic'''
+# Reference: biopython 1.83+, entrez direct 21.0+ | Verify API if version differs
 from Bio import Entrez
 from urllib.error import HTTPError
 import time

@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: flowWorkspace
 ---
 
+## Version Compatibility
+
+Reference examples tested with: flowCore 2.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Gating Analysis
+
+**"Gate my flow cytometry data to identify cell populations"** → Define cell populations through manual or automated gating strategies using rectangular, polygon, or data-driven gates in a hierarchical framework.
+- R: `flowWorkspace::gs_add_gating_method()`, `openCyto::gating()` for automated gating
 
 ## Manual Rectangular Gates
 
@@ -85,6 +98,10 @@ cd4_cells <- getflowFrame(cd4_pos)
 ```
 
 ## Automated Gating: openCyto
+
+**Goal:** Apply a reproducible, template-driven gating strategy that automatically identifies cell populations across all samples.
+
+**Approach:** Define a CSV gating template specifying parent-child hierarchy, channel combinations, and gating algorithms (flowClust, singletGate, mindensity, quadrantGate), then apply the template to a GatingSet for batch processing.
 
 ```r
 library(openCyto)

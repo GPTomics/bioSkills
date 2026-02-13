@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Filter and prioritize variants for clinical interpretation'''
+# Reference: entrez direct 21.0+, bcftools 1.19+ | Verify API if version differs
 
 from cyvcf2 import VCF
 import csv

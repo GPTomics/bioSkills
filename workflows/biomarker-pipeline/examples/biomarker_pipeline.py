@@ -1,4 +1,5 @@
 '''End-to-end biomarker discovery pipeline'''
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
 
 import pandas as pd
 import numpy as np

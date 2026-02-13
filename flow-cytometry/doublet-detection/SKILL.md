@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: flowCore
 ---
 
+## Version Compatibility
+
+Reference examples tested with: flowCore 2.14+, ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Doublet Detection
+
+**"Remove doublets from my flow cytometry data"** → Detect and filter out cell aggregates using FSC-A/FSC-H gating or computational methods before clustering or quantitative analysis.
+- R: `flowCore` rectangular gates on FSC-A vs FSC-H
 
 ## FSC-A vs FSC-H Gating (Standard Method)
 
@@ -177,6 +190,10 @@ if (all(c('DNA1', 'DNA2') %in% rownames(sce))) {
 ```
 
 ## CATALYST Workflow with Doublet Removal
+
+**Goal:** Detect and remove cell doublets from a CyTOF/flow dataset using a regression-based approach on scatter parameters.
+
+**Approach:** Model the expected FSC-A vs FSC-H relationship for singlets with linear regression, classify events with large residuals (above the 95th percentile) as doublets, and filter them out.
 
 ```r
 library(CATALYST)

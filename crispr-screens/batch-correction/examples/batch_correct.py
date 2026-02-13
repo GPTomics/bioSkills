@@ -1,3 +1,4 @@
+# Reference: numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+ | Verify API if version differs
 import numpy as np
 import pandas as pd
 from scipy import stats

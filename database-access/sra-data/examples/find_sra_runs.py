@@ -1,4 +1,5 @@
 '''Find SRA run accessions using Entrez'''
+# Reference: biopython 1.83+, entrez direct 21.0+, sra toolkit 3.0+ | Verify API if version differs
 from Bio import Entrez
 
 Entrez.email = 'your.email@example.com'

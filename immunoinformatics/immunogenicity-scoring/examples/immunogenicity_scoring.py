@@ -1,4 +1,5 @@
 '''Score and rank epitopes for immunogenicity'''
+# Reference: mhcflurry 2.1+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 import numpy as np

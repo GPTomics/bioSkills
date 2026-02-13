@@ -1,4 +1,5 @@
 '''Compute spatial autocorrelation (Moran's I)'''
+# Reference: numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, squidpy 1.3+ | Verify API if version differs
 
 import squidpy as sq
 import scanpy as sc

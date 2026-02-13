@@ -1,4 +1,5 @@
 '''Horizontal gene transfer detection'''
+# Reference: biopython 1.83+, iq-tree 2.2+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 import numpy as np
 import pandas as pd

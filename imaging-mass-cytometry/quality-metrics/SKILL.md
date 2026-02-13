@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: numpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Quality Metrics
+
+**"Assess quality of my IMC acquisition"** → Evaluate IMC data quality through signal-to-noise ratios, channel correlations, tissue integrity scores, and acquisition-specific QC metrics.
+- Python: `numpy`/`scipy` for SNR calculation and channel correlation analysis
 
 ## Signal-to-Noise Ratio
 
@@ -225,6 +238,10 @@ print(f"Quality: {seg_qc['quality']}")
 ```
 
 ## Batch QC Summary
+
+**Goal:** Generate a consolidated quality report across all acquisitions in a batch to identify samples requiring re-acquisition or exclusion.
+
+**Approach:** For each image, compute SNR, tissue integrity, segmentation metrics, and artifact counts, then aggregate into a summary table with pass/fail calls based on combined threshold criteria.
 
 ```python
 def batch_qc_report(image_files, seg_files, channel_names, output_file):

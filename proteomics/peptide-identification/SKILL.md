@@ -5,9 +5,29 @@ tool_type: mixed
 primary_tool: pyOpenMS
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MSnbase 2.28+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Peptide Identification
 
+**"Identify peptides from my MS/MS spectra"** → Match tandem mass spectra against a protein database to identify peptide sequences, then control false discovery rate using target-decoy competition.
+- Python: `pyopenms` for in-memory database search and PSM handling
+- CLI: `comet`, `MSFragger`, `X!Tandem` for high-throughput database searching
+- R: `MSnbase::readMSData()` for importing search results
+
 ## Database Search with pyOpenMS
+
+**Goal:** Identify peptide sequences from tandem mass spectra by matching against a protein database.
+
+**Approach:** Load a FASTA database, perform in-silico tryptic digestion to generate theoretical peptides, then match experimental spectra against theoretical fragment ion patterns to identify peptide-spectrum matches (PSMs).
 
 ```python
 from pyopenms import MSExperiment, MzMLFile, FASTAFile, ProteaseDigestion

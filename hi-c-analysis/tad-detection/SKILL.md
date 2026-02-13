@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: cooltools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # TAD Detection
+
+**"Call TADs from my Hi-C data"** → Identify topologically associating domain boundaries using insulation score minima or other boundary-detection algorithms.
+- Python: `cooltools.insulation(clr, window_bp)` then threshold boundary strength
+- CLI: `hicFindTADs` (HiCExplorer)
 
 Call topologically associating domains from Hi-C contact matrices.
 
@@ -55,6 +70,10 @@ print(f'Found {len(strong_boundaries)} TAD boundaries')
 ```
 
 ## Extract TAD Regions
+
+**Goal:** Convert a set of TAD boundary positions into TAD interval coordinates (start-end pairs) for downstream overlap analysis.
+
+**Approach:** Sort boundaries by position per chromosome, then define each TAD as the interval between consecutive boundary positions.
 
 ```python
 def boundaries_to_tads(boundaries_df, chrom):

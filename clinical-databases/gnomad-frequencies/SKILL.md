@@ -5,9 +5,27 @@ tool_type: python
 primary_tool: requests
 ---
 
+## Version Compatibility
+
+Reference examples tested with: requests 2.31+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # gnomAD Frequency Queries
 
 ## gnomAD REST API
+
+**Goal:** Retrieve exome and genome allele frequencies from gnomAD for individual variants.
+
+**Approach:** Send a GraphQL query to the gnomAD API with variant ID and dataset version, then parse exome/genome frequency fields.
+
+**"Check how common this variant is in the population"** → Query gnomAD for allele frequency, allele count, and homozygote count.
+- Python: GraphQL via `requests.post()` (requests)
+- Python: `myvariant.MyVariantInfo().getvariant()` (myvariant)
 
 ### Query Single Variant
 
@@ -73,6 +91,10 @@ def parse_gnomad_result(result):
 
 ## Query via myvariant.info
 
+**Goal:** Retrieve gnomAD frequencies through the myvariant.info aggregation layer for simpler API access.
+
+**Approach:** Query myvariant.info by HGVS notation with gnomAD fields specified, extracting exome and genome allele frequencies.
+
 ```python
 import myvariant
 
@@ -92,6 +114,10 @@ def get_gnomad_via_myvariant(variant_hgvs):
 ```
 
 ## Population-Specific Frequencies
+
+**Goal:** Retrieve ancestry-specific allele frequencies to assess variant rarity within relevant populations.
+
+**Approach:** Query the gnomAD population-stratified AF fields (AFR, AMR, ASJ, EAS, FIN, NFE, SAS) via myvariant.info.
 
 ```python
 def get_population_frequencies(variant_hgvs):
@@ -127,6 +153,10 @@ Common frequency cutoffs for variant filtering:
 
 ## Filter Variants by Frequency
 
+**Goal:** Apply population frequency thresholds to retain only rare variants for downstream analysis.
+
+**Approach:** Compare the maximum allele frequency across exome and genome datasets against a configurable threshold (default 1% per ACMG PM2).
+
 ```python
 def is_rare(gnomad_af, threshold=0.01):
     '''Check if variant is rare based on gnomAD AF
@@ -151,6 +181,10 @@ def filter_rare_variants(variants, threshold=0.01):
 ```
 
 ## Batch Query with Local gnomAD
+
+**Goal:** Perform large-scale frequency lookups using a local gnomAD Hail Table for high throughput.
+
+**Approach:** Load the gnomAD sites Hail Table from Google Cloud Storage and filter by allele frequency threshold.
 
 For large-scale analysis, use local gnomAD VCF/Hail Table:
 

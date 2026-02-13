@@ -5,9 +5,23 @@ tool_type: python
 primary_tool: requests
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # UniProt Access
 
 Query UniProt for protein sequences, functional annotations, and cross-references.
+
+**"Get protein information from UniProt"** → Fetch sequences, GO terms, domains, and cross-references for a protein accession.
+- Python: `requests.get(f'https://rest.uniprot.org/uniprotkb/{acc}.json')` (UniProt REST API)
+- Python: `ExPASy.get_sprot_raw(acc)` + `SwissProt.read()` (BioPython)
 
 ## UniProt REST API
 
@@ -28,6 +42,10 @@ entry_json = fetch_uniprot('P04637', 'json')
 ```
 
 ### Search UniProt
+
+**Goal:** Find UniProt protein entries matching gene name, organism, or functional criteria.
+
+**Approach:** Query the UniProt REST search endpoint with structured query syntax and parse the JSON results for accessions and protein descriptions.
 
 ```python
 def search_uniprot(query, format='json', size=25):
@@ -101,6 +119,10 @@ all_human = search_all('organism_id:9606 AND reviewed:true',
 
 ### Map Between Databases
 
+**Goal:** Convert identifiers between databases (e.g., Ensembl gene IDs to UniProt accessions) in batch.
+
+**Approach:** Submit an asynchronous ID mapping job to the UniProt API, poll for completion, then retrieve the mapped results.
+
 ```python
 import time
 
@@ -141,6 +163,10 @@ for result in mapping['results']:
 ## Extract Specific Data
 
 ### Parse JSON Entry
+
+**Goal:** Extract structured annotations (GO terms, domains, PDB structures) from a UniProt JSON entry.
+
+**Approach:** Fetch the entry in JSON format and navigate the nested structure to pull accession, gene name, sequence, and cross-reference lists filtered by database type.
 
 ```python
 import json

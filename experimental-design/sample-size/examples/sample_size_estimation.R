@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+ | Verify API if version differs
 # Sample Size Estimation Examples
 # Demonstrates sample size calculations for various study types
 

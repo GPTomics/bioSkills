@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: picard 3.1+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Mark duplicates using samtools pipeline
 
 set -e

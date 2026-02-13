@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cellpose 3.0+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Image Analysis for Spatial Transcriptomics
+
+**"Segment cells in my tissue image"** → Extract image features, segment nuclei/cells, and compute morphological features from H&E or immunofluorescence images paired with spatial data.
+- Python: `squidpy.im.process()`, `squidpy.im.segment()` with Cellpose backend
 
 Extract features and segment tissue images in spatial transcriptomics data.
 
@@ -41,6 +54,10 @@ hires_scale = scalef['tissue_hires_scalef']
 
 ## Create ImageContainer
 
+**Goal:** Wrap tissue images in Squidpy's ImageContainer for structured access and feature extraction.
+
+**Approach:** Initialize an ImageContainer from the AnnData image data or a TIFF file.
+
 ```python
 # Squidpy's ImageContainer for organized image handling
 img = sq.im.ImageContainer(adata.uns['spatial'][library_id]['images']['hires'])
@@ -54,6 +71,10 @@ arr = img['image'].values
 ```
 
 ## Extract Image Features per Spot
+
+**Goal:** Compute image-derived features (summary statistics, texture) for each spatial spot.
+
+**Approach:** Use Squidpy's `calculate_image_features` to extract per-spot features from the tissue image within each spot's footprint.
 
 ```python
 # Calculate image features for each spot
@@ -98,6 +119,10 @@ sq.im.calculate_image_features(
 
 ## Segment Cells/Nuclei
 
+**Goal:** Segment individual cells or nuclei from tissue images using classical methods.
+
+**Approach:** Apply watershed segmentation through Squidpy's `segment` method on a selected image channel.
+
 ```python
 # Segment using watershed
 sq.im.segment(
@@ -113,6 +138,10 @@ seg_mask = img['segmented_watershed'].values
 ```
 
 ## Segment with Cellpose
+
+**Goal:** Perform deep learning-based cell segmentation for higher accuracy than classical methods.
+
+**Approach:** Use Cellpose's pretrained nuclei model to detect and label individual cells in the tissue image.
 
 ```python
 # Cellpose provides better cell segmentation
@@ -152,6 +181,10 @@ plt.imshow(crop)
 
 ## Color Deconvolution (H&E)
 
+**Goal:** Separate hematoxylin and eosin stain channels from an H&E tissue image.
+
+**Approach:** Convert RGB to HED color space using scikit-image, then extract individual stain channels.
+
 ```python
 from skimage.color import rgb2hed, hed2rgb
 
@@ -190,6 +223,10 @@ print(morph_df.describe())
 ```
 
 ## Use Image Features for Clustering
+
+**Goal:** Improve spatial domain detection by combining gene expression and image morphology features.
+
+**Approach:** Scale and concatenate expression PCA and image features with a tunable weight, then cluster on the combined representation.
 
 ```python
 # Combine expression and image features

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: methylKit 1.28+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
 # Nanopore Methylation Calling with modkit
 # Demonstrates methylation analysis from ONT data
 

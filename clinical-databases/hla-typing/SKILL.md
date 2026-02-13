@@ -5,9 +5,28 @@ tool_type: cli
 primary_tool: OptiType
 ---
 
+## Version Compatibility
+
+Reference examples tested with: OptiType 1.3+, STAR 2.7.11+, pandas 2.2+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # HLA Typing
 
+**"Determine HLA genotype from my sequencing data"** → Call HLA alleles from WGS/WES/RNA-seq reads for transplant matching, neoantigen prediction, or pharmacogenomic screening.
+- CLI: `OptiType` for HLA class I typing from DNA/RNA reads
+- CLI: `arcasHLA extract` → `arcasHLA genotype` for RNA-seq based typing
+
 ## OptiType (HLA Class I)
+
+**Goal:** Call HLA Class I alleles (HLA-A, B, C) at 4-field resolution from WGS, WES, or RNA-seq data.
+
+**Approach:** Extract HLA region reads from BAM, then run OptiType's integer linear programming algorithm to determine optimal allele assignment.
 
 ### From DNA-seq
 
@@ -58,6 +77,10 @@ use_discordant=false
 
 ## HLA-HD (Full Resolution)
 
+**Goal:** Perform high-resolution HLA typing for both Class I and Class II loci from WGS/WES data.
+
+**Approach:** Extract HLA-region reads, then run HLA-HD which uses Bowtie2 mapping against the IPD-IMGT/HLA database.
+
 ```bash
 # HLA-HD for high-resolution typing
 # Supports Class I and Class II
@@ -83,6 +106,10 @@ hlahd.sh \
 ```
 
 ## arcasHLA (RNA-seq)
+
+**Goal:** Genotype HLA alleles directly from RNA-seq BAM files aligned with STAR.
+
+**Approach:** Extract HLA-mapped reads with arcasHLA extract, then genotype using an EM algorithm against the IMGT/HLA database.
 
 ```bash
 # Fast HLA typing from RNA-seq
@@ -125,6 +152,10 @@ Resolution levels:
 
 ## HLA and Pharmacogenomics
 
+**Goal:** Screen patient HLA alleles for known drug hypersensitivity associations.
+
+**Approach:** Cross-reference called HLA alleles against a curated table of HLA-drug adverse reaction associations.
+
 ```python
 # Key HLA-drug associations
 HLA_DRUG_ASSOCIATIONS = {
@@ -166,6 +197,10 @@ def check_hla_drug_risk(hla_alleles, drug):
 ```
 
 ## Parse OptiType Results
+
+**Goal:** Parse OptiType TSV output into structured HLA calls and format for clinical reporting.
+
+**Approach:** Read the tab-separated result file and extract allele pairs for each HLA locus.
 
 ```python
 import pandas as pd

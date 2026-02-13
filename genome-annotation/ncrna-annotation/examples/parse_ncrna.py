@@ -2,6 +2,7 @@
 '''
 Parse and combine non-coding RNA annotations from Infernal and tRNAscan-SE.
 '''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 from collections import defaultdict

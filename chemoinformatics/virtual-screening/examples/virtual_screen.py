@@ -2,6 +2,7 @@
 '''
 Virtual screening with AutoDock Vina.
 '''
+# Reference: autodock vina 1.2+, rdkit 2024.03+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 from pathlib import Path

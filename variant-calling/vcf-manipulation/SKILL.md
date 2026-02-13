@@ -5,6 +5,17 @@ tool_type: cli
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # VCF Manipulation
 
 Merge, concat, sort, and compare VCF files using bcftools.
@@ -20,6 +31,12 @@ Merge, concat, sort, and compare VCF files using bcftools.
 | Subset | `bcftools view` | Extract samples or regions |
 
 ## bcftools merge
+
+**Goal:** Combine VCF files from different samples into a single multi-sample VCF.
+
+**Approach:** Use bcftools merge to join files with different sample columns at shared genomic positions.
+
+**"Merge my per-sample VCFs into one file"** → Combine variant records from multiple samples into a single multi-sample VCF.
 
 Combine multiple VCF files with **different samples** at the same positions.
 
@@ -68,6 +85,10 @@ bcftools merge -r chr1:1000000-2000000 sample1.vcf.gz sample2.vcf.gz -Oz -o merg
 
 ## bcftools concat
 
+**Goal:** Concatenate VCF files that cover different genomic regions for the same samples.
+
+**Approach:** Use bcftools concat to join region-split files (e.g., per-chromosome VCFs) in order.
+
 Combine VCF files with **same samples** from different regions.
 
 ### Concatenate Chromosomes
@@ -110,6 +131,10 @@ Options for `-d`:
 
 ## bcftools sort
 
+**Goal:** Sort a VCF file by chromosome and position.
+
+**Approach:** Use bcftools sort with optional temp directory and memory limits for large files.
+
 Sort VCF by chromosome and position.
 
 ### Basic Sort
@@ -133,6 +158,12 @@ bcftools sort -m 4G input.vcf.gz -Oz -o sorted.vcf.gz
 ```
 
 ## bcftools isec
+
+**Goal:** Identify shared and private variants between two or more VCF files.
+
+**Approach:** Use bcftools isec to partition variants into private-to-each-file and shared subsets.
+
+**"Find variants called by both GATK and bcftools"** → Intersect two call sets to identify concordant and discordant variants.
 
 Intersect and compare VCF files.
 
@@ -190,6 +221,10 @@ bcftools isec -C sample1.vcf.gz sample2.vcf.gz -Oz -o unique.vcf.gz
 
 ## Subsetting VCF Files
 
+**Goal:** Extract a subset of samples or regions from a multi-sample VCF.
+
+**Approach:** Use bcftools view with -s (samples) or -r/-R (regions) flags to create targeted subsets.
+
 ### Extract Samples
 
 ```bash
@@ -223,6 +258,10 @@ bcftools view -R regions.bed input.vcf.gz -Oz -o targets.vcf.gz
 
 ## Renaming Samples
 
+**Goal:** Rename sample columns in a VCF header.
+
+**Approach:** Use bcftools reheader with a mapping file of old-to-new sample names.
+
 ### Single Sample
 
 ```bash
@@ -244,6 +283,10 @@ bcftools reheader -s rename.txt input.vcf.gz -o renamed.vcf.gz
 ```
 
 ## Splitting VCF Files
+
+**Goal:** Split a multi-sample or multi-chromosome VCF into separate files.
+
+**Approach:** Iterate over samples or chromosomes and extract each with bcftools view.
 
 ### Split by Sample
 
@@ -268,6 +311,10 @@ bcftools norm -m-any input.vcf.gz -Oz -o split.vcf.gz
 ```
 
 ## Common Workflows
+
+**Goal:** Execute typical multi-step VCF manipulation tasks.
+
+**Approach:** Chain merge, concat, isec, and view operations for cohort assembly, caller comparison, and filtering.
 
 ### Merge Cohort VCFs
 
@@ -306,6 +353,10 @@ bcftools index pass_only.vcf.gz
 ```
 
 ## cyvcf2 Python Operations
+
+**Goal:** Perform VCF set operations programmatically in Python.
+
+**Approach:** Use cyvcf2 for position-based comparisons and record concatenation; use bcftools merge for true multi-sample merging.
 
 **Note:** True VCF merging (combining samples at matching positions) is complex.
 Use `bcftools merge` for production work. cyvcf2 is better for filtering/querying.

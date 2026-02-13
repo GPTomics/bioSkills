@@ -1,4 +1,5 @@
 '''Perturb-seq analysis with Pertpy'''
+# Reference: mageck 0.5+, pandas 2.2+, pertpy 0.7+, scanpy 1.10+ | Verify API if version differs
 import scanpy as sc
 import pertpy as pt
 import pandas as pd

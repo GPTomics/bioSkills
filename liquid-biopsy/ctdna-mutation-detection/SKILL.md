@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: VarDict
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Ensembl VEP 111+, SnpEff 5.2+, VarDict 1.8+, pandas 2.2+, pysam 0.22+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ctDNA Mutation Detection
+
+**"Detect mutations in my cfDNA sample"** → Identify somatic variants at low allele fractions (0.1-1%) from cell-free DNA using error-suppressed consensus calling and specialized callers.
+- CLI: `vardict-java` for low-VAF variant calling from cfDNA
 
 Detect somatic mutations in cfDNA at low variant allele fractions.
 
@@ -27,7 +41,7 @@ Detect somatic mutations in cfDNA at low variant allele fractions.
 | 0.1-0.5% | Challenging | Needs deep UMI consensus |
 | < 0.1% | Unreliable | Near noise floor |
 
-## VarDict for High Sensitivity
+## VarDict for High Sensitivity (Ensembl VEP 111+)
 
 ```bash
 # VarDict is highly sensitive for low VAF
@@ -121,7 +135,7 @@ def filter_ctdna_variants(vcf_file, chip_genes=None):
     return somatic, chip
 ```
 
-## UMI-VarCal for Best Specificity
+## UMI-VarCal for Best Specificity (Ensembl VEP 111+)
 
 ```python
 def call_with_umi_varcal(bam_file, reference, bed_file, output_vcf, min_vaf=0.005):
@@ -140,7 +154,7 @@ def call_with_umi_varcal(bam_file, reference, bed_file, output_vcf, min_vaf=0.00
     ], check=True)
 ```
 
-## Variant Annotation
+## Variant Annotation (Ensembl VEP 111+)
 
 ```python
 def annotate_ctdna_variants(vcf_file, output_vcf):
@@ -162,6 +176,10 @@ def annotate_ctdna_variants(vcf_file, output_vcf):
 ```
 
 ## Tracking Known Mutations
+
+**Goal:** Quantify the variant allele fraction of specific known mutations across serial liquid biopsy samples for minimal residual disease monitoring.
+
+**Approach:** For each target mutation, pileup reads at the variant position, count reference and alternative alleles, and compute VAF with depth statistics.
 
 ```python
 def track_specific_mutations(bam_file, mutations, min_depth=100):

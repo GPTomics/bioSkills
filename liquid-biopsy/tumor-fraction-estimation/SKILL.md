@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: ichorCNA
 ---
 
+## Version Compatibility
+
+Reference examples tested with: CNVkit 0.9+, ichorCNA 0.5+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Tumor Fraction Estimation
+
+**"Estimate tumor fraction from my cfDNA data"** → Calculate the proportion of tumor-derived DNA in a liquid biopsy sample using copy number aberrations from shallow whole-genome sequencing.
+- R: `ichorCNA` for tumor fraction and CNA estimation from sWGS
 
 Estimate ctDNA tumor fraction from shallow whole-genome sequencing.
 
@@ -62,6 +76,10 @@ runIchorCNA(
 ```
 
 ## Batch Processing
+
+**Goal:** Run ichorCNA tumor fraction estimation on a cohort of sWGS samples in parallel, collecting results and handling failures gracefully.
+
+**Approach:** Apply the ichorCNA pipeline to each sample's WIG file using mclapply for parallelization, wrapping each call in tryCatch to report per-sample success or failure.
 
 ```r
 library(ichorCNA)

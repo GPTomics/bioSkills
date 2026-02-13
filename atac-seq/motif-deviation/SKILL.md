@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: chromVAR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, limma 3.58+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Motif Deviation Analysis
+
+**"Which TF motifs show variable accessibility across my samples?"** → Compute per-sample deviation scores for TF motif accessibility to identify regulators driving chromatin state differences.
+- R: `chromVAR::computeDeviations(counts, motifs)`
 
 Measure per-sample variability in transcription factor motif accessibility using chromVAR. This identifies TFs whose binding sites show differential accessibility across conditions.
 
@@ -21,6 +34,10 @@ library(SummarizedExperiment)
 ```
 
 ## Basic Workflow
+
+**Goal:** Run chromVAR to compute per-sample TF motif deviation scores from ATAC-seq peak counts.
+
+**Approach:** Load peak counts into a SummarizedExperiment, correct for GC bias, filter low-quality peaks, match JASPAR motifs, and compute deviation z-scores.
 
 ### 1. Load Peak Counts
 
@@ -174,6 +191,10 @@ ggplot(pca_df, aes(x = PC1, y = PC2, color = Condition)) +
 
 ## Differential Motif Accessibility
 
+**Goal:** Identify TF motifs with significantly different accessibility between experimental groups.
+
+**Approach:** Fit a linear model (limma) to deviation z-scores across groups and extract significant motifs with empirical Bayes moderation.
+
 ### Compare Two Groups
 
 ```r
@@ -257,6 +278,10 @@ write.csv(diff_motifs, 'differential_motifs.csv')
 ```
 
 ## Complete Workflow
+
+**Goal:** Run end-to-end chromVAR analysis from peak counts to motif variability scores.
+
+**Approach:** Load counts, correct GC bias, filter peaks, match JASPAR motifs, compute deviations, and plot variability.
 
 ```r
 library(chromVAR)

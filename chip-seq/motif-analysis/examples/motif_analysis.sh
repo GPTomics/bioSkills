@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, bedtools 2.31+, matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 # ChIP-seq motif analysis with HOMER and MEME
 set -euo pipefail
 

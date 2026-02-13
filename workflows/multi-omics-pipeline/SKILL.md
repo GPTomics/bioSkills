@@ -11,7 +11,19 @@ depends_on:
   - multi-omics-integration/similarity-network
 ---
 
+## Version Compatibility
+
+Reference examples tested with: clusterProfiler 4.10+, ggplot2 3.5+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Multi-omics Integration Pipeline
+
+**"Integrate my multi-omics datasets"** → Orchestrate data harmonization, MOFA+ factor analysis, mixOmics multivariate integration, similarity network fusion, and joint pathway interpretation across transcriptomics, proteomics, metabolomics, or other modalities.
 
 ## Pipeline Overview
 

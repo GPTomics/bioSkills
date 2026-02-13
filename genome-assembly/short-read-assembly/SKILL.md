@@ -5,9 +5,20 @@ tool_type: cli
 primary_tool: SPAdes
 ---
 
+## Version Compatibility
+
+Reference examples tested with: FastQC 0.12+, MEGAHIT 1.2+, SPAdes 3.15+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Short-Read Assembly
 
-Assemble genomes from Illumina paired-end or single-end reads using SPAdes.
+**"Assemble a genome from Illumina reads"** → Build a de novo assembly from short paired-end reads using de Bruijn graph algorithms with multiple k-mer sizes.
+- CLI: `spades.py -1 R1.fq.gz -2 R2.fq.gz -o output`
 
 ## SPAdes Overview
 
@@ -196,6 +207,10 @@ spades.py --only-assembler -1 R1.fq.gz -2 R2.fq.gz -o output
 ```
 
 ## Complete Workflows
+
+**Goal:** Run end-to-end assembly pipelines for specific use cases.
+
+**Approach:** Combine SPAdes in the appropriate mode with basic statistics reporting.
 
 ### Bacterial Genome Assembly
 

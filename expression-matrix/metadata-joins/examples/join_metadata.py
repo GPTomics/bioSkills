@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Join sample metadata with expression data'''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 import anndata as ad

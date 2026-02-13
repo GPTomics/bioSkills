@@ -5,11 +5,30 @@ tool_type: python
 primary_tool: RSeQC
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, pandas 2.2+, pysam 0.22+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Splicing Quality Control
 
 Assess RNA-seq data quality specifically for alternative splicing analysis.
 
 ## Junction Saturation Analysis
+
+**Goal:** Determine whether sequencing depth is sufficient for comprehensive splicing detection.
+
+**Approach:** Run RSeQC junction saturation on BAM files and check whether the junction discovery curve reaches a plateau.
+
+**"Assess RNA-seq quality for splicing analysis"** -> Evaluate junction saturation, junction novelty rate, splice site strength, and read coverage.
+- Python/CLI: `junction_saturation.py`, `junction_annotation.py` (RSeQC)
+- Python: maxentpy for splice site scoring, pysam for junction read counting
 
 ```bash
 # RSeQC junction saturation (check sequencing depth)
@@ -43,6 +62,10 @@ for sample in samples:
 
 ## Junction Annotation
 
+**Goal:** Classify observed junctions as known, partially novel, or completely novel relative to annotation.
+
+**Approach:** Run RSeQC junction annotation and compute the ratio of known to novel junctions as a data quality indicator.
+
 ```bash
 # Classify junctions as known, partial novel, or complete novel
 junction_annotation.py \
@@ -73,6 +96,10 @@ print(f'Novel junctions: {novel/total:.1%}')
 
 ## Splice Site Strength Scoring
 
+**Goal:** Score donor and acceptor splice sites to identify weak or cryptic splice sites.
+
+**Approach:** Use MaxEntScan (via maxentpy) to compute information-theoretic scores for 5' and 3' splice site sequences.
+
 ```python
 # MaxEntScan scoring via maxentpy
 # 5'ss (donor): typical score 8-10 bits
@@ -98,6 +125,10 @@ print(f"3'ss score: {score_3ss:.2f}")
 ```
 
 ## Junction Read Coverage
+
+**Goal:** Profile the distribution of junction-spanning read counts across all splice sites in a BAM file.
+
+**Approach:** Parse CIGAR strings for N operations (splice junctions) using pysam and tally reads per junction.
 
 ```python
 import pysam

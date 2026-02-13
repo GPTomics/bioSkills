@@ -1,4 +1,5 @@
 '''Basic pattern searching in sequences'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 
 seq = Seq('ATGCGAATTCGATCGAATTCGATCGGATCC')

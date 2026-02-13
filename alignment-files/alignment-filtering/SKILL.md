@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Alignment Filtering
+
+**"Filter my BAM file to keep only high-quality reads"** → Select reads by FLAG bits, mapping quality, and genomic regions using samtools view or pysam.
+- CLI: `samtools view` with `-F`/`-f`/`-q`/`-L` flags (samtools)
+- Python: `pysam.AlignmentFile` iteration with attribute filters (pysam)
 
 Filter alignments by flags, quality, and regions using samtools and pysam.
 
@@ -136,15 +151,25 @@ samtools view -q 30 -L targets.bed -o filtered.bam input.bam
 ## Combined Filters
 
 ### Standard Quality Filter
+
+**Goal:** Produce a clean BAM containing only primary, mapped, non-duplicate reads with high mapping confidence.
+
+**Approach:** Combine FLAG exclusion (-F for unmapped + secondary + duplicate + supplementary) with a MAPQ threshold.
+
+**Reference (samtools 1.19+):**
 ```bash
-# Primary, mapped, non-duplicate, MAPQ >= 30
 samtools view -F 3332 -q 30 -o filtered.bam input.bam
 # 3332 = 4 (unmapped) + 256 (secondary) + 1024 (duplicate) + 2048 (supplementary)
 ```
 
 ### Variant Calling Prep
+
+**Goal:** Prepare alignments for variant calling by keeping only properly paired, primary, deduplicated reads.
+
+**Approach:** Require proper pair flag (-f 2), exclude secondary/duplicate/supplementary (-F 3328), and set a MAPQ floor.
+
+**Reference (samtools 1.19+):**
 ```bash
-# Properly paired, primary, no duplicates, MAPQ >= 20
 samtools view -f 2 -F 3328 -q 20 -o clean.bam input.bam
 # 3328 = 256 (secondary) + 1024 (duplicate) + 2048 (supplementary)
 # Note: -f 2 (proper pair) implies mapped, so -F 4 is not strictly needed
@@ -194,6 +219,12 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
 ```
 
 ### Filter with Function
+
+**Goal:** Apply a multi-criteria quality filter to produce clean alignments for downstream analysis.
+
+**Approach:** Define a predicate checking mapped status, primary alignment, duplicate flag, and MAPQ; stream reads through it.
+
+**Reference (pysam 0.22+):**
 ```python
 import pysam
 
@@ -226,6 +257,12 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
 ```
 
 ### Filter from BED File
+
+**Goal:** Extract only reads overlapping target regions defined in a BED file.
+
+**Approach:** Parse BED into a list of (chrom, start, end) tuples, then fetch reads from each region and write to output.
+
+**Reference (pysam 0.22+):**
 ```python
 import pysam
 

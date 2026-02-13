@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: AMRFinderPlus
 ---
 
+## Version Compatibility
+
+Reference examples tested with: AMRFinderPlus 3.12+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # AMR Detection
+
+**"Screen my isolates for antibiotic resistance genes"** → Identify antimicrobial resistance determinants in bacterial genomes or metagenomes by searching against curated resistance gene databases.
+- CLI: `amrfinder -n assembly.fasta --organism Escherichia` (AMRFinderPlus)
+- CLI: ResFinder, CARD/RGI for alternative database searches
 
 Identify antimicrobial resistance (AMR) genes in bacterial genomes and metagenomes.
 
@@ -213,6 +228,10 @@ groot align -i groot_index -f reads_1.fq,reads_2.fq -p 8 | \
 ```
 
 ## Complete Workflow
+
+**Goal:** Screen a bacterial assembly for antimicrobial resistance genes using multiple databases for comprehensive resistance profiling.
+
+**Approach:** Run AMRFinderPlus with organism-specific point mutation detection, then ABRicate against NCBI/CARD/ResFinder databases, and summarize drug class counts.
 
 ```bash
 #!/bin/bash

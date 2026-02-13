@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, limma 3.58+, matplotlib 3.8+ | Verify API if version differs
 # Create volcano plot from DESeq2 results
 
 library(DESeq2)

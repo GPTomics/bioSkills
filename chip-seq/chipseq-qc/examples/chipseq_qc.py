@@ -1,3 +1,4 @@
+# Reference: macs3 3.0+, subread 2.0+, bedtools 2.31+, deeptools 3.5+, pybedtools 0.9+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 import pysam
 import pybedtools
 import argparse

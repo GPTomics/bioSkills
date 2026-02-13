@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: NCBI BLAST+ 2.15+ | Verify API if version differs
 # Run BLAST searches with common options
 
 DB="${1:-ref_nucl_db}"

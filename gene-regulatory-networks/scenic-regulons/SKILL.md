@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: pySCENIC
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # SCENIC Regulons
+
+**"Identify transcription factor regulons from my scRNA-seq data"** → Run the pySCENIC three-step pipeline: infer co-expression modules with GRNBoost2, prune by cis-regulatory motif enrichment with cisTarget, and score regulon activity per cell with AUCell.
+- CLI: `pyscenic grn` → `pyscenic ctx` → `pyscenic aucell`
+- Python: `arboreto_with_multiprocessing.py` for GRN step (workaround for dask>=2.0)
 
 Infer transcription factor regulons from single-cell RNA-seq with the pySCENIC three-step pipeline: GRN inference, motif enrichment, and regulon activity scoring.
 
@@ -91,6 +106,10 @@ adjacencies.to_csv('adj.tsv', sep='\t', index=False)
 
 ## Step 2: Regulon Pruning with cisTarget
 
+**Goal:** Filter the raw co-expression modules to retain only TF-target links supported by cis-regulatory motif enrichment near target gene promoters.
+
+**Approach:** Load cisTarget ranking databases and motif annotations, run prune2df to test each TF's targets for upstream motif enrichment, then convert the pruned results into regulon objects.
+
 ```python
 from pyscenic.prune import prune2df, df2regulons
 from ctxcore.rnkdb import FeatherRankingDatabase
@@ -133,6 +152,10 @@ pyscenic ctx adj.tsv \
 ```
 
 ## Step 3: AUCell Activity Scoring
+
+**Goal:** Score the activity of each regulon in every individual cell to create a cell-by-regulon activity matrix for downstream analysis.
+
+**Approach:** Rank genes by expression within each cell, then use AUCell to compute the area under the recovery curve for each regulon's gene set, producing an AUC score that reflects regulon activity independent of expression magnitude.
 
 ```python
 from pyscenic.aucell import aucell

@@ -1,4 +1,5 @@
 '''Aggregate interactions from STRING and OmniPath into a unified network'''
+# Reference: biopython 1.83+, pandas 2.2+ | Verify API if version differs
 
 import requests
 import pandas as pd

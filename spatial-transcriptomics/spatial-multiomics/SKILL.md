@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cellpose 3.0+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, scipy 1.12+, spatialdata 0.1+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Multi-omics Analysis
+
+**"Analyze my high-resolution spatial data"** → Process subcellular-resolution spatial platforms (Xenium, MERFISH, Slide-seq, Stereo-seq) including cell segmentation, binning strategies, and multi-modal integration.
+- Python: `spatialdata` + `squidpy` for unified multi-platform analysis
 
 ## Platform Comparison
 
@@ -18,6 +31,10 @@ primary_tool: squidpy
 | MERFISH | Single-molecule | N/A | Targeted genes |
 
 ## Squidpy for High-Resolution Data
+
+**Goal:** Run standard spatial analyses (autocorrelation, neighborhood enrichment, ligand-receptor) on high-resolution spatial data.
+
+**Approach:** Adjust neighbor graph density for high-resolution platforms, then apply standard Squidpy workflows.
 
 ```python
 import squidpy as sq
@@ -41,6 +58,10 @@ sq.gr.ligrec(adata, n_perms=100, cluster_key='cell_type')
 ```
 
 ## SpatialData Framework
+
+**Goal:** Load and query multi-modal spatial data using the SpatialData unified representation.
+
+**Approach:** Use spatialdata-io readers per platform, then access images, points, shapes, and tables through a single object with spatial queries.
 
 ```python
 import spatialdata as sd
@@ -88,6 +109,10 @@ sq.gr.spatial_neighbors(adata, coord_type='grid', n_rings=1)
 
 ## Subcellular Analysis (MERFISH/Xenium)
 
+**Goal:** Perform transcript-level and subcellular compartment analysis for single-molecule platforms.
+
+**Approach:** Segment cells with Cellpose, then assign individual transcripts to cells based on mask coordinates.
+
 ```python
 # Transcript-level analysis
 # Assign transcripts to compartments
@@ -106,6 +131,10 @@ def assign_transcripts_to_cells(transcripts_df, masks):
 ```
 
 ## Multi-Modal Integration
+
+**Goal:** Combine spatial gene expression with histological image features for integrated analysis.
+
+**Approach:** Process and segment tissue images, extract image features, then correlate with gene expression.
 
 ```python
 # Combine spatial transcriptomics with histology

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Demonstrate pyBigWig for reading and creating bigWig files.'''
+# Reference: bedtools 2.31+, numpy 1.26+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
 
 import pyBigWig
 import numpy as np

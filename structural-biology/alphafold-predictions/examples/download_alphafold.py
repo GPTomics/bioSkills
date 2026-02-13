@@ -1,3 +1,4 @@
+# Reference: biopython 1.83+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+ | Verify API if version differs
 import requests
 import os
 from Bio.PDB import PDBParser

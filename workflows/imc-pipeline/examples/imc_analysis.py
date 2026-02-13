@@ -1,3 +1,4 @@
+# Reference: cellpose 3.0+, anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scvi-tools 1.1+, squidpy 1.3+, steinbock 0.16+ | Verify API if version differs
 import pandas as pd
 import numpy as np
 import anndata as ad

@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, Salmon 1.10+, edgeR 4.0+, scanpy 1.10+ | Verify API if version differs
 # DESeq2 with multiple conditions
 
 library(DESeq2)

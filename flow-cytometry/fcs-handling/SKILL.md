@@ -5,9 +5,27 @@ tool_type: r
 primary_tool: flowCore
 ---
 
+## Version Compatibility
+
+Reference examples tested with: flowCore 2.14+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # FCS File Handling
 
+**"Load my FCS files into R or Python"** → Read Flow Cytometry Standard (FCS) files, access channel parameters and metadata, and explore event data for downstream analysis.
+- R: `flowCore::read.FCS()` or `flowCore::read.flowSet()` for multiple files
+- Python: `fcsparser.parse()` or `FlowCal.io.FCSData()`
+
 ## Load FCS Files
+
+**Goal:** Read a single FCS file and inspect its parameters and metadata.
+
+**Approach:** Use flowCore's read.FCS with transformation disabled to load raw data, then examine parameter names and descriptions.
 
 ```r
 library(flowCore)
@@ -25,6 +43,10 @@ pData(parameters(fcs))  # Full metadata including descriptions
 
 ## Load Multiple Files
 
+**Goal:** Read a batch of FCS files into a single flowSet container for uniform processing.
+
+**Approach:** List FCS files from a directory and load them into a flowSet with read.flowSet.
+
 ```r
 # Read multiple files into flowSet
 files <- list.files('data', pattern = '\\.fcs$', full.names = TRUE)
@@ -38,6 +60,10 @@ fcs1 <- fs[[1]]
 ```
 
 ## Access Expression Data
+
+**Goal:** Extract the expression matrix from a flowFrame for numeric analysis.
+
+**Approach:** Call exprs() to get the cells-by-channels matrix, then subset or summarize as needed.
 
 ```r
 # Get expression matrix
@@ -55,6 +81,10 @@ cd4_expr <- expr[, 'CD4']
 ```
 
 ## Channel Metadata
+
+**Goal:** Retrieve channel names, descriptions, and ranges from the FCS parameter table.
+
+**Approach:** Access the parameters slot via pData(parameters(fcs)) and build a short-name to description mapping.
 
 ```r
 # Parameter information

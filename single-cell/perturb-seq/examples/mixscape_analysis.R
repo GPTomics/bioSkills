@@ -1,3 +1,4 @@
+# Reference: MAGeCK 0.5+, pandas 2.2+, pertpy 0.7+, scanpy 1.10+ | Verify API if version differs
 # Perturb-seq analysis with Seurat Mixscape
 
 library(Seurat)

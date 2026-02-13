@@ -2,6 +2,7 @@
 '''
 Substructure searching with SMARTS patterns.
 '''
+# Reference: rdkit 2024.03+ | Verify API if version differs
 
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D

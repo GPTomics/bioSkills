@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: FastQC 0.12+, Trimmomatic 0.39+, cutadapt 4.4+, fastp 0.23+ | Verify API if version differs
 # Trim Illumina adapters from paired-end reads
 # Usage: ./trim_adapters.sh <R1.fastq.gz> <R2.fastq.gz> <output_prefix>
 

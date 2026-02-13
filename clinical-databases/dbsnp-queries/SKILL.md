@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: myvariant
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # dbSNP Queries
 
+**"Look up variant information by rsID"** → Retrieve variant annotations, genomic coordinates, and cross-references to ClinVar/gnomAD from dbSNP using REST API queries.
+- Python: `myvariant.MyVariantInfo().getvariant('rs12345')`
+
 ## Query rsID via myvariant.info
+
+**Goal:** Retrieve variant information including dbSNP, ClinVar, and gnomAD annotations by rsID.
+
+**Approach:** Query myvariant.info with the rsID and request specific annotation fields.
 
 ```python
 import myvariant
@@ -23,6 +40,10 @@ result = get_rsid_info('rs121913527')
 ```
 
 ## Query via NCBI Entrez
+
+**Goal:** Search and fetch dbSNP records directly from NCBI using Entrez E-utilities.
+
+**Approach:** Use BioPython Entrez esearch to find SNP IDs, then efetch to retrieve full XML records.
 
 ```python
 from Bio import Entrez
@@ -46,6 +67,10 @@ def fetch_dbsnp(snp_id):
 ```
 
 ## Map Coordinates to rsID
+
+**Goal:** Find the rsID corresponding to a genomic position and allele change.
+
+**Approach:** Construct an HGVS notation from coordinates and query myvariant.info for the dbSNP rsID field.
 
 ```python
 def coords_to_rsid(chrom, pos, ref, alt):

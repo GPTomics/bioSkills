@@ -5,9 +5,27 @@ tool_type: mixed
 primary_tool: MCScanX
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, PAML 4.10+, matplotlib 3.8+, minimap2 2.26+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Synteny Analysis
 
+**"Compare genome structure between my species"** → Detect conserved gene order (syntenic blocks), chromosomal rearrangements, and whole-genome duplications by aligning genomic collinearity.
+- CLI: `MCScanX` for collinear block detection from BLAST results
+- Python: `jcvi.compara.synteny` for synteny visualization (dot plots, macro/micro)
+
 ## MCScanX Workflow
+
+**Goal:** Detect conserved gene order (syntenic blocks) between two genomes.
+
+**Approach:** Prepare GFF and all-vs-all BLASTP input files, run MCScanX to identify collinear gene blocks, parse the collinearity output, and classify syntenic relationships by coverage ratios.
 
 ```python
 '''Synteny analysis with MCScanX and visualization'''
@@ -134,6 +152,10 @@ def classify_synteny_type(blocks, species1_chroms, species2_chroms):
 
 ## SyRI for Structural Variants
 
+**Goal:** Identify structural rearrangements (inversions, translocations, duplications) between two genome assemblies.
+
+**Approach:** Align genomes with minimap2, run SyRI on the alignment to detect syntenic regions and structural variants, and parse the output into a variant table.
+
 ```python
 def run_syri(ref_genome, query_genome, alignment_file, output_prefix):
     '''Run SyRI for structural rearrangement identification
@@ -228,6 +250,10 @@ def detect_wgd(blocks, min_parallel_blocks=3):
 ```
 
 ## Ks Analysis for Dating
+
+**Goal:** Date gene duplication and speciation events using synonymous substitution rates (Ks).
+
+**Approach:** Calculate Ks for syntenic gene pairs using PAML yn00/codeml, plot the Ks distribution, and identify peaks corresponding to whole-genome duplication events.
 
 ```python
 def calculate_ks_for_pairs(cds_file1, cds_file2, gene_pairs):

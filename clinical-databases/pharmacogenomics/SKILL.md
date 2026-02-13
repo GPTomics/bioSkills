@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: requests
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Pharmacogenomics
 
 ## PharmGKB REST API
+
+**Goal:** Retrieve drug-gene clinical annotations and dosing guidelines from PharmGKB.
+
+**Approach:** Query PharmGKB REST endpoints by gene symbol or drug name and parse JSON annotation records.
+
+**"Find pharmacogenomic annotations for this gene"** → Query PharmGKB for clinical annotations linking genes to drug response.
+- Python: `requests.get()` against PharmGKB API (requests)
 
 ### Query Drug-Gene Relationships
 
@@ -55,6 +72,10 @@ for g in guidelines:
 ```
 
 ## Star Allele Interpretation
+
+**Goal:** Determine metabolizer phenotype from CYP star allele diplotypes using CPIC activity scores.
+
+**Approach:** Sum per-allele activity scores and classify into PM/IM/NM/UM categories based on CPIC thresholds.
 
 ### CYP2D6 Metabolizer Status
 
@@ -130,6 +151,10 @@ def cyp2c19_phenotype(allele1, allele2):
 
 ## Drug Interaction Lookup
 
+**Goal:** Check whether a specific drug-gene-variant combination has a known pharmacogenomic interaction.
+
+**Approach:** Query PharmGKB variant annotation endpoint filtered by drug and gene, then match to the target variant.
+
 ```python
 def check_pgx_interaction(drug, gene, variant):
     '''Check for pharmacogenomic drug-gene-variant interaction'''
@@ -169,6 +194,10 @@ def check_pgx_interaction(drug, gene, variant):
 | UGT1A1 | Irinotecan | Neutropenia |
 
 ## Batch PGx Annotation
+
+**Goal:** Annotate a cohort of variants across multiple pharmacogenes with drug interaction data.
+
+**Approach:** Iterate over a list of pharmacogenes, fetch PharmGKB annotations for each, and collect results into a DataFrame.
 
 ```python
 import pandas as pd

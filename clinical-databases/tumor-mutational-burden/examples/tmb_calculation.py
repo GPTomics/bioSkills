@@ -1,4 +1,5 @@
 '''Calculate Tumor Mutational Burden from somatic VCF'''
+# Reference: ensembl vep 111+, snpeff 5.2+, pandas 2.2+ | Verify API if version differs
 
 from cyvcf2 import VCF
 import argparse

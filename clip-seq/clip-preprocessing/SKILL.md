@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: umi_tools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cutadapt 4.4+, pysam 0.22+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CLIP-seq Preprocessing
 
+**"Preprocess my CLIP-seq reads"** → Extract UMIs, trim adapters, and remove PCR duplicates from raw CLIP/iCLIP/eCLIP reads to prepare for alignment and peak calling.
+- CLI: `umi_tools extract` for UMI handling, `cutadapt` for adapter trimming
+
 ## UMI Extraction (eCLIP/iCLIP)
+
+**Goal:** Extract UMI barcodes from CLIP-seq reads and append them to read names for downstream deduplication.
+
+**Approach:** Run umi_tools extract with a barcode pattern matching the UMI length and position in the read.
 
 ```bash
 # Extract UMI from read 1
@@ -37,6 +55,10 @@ cutadapt \
 ```
 
 ## Two-Pass Trimming (eCLIP)
+
+**Goal:** Remove inline adapters from eCLIP reads that appear at both 3' and 5' ends.
+
+**Approach:** Run two sequential cutadapt passes: first trim the 3' adapter, then trim any remaining 5' adapter from read-through events.
 
 ```bash
 # eCLIP protocol has inline adapters

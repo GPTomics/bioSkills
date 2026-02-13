@@ -1,4 +1,5 @@
 '''Build and validate a spectral library from search results'''
+# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 import pandas as pd
 import matplotlib.pyplot as plt
 

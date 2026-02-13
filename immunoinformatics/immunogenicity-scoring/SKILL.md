@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: mhcflurry
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MHCflurry 2.1+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Immunogenicity Scoring
 
+**"Rank my neoantigen candidates by immunogenicity"** → Score and prioritize epitopes using multi-factor models combining MHC binding, proteasomal processing, expression level, and sequence foreignness for vaccine candidate selection.
+- Python: `mhcflurry` for binding + processing predictions, custom scoring pipeline
+
 ## Multi-Factor Scoring
+
+**Goal:** Calculate a composite immunogenicity score from multiple weighted factors (binding, agretopicity, processing, expression, clonality, foreignness).
+
+**Approach:** Score each factor on a 0-1 scale, then combine via weighted sum with domain-informed weights.
 
 ```python
 import pandas as pd
@@ -72,6 +89,10 @@ def calculate_immunogenicity_score(peptide_data):
 
 ## Processing Prediction
 
+**Goal:** Predict proteasomal cleavage and TAP transport probability for candidate peptides.
+
+**Approach:** Use MHCflurry's Class1ProcessingPredictor to score peptide processing likelihood.
+
 ```python
 from mhcflurry import Class1ProcessingPredictor
 
@@ -101,6 +122,10 @@ def predict_processing_score(peptides):
 ```
 
 ## Self-Similarity Assessment
+
+**Goal:** Determine whether a candidate peptide resembles self-peptides, indicating potential T-cell tolerance.
+
+**Approach:** Compute pairwise sequence identity against a proteome peptide set and flag high-similarity matches.
 
 ```python
 def calculate_self_similarity(peptide, proteome_peptides, threshold=0.8):
@@ -136,6 +161,10 @@ def calculate_self_similarity(peptide, proteome_peptides, threshold=0.8):
 
 ## Hydrophobicity at Position 2
 
+**Goal:** Assess MHC anchor residue quality by checking hydrophobicity at key positions.
+
+**Approach:** Check whether position 2 and C-terminal residues fall within the hydrophobic amino acid set preferred by HLA-A*02:01-like alleles.
+
 ```python
 def check_anchor_hydrophobicity(peptide):
     '''Check hydrophobicity at MHC anchor positions
@@ -159,6 +188,10 @@ def check_anchor_hydrophobicity(peptide):
 ```
 
 ## Rank Epitopes
+
+**Goal:** Rank epitopes by composite immunogenicity score and assign confidence tiers for prioritization.
+
+**Approach:** Score all candidates, sort by immunogenicity, and assign high/medium/low tiers based on percentile ranking.
 
 ```python
 def rank_epitopes(epitope_df, top_n=20):
@@ -200,6 +233,10 @@ def rank_epitopes(epitope_df, top_n=20):
 ```
 
 ## Compare Candidates
+
+**Goal:** Select a diverse set of vaccine candidates with broad HLA coverage and non-overlapping positions.
+
+**Approach:** Iterate through ranked candidates, selecting those with non-overlapping genomic positions to maximize epitope diversity.
 
 ```python
 def compare_vaccine_candidates(candidates_df):

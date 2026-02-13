@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: ggplot2 3.5+ | Verify API if version differs
 # Complete GWAS workflow with PLINK2
 set -e
 

@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: cnvkit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, bedtools 2.31+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CNVkit CNV Analysis
 
+**"Detect copy number variants from my exome data"** → Run a read-depth-based pipeline that normalizes on/off-target coverage against a reference, segments the log2 ratio profile, and calls gains/losses.
+- CLI: `cnvkit.py batch tumor.bam --normal normal.bam`
+
 ## Basic Workflow
+
+**Goal:** Run the complete CNVkit pipeline on a tumor-normal pair to detect copy number variants.
+
+**Approach:** Execute the batch command which wraps target/antitarget generation, coverage calculation, reference building, and segmentation into one step.
 
 ```bash
 # Complete pipeline for tumor-normal pair
@@ -20,6 +38,10 @@ cnvkit.py batch tumor.bam \
 ```
 
 ## Build Reference from Normal Samples
+
+**Goal:** Create a robust reference from pooled normal samples, then run tumor samples against it.
+
+**Approach:** Build a panel-of-normals reference first, then batch-process tumors using the pre-built reference.
 
 ```bash
 # Step 1: Build reference from multiple normals (recommended)
@@ -37,6 +59,10 @@ cnvkit.py batch tumor1.bam tumor2.bam \
 
 ## Flat Reference (No Matched Normal)
 
+**Goal:** Call CNVs when no matched normal sample is available.
+
+**Approach:** Generate a flat reference from target regions and the reference genome, assuming diploid baseline.
+
 ```bash
 # When no matched normal is available
 cnvkit.py batch tumor.bam \
@@ -47,6 +73,10 @@ cnvkit.py batch tumor.bam \
 ```
 
 ## WGS Mode
+
+**Goal:** Detect CNVs from whole genome sequencing data without a targets file.
+
+**Approach:** Run CNVkit batch with `--method wgs` to use genome-wide binning instead of target/antitarget regions.
 
 ```bash
 # For whole genome sequencing (no targets file)
@@ -59,12 +89,20 @@ cnvkit.py batch tumor.bam \
 
 ## bedGraph Input (Privacy-Preserving)
 
+**Goal:** Run CNVkit from bedGraph coverage files instead of BAM files for privacy-sensitive data sharing.
+
+**Approach:** Pre-compute coverage from BAM, then feed compressed bedGraph to the coverage step.
+
 ```bash
 # Generate bedGraph: bedtools genomecov -ibam sample.bam -bg | bgzip > sample.bed.gz && tabix -p bed sample.bed.gz
 cnvkit.py coverage sample.bed.gz targets.target.bed -o sample.targetcoverage.cnn
 ```
 
 ## Step-by-Step Pipeline
+
+**Goal:** Execute CNVkit as individual steps for fine-grained control over each stage.
+
+**Approach:** Run target/antitarget generation, coverage, reference building, fix, segment, and call sequentially.
 
 ```bash
 # 1. Generate target and antitarget regions
@@ -89,6 +127,10 @@ cnvkit.py call tumor.cns -o tumor.call.cns
 
 ## Segmentation Options
 
+**Goal:** Choose the optimal segmentation algorithm for the sample type.
+
+**Approach:** Select from CBS, HMM, or HMM variants tuned for tumor heterogeneity or germline tightness.
+
 ```bash
 # Default CBS (Circular Binary Segmentation)
 cnvkit.py segment sample.cnr -o sample.cns
@@ -108,6 +150,10 @@ cnvkit.py segment sample.cnr --smooth-cbs -o sample.cns
 
 ## CNV Calling with Ploidy/Purity
 
+**Goal:** Convert segmented log2 ratios into integer copy number states accounting for tumor composition.
+
+**Approach:** Supply tumor purity and ploidy estimates (and optionally B-allele frequencies from a VCF) to the call step.
+
 ```bash
 # Specify tumor purity and ploidy
 cnvkit.py call sample.cns \
@@ -123,6 +169,10 @@ cnvkit.py call sample.cns \
 ```
 
 ## Export Results
+
+**Goal:** Convert CNVkit output to standard formats for downstream tools or databases.
+
+**Approach:** Export called segments to BED, VCF, SEG (for GISTIC2), or Nexus format.
 
 ```bash
 # Export to BED format
@@ -142,6 +192,10 @@ cnvkit.py export nexus-basic sample.cnr -o sample.nexus.txt
 ```
 
 ## Visualization
+
+**Goal:** Generate CNV profile plots for visual inspection and publication.
+
+**Approach:** Use CNVkit built-in commands for scatter, diagram, and heatmap views.
 
 ```bash
 # Scatter plot with segments
@@ -168,6 +222,10 @@ cnvkit.py heatmap *.cns -o heatmap.pdf
 
 ## Python API
 
+**Goal:** Programmatically load and filter CNVkit results for custom downstream analysis.
+
+**Approach:** Use cnvlib to read .cnr/.cns files as DataFrames, filter by chromosome or log2 ratio, and export.
+
 ```python
 import cnvlib
 
@@ -188,6 +246,10 @@ cnr.to_csv('sample.cnr.tsv', sep='\t', index=False)
 ```
 
 ## Quality Control
+
+**Goal:** Assess CNVkit run quality, check for sex mismatches, and compute per-segment confidence intervals.
+
+**Approach:** Run metrics, sex, segmetrics, and genemetrics commands on output files.
 
 ```bash
 # Check reference quality

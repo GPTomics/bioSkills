@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, ggplot2 3.5+, phyloseq 1.46+, scanpy 1.10+ | Verify API if version differs
 # Differential abundance testing with ALDEx2
 library(ALDEx2)
 library(phyloseq)

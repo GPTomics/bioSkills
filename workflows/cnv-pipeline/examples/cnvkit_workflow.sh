@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: CNVkit 0.9+, GATK 4.5+ | Verify API if version differs
 # CNVkit workflow for exome CNV detection
 set -e
 

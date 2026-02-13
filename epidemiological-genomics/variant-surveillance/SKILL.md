@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: nextclade
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Nextclade 3.3+, ggplot2 3.5+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Variant Surveillance
+
+**"Classify my viral sequences into lineages"** → Assign pathogen lineages and track variants of concern using Nextclade or pangolin for real-time genomic surveillance.
+- CLI: `nextclade run -d sars-cov-2 -i sequences.fasta`
+- CLI: `pangolin sequences.fasta` for SARS-CoV-2 Pango lineage assignment
 
 ## Nextclade CLI
 
@@ -88,6 +103,10 @@ def summarize_lineages(results_df, lineage_col='Nextclade_pango'):
 
 ## Track Variants of Concern
 
+**Goal:** Classify viral sequences into WHO-defined variants of concern and track their prevalence over time.
+
+**Approach:** Map Pango lineages to VOC labels using pattern matching, then group by time period and compute proportional representation of each VOC.
+
 ```python
 # WHO Variants of Concern/Interest definitions
 VOC_DEFINITIONS = {
@@ -111,7 +130,7 @@ def classify_voc(lineage):
 
 
 def track_voc_prevalence(results_df, date_col='collection_date'):
-    '''Track VOC prevalence over time'''
+    '''Track variant of concern prevalence over time'''
     results_df = results_df.copy()
     results_df['VOC'] = results_df['Nextclade_pango'].apply(classify_voc)
 
@@ -150,12 +169,11 @@ def find_mutation_prevalence(results_df, mutation_col='aaSubstitutions'):
 
 
 def detect_emerging_mutations(results_df, date_col='collection_date', threshold=5):
-    '''Detect mutations increasing in frequency
-
-    Alerts for mutations that:
-    1. Were rare in early period
-    2. Increased significantly in recent period
-    '''
+    '''Detect mutations increasing in frequency'''
+    # Goal: Flag mutations showing rapid prevalence increase between
+    # early and recent time periods (>2-fold increase above threshold).
+    # Approach: Split data at median date, compute per-mutation prevalence
+    # in each half, and report mutations with significant frequency gains.
     results_df = results_df.copy()
     results_df['date'] = pd.to_datetime(results_df[date_col])
 

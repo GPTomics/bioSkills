@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: cooltools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Compartment Analysis
+
+**"Identify A/B compartments from my Hi-C data"** → Decompose the contact matrix via eigenvector analysis to classify chromatin into active (A) and inactive (B) compartments.
+- Python: `cooltools.eigs_cis(clr, gc_cov)` for eigenvector decomposition
 
 Detect A/B compartments from Hi-C contact matrices.
 
@@ -127,6 +140,10 @@ plt.savefig('saddle_plot.png', dpi=150)
 
 ## Compartment Strength Score
 
+**Goal:** Quantify the degree of compartmentalization by measuring the enrichment of A-A and B-B contacts relative to A-B contacts.
+
+**Approach:** Partition the saddle matrix into four quadrants (AA, BB, AB, BA) and compute the difference between same-compartment and cross-compartment average contact enrichment.
+
 ```python
 # Compute compartment strength from saddle
 def compartment_strength(saddle_matrix):
@@ -185,6 +202,10 @@ eigenvectors[['chrom', 'start', 'end', 'E1']].to_csv(
 ```
 
 ## Compare Compartments Between Samples
+
+**Goal:** Identify genomic regions that switch between A and B compartments across two experimental conditions.
+
+**Approach:** Compute eigenvectors for both samples, correlate E1 values genome-wide, and flag bins where the sign of E1 flips between conditions.
 
 ```python
 # Load two samples

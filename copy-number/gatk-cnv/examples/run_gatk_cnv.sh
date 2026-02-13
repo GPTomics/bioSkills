@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GATK 4.5+ | Verify API if version differs
 # GATK CNV calling
 
 set -euo pipefail

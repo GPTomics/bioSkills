@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: anndata 0.10+, scanpy 1.10+, scikit-learn 1.4+, scvi-tools 1.1+ | Verify API if version differs
 # Batch integration with Harmony
 
 library(Seurat)

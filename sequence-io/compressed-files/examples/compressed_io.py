@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Read and write compressed sequence files'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 
 import gzip
 from Bio import SeqIO

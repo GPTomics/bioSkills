@@ -17,7 +17,20 @@ qc_checkpoints:
   - after_functional: "Pathway coverage reasonable, unmapped <50%"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, Bracken 2.9+, HUMAnN 3.8+, Kraken2 2.1+, MetaPhlAn 4.1+, fastp 0.23+, matplotlib 3.8+, pandas 2.2+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metagenomics Pipeline
+
+**"Analyze my metagenomic samples from FASTQ to taxonomic and functional profiles"** → Orchestrate host depletion, Kraken2/Bracken taxonomic classification, MetaPhlAn profiling, HUMAnN3 functional analysis, and AMR gene detection.
 
 Complete workflow from metagenomic FASTQ to taxonomic and functional profiles.
 

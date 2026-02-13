@@ -5,9 +5,26 @@ tool_type: cli
 primary_tool: YaHS
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BUSCO 5.5+, BWA 0.7.17+, QUAST 5.2+, bedtools 2.31+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Genome Scaffolding
 
+**"Scaffold my contigs to chromosome level"** → Order and orient contigs into chromosome-scale scaffolds using Hi-C proximity ligation data.
+- CLI: `yahs contigs.fa hic_alignments.bam`, `3d-dna`, `salsa2`
+
 ## Hi-C Data Preprocessing
+
+**Goal:** Prepare Hi-C read alignments for scaffolding tools.
+
+**Approach:** Align Hi-C reads with BWA mem using Hi-C-specific flags (-5SP), then filter and deduplicate contacts with pairtools.
 
 ```bash
 # Align Hi-C reads to draft assembly
@@ -24,6 +41,10 @@ pairtools parse --min-mapq 40 --walks-policy 5unique --max-inter-align-gap 30 \
 ```
 
 ## YaHS Scaffolding (Recommended)
+
+**Goal:** Order and orient contigs into chromosome-scale scaffolds using Hi-C contact data.
+
+**Approach:** Convert alignments to BED format and run YaHS, which uses an iterative scaffolding algorithm with contact frequency optimization.
 
 ```bash
 # Index assembly
@@ -43,6 +64,10 @@ yahs draft_assembly.fa aligned.bed -o scaffolds
 
 ## YaHS with Error Correction
 
+**Goal:** Generate scaffolds with contact maps suitable for manual curation in Juicebox.
+
+**Approach:** Run YaHS with error correction, then create a .hic file from the scaffolding output for visualization.
+
 ```bash
 # Run with error correction
 yahs draft_assembly.fa aligned.bed -o scaffolds --no-contig-ec
@@ -58,6 +83,10 @@ java -Xmx48G -jar juicer_tools.jar pre scaffolds.pre.txt scaffolds.hic \
 ```
 
 ## 3D-DNA Pipeline
+
+**Goal:** Scaffold contigs using the 3D-DNA automated pipeline with Juicer integration.
+
+**Approach:** Run the 3D-DNA assembly pipeline on Juicer-processed Hi-C data, then optionally refine with Juicebox review.
 
 ```bash
 # Prepare input (requires Juicer aligned data)
@@ -75,6 +104,10 @@ run-asm-pipeline-post-review.sh -r draft_assembly.final.review.assembly \
 
 ## SALSA2 Scaffolding
 
+**Goal:** Scaffold contigs using SALSA2's proximity-guided assembly algorithm.
+
+**Approach:** Run SALSA2 with Hi-C alignments and restriction enzyme sites for scaffolding decisions.
+
 ```bash
 # Run SALSA2
 python run_pipeline.py -a draft_assembly.fa -l draft_assembly.fa.fai \
@@ -86,6 +119,10 @@ python run_pipeline.py -a draft_assembly.fa -l draft_assembly.fa.fai \
 ```
 
 ## Generate Contact Map
+
+**Goal:** Create multi-resolution contact matrices for visualization and validation.
+
+**Approach:** Load contacts into cooler format, balance the matrix, and generate a multi-resolution .mcool file.
 
 ```bash
 # Using cooler
@@ -100,6 +137,10 @@ cooler zoomify scaffolds.cool -o scaffolds.mcool
 ```
 
 ## Visualize with HiGlass
+
+**Goal:** Interactively visualize Hi-C contact maps to verify scaffolding correctness.
+
+**Approach:** Convert data to HiGlass-compatible formats and serve via Docker container.
 
 ```bash
 # Convert to higlass format

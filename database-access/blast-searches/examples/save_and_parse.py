@@ -1,4 +1,5 @@
 '''Save BLAST results and parse later'''
+# Reference: biopython 1.83+, ncbi blast+ 2.15+ | Verify API if version differs
 from Bio.Blast import NCBIWWW, NCBIXML
 from Bio import SeqIO
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, MetaPhlAn 4.1+, minimap2 2.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 READS_DIR="fastq"
 OUTPUT_DIR="metaphlan_output"

@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: beagle
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Genotype Imputation
+
+**"Impute missing genotypes using a reference panel"** → Fill in untyped variants by leveraging LD patterns from a reference panel to increase variant density for GWAS or cross-platform harmonization.
+- CLI: `java -jar beagle.jar gt=input.vcf ref=panel.vcf out=imputed`
+- CLI: `minimac4 --refHaps panel.m3vcf --haps input.vcf --prefix imputed`
 
 ## Beagle Imputation
 
@@ -79,6 +94,10 @@ minimac4 \
 ```
 
 ## Input Preparation
+
+**Goal:** Prepare study genotypes for imputation by fixing strand orientation, filtering to overlapping sites, and pre-phasing.
+
+**Approach:** Align alleles to the reference genome with fixref, intersect with reference panel sites, phase with Beagle, then impute against the full reference panel.
 
 ```bash
 # 1. Align to reference (strand, allele order)

@@ -1,4 +1,5 @@
 '''RSCU (Relative Synonymous Codon Usage) analysis'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.Data import CodonTable
 from collections import Counter

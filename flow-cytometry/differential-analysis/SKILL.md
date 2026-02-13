@@ -5,9 +5,26 @@ tool_type: r
 primary_tool: CATALYST
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), edgeR 4.0+, ggplot2 3.5+, limma 3.58+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Differential Analysis
 
+**"Compare cell populations between my conditions"** → Test for significant changes in cell type frequencies (differential abundance) or marker expression levels (differential state) between experimental groups.
+- R: `CATALYST::testDA_edgeR()` or `diffcyt::testDA_GLMM()`
+
 ## Differential Abundance (DA)
+
+**Goal:** Test which cell population clusters differ in frequency between experimental conditions.
+
+**Approach:** Create a design matrix and contrast from sample metadata, then run edgeR-based differential abundance testing on cluster counts per sample using testDA_edgeR from the diffcyt framework.
 
 ```r
 library(CATALYST)

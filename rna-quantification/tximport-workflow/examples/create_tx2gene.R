@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, Salmon 1.10+, edgeR 4.0+, kallisto 0.50+, scanpy 1.10+ | Verify API if version differs
 library(GenomicFeatures)
 
 gtf_file <- 'Homo_sapiens.GRCh38.110.gtf.gz'

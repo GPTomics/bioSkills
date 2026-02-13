@@ -5,9 +5,27 @@ tool_type: python
 primary_tool: pVACtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Ensembl VEP 111+, MHCflurry 2.1+, pVACtools 4.1+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Neoantigen Prediction
 
-## pVACtools Pipeline
+**"Identify neoantigens from my tumor mutations"** → Predict mutant peptides from somatic variants that bind patient HLA alleles and may elicit T-cell responses for personalized cancer immunotherapy.
+- CLI: `pvacseq run` with VEP-annotated VCF and patient HLA types (pVACtools)
+
+## pVACtools Pipeline (Ensembl VEP 111+)
+
+**Goal:** Install pVACtools and its IEDB prediction engine dependencies.
+
+**Approach:** Install via pip (optionally in a dedicated conda environment) and download IEDB tools for binding prediction.
 
 ```bash
 # Install pVACtools
@@ -22,7 +40,11 @@ pip install pvactools
 pvactools download_iedb_tools
 ```
 
-## pVACseq Workflow
+## pVACseq Workflow (Ensembl VEP 111+)
+
+**Goal:** Run the full pVACseq neoantigen prediction pipeline on a VEP-annotated VCF.
+
+**Approach:** Provide annotated VCF with patient HLA alleles and select binding prediction algorithms; pVACseq generates mutant peptides and predicts MHC binding.
 
 ```bash
 # Run pVACseq on annotated VCF
@@ -42,7 +64,11 @@ pvacseq run \
 # --percentile-threshold: Alternative cutoff
 ```
 
-## VCF Annotation Requirements
+## VCF Annotation Requirements (Ensembl VEP 111+)
+
+**Goal:** Annotate somatic VCF with transcript consequences and amino acid changes required by pVACseq.
+
+**Approach:** Run Ensembl VEP with Downstream and Wildtype plugins to produce a VCF containing protein-level mutation annotations.
 
 ```bash
 # pVACseq requires VEP-annotated VCF
@@ -59,6 +85,10 @@ vep -i somatic.vcf -o annotated.vcf \
 ```
 
 ## Parse pVACseq Results
+
+**Goal:** Parse pVACseq output and calculate the differential agretopicity index (DAI) for candidate neoantigens.
+
+**Approach:** Load TSV results, filter by binding threshold, and compute WT/MT binding ratio to identify mutations that create new epitopes.
 
 ```python
 import pandas as pd
@@ -105,7 +135,11 @@ def calculate_agretopicity(df):
     return df
 ```
 
-## Prioritize Neoantigens
+## Prioritize Neoantigens (Ensembl VEP 111+)
+
+**Goal:** Rank neoantigen candidates for vaccine design by combining binding, clonality, and expression evidence.
+
+**Approach:** Apply sequential filters (binding affinity, VAF, expression) and compute a composite priority score weighting inverse IC50, VAF, and agretopicity.
 
 ```python
 def prioritize_neoantigens(df, vaf_threshold=0.1, expression_threshold=1.0):
@@ -146,7 +180,11 @@ def prioritize_neoantigens(df, vaf_threshold=0.1, expression_threshold=1.0):
     return candidates.sort_values('priority_score', ascending=False)
 ```
 
-## Alternative: Manual Neoantigen Pipeline
+## Alternative: Manual Neoantigen Pipeline (Ensembl VEP 111+)
+
+**Goal:** Predict neoantigens without pVACtools by directly extracting mutant peptides from an annotated VCF and predicting MHC binding.
+
+**Approach:** Parse VEP annotations from VCF via cyvcf2, generate mutant peptides around each coding mutation, and predict binding with MHCflurry.
 
 ```python
 def manual_neoantigen_pipeline(vcf_file, hla_alleles, reference_fasta):
@@ -189,7 +227,11 @@ def manual_neoantigen_pipeline(vcf_file, hla_alleles, reference_fasta):
     return neoantigens
 ```
 
-## Neoantigen Quality Metrics
+## Neoantigen Quality Metrics (Ensembl VEP 111+)
+
+**Goal:** Assess neoantigen quality across multiple dimensions and produce a composite confidence score.
+
+**Approach:** Normalize binding affinity, agretopicity, clonality, and expression to 0-1 scales and combine with domain-informed weights.
 
 ```python
 def assess_neoantigen_quality(neoantigen):

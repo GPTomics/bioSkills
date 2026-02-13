@@ -5,13 +5,32 @@ tool_type: r
 primary_tool: ALDEx2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, ggplot2 3.5+, phyloseq 1.46+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Differential Abundance Testing
+
+**"Find which taxa differ between my groups"** → Identify differentially abundant taxa between experimental conditions using compositionally-aware methods that account for the relative nature of microbiome data.
+- R: `ALDEx2::aldex()` for CLR-transformed Welch's t-test
+- R: `ANCOMBC::ancombc2()` for bias-corrected log-linear models
+- R: `Maaslin2::Maaslin2()` for multivariable association
 
 ## The Compositionality Problem
 
 Microbiome data is compositional - abundances are relative, not absolute. Standard tests (t-test, DESeq2) can give false positives.
 
 ## ALDEx2 (Recommended)
+
+**Goal:** Identify differentially abundant taxa between groups using a compositionally-aware statistical framework.
+
+**Approach:** Apply CLR transformation with Monte Carlo sampling on the OTU table, run Welch's t-test per taxon, and filter by FDR-corrected p-value and effect size.
 
 ```r
 library(ALDEx2)

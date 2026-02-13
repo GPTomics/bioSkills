@@ -5,9 +5,23 @@ tool_type: cli
 primary_tool: fastp
 ---
 
+## Version Compatibility
+
+Reference examples tested with: FastQC 0.12+, fastp 0.23+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # fastp Workflow
 
 All-in-one preprocessing tool that handles adapter trimming, quality filtering, deduplication, and report generation in a single pass.
+
+**"Preprocess FASTQ reads with fastp"** → Run adapter trimming, quality filtering, and QC reporting in a single pass.
+- CLI: `fastp -i R1.fq -I R2.fq -o clean_R1.fq -O clean_R2.fq --html report.html`
 
 ## Basic Usage
 

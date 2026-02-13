@@ -1,3 +1,4 @@
+# Reference: MACS2 2.2+, scanpy 1.10+ | Verify API if version differs
 # scATAC-seq analysis with Signac
 library(Signac)
 library(Seurat)

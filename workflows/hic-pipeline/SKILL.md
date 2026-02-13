@@ -18,7 +18,20 @@ qc_checkpoints:
   - after_analysis: "Compartments correlate with expression"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BWA-MEM2 2.2.1+, cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pairtools 1.1+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Hi-C Pipeline
+
+**"Analyze my Hi-C data from FASTQ to 3D genome features"** → Orchestrate read alignment, contact matrix generation, normalization, TAD calling, loop detection, compartment analysis, and differential interaction testing.
 
 Complete workflow for Hi-C chromosome conformation capture analysis.
 

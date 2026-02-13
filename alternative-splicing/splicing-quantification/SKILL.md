@@ -5,6 +5,17 @@ tool_type: python
 primary_tool: SUPPA2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: kallisto 0.50+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Splicing Quantification
 
 Quantify alternative splicing events as PSI (percent spliced in) values from RNA-seq data.
@@ -32,6 +43,14 @@ Quantify alternative splicing events as PSI (percent spliced in) values from RNA
 - Better for novel junction discovery
 
 ## SUPPA2 Workflow
+
+**Goal:** Calculate PSI values for all splicing event types from transcript-level quantification.
+
+**Approach:** Generate event definitions from GTF annotation, then compute per-event PSI from transcript TPM using SUPPA2.
+
+**"Quantify splicing from RNA-seq"** -> Extract splicing events from annotation, then calculate inclusion ratios from transcript abundance.
+- Python/CLI: `suppa.py generateEvents` + `suppa.py psiPerEvent` (SUPPA2)
+- CLI: `rmats.py` with `--statoff` (rMATS-turbo, BAM-based)
 
 ```python
 import subprocess
@@ -67,6 +86,10 @@ print(psi_se.head())
 ```
 
 ## rMATS-turbo Workflow
+
+**Goal:** Quantify splicing events directly from aligned BAM files using junction read counting.
+
+**Approach:** Run rMATS-turbo on paired BAM groups with annotation, then parse inclusion level columns from output.
 
 ```bash
 # rMATS-turbo for BAM-based quantification

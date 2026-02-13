@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+ | Verify API if version differs
 # Visualize GSEA results
 
 library(clusterProfiler)

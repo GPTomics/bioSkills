@@ -5,9 +5,27 @@ tool_type: r
 primary_tool: MOFA2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MOFA2 Integration
 
+**"Find shared variation across my omics layers"** → Discover latent factors that capture shared and modality-specific sources of biological variation in an unsupervised manner.
+- R: `MOFA2::create_mofa()` → `prepare_mofa()` → `run_mofa()`
+- Python: `mofapy2` for training, `muon` for downstream
+
 ## Prepare Multi-Omics Data
+
+**Goal:** Load and align multiple omics matrices into a consistent format for MOFA2 input.
+
+**Approach:** Read each omics layer, intersect to common samples, transpose to features-by-samples orientation.
 
 ```r
 library(MOFA2)
@@ -34,6 +52,10 @@ data_list <- list(
 
 ## Create and Train MOFA Model
 
+**Goal:** Configure and train a MOFA2 model to discover shared and view-specific latent factors.
+
+**Approach:** Set model and training options, then run variational inference to learn factor decomposition.
+
 ```r
 # Create MOFA object
 mofa <- create_mofa(data_list)
@@ -57,6 +79,10 @@ mofa <- run_mofa(mofa, outfile = 'mofa_model.hdf5')
 
 ## Analyze Factors
 
+**Goal:** Quantify how much variance each factor explains per omics view and extract factor scores and loadings.
+
+**Approach:** Plot variance decomposition and retrieve factor values (sample scores) and weights (feature loadings) as data frames.
+
 ```r
 # Variance explained per factor per view
 plot_variance_explained(mofa, max_r2 = 15)
@@ -70,6 +96,10 @@ weights <- get_weights(mofa, as.data.frame = TRUE)
 ```
 
 ## Visualize Results
+
+**Goal:** Generate publication-quality plots of factor values, feature weights, and factor correlations.
+
+**Approach:** Use MOFA2 built-in plotting functions for scatter plots, heatmaps, and correlation matrices.
 
 ```r
 # Scatter plot of factor values
@@ -87,6 +117,10 @@ plot_factor_cor(mofa)
 
 ## Factor Interpretation
 
+**Goal:** Identify biological pathways and gene sets associated with each MOFA factor.
+
+**Approach:** Extract top-weighted features per factor and run gene set enrichment on factor weights.
+
 ```r
 # Extract top features for pathway analysis
 top_rna_factor1 <- get_weights(mofa, views = 'RNA', factors = 1, as.data.frame = TRUE)
@@ -102,6 +136,10 @@ plot_enrichment(enrichment, factor = 1, max.pathways = 15)
 
 ## Add Sample Metadata
 
+**Goal:** Annotate MOFA factors with clinical or experimental metadata for colored visualizations.
+
+**Approach:** Load sample annotations and attach to the MOFA object, then plot factors colored by metadata variables.
+
 ```r
 # Load sample annotations
 metadata <- read.csv('sample_metadata.csv', row.names = 1)
@@ -115,6 +153,10 @@ plot_factors(mofa, factors = 1:3, color_by = 'Condition')
 ```
 
 ## Multi-Group MOFA
+
+**Goal:** Apply MOFA to batch- or group-structured multi-omics data and compare factor activity across groups.
+
+**Approach:** Organize data as nested list by group, train multi-group MOFA, and visualize group-specific factor patterns.
 
 ```r
 # For batch/group-structured data
@@ -132,6 +174,10 @@ plot_factor(mofa_grouped, factor = 1, group_by = 'group', color_by = 'group')
 ```
 
 ## MOFA+ for Single-Cell
+
+**Goal:** Apply MOFA to single-cell multi-modal data (CITE-seq, Multiome) with stochastic inference for scalability.
+
+**Approach:** Extract modality matrices from a Seurat object, create MOFA with stochastic training for large cell counts.
 
 ```r
 # For single-cell multi-omics (CITE-seq, Multiome)
@@ -152,6 +198,10 @@ train_opts$stochastic <- TRUE
 ```
 
 ## Export Results
+
+**Goal:** Save MOFA factor scores, feature weights, and variance explained to CSV for downstream use.
+
+**Approach:** Extract each result type as a data frame and write to disk.
 
 ```r
 # Save factor values

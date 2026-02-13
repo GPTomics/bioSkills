@@ -1,4 +1,5 @@
 '''Reading GenBank files and extracting features'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio import SeqIO
 
 print('=== Parsing GenBank File ===')

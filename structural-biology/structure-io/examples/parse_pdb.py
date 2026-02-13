@@ -1,4 +1,5 @@
 '''Parse a PDB file and inspect structure contents'''
+# Reference: biopython 1.83+, scanpy 1.10+ | Verify API if version differs
 
 from Bio.PDB import PDBParser
 

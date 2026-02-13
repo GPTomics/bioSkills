@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Handle paired-end FASTQ files'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import SeqIO
 import gzip

@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: DESeq2 1.42+, GenomicRanges 1.54+, Subread 2.0+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+ | Verify API if version differs
 # Differential accessibility with DiffBind
 
 library(DiffBind)

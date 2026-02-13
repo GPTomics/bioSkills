@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: pandas
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, limma 3.58+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Proteomics Quality Control
+
+**"Check the quality of my proteomics data"** → Assess data quality through identification rates, missing value patterns, replicate correlation, intensity distributions, and batch effect detection before downstream analysis.
+- Python: `pandas` + `matplotlib`/`seaborn` for QC metrics and visualization
+- R: `limma::plotMDS()`, correlation heatmaps, CV distributions
 
 ## Sample Quality Metrics
 
@@ -77,6 +92,10 @@ def analyze_missing_patterns(intensity_matrix):
 ```
 
 ## Batch Effect Detection with PCA
+
+**Goal:** Detect batch effects in proteomics data by testing whether processing batches explain significant variance in the principal components.
+
+**Approach:** Impute missing values, scale the intensity matrix, run PCA, then test the association of each top PC with batch labels using one-way ANOVA.
 
 ```python
 from sklearn.preprocessing import StandardScaler

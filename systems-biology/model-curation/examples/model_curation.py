@@ -1,4 +1,5 @@
 '''Validate and curate metabolic models'''
+# Reference: cobrapy 0.29+ | Verify API if version differs
 
 import cobra
 

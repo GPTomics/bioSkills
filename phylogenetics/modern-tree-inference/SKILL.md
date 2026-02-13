@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: IQ-TREE2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: IQ-TREE 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Modern ML Tree Inference
+
+**"Infer a maximum likelihood tree from my alignment"** → Build publication-quality ML trees with automatic substitution model selection and ultrafast bootstrap support assessment.
+- CLI: `iqtree2 -s alignment.fa -m MFP -B 1000` (IQ-TREE2)
+- CLI: `raxml-ng --all --msa alignment.fa --model GTR+G --bs-trees 100` (RAxML-ng)
 
 Build maximum likelihood phylogenetic trees with automatic model selection and ultrafast bootstrap.
 

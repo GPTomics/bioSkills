@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: QUAST 5.2+, SPAdes 3.15+, minimap2 2.26+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
 # Metagenome assembly and binning workflow
 
 set -euo pipefail

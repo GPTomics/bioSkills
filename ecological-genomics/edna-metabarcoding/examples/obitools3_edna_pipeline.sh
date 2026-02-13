@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Reference: DADA2 1.30+, cutadapt 4.4+ | Verify API if version differs
 # OBITools3 eDNA metabarcoding pipeline: paired-end FASTQ to taxonomy table
 # Marker: COI with mlCOIintF/jgHCO2198 primers
 # Adjust length filters and reference database for other markers

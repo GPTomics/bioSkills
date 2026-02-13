@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, STAR 2.7.11+, cutadapt 4.4+, numpy 1.26+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Ribo-seq preprocessing pipeline
 
 INPUT=$1

@@ -1,3 +1,4 @@
+# Reference: deepTools 3.5+ | Verify API if version differs
 # Metagene visualization with Guitar
 
 library(Guitar)

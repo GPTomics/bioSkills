@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, MetaPhlAn 4.1+, numpy 1.26+, pandas 2.2+, samtools 1.19+, scipy 1.12+ | Verify API if version differs
 # Strain comparison using MASH
 
 set -euo pipefail

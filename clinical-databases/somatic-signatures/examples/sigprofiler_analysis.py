@@ -1,4 +1,5 @@
 '''Extract and analyze mutational signatures with SigProfiler'''
+# Reference: mutationalpatterns 3.12+, sigprofilerextractor 1.1+, numpy 1.26+ | Verify API if version differs
 
 import os
 

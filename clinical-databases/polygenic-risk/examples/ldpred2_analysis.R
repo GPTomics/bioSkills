@@ -1,3 +1,4 @@
+# Reference: LDpred2 1.14+, PRSice-2 2.3+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
 library(bigsnpr)
 library(data.table)
 

@@ -11,7 +11,19 @@ depends_on:
   - microbiome/differential-abundance
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DADA2 1.30+, ggplot2 3.5+, phyloseq 1.46+, scanpy 1.10+, vegan 2.6+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Microbiome Pipeline
+
+**"Run end-to-end 16S microbiome analysis from FASTQ"** → Orchestrate DADA2 denoising, taxonomy assignment, alpha/beta diversity (phyloseq), differential abundance (ALDEx2/ANCOM-BC2), and functional prediction (PICRUSt2).
 
 ## Pipeline Overview
 

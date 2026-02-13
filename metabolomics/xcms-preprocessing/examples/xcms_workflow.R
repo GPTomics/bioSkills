@@ -1,3 +1,4 @@
+# Reference: MSnbase 2.28+, scanpy 1.10+, xcms 4.0+ | Verify API if version differs
 library(xcms)
 library(MSnbase)
 

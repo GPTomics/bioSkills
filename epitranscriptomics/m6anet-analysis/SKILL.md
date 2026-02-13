@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: m6Anet
 ---
 
+## Version Compatibility
+
+Reference examples tested with: minimap2 2.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # m6Anet Analysis
+
+**"Detect m6A from my Nanopore direct RNA data"** → Identify m6A modifications directly from Oxford Nanopore signal-level data without immunoprecipitation using a neural network classifier.
+- CLI: `m6anet dataprep` → `m6anet inference` on Nanopolish eventalign output
 
 Documentation: https://m6anet.readthedocs.io/
 
@@ -46,6 +60,10 @@ run_inference.run(
 ```
 
 ## CLI Workflow
+
+**Goal:** Run the complete m6Anet pipeline from FAST5 signal data to per-site m6A modification probabilities.
+
+**Approach:** First extract features from FAST5 files with dataprep (signal-to-feature extraction), then run neural network inference to classify each DRACH motif site as modified or unmodified.
 
 ```bash
 # Preprocess

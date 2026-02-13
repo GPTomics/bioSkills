@@ -1,4 +1,5 @@
 '''Metabolite annotation from m/z values'''
+# Reference: pandas 2.2+, xcms 4.0+ | Verify API if version differs
 import pandas as pd
 import requests
 

@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: RDKit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: RDKit 2024.03+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Molecular I/O
+
+**"Load my chemical library into Python"** → Parse molecular file formats (SMILES, SDF, MOL2, PDB) into RDKit molecule objects for programmatic access, standardization, and format conversion.
+- Python: `Chem.MolFromSmiles()`, `Chem.SDMolSupplier()` (RDKit)
 
 Read, write, and convert molecular file formats with structure standardization.
 
@@ -19,6 +32,10 @@ Read, write, and convert molecular file formats with structure standardization.
 | PDB | .pdb | Protein-ligand complexes |
 
 ## Reading Molecules
+
+**Goal:** Load molecules from SMILES strings, SDF files, or SMILES files into RDKit molecule objects.
+
+**Approach:** Use Chem.MolFromSmiles for individual SMILES, SDMolSupplier for multi-molecule SDF files, and file iteration for SMILES files, filtering out parse failures.
 
 ```python
 from rdkit import Chem
@@ -67,6 +84,10 @@ mol_block = Chem.MolToMolBlock(mol)
 ```
 
 ## Structure Standardization
+
+**Goal:** Normalize molecular representations to a canonical form for consistent comparison and analysis.
+
+**Approach:** Apply a multi-step pipeline: sanitize valences, normalize functional groups, neutralize charges, canonicalize tautomers, and strip salts using rdMolStandardize.
 
 Use rdMolStandardize module (Python MolStandardize was removed Q1 2024).
 

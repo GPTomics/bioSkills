@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: NCBI BLAST+ 2.15+ | Verify API if version differs
 # Find reciprocal best BLAST hits between two species
 
 SPECIES_A="species_A.fasta"

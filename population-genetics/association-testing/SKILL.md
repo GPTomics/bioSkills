@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: plink2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Association Testing
+
+**"Run a GWAS on my genotyping data"** → Perform genome-wide association testing using logistic (case-control) or linear (quantitative) regression with covariates, then visualize results with Manhattan and QQ plots.
+- CLI: `plink2 --glm` for association testing with covariates
 
 GWAS analysis using PLINK 2.0's unified `--glm` command for case-control and quantitative traits.
 
@@ -153,6 +167,10 @@ plink2 --bfile data \
 ```
 
 ### Combined Workflow
+
+**Goal:** Run a complete GWAS pipeline from raw genotypes through population stratification correction to association testing.
+
+**Approach:** Apply MAF, genotyping rate, and HWE quality filters, compute principal components for population structure correction, then run logistic/linear regression with PCs as covariates.
 
 ```bash
 # QC, PCA, and GWAS in sequence

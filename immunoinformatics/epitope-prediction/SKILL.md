@@ -5,9 +5,27 @@ tool_type: python
 primary_tool: BepiPred
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Epitope Prediction
 
+**"Predict B-cell and T-cell epitopes in my protein"** → Identify immunogenic regions in antigens for vaccine design using sequence-based and structure-based prediction tools.
+- Python: IEDB API for B-cell epitope prediction (BepiPred)
+- Python: `mhcflurry` for T-cell epitope MHC binding prediction
+
 ## B-Cell Epitope Prediction
+
+**Goal:** Predict linear B-cell epitopes from protein sequence using IEDB prediction tools.
+
+**Approach:** Submit sequence to IEDB B-cell prediction API with selectable method (BepiPred-2.0 recommended) and parse tab-separated results.
 
 ### BepiPred-2.0 (Sequence-Based)
 
@@ -91,6 +109,10 @@ def parse_bepipred_results(header, data, threshold=0.5):
 
 ## T-Cell Epitope Prediction
 
+**Goal:** Predict T-cell epitopes by MHC-I binding across multiple HLA alleles.
+
+**Approach:** Query IEDB MHC-I API for each allele-sequence combination and aggregate predictions.
+
 ```python
 def predict_tcell_epitopes_iedb(sequence, alleles, method='recommended'):
     '''Predict T-cell epitopes using IEDB
@@ -122,6 +144,10 @@ def predict_tcell_epitopes_iedb(sequence, alleles, method='recommended'):
 ```
 
 ## Linear vs Conformational Epitopes
+
+**Goal:** Classify epitopes as linear (continuous) or conformational (discontinuous) and predict structure-based epitopes.
+
+**Approach:** Distinguish by residue continuity in primary sequence; for conformational epitopes, use structure-based tools (DiscoTope, ElliPro) via web servers.
 
 ```python
 def classify_epitope_type(epitope_info):
@@ -162,6 +188,10 @@ def predict_conformational_epitopes(pdb_file, chain='A'):
 
 ## Combine Multiple Predictions
 
+**Goal:** Improve epitope prediction reliability by combining multiple methods into a consensus score.
+
+**Approach:** Run each method independently, threshold per method, then count agreements per position and assign confidence levels.
+
 ```python
 def consensus_epitope_prediction(sequence, methods=['bepipred2', 'emini', 'parker']):
     '''Combine multiple prediction methods
@@ -199,6 +229,10 @@ def consensus_epitope_prediction(sequence, methods=['bepipred2', 'emini', 'parke
 ```
 
 ## Epitope Mapping from Experimental Data
+
+**Goal:** Map epitope regions from overlapping peptide array binding data.
+
+**Approach:** Process signal intensity values from overlapping peptide arrays and identify continuous high-signal regions as epitopes.
 
 ```python
 def map_epitopes_from_peptide_array(array_results, overlap=11):

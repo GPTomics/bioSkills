@@ -2,6 +2,7 @@
 '''
 Molecular similarity searching and clustering with RDKit.
 '''
+# Reference: rdkit 2024.03+ | Verify API if version differs
 
 from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem, MACCSkeys

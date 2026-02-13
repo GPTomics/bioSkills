@@ -5,9 +5,29 @@ tool_type: mixed
 primary_tool: PRSice-2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: LDpred2 1.14+, PRSice-2 2.3+, numpy 1.26+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Polygenic Risk Scores
 
+**"Calculate polygenic risk scores for my cohort"** → Compute genome-wide risk scores from GWAS summary statistics and individual genotypes to predict disease susceptibility.
+- CLI: `PRSice_linux --base gwas.txt --target genotypes --out prs_results`
+- R: `bigsnpr::snp_ldpred2_auto()` for LDpred2 Bayesian PRS
+
 ## PRSice-2 Workflow
+
+**Goal:** Calculate polygenic risk scores from GWAS summary statistics using clumping and thresholding.
+
+**Approach:** Run PRSice-2 with GWAS summary stats and target genotypes, applying LD clumping and multiple p-value thresholds.
 
 ### Basic PRS Calculation
 
@@ -55,6 +75,10 @@ rs67890      1    20000     T   C   -0.03   0.02    0.001
 ```
 
 ## LDpred2 (R)
+
+**Goal:** Compute Bayesian polygenic risk scores with automatic hyperparameter tuning via LDpred2-auto.
+
+**Approach:** Load genotypes with bigsnpr, match GWAS variants, compute LD matrix, estimate heritability with LD score regression, then run LDpred2-auto.
 
 ### Setup and Run
 
@@ -115,6 +139,10 @@ best_params <- params[which.max(auc_grid), ]
 
 ## PRS-CS
 
+**Goal:** Compute PRS using continuous shrinkage priors with an external LD reference panel.
+
+**Approach:** Run PRS-CS to estimate posterior effect sizes, then score with plink.
+
 ```bash
 # PRS-CS with external LD reference
 python PRScs.py \
@@ -131,6 +159,10 @@ plink --bfile target \
 ```
 
 ## Score Normalization
+
+**Goal:** Normalize raw PRS values to Z-scores and population percentiles for interpretable reporting.
+
+**Approach:** Z-score normalize against a reference distribution, then convert to percentiles via the normal CDF.
 
 ```python
 import numpy as np
@@ -164,6 +196,10 @@ percentiles = prs_to_percentile(prs_z)
 
 ## Risk Stratification
 
+**Goal:** Categorize individuals into clinical risk groups based on their Z-scored PRS.
+
+**Approach:** Apply population-distribution-based thresholds to assign Low/Average/High/Very High risk tiers.
+
 ```python
 def stratify_risk(prs_z, thresholds=None):
     '''Categorize PRS into risk groups
@@ -189,6 +225,10 @@ def stratify_risk(prs_z, thresholds=None):
 
 ## PGS Catalog Integration
 
+**Goal:** Download pre-computed PRS weights from the PGS Catalog for published scores.
+
+**Approach:** Query the PGS Catalog REST API by score ID and retrieve the scoring file URL.
+
 ```python
 def download_pgs_weights(pgs_id):
     '''Download PRS weights from PGS Catalog
@@ -209,6 +249,10 @@ def download_pgs_weights(pgs_id):
 ```
 
 ## Validation Metrics
+
+**Goal:** Evaluate PRS predictive performance using discrimination and effect size metrics.
+
+**Approach:** Compute Nagelkerke R-squared, AUC, and odds ratio per standard deviation from logistic regression models.
 
 ```r
 # Nagelkerke's R2 for case-control

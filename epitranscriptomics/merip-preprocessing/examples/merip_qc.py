@@ -1,4 +1,5 @@
 '''MeRIP-seq QC: check IP enrichment and replicate correlation'''
+# Reference: star 2.7.11+, deeptools 3.5+, samtools 1.19+ | Verify API if version differs
 import pysam
 import numpy as np
 from pathlib import Path

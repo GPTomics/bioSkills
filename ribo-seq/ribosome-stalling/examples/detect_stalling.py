@@ -1,4 +1,5 @@
 '''Detect ribosome stalling sites from Ribo-seq data'''
+# Reference: biopython 1.83+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
 
 import numpy as np
 import pandas as pd

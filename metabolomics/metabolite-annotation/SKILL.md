@@ -5,9 +5,27 @@ tool_type: mixed
 primary_tool: HMDB
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+, xcms 4.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metabolite Annotation
 
 ## Database Matching by m/z
+
+**Goal:** Generate putative metabolite identifications by matching observed m/z values against HMDB.
+
+**Approach:** Convert m/z to neutral mass by subtracting adduct mass, then query HMDB within a specified ppm tolerance.
+
+**"Annotate my metabolomics features with compound identities"** → Match detected features against metabolite databases by exact mass, MS/MS spectra, and retention time to assign compound identities with confidence levels.
 
 ```r
 library(MetaboAnalystR)

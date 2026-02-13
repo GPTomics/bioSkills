@@ -1,4 +1,5 @@
 '''Slice and subset alignments'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import AlignIO
 

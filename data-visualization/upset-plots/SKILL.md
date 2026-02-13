@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: UpSetR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # UpSet Plots
+
+**"Visualize set intersections"** → Replace Venn diagrams with UpSet plots for comparing overlaps across many gene/peak/variant sets.
+- R: `UpSetR::upset(fromList(sets))`
+- Python: `upsetplot.UpSet.from_memberships()` or `from_indicators()`
 
 ## UpSetR (R) - Basic Plot
 
@@ -51,6 +66,10 @@ upset(fromList(gene_sets),
 ```
 
 ## UpSetR with Queries
+
+**Goal:** Highlight specific set intersections of interest within an UpSet plot.
+
+**Approach:** Define query lists specifying which set combinations to highlight, assigning each a distinct color, so they stand out against the default bars.
 
 ```r
 # Highlight specific intersections

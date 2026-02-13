@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BWA 0.7.17+, QUAST 5.2+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
 # Polish long-read assembly with Pilon
 set -euo pipefail
 

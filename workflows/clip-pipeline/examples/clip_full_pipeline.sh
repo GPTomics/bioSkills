@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: FastQC 0.12+, STAR 2.7.11+, bedtools 2.31+, cutadapt 4.4+, samtools 1.19+ | Verify API if version differs
 # Complete CLIP-seq analysis pipeline
 
 FASTQ=$1

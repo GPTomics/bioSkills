@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Domain Detection
+
+**"Identify tissue domains in my spatial data"** → Cluster spots/cells considering both gene expression and physical proximity to define anatomically coherent spatial domains.
+- Python: `squidpy.gr.spatial_neighbors()` → Leiden clustering with spatial graph, or BayesSpace/SpaGCN
 
 Identify spatial domains and tissue regions by combining expression and spatial information.
 
@@ -20,6 +33,10 @@ import matplotlib.pyplot as plt
 
 ## Standard Clustering (Expression Only)
 
+**Goal:** Cluster spots based purely on gene expression, ignoring spatial location.
+
+**Approach:** Build an expression-based neighbor graph, then apply Leiden community detection.
+
 ```python
 # Standard Leiden clustering (ignores spatial context)
 sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
@@ -30,6 +47,10 @@ sq.pl.spatial_scatter(adata, color='leiden', size=1.3)
 ```
 
 ## Spatial-Aware Clustering with Squidpy
+
+**Goal:** Cluster spots using only spatial proximity to identify contiguous tissue regions.
+
+**Approach:** Build a spatial neighbor graph, then run Leiden clustering on the spatial graph.
 
 ```python
 # Build spatial neighbors
@@ -42,6 +63,10 @@ sq.pl.spatial_scatter(adata, color='spatial_leiden', size=1.3)
 ```
 
 ## Combined Expression + Spatial Graph
+
+**Goal:** Integrate both expression similarity and spatial proximity for domain detection.
+
+**Approach:** Build separate expression and spatial graphs, normalize each, then combine as a weighted average for clustering.
 
 ```python
 from scipy.sparse import csr_matrix
@@ -93,6 +118,10 @@ adata.obs['bayesspace'] = list(spatial_clusters)
 
 ## STAGATE for Spatial Domains
 
+**Goal:** Detect spatial domains using deep learning with graph attention networks.
+
+**Approach:** Build a spatial graph with STAGATE, train the model to learn spatially-aware embeddings, then cluster on those embeddings.
+
 ```python
 # STAGATE uses graph attention for spatial domain detection
 import STAGATE
@@ -111,6 +140,10 @@ sc.tl.leiden(adata, resolution=0.5, key_added='stagate_leiden')
 
 ## Evaluate Domain Quality
 
+**Goal:** Assess whether identified domains form spatially and transcriptionally coherent regions.
+
+**Approach:** Compute silhouette scores separately for spatial coordinates and expression PCA to quantify domain separation.
+
 ```python
 # Check if domains are spatially coherent
 from sklearn.metrics import silhouette_score
@@ -128,6 +161,10 @@ print(f'Expression silhouette score: {expr_silhouette:.3f}')
 ```
 
 ## Refine Domain Boundaries
+
+**Goal:** Smooth noisy domain assignments to produce cleaner spatial boundaries.
+
+**Approach:** Apply iterative majority-vote smoothing using the spatial neighbor graph to reassign each spot to the most common label among its neighbors.
 
 ```python
 # Smooth domain assignments using spatial neighbors
@@ -172,6 +209,10 @@ for i, m1 in enumerate(methods):
 
 ## Domain Markers
 
+**Goal:** Identify marker genes that distinguish each spatial domain from the rest.
+
+**Approach:** Run Wilcoxon rank-sum tests per domain, then extract and visualize top-ranked differentially expressed genes.
+
 ```python
 # Find marker genes for each domain
 sc.tl.rank_genes_groups(adata, groupby='spatial_leiden', method='wilcoxon')
@@ -186,6 +227,10 @@ sq.pl.spatial_scatter(adata, color=top_markers[:6], ncols=3)
 ```
 
 ## Annotate Domains
+
+**Goal:** Assign biological labels to spatial domain clusters based on marker gene identity.
+
+**Approach:** Map cluster IDs to anatomical region names using a dictionary and visualize the annotated tissue.
 
 ```python
 # Manual annotation based on markers

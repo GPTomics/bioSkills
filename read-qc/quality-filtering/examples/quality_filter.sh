@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Trimmomatic 0.39+, cutadapt 4.4+, fastp 0.23+ | Verify API if version differs
 # Quality filter paired-end reads with Trimmomatic
 # Usage: ./quality_filter.sh <R1.fastq.gz> <R2.fastq.gz> <output_prefix>
 

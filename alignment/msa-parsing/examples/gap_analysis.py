@@ -1,4 +1,5 @@
 '''Analyze gap distribution in alignment'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import AlignIO
 

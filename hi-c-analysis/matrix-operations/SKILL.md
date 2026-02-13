@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: cooltools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cooler 0.9+, cooltools 0.6+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Hi-C Matrix Operations
+
+**"Normalize my Hi-C contact matrix"** → Apply iterative correction (ICE/KR balancing), compute distance-decay expected values, and generate observed/expected ratio matrices.
+- Python: `cooler.balance_cooler(clr)`, `cooltools.expected_cis(clr)`
 
 Balance, normalize, and transform contact matrices.
 
@@ -69,6 +83,10 @@ print(expected.head())
 ```
 
 ## Observed/Expected Matrix
+
+**Goal:** Remove the distance-dependent decay from a contact matrix so that enriched interactions (loops, compartments) stand out above the background.
+
+**Approach:** Compute the average contact frequency at each genomic distance (expected), then divide each observed pixel by its distance-matched expected value to produce an O/E ratio matrix.
 
 ```python
 import cooltools

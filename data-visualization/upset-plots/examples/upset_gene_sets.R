@@ -1,3 +1,4 @@
+# Reference: matplotlib 3.8+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 library(UpSetR)
 
 # --- ALTERNATIVE: Use real gene sets ---

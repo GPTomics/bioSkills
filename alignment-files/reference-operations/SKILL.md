@@ -5,9 +5,28 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GATK 4.5+, bcftools 1.19+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Reference Operations
 
 Generate consensus sequences and manage reference files using samtools.
+
+**"Prepare a reference genome"** → Index the FASTA and create a sequence dictionary for downstream tools.
+- CLI: `samtools faidx ref.fa` + `samtools dict ref.fa -o ref.dict`
+- Python: `pysam.FastaFile('ref.fa')` (auto-uses .fai index)
+
+**"Build a consensus from BAM"** → Derive the most-supported base at each position from aligned reads.
+- CLI: `samtools consensus input.bam -o consensus.fa`
+- Python: iterate pileup columns and take majority base (pysam)
 
 ## samtools faidx - Index Reference FASTA
 
@@ -207,6 +226,10 @@ for sq in header['SQ'][:5]:
 ```
 
 ## Reference Preparation Workflow
+
+**Goal:** Set up a reference genome with all indices needed by common analysis tools.
+
+**Approach:** Create FASTA index (.fai), sequence dictionary (.dict), and aligner-specific indices in sequence.
 
 ### Prepare Reference for Analysis
 ```bash

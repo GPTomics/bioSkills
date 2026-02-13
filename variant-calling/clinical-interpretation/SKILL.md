@@ -5,6 +5,17 @@ tool_type: mixed
 primary_tool: InterVar
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Entrez Direct 21.0+, bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Clinical Variant Interpretation
 
 Prioritize and interpret variants for clinical significance using databases and ACMG/AMP guidelines.
@@ -31,6 +42,12 @@ Annotated VCF
 ```
 
 ## ClinVar Annotation
+
+**Goal:** Annotate variants with ClinVar clinical significance and filter by pathogenicity.
+
+**Approach:** Download the ClinVar VCF, add CLNSIG/CLNDN/CLNREVSTAT fields with bcftools annotate, then filter by significance level.
+
+**"Find pathogenic variants in my VCF"** → Cross-reference variants against ClinVar clinical assertions and extract those classified as pathogenic or likely pathogenic.
 
 ### Download ClinVar
 
@@ -91,6 +108,10 @@ bcftools view -i 'INFO/CLNREVSTAT~"multiple_submitters" || \
 
 ## InterVar (ACMG Classification)
 
+**Goal:** Classify variants according to ACMG/AMP guidelines using automated criteria evaluation.
+
+**Approach:** Convert VCF to ANNOVAR format, run InterVar to evaluate 28 ACMG criteria, and output five-tier classification.
+
 Automated ACMG/AMP variant classification.
 
 ### Installation
@@ -143,6 +164,10 @@ python Intervar.py -i input.avinput -o intervar_results -b hg38
 
 ## Population Frequency Filtering
 
+**Goal:** Restrict to rare variants that could be disease-causing.
+
+**Approach:** Filter by gnomAD allele frequency threshold appropriate for the disease model (dominant vs. recessive).
+
 ```bash
 # Rare variants only (gnomAD AF < 0.01)
 bcftools view -i 'INFO/gnomAD_AF<0.01 || INFO/gnomAD_AF="."' \
@@ -154,6 +179,10 @@ bcftools view -i 'INFO/gnomAD_AF<0.0001 || INFO/gnomAD_AF="."' \
 ```
 
 ## Pathogenicity Score Filtering
+
+**Goal:** Prioritize variants using computational pathogenicity predictors.
+
+**Approach:** Filter by CADD PHRED score (deleteriousness) and REVEL score (missense pathogenicity), alone or in combination with ClinVar.
 
 ### CADD Scores
 
@@ -181,6 +210,10 @@ bcftools view -i '(INFO/CADD_PHRED>20 || INFO/REVEL>0.5) && \
 ```
 
 ## Python: Clinical Prioritization
+
+**Goal:** Implement a multi-criteria variant classification pipeline in Python.
+
+**Approach:** Combine ClinVar lookups, population frequency, and computational scores (CADD, REVEL) into a tiered classification function.
 
 ```python
 from cyvcf2 import VCF, Writer
@@ -241,6 +274,10 @@ for r in results:
 
 ## Gene Panel Filtering
 
+**Goal:** Restrict analysis to variants within a clinical gene panel.
+
+**Approach:** Filter by BED coordinates or VEP gene symbol annotations to target specific genes.
+
 ```bash
 # Filter to gene panel
 bcftools view -R gene_panel.bed input.vcf.gz -Oz -o panel_variants.vcf.gz
@@ -269,6 +306,10 @@ bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%INFO/SYMBOL\t%INFO/Consequence\t\
 ```
 
 ## Complete Workflow
+
+**Goal:** Run an end-to-end clinical variant interpretation pipeline from annotation through reporting.
+
+**Approach:** Chain ClinVar annotation, rare variant filtering, pathogenicity extraction, VUS review, and TSV report generation.
 
 ```bash
 #!/bin/bash

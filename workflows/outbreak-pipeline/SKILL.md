@@ -17,7 +17,21 @@ qc_checkpoints:
   - after_transmission: "Transmission pairs consistent with epi data"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: AMRFinderPlus 3.12+, BioPython 1.83+, IQ-TREE 2.2+, Nextclade 3.3+, TreeTime 0.11+, matplotlib 3.8+, mlst 2.23+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Outbreak Pipeline
+
+**"Characterize a pathogen outbreak from my isolate sequences"** → Orchestrate MLST typing, SNP phylogeny, TreeTime time-scaled tree construction, TransPhylo transmission inference, AMR profiling, and variant surveillance for genomic epidemiology.
 
 Complete workflow for genomic epidemiology: from pathogen isolates to transmission networks and outbreak characterization.
 

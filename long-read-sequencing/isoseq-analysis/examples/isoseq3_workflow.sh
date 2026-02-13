@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: minimap2 2.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # Iso-Seq3 pipeline for isoform discovery
 
 SUBREADS=$1

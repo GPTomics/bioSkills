@@ -1,4 +1,5 @@
 '''Ortholog inference with OrthoFinder'''
+# Reference: biopython 1.83+, ncbi blast+ 2.15+, orthofinder 2.5+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

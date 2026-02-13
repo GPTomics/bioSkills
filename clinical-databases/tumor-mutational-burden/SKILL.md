@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: cyvcf2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Ensembl VEP 111+, SnpEff 5.2+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Tumor Mutational Burden
 
-## TMB Calculation from VCF
+**"Calculate TMB from my tumor sequencing data"** → Compute tumor mutational burden as nonsynonymous coding mutations per megabase with proper panel normalization for immunotherapy eligibility assessment.
+- Python: `cyvcf2` for VCF parsing + variant counting per panel region
+
+## TMB Calculation from VCF (Ensembl VEP 111+)
+
+**Goal:** Calculate tumor mutational burden as nonsynonymous coding mutations per megabase from a somatic VCF.
+
+**Approach:** Iterate through VCF variants, filter for coding nonsynonymous consequences via VEP/SnpEff annotations, and divide count by panel size.
 
 ```python
 from cyvcf2 import VCF
@@ -60,7 +77,11 @@ def is_coding_nonsynonymous(variant):
     return False
 ```
 
-## Panel-Specific TMB
+## Panel-Specific TMB (Ensembl VEP 111+)
+
+**Goal:** Calculate TMB normalized to known gene panel capture region sizes.
+
+**Approach:** Look up the panel's megabase coverage from a reference table and pass to the TMB calculator.
 
 ```python
 # Common panel sizes (in megabases)
@@ -81,7 +102,11 @@ def calculate_tmb_panel(vcf_path, panel_name):
     return calculate_tmb(vcf_path, PANEL_SIZES_MB[panel_name])
 ```
 
-## TMB with Variant Filtering
+## TMB with Variant Filtering (Ensembl VEP 111+)
+
+**Goal:** Calculate TMB with quality and germline filters to reduce false positives.
+
+**Approach:** Apply VAF, depth, and gnomAD population frequency filters before counting coding nonsynonymous variants.
 
 ```python
 def calculate_tmb_filtered(vcf_path, panel_size_mb, min_vaf=0.05, min_depth=100):
@@ -136,7 +161,11 @@ def get_vaf(variant):
     return 0
 ```
 
-## Clinical TMB Thresholds
+## Clinical TMB Thresholds (Ensembl VEP 111+)
+
+**Goal:** Classify a TMB value as TMB-High or TMB-Low based on clinical cutoffs.
+
+**Approach:** Compare the TMB value against FDA-approved or study-specific thresholds (10, 16, or 20 mut/Mb).
 
 ```python
 def classify_tmb(tmb_value, threshold='FDA'):
@@ -168,7 +197,11 @@ status = classify_tmb(tmb)
 print(f'TMB: {tmb} mut/Mb -> {status}')
 ```
 
-## TMB by Variant Type
+## TMB by Variant Type (Ensembl VEP 111+)
+
+**Goal:** Break down TMB by mutation type (missense, nonsense, frameshift, etc.) for detailed characterization.
+
+**Approach:** Classify each variant by consequence type, count per category, and compute TMB from nonsynonymous subtotal.
 
 ```python
 def detailed_tmb_analysis(vcf_path, panel_size_mb):
@@ -202,7 +235,11 @@ def detailed_tmb_analysis(vcf_path, panel_size_mb):
     return results
 ```
 
-## TMB vs MSI Comparison
+## TMB vs MSI Comparison (Ensembl VEP 111+)
+
+**Goal:** Assess concordance between TMB status and microsatellite instability for immunotherapy biomarker evaluation.
+
+**Approach:** Cross-tabulate TMB-High/Low with MSI-H/MSS to identify concordant and discordant cases.
 
 ```python
 def tmb_msi_concordance(tmb_value, msi_status):
@@ -228,6 +265,10 @@ def tmb_msi_concordance(tmb_value, msi_status):
 ```
 
 ## Batch TMB Calculation
+
+**Goal:** Calculate TMB for an entire cohort of samples and export results with clinical classification.
+
+**Approach:** Iterate over VCF files in a directory, compute filtered TMB for each, and collect into a summary DataFrame.
 
 ```python
 import pandas as pd

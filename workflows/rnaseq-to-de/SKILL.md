@@ -16,7 +16,20 @@ qc_checkpoints:
   - after_de: "Dispersion fit reasonable, no sample outliers"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, STAR 2.7.11+, Salmon 1.10+, Subread 2.0+, fastp 0.23+, ggplot2 3.5+, kallisto 0.50+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # RNA-seq to Differential Expression Workflow
+
+**"Run RNA-seq analysis from FASTQ to differentially expressed genes"** → Orchestrate fastp QC, STAR/HISAT2 alignment, featureCounts/Salmon quantification, DESeq2 differential expression, shrinkage estimation, and results visualization (volcano, MA plots).
 
 Complete pipeline from raw FASTQ files to differential expression results.
 

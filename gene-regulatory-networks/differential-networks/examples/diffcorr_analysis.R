@@ -1,3 +1,4 @@
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
 # Differential co-expression analysis with DiffCorr
 
 library(DiffCorr)

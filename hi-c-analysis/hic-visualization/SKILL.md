@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: cooltools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Hi-C Visualization
+
+**"Plot my Hi-C contact matrix"** → Create triangle heatmaps, virtual 4C profiles, and multi-track figures combining contact maps with genomic annotations.
+- Python: `matplotlib.pyplot.imshow()` on cooler matrices, `cooltools` for aggregate plots
+- CLI: `hicPlotMatrix` (HiCExplorer)
 
 Visualize Hi-C contact matrices and genomic features.
 
@@ -163,6 +178,10 @@ plt.savefig('split_view.png', dpi=150)
 ```
 
 ## Virtual 4C
+
+**Goal:** Extract a one-dimensional contact frequency profile from a single viewpoint locus, simulating a 4C experiment from Hi-C data.
+
+**Approach:** Select the matrix row corresponding to the viewpoint bin, extract balanced contact values across the chromosome, and plot as a filled line graph.
 
 ```python
 def virtual_4c(clr, viewpoint_chrom, viewpoint_pos, resolution=10000):

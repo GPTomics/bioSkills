@@ -5,11 +5,25 @@ tool_type: python
 primary_tool: Bio.Align
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MSA Statistics
 
 Calculate sequence identity, conservation scores, substitution counts, and other alignment metrics.
 
 ## Required Import
+
+**Goal:** Load modules for alignment I/O, substitution scoring, and statistical calculations.
+
+**Approach:** Import AlignIO for reading alignments, Counter for column analysis, numpy for matrix operations, and math for entropy calculations.
 
 ```python
 from Bio import AlignIO
@@ -20,6 +34,12 @@ import math
 ```
 
 ## Pairwise Identity
+
+**"Calculate percent identity"** → Compute the fraction of identical aligned residues between sequence pairs.
+
+**Goal:** Measure sequence similarity as percent identity for individual pairs or across all sequences in an alignment.
+
+**Approach:** Count matching non-gap positions divided by total aligned positions; optionally compute a full N-by-N identity matrix.
 
 ### Calculate Identity Between Two Sequences
 ```python
@@ -57,6 +77,10 @@ for i, row in enumerate(mat):
 ```
 
 ## Conservation Score
+
+**Goal:** Quantify per-column and overall alignment conservation to identify conserved and variable regions.
+
+**Approach:** Calculate the fraction of the most common residue at each column, optionally ignoring gaps, and smooth with a sliding window.
 
 ### Per-Column Conservation
 ```python
@@ -103,6 +127,10 @@ profile = conservation_profile(alignment, window=10)
 ```
 
 ## Substitution Counts
+
+**Goal:** Tabulate observed substitution frequencies from the alignment for evolutionary analysis or custom scoring matrices.
+
+**Approach:** Enumerate all pairwise non-gap character comparisons at each column and tally substitution pairs.
 
 ### Count Substitutions from Alignment
 ```python
@@ -159,6 +187,10 @@ print(substitutions)
 
 ## Information Content
 
+**Goal:** Measure column variability using Shannon entropy and derive information content for identifying functionally important positions.
+
+**Approach:** Compute Shannon entropy from character frequencies per column; information content is max entropy minus observed entropy.
+
 ### Shannon Entropy Per Column
 ```python
 import math
@@ -199,6 +231,10 @@ for i in range(min(20, alignment.get_alignment_length())):
 ```
 
 ## Gap Statistics
+
+**Goal:** Summarize gap distribution across the alignment to assess alignment quality and identify problematic regions.
+
+**Approach:** Calculate gap fractions per column and aggregate statistics including total gaps, gap-free columns, and gappiest sequence/column.
 
 ### Gap Fraction Per Column
 ```python
@@ -243,6 +279,10 @@ print(f"Gap-free columns: {stats['gap_free_cols']}")
 
 ## Alignment Quality Metrics
 
+**Goal:** Score alignment quality using sum-of-pairs or simple match/mismatch/gap scoring across all columns.
+
+**Approach:** For each column, score all pairwise residue comparisons and sum across the alignment.
+
 ### Overall Alignment Score
 ```python
 def alignment_score(alignment, match=1, mismatch=-1, gap=-2):
@@ -280,6 +320,10 @@ def sum_of_pairs(alignment, substitution_matrix=None):
 ```
 
 ## Position-Specific Score Matrix (PSSM)
+
+**Goal:** Build a position-specific score matrix (PSSM) from the alignment for motif analysis or sequence scoring.
+
+**Approach:** Count non-gap character frequencies at each column, producing a list of per-position dictionaries.
 
 ```python
 def position_specific_score_matrix(alignment):

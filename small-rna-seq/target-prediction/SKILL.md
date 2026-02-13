@@ -5,9 +5,28 @@ tool_type: mixed
 primary_tool: miRanda
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # miRNA Target Prediction
 
+**"Predict target genes for my miRNAs"** → Identify potential mRNA targets of miRNAs using sequence-based thermodynamic alignment and database lookups from validated interaction repositories.
+- CLI: `miranda miRNA.fa UTR.fa -sc 140 -en -20` for de novo prediction
+- Python: API queries to miRTarBase, TargetScan for validated targets
+
 ## miRanda Algorithm
+
+**Goal:** Predict miRNA-mRNA target interactions using thermodynamic alignment scoring.
+
+**Approach:** Run miRanda to align miRNA sequences against 3' UTR sequences with minimum score and energy thresholds.
 
 ```bash
 # Run miRanda for target prediction
@@ -23,6 +42,10 @@ miranda miRNA.fa UTRs.fa \
 ```
 
 ## Parse miRanda Output
+
+**Goal:** Extract miRNA-target interaction records from miRanda output into a structured DataFrame.
+
+**Approach:** Parse the tab-delimited output lines starting with '>' to extract miRNA, target, score, energy, and position fields.
 
 ```python
 import pandas as pd
@@ -47,6 +70,10 @@ def parse_miranda(output_file):
 
 ## TargetScan Database Lookup
 
+**Goal:** Retrieve conserved miRNA target predictions from the TargetScan database.
+
+**Approach:** Query the downloadable TargetScan context++ score file by miRNA family name and rank by prediction score.
+
 ```python
 import requests
 import pandas as pd
@@ -67,6 +94,10 @@ def query_targetscan(mirna_family):
 
 ## miRDB Database Lookup
 
+**Goal:** Retrieve machine-learning-based miRNA target predictions from miRDB.
+
+**Approach:** Query the miRDB prediction file by miRNA ID and filter for high-confidence targets (score >= 80).
+
 ```python
 def query_mirdb(mirna_id):
     '''Query miRDB for target predictions
@@ -84,6 +115,10 @@ def query_mirdb(mirna_id):
 ```
 
 ## Combine Multiple Databases
+
+**Goal:** Identify high-confidence miRNA targets predicted by multiple independent algorithms.
+
+**Approach:** Compute the intersection of predictions across miRanda, TargetScan, and miRDB, keeping targets found in at least N databases.
 
 ```python
 def consensus_targets(mirna, min_databases=2):
@@ -119,6 +154,10 @@ def consensus_targets(mirna, min_databases=2):
 
 ## Python miRNA Target Prediction
 
+**Goal:** Retrieve experimentally validated miRNA-target interactions from miRTarBase.
+
+**Approach:** Load the miRTarBase Excel download and filter by miRNA name to get validated targets with experimental evidence types.
+
 ```python
 # Using mirtarbase package for validated targets
 def get_validated_targets(mirna):
@@ -132,6 +171,10 @@ def get_validated_targets(mirna):
 ```
 
 ## Seed Match Analysis
+
+**Goal:** Find miRNA seed region complementary matches within a 3' UTR sequence.
+
+**Approach:** Extract the 7-mer seed (positions 2-8), compute its reverse complement, and scan the UTR for all occurrences.
 
 ```python
 from Bio.Seq import Seq
@@ -161,6 +204,10 @@ def find_seed_matches(mirna_seq, utr_seq):
 ```
 
 ## Functional Enrichment of Targets
+
+**Goal:** Identify biological functions enriched among predicted miRNA target genes.
+
+**Approach:** Run GO and KEGG enrichment analysis on the target gene list using Enrichr via gseapy.
 
 ```python
 def enrich_target_genes(targets, background=None):

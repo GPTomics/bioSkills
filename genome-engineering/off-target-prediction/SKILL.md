@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: Cas-OFFinder
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Off-Target Prediction
+
+**"Check my guide RNA for off-target sites"** → Search the genome for potential unintended cleavage sites allowing mismatches, then score each off-target by cutting frequency determination (CFD) to assess guide specificity.
+- CLI: `cas-offinder` for genome-wide off-target search
+- Python: CFD scoring with mismatch penalty matrices
 
 ## Cas-OFFinder (CLI)
 
@@ -167,6 +182,10 @@ def calculate_guide_specificity(guide, off_targets):
 ```
 
 ## CRISPOR-style Analysis
+
+**Goal:** Run a complete off-target analysis pipeline from a single guide sequence to a scored, ranked list of potential off-target sites.
+
+**Approach:** Prepare a Cas-OFFinder input file, run the genome-wide mismatch search, parse the tabular output, calculate CFD scores for each hit, and flag high-risk off-targets by cleavage probability.
 
 ```python
 def analyze_guide_specificity(guide_seq, genome_fasta, max_mm=4):

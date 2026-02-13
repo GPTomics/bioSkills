@@ -1,4 +1,5 @@
 '''Find common ancestors and extract subtrees'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import Phylo
 from io import StringIO

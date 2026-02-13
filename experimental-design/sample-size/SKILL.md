@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: ssizeRNA
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Sample Size Estimation
+
+**"How many samples do I need for my experiment?"** → Estimate required biological replicates per group for a target power level given expected effect sizes and variability.
+- R: `ssizeRNA::ssizeRNA_single()`, `DESeq2` pilot dispersion estimates
+- scRNA-seq: `powsimR::simulateDE()`
 
 ## RNA-seq Sample Size
 
@@ -22,6 +36,10 @@ result$ssize  # Required n per group
 ```
 
 ## DESeq2-based Estimation
+
+**Goal:** Derive realistic dispersion estimates from pilot RNA-seq data for use in power and sample size calculations.
+
+**Approach:** Run DESeq2 on pilot count data to estimate per-gene dispersions, then extract the median dispersion as a representative variability parameter for power formulas.
 
 ```r
 library(DESeq2)

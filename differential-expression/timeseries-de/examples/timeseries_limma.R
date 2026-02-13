@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, limma 3.58+, scanpy 1.10+ | Verify API if version differs
 # Time-series differential expression with limma splines
 
 library(limma)

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, HISAT2 2.2.1+, Trim Galore 0.6.10+, samtools 1.19+ | Verify API if version differs
 
 GENOME_DIR="genome"
 READS_DIR="fastq"

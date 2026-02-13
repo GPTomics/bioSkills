@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+ | Verify API if version differs
 # GWAS pipeline with PCA correction
 # Usage: ./gwas_pipeline.sh <plink_prefix> <pheno_file> <output_prefix>
 

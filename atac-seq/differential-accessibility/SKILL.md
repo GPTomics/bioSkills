@@ -5,9 +5,28 @@ tool_type: r
 primary_tool: DiffBind
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, GenomicRanges 1.54+, Subread 2.0+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Differential Accessibility
 
+**"Find differentially accessible regions between my conditions"** → Identify chromatin regions with statistically significant changes in accessibility between treatment groups, cell types, or timepoints.
+- R: `DiffBind` or `DESeq2` on a peak-by-sample count matrix
+
 ## DiffBind Workflow
+
+**Goal:** Identify differentially accessible chromatin regions between experimental conditions.
+
+**Approach:** Load sample metadata and peak files into DiffBind, count reads in consensus peaks, normalize, define contrasts, and run differential analysis with DESeq2 backend.
 
 ```r
 library(DiffBind)
@@ -28,7 +47,7 @@ dba <- dba(sampleSheet='samples.csv')
 # 3. Count reads
 dba <- dba.count(dba)
 
-# 4. Normalize (required in DiffBind 3.0+)
+# 4. Normalize
 dba <- dba.normalize(dba)
 
 # 5. Set up contrasts
@@ -90,6 +109,10 @@ dba.plotVenn(dba, contrast=1, bDB=TRUE, bGain=TRUE, bLoss=TRUE)
 
 ## Using DESeq2 Directly
 
+**Goal:** Run differential accessibility analysis using DESeq2 on a peak count matrix without DiffBind.
+
+**Approach:** Load peak-by-sample counts into a DESeqDataSet, filter low counts, run the DESeq2 pipeline, and extract significant differential peaks.
+
 ```r
 library(DESeq2)
 library(GenomicRanges)
@@ -121,6 +144,10 @@ sig <- subset(res, padj < 0.05 & abs(log2FoldChange) > 1)
 ```
 
 ## Count Reads in Peaks
+
+**Goal:** Generate a peak-by-sample count matrix as input for differential analysis.
+
+**Approach:** Convert consensus peaks to SAF format and run featureCounts to count reads from all BAM files in each peak region.
 
 ```bash
 # Using featureCounts
@@ -180,6 +207,10 @@ def simple_differential(counts_file, groups):
 ```
 
 ## Annotate Differential Peaks
+
+**Goal:** Map differential peaks to nearby genes and genomic features for biological interpretation.
+
+**Approach:** Use ChIPseeker to annotate peaks with promoter/intron/intergenic classification and distance to nearest TSS.
 
 ```r
 library(ChIPseeker)

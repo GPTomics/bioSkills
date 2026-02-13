@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: Liftoff
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Annotation Transfer
+
+**"Transfer annotations from a reference to my new assembly"** → Map gene models from a well-annotated reference genome onto a new assembly using coordinate liftover or protein-to-genome alignment.
+- CLI: `liftoff -g reference.gff -o target.gff ref.fa target.fa` (same species), `miniprot ref.mpi target.fa` (cross-species)
 
 Transfer gene annotations from a reference genome to a new assembly (same species with Liftoff) or across species (with MiniProt protein-to-genome alignment). Faster and more consistent than de novo prediction when a high-quality reference annotation exists.
 
@@ -173,6 +187,10 @@ def miniprot_gff_to_gene_models(miniprot_gff, output_gff):
 MiniProt performs protein-to-genome alignment, which maps protein sequences to genomic coordinates with intron prediction. This is different from orthology-based transfer (see comparative-genomics/ortholog-inference), which identifies evolutionary relationships between gene families without genome alignment.
 
 ## Quality Assessment
+
+**Goal:** Evaluate annotation transfer quality by comparing gene/transcript counts and validating that transferred CDSs have intact open reading frames.
+
+**Approach:** Count genes and transcripts in both reference and transferred GFF files to compute a transfer rate, then extract each transferred CDS sequence from the target assembly and check for valid start codon, single stop codon, and correct frame.
 
 ```python
 import gffutils

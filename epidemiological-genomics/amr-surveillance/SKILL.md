@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: AMRFinderPlus
 ---
 
+## Version Compatibility
+
+Reference examples tested with: AMRFinderPlus 3.12+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # AMR Surveillance
+
+**"Screen my isolates for resistance genes and track AMR trends"** → Detect antimicrobial resistance determinants in bacterial genomes and monitor resistance patterns over time for surveillance programs.
+- CLI: `amrfinder -n assembly.fasta --plus --organism Klebsiella`
 
 ## AMRFinderPlus
 
@@ -88,6 +102,10 @@ docker run --rm -v $(pwd):/data cgetools/resfinder \
 ```
 
 ## Track Resistance Trends
+
+**Goal:** Monitor how AMR gene prevalence changes over time across a surveillance cohort.
+
+**Approach:** Group samples by time period, count AMR gene occurrences per period, and normalize to prevalence percentages for trend analysis.
 
 ```python
 def analyze_amr_trends(samples_df, date_col='collection_date', gene_col='Gene symbol'):
@@ -174,6 +192,10 @@ def interpret_amr_profile(genes):
 ```
 
 ## Surveillance Report
+
+**Goal:** Generate a summary report of AMR prevalence by drug class with alerts for critical resistance types.
+
+**Approach:** Aggregate AMR detections by drug class, calculate per-class prevalence as percentage of total samples, and flag carbapenem, colistin, and vancomycin resistance specifically.
 
 ```python
 def generate_surveillance_report(samples_df, period='month'):

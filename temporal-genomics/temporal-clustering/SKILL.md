@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: Mfuzz
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Temporal Gene Clustering
+
+**"Group my time-course genes by expression pattern shape"** → Cluster temporally variable genes into co-expression modules by trajectory shape using fuzzy c-means (Mfuzz), hierarchical methods, or DTW-based approaches, revealing coordinated response patterns.
+- R: `Mfuzz::mfuzz()` for soft (fuzzy) temporal clustering
+- Python: `sklearn.cluster.KMeans` on z-scored time profiles for hard clustering
 
 Groups genes with similar temporal expression dynamics into clusters, revealing shared regulatory programs and coordinated response patterns across time-course experiments.
 
@@ -18,6 +33,10 @@ Groups genes with similar temporal expression dynamics into clusters, revealing 
 5. Validate clusters and run functional enrichment per cluster
 
 ## Mfuzz (R/Bioconductor)
+
+**Goal:** Group temporally variable genes into co-expression clusters by trajectory shape using fuzzy c-means, revealing shared regulatory programs.
+
+**Approach:** Create an ExpressionSet from the time-series matrix, filter low-variance genes, standardize profiles, estimate the fuzzifier parameter, then run fuzzy c-means to assign soft cluster memberships.
 
 Soft (fuzzy) c-means clustering assigns genes membership scores across all clusters, capturing genes with ambiguous temporal behavior.
 

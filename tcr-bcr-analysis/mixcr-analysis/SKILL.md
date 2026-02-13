@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: MiXCR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MiXCR 4.6+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MiXCR Analysis
 
+**"Extract TCR/BCR clonotypes from my sequencing data"** → Assemble immune receptor sequences from raw reads, identify V(D)J gene segments, and generate clonotype tables for repertoire analysis.
+- CLI: `mixcr analyze` for end-to-end TCR/BCR extraction and clonotype assembly
+
 ## Complete Workflow (Recommended)
+
+**Goal:** Run end-to-end V(D)J alignment and clonotype assembly from raw FASTQ files in a single command.
+
+**Approach:** Use MiXCR's preset-based `analyze` command which chains alignment, assembly, and export steps automatically.
 
 ```bash
 mixcr analyze generic-tcr-amplicon \
@@ -24,6 +42,10 @@ mixcr analyze 10x-vdj-tcr \
 ```
 
 ## Step-by-Step Workflow
+
+**Goal:** Process immune repertoire data through individual alignment, refinement, assembly, and export stages for fine-grained control.
+
+**Approach:** Chain MiXCR CLI steps sequentially: align reads to V(D)J references, refine UMIs and sort, assemble clonotypes, then export results.
 
 ### Step 1: Align Reads
 
@@ -105,6 +127,10 @@ mixcr align --species mmu ...
 
 ## Quality Metrics
 
+**Goal:** Assess alignment and assembly quality to identify problematic samples.
+
+**Approach:** Export MiXCR alignment reports and check key success rate metrics.
+
 ```bash
 mixcr exportReports alignments.vdjca
 
@@ -115,6 +141,10 @@ mixcr exportReports alignments.vdjca
 ```
 
 ## Parse MiXCR Output in Python
+
+**Goal:** Load MiXCR clonotype tables into pandas for downstream analysis and integration.
+
+**Approach:** Read tab-delimited export files and rename columns to standardized names.
 
 ```python
 import pandas as pd

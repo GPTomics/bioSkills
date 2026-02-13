@@ -1,3 +1,4 @@
+# Reference: DADA2 1.30+, cutadapt 4.4+ | Verify API if version differs
 library(dada2)
 library(decontam)
 

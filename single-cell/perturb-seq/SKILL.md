@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: Pertpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MAGeCK 0.5+, pandas 2.2+, pertpy 0.7+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Perturb-seq Analysis
+
+**"Analyze my Perturb-seq CRISPR screen"** → Link guide RNA assignments to transcriptional phenotypes in pooled CRISPR screens with single-cell readout to identify gene function.
+- Python: `pertpy.tl.Mixscape(adata)` for perturbation classification, `pertpy.tl.Augur` for prioritization
 
 ## Load and Annotate Perturbations
 
@@ -64,6 +78,10 @@ pt.pl.perturbation_heatmap(adata, groupby='perturbation_cluster')
 ```
 
 ## Mixscape (Seurat v5)
+
+**Goal:** Classify cells in a CRISPR screen as successfully perturbed or escaped based on their transcriptional response relative to non-targeting controls.
+
+**Approach:** Compute per-cell perturbation signatures against non-targeting controls using PCA-projected differences, then run Mixscape mixture model classification to separate knockout-responsive cells from escapees.
 
 ```r
 library(Seurat)

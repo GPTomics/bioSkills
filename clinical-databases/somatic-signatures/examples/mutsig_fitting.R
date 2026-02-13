@@ -1,3 +1,4 @@
+# Reference: MutationalPatterns 3.12+, SigProfilerExtractor 1.1+, numpy 1.26+ | Verify API if version differs
 library(MutationalPatterns)
 library(BSgenome.Hsapiens.UCSC.hg38)
 

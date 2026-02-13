@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+, xcms 4.0+ | Verify API if version differs
 library(ggplot2)
 library(dplyr)
 

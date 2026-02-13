@@ -5,9 +5,25 @@ tool_type: r
 primary_tool: clusterProfiler
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ReactomePA 1.46+, clusterProfiler 4.10+, rWikiPathways 1.24+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # WikiPathways Enrichment
 
 ## Core Pattern - Over-Representation Analysis
+
+**Goal:** Identify WikiPathways that are over-represented in a gene list.
+
+**Approach:** Test for enrichment using enrichWP against community-curated open-source pathway definitions.
+
+**"Run pathway enrichment against WikiPathways"** → Test whether genes from community-curated WikiPathways are over-represented among significant genes.
 
 ```r
 library(clusterProfiler)
@@ -25,6 +41,10 @@ head(as.data.frame(wp_result))
 
 ## Prepare Gene List
 
+**Goal:** Extract significant Entrez gene IDs from DE results for WikiPathways enrichment.
+
+**Approach:** Filter by significance thresholds and convert gene symbols to Entrez IDs with bitr.
+
 ```r
 de_results <- read.csv('de_results.csv')
 sig_genes <- de_results[de_results$padj < 0.05 & abs(de_results$log2FoldChange) > 1, 'gene_symbol']
@@ -34,6 +54,10 @@ entrez_ids <- gene_ids$ENTREZID
 ```
 
 ## GSEA on WikiPathways
+
+**Goal:** Detect coordinated expression changes in WikiPathways using a ranked gene list.
+
+**Approach:** Sort genes by fold change and run gseWP for rank-based enrichment testing.
 
 ```r
 # Create ranked gene list
@@ -73,6 +97,10 @@ wp_readable <- setReadable(wp_result, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID'
 
 ## Visualization
 
+**Goal:** Create summary plots of WikiPathways enrichment results.
+
+**Approach:** Use enrichplot functions (dotplot, barplot, cnetplot, emapplot) on the enrichment result object.
+
 ```r
 library(enrichplot)
 
@@ -91,6 +119,10 @@ emapplot(wp_result)
 ```
 
 ## Using rWikiPathways Directly
+
+**Goal:** Query the WikiPathways database directly for pathway metadata, gene lists, and GMT files.
+
+**Approach:** Use rWikiPathways API functions to list organisms, retrieve pathway info, and download gene set definitions.
 
 ```r
 library(rWikiPathways)
@@ -113,6 +145,10 @@ downloadPathwayArchive(organism = 'Homo sapiens', format = 'gmt')
 ```
 
 ## Custom GMT-Based Analysis
+
+**Goal:** Run enrichment using a downloaded WikiPathways GMT file for offline or custom analysis.
+
+**Approach:** Download the GMT archive via rWikiPathways, read it with read.gmt, and run enricher.
 
 ```r
 # Download WikiPathways GMT
@@ -147,6 +183,10 @@ listOrganisms()
 ```
 
 ## Compare Clusters
+
+**Goal:** Compare WikiPathways enrichment across multiple gene lists (e.g., upregulated vs downregulated).
+
+**Approach:** Use compareCluster with enrichWP to run enrichment per group and visualize with dotplot.
 
 ```r
 gene_clusters <- list(

@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: sva
 ---
 
+## Version Compatibility
+
+Reference examples tested with: limma 3.58+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Batch Design and Mitigation
+
+**"Design experiment to avoid batch effects"** → Plan sample-to-batch assignments that confound biology with technical variation, and apply correction methods post-hoc.
+- R: `sva::ComBat()`, `limma::removeBatchEffect()`
+- Python: `scanpy.pp.combat()` for single-cell data
 
 ## Core Principle
 
@@ -50,6 +64,10 @@ batch_design <- osat(samples, batch_size = 8,
 ```
 
 ## Detecting Batch Effects
+
+**Goal:** Identify hidden batch effects in expression data by estimating surrogate variables that capture unmodeled technical variation.
+
+**Approach:** Fit a model matrix for the biological variable, estimate the number of surrogate variables using num.sv, then compute surrogate variables with sva for inclusion in downstream differential analysis.
 
 ```r
 library(sva)

@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: cooler
 ---
 
+## Version Compatibility
+
+Reference examples tested with: cooler 0.9+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Hi-C Data I/O
+
+**"Load my Hi-C contact matrix"** → Read .cool/.mcool/.hic files into Python, access contact pixels, convert between formats, and export subsets.
+- Python: `cooler.Cooler('file.mcool::resolutions/10000')`
+- CLI: `cooler load`, `hic2cool convert`
 
 Load and manipulate Hi-C contact matrices in cooler format.
 
@@ -137,6 +152,10 @@ cooler.create_cooler(
 ```
 
 ## Create Cooler from Matrix
+
+**Goal:** Convert an in-memory numpy contact matrix into a cooler file for use with cooltools and other Hi-C analysis tools.
+
+**Approach:** Define genomic bins from chromosome sizes, convert the upper-triangle matrix entries into a pixel DataFrame of (bin1_id, bin2_id, count) tuples, and write to a new cooler file.
 
 ```python
 import cooler

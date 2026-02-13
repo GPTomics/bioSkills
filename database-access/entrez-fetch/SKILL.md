@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: Bio.Entrez
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Entrez Fetch
+
+**"Download a sequence from NCBI"** → Retrieve a record by accession from an NCBI database and parse it into a usable object.
+- Python: `Entrez.efetch()` + `SeqIO.read()` (BioPython)
+- CLI: `efetch -db nucleotide -id NM_007294 -format fasta` (Entrez Direct)
+- R: `entrez_fetch()` (rentrez)
 
 Retrieve records from NCBI databases using Biopython's Entrez module (EFetch, ESummary utilities).
 
@@ -225,15 +240,18 @@ for s in summaries:
 
 ### Search Then Fetch
 
+**Goal:** Find records matching a query and download their sequences in one workflow.
+
+**Approach:** Search with `esearch` to get IDs, then batch-fetch with `efetch` and parse into SeqRecord objects.
+
+**Reference (BioPython 1.83+):**
 ```python
-# Search for records
 handle = Entrez.esearch(db='nucleotide', term='human[orgn] AND insulin[gene] AND mRNA[fkey]', retmax=5)
 search_results = Entrez.read(handle)
 handle.close()
 
 ids = search_results['IdList']
 
-# Fetch the sequences
 handle = Entrez.efetch(db='nucleotide', id=','.join(ids), rettype='fasta', retmode='text')
 records = list(SeqIO.parse(handle, 'fasta'))
 handle.close()
@@ -244,21 +262,23 @@ for record in records:
 
 ### Fetch Protein by Gene ID
 
+**Goal:** Retrieve protein sequences for a gene, navigating from gene symbol to protein database.
+
+**Approach:** Search the gene database by symbol, use `elink` to find linked protein IDs, then batch-fetch the protein sequences.
+
+**Reference (BioPython 1.83+):**
 ```python
-# Search gene database
 handle = Entrez.esearch(db='gene', term='BRCA1[sym] AND human[orgn]')
 result = Entrez.read(handle)
 handle.close()
 gene_id = result['IdList'][0]
 
-# Get linked protein IDs
 handle = Entrez.elink(dbfrom='gene', db='protein', id=gene_id)
 links = Entrez.read(handle)
 handle.close()
 
 protein_ids = [link['Id'] for link in links[0]['LinkSetDb'][0]['Link'][:3]]
 
-# Fetch proteins
 handle = Entrez.efetch(db='protein', id=','.join(protein_ids), rettype='fasta', retmode='text')
 proteins = list(SeqIO.parse(handle, 'fasta'))
 handle.close()

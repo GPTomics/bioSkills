@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, scanpy 1.10+ | Verify API if version differs
 # Differential expression analysis of miRNAs using DESeq2
 
 library(DESeq2)

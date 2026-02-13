@@ -17,7 +17,19 @@ qc_checkpoints:
   - after_clustering: "Spatial domains correspond to tissue regions"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Transcriptomics Pipeline
+
+**"Analyze my spatial transcriptomics data end-to-end"** → Orchestrate data loading (squidpy/scanpy), QC, normalization, spatial domain detection, deconvolution (cell2location), spatial neighbor analysis, cell-cell communication, and tissue visualization.
 
 Complete workflow for analyzing Visium, Xenium, or other spatial transcriptomics data.
 

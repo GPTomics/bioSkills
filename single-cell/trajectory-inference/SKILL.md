@@ -5,9 +5,27 @@ tool_type: mixed
 primary_tool: Monocle3
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cell Ranger 8.0+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Trajectory Inference
 
 ## Monocle3 (R)
+
+**Goal:** Infer developmental trajectories and pseudotime ordering using Monocle3's principal graph approach.
+
+**Approach:** Learn a principal graph through the data manifold, order cells along the graph from a root state, and extract pseudotime values.
+
+**"Find the developmental trajectory in my data"** → Construct a tree-like graph through the cell embedding, assign pseudotime from a root population, and identify branch points.
 
 ```r
 library(monocle3)
@@ -37,6 +55,10 @@ pseudotime <- pseudotime(cds)
 
 ## Set Root Programmatically
 
+**Goal:** Automatically select the trajectory root node based on a known progenitor cluster.
+
+**Approach:** Identify the principal graph node closest to cells in the specified progenitor cluster and use it as the root for pseudotime ordering.
+
 ```r
 # Find root by marker gene expression
 get_earliest_principal_node <- function(cds, cluster_name) {
@@ -51,6 +73,10 @@ cds <- order_cells(cds, root_pr_nodes = get_earliest_principal_node(cds, 'stem_c
 ```
 
 ## Slingshot (R)
+
+**Goal:** Infer smooth lineage trajectories and pseudotime using Slingshot's minimum spanning tree and principal curves.
+
+**Approach:** Build a minimum spanning tree through cluster centroids to define lineage structure, then fit smooth principal curves for per-lineage pseudotime.
 
 ```r
 library(slingshot)
@@ -86,6 +112,10 @@ sce <- slingshot(sce, clusterLabels = 'seurat_clusters', reducedDim = 'UMAP',
 ```
 
 ## scVelo RNA Velocity (Python)
+
+**Goal:** Estimate RNA velocity to predict future cell states from spliced/unspliced transcript ratios.
+
+**Approach:** Model the dynamics of splicing using stochastic or dynamical models, compute velocity vectors, and project directional flow onto UMAP.
 
 ```python
 import scvelo as scv

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: DeepVariant 1.6+, Entrez Direct 21.0+, bcftools 1.19+, minimap2 2.26+ | Verify API if version differs
 # Clair3 variant calling workflow for long reads
 
 set -euo pipefail

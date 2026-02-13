@@ -3,6 +3,7 @@
 Sashimi plot generation using ggsashimi.
 Visualizes splicing events with read coverage and junction counts.
 '''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

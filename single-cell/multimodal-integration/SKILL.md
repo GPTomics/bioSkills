@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: Seurat
 ---
 
+## Version Compatibility
+
+Reference examples tested with: numpy 1.26+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Multimodal Integration
+
+**"Integrate RNA and protein data from my CITE-seq experiment"** → Jointly analyze multiple modalities (RNA + protein, RNA + ATAC) measured in the same cells using weighted nearest neighbor or factor analysis.
+- R: `Seurat::FindMultiModalNeighbors()` for WNN integration
+- Python: `muon` for MuData handling, `scanpy` + `anndata` for multimodal objects
 
 Analyze multi-modal single-cell data where multiple measurements are made per cell.
 
@@ -55,6 +70,10 @@ obj <- ScaleData(obj, assay = 'ADT')
 ```
 
 ### Weighted Nearest Neighbor (WNN) Clustering
+
+**Goal:** Jointly cluster cells using both RNA and protein (or ATAC) modalities, weighting each modality's contribution per cell.
+
+**Approach:** Run PCA separately on each modality, build a weighted nearest neighbor graph that adaptively combines both reductions, then cluster and embed on the combined WNN graph.
 
 ```r
 # Dimensionality reduction for each modality

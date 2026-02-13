@@ -1,3 +1,4 @@
+# Reference: R stats (base), ReactomePA 1.46+, clusterProfiler 4.10+ | Verify API if version differs
 library(ReactomePA)
 library(clusterProfiler)
 library(org.Hs.eg.db)

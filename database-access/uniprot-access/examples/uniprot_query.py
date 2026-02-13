@@ -1,3 +1,4 @@
+# Reference: biopython 1.83+, pandas 2.2+ | Verify API if version differs
 import requests
 import pandas as pd
 from io import StringIO

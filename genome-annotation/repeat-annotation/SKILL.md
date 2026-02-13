@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: RepeatMasker
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, STAR 2.7.11+, matplotlib 3.8+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Repeat and Transposable Element Annotation
+
+**"Mask repeats in my genome assembly"** → Build a de novo repeat library and annotate/softmask repetitive elements as a prerequisite for gene prediction.
+- CLI: `RepeatModeler -database mydb` (library), `RepeatMasker -lib custom-lib.fa -xsmall assembly.fa` (masking)
 
 Identify, classify, and mask repetitive elements using RepeatModeler (de novo library construction) and RepeatMasker (genome-wide annotation). Softmasked output is a prerequisite for eukaryotic gene prediction.
 
@@ -166,6 +180,10 @@ TEtranscripts \
 | `--stranded` | Strand-specific protocol (yes, no, reverse) |
 
 ## Python: Repeat Statistics
+
+**Goal:** Parse RepeatMasker output to summarize repeat content by class and visualize the repeat divergence landscape.
+
+**Approach:** Read the RepeatMasker `.out` file into a DataFrame, group by repeat class to compute total bp and genome percentage, then plot a Kimura divergence histogram stratified by major TE classes (LINE, SINE, LTR, DNA).
 
 ```python
 import pandas as pd

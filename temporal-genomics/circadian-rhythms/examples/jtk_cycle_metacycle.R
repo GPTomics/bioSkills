@@ -1,3 +1,4 @@
+# Reference: R stats (base), pandas 2.2+, statsmodels 0.14+ | Verify API if version differs
 library(MetaCycle)
 library(data.table)
 

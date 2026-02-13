@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: mediation
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Mediation Analysis
+
+**"Test whether gene expression mediates the effect of this variant on disease"** → Decompose the total genetic effect into direct and indirect (mediated) paths through a molecular phenotype, estimating ACME, ADE, and proportion mediated with bootstrap confidence intervals.
+- R: `mediation::mediate()` for causal mediation analysis
 
 ## Framework
 
@@ -23,6 +36,10 @@ Typical genomic applications:
 - SNP -> protein levels (mediator) -> clinical outcome
 
 ## Basic Mediation with the mediation Package
+
+**Goal:** Decompose a genetic effect into direct and indirect (mediated) paths through a molecular phenotype.
+
+**Approach:** Fit separate models for mediator and outcome, then run mediate() with bootstrap to estimate ACME (indirect), ADE (direct), and proportion mediated.
 
 ```r
 library(mediation)
@@ -81,6 +98,10 @@ cat('Proportion mediated:', round(prop_med, 3), '\n')
 
 ## eQTL Mediation
 
+**Goal:** Test whether gene expression mediates the effect of an eQTL on a disease outcome across multiple genes.
+
+**Approach:** Wrap the mediation workflow in a function, loop over candidate genes, and adjust p-values for multiple testing.
+
 ```r
 library(mediation)
 
@@ -127,6 +148,10 @@ mediation_results$acme_fdr <- p.adjust(mediation_results$acme_p, method = 'BH')
 
 ## Multi-Omics Mediation
 
+**Goal:** Test cascading mediation chains across multiple molecular layers (e.g., SNP -> methylation -> expression -> disease).
+
+**Approach:** Fit sequential models for each link in the chain and run separate mediation analyses for each mediator-outcome pair.
+
 ```r
 # Test mediation chains: SNP -> methylation -> expression -> disease
 library(mediation)
@@ -153,6 +178,10 @@ med_expr_disease <- mediate(mod_expr, mod_disease, treat = 'methylation', mediat
 ```
 
 ## High-Dimensional Mediation (HDMA)
+
+**Goal:** Test thousands of potential mediators simultaneously (e.g., all CpG sites) to identify which mediate a genetic effect.
+
+**Approach:** Use HIMA's penalized regression to jointly select significant mediators from a high-dimensional mediator matrix and estimate their indirect effects.
 
 ```r
 # For testing many potential mediators simultaneously (e.g., all CpG sites)

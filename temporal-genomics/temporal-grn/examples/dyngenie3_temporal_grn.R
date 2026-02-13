@@ -1,3 +1,4 @@
+# Reference: numpy 1.26+, pandas 2.2+, statsmodels 0.14+ | Verify API if version differs
 library(dynGENIE3)
 
 set.seed(42)

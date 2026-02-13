@@ -1,3 +1,4 @@
+# Reference: R stats (base), ggplot2 3.5+ | Verify API if version differs
 ## Mediation sensitivity analysis
 ##
 ## Tests robustness of mediation results to unmeasured confounding.

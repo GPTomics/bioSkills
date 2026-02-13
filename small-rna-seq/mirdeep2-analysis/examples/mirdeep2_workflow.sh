@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+ | Verify API if version differs
 # miRDeep2 workflow for novel miRNA discovery and quantification
 
 COLLAPSED_READS=$1

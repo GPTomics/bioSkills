@@ -1,4 +1,5 @@
 '''Batch convert alignment files'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from pathlib import Path
 from Bio import AlignIO

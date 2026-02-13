@@ -1,3 +1,4 @@
+# Reference: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+ | Verify API if version differs
 import scrublet as scr
 import scanpy as sc
 import matplotlib.pyplot as plt

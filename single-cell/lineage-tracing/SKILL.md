@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: Cassiopeia
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Cassiopeia 2.0+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Lineage Tracing Analysis
 
+**"Reconstruct cell lineage trees from CRISPR barcodes"** → Build phylogenetic trees of cell relationships from lineage barcode mutations to study clonal dynamics and cell fate decisions.
+- Python: `cassiopeia.tl.ILPSolver(cas_tree)` or `GreedySolver` for tree reconstruction
+
 ## Cassiopeia Tree Reconstruction
+
+**Goal:** Reconstruct a cell lineage tree from CRISPR barcode character matrices to reveal clonal relationships among single cells.
+
+**Approach:** Load a character matrix (cells x barcode sites with mutation states), create a CassiopeiaTree object, then solve with a greedy or ILP maximum parsimony solver.
 
 ```python
 import cassiopeia as cas
@@ -96,6 +113,10 @@ char_matrix = char_matrix[keep_cells]
 ```
 
 ## CoSpar for Clonal Dynamics
+
+**Goal:** Infer cell fate transition maps and clonal dynamics from time-series lineage tracing data.
+
+**Approach:** Load lineage-traced AnnData with clone annotations, compute a transition map using intraclone smoothing, then estimate fate probabilities from source to sink populations.
 
 ```python
 import cospar as cs

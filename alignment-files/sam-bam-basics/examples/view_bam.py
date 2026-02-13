@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''View BAM file contents using pysam'''
+# Reference: pysam 0.22+, samtools 1.19+ | Verify API if version differs
 
 import pysam
 import sys

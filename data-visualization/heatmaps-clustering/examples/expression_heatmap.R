@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, seaborn 0.13+ | Verify API if version differs
 library(ComplexHeatmap)
 library(circlize)
 library(RColorBrewer)

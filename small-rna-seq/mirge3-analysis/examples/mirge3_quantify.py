@@ -1,4 +1,5 @@
 '''miRge3 miRNA quantification and isomiR analysis'''
+# Reference: numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

@@ -15,7 +15,20 @@ qc_checkpoints:
   - after_functional_annotation: ">60% of genes with functional assignment"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0+, eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Genome Annotation Pipeline
+
+**"Annotate my genome assembly"** → Orchestrate prokaryotic (Bakta) or eukaryotic (BRAKER3) gene prediction, repeat masking (RepeatMasker), functional annotation (eggNOG-mapper, InterProScan), and ncRNA annotation (Infernal).
 
 Complete workflow from assembled contigs to functional annotation for prokaryotic or eukaryotic genomes.
 

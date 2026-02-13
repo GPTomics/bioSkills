@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Parse GTF files and extract gene information using gtfparse.'''
+# Reference: bedtools 2.31+, pandas 2.2+ | Verify API if version differs
 
 import gtfparse
 import pandas as pd

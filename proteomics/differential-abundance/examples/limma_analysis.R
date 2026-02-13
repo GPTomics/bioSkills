@@ -1,3 +1,4 @@
+# Reference: R stats (base), ggplot2 3.5+, limma 3.58+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
 # Differential protein abundance with limma
 library(limma)
 

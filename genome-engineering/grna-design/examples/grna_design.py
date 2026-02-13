@@ -1,4 +1,5 @@
 '''Design CRISPR guide RNAs with activity scoring'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.Seq import Seq
 import re

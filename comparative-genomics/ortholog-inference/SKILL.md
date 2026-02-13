@@ -5,9 +5,26 @@ tool_type: cli
 primary_tool: OrthoFinder
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, NCBI BLAST+ 2.15+, OrthoFinder 2.5+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Ortholog Inference
 
+**"Find orthologs across my species"** → Identify orthologous gene groups, paralogs, and co-orthologs across multiple species using graph-based clustering of reciprocal best BLAST hits.
+- CLI: `orthofinder -f proteomes/` for all-vs-all orthogroup inference
+
 ## OrthoFinder Workflow
+
+**Goal:** Infer orthologous gene groups across multiple species from their proteomes.
+
+**Approach:** Run OrthoFinder on a directory of per-species FASTA files to perform all-vs-all DIAMOND search, gene/species tree inference, and ortholog/paralog classification, then parse the resulting orthogroups and classify by copy number pattern.
 
 ```python
 '''Ortholog inference with OrthoFinder'''
@@ -200,6 +217,10 @@ def find_co_orthologs(orthogroups, gene_id, species):
 ```
 
 ## ProteinOrtho Alternative
+
+**Goal:** Detect orthologs using ProteinOrtho as a faster alternative for many-genome comparisons.
+
+**Approach:** Run ProteinOrtho with DIAMOND backend on multiple proteome FASTA files and parse the output table for orthologous groups with connectivity scores.
 
 ```python
 def run_proteinortho(proteome_files, output_prefix, threads=4):

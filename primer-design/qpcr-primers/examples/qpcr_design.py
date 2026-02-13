@@ -1,4 +1,5 @@
 '''Design qPCR primers and TaqMan probe'''
+# Reference: biopython 1.83+, pandas 2.2+, primer3-py 2.0+ | Verify API if version differs
 
 import primer3
 from Bio import SeqIO

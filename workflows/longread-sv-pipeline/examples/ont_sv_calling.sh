@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
 # ONT structural variant calling with Sniffles2
 set -e
 

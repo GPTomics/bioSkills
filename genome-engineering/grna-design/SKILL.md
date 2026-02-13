@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: crisprscan
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Guide RNA Design
+
+**"Design guide RNAs for my CRISPR knockout experiment"** → Scan a target gene sequence for PAM sites, extract candidate spacer sequences, and score them for on-target activity using Rule Set 2 or CRISPRscan algorithms.
+- Python: custom PAM scanning with `Bio.Seq`, CRISPRscan scoring models
 
 ## Find PAM Sites
 
@@ -131,6 +144,10 @@ def crisprscan_score(guide_35mer):
 ```
 
 ## Design Workflow
+
+**Goal:** Design the top N guide RNAs for a target gene, optionally restricted to coding exon regions.
+
+**Approach:** Scan both strands for PAM sites, optionally filter to guides within exon coordinates, score each guide for on-target activity using GC content and position-weight criteria, and return the highest-scoring candidates.
 
 ```python
 def design_guides_for_gene(gene_sequence, exon_coords=None, n_guides=5):

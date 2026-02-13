@@ -5,9 +5,29 @@ tool_type: mixed
 primary_tool: ChIPseeker
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Binding Site Annotation
 
+**"Annotate where my RBP binds in transcripts"** → Map CLIP-seq peaks to genomic features (3'UTR, 5'UTR, CDS, introns, ncRNAs) to characterize RNA-binding protein target regions.
+- R: `ChIPseeker::annotatePeak()` with transcript annotation databases
+- CLI: `bedtools intersect` with gene model BED files
+
 ## Using ChIPseeker (R)
+
+**Goal:** Classify CLIP-seq binding sites by genomic feature (3'UTR, 5'UTR, CDS, intron).
+
+**Approach:** Load peaks and a TxDb transcript database, annotate with annotatePeak, and visualize the feature distribution with a pie chart.
 
 ```r
 library(ChIPseeker)

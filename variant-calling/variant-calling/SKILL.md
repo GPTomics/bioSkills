@@ -5,6 +5,16 @@ tool_type: cli
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Variant Calling
 
 Call SNPs and indels from aligned reads using bcftools.
@@ -25,6 +35,12 @@ BAM file + Reference FASTA
 ```
 
 ## bcftools mpileup + call
+
+**Goal:** Detect SNPs and indels from aligned reads using the bcftools pileup-and-call pipeline.
+
+**Approach:** Generate per-position pileup likelihoods with mpileup, then call genotypes with the multiallelic caller.
+
+**"Call variants from my BAM file"** → Generate genotype likelihoods from aligned reads and identify variant sites using a Bayesian caller.
 
 ### Basic Variant Calling
 ```bash
@@ -56,6 +72,10 @@ bcftools mpileup -f reference.fa -b bams.txt | bcftools call -mv -o variants.vcf
 ```
 
 ## mpileup Options
+
+**Goal:** Control pileup generation with quality thresholds, annotations, and region restrictions.
+
+**Approach:** Set minimum mapping/base quality, request specific FORMAT/INFO tags, and restrict to target regions.
 
 ### Quality Filtering
 ```bash
@@ -125,6 +145,10 @@ bcftools mpileup -f reference.fa input.bam | bcftools call -m -P 0.001 -o varian
 ```
 
 ## Common Pipelines
+
+**Goal:** Run production-ready variant calling workflows for single-sample and multi-sample analyses.
+
+**Approach:** Chain mpileup and call with quality filters, annotations, and compressed output, optionally parallelized by chromosome.
 
 ### Standard SNP/Indel Calling
 ```bash
@@ -199,6 +223,10 @@ bcftools mpileup -f reference.fa \
 ```
 
 ## Performance Options
+
+**Goal:** Speed up variant calling for large datasets.
+
+**Approach:** Use multi-threading and uncompressed BCF piping to reduce I/O overhead.
 
 ### Multi-threading
 ```bash

@@ -5,7 +5,21 @@ tool_type: mixed
 primary_tool: PAML
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, HyPhy 2.5+, PAML 4.10+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Positive Selection Analysis
+
+**"Test my gene for positive selection"** → Detect adaptive evolution using dN/dS (omega) codon models including site models, branch models, and branch-site tests to identify positively selected sites.
+- Python: PAML `codeml` for site and branch-site dN/dS tests
+- CLI: `hyphy busted`, `hyphy meme` for HyPhy selection tests
 
 ## dN/dS Overview
 
@@ -22,6 +36,10 @@ Immune genes, reproduction: Often show ω > 1 at specific sites
 ```
 
 ## PAML Codeml Analysis
+
+**Goal:** Test for positive selection across a gene using codon-based site models.
+
+**Approach:** Prepare a codon alignment in PHYLIP format, create codeml control files for nested models (M7 vs M8 or M1a vs M2a), run codeml, extract log-likelihoods, perform a likelihood ratio test, and identify positively selected sites from the BEB analysis.
 
 ```python
 '''Run PAML codeml for selection analysis'''
@@ -198,6 +216,10 @@ def likelihood_ratio_test(lnL_null, lnL_alt, df=2):
 
 ## Branch-Site Models
 
+**Goal:** Test for positive selection on a specific lineage (foreground branch) while allowing variable rates across the tree.
+
+**Approach:** Mark the foreground lineage with #1 in the tree file, create branch-site model A control files for both alternative and null hypotheses, run codeml, and perform an LRT with df=1.
+
 ```python
 def create_branch_site_control(alignment, tree, foreground_branch, output_dir):
     '''Create control file for branch-site test
@@ -255,6 +277,10 @@ def mark_foreground_branch(tree_file, foreground_taxa, output_file):
 ```
 
 ## HyPhy Alternative
+
+**Goal:** Detect positive selection using HyPhy's suite of methods for gene-wide and site-specific tests.
+
+**Approach:** Run BUSTED for gene-wide episodic selection, MEME for site-specific episodic selection, or FEL for pervasive site selection, and parse the JSON output for p-values and selected sites.
 
 ```python
 def run_hyphy_busted(alignment_file, tree_file, output_json):

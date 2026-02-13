@@ -1,4 +1,5 @@
 '''Design HDR donor templates for CRISPR knock-ins'''
+# Reference: biopython 1.83+, primer3-py 2.0+ | Verify API if version differs
 
 from Bio.Seq import Seq
 

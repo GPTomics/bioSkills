@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: RDKit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: RDKit 2024.03+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Similarity Searching
+
+**"Find compounds similar to my query molecule"** → Compute pairwise Tanimoto similarity on molecular fingerprints to rank a library by structural resemblance to a query, or cluster compounds by chemical similarity using Butina clustering.
+- Python: `DataStructs.TanimotoSimilarity()`, `Butina.ClusterData()` (RDKit)
 
 Find structurally similar molecules and cluster compound libraries.
 
@@ -37,6 +50,10 @@ print(f'Tanimoto similarity: {similarity:.3f}')
 | < 0.50 | Dissimilar |
 
 ## Search Library Against Query
+
+**Goal:** Find molecules structurally similar to a query compound within a library.
+
+**Approach:** Generate fingerprints for the query and each library molecule, compute Tanimoto similarity, and return hits above a chosen threshold sorted by similarity.
 
 ```python
 from rdkit import Chem, DataStructs
@@ -112,6 +129,10 @@ def bulk_similarity_search(query_fp, library_fps, threshold=0.7):
 
 ## Butina Clustering
 
+**Goal:** Group a compound library into clusters of structurally similar molecules.
+
+**Approach:** Compute an all-vs-all Tanimoto distance matrix from fingerprints and apply Taylor-Butina clustering with a distance cutoff.
+
 ```python
 from rdkit import Chem
 from rdkit.ML.Cluster import Butina
@@ -149,6 +170,10 @@ def cluster_molecules(molecules, cutoff=0.4):
 ```
 
 ## Maximum Common Substructure
+
+**Goal:** Identify the largest shared substructure across a set of molecules.
+
+**Approach:** Use FindMCS with ring-matching constraints and a timeout to find the maximum common substructure as a SMARTS pattern.
 
 ```python
 from rdkit.Chem import rdFMCS

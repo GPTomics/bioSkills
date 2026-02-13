@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: bedtools 2.31+, deepTools 3.5+, numpy 1.26+, pandas 2.2+, picard 3.1+, pyBigWig 0.3+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 # ATAC-seq QC metrics
 
 library(ATACseqQC)

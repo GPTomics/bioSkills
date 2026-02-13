@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Infernal 1.1+, matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 # Consensus RNA secondary structure prediction from a multiple sequence alignment.
 
 ALIGNMENT=$1

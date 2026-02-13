@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: ggplot2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Volcano Plot Customization
+
+**"Create a volcano plot"** → Plot log2 fold change vs -log10 p-value from differential expression results, highlighting significant genes.
+- R: `EnhancedVolcano::EnhancedVolcano()`, `ggplot2` with manual thresholds
+- Python: `matplotlib.scatter()` with color-coded significance categories
 
 ## ggplot2 Basic Volcano
 
@@ -30,6 +45,10 @@ ggplot(df, aes(x = log2FoldChange, y = -log10(pvalue))) +
 ```
 
 ## ggplot2 with Gene Labels
+
+**Goal:** Add non-overlapping gene name labels to a volcano plot for the top significant genes or genes of interest.
+
+**Approach:** Filter for top genes by p-value, use ggrepel to place text labels with automatic repulsion to avoid overlaps, and optionally highlight specific genes of interest with larger points.
 
 ```r
 # Label top significant genes

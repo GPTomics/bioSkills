@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+ | Verify API if version differs
 # Non-coding RNA annotation with Infernal and tRNAscan-SE
 set -euo pipefail
 

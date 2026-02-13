@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: CRISPResso2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: CRISPResso2 2.2+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CRISPResso2 Editing Analysis
 
+**"Quantify CRISPR editing from my amplicon data"** → Analyze amplicon sequencing to measure indel frequencies, HDR efficiency, and frameshift rates from CRISPR gene editing experiments.
+- CLI: `CRISPResso --fastq_r1 reads.fq --amplicon_seq ATGC --guide_seq GUIDE`
+
 ## Basic Analysis
+
+**Goal:** Quantify CRISPR editing outcomes from amplicon sequencing of a single target site.
+
+**Approach:** Align amplicon reads against the reference and guide sequences with CRISPResso, which reports indel frequencies, allele tables, and editing efficiency plots.
 
 ```bash
 # Analyze single amplicon
@@ -40,6 +58,10 @@ CRISPResso \
 ```
 
 ## Batch Analysis
+
+**Goal:** Process multiple CRISPR editing samples in a single run.
+
+**Approach:** Define a batch file listing sample names, FASTQ paths, amplicon sequences, and guide sequences, then run CRISPRessoBatch for parallel multi-sample analysis.
 
 ```bash
 # Create batch file (tab-separated)
@@ -81,6 +103,10 @@ CRISPRessoWGS \
 ```
 
 ## Parse Results in Python
+
+**Goal:** Extract editing metrics from CRISPResso output for downstream analysis or reporting.
+
+**Approach:** Load the mapping statistics and quantification files from the CRISPResso output directory, and parse the compressed allele frequency table for allele-level detail.
 
 ```python
 import pandas as pd

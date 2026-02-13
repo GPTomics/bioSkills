@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Basic population genetics analysis with scikit-allel.'''
+# Reference: bcftools 1.19+, matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 
 import allel
 import numpy as np

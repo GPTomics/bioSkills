@@ -5,9 +5,22 @@ tool_type: python
 primary_tool: primer3-py
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, pandas 2.2+, primer3-py 2.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # qPCR Primer and Probe Design
 
 Design primers and internal probes for quantitative PCR using primer3-py.
+
+**"Design qPCR primers with probe"** → Generate primer pairs plus internal TaqMan/molecular beacon probes with constrained Tm and spacing.
+- Python: `primer3.design_primers(seq_args, global_args)` with `PRIMER_PICK_INTERNAL_OLIGO=1` (primer3-py)
 
 ## Required Imports
 

@@ -5,9 +5,26 @@ tool_type: mixed
 primary_tool: CellTypist
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Automated Cell Type Annotation
 
 ## CellTypist (Python)
+
+**Goal:** Automatically annotate cell types using a pre-trained or custom CellTypist model.
+
+**Approach:** Load a reference model, predict cell types with majority voting for cluster-level consensus, and add predictions to AnnData.
+
+**"Automatically label my cell types"** → Apply a trained classifier to assign cell type identities based on transcriptomic similarity to a reference atlas.
 
 ```python
 import celltypist
@@ -40,6 +57,10 @@ sc.pl.umap(adata, color=['cell_type_celltypist', 'conf_score'])
 
 ## CellTypist with Custom Model
 
+**Goal:** Train a custom CellTypist model on a reference dataset for domain-specific annotation.
+
+**Approach:** Train a logistic regression classifier on labeled reference data with feature selection, then apply to query data.
+
 ```python
 # Train custom model
 new_model = celltypist.train(adata_reference, labels='cell_type', n_jobs=10,
@@ -53,6 +74,10 @@ predictions = celltypist.annotate(adata_query, model='custom_model.pkl')
 ```
 
 ## SingleR (R)
+
+**Goal:** Annotate cell types by correlating expression profiles against curated reference datasets.
+
+**Approach:** Compare each cell's expression to reference transcriptomes using SingleR's correlation-based assignment, with pruning for low-confidence calls.
 
 ```r
 library(SingleR)
@@ -97,6 +122,10 @@ pred_combined <- SingleR(test = sce, ref = list(BP = ref1, Monaco = ref2),
 
 ## Azimuth (R/Seurat)
 
+**Goal:** Annotate cell types using Seurat's Azimuth reference-mapping framework.
+
+**Approach:** Map query cells onto a pre-built Azimuth reference atlas to transfer cell type labels with confidence scores.
+
 ```r
 library(Seurat)
 library(Azimuth)
@@ -118,6 +147,10 @@ FeaturePlot(seurat_obj, features = 'predicted.celltype.l2.score')
 ```
 
 ## scPred (R)
+
+**Goal:** Train and apply a supervised classifier for cell type prediction using scPred.
+
+**Approach:** Extract informative PCA features from a labeled reference, train an SVM/RF classifier, and predict cell types on query data.
 
 ```r
 library(scPred)
@@ -165,6 +198,10 @@ seurat_obj$high_conf_labels <- ifelse(seurat_obj$predicted.celltype.l2.score > 0
 
 ## Consensus Annotation
 
+**Goal:** Combine predictions from multiple annotation tools into a single consensus label per cell.
+
+**Approach:** Aggregate labels from SingleR, Azimuth, and CellTypist using majority voting, flagging ambiguous cells where methods disagree.
+
 ```r
 # Combine multiple methods
 annotations <- data.frame(
@@ -182,6 +219,10 @@ seurat_obj$consensus_label <- apply(annotations, 1, get_consensus)
 ```
 
 ## Compare Annotations
+
+**Goal:** Quantitatively assess agreement between different annotation methods.
+
+**Approach:** Compute adjusted Rand index and normalized mutual information between label sets, and build a confusion matrix.
 
 ```python
 import pandas as pd

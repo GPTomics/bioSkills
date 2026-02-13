@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: CosinorPy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), pandas 2.2+, statsmodels 0.14+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Circadian Rhythm Detection
+
+**"Test which genes in my time-course data have circadian rhythms"** → Fit cosinor models at a specified period (typically 24h) to expression time series, estimating amplitude, phase (acrophase), and rhythmicity significance for each gene.
+- Python: `CosinorPy.cosinor.fit_group()` for cosinor regression
+- R: `MetaCycle::meta2d()` for multi-method rhythmicity testing (JTK_CYCLE + ARSER)
 
 Identifies periodic gene expression patterns at known periods (typically 24h) using cosinor regression, non-parametric rhythmicity tests, and meta-analysis approaches combining multiple methods.
 
@@ -18,6 +33,10 @@ Identifies periodic gene expression patterns at known periods (typically 24h) us
 5. Filter significant rhythmic genes and characterize phase distribution
 
 ## CosinorPy (Python)
+
+**Goal:** Test for circadian rhythmicity in time-series expression data by fitting cosinor models at a known period (typically 24h) and estimating amplitude, phase, and significance.
+
+**Approach:** Fit single- or multi-component cosine curves to each gene's expression profile using CosinorPy, apply batch processing across all genes, and correct p-values with BH FDR to identify significant oscillators.
 
 ### Single-Component Cosinor
 
@@ -110,7 +129,7 @@ meta2d(
 )
 ```
 
-### MetaCycle Output Interpretation
+### MetaCycle Output Interpretation (R stats (base)+)
 
 ```r
 results <- read.csv('metacycle_results/meta2d_expression_matrix.csv')

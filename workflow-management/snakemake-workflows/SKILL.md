@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: Snakemake
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BWA 0.7.17+, FastQC 0.12+, MultiQC 1.21+, Nextflow 23.10+, Salmon 1.10+, Snakemake 8.0+, bcftools 1.19+, fastp 0.23+, pandas 2.2+, samtools 1.19+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Snakemake Workflows
+
+**"Build a reproducible bioinformatics pipeline with Snakemake"** → Define analysis steps as rules with input/output declarations, automatic dependency resolution via wildcards, and cluster execution support for HPC/cloud environments.
+- Python: Snakefile rule syntax with `expand()`, `wildcards`, and `config` for parameterization
 
 Compatible with Snakemake 7.x, 8.x, and 9.x. For Snakemake 8.0+, use `--executor` instead of `--cluster`.
 

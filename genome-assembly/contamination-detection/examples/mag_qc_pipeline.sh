@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: pandas 2.2+ | Verify API if version differs
 set -euo pipefail
 
 GENOMES_DIR=$1

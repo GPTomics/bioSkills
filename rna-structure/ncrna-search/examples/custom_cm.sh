@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, Infernal 1.1+, pandas 2.2+ | Verify API if version differs
 # Build a custom covariance model from a Stockholm alignment and search a target database.
 
 ALIGNMENT=$1

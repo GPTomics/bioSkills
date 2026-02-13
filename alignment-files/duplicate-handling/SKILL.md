@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: picard 3.1+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Duplicate Handling
+
+**"Remove PCR duplicates from my BAM file"** → Mark or remove duplicate reads using the fixmate-sort-markdup pipeline to prevent duplicate bias in variant calling.
+- CLI: `samtools fixmate`, `samtools markdup` (samtools)
+- Python: `pysam.fixmate()`, `pysam.markdup()` (pysam)
 
 Mark and remove PCR/optical duplicates using samtools.
 
@@ -20,8 +35,11 @@ Optical duplicates are clusters read multiple times due to their proximity on th
 
 ## Duplicate Marking Workflow
 
-The standard samtools workflow requires multiple steps:
+**Goal:** Mark PCR/optical duplicates so they can be excluded from downstream variant calling and coverage analysis.
 
+**Approach:** Name-sort, add mate tags with fixmate, coordinate-sort, then run markdup. The pipeline version avoids intermediate files.
+
+**Reference (samtools 1.19+):**
 ```bash
 # 1. Sort by name (required for fixmate)
 samtools sort -n -o namesort.bam input.bam

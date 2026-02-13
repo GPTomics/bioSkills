@@ -1,3 +1,4 @@
+# Reference: DADA2 1.30+, cutadapt 4.4+ | Verify API if version differs
 # DADA2 amplicon processing workflow for paired-end 16S data
 library(dada2)
 

@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, clusterProfiler 4.10+, limma 3.58+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
 ## Time-course analysis pipeline: temporal DE, Mfuzz clustering, optional MetaCycle,
 ## GAM trajectory fitting, and per-cluster pathway enrichment.
 

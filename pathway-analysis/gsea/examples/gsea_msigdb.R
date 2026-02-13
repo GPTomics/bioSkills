@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+ | Verify API if version differs
 # GSEA with MSigDB Hallmark gene sets
 
 library(clusterProfiler)

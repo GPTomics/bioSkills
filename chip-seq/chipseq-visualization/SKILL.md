@@ -5,9 +5,28 @@ tool_type: mixed
 primary_tool: deepTools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: GenomicRanges 1.54+, deepTools 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ChIP-seq Visualization
 
+**"Create a heatmap of ChIP-seq signal around peaks"** → Generate signal heatmaps, profile plots, and genome browser tracks showing enrichment patterns around genomic features.
+- CLI: `deeptools computeMatrix reference-point` → `plotHeatmap`
+- R: `Gviz`, `ChIPseeker::plotAvgProf()`
+
 ## deepTools - Compute Matrix
+
+**Goal:** Build a signal matrix of ChIP-seq coverage around reference points for downstream heatmaps and profiles.
+
+**Approach:** Use computeMatrix to extract bigWig signal values in windows around genomic features like TSS.
 
 ```bash
 # Compute signal matrix around TSS
@@ -22,6 +41,10 @@ computeMatrix reference-point \
 
 ## deepTools - Scale-Regions
 
+**Goal:** Visualize ChIP signal across gene bodies scaled to a uniform length.
+
+**Approach:** Scale all gene regions to equal size and compute signal with flanking windows.
+
 ```bash
 # Signal across gene bodies
 computeMatrix scale-regions \
@@ -33,6 +56,10 @@ computeMatrix scale-regions \
 ```
 
 ## deepTools - Heatmap
+
+**Goal:** Generate a heatmap of ChIP-seq signal intensity across genomic regions.
+
+**Approach:** Render the precomputed signal matrix as a clustered heatmap with optional profile summary.
 
 ```bash
 # Generate heatmap from matrix
@@ -54,6 +81,10 @@ plotHeatmap \
 
 ## deepTools - Profile Plot
 
+**Goal:** Display average ChIP-seq signal profiles across genomic regions for sample comparison.
+
+**Approach:** Plot mean signal from the computed matrix, optionally overlaying multiple samples.
+
 ```bash
 # Average profile plot
 plotProfile \
@@ -71,6 +102,10 @@ plotProfile \
 ```
 
 ## Create BigWig from BAM
+
+**Goal:** Convert BAM alignments to normalized bigWig signal tracks for visualization.
+
+**Approach:** Use bamCoverage for single-sample normalization or bamCompare for log2 ratio of ChIP over input.
 
 ```bash
 # Normalized bigWig (CPM)
@@ -91,6 +126,10 @@ bamCompare \
 ```
 
 ## ChIPseeker Profile Heatmap (R)
+
+**Goal:** Visualize peak distribution around TSS using ChIPseeker tag matrices and profile plots.
+
+**Approach:** Build a tag density matrix from peak locations relative to promoter windows, then plot as heatmap or average profile.
 
 ```r
 library(ChIPseeker)
@@ -119,6 +158,10 @@ plotAvgProf2(tagMatrix, xlim = c(-3000, 3000), conf = 0.95)
 ```
 
 ## Gviz - Genome Browser Tracks (R)
+
+**Goal:** Create publication-quality genome browser views combining signal tracks, gene models, and ideograms.
+
+**Approach:** Layer Gviz track objects (ideogram, axis, data, gene) and render a specific genomic region.
 
 ```r
 library(Gviz)
@@ -157,6 +200,10 @@ plotTracks(list(itrack, gtrack, dtrack, grtrack),
 
 ## Multiple Samples in Gviz
 
+**Goal:** Compare ChIP-seq signal from multiple samples in a single browser view.
+
+**Approach:** Create separate DataTrack objects per sample and stack them in the plotTracks call.
+
 ```r
 # Create data tracks for each sample
 dtrack1 <- DataTrack(range = 'control.bw', genome = 'hg38', name = 'Control',
@@ -169,6 +216,10 @@ plotTracks(list(itrack, gtrack, dtrack1, dtrack2, grtrack),
 ```
 
 ## EnrichedHeatmap (R)
+
+**Goal:** Generate customizable heatmaps of ChIP signal around genomic features using ComplexHeatmap framework.
+
+**Approach:** Normalize bigWig signal to a matrix around target sites and render with EnrichedHeatmap.
 
 ```r
 library(EnrichedHeatmap)
@@ -186,6 +237,10 @@ EnrichedHeatmap(mat, name = 'Signal', col = c('white', 'red'))
 ```
 
 ## IGV Batch Screenshot
+
+**Goal:** Automate genome browser screenshots at specific loci without manual interaction.
+
+**Approach:** Write an IGV batch script that loads tracks, navigates to regions, and saves snapshots.
 
 ```bash
 # Create IGV batch script

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, MACS3 3.0+, bedtools 2.31+, deepTools 3.5+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
 # Complete ATAC-seq workflow
 set -e
 

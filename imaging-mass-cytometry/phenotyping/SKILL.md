@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: scanpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: FlowSOM 2.10+, anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Cell Phenotyping for IMC
+
+**"Assign cell types to my segmented IMC cells"** → Classify cells based on protein marker expression using clustering, manual gating, or supervised classification approaches.
+- Python: `scanpy.tl.leiden()` for unsupervised clustering, then manual annotation
+- R: `FlowSOM` for self-organizing map-based phenotyping
 
 ## Load Single-Cell Data
 
@@ -111,6 +125,10 @@ adata.obs['cell_type'] = adata.obs['leiden'].map(cluster_annotation)
 ```
 
 ## SOM-Based Clustering (FlowSOM-Style)
+
+**Goal:** Cluster cells into phenotypically distinct populations using a self-organizing map approach analogous to the FlowSOM algorithm used in flow cytometry.
+
+**Approach:** Train a self-organizing map on selected phenotype markers, map each cell to its best-matching unit, then apply agglomerative meta-clustering on the SOM node weights to obtain final cell type clusters.
 
 ```python
 # FlowSOM-style clustering using minisom

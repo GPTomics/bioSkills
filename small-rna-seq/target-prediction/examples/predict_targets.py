@@ -1,4 +1,5 @@
 '''miRNA target prediction using multiple approaches'''
+# Reference: biopython 1.83+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 from Bio.Seq import Seq

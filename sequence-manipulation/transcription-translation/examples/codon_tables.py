@@ -1,4 +1,5 @@
 '''Using alternative codon tables for translation'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.Data import CodonTable
 

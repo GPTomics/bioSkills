@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: flowAI
 ---
 
+## Version Compatibility
+
+Reference examples tested with: flowCore 2.14+, ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Cytometry QC
+
+**"Run quality control on my flow cytometry data"** → Assess acquisition quality by checking flow rate stability, signal drift, margin events, and dead cell frequencies to identify problematic samples.
+- R: `flowAI::flow_auto_qc()` for automated anomaly detection
 
 ## Automated QC with flowAI
 
@@ -216,6 +229,10 @@ cytof_qc(ff)
 ```
 
 ## Batch QC Summary
+
+**Goal:** Generate a per-sample QC summary table for an entire experiment batch, flagging outlier samples that may need exclusion.
+
+**Approach:** Loop through FCS files, compute event counts, flow rate CV, and median signal intensity for each, then flag samples with abnormal event counts or unstable flow rates.
 
 ```r
 library(dplyr)

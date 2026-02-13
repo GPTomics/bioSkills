@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+ | Verify API if version differs
 # Differential m6A analysis with exomePeak2
 
 library(exomePeak2)

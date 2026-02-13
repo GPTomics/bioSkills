@@ -3,6 +3,7 @@
 Quality control for splicing analysis.
 Assesses junction saturation, coverage, and splice site strength.
 '''
+# Reference: matplotlib 3.8+, pandas 2.2+, pysam 0.22+ | Verify API if version differs
 
 import subprocess
 import pysam

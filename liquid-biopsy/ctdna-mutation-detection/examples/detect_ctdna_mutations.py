@@ -2,6 +2,7 @@
 '''
 ctDNA mutation detection at low variant allele fractions.
 '''
+# Reference: ensembl vep 111+, snpeff 5.2+, vardict 1.8+, pandas 2.2+, pysam 0.22+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

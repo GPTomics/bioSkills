@@ -3,6 +3,7 @@
 Batch notebook execution with papermill
 Demonstrates running parameterized notebooks on multiple samples
 """
+# Reference: jupyter 1.0+, papermill 2.5+ | Verify API if version differs
 
 import papermill as pm
 from pathlib import Path

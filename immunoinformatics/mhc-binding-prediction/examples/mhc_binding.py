@@ -1,4 +1,5 @@
 '''MHC binding prediction with MHCflurry'''
+# Reference: mhcflurry 2.1+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 

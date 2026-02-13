@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 # Find marker genes with Seurat
 
 library(Seurat)

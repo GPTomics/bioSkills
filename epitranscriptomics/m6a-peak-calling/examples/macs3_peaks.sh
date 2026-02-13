@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MACS3 3.0+ | Verify API if version differs
 # m6A peak calling with MACS3
 
 IP_BAMS="IP_rep1.bam IP_rep2.bam"

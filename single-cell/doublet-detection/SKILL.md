@@ -5,13 +5,28 @@ tool_type: mixed
 primary_tool: Scrublet
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Doublet Detection
 
 Doublets are droplets containing two or more cells. They appear as artificial intermediate cell populations and must be removed before analysis.
 
 ## Scrublet (Python)
 
-Fast doublet detection based on simulated doublets from the data.
+**Goal:** Detect and score doublets in scRNA-seq data using simulated doublet profiles.
+
+**Approach:** Simulate artificial doublets by combining random cell pairs, embed real and simulated cells together, and score each cell's similarity to simulated doublets.
+
+**"Remove doublets from my data"** → Identify droplets containing multiple cells by comparing each cell's profile to computationally simulated doublets, then filter flagged cells.
 
 ### Basic Usage
 
@@ -83,7 +98,9 @@ adata.obs['predicted_doublet'] = predicted_doublets
 
 ## DoubletFinder (R)
 
-Popular R package for doublet detection in Seurat workflows.
+**Goal:** Detect doublets in Seurat objects using DoubletFinder's pANN-based classification.
+
+**Approach:** Optimize the pK neighborhood parameter via parameter sweep, compute artificial nearest neighbor proportions, and classify cells as singlets or doublets.
 
 ### Basic Usage
 
@@ -156,7 +173,9 @@ nExp_poi <- round(doublet_rate * n_cells)
 
 ## scDblFinder (R/Bioconductor)
 
-Fast Bioconductor package using gradient boosting for doublet detection.
+**Goal:** Detect doublets using scDblFinder's gradient-boosted classifier for fast, accurate identification.
+
+**Approach:** Simulate doublets, train a gradient boosting classifier on real vs simulated profiles, and score each cell.
 
 ### Basic Usage
 
@@ -252,6 +271,10 @@ sc.pl.violin(adata, 'log_counts', groupby='predicted_doublet')
 
 ## Scanpy Integration Pipeline
 
+**Goal:** Run doublet detection as part of a complete Scanpy preprocessing workflow.
+
+**Approach:** Detect and remove doublets with Scrublet before QC filtering, then proceed through normalization, HVG selection, and clustering.
+
 ```python
 import scanpy as sc
 import scrublet as scr
@@ -281,6 +304,10 @@ sc.tl.leiden(adata)
 ```
 
 ## Seurat Integration Pipeline
+
+**Goal:** Run DoubletFinder as part of a complete Seurat preprocessing workflow.
+
+**Approach:** Preprocess and cluster, run DoubletFinder parameter sweep and classification, filter doublets, then re-preprocess clean singlets.
 
 ```r
 library(Seurat)

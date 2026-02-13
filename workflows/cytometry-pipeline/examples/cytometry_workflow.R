@@ -1,3 +1,4 @@
+# Reference: FlowSOM 2.10+, edgeR 4.0+, flowCore 2.14+, ggplot2 3.5+, limma 3.58+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
 library(CATALYST)
 library(diffcyt)
 library(SingleCellExperiment)

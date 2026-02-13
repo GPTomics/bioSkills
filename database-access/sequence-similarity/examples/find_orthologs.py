@@ -1,3 +1,4 @@
+# Reference: biopython 1.83+, ncbi blast+ 2.15+ | Verify API if version differs
 import subprocess
 import argparse
 import os

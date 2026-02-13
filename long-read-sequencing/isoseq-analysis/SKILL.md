@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: IsoSeq3
 ---
 
+## Version Compatibility
+
+Reference examples tested with: minimap2 2.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Iso-Seq Analysis
+
+**"Analyze full-length isoforms from my Iso-Seq data"** → Process PacBio HiFi reads through CCS generation, primer removal, clustering, and isoform classification to discover novel transcript variants.
+- CLI: `isoseq3 refine` → `isoseq3 cluster` → `pbmm2 align` → `sqanti3_qc.py`
 
 ## IsoSeq3 Pipeline Overview
 
@@ -219,6 +234,10 @@ tama_merge.py \
 ```
 
 ## Python Processing
+
+**Goal:** Summarize Iso-Seq clustering results including isoform counts, read support, and transcript lengths.
+
+**Approach:** Parse the cluster report CSV for per-isoform read counts and extract sequence lengths from the HQ FASTA.
 
 ```python
 import pysam

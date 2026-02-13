@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: DESeq2 1.42+, cutadapt 4.4+ | Verify API if version differs
 # Complete small RNA-seq pipeline
 
 FASTQ=$1

@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, limma 3.58+ | Verify API if version differs
 library(chromVAR)
 library(motifmatchr)
 library(BSgenome.Hsapiens.UCSC.hg38)

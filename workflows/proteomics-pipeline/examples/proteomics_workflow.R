@@ -1,3 +1,4 @@
+# Reference: MSnbase 2.28+, ggplot2 3.5+, limma 3.58+ | Verify API if version differs
 # Complete proteomics workflow: MaxQuant to differential proteins
 library(limma)
 library(ggplot2)

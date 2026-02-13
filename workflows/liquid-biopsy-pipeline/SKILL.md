@@ -5,7 +5,21 @@ tool_type: mixed
 primary_tool: ichorCNA
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BWA 0.7.17+, VarDict 1.8+, fgbio 2.1+, ichorCNA 0.5+, numpy 1.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Liquid Biopsy Analysis Pipeline
+
+**"Analyze my liquid biopsy cfDNA data end-to-end"** → Orchestrate UMI-aware preprocessing (fgbio), ctDNA mutation detection (VarDict), tumor fraction estimation (ichorCNA), fragmentomics analysis, and longitudinal monitoring for treatment response.
 
 Complete workflow for cfDNA analysis from sequencing to clinical interpretation.
 

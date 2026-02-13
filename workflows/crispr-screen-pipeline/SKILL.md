@@ -12,7 +12,21 @@ depends_on:
   - crispr-screens/batch-correction
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MAGeCK 0.5+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # CRISPR Screen Pipeline
+
+**"Analyze my pooled CRISPR screen from FASTQ to hit genes"** → Orchestrate guide counting, library representation QC, MAGeCK normalization and testing, multi-method hit calling (BAGEL2, drugZ), and consensus hit identification.
 
 ## Pipeline Overview
 

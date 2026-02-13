@@ -19,7 +19,20 @@ qc_checkpoints:
   - after_footprinting: "Motif enrichment validates TF activity"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, MACS3 3.0+, bedtools 2.31+, deepTools 3.5+, fastp 0.23+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ATAC-seq Pipeline
+
+**"Run end-to-end ATAC-seq analysis from FASTQ to differential accessibility"** → Orchestrate QC, Bowtie2 alignment, MACS3 peak calling, FRiP/TSS enrichment QC, differential accessibility, and optional TOBIAS footprinting.
 
 Complete workflow from raw ATAC-seq FASTQ files to accessibility peaks, differential analysis, and TF footprinting.
 

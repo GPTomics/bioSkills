@@ -17,7 +17,20 @@ qc_checkpoints:
   - after_scoring: "Top candidates prioritized by immunogenicity"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Ensembl VEP 111+, MHCflurry 2.1+, OptiType 1.3+, matplotlib 3.8+, numpy 1.26+, pVACtools 4.1+, pandas 2.2+, seaborn 0.13+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Neoantigen Pipeline
+
+**"Predict neoantigens from my tumor sequencing data"** → Orchestrate HLA typing (OptiType), somatic variant calling, pVACtools neoantigen prediction, MHC binding scoring, and immunogenicity-based candidate ranking for personalized cancer immunotherapy.
 
 Complete workflow from somatic variants to ranked neoantigen vaccine candidates for personalized cancer immunotherapy.
 
@@ -42,7 +55,7 @@ Somatic VCF (annotated) + Tumor RNA-seq (optional)
 Ranked Vaccine Candidates (TSV + visualizations)
 ```
 
-## Prerequisites
+## Prerequisites (Ensembl VEP 111+)
 
 ```bash
 pip install pvactools mhcflurry vatools
@@ -104,7 +117,7 @@ vcf-expression-annotator somatic.vep.vcf \
     -o somatic.vep.expression.vcf
 ```
 
-### Step 3: Run pVACseq
+### Step 3: Run pVACseq (Ensembl VEP 111+)
 
 ```bash
 # Basic run with MHC Class I

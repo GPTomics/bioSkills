@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: IQ-TREE 2.2+ | Verify API if version differs
 # RAxML-ng maximum likelihood tree inference
 
 ALIGNMENT="alignment.fasta"

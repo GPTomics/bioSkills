@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: ESMFold
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, numpy 1.26+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Modern Structure Prediction
+
+**"Predict the structure of my protein"** → Run ML-based structure prediction using ESMFold (single-sequence, fast), AlphaFold3 (MSA-based, highest accuracy), Chai-1, or Boltz-1 and compare predictions across methods.
+- Python: ESMFold API via `requests`, local ESMFold with `esm.pretrained`
 
 Predict protein structures using state-of-the-art machine learning models. This covers cloud APIs, local installations, and interpretation of results.
 
@@ -22,6 +36,10 @@ Predict protein structures using state-of-the-art machine learning models. This 
 *ColabFold can predict complexes with AlphaFold-Multimer.
 
 ## ESMFold (Fastest Single-Chain)
+
+**Goal:** Predict a protein's 3D structure from its amino acid sequence using the ESMFold language model, which requires no MSA and runs in seconds.
+
+**Approach:** Submit the sequence to the ESMFold API (or run locally with the esm library), retrieve the predicted PDB coordinates, and assess per-residue confidence via pLDDT scores in the B-factor column.
 
 ### Via ESM Atlas API
 

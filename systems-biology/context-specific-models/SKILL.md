@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: cobrapy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: COBRApy 0.29+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Context-Specific Models
 
+**"Build a tissue-specific metabolic model from my expression data"** → Constrain a generic genome-scale model using transcriptomics data to produce a context-specific model reflecting the active metabolism of a particular tissue or condition, using GIMME, iMAT, or INIT algorithms.
+- Python: custom implementations with `cobra` model manipulation (COBRApy)
+
 ## GIMME Algorithm
+
+**Goal:** Build a tissue-specific metabolic model by integrating transcriptomics data with a generic genome-scale model, retaining only metabolically active reactions.
+
+**Approach:** Map gene expression values to reactions, penalize flux through lowly-expressed reactions while maintaining minimum biomass production, and remove inactive reactions to produce a context-specific model.
 
 ```python
 import cobra

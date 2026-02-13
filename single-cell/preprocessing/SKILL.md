@@ -5,11 +5,30 @@ tool_type: mixed
 primary_tool: Seurat
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Single-Cell Preprocessing
+
+**"Preprocess my scRNA-seq data"** → Filter low-quality cells/genes, normalize counts, identify highly variable genes, and prepare data for dimensionality reduction and clustering.
+- Python: `scanpy.pp.filter_cells()` → `normalize_total()` → `log1p()` → `highly_variable_genes()`
+- R: `Seurat::NormalizeData()` → `FindVariableFeatures()` → `ScaleData()`
 
 Quality control, filtering, normalization, and feature selection for scRNA-seq data.
 
 ## Scanpy (Python)
+
+**Goal:** Preprocess scRNA-seq data through QC filtering, normalization, and feature selection using Scanpy.
+
+**Approach:** Calculate per-cell quality metrics, filter low-quality cells/genes, normalize library sizes, identify highly variable genes, and scale for downstream analysis.
 
 ### Required Imports
 
@@ -112,6 +131,10 @@ sc.pp.regress_out(adata, ['total_counts', 'pct_counts_mt'])
 
 ### Complete Preprocessing Pipeline
 
+**Goal:** Run end-to-end preprocessing from raw 10X counts to analysis-ready data.
+
+**Approach:** Chain QC, filtering, normalization, HVG selection, and scaling into a single pipeline.
+
 ```python
 import scanpy as sc
 
@@ -144,6 +167,10 @@ sc.pp.scale(adata, max_value=10)
 ---
 
 ## Seurat (R)
+
+**Goal:** Preprocess scRNA-seq data through QC filtering, normalization, and feature selection using Seurat.
+
+**Approach:** Calculate mitochondrial percentages, filter cells by QC thresholds, normalize with log or SCTransform, identify variable features, and scale for PCA.
 
 ### Required Libraries
 
@@ -234,6 +261,10 @@ seurat_obj <- ScaleData(seurat_obj, vars.to.regress = c('percent.mt', 'nCount_RN
 
 ### Complete Preprocessing Pipeline (Log Normalization)
 
+**Goal:** Run end-to-end Seurat preprocessing with standard log normalization.
+
+**Approach:** Load 10X data, compute QC metrics, filter, normalize with LogNormalize, select variable features, and scale.
+
 ```r
 library(Seurat)
 
@@ -258,6 +289,10 @@ seurat_obj <- ScaleData(seurat_obj)
 ```
 
 ### Complete Preprocessing Pipeline (SCTransform)
+
+**Goal:** Run end-to-end Seurat preprocessing with SCTransform for variance-stabilized normalization.
+
+**Approach:** Load 10X data, compute QC metrics, filter, and apply SCTransform which jointly normalizes, selects HVGs, and scales.
 
 ```r
 library(Seurat)

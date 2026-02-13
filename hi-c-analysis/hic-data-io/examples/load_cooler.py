@@ -1,4 +1,5 @@
 '''Load and explore a Hi-C cooler file'''
+# Reference: cooler 0.9+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+ | Verify API if version differs
 
 import cooler
 import numpy as np

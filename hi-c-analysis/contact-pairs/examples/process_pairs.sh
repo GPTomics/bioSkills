@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: cooler 0.9+, pairtools 1.1+, pandas 2.2+ | Verify API if version differs
 # Process Hi-C pairs with pairtools
 
 SAMPLE=${1:-sample}

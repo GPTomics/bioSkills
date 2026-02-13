@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: qiime2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DADA2 1.30+, MAFFT 7.520+, QIIME2 2024.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # QIIME2 Amplicon Workflow
+
+**"Run my amplicon analysis through QIIME2"** → Process 16S/ITS amplicon data end-to-end using the QIIME2 CLI with built-in provenance tracking, from import through denoising, taxonomy, and diversity analysis.
+- CLI: `qiime dada2 denoise-paired`, `qiime diversity core-metrics-phylogenetic`
 
 ## Import Data
 
@@ -129,6 +142,10 @@ qiime diversity beta-group-significance \
 ```
 
 ## Differential Abundance (ANCOM)
+
+**Goal:** Identify taxa with significantly different abundances between groups using QIIME2's ANCOM implementation.
+
+**Approach:** Collapse the feature table to genus level, add pseudocounts for log-ratio computation, and run ANCOM to test for differential abundance per taxon.
 
 ```bash
 # Collapse to genus level

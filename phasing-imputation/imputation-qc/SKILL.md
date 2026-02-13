@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: bcftools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Imputation QC
+
+**"Filter my imputed genotypes by quality"** → Assess imputation accuracy using INFO/R2 scores, filter low-quality imputed variants, and validate against known genotypes before downstream GWAS.
+- CLI: `bcftools query -f '%CHROM %POS %INFO/R2\n'` to extract quality scores
+- Python: `pandas` for R2 distribution analysis and threshold selection
 
 ## Extract INFO Scores
 
@@ -109,6 +124,10 @@ grep "^CN" concordance.txt
 ```
 
 ## Python: Comprehensive QC Report
+
+**Goal:** Generate a comprehensive imputation quality summary with overall statistics, MAF-stratified accuracy, and per-chromosome breakdowns.
+
+**Approach:** Load INFO scores into a dataframe, compute aggregate R2 statistics, bin variants by minor allele frequency for quality stratification, and produce per-chromosome summaries.
 
 ```python
 import pandas as pd

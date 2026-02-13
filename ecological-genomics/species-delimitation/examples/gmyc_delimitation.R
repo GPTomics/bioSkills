@@ -1,3 +1,4 @@
+# Reference: BioPython 1.83+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
 library(splits)
 library(ape)
 library(phytools)

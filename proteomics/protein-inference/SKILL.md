@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: pyOpenMS
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pyOpenMS 3.1+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion("<pkg>")` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Protein Inference
+
+**"Resolve protein groups from my peptide identifications"** → Group peptide-spectrum matches into protein groups, resolving shared-peptide ambiguity using parsimony or probabilistic methods, then apply protein-level FDR.
+- Python: `pyopenms.ProteinInference()` for parsimony-based grouping
+- R: Bioconductor protein inference workflows
 
 ## The Protein Inference Problem
 
@@ -25,6 +40,10 @@ peptide_to_proteins = {
 ```
 
 ## Parsimony Principle
+
+**Goal:** Resolve protein identification ambiguity from shared peptides by finding the minimal protein set explaining all observed peptides.
+
+**Approach:** Build a peptide-to-protein mapping, then greedily select proteins that cover the most unassigned peptides until all peptides are accounted for, producing a minimal explanatory protein list.
 
 ```python
 def apply_parsimony(peptide_protein_map):

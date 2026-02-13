@@ -1,4 +1,5 @@
 '''Ancestral sequence reconstruction'''
+# Reference: biopython 1.83+, iq-tree 2.2+, paml 4.10+ | Verify API if version differs
 
 import subprocess
 import os

@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: lipidr
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, xcms 4.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Lipidomics Analysis
+
+**"Analyze my lipidomics data"** → Identify and quantify lipid species by class and chain composition, then perform differential lipid analysis and pathway interpretation.
+- R: `lipidr::as_lipidomics_experiment()`, `de_analysis()`
+- CLI: MS-DIAL or LipidSearch for lipid identification
 
 ## R Workflow with lipidr
 
@@ -91,6 +106,10 @@ chain_enrich <- lsea(de_results, rank.by = 'logFC', type = 'chain')
 ```
 
 ## Python Workflow with LipidFinder
+
+**Goal:** Identify and classify lipid species from LC-MS data using PyOpenMS and LipidMaps annotation.
+
+**Approach:** Load mzML data, extract features from XCMS preprocessing, annotate by m/z against LipidMaps, and parse lipid nomenclature for class and chain composition.
 
 ```python
 import pandas as pd

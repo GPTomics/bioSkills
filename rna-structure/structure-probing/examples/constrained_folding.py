@@ -3,6 +3,7 @@
 SHAPE-constrained RNA structure prediction.
 Loads ShapeMapper2 reactivity profiles and uses them to constrain ViennaRNA folding.
 '''
+# Reference: ViennaRNA 2.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 import RNA
 import pandas as pd

@@ -15,7 +15,20 @@ qc_checkpoints:
   - after_association: "Lambda ~1.0, expected QQ plot"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # GWAS Pipeline
+
+**"Run a GWAS from my genotype data"** → Orchestrate sample/variant QC (PLINK2), population stratification (PCA), association testing (linear/logistic regression), multiple testing correction, and Manhattan/QQ plot visualization.
 
 Complete workflow for genome-wide association studies from genotype data to significant associations.
 

@@ -5,11 +5,28 @@ tool_type: r
 primary_tool: alakazam
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MiXCR 4.6+, ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Immcantation Analysis
+
+**"Analyze B cell repertoire evolution and clonal lineages"** → Study somatic hypermutation, build B cell phylogenies, and track affinity maturation using the Immcantation framework for BCR repertoire analysis.
+- R: `alakazam::plotMutability()`, `dowser::buildPhylipLineage()`, `scoper::spectralClones()`
 
 Requires Immcantation suite: alakazam 1.3+, shazam 1.2+, scoper 1.3+, dowser 2.0+, tigger 1.1+.
 
 ## Load and Format Data
+
+**Goal:** Import AIRR-formatted repertoire data into the Immcantation framework for downstream analysis.
+
+**Approach:** Read Change-O/AIRR tab-delimited files into R data frames with required V(D)J annotation columns.
 
 ```r
 library(alakazam)
@@ -24,6 +41,10 @@ db <- readChangeoDb('clones_airr.tsv')
 ```
 
 ## Clonal Clustering
+
+**Goal:** Group B cell sequences into clonal lineages based on junction sequence similarity.
+
+**Approach:** Apply hierarchical clustering on nucleotide distance of junction regions with a threshold-based cutoff.
 
 ```r
 library(scoper)
@@ -42,6 +63,10 @@ clone_sizes <- countClones(db, groups = 'sample_id')
 ```
 
 ## Somatic Hypermutation Analysis
+
+**Goal:** Quantify somatic hypermutation rates across replacement and silent categories for each clone.
+
+**Approach:** Compare observed sequences to germline alignments using the S5F targeting model to count and classify mutations.
 
 ```r
 # Calculate mutation frequencies
@@ -68,6 +93,10 @@ mutation_summary <- db %>%
 
 ## Selection Analysis
 
+**Goal:** Test whether observed replacement/silent mutation ratios deviate from neutral expectation, indicating positive or negative selection.
+
+**Approach:** Estimate BASELINe selection strength (sigma) by comparing observed R/S ratios to a null model of somatic hypermutation targeting.
+
 ```r
 library(shazam)
 
@@ -90,6 +119,10 @@ selection <- summarizeBaseline(baseline, returnType = 'df')
 ```
 
 ## Build Clonal Lineage Trees
+
+**Goal:** Reconstruct phylogenetic lineage trees for each B cell clone to visualize affinity maturation pathways.
+
+**Approach:** Build maximum parsimony trees from clonal sequence alignments using PHYLIP's dnapars algorithm via dowser.
 
 ```r
 library(dowser)
@@ -114,6 +147,10 @@ plotTrees(trees[[1]])
 
 ## Germline Inference
 
+**Goal:** Discover novel V gene alleles and correct V gene assignments using individual-level genotyping.
+
+**Approach:** Infer novel alleles from mutation patterns with TIgGER, build a personalized genotype, and reassign allele calls.
+
 ```r
 library(tigger)
 
@@ -132,6 +169,10 @@ db <- reassignAlleles(db, genotype)
 ```
 
 ## Visualization
+
+**Goal:** Generate summary plots of mutation frequencies and V gene usage across samples.
+
+**Approach:** Plot mutation frequency distributions with ggplot2 histograms and V gene usage bar charts via alakazam helpers.
 
 ```r
 # Plot mutation frequency distribution

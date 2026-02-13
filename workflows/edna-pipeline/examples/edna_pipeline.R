@@ -1,3 +1,4 @@
+# Reference: DADA2 1.30+, FastQC 0.12+, MultiQC 1.21+, cutadapt 4.4+, phyloseq 1.46+, vegan 2.6+ | Verify API if version differs
 ## eDNA metabarcoding pipeline (DADA2 path): FASTQ to community ecology.
 ## Marker: COI (Leray primers) - adjust truncLen and reference DB for other markers.
 

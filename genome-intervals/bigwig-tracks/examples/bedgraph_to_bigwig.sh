@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bedtools 2.31+, numpy 1.26+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
 # Convert bedGraph to bigWig
 
 # Usage: ./bedgraph_to_bigwig.sh input.bedGraph chrom.sizes output.bw

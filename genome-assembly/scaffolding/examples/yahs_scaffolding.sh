@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BUSCO 5.5+, BWA 0.7.17+, QUAST 5.2+, bedtools 2.31+, samtools 1.19+ | Verify API if version differs
 set -euo pipefail
 
 ASSEMBLY=$1

@@ -5,9 +5,24 @@ tool_type: mixed
 primary_tool: pandas
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Metadata Joins
 
 ## Load Sample Metadata
+
+**Goal:** Read sample metadata into a DataFrame aligned with the count matrix columns.
+
+**Approach:** Load metadata CSV with sample IDs as the index, matching count matrix column names.
 
 ```python
 import pandas as pd
@@ -20,6 +35,12 @@ metadata = pd.read_csv('sample_info.csv', index_col=0)
 ```
 
 ## Basic Join
+
+**Goal:** Align count matrix columns with metadata rows so samples are in matching order.
+
+**Approach:** Find common samples between both data sources, subset and reorder to ensure alignment.
+
+**"Match my sample metadata to my count matrix"** → Intersect sample identifiers between the count matrix and metadata, then reorder both to match.
 
 ```python
 import pandas as pd
@@ -40,6 +61,10 @@ assert all(counts.columns == metadata.index)
 ```
 
 ## Handle Sample Name Mismatches
+
+**Goal:** Identify and resolve discrepancies between count matrix column names and metadata row names.
+
+**Approach:** Report samples present in only one data source and subset to the intersection.
 
 ```python
 def harmonize_sample_names(counts, metadata):
@@ -64,6 +89,10 @@ counts, metadata = harmonize_sample_names(counts, metadata)
 ```
 
 ## Flexible Sample Name Matching
+
+**Goal:** Automatically reconcile sample names that differ by common formatting variations.
+
+**Approach:** Try a series of string transformations (underscore/dash swap, suffix removal, case change) until names match.
 
 ```python
 def fuzzy_match_samples(counts, metadata):
@@ -97,6 +126,10 @@ def fuzzy_match_samples(counts, metadata):
 ```
 
 ## Add Gene Annotations
+
+**Goal:** Enrich the count matrix with gene-level annotations (symbol, name, biotype).
+
+**Approach:** Query mygene for annotation fields and merge with the count matrix on gene IDs.
 
 ```python
 import mygene

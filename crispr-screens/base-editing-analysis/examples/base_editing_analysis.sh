@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: CRISPResso2 2.2+, pandas 2.2+ | Verify API if version differs
 # Base Editing Analysis with CRISPResso2
 # Demonstrates analysis of CBE and ABE experiments
 

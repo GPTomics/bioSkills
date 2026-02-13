@@ -5,9 +5,26 @@ tool_type: python
 primary_tool: pandas
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Variant Prioritization
 
+**"Prioritize candidate disease variants from my exome data"** → Filter and rank variants by pathogenicity scores, population frequency, inheritance pattern, and clinical evidence to identify candidate disease-causing mutations.
+- Python: `pandas` for multi-criteria filtering with ACMG/AMP classification logic
+
 ## Basic Filtering Pipeline
+
+**Goal:** Filter variants to retain rare, potentially pathogenic candidates for rare disease analysis.
+
+**Approach:** Apply gnomAD population frequency and ClinVar significance filters, retaining pathogenic, VUS, and unannotated variants.
 
 ```python
 import pandas as pd
@@ -34,6 +51,10 @@ def prioritize_variants(df, gnomad_af_col='gnomad_af', clinvar_col='clinvar_sig'
 ```
 
 ## ACMG-Style Filtering
+
+**Goal:** Score variants using ACMG-style evidence criteria for pathogenicity assessment.
+
+**Approach:** Evaluate PM2 (population rarity) and PVS1 (loss-of-function) evidence, then compute a weighted priority score.
 
 ```python
 def acmg_filter(df):
@@ -63,6 +84,10 @@ def acmg_filter(df):
 ```
 
 ## Multi-Database Prioritization
+
+**Goal:** Prioritize variants using aggregated evidence from ClinVar, gnomAD, CADD, and REVEL in a single query.
+
+**Approach:** Fetch annotations via myvariant.info, then compute a composite priority score weighting clinical, population, and computational evidence.
 
 ```python
 import myvariant
@@ -132,6 +157,10 @@ def prioritize_with_scores(df):
 
 ## Inheritance-Based Filtering
 
+**Goal:** Filter variants by expected inheritance pattern (autosomal dominant, recessive, or X-linked).
+
+**Approach:** Select heterozygous ultra-rare variants for AD, or homozygous plus compound heterozygous candidates for AR.
+
 ```python
 def filter_by_inheritance(df, inheritance='AD'):
     '''Filter variants by inheritance pattern
@@ -160,6 +189,10 @@ def filter_by_inheritance(df, inheritance='AD'):
 ```
 
 ## Output Priority Tiers
+
+**Goal:** Assign clinical interpretation tiers (1-4) for structured reporting of prioritized variants.
+
+**Approach:** Combine ClinVar pathogenicity, population rarity, and computational predictions to classify into strong, potential, uncertain, or benign tiers.
 
 ```python
 def assign_tiers(df):

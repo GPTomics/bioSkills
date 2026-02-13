@@ -1,4 +1,5 @@
 '''Find restriction sites in a circular plasmid'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import SeqIO
 from Bio.Restriction import RestrictionBatch, Analysis, CommOnly

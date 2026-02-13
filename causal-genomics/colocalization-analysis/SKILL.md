@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: coloc
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Colocalization Analysis
+
+**"Test whether my GWAS signal and eQTL share the same causal variant"** → Compute Bayesian posterior probabilities for five colocalization hypotheses (no association, trait-1-only, trait-2-only, distinct causal variants, shared causal variant) to distinguish true causal overlap from LD-driven coincidence.
+- R: `coloc::coloc.abf()` for approximate Bayes factor colocalization
 
 ## Overview
 
@@ -20,6 +33,10 @@ Five hypotheses tested by coloc:
 - H4: Both associated, shared causal variant
 
 ## coloc.abf Analysis
+
+**Goal:** Test whether two traits share a causal variant at a GWAS locus using Bayesian colocalization.
+
+**Approach:** Format summary statistics for each trait as named lists, run coloc.abf to compute posterior probabilities for five hypotheses (H0-H4), and interpret PP.H4 as evidence for a shared causal variant.
 
 ```r
 library(coloc)
@@ -100,6 +117,10 @@ result <- coloc.abf(dataset1 = gwas_pval, dataset2 = eqtl_data)
 
 ## SuSiE-Coloc (Multiple Causal Variants)
 
+**Goal:** Test colocalization at loci with multiple independent causal signals.
+
+**Approach:** Run SuSiE fine-mapping on each dataset to identify credible sets, then test colocalization between all pairs of credible sets using coloc.susie.
+
 ```r
 library(coloc)
 library(susieR)
@@ -133,6 +154,10 @@ print(result_susie$summary)
 ```
 
 ## HyPrColoc (Multi-Trait)
+
+**Goal:** Test colocalization across three or more traits simultaneously to identify shared causal variant clusters.
+
+**Approach:** Provide beta and SE matrices (SNPs x traits) to hyprcoloc, which clusters traits sharing a causal variant using a branch-and-bound algorithm.
 
 ```r
 # install.packages('remotes')

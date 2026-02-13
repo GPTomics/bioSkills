@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Reference: CNVkit 0.9+, ichorCNA 0.5+, pandas 2.2+ | Verify API if version differs
 # Tumor fraction estimation with ichorCNA
 
 library(ichorCNA)

@@ -18,7 +18,19 @@ qc_checkpoints:
   - after_calling: "Ti/Tv ratio ~2.1 for WGS, dbSNP overlap >95%"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BWA-MEM2 2.2.1+, Ensembl VEP 111+, GATK 4.5+, bcftools 1.19+, fastp 0.23+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # FASTQ to Variants Workflow
+
+**"Call variants from my whole-genome or exome FASTQ files"** → Orchestrate fastp QC, BWA-MEM2 alignment, duplicate marking, BQSR, GATK HaplotypeCaller variant calling, and VQSR/hard filtering to produce filtered VCF output.
 
 Complete pipeline from raw DNA sequencing FASTQ files to filtered variant calls.
 

@@ -17,7 +17,19 @@ qc_checkpoints:
   - after_coloc: "PP.H4 > 0.8 for strong colocalization"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: TwoSampleMR 0.5+, coloc 5.2+, susieR 0.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion("<pkg>")` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Causal Genomics Pipeline
+
+**"Run post-GWAS causal inference from summary statistics"** → Orchestrate instrument selection, Mendelian randomization, pleiotropy sensitivity analyses, colocalization, fine-mapping, and mediation analysis to identify causal exposures and mechanisms.
 
 Complete post-GWAS causal inference workflow from summary statistics to causal mechanisms.
 

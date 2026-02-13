@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: HOMER
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, bedtools 2.31+, matplotlib 3.8+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Motif Analysis
+
+**"Find enriched motifs in my ChIP-seq peaks"** → Discover de novo DNA-binding motifs and test for known TF motif enrichment in peak sequences.
+- CLI: `findMotifsGenome.pl peaks.bed hg38 output/` (HOMER), `meme-chip -db JASPAR peaks.fa` (MEME)
 
 Identify DNA sequence motifs enriched in ChIP-seq or ATAC-seq peaks to discover transcription factor binding sites.
 
@@ -31,6 +45,10 @@ perl /path/to/homer/configureHomer.pl -install mm10
 ```
 
 ### De Novo Motif Discovery
+
+**Goal:** Discover enriched DNA-binding motifs directly from ChIP-seq peak sequences.
+
+**Approach:** Run findMotifsGenome.pl on a peak BED file with a specified fragment size, optionally providing background regions and target motif lengths.
 
 ```bash
 # Basic motif finding
@@ -147,6 +165,10 @@ meme peaks.fa -dna -oc meme_output -bfile background.model -mod zoops -nmotifs 1
 
 ### MEME-ChIP (Comprehensive Pipeline)
 
+**Goal:** Run a comprehensive motif analysis pipeline combining de novo discovery, central enrichment testing, and database comparison.
+
+**Approach:** Provide peak FASTA sequences and a motif database to MEME-ChIP, which runs MEME, DREME, CentriMo, TOMTOM, and FIMO in a single invocation.
+
 ```bash
 # All-in-one ChIP-seq motif analysis
 meme-chip -oc meme_chip_output -db motif_database.meme peaks.fa
@@ -259,6 +281,10 @@ for m in record:
 ## Complete Workflows
 
 ### ChIP-seq Motif Analysis
+
+**Goal:** Run a complete motif analysis workflow combining HOMER and MEME-ChIP on ChIP-seq peaks.
+
+**Approach:** Run HOMER findMotifsGenome.pl for fast de novo and known motif discovery, then extract centered peak sequences and run MEME-ChIP for a complementary analysis.
 
 ```bash
 #!/bin/bash

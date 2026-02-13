@@ -5,9 +5,29 @@ tool_type: mixed
 primary_tool: deeptools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, deepTools 3.5+, numpy 1.26+, pandas 2.2+, picard 3.1+, pyBigWig 0.3+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ATAC-seq Quality Control
 
+**"Check the quality of my ATAC-seq library"** → Evaluate fragment size distribution (nucleosome periodicity), TSS enrichment, FRiP, and library complexity to assess chromatin accessibility experiment quality.
+- CLI: `deeptools bamPEFragmentSize`, `picard CollectInsertSizeMetrics`
+- Python: `pysam` for custom fragment analysis
+
 ## Fragment Size Distribution
+
+**Goal:** Assess ATAC-seq library quality by visualizing the characteristic nucleosome periodicity in fragment sizes.
+
+**Approach:** Extract insert sizes from the BAM file using Picard or samtools, producing a distribution that should show NFR (<100 bp) and mono-nucleosome (~200 bp) peaks.
 
 ```bash
 # Using Picard
@@ -25,6 +45,10 @@ samtools view -f 66 sample.bam | \
 ```
 
 ## TSS Enrichment Score
+
+**Goal:** Quantify signal enrichment at transcription start sites as a key ATAC-seq quality metric.
+
+**Approach:** Create a TSS BED file, compute a signal matrix around TSS positions using deepTools, then plot the enrichment profile.
 
 ```bash
 # Using deepTools
@@ -46,6 +70,10 @@ plotProfile -m tss_matrix.gz \
 ```
 
 ## Calculate TSS Enrichment Score
+
+**Goal:** Compute a numeric TSS enrichment score from a bigWig signal track.
+
+**Approach:** Sample signal values in windows around TSS positions, average across all TSSs, then divide center signal by flanking background.
 
 ```python
 import numpy as np
@@ -114,6 +142,10 @@ echo "Mitochondrial fraction: $mt_frac"
 ```
 
 ## Library Complexity (NRF, PBC1, PBC2)
+
+**Goal:** Measure library complexity to detect over-amplification or low-diversity libraries.
+
+**Approach:** Calculate NRF (unique/total reads), PBC1 (1-read locations / all locations), and PBC2 (1-read / 2-read locations) using Picard or custom counting.
 
 ```bash
 # Using Picard EstimateLibraryComplexity
@@ -196,6 +228,10 @@ nucs <- nucleosomePositioningScore(bamfile, TxDb.Hsapiens.UCSC.hg38.knownGene)
 ```
 
 ## Comprehensive QC Report
+
+**Goal:** Generate a single QC summary combining all major ATAC-seq quality metrics.
+
+**Approach:** Run samtools and bedtools commands to collect total reads, mapping rate, mitochondrial fraction, FRiP, and peak count, then write a consolidated report.
 
 ```python
 import subprocess

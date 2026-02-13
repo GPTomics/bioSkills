@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+ | Verify API if version differs
 # Call variants from BAM file using bcftools
 
 set -e

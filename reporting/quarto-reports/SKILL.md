@@ -5,7 +5,20 @@ tool_type: mixed
 primary_tool: Quarto
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Quarto 1.4+, DESeq2 1.42+, ggplot2 3.5+, matplotlib 3.8+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Quarto Reports
+
+**"Create a Quarto analysis report"** → Write reproducible documents mixing code (Python/R), narrative, and figures that render to HTML/PDF/Word.
+- CLI: `quarto render report.qmd --to html`
 
 ## Basic Document
 

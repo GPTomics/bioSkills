@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, bcftools 1.19+, bedtools 2.31+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
 # Generate consensus sequence from VCF
 
 set -e

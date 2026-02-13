@@ -1,4 +1,5 @@
 '''Call chromatin loops from Hi-C data'''
+# Reference: bedtools 2.31+, cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, pybedtools 0.9+ | Verify API if version differs
 
 import cooler
 import cooltools

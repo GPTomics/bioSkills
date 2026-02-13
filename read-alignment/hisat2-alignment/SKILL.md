@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: HISAT2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # HISAT2 RNA-seq Alignment
+
+**"Align RNA-seq reads with HISAT2"** → Map RNA-seq reads to a reference genome with splice-aware alignment. Suitable for gene expression quantification workflows.
+- CLI: `hisat2 -x index -1 R1.fq -2 R2.fq | samtools sort -o aligned.bam`
 
 ## Build Index
 
@@ -82,6 +95,10 @@ hisat2 -p 8 -x hisat2_index \
 ```
 
 ## Two-Pass Alignment (Manual)
+
+**Goal:** Improve splice junction sensitivity by discovering novel junctions across all samples in a first pass, then realigning with the combined junction set.
+
+**Approach:** Run HISAT2 on each sample to extract novel splice sites, merge and deduplicate junctions across samples, then realign all samples using the combined junction catalog.
 
 ```bash
 # Pass 1: Discover junctions from all samples

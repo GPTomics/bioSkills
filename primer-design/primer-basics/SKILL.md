@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: primer3-py
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, pandas 2.2+, primer3-py 2.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # PCR Primer Design
+
+**"Design primers for this sequence"** → Given a template sequence and constraints (product size, Tm, GC%), find ranked primer pairs that amplify the target region.
+- Python: `primer3.design_primers()` (primer3-py)
+- CLI: `primer3_core` (Primer3)
 
 Design PCR primers using primer3-py, the Python binding for Primer3.
 
@@ -225,6 +239,11 @@ print(f'Heterodimer Tm: {heterodimer.tm:.1f}C, dG: {heterodimer.dg:.1f}')
 
 ## Format Results as DataFrame
 
+**Goal:** Convert primer3 results into a tabular format for comparison, filtering, or export.
+
+**Approach:** Loop over returned pairs, extract sequence/Tm/GC/size/penalty for each, and build a DataFrame.
+
+**Reference (pandas 2.2+):**
 ```python
 import pandas as pd
 

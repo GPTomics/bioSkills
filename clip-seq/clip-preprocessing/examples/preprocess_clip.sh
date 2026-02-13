@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: cutadapt 4.4+, pysam 0.22+ | Verify API if version differs
 # CLIP-seq preprocessing with UMI handling
 
 R1=$1

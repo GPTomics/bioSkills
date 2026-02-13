@@ -5,9 +5,25 @@ tool_type: r
 primary_tool: ReactomePA
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), ReactomePA 1.46+, clusterProfiler 4.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Reactome Pathway Enrichment
 
 ## Core Pattern - Over-Representation Analysis
+
+**Goal:** Identify Reactome pathways over-represented in a gene list from differential expression or other analyses.
+
+**Approach:** Test for enrichment using the hypergeometric test via ReactomePA enrichPathway against curated peer-reviewed pathways.
+
+**"Run pathway enrichment against Reactome"** → Test whether genes in curated Reactome pathways are over-represented among significant genes.
 
 ```r
 library(ReactomePA)
@@ -26,6 +42,10 @@ head(as.data.frame(pathway_result))
 
 ## Prepare Gene List from DE Results
 
+**Goal:** Extract significant Entrez gene IDs from differential expression results for Reactome enrichment.
+
+**Approach:** Filter by significance and fold change, then convert symbols to Entrez IDs using bitr.
+
 ```r
 library(clusterProfiler)
 
@@ -37,6 +57,10 @@ entrez_ids <- gene_ids$ENTREZID
 ```
 
 ## GSEA on Reactome Pathways
+
+**Goal:** Detect coordinated expression changes in Reactome pathways using all genes ranked by a statistic.
+
+**Approach:** Create a sorted named vector from DE results and run gsePathway for rank-based enrichment.
 
 ```r
 # Create ranked gene list (named vector sorted by statistic)
@@ -57,6 +81,10 @@ head(as.data.frame(gsea_result))
 
 ## With Background Universe
 
+**Goal:** Restrict enrichment testing to only genes that were actually measured in the experiment.
+
+**Approach:** Pass all tested gene IDs as the universe parameter to enrichPathway.
+
 ```r
 all_genes <- de_results$entrez_id  # All tested genes
 
@@ -70,6 +98,10 @@ pathway_result <- enrichPathway(
 ```
 
 ## Visualization
+
+**Goal:** Create publication-quality plots of Reactome enrichment results.
+
+**Approach:** Use enrichplot functions (dotplot, barplot, emapplot, cnetplot, gseaplot2) on enrichment result objects.
 
 ```r
 library(enrichplot)
@@ -127,6 +159,10 @@ pathway_zfish <- enrichPathway(gene = zfish_entrez, organism = 'zebrafish', read
 ```
 
 ## Compare Clusters
+
+**Goal:** Compare Reactome pathway enrichment across multiple gene lists (e.g., upregulated vs downregulated).
+
+**Approach:** Use compareCluster with enrichPathway to run enrichment per group and visualize side by side.
 
 ```r
 # Compare pathways across multiple gene lists

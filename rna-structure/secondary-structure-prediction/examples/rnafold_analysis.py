@@ -4,6 +4,7 @@ RNA secondary structure prediction using ViennaRNA Python API.
 Demonstrates MFE folding, partition function analysis, constrained folding,
 and structure comparison.
 '''
+# Reference: infernal 1.1+, matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 
 import RNA
 import numpy as np

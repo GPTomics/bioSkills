@@ -1,4 +1,5 @@
 '''Protein alignment using BLOSUM62 substitution matrix'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.Align import PairwiseAligner, substitution_matrices
 from Bio.Seq import Seq

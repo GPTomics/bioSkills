@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Salmon 1.10+, fastp 0.23+, kallisto 0.50+, pandas 2.2+ | Verify API if version differs
 # Salmon quantification workflow
 
 TRANSCRIPTOME="Homo_sapiens.GRCh38.cdna.all.fa"

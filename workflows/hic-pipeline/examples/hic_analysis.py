@@ -1,3 +1,4 @@
+# Reference: bwa-mem2 2.2.1+, cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pairtools 1.1+, pandas 2.2+ | Verify API if version differs
 # Hi-C analysis: compartments, TADs, and loops
 
 import cooler

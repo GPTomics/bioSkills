@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: gffread
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bedtools 2.31+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # GTF/GFF Handling
+
+**"Parse gene annotations from GTF/GFF"** → Read gene models, extract features by type (gene, exon, CDS), and query attributes from annotation files.
+- Python: `gffutils.create_db('file.gtf')` (gffutils), `pyranges.read_gtf()` (pyranges)
+- CLI: `awk` on tab-delimited GTF fields
 
 GTF and GFF3 are standard gene annotation formats. Both use 1-based coordinates.
 
@@ -238,6 +253,10 @@ awk '$3 == "exon"' annotation.gtf | \
 ```
 
 ## Python: GTF to BED Conversion
+
+**Goal:** Convert GTF annotation features to BED format with proper coordinate system translation for use with bedtools operations.
+
+**Approach:** Load the GTF with gtfparse, filter to the desired feature type (gene, exon, etc.), convert from 1-based inclusive GTF coordinates to 0-based half-open BED coordinates by subtracting 1 from start positions.
 
 ```python
 import gtfparse

@@ -5,9 +5,27 @@ tool_type: mixed
 primary_tool: PAML
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, IQ-TREE 2.2+, PAML 4.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Ancestral Sequence Reconstruction
 
+**"Infer ancestral protein sequences at phylogenetic nodes"** → Reconstruct ancient sequences using marginal or joint likelihood methods on a phylogeny for ancestral protein resurrection or evolutionary trajectory analysis.
+- Python: PAML `codeml` with `RateAncestor = 1` for ancestral reconstruction
+- CLI: `iqtree2 -s aln -m model --ancestral` for marginal reconstruction
+
 ## PAML Ancestral Reconstruction
+
+**Goal:** Reconstruct ancestral sequences at internal phylogenetic nodes using maximum likelihood.
+
+**Approach:** Create a codeml/baseml control file with RateAncestor=1, run PAML, parse the RST file for ancestral sequences and site-wise posterior probabilities.
 
 ```python
 '''Ancestral sequence reconstruction with PAML codeml/baseml'''
@@ -142,6 +160,10 @@ def extract_marginal_probabilities(rst_file):
 
 ## IQ-TREE Ancestral Reconstruction
 
+**Goal:** Perform ancestral reconstruction using IQ-TREE's marginal likelihood method.
+
+**Approach:** Run iqtree2 with --ancestral flag to produce a .state file containing per-node, per-site state probabilities, then parse into ancestral sequences.
+
 ```python
 def run_iqtree_asr(alignment, tree=None, model='LG+G4', output_prefix='asr'):
     '''Run IQ-TREE for ancestral sequence reconstruction
@@ -253,6 +275,10 @@ def calculate_sequence_confidence(site_probs):
 ```
 
 ## Ancestral Protein Resurrection
+
+**Goal:** Design protein constructs for experimental resurrection of ancestral proteins.
+
+**Approach:** Use the maximum-likelihood ancestral sequence as the primary construct, then create alternative constructs at ambiguous sites (P < 0.95) for experimental validation.
 
 ```python
 def design_asr_construct(ancestral_seq, extant_reference, ambiguous_sites):

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0+, eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+ | Verify API if version differs
 # Complete prokaryotic genome annotation pipeline with Bakta
 set -e
 

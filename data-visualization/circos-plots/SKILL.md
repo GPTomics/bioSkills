@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: Circos
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Circos Plots
+
+**"Create a circos plot"** → Visualize genomic data in a circular layout showing chromosomes, links, and data tracks.
+- Python: `pycircos`, `pyCirclize` (Python circular layout)
+- R: `circlize::chordDiagram()`, `circlize::circos.genomicTrack()`
 
 Circular genome visualizations for displaying multiple data tracks around chromosome ideograms.
 
@@ -331,6 +347,10 @@ circos.clear()
 ```
 
 ## Complete Workflow: Variant Summary
+
+**Goal:** Create a multi-track circos plot summarizing genomic variant and CNV data across all chromosomes.
+
+**Approach:** Initialize a pyCircos circle with chromosome ideograms, add a variant density bar track from binned counts, overlay a CNV gain/loss fill track, and export the composite figure.
 
 ```python
 from pycircos import Gcircle, Garc

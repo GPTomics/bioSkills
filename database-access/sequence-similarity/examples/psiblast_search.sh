@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, NCBI BLAST+ 2.15+ | Verify API if version differs
 # Run PSI-BLAST with multiple iterations
 
 QUERY=$1

@@ -5,7 +5,21 @@ tool_type: cli
 primary_tool: bismark
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Methylation Calling
+
+**"Extract methylation calls from my Bismark BAM"** → Generate per-cytosine methylation reports (CpG, CHG, CHH contexts) from aligned bisulfite sequencing data.
+- CLI: `bismark_methylation_extractor --bedGraph --cytosine_report sample.bam`
 
 ## Basic Extraction
 

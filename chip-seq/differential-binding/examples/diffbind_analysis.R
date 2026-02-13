@@ -1,3 +1,4 @@
+# Reference: DESeq2 1.42+, edgeR 4.0+ | Verify API if version differs
 library(DiffBind)
 library(rtracklayer)
 

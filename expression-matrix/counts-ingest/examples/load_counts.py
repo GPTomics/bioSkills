@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Load count matrices from various formats'''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 import anndata as ad

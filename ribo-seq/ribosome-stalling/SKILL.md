@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Plastid
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, numpy 1.26+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Ribosome Stalling Detection
+
+**"Find ribosome pause sites in my data"** → Detect codon-level ribosome stalling and pausing events from Ribo-seq footprint density, identifying positions with abnormally high ribosome occupancy.
+- Python: `plastid` for codon-resolution density calculation, `scipy` for statistical scoring
 
 ## Concept
 
@@ -16,6 +29,10 @@ Ribosome stalling/pausing occurs when ribosomes slow or stop at specific codons:
 - Nascent chain interactions
 
 ## Calculate Codon-Level Occupancy
+
+**Goal:** Quantify ribosome occupancy at each codon position across all transcripts.
+
+**Approach:** Map reads to P-sites using a fixed offset, then bin counts into codons along each CDS.
 
 ```python
 from plastid import BAMGenomeArray, GTF2_TranscriptAssembler, FivePrimeMapFactory
@@ -55,6 +72,10 @@ def get_codon_occupancy(bam_path, gtf_path, psite_offset=12):
 
 ## Identify Pause Sites
 
+**Goal:** Detect codon positions with significantly elevated ribosome occupancy indicative of translational pausing.
+
+**Approach:** Z-score normalize occupancy per transcript and flag positions exceeding a threshold (default z > 3).
+
 ```python
 def find_pause_sites(codon_occupancy, threshold_zscore=3):
     '''Find positions with significantly elevated ribosome occupancy
@@ -93,6 +114,10 @@ def find_pause_sites(codon_occupancy, threshold_zscore=3):
 
 ## Codon-Specific Occupancy
 
+**Goal:** Calculate average ribosome occupancy for each of the 64 codon types across all genes.
+
+**Approach:** Aggregate read density per codon identity across all CDS positions and compute per-codon mean occupancy.
+
 ```python
 from Bio.Seq import Seq
 from Bio.Data import CodonTable
@@ -129,6 +154,10 @@ def codon_occupancy_table(bam_path, gtf_path, psite_offset=12):
 
 ## Correlate with Codon Usage
 
+**Goal:** Test whether ribosome pausing correlates with tRNA availability across codons.
+
+**Approach:** Compute Spearman rank correlation between per-codon occupancy and tRNA abundance; expect a negative relationship.
+
 ```python
 def correlate_with_trna(codon_occupancy, trna_abundance):
     '''Test if pausing correlates with tRNA availability
@@ -148,6 +177,10 @@ def correlate_with_trna(codon_occupancy, trna_abundance):
 ```
 
 ## Motif Analysis at Pause Sites
+
+**Goal:** Extract amino acid sequence context around identified pause sites to discover recurrent motifs.
+
+**Approach:** Translate the coding region flanking each pause site and collect fixed-width windows for motif analysis.
 
 ```python
 def extract_pause_motifs(pause_sites, sequences, window=10):

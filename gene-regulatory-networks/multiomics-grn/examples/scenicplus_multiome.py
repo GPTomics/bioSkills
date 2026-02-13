@@ -6,6 +6,7 @@ Requires:
 - hg38-blacklist.v2.bed: ENCODE blacklist regions
 - cisTarget databases and TF list
 '''
+# Reference: cell ranger 8.0+, macs3 3.0+, matplotlib 3.8+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import subprocess
 import scanpy as sc

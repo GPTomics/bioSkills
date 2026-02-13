@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, Bracken 2.9+, HUMAnN 3.8+, Kraken2 2.1+, MetaPhlAn 4.1+, fastp 0.23+, matplotlib 3.8+, pandas 2.2+, seaborn 0.13+ | Verify API if version differs
 # Complete metagenomics workflow: Kraken2 + Bracken + HUMAnN
 set -e
 

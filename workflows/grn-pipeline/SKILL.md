@@ -15,7 +15,19 @@ qc_checkpoints:
   - after_perturbation: "Predicted shifts match known biology"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, pandas 2.2+, scanpy 1.10+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Gene Regulatory Network Pipeline
+
+**"Infer gene regulatory networks from my single-cell data"** → Orchestrate pySCENIC regulon inference (GRNBoost2, cisTarget, AUCell), CellOracle perturbation simulation, and regulon-based cell type characterization.
 
 Complete workflow from processed single-cell data to regulon discovery and perturbation simulation.
 

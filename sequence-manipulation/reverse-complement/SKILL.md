@@ -5,9 +5,23 @@ tool_type: python
 primary_tool: Bio.Seq
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Reverse Complement
 
 Generate complementary and reverse complementary sequences using Biopython.
+
+**"Get the reverse complement"** → Produce the 5'-to-3' sequence of the opposite strand.
+- Python: `seq.reverse_complement()` (BioPython `Seq`)
+- CLI: `samtools faidx ref.fa region --reverse-complement`
 
 ## Required Import
 
@@ -131,22 +145,24 @@ print(f'ATGCGA is palindrome: {is_palindrome(seq2)}')
 
 ### Reverse Complement a FASTA File
 
+**Goal:** Produce a new FASTA file with all sequences reverse-complemented.
+
+**Approach:** Parse records, create new SeqRecords with `.reverse_complement()`, write to output.
+
 ```python
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
 def reverse_complement_records(records):
     for record in records:
-        rc_record = SeqRecord(
+        yield SeqRecord(
             record.seq.reverse_complement(),
             id=record.id + '_rc',
             description=record.description + ' reverse complement'
         )
-        yield rc_record
 
 records = SeqIO.parse('sequences.fasta', 'fasta')
-rc_records = reverse_complement_records(records)
-SeqIO.write(rc_records, 'sequences_rc.fasta', 'fasta')
+SeqIO.write(reverse_complement_records(records), 'sequences_rc.fasta', 'fasta')
 ```
 
 ### Primer Design Helper
@@ -165,6 +181,10 @@ print(f'Reverse primer (5\'-3\'): {rev}')
 ```
 
 ### Handle Both Strands in Analysis
+
+**Goal:** Search for a motif on both DNA strands.
+
+**Approach:** Search the forward sequence, then search its reverse complement. Convert positions on the reverse strand back to forward-strand coordinates.
 
 ```python
 def search_both_strands(seq, motif):

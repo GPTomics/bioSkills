@@ -14,7 +14,19 @@ qc_checkpoints:
   - after_calling: "SV count reasonable, genotypes concordant"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, minimap2 2.26+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Long-Read SV Pipeline
+
+**"Detect structural variants from my long-read sequencing data"** → Orchestrate minimap2 alignment, SV calling (Sniffles2/cuteSV), VCF merging across callers, annotation (AnnotSV), and visualization for ONT or PacBio data.
 
 Complete workflow for detecting structural variants from ONT or PacBio long-read data.
 

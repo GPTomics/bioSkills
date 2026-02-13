@@ -5,11 +5,29 @@ tool_type: r
 primary_tool: LEA
 ---
 
+## Version Compatibility
+
+Reference examples tested with: vegan 2.6+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Landscape Genomics
+
+**"Find loci associated with environmental adaptation in my populations"** → Test genotype-environment associations using LFMM2 latent factor mixed models or pcadapt outlier detection while controlling for population structure, and predict climate vulnerability with gradientForest.
+- R: `LEA::lfmm2()` for genotype-environment association testing
+- R: `pcadapt::pcadapt()` for selection scan without environmental data
 
 Identifies loci under local adaptation by testing genotype-environment associations while controlling for population structure.
 
 ## Population Structure Estimation with LEA
+
+**Goal:** Determine the number of ancestral populations (K) as a prerequisite for genotype-environment association testing.
+
+**Approach:** Run sNMF on genotype data across K=1-10 and select the K with minimum cross-entropy.
 
 Determine K (number of ancestral populations) before running GEA:
 
@@ -32,6 +50,10 @@ best_K <- which.min(ce_values)
 ```
 
 ## LFMM2 Genotype-Environment Association
+
+**Goal:** Identify loci significantly associated with environmental variables while controlling for population structure.
+
+**Approach:** Fit LFMM2 with K latent factors, extract p-values with genomic inflation calibration, and apply Storey q-value FDR correction.
 
 Latent factor mixed model tests association between each locus and environmental variables while correcting for population structure via latent factors:
 
@@ -81,6 +103,10 @@ for (i in 1:ncol(env_vars)) {
 
 ## pcadapt Outlier Detection
 
+**Goal:** Detect loci under selection from genotype data alone, without requiring environmental variables.
+
+**Approach:** Compute Mahalanobis distances from K principal components with pcadapt, then identify outlier loci via q-value FDR control.
+
 Detects loci under selection based on Mahalanobis distances from principal components, without requiring environmental data:
 
 ```r
@@ -114,6 +140,10 @@ cat('pcadapt outlier loci:', length(outliers), '\n')
 
 ## OutFLANK Fst-Based Selection Scan
 
+**Goal:** Identify loci with elevated Fst consistent with diversifying selection across populations.
+
+**Approach:** Fit a chi-squared distribution to the trimmed neutral Fst distribution and flag outlier loci exceeding the expected neutral envelope.
+
 Identifies Fst outliers by fitting a chi-squared distribution to the trimmed Fst distribution:
 
 ```r
@@ -144,6 +174,10 @@ cat('OutFLANK Fst outliers:', length(outlier_idx), '\n')
 
 ## RDA-Based GEA
 
+**Goal:** Detect multilocus signatures of adaptation correlated with environmental gradients using constrained ordination.
+
+**Approach:** Run partial RDA on allele frequencies conditioned on population structure, then identify outlier loci from RDA loading z-scores.
+
 Redundancy analysis detects multilocus adaptive signatures correlated with environment:
 
 ```r
@@ -171,6 +205,10 @@ cat('RDA candidate loci:', length(rda_candidates), '\n')
 ```
 
 ## gradientForest: Allele Turnover Prediction
+
+**Goal:** Predict how allele frequencies change along environmental gradients and estimate genetic offset under climate change scenarios.
+
+**Approach:** Fit gradient forests on candidate loci, rank environmental predictors by importance, and compute Euclidean distance in transformed space between current and future climate projections.
 
 Predicts how allele frequencies shift along environmental gradients using random forests:
 
@@ -207,6 +245,10 @@ genetic_offset <- sqrt(rowSums((current_transformed - future_transformed)^2))
 ```
 
 ## Environmental Data Extraction with terra
+
+**Goal:** Extract bioclimatic variable values at sampling coordinates for genotype-environment association analysis.
+
+**Approach:** Load WorldClim raster layers with terra and extract values at georeferenced sampling points.
 
 ```r
 library(terra)

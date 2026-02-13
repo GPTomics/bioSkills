@@ -15,7 +15,20 @@ depends_on:
   - flow-cytometry/cytometry-qc
 ---
 
+## Version Compatibility
+
+Reference examples tested with: FlowSOM 2.10+, edgeR 4.0+, flowCore 2.14+, ggplot2 3.5+, limma 3.58+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Flow Cytometry Pipeline
+
+**"Process my flow cytometry data from FCS to differential analysis"** → Orchestrate compensation, transformation, doublet removal, FlowSOM clustering, phenotype annotation, and diffcyt differential testing across conditions.
 
 ## Pipeline Overview
 

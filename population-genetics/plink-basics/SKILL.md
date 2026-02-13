@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: plink
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # PLINK Basics
+
+**"Convert my VCF to PLINK format and run QC"** → Handle PLINK file format conversions (VCF, BED/BIM/FAM, PED/MAP) and apply standard genotype QC filters for MAF, genotyping rate, and HWE.
+- CLI: `plink2 --vcf input.vcf --make-bed` for format conversion
+- CLI: `plink2 --maf 0.01 --geno 0.05 --hwe 1e-6` for QC filtering
 
 File formats, conversion, and quality control filtering with PLINK 1.9 and 2.0.
 

@@ -1,4 +1,5 @@
 '''Reading and writing motif files in various formats'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio import motifs
 from Bio.Seq import Seq
 import tempfile

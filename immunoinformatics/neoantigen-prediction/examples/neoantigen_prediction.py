@@ -1,4 +1,5 @@
 '''Identify tumor neoantigens from somatic mutations'''
+# Reference: ensembl vep 111+, mhcflurry 2.1+, pvactools 4.1+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 

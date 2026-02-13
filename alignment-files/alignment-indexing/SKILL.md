@@ -5,9 +5,24 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Alignment Indexing
 
 Create indices for random access to alignment files using samtools and pysam.
+
+**"Index a BAM file"** → Create a .bai/.csi index enabling random access to genomic regions.
+- CLI: `samtools index file.bam`
+- Python: `pysam.index('file.bam')`
 
 ## Index Types
 
@@ -61,6 +76,10 @@ samtools index sorted.bam
 ```
 
 ## Using Indices for Region Access
+
+**Goal:** Extract reads overlapping specific genomic coordinates from an indexed BAM.
+
+**Approach:** With the index present, `samtools view` or `pysam.fetch()` can jump directly to the relevant file offset instead of scanning the entire file.
 
 ### samtools view with Region
 ```bash

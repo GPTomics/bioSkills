@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: methylKit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bismark 0.24+, methylKit 1.28+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # methylKit Analysis
+
+**"Analyze methylation patterns across my samples"** → Import per-cytosine methylation data, filter by coverage, normalize across samples, and test for differential methylation at individual CpG sites.
+- R: `methylKit::methRead()` → `filterByCoverage()` → `normalizeCoverage()` → `calculateDiffMeth()`
 
 ## Read Bismark Coverage Files
 
@@ -114,6 +127,10 @@ dmcs_hypo <- getMethylDiff(diff_meth, difference = 25, qvalue = 0.01, type = 'hy
 ```
 
 ## Tile-Based Analysis (Regions)
+
+**Goal:** Detect differentially methylated regions by aggregating single CpG data into fixed-size genomic windows.
+
+**Approach:** Tile individual CpG measurements into 1kb windows, unite common tiles across samples, and run differential methylation testing on the aggregated tiles.
 
 ```r
 # Aggregate CpGs into tiles/windows

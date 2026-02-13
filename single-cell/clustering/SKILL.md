@@ -5,11 +5,28 @@ tool_type: mixed
 primary_tool: Seurat
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Single-Cell Clustering
 
 Dimensionality reduction, neighbor graph construction, and clustering.
 
 ## Scanpy (Python)
+
+**Goal:** Reduce dimensions, build neighbor graphs, cluster cells, and visualize with UMAP/tSNE using Scanpy.
+
+**Approach:** Run PCA for dimensionality reduction, construct a k-NN graph, apply Leiden community detection, and compute UMAP embedding.
+
+**"Cluster cells and find groups"** → Reduce dimensionality with PCA, build a neighborhood graph, partition cells into clusters, and embed in 2D for visualization.
 
 ### Required Imports
 
@@ -93,6 +110,10 @@ sc.pl.tsne(adata, color='leiden')
 
 ### Complete Clustering Pipeline
 
+**Goal:** Run end-to-end clustering from preprocessed data to UMAP visualization.
+
+**Approach:** Chain PCA, neighbor computation, Leiden clustering, and UMAP into a single pipeline.
+
 ```python
 import scanpy as sc
 
@@ -116,6 +137,10 @@ sc.pl.umap(adata, color='leiden')
 ```
 
 ### Exploring Different Resolutions
+
+**Goal:** Evaluate clustering at multiple resolutions to find the appropriate granularity.
+
+**Approach:** Iterate over resolution values, cluster at each, and compare cluster counts on UMAP.
 
 ```python
 # Try multiple resolutions
@@ -142,6 +167,10 @@ sc.tl.umap(adata, init_pos='paga')
 ---
 
 ## Seurat (R)
+
+**Goal:** Reduce dimensions, build neighbor graphs, cluster cells, and visualize with UMAP/tSNE using Seurat.
+
+**Approach:** Run PCA, determine optimal PC count, construct SNN graph, apply Louvain clustering, and compute UMAP embedding.
 
 ### Required Libraries
 
@@ -232,6 +261,10 @@ DimPlot(seurat_obj, reduction = 'tsne')
 ```
 
 ### Complete Clustering Pipeline
+
+**Goal:** Run end-to-end Seurat clustering from preprocessed data to UMAP visualization.
+
+**Approach:** Chain PCA, neighbor finding, cluster detection, and UMAP into a single pipeline.
 
 ```r
 library(Seurat)

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BUSCO 5.5+, scanpy 1.10+ | Verify API if version differs
 # Prokaryotic genome annotation with Bakta
 set -euo pipefail
 

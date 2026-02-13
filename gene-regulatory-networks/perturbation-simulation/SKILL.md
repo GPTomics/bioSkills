@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: CellOracle
 ---
 
+## Version Compatibility
+
+Reference examples tested with: anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Perturbation Simulation
+
+**"Predict what happens if I knock out this transcription factor"** → Simulate TF perturbation effects on cell identity by combining a base GRN from accessible chromatin with learned regulatory weights from scRNA-seq, then propagating the perturbation signal to predict cell state shifts.
+- Python: `celloracle.Oracle()` for GRN construction and perturbation simulation
 
 Simulate transcription factor perturbation effects on cell state using CellOracle. Integrates GRN inference from scRNA-seq with base GRN from chromatin accessibility to predict cell identity shifts from TF knockouts or overexpression.
 
@@ -102,6 +116,10 @@ links.links_dict['T_cell'].sort_values('coef_abs', ascending=False).head(20)
 
 ### Knockout Simulation
 
+**Goal:** Predict how cells change state when a transcription factor is knocked out by simulating the perturbation through the learned GRN.
+
+**Approach:** Set the target TF expression to zero, propagate the effect through the regulatory network for n steps, estimate transition probabilities to neighboring cell states, and compute embedding shifts that quantify predicted cell identity changes.
+
 ```python
 # Simulate TF knockout (set expression to 0)
 oracle.simulate_shift(perturb_condition={'GATA1': 0.0}, n_propagation=3)
@@ -175,6 +193,10 @@ plt.savefig('gata1_ko_gradient.pdf', bbox_inches='tight')
 ```
 
 ### Systematic TF Screen
+
+**Goal:** Rank candidate transcription factors by their predicted impact on cell fate to prioritize perturbation experiments.
+
+**Approach:** Loop knockout simulations over a list of TFs, compute the mean and max embedding shift magnitude for each, and rank by overall cell state disruption.
 
 ```python
 # Screen multiple TFs to find drivers of cell fate

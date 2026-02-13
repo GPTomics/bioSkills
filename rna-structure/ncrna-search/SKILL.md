@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: Infernal
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, Infernal 1.1+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ncRNA Search
+
+**"Search my sequences for known non-coding RNA families"** → Query sequences against the Rfam database using covariance models that score both sequence and secondary structure conservation, or build custom CMs for novel RNA families.
+- CLI: `cmscan` for searching against Rfam CMs
+- CLI: `cmbuild` + `cmcalibrate` for building custom covariance models
 
 Search for non-coding RNA homologs and classify RNA families using covariance models (CMs). Infernal scores both sequence and secondary structure conservation, making it more sensitive than sequence-only methods for structured RNAs.
 
@@ -82,6 +97,10 @@ cmsearch --cpu 8 -T 30.0 --tblout hits.tbl tRNA.cm genome.fa > hits.out
 ```
 
 ## Building Custom Covariance Models
+
+**Goal:** Create a covariance model for a novel RNA family not represented in Rfam, enabling sensitive homolog searches that leverage both sequence and structure conservation.
+
+**Approach:** Prepare a Stockholm-format alignment with secondary structure annotation, build and calibrate a covariance model from the alignment, then search target sequences with the custom CM.
 
 For novel RNA families not in Rfam, build a custom CM from a structure-annotated alignment.
 

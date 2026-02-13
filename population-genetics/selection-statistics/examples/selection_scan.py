@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Genome-wide selection scan with Fst and Tajima's D.'''
+# Reference: matplotlib 3.8+, numpy 1.26+, scikit-allel 1.3+ | Verify API if version differs
 
 import allel
 import numpy as np

@@ -1,4 +1,5 @@
 '''Calculate conservation score at each position'''
+# Reference: biopython 1.83+, numpy 1.26+ | Verify API if version differs
 
 from Bio import AlignIO
 from collections import Counter

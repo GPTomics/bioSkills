@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: FastQC 0.12+, fastp 0.23+ | Verify API if version differs
 # Complete fastp preprocessing pipeline
 # Usage: ./fastp_pipeline.sh <R1.fastq.gz> <R2.fastq.gz> <output_prefix>
 

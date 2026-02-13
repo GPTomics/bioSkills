@@ -16,7 +16,19 @@ qc_checkpoints:
   - after_busco: "Complete BUSCOs >90%"
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BUSCO 5.5+, BWA 0.7.17+, Flye 2.9+, QUAST 5.2+, SPAdes 3.15+, fastp 0.23+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Genome Assembly Pipeline
+
+**"Assemble and polish a genome from my sequencing reads"** → Orchestrate read QC, assembly (hifiasm, Flye, SPAdes), polishing (Medaka, Pilon), scaffolding, contamination detection (BlobToolKit), and quality assessment (QUAST, BUSCO).
 
 Complete workflow from sequencing reads to polished, quality-assessed genome assembly.
 

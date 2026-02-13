@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: CNVkit 0.9+, Ensembl VEP 111+, GATK 4.5+, SnpEff 5.2+, bcftools 1.19+, picard 3.1+ | Verify API if version differs
 # Complete Mutect2 somatic variant calling pipeline
 
 set -euo pipefail

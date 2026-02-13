@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: NucleoATAC
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Rsamtools 2.18+, matplotlib 3.8+, numpy 1.26+, pyBigWig 0.3+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Nucleosome Positioning
+
+**"Map nucleosome positions from ATAC-seq"** → Separate nucleosome-free and mono-nucleosome fragments by size, then call nucleosome center positions and occupancy scores.
+- CLI: `nucleoatac run --bed peaks.bed --bam atac.bam --fasta ref.fa`
+- R: `ATACseqQC::splitGAlignmentsByCut()` for fragment separation
 
 Extract nucleosome positions and occupancy from ATAC-seq fragment size patterns.
 
@@ -42,6 +58,10 @@ fragSize <- fragSizeDist(bamfile, 'sample')
 ```
 
 ### Nucleosome Positioning
+
+**Goal:** Map nucleosome positions around TSS using ATAC-seq fragment size classes.
+
+**Approach:** Read BAM, apply Tn5 shift correction, split fragments into NFR and mono-nucleosome classes by size, then compute signal profiles around TSS.
 
 ```r
 library(ATACseqQC)
@@ -114,6 +134,10 @@ pip install nucleoatac
 
 ### Run NucleoATAC
 
+**Goal:** Call precise nucleosome center positions and occupancy scores from ATAC-seq data.
+
+**Approach:** Run NucleoATAC on defined genomic regions with a reference genome, producing nucleosome position calls and occupancy tracks.
+
 ```bash
 # Call nucleosomes
 nucleoatac run --bed regions.bed --bam sample.bam --fasta reference.fa \
@@ -140,6 +164,10 @@ bedGraphToBigWig nucleoatac_output.occ.bedgraph chrom.sizes nucleosome_occ.bw
 ## Fragment Analysis (Custom)
 
 ### Extract Fragment Sizes
+
+**Goal:** Visualize ATAC-seq fragment size distribution to assess nucleosome periodicity.
+
+**Approach:** Extract template lengths from properly paired reads, then plot the histogram with NFR and mono-nucleosome cutoff markers.
 
 ```python
 import pysam
@@ -233,6 +261,10 @@ danpos.py dpeak -b treatment.bam -c control.bam -o danpos_diff
 ```
 
 ## Complete Workflow
+
+**Goal:** Run end-to-end nucleosome positioning analysis from BAM to heatmaps and V-plots.
+
+**Approach:** Read BAM, shift reads for Tn5 offset, split fragments by size class, compute signal profiles around TSS, and generate heatmaps and V-plots.
 
 ```r
 library(ATACseqQC)

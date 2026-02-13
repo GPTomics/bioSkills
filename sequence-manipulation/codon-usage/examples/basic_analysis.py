@@ -1,4 +1,5 @@
 '''Basic codon usage analysis'''
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.SeqUtils import GC123
 from Bio.Data import CodonTable

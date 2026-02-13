@@ -5,6 +5,16 @@ tool_type: python
 primary_tool: squidpy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, squidpy 1.3+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Spatial Cell-Cell Communication
 
 Analyze ligand-receptor interactions and cell-cell communication in spatial data.
@@ -20,6 +30,12 @@ import matplotlib.pyplot as plt
 ```
 
 ## Ligand-Receptor Analysis with Squidpy
+
+**Goal:** Identify significant ligand-receptor interactions between spatially proximal cell types.
+
+**Approach:** Build a spatial neighbor graph, then run permutation-based ligand-receptor analysis using Squidpy's built-in database.
+
+**"Find cell-cell communication in my spatial data"** -> Test ligand-receptor co-expression between neighboring cell types with permutation-based significance.
 
 ```python
 # Requires clustered data with cell type annotations
@@ -56,6 +72,10 @@ print(f'Cell type combinations: {len(means.index)}')
 ```
 
 ## Filter Significant Interactions
+
+**Goal:** Extract ligand-receptor pairs that pass significance thresholds from permutation results.
+
+**Approach:** Iterate over all cell-type-pair and LR-pair combinations, collecting those with p-values below threshold into a flat DataFrame.
 
 ```python
 # Get significant interactions
@@ -135,6 +155,10 @@ sq.gr.ligrec(
 
 ## Interaction Heatmap
 
+**Goal:** Visualize the number of significant interactions between each pair of cell types as a heatmap.
+
+**Approach:** Count significant interactions per source-target pair, reshape into a matrix, and display with imshow.
+
 ```python
 # Create heatmap of interaction counts per cell type pair
 def count_interactions_per_pair(pvalues, threshold=0.05):
@@ -163,6 +187,10 @@ plt.savefig('interaction_heatmap.png', dpi=150)
 ```
 
 ## Network Visualization
+
+**Goal:** Display cell-cell communication as a directed network graph with edge weights proportional to interaction strength.
+
+**Approach:** Build a NetworkX DiGraph from significant interactions, with cell types as nodes and interaction counts as edge weights.
 
 ```python
 import networkx as nx
@@ -218,6 +246,10 @@ plt.savefig('ligand_receptor_spatial.png', dpi=150)
 ```
 
 ## Compare Communication Between Conditions
+
+**Goal:** Identify differences in cell-cell communication between experimental conditions.
+
+**Approach:** Run ligand-receptor analysis independently per condition, then compare counts of significant interactions.
 
 ```python
 # Run separately for each condition

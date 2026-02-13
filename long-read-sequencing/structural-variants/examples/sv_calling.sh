@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+ | Verify API if version differs
 
 BAM="aligned.bam"
 REFERENCE="reference.fa"

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: samtools 1.19+ | Verify API if version differs
 # RNA-seq alignment with HISAT2
 
 set -euo pipefail

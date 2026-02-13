@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''Analyze ROSE super-enhancer output'''
+# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 import matplotlib.pyplot as plt

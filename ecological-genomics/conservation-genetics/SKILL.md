@@ -5,7 +5,23 @@ tool_type: mixed
 primary_tool: hierfstat
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Conservation Genetics
+
+**"Assess the genetic health of my endangered population"** → Estimate effective population size (Ne) trajectories, measure F-statistics and heterozygosity, detect inbreeding through runs of homozygosity, and reconstruct demographic history from SNP or microsatellite data.
+- R: `hierfstat::basic.stats()` for F-statistics and diversity
+- R: `detectRUNS::consecutiveRUNS.run()` for ROH detection
+- CLI: `gone2` for recent Ne trajectory from phased genotypes
 
 Assesses genetic health of populations through diversity metrics, effective population size estimation, inbreeding detection, and demographic history reconstruction.
 
@@ -76,6 +92,10 @@ print(private_counts)
 ```
 
 ## Runs of Homozygosity (ROH)
+
+**Goal:** Detect autozygous genomic segments and quantify individual-level inbreeding from SNP genotype data.
+
+**Approach:** Scan genotypes with detectRUNS to identify consecutive homozygous stretches exceeding length and SNP thresholds, then compute F_ROH as the fraction of the genome covered by ROH.
 
 Detects autozygous segments indicating recent inbreeding:
 
@@ -163,7 +183,7 @@ cat('Current Ne estimate:', gone_out$Ne[1], '\n')
 #     0.02 balances bias (lower pcrit) vs precision (higher pcrit)
 #   Output: tab-separated with Ne point estimate and 95% CI (jackknife + parametric)
 # Run: java -jar NeEstimator.jar option_file.ne2
-# Build from GitHub: bunop/NeEstimator2.X (requires JDK 1.8+ and Apache Ant)
+# Build from GitHub: bunop/NeEstimator2.X
 ```
 
 ### Stairway Plot 2: Demographic History from SFS
@@ -227,6 +247,10 @@ psmc_plot.pl -u 1.4e-8 -g 5 -p sample_psmc_plot sample.psmc
 | Ne/N ratio | ~0.1-0.3 typical | Ne is usually 10-30% of census size |
 
 ## Bottleneck Detection
+
+**Goal:** Test whether a population has experienced a recent genetic bottleneck using heterozygosity excess.
+
+**Approach:** Compare observed heterozygosity against the equilibrium heterozygosity expected from the observed number of alleles; after a bottleneck, alleles are lost faster than heterozygosity, creating a transient excess detectable by Wilcoxon test.
 
 ```r
 # Heterozygosity excess test (Cornuet & Luikart 1996)

@@ -1,4 +1,5 @@
 '''Query dbSNP for rsID information and coordinate mapping'''
+# Reference: biopython 1.83+, entrez direct 21.0+ | Verify API if version differs
 
 import myvariant
 import pandas as pd

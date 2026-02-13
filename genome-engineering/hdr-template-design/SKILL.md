@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: primer3-py
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, primer3-py 2.0+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # HDR Template Design
+
+**"Design a donor template for my CRISPR knock-in"** → Create homology-directed repair templates (ssODN, dsDNA, or plasmid) with optimized homology arm lengths and silent PAM mutations, using primer3 for flanking primer design.
+- Python: `primer3.bindings.design_primers()` (primer3-py) for primer/arm design, `Bio.Seq` for template construction
 
 ## Template Types
 
@@ -128,6 +141,10 @@ def design_asymmetric_ssodn(target_seq, cut_site, insert_seq, pam_position):
 ```
 
 ## dsDNA Donor Design
+
+**Goal:** Design a double-stranded DNA donor template with long homology arms for larger CRISPR knock-in insertions, along with PCR primers for amplification.
+
+**Approach:** Extract left and right homology arms of specified length flanking the cut site, concatenate with the insert sequence, then design PCR primers for the arms and Gibson assembly overlap primers that span the arm-insert junctions.
 
 ```python
 def design_dsdna_donor(target_seq, cut_site, insert_seq, arm_length=500):

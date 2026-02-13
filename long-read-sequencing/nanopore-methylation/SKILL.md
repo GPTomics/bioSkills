@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: modkit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: methylKit 1.28+, minimap2 2.26+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Nanopore Methylation Calling
+
+**"Call methylation from my Nanopore reads"** → Extract 5mC/6mA modification probabilities from basecalled reads and summarize per-site methylation frequencies.
+- CLI: `modkit pileup aligned.bam methylation.bed --ref ref.fa`
 
 ## Modern Workflow (modkit)
 

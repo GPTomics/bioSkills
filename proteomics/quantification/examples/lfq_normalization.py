@@ -1,4 +1,5 @@
 '''Label-free quantification normalization'''
+# Reference: msnbase 2.28+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 import pandas as pd
 import numpy as np
 from scipy import stats

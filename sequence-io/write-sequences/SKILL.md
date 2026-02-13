@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: Bio.SeqIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Write Sequences
+
+**"Write sequences to a file"** → Serialize SeqRecord objects into a formatted sequence file.
+- Python: `SeqIO.write()` (BioPython)
+- R: `writeXStringSet()` (Biostrings)
 
 Write SeqRecord objects to sequence files using Biopython's Bio.SeqIO module.
 
@@ -42,6 +56,13 @@ print(formatted)
 ```
 
 ## Creating SeqRecord Objects
+
+**Goal:** Construct in-memory sequence records suitable for writing to any format.
+
+**Approach:** Create `SeqRecord` with at minimum a `Seq` and `id`. Add `letter_annotations` for FASTQ, `annotations['molecule_type']` for GenBank/EMBL.
+
+**"Create a sequence record from scratch"** → Wrap a `Seq` string in a `SeqRecord` with metadata fields.
+- Python: `SeqRecord(Seq(...), id=...)` (BioPython)
 
 ### Minimal SeqRecord
 ```python
@@ -108,6 +129,13 @@ with open('output.fasta', 'w') as handle:
 ```
 
 ### Write Modified Records
+
+**Goal:** Transform sequences in-memory and write the modified versions to a new file.
+
+**Approach:** Parse input, apply transformation via generator, write output. Using a generator avoids loading all records into memory.
+
+**"Modify sequences and save"** → Parse records, transform each, write to new file with `SeqIO.write()`.
+
 ```python
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord

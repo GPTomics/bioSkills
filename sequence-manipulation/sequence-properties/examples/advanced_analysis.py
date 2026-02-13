@@ -1,4 +1,5 @@
 '''Advanced sequence property analysis: GC123, GC skew, amino acid codes'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.SeqUtils import GC123, GC_skew, nt_search, seq1, seq3
 

@@ -1,4 +1,5 @@
 '''Basic reverse complement and complement operations'''
+# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
 from Bio.Seq import Seq
 
 # Reverse complement (most common)

@@ -1,3 +1,4 @@
+# Reference: MR-PRESSO 1.0+, TwoSampleMR 0.5+ | Verify API if version differs
 ## Comprehensive MR sensitivity analyses
 ##
 ## Runs IVW, MR-Egger, weighted median, weighted mode, and MR-PRESSO

@@ -5,7 +5,21 @@ tool_type: python
 primary_tool: Bio.SeqIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Filter Sequences
+
+**"Filter sequences by length, quality, or content"** → Apply boolean criteria to a stream of sequence records and write survivors to output.
+- Python: generator expression with `SeqIO.parse()` + `SeqIO.write()` (BioPython)
+- CLI: `seqkit seq -m 200` (SeqKit) or `awk` on FASTA
 
 Filter and select sequences based on various criteria using Biopython.
 
@@ -61,6 +75,12 @@ SeqIO.write(selected, 'selected.fasta', 'fasta')
 ```
 
 ### Select from ID File
+
+**Goal:** Extract sequences whose IDs appear in an external list file.
+
+**Approach:** Load IDs into a set for O(1) lookup, then stream-filter and write matches.
+
+**Reference (BioPython 1.83+):**
 ```python
 with open('ids.txt') as f:
     wanted_ids = {line.strip() for line in f}
@@ -161,6 +181,11 @@ enzymes = (rec for rec in records if any(k in rec.description.lower() for k in k
 
 ## Combine Multiple Filters
 
+**Goal:** Remove sequences that fail any of several quality/content thresholds.
+
+**Approach:** Define a predicate function that checks all criteria, apply it as a generator filter, and write survivors.
+
+**Reference (BioPython 1.83+):**
 ```python
 from Bio.SeqUtils import gc_fraction
 
@@ -208,6 +233,12 @@ SeqIO.write(every_10th, 'sampled.fasta', 'fasta')
 ## Split by Criteria
 
 ### Split by Length
+
+**Goal:** Partition sequences into separate files based on a length threshold.
+
+**Approach:** Load all records, apply list comprehension split, and write each partition.
+
+**Reference (BioPython 1.83+):**
 ```python
 records = list(SeqIO.parse('input.fasta', 'fasta'))
 short = [r for r in records if len(r.seq) < 500]

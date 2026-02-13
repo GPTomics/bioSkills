@@ -1,3 +1,4 @@
+# Reference: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, squidpy 1.3+ | Verify API if version differs
 # Complete Visium spatial transcriptomics workflow
 
 import scanpy as sc

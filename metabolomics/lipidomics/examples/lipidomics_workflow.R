@@ -1,3 +1,4 @@
+# Reference: ggplot2 3.5+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, xcms 4.0+ | Verify API if version differs
 library(lipidr)
 library(ggplot2)
 library(dplyr)

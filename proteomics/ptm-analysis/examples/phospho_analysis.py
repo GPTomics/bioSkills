@@ -1,4 +1,5 @@
 '''Analyze phosphorylation sites from MaxQuant output'''
+# Reference: numpy 1.26+, pandas 2.2+, scipy 1.12+ | Verify API if version differs
 import pandas as pd
 import numpy as np
 from collections import Counter

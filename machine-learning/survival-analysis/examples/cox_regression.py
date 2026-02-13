@@ -1,4 +1,5 @@
 '''Cox proportional hazards regression for survival modeling'''
+# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 from lifelines import CoxPHFitter, KaplanMeierFitter

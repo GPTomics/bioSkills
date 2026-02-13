@@ -5,7 +5,22 @@ tool_type: python
 primary_tool: papermill
 ---
 
+## Version Compatibility
+
+Reference examples tested with: jupyter 1.0+, papermill 2.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Jupyter Reports with Papermill
+
+**"Generate reproducible analysis reports"** → Execute parameterized Jupyter notebooks programmatically and export as HTML/PDF reports.
+- Python: `papermill.execute_notebook(input, output, parameters={...})`
+- CLI: `jupyter nbconvert --to html notebook.ipynb`
 
 ## Parameterized Notebooks
 

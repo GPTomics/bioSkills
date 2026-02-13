@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: ggplot2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # ggplot2 Fundamentals
+
+**"Create a publication-quality plot in R"** → Build layered graphics using ggplot2's grammar of graphics (data + aesthetics + geometry + theme).
+- R: `ggplot(data, aes(x, y)) + geom_point() + theme_classic()`
 
 ## Basic Structure
 
@@ -66,6 +79,10 @@ ggplot(df, aes(x, y, alpha = value)) + geom_point()
 ```
 
 ## Publication Theme
+
+**Goal:** Define a reusable ggplot2 theme with clean, journal-ready styling.
+
+**Approach:** Extend theme_bw with removed grid lines, black axis elements, and clean strip labels for a consistent publication appearance.
 
 ```r
 theme_publication <- function(base_size = 12) {

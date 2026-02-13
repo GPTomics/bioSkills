@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bedtools 2.31+ | Verify API if version differs
 # CLIP-seq motif analysis
 
 PEAKS=$1

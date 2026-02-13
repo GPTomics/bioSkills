@@ -5,7 +5,20 @@ tool_type: r
 primary_tool: MultiAssayExperiment
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Data Harmonization for Multi-Omics
+
+**"Prepare my multi-omics data for integration"** → Normalize, batch-correct, align features, and handle missing values across RNA-seq, proteomics, methylation, and other data types before joint analysis.
+- R: `MultiAssayExperiment` for unified multi-omics containers
 
 ## MultiAssayExperiment Structure
 
@@ -53,6 +66,10 @@ m_values <- log2(beta / (1 - beta))
 ```
 
 ## Cross-Omics Batch Correction
+
+**Goal:** Remove batch effects across multi-omics data types while preserving biological signal from condition differences.
+
+**Approach:** Stack normalized matrices from RNA, protein, and methylation assays for common samples, apply ComBat batch correction on the combined matrix, then split back into per-assay corrected matrices.
 
 ```r
 library(sva)

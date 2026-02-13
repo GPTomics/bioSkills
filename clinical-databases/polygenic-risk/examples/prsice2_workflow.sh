@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: LDpred2 1.14+, PRSice-2 2.3+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
 # PRSice-2 workflow for polygenic risk score calculation
 #
 # Prerequisites:

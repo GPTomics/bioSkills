@@ -5,11 +5,25 @@ tool_type: python
 primary_tool: Bio.AlignIO
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Alignment File I/O
 
 Read, write, and convert multiple sequence alignment files in various formats.
 
 ## Required Import
+
+**Goal:** Load modules for reading, writing, and manipulating multiple sequence alignments.
+
+**Approach:** Import AlignIO for file I/O and supporting classes for programmatic alignment construction.
 
 ```python
 from Bio import AlignIO
@@ -37,6 +51,12 @@ from Bio.Seq import Seq
 
 ## Reading Alignments
 
+**"Read an alignment file"** → Parse an alignment file into an alignment object with sequences and metadata accessible.
+
+**Goal:** Load alignment data from files in various formats (Clustal, PHYLIP, Stockholm, FASTA).
+
+**Approach:** Use `AlignIO.read()` for single-alignment files or `AlignIO.parse()` for files containing multiple alignments.
+
 ### Single Alignment File
 ```python
 from Bio import AlignIO
@@ -60,6 +80,10 @@ print(f'Read {len(alignments)} alignments')
 
 ## Writing Alignments
 
+**Goal:** Save alignment data to files in standard formats for downstream tools or archival.
+
+**Approach:** Use `AlignIO.write()` with the target format specifier, supporting single or multiple alignments and file handles.
+
 ### Write Single Alignment
 ```python
 AlignIO.write(alignment, 'output.fasta', 'fasta')
@@ -80,6 +104,12 @@ with open('output.aln', 'w') as handle:
 
 ## Format Conversion
 
+**"Convert alignment format"** → Transform an alignment file from one format to another (e.g., Clustal to PHYLIP).
+
+**Goal:** Convert alignment files between formats for compatibility with different analysis tools.
+
+**Approach:** Use `AlignIO.convert()` for direct one-step conversion, or read-modify-write for cases requiring intermediate manipulation.
+
 ### Direct Conversion (Most Efficient)
 ```python
 AlignIO.convert('input.aln', 'clustal', 'output.phy', 'phylip')
@@ -98,6 +128,10 @@ AlignIO.write(alignment, 'output.fasta', 'fasta')
 ```
 
 ## Accessing Alignment Data
+
+**Goal:** Navigate and extract data from alignment objects including sequences, columns, and slices.
+
+**Approach:** Use iteration, indexing, and column slicing on the alignment object.
 
 ```python
 alignment = AlignIO.read('alignment.aln', 'clustal')
@@ -141,6 +175,10 @@ region = alignment[0:5, 50:150]  # 5 sequences, columns 50-149
 ```
 
 ## Creating Alignments Programmatically
+
+**Goal:** Build an alignment object from sequences defined in code rather than read from a file.
+
+**Approach:** Construct SeqRecord objects with gap characters and wrap them in a MultipleSeqAlignment.
 
 ```python
 from Bio.Align import MultipleSeqAlignment
@@ -187,6 +225,10 @@ alignment = AlignIO.read('clustal.aln', 'clustal')
 
 ## Batch Processing Multiple Files
 
+**Goal:** Convert a directory of alignment files from one format to another in bulk.
+
+**Approach:** Glob for input files and iterate, reading each alignment and writing to the target format.
+
 ```python
 from pathlib import Path
 
@@ -200,6 +242,10 @@ for input_file in input_dir.glob('*.aln'):
 ```
 
 ## Alternative: Bio.Align Module I/O
+
+**Goal:** Use the modern Bio.Align module for alignment I/O with access to newer features like counts and substitutions.
+
+**Approach:** Use `Align.read()`, `Align.parse()`, and `Align.write()` which return `Alignment` objects instead of `MultipleSeqAlignment`.
 
 The newer `Bio.Align` module provides its own I/O functions that return `Alignment` objects (instead of `MultipleSeqAlignment`). These support additional formats and provide access to modern alignment features.
 

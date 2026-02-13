@@ -5,11 +5,28 @@ tool_type: r
 primary_tool: IsoformSwitchAnalyzeR
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Salmon 1.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Isoform Switching Analysis
 
 Identify isoform switches and predict their functional consequences on protein structure and function.
 
 ## IsoformSwitchAnalyzeR Workflow
+
+**Goal:** Identify genes where the dominant isoform switches between conditions.
+
+**Approach:** Import Salmon quantification, filter low-expression isoforms, and test for isoform usage changes with DEXSeq-based statistics.
+
+**"Analyze isoform switching"** -> Import transcript quantification, test for dominant isoform changes, and assess functional consequences.
+- R: `IsoformSwitchAnalyzeR` (importRdata + isoformSwitchTestDEXSeq)
 
 ```r
 library(IsoformSwitchAnalyzeR)
@@ -48,6 +65,10 @@ switchAnalyzeRlist <- isoformSwitchTestDEXSeq(
 ```
 
 ## Functional Annotation
+
+**Goal:** Predict how isoform switches alter protein domains, coding potential, and localization.
+
+**Approach:** Extract isoform sequences, run external annotation tools (CPC2, Pfam, SignalP, IUPred2), and import results back into the switch analysis object.
 
 ```r
 # Extract sequences for external analysis
@@ -88,6 +109,10 @@ switchAnalyzeRlist <- analyzeIUPred2A(
 
 ## Consequence Analysis
 
+**Goal:** Determine which isoform switches cause functional changes (NMD, domain loss, coding potential shifts).
+
+**Approach:** Run analyzeSwitchConsequences across multiple consequence types and extract switches with confirmed functional impact.
+
 ```r
 # Analyze functional consequences of switches
 switchAnalyzeRlist <- analyzeSwitchConsequences(
@@ -114,6 +139,10 @@ print(significantSwitches)
 ```
 
 ## Visualization
+
+**Goal:** Visualize isoform switch events and summarize functional consequence patterns.
+
+**Approach:** Generate per-gene switch plots showing isoform usage changes, and create global summaries of consequence enrichment.
 
 ```r
 # Plot individual gene switches

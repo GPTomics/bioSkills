@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # Complete MAGeCK CRISPR screen analysis
 
 set -e

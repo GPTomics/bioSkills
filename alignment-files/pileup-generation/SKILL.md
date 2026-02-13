@@ -5,9 +5,27 @@ tool_type: cli
 primary_tool: samtools
 ---
 
+## Version Compatibility
+
+Reference examples tested with: bcftools 1.19+, pysam 0.22+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Pileup Generation
 
 Generate pileup data for variant calling and position-level analysis.
+
+**"Generate pileup from BAM"** → Produce per-position read summaries showing depth, bases, and qualities.
+- CLI: `samtools mpileup -f ref.fa input.bam`
+- Python: `bam.pileup(chrom, start, end)` (pysam)
+
+**"Count alleles at a position"** → Extract per-base read support at a specific genomic coordinate.
+- Python: iterate `pileup_column.pileups` and count bases (pysam)
 
 ## What is Pileup?
 
@@ -100,6 +118,10 @@ samtools mpileup -f reference.fa -d 1000 input.bam
 ```
 
 ## Variant Calling Pipeline
+
+**Goal:** Call variants from alignment data using the pileup-based approach.
+
+**Approach:** Pipe `samtools mpileup` output directly into `bcftools call` for variant detection, applying quality filters at the pileup stage.
 
 ### mpileup to bcftools call
 ```bash

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # LD analysis and pruning pipeline
 # Usage: ./ld_analysis.sh <plink_prefix> <output_prefix>
 

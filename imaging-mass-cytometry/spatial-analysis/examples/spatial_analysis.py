@@ -1,4 +1,5 @@
 '''Spatial analysis of IMC data'''
+# Reference: anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, squidpy 1.3+ | Verify API if version differs
 import squidpy as sq
 import anndata as ad
 import scanpy as sc

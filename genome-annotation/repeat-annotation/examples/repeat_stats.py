@@ -2,6 +2,7 @@
 '''
 Compute repeat statistics from RepeatMasker output.
 '''
+# Reference: BioPython 1.83+, matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 import matplotlib.pyplot as plt

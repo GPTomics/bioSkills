@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: RDKit
 ---
 
+## Version Compatibility
+
+Reference examples tested with: RDKit 2024.03+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Reaction Enumeration
+
+**"Generate a combinatorial library from my building blocks"** → Enumerate virtual compound libraries by applying reaction SMARTS transformations to sets of building-block molecules, producing and validating all product combinations for a defined synthetic route.
+- Python: `AllChem.ReactionFromSmarts()`, `rxn.RunReactants()` (RDKit)
 
 Generate virtual compound libraries using reaction SMARTS.
 
@@ -52,6 +65,10 @@ REACTIONS = {
 ```
 
 ## Combinatorial Library Enumeration
+
+**Goal:** Generate all possible products from a combinatorial reaction of building-block sets.
+
+**Approach:** Enumerate all reactant combinations via Cartesian product, apply the reaction SMARTS to each, sanitize products, and deduplicate by canonical SMILES.
 
 ```python
 from rdkit import Chem
@@ -119,6 +136,10 @@ print(f'Generated {len(products)} unique products')
 
 ## Multi-Step Synthesis
 
+**Goal:** Enumerate products from a multi-step synthetic route with intermediate building blocks at each step.
+
+**Approach:** Iteratively apply each reaction SMARTS to the current product pool and the next set of building blocks, carrying forward intermediates through the synthesis chain.
+
 ```python
 def multi_step_enumeration(building_blocks, reaction_sequence):
     '''
@@ -142,6 +163,10 @@ def multi_step_enumeration(building_blocks, reaction_sequence):
 ```
 
 ## Product Validation
+
+**Goal:** Filter enumerated products to remove invalid, oversized, or reactive compounds.
+
+**Approach:** Parse each product SMILES, check molecular weight against a maximum, screen for reactive functional groups via SMARTS, and verify valence sanity.
 
 ```python
 from rdkit import Chem

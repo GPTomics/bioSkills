@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: GATK 4.5+, bcftools 1.19+ | Verify API if version differs
 # Run DeepVariant on a sample BAM file
 
 set -euo pipefail

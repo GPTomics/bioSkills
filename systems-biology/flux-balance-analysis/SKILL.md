@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: cobrapy
 ---
 
+## Version Compatibility
+
+Reference examples tested with: COBRApy 0.29+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Flux Balance Analysis
+
+**"Predict growth rate and metabolic fluxes for my organism"** → Solve a linear program over a genome-scale metabolic model to find the optimal flux distribution that maximizes biomass (or a custom objective), and assess flux ranges with FVA.
+- Python: `model.optimize()`, `cobra.flux_analysis.flux_variability_analysis()` (COBRApy)
 
 ## Load Models
 
@@ -24,6 +37,10 @@ model = cobra.io.load_json_model('model.json')
 ```
 
 ## Basic FBA
+
+**Goal:** Predict optimal metabolic flux distributions and growth rates for an organism under defined conditions.
+
+**Approach:** Load a genome-scale metabolic model, solve the linear program to maximize the biomass objective function, then inspect flux values and solver status to interpret metabolic phenotype.
 
 ```python
 import cobra

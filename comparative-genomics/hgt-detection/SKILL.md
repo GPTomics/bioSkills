@@ -5,9 +5,26 @@ tool_type: mixed
 primary_tool: HGTector
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, IQ-TREE 2.2+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Horizontal Gene Transfer Detection
 
+**"Find horizontally transferred genes in my genome"** → Detect HGT events through compositional anomaly (GC%, codon bias), phylogenetic incongruence, or taxonomic distribution analysis.
+- Python: `hgtector search` → `hgtector analyze` for BLAST-based HGT scoring
+
 ## HGTector Workflow
+
+**Goal:** Detect horizontally transferred genes using BLAST-based phyletic distribution analysis.
+
+**Approach:** Run hgtector search against a reference database, then hgtector analyze to score genes by comparing close vs distal taxonomic hit ratios, flagging genes with unexpected phyletic patterns.
 
 ```python
 '''HGT detection with HGTector and compositional methods'''
@@ -77,6 +94,10 @@ def parse_hgtector_results(results_dir):
 ```
 
 ## Compositional Analysis
+
+**Goal:** Identify putative HGT regions by detecting anomalous GC content and codon usage.
+
+**Approach:** Calculate windowed GC content across the genome, compute z-scores, and flag regions more than 2 standard deviations from the mean as potential foreign DNA.
 
 ```python
 def calculate_gc_content(sequence):
@@ -185,6 +206,10 @@ def detect_gc_anomalies(genome_fasta, cds_gff, window_size=5000):
 
 ## Phylogenetic Incongruence
 
+**Goal:** Detect HGT by finding genes whose phylogeny conflicts with the species tree.
+
+**Approach:** Compare gene tree and species tree topologies, identify discordant placements, and run AU/SH topology tests with IQ-TREE to assess significance.
+
 ```python
 def detect_phylogenetic_incongruence(gene_tree, species_tree):
     '''Detect HGT via phylogenetic incongruence
@@ -243,6 +268,10 @@ def run_topology_test(alignment, tree1, tree2, output_prefix):
 ```
 
 ## Genomic Island Detection
+
+**Goal:** Identify clusters of horizontally transferred genes forming genomic islands.
+
+**Approach:** Group consecutive genes with anomalous GC z-scores into islands (minimum 3 genes, within 10 kb gaps), then annotate for mobile element signatures (integrases, transposases, phage genes).
 
 ```python
 def identify_genomic_islands(genome_gc, gene_annotations, gc_threshold=2):

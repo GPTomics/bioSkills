@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: Bowtie2 2.5.3+, STAR 2.7.11+, cutadapt 4.4+, numpy 1.26+ | Verify API if version differs
 # Complete Ribo-seq analysis pipeline
 
 FASTQ=$1

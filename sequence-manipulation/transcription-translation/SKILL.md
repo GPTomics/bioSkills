@@ -5,7 +5,20 @@ tool_type: python
 primary_tool: Bio.Seq
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Transcription and Translation
+
+**"Translate my DNA sequence to protein"** → Transcribe DNA to RNA and translate to protein, handling alternative codon tables and six-frame translation.
+- Python: `Seq.translate()`, `Seq.transcribe()` (BioPython)
 
 Convert between DNA, RNA, and protein sequences using Biopython.
 
@@ -116,6 +129,11 @@ print(f'Protein: {protein}')
 
 ### Translate All Six Reading Frames
 
+**Goal:** Translate a DNA sequence in all six frames (three forward, three reverse) to find all possible protein products.
+
+**Approach:** For each strand, offset by 0, 1, and 2 bases, trim to a multiple of 3, and translate.
+
+**Reference (BioPython 1.83+):**
 ```python
 def six_frame_translation(seq):
     frames = []
@@ -133,6 +151,11 @@ for strand, frame, protein in six_frame_translation(seq):
 
 ### Find All ORFs (Start to Stop)
 
+**Goal:** Identify all open reading frames (M to stop codon) across both strands and all three frames.
+
+**Approach:** Translate each of the six frames, then scan for Met-to-stop segments meeting the minimum length.
+
+**Reference (BioPython 1.83+):**
 ```python
 def find_orfs(seq, min_length=30):
     orfs = []

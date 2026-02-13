@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: plotly
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Interactive Visualization
+
+**"Create interactive plots"** → Build zoomable, hoverable visualizations for exploring large datasets in notebooks or HTML reports.
+- Python: `plotly.express`, `bokeh`, `altair`
+- R: `plotly::ggplotly()`, `htmlwidgets`
 
 ## plotly (Python)
 
@@ -22,6 +37,10 @@ fig.show()
 ```
 
 ## Interactive Volcano Plot
+
+**Goal:** Create a zoomable, hoverable volcano plot for exploring differential expression results.
+
+**Approach:** Compute significance categories, build a plotly scatter with gene names on hover and metadata tooltips, add threshold reference lines, and export as standalone HTML.
 
 ```python
 import plotly.express as px

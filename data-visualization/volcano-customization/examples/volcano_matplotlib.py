@@ -1,4 +1,5 @@
 '''Create customized volcano plots with matplotlib'''
+# Reference: adjustText 0.8+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, statsmodels 0.14+ | Verify API if version differs
 
 import matplotlib.pyplot as plt
 import numpy as np

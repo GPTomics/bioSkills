@@ -3,6 +3,7 @@
 Splicing quantification using SUPPA2 and rMATS-turbo.
 Demonstrates PSI calculation from RNA-seq data.
 '''
+# Reference: kallisto 0.50+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

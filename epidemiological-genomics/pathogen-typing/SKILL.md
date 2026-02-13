@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: mlst
 ---
 
+## Version Compatibility
+
+Reference examples tested with: mlst 2.23+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Pathogen Typing
+
+**"Type my bacterial isolates by MLST"** → Assign multi-locus sequence types to bacterial genomes for isolate characterization, outbreak clone identification, and strain tracking.
+- CLI: `mlst assembly.fasta` for 7-gene MLST typing
+- CLI: `chewBBACA.py AlleleCall` for core genome MLST (cgMLST)
 
 ## MLST with mlst Tool
 
@@ -81,6 +96,10 @@ chewBBACA.py ExtractCgMLST -i results/results_alleles.tsv \
 ```
 
 ## cgMLST Distance Analysis
+
+**Goal:** Compute pairwise allelic distances between isolates and cluster them to identify potential outbreak groups.
+
+**Approach:** Count allelic differences between each pair of isolate profiles (ignoring missing data), then apply single-linkage hierarchical clustering with a pathogen-specific distance threshold.
 
 ```python
 import pandas as pd

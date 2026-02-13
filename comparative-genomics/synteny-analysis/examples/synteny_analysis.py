@@ -1,4 +1,5 @@
 '''Synteny analysis with MCScanX'''
+# Reference: biopython 1.83+, paml 4.10+, matplotlib 3.8+, minimap2 2.26+, numpy 1.26+, pandas 2.2+, scipy 1.12+ | Verify API if version differs
 
 import subprocess
 import pandas as pd

@@ -1,4 +1,5 @@
 '''Query ClinVar for variant pathogenicity via REST API and local VCF'''
+# Reference: entrez direct 21.0+, bcftools 1.19+ | Verify API if version differs
 
 import requests
 import time

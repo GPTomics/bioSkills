@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: bcftools 1.19+, picard 3.1+ | Verify API if version differs
 # Download reference panels for imputation
 
 set -euo pipefail

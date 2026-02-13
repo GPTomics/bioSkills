@@ -3,6 +3,7 @@
 Neoantigen discovery pipeline: somatic VCF to ranked vaccine candidates.
 Requires: pvactools, mhcflurry, pandas, numpy, matplotlib, seaborn
 '''
+# Reference: ensembl vep 111+, mhcflurry 2.1+, optitype 1.3+, matplotlib 3.8+, numpy 1.26+, pvactools 4.1+, pandas 2.2+, seaborn 0.13+ | Verify API if version differs
 import subprocess
 import json
 import pandas as pd

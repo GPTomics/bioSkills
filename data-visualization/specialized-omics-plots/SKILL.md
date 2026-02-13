@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: ggplot2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, scikit-learn 1.4+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Specialized Omics Plots
+
+**"Create omics-specific plots"** → Generate MA plots, PCA biplots, sample correlation heatmaps, and other domain-specific visualizations for genomics data.
+- Python: `scanpy.pl.pca()`, `matplotlib` custom plots
+- R: `DESeq2::plotMA()`, `PCAtools::biplot()`
 
 ## Scope
 
@@ -79,7 +94,7 @@ def volcano_plot(df, fdr=0.05, lfc=1, ax=None):
     return ax
 ```
 
-## MA Plot (R)
+## MA Plot
 
 ```r
 ma_plot <- function(res, fdr = 0.05) {
@@ -96,6 +111,10 @@ ma_plot <- function(res, fdr = 0.05) {
 ```
 
 ## PCA Plot (R)
+
+**Goal:** Create a PCA scatter plot from a variance-stabilized expression matrix, colored by experimental condition.
+
+**Approach:** Select the top most-variable genes, run PCA on transposed assay data, extract variance-explained percentages, and plot PC1 vs PC2 with 95% confidence ellipses per group.
 
 ```r
 pca_plot <- function(vsd, intgroup = 'condition', ntop = 500) {
@@ -138,7 +157,11 @@ def pca_plot(df, metadata, color_by, ax=None):
     return ax
 ```
 
-## Dotplot for Enrichment (R)
+## Dotplot for Enrichment
+
+**Goal:** Visualize enrichment analysis results as a dot plot showing gene ratio, count, and significance for top pathways.
+
+**Approach:** Sort terms by adjusted p-value, compute numeric gene ratios, and plot with dot size proportional to gene count and color mapped to significance on a log scale.
 
 ```r
 library(ggplot2)
@@ -159,7 +182,7 @@ enrichment_dotplot <- function(enrich_result, top_n = 20) {
 }
 ```
 
-## Boxplot with Statistics (R)
+## Boxplot with Statistics
 
 ```r
 library(ggpubr)
@@ -173,7 +196,7 @@ expression_boxplot <- function(df, gene, group_var) {
 }
 ```
 
-## UMAP/tSNE Plot (Python)
+## UMAP/tSNE Plot
 
 ```python
 import scanpy as sc
@@ -191,7 +214,7 @@ sc.pl.umap(adata, color='leiden', palette='tab20', frameon=False,
            title='', legend_loc='on data', legend_fontsize=8)
 ```
 
-## Correlation Plot (R)
+## Correlation Plot
 
 ```r
 library(corrplot)
@@ -201,7 +224,7 @@ corrplot(cor_mat, method = 'color', type = 'lower', order = 'hclust',
          tl.col = 'black', tl.cex = 0.7, col = colorRampPalette(c('#4DBBD5', 'white', '#E64B35'))(100))
 ```
 
-## Violin Plot with Split (R)
+## Violin Plot with Split
 
 ```r
 ggplot(df, aes(cluster, expression, fill = condition)) +
@@ -211,7 +234,7 @@ ggplot(df, aes(cluster, expression, fill = condition)) +
     theme_bw()
 ```
 
-## Survival Curves (R)
+## Survival Curves
 
 ```r
 library(survival)

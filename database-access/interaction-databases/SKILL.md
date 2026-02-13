@@ -5,9 +5,22 @@ tool_type: python
 primary_tool: STRINGdb
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Interaction Databases
 
 Query protein-protein interaction (PPI) and gene interaction databases to build and analyze biological networks.
+
+**"Get protein interactions for a gene list"** → Query PPI databases (STRING, BioGRID, IntAct) via REST APIs to retrieve interaction partners and confidence scores.
+- Python: `requests.get()` against STRING/BioGRID REST endpoints + `pandas` for parsing
 
 ## STRING API
 
@@ -178,6 +191,10 @@ omni[['source_genesymbol', 'target_genesymbol', 'is_directed', 'is_stimulation',
 
 ## Convert to NetworkX
 
+**Goal:** Build an analyzable graph object from a STRING interactions table for network metrics and visualization.
+
+**Approach:** Filter interactions by confidence score, then create a NetworkX graph with edge weights derived from STRING scores.
+
 ```python
 import networkx as nx
 
@@ -198,6 +215,10 @@ degree_df.head()
 ```
 
 ### Multi-Database Aggregation
+
+**Goal:** Combine protein interaction evidence from multiple databases into a single high-confidence network.
+
+**Approach:** Normalize edge pairs from STRING and OmniPath into a common format, merge into one graph, and track which databases support each interaction.
 
 ```python
 def aggregate_interactions(string_df, omnipath_df):

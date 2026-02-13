@@ -5,7 +5,20 @@ tool_type: cli
 primary_tool: bismark
 ---
 
+## Version Compatibility
+
+Reference examples tested with: Bowtie2 2.5.3+, HISAT2 2.2.1+, Trim Galore 0.6.10+, samtools 1.19+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Bismark Alignment
+
+**"Align my bisulfite sequencing reads"** → Map WGBS/RRBS reads to an in-silico bisulfite-converted reference genome, producing BAM files with methylation context tags.
+- CLI: `bismark_genome_preparation genome/` then `bismark --genome genome/ reads.fq.gz`
 
 ## Prepare Genome Index
 

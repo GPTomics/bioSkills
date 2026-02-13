@@ -1,4 +1,5 @@
 #!/bin/bash
+# Reference: BioPython 1.83+, Infernal 1.1+, pandas 2.2+ | Verify API if version differs
 # Search query sequences against the Rfam database using Infernal cmscan.
 
 QUERY=$1

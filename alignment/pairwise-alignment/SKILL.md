@@ -5,11 +5,30 @@ tool_type: python
 primary_tool: Bio.Align
 ---
 
+## Version Compatibility
+
+Reference examples tested with: BioPython 1.83+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Pairwise Sequence Alignment
+
+**"Align two sequences"** → Compute an optimal alignment between a pair of sequences using dynamic programming.
+- Python: `PairwiseAligner()` (BioPython Bio.Align)
+- CLI: `needle` (global) or `water` (local) from EMBOSS
+- R: `pairwiseAlignment()` (Biostrings)
 
 Align two sequences using dynamic programming algorithms (Needleman-Wunsch for global, Smith-Waterman for local).
 
 ## Required Import
+
+**Goal:** Load modules needed for pairwise alignment operations.
+
+**Approach:** Import the PairwiseAligner class along with sequence and I/O utilities from Biopython.
 
 ```python
 from Bio.Align import PairwiseAligner
@@ -26,6 +45,10 @@ from Bio import SeqIO
 
 ## Creating an Aligner
 
+**Goal:** Configure a PairwiseAligner with appropriate scoring for the sequence type.
+
+**Approach:** Instantiate PairwiseAligner with mode, scoring parameters, or a substitution matrix depending on DNA vs protein input.
+
 ```python
 # Basic aligner with defaults
 aligner = PairwiseAligner()
@@ -39,6 +62,12 @@ aligner = PairwiseAligner(mode='global', substitution_matrix=substitution_matric
 ```
 
 ## Performing Alignments
+
+**"Align two sequences"** → Compute optimal alignment(s) between a pair of sequences, returning alignment objects or a score.
+
+**Goal:** Align two sequences and retrieve the optimal alignment(s) or score.
+
+**Approach:** Call `aligner.align()` for full alignment objects or `aligner.score()` for score-only (faster for large sequences).
 
 ```python
 seq1 = Seq('ACCGGTAACGTAG')
@@ -63,6 +92,10 @@ query             0 ACCGTTAACGAAG 13
 
 ## Accessing Alignment Data
 
+**Goal:** Extract alignment properties including score, shape, aligned sequences, and coordinate mappings.
+
+**Approach:** Access alignment object attributes and indexing to retrieve per-sequence aligned strings and coordinate arrays.
+
 ```python
 alignment = alignments[0]
 
@@ -81,6 +114,10 @@ print(alignment.coordinates)              # Full coordinate array
 ```
 
 ## Alignment Counts (Identities, Mismatches, Gaps)
+
+**Goal:** Quantify identities, mismatches, and gaps in an alignment to calculate percent identity.
+
+**Approach:** Use the `.counts()` method on the alignment object and derive percent identity from identity and mismatch totals.
 
 ```python
 alignment = alignments[0]
@@ -127,6 +164,10 @@ aligner.query_right_extend_gap_score = 0
 
 ## Available Substitution Matrices
 
+**Goal:** Load and select substitution matrices for protein alignment scoring.
+
+**Approach:** List available matrices with `substitution_matrices.load()` and load specific ones (BLOSUM62 for general, BLOSUM80 for close homologs, PAM250 for distant).
+
 ```python
 from Bio.Align import substitution_matrices
 print(substitution_matrices.load())  # List all available matrices
@@ -138,6 +179,10 @@ pam250 = substitution_matrices.load('PAM250')      # Distantly related proteins
 ```
 
 ## Working with SeqRecord Objects
+
+**Goal:** Align sequences loaded from FASTA files rather than hardcoded strings.
+
+**Approach:** Parse SeqRecord objects from a FASTA file and pass their `.seq` attributes to the aligner.
 
 ```python
 from Bio import SeqIO
@@ -163,6 +208,10 @@ for i, alignment in enumerate(alignments):
 
 ## Substitution Matrix from Alignment
 
+**Goal:** Extract observed substitution frequencies from a completed alignment.
+
+**Approach:** Access the `.substitutions` property to get a matrix of observed base/residue substitution counts.
+
 ```python
 alignment = alignments[0]
 substitutions = alignment.substitutions
@@ -175,6 +224,10 @@ print(substitutions)
 ```
 
 ## Export Alignment to Different Formats
+
+**Goal:** Convert an alignment to standard bioinformatics file formats for downstream tools.
+
+**Approach:** Use Python's `format()` function with format specifiers (fasta, clustal, psl, sam) on the alignment object.
 
 ```python
 alignment = alignments[0]

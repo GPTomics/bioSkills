@@ -1,4 +1,5 @@
 '''Single-cell TCR/BCR analysis with scirpy'''
+# Reference: mixcr 4.6+, vdjtools 1.2.1+, scanpy 1.10+ | Verify API if version differs
 
 import scirpy as ir
 import scanpy as sc

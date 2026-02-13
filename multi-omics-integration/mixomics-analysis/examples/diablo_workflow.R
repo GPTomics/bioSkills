@@ -1,3 +1,4 @@
+# Reference: mixOmics 6.26+ | Verify API if version differs
 library(mixOmics)
 
 # Load breast cancer example data

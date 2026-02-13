@@ -5,9 +5,28 @@ tool_type: python
 primary_tool: mhcflurry
 ---
 
+## Version Compatibility
+
+Reference examples tested with: MHCflurry 2.1+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # MHC Binding Prediction
 
+**"Predict which peptides bind to MHC"** → Predict peptide-MHC class I and II binding affinity using neural network models to identify potential T-cell epitopes from protein sequences.
+- Python: `mhcflurry.Class1PresentationPredictor().predict()` for MHC-I
+- CLI: `netMHCpan` for alternative MHC-I/II predictions
+
 ## MHCflurry Setup
+
+**Goal:** Install MHCflurry and download pre-trained prediction models.
+
+**Approach:** Install via pip and fetch model weights for class I pan-allele or specific allele predictions.
 
 ```bash
 # Install MHCflurry
@@ -21,6 +40,10 @@ mhcflurry-downloads fetch models_class1_pan
 ```
 
 ## MHCflurry Python API
+
+**Goal:** Predict peptide-MHC binding affinity and presentation scores for a set of peptides.
+
+**Approach:** Load the Class1PresentationPredictor and call predict() with peptide-allele pairs to obtain IC50, percentile rank, and presentation scores.
 
 ```python
 from mhcflurry import Class1PresentationPredictor
@@ -43,6 +66,10 @@ print(result)
 ```
 
 ## Interpret Binding Predictions
+
+**Goal:** Classify peptide-MHC binding strength from predicted IC50 values.
+
+**Approach:** Apply standard affinity thresholds (strong <50nM, moderate <500nM, weak <5000nM) to categorize binding.
 
 ```python
 def interpret_binding(ic50_nm):
@@ -70,6 +97,10 @@ def interpret_binding(ic50_nm):
 ```
 
 ## Batch Prediction
+
+**Goal:** Predict binding for all peptide-allele combinations in a batch.
+
+**Approach:** Iterate over peptide-allele pairs, call MHCflurry for each combination, and concatenate results into a single DataFrame.
 
 ```python
 from mhcflurry import Class1PresentationPredictor
@@ -112,6 +143,10 @@ print(predictions[['peptide', 'allele', 'mhcflurry_affinity', 'mhcflurry_affinit
 
 ## Scan Protein Sequence
 
+**Goal:** Identify all potential MHC-I epitopes within a protein by scanning overlapping peptide windows.
+
+**Approach:** Generate all k-mers (8-11aa) from the protein, predict binding for each against target alleles, and retain those below the 2% percentile rank cutoff.
+
 ```python
 def scan_protein_for_epitopes(protein_seq, alleles, peptide_lengths=[8, 9, 10, 11]):
     '''Scan protein for potential MHC epitopes
@@ -148,6 +183,10 @@ def scan_protein_for_epitopes(protein_seq, alleles, peptide_lengths=[8, 9, 10, 1
 
 ## MHC Class II Prediction
 
+**Goal:** Predict MHC class II binding for longer peptides (13-25aa) relevant to CD4+ T-cell responses.
+
+**Approach:** Query the IEDB NetMHCIIpan API since MHCflurry focuses on class I; submit peptide-allele pairs and parse results.
+
 ```python
 def predict_mhc_ii(peptides, alleles):
     '''Predict MHC class II binding
@@ -180,6 +219,10 @@ def predict_mhc_ii(peptides, alleles):
 ```
 
 ## Common HLA Alleles
+
+**Goal:** Define population-representative HLA allele sets for broad epitope coverage analysis.
+
+**Approach:** Use curated lists of the most frequent HLA-A and HLA-B alleles covering ~85% of the Caucasian population.
 
 ```python
 # Most common HLA-A alleles (cover ~85% of population)

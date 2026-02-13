@@ -5,7 +5,22 @@ tool_type: cli
 primary_tool: ShapeMapper2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: STAR 2.7.11+, eggNOG-mapper 2.1+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Structure Probing
+
+**"Process my SHAPE-MaP experiment to get RNA reactivity profiles"** → Convert mutation rates from SHAPE-MaP or DMS-MaPseq sequencing data into per-nucleotide reactivity profiles, then use reactivities as constraints for thermodynamic structure prediction.
+- CLI: `shapemapper` (ShapeMapper2) for end-to-end SHAPE-MaP processing
+- CLI: `RNAfold --shape` (ViennaRNA) for SHAPE-constrained folding
 
 Analyze experimental RNA structure probing data (SHAPE-MaP, DMS-MaPseq) to obtain per-nucleotide reactivity profiles. High reactivity indicates flexible/single-stranded nucleotides; low reactivity indicates base-paired/structured positions. Reactivities constrain thermodynamic folding for more accurate structure prediction.
 

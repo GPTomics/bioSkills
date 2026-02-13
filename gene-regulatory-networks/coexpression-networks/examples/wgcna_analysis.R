@@ -1,3 +1,4 @@
+# Reference: WGCNA 1.72+ | Verify API if version differs
 # Complete WGCNA co-expression network analysis
 
 library(WGCNA)

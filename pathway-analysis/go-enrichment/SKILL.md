@@ -5,9 +5,25 @@ tool_type: r
 primary_tool: clusterProfiler
 ---
 
+## Version Compatibility
+
+Reference examples tested with: R stats (base), clusterProfiler 4.10+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # GO Over-Representation Analysis
 
 ## Core Pattern
+
+**Goal:** Identify enriched Gene Ontology terms in a gene list from differential expression or similar analyses.
+
+**Approach:** Test for over-representation of GO terms using the hypergeometric test via clusterProfiler enrichGO.
+
+**"Run GO enrichment on my gene list"** → Test whether biological process, molecular function, or cellular component terms are over-represented among significant genes.
 
 ```r
 library(clusterProfiler)
@@ -26,6 +42,10 @@ ego <- enrichGO(
 
 ## Prepare Gene List from DE Results
 
+**Goal:** Extract significant gene IDs from differential expression results and convert to the format required by enrichGO.
+
+**Approach:** Filter DE results by adjusted p-value and fold change, then convert gene symbols to Entrez IDs using bitr.
+
 ```r
 library(dplyr)
 
@@ -42,6 +62,10 @@ gene_list <- gene_ids$ENTREZID
 
 ## ID Conversion with bitr
 
+**Goal:** Convert between gene identifier types (Ensembl, Symbol, Entrez) for compatibility with enrichment tools.
+
+**Approach:** Use clusterProfiler bitr to map between ID types using organism annotation databases.
+
 ```r
 # Check available key types
 keytypes(org.Hs.eg.db)
@@ -54,6 +78,10 @@ converted <- bitr(genes, fromType = 'SYMBOL', toType = c('ENTREZID', 'ENSEMBL'),
 ```
 
 ## With Background Universe
+
+**Goal:** Improve enrichment specificity by restricting the background to genes actually tested in the experiment.
+
+**Approach:** Pass all expressed genes (not just significant ones) as the universe parameter to enrichGO.
 
 ```r
 # Use all expressed genes as background (recommended)
@@ -124,6 +152,10 @@ sig_terms <- results_df[results_df$p.adjust < 0.01 & results_df$Count >= 5, ]
 
 ## Simplify Redundant Terms
 
+**Goal:** Remove highly similar GO terms to reduce redundancy in enrichment results.
+
+**Approach:** Cluster GO terms by semantic similarity and retain representative terms using the simplify function.
+
 ```r
 # Remove redundant GO terms (keeps representative terms)
 ego_simplified <- simplify(ego, cutoff = 0.7, by = 'p.adjust', select_fun = min)
@@ -146,6 +178,10 @@ ego_yeast <- enrichGO(gene = genes, OrgDb = org.Sc.sgd.db, ont = 'BP', keyType =
 ```
 
 ## Group GO Terms by Ancestor
+
+**Goal:** Classify genes by broad GO slim categories for a high-level functional overview.
+
+**Approach:** Use groupGO to assign genes to GO terms at a specific hierarchy level.
 
 ```r
 # Classify genes by GO slim categories

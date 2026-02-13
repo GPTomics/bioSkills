@@ -5,7 +5,22 @@ tool_type: mixed
 primary_tool: plink2
 ---
 
+## Version Compatibility
+
+Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Linkage Disequilibrium
+
+**"Calculate LD between my variants"** → Compute pairwise LD statistics (r², D'), prune correlated variants for independent sets, and identify haplotype blocks from genotype data.
+- CLI: `plink2 --r2` for LD calculation, `--indep-pairwise` for pruning
+- Python: `allel.rogers_huff_r()` for windowed LD in scikit-allel
 
 Calculate LD statistics, prune correlated variants, and identify haplotype blocks.
 
@@ -96,6 +111,10 @@ r2 = allel.rogers_huff_r(gn[:100]) ** 2
 ```
 
 ### LD Decay
+
+**Goal:** Plot LD decay as a function of physical distance to characterize the extent of linkage in the population.
+
+**Approach:** Compute pairwise r² values between nearby variants using scikit-allel, bin by physical distance, and plot mean r² per distance bin.
 
 ```python
 import allel

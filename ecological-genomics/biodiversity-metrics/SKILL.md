@@ -5,7 +5,21 @@ tool_type: r
 primary_tool: iNEXT
 ---
 
+## Version Compatibility
+
+Reference examples tested with: ggplot2 3.5+, vegan 2.6+
+
+Before using code patterns, verify installed versions match. If versions differ:
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+
+If code throws ImportError, AttributeError, or TypeError, introspect the installed
+package and adapt the example to match the actual API rather than retrying.
+
 # Biodiversity Metrics
+
+**"Calculate species diversity for my ecological samples"** → Compute Hill number diversity (richness, Shannon, Simpson) with coverage-based rarefaction/extrapolation using iNEXT, and partition beta diversity into turnover and nestedness components with betapart.
+- R: `iNEXT::iNEXT()` for coverage-based rarefaction and extrapolation
+- R: `betapart::beta.multi()` for beta diversity partitioning
 
 Calculates alpha diversity using Hill numbers, coverage-based rarefaction/extrapolation, and beta diversity partitioning into turnover and nestedness components.
 
@@ -22,6 +36,10 @@ Hill numbers unify diversity indices into a single parametric family controlled 
 Higher q values downweight rare species. q = 1 weights species by frequency and is the most balanced measure.
 
 ## iNEXT Coverage-Based Rarefaction
+
+**Goal:** Compare diversity across assemblages standardized by sampling completeness rather than sample size.
+
+**Approach:** Run iNEXT coverage-based rarefaction/extrapolation for Hill numbers q=0,1,2 and visualize with ggiNEXT.
 
 Coverage-based rarefaction standardizes by completeness rather than sample size, enabling fair comparison of assemblages sampled with different effort (Chao & Jost 2012).
 
@@ -52,6 +70,10 @@ ggiNEXT(result, type = 3) + theme_bw()
 
 ## Point Estimates at Standardized Coverage
 
+**Goal:** Estimate diversity at a common coverage level for fair cross-site comparison.
+
+**Approach:** Use estimateD with a target coverage of 0.95 to produce standardized Hill number estimates.
+
 ```r
 # Estimate diversity at a common coverage level
 # coverage=0.95: typical target for adequate sampling
@@ -63,6 +85,10 @@ est
 
 ## Asymptotic Diversity Estimation
 
+**Goal:** Estimate true community diversity if sampling were complete.
+
+**Approach:** Extract asymptotic estimates (Chao1, Chao-Shannon, Chao-Simpson) from iNEXT output.
+
 ```r
 # Chao1 (q=0), Chao-Shannon (q=1), Chao-Simpson (q=2)
 # Asymptotic = estimated true diversity if sampling were complete
@@ -71,6 +97,10 @@ asymptotic$AsyEst
 ```
 
 ## iNEXT.3D: Taxonomic, Phylogenetic, and Functional Diversity
+
+**Goal:** Compute diversity across three dimensions: taxonomic, phylogenetic (Faith's PD generalized), and functional (trait space).
+
+**Approach:** Use iNEXT3D with appropriate diversity facet and supplementary data (phylogenetic tree or trait distance matrix).
 
 ```r
 library(iNEXT.3D)
@@ -91,6 +121,10 @@ fd <- iNEXT3D(abundance_data, diversity = 'FD', q = c(0, 1, 2),
 
 ## Classic Diversity with vegan
 
+**Goal:** Calculate standard alpha diversity indices and rarefaction curves from a community matrix.
+
+**Approach:** Compute Shannon, Simpson, and inverse Simpson indices with vegan::diversity, then rarefy to the minimum sample size.
+
 ```r
 library(vegan)
 
@@ -108,6 +142,10 @@ rare_richness <- rarefy(community_matrix, sample = raremin)
 ```
 
 ## Beta Diversity Partitioning with betapart
+
+**Goal:** Decompose total beta diversity into turnover (species replacement) and nestedness (richness difference) components.
+
+**Approach:** Apply betapart pairwise and multi-site decomposition on presence/absence and abundance matrices using Sorensen, Jaccard, and Bray-Curtis families.
 
 Decomposes total beta diversity (Sorensen or Jaccard) into turnover (species replacement) and nestedness (richness difference) components:
 
@@ -148,6 +186,10 @@ pair_abund$beta.bray.gra   # abundance gradient (analogous to nestedness)
 | Both similar | Mixed processes driving community differences |
 
 ## Visualization
+
+**Goal:** Visualize the relative contribution of turnover vs nestedness to total beta diversity.
+
+**Approach:** Plot turnover proportion against total beta diversity for each site pair using ggplot2.
 
 ```r
 library(ggplot2)
