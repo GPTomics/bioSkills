@@ -12,6 +12,8 @@
 set -e
 
 REPO_URL="https://github.com/GPTomics/bioSkills.git"
+RELEASE_TAG="3.0"
+EXPECTED_COMMIT="fae219d8cacb7be84b96b3a99122556c1a42a47b"
 INSTALL_DIR="$HOME/.openclaw/bioskills-repo"
 SKILLS_DIR="$HOME/.openclaw/skills"
 
@@ -28,7 +30,7 @@ VERBOSE=false
 print_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Install all bioSkills to OpenClaw"
+    echo "Install bioSkills $RELEASE_TAG to OpenClaw"
     echo ""
     echo "Options:"
     echo "  --categories CATS     Install only specified categories (comma-separated)"
@@ -81,27 +83,43 @@ if ! command -v git &>/dev/null; then
     exit 1
 fi
 
-echo "bioSkills installer"
-echo "==================="
+verify_commit() {
+    local dir="$1"
+    local actual_commit
+    actual_commit=$(git -C "$dir" rev-parse HEAD 2>/dev/null)
+    if [ "$actual_commit" != "$EXPECTED_COMMIT" ]; then
+        echo -e "${RED}Error: Repository integrity check failed${NC}"
+        echo "  Expected: $EXPECTED_COMMIT"
+        echo "  Actual:   $actual_commit"
+        return 1
+    fi
+    [ "$VERBOSE" = true ] && echo -e "  ${GREEN}Verified commit: ${EXPECTED_COMMIT:0:12}${NC}"
+    return 0
+}
+
+echo "bioSkills installer (release $RELEASE_TAG)"
+echo "==========================================="
 echo ""
 
-if [ -d "$INSTALL_DIR/.git" ]; then
-    echo "Updating cached repository..."
-    git -C "$INSTALL_DIR" pull --quiet 2>/dev/null || {
-        echo "Cache stale, re-cloning..."
-        tmpdir=$(mktemp -d)
-        if git clone --quiet --branch main "$REPO_URL" "$tmpdir"; then
+if [ -d "$INSTALL_DIR/.git" ] && verify_commit "$INSTALL_DIR" 2>/dev/null; then
+    echo "Using cached repository (verified)..."
+else
+    echo "Cloning bioSkills release $RELEASE_TAG..."
+    tmpdir=$(mktemp -d)
+    if git clone --quiet --depth 1 --branch "$RELEASE_TAG" "$REPO_URL" "$tmpdir"; then
+        if verify_commit "$tmpdir"; then
             rm -rf "$INSTALL_DIR"
+            mkdir -p "$(dirname "$INSTALL_DIR")"
             mv "$tmpdir" "$INSTALL_DIR"
         else
             rm -rf "$tmpdir"
-            echo -e "${YELLOW}Warning: Could not update. Using cached version.${NC}"
+            exit 1
         fi
-    }
-else
-    echo "Cloning bioSkills repository..."
-    mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone --quiet --branch main "$REPO_URL" "$INSTALL_DIR"
+    else
+        rm -rf "$tmpdir"
+        echo -e "${RED}Error: Failed to clone repository${NC}"
+        exit 1
+    fi
 fi
 
 echo ""
