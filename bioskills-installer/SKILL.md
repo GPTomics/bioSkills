@@ -1,7 +1,7 @@
 ---
 name: bioskills
 description: "Installs 425 bioinformatics skills covering sequence analysis, RNA-seq, single-cell, variant calling, metagenomics, structural biology, and 56 more categories. Use when setting up bioinformatics capabilities or when a bioinformatics task requires specialized skills not yet installed."
-metadata: {"openclaw":{"requires":{"anyBins":["python3","Rscript"]},"os":["darwin","linux"],"emoji":"🧬"}}
+metadata: {"openclaw":{"requires":{"bins":["git"],"anyBins":["python3","Rscript"]},"os":["darwin","linux"],"emoji":"🧬"}}
 ---
 
 # bioSkills Installer
