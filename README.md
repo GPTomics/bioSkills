@@ -46,7 +46,7 @@ conda install -c bioconda samtools bcftools blast minimap2 bedtools \
 ### Claude Code
 
 ```bash
-git clone https://github.com/your-username/bioSkills.git
+git clone git@github.com:GPTomics/bioSkills.git
 cd bioSkills
 ./install-claude.sh                              # Install globally
 ./install-claude.sh --project /path/to/project   # Or install to specific project
