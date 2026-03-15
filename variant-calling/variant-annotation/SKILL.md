@@ -7,11 +7,12 @@ primary_tool: VEP
 
 ## Version Compatibility
 
-Reference examples tested with: bcftools 1.19+
+Reference examples tested with: bcftools 1.19+, VEP 110+, SnpEff 5.2+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Note: SnpEff and SnpSift use single-dash `-version`, not `--version`
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
@@ -207,6 +208,10 @@ vep -i input.vcf -o output.vcf --vcf \
 conda install -c bioconda snpeff
 snpEff download GRCh38.105
 ```
+
+### Memory
+
+SnpEff loads the genome database into memory as Java objects. Set `-Xmx` larger than the database size on disk -- human genome databases (e.g. GRCh38) expand to 3-4 GB in memory and need at least `-Xmx8g`. Smaller genomes can use less. Without sufficient heap, SnpEff will hit `OutOfMemoryError` or thrash on garbage collection.
 
 ### Basic Annotation
 

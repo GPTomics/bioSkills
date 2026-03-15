@@ -72,6 +72,8 @@ names(gene_list) <- de_results$gene_id
 gene_list <- sort(gene_list, decreasing = TRUE)
 
 # Wald statistic (from DESeq2)
+# Note: lfcShrink() with type='apeglm' or 'ashr' drops the stat column.
+# If using shrunk results, pull stat from unshrunk results(dds) instead.
 gene_list <- de_results$stat
 names(gene_list) <- de_results$gene_id
 gene_list <- sort(gene_list, decreasing = TRUE)
