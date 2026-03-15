@@ -287,8 +287,6 @@ The agent will select appropriate tools based on context. See the Skill Categori
 
 ## Contributing
 
-See `CLAUDE.md` for development guidelines, file structure requirements, and quality standards.
-
 Key requirements:
 - SKILL.md must include "Use when..." in description
 - `primary_tool` must be a single value (not comma-separated)
