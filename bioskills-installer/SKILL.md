@@ -24,27 +24,27 @@ bash scripts/install-bioskills.sh --categories "single-cell,variant-calling,diff
 
 ## What Gets Installed
 
-| Category Group | Categories | Skills |
-|----------------|-----------|--------|
-| Sequence & Alignment | sequence-io, sequence-manipulation, alignment, alignment-files, database-access | 40 |
-| Read Processing | read-qc, read-alignment | 11 |
-| RNA-seq & Expression | differential-expression, rna-quantification, expression-matrix | 14 |
-| Single-Cell & Spatial | single-cell, spatial-transcriptomics | 25 |
-| Variant Analysis | variant-calling, copy-number, phasing-imputation | 21 |
-| Epigenomics | chip-seq, atac-seq, methylation-analysis, hi-c-analysis | 25 |
-| Metagenomics & Microbiome | metagenomics, microbiome | 13 |
-| Genomics & Assembly | genome-assembly, genome-annotation, genome-intervals, genome-engineering, primer-design | 29 |
-| Regulatory & Causal | gene-regulatory-networks, causal-genomics, rna-structure | 13 |
-| Temporal & Ecological | temporal-genomics, ecological-genomics | 11 |
-| Immunology & Clinical | immunoinformatics, clinical-databases, tcr-bcr-analysis, epidemiological-genomics | 25 |
-| Specialized Omics | proteomics, metabolomics, alternative-splicing, chemoinformatics, liquid-biopsy | 36 |
-| RNA Biology | small-rna-seq, epitranscriptomics, clip-seq, ribo-seq | 20 |
-| Phylogenetics & Evolution | phylogenetics, population-genetics, comparative-genomics | 16 |
-| Structural & Systems | structural-biology, systems-biology | 11 |
-| Screens & Cytometry | crispr-screens, flow-cytometry, imaging-mass-cytometry | 22 |
-| Pathway & Integration | pathway-analysis, multi-omics-integration, restriction-analysis | 14 |
-| Infrastructure | data-visualization, machine-learning, workflow-management, reporting, experimental-design, long-read-sequencing | 39 |
-| Workflows | End-to-end pipelines (FASTQ to results) | 40 |
+425 skills across 62 categories covering:
+
+- **Sequence & Alignment** (40): sequence-io, sequence-manipulation, alignment, alignment-files, database-access
+- **Read Processing** (11): read-qc, read-alignment
+- **RNA-seq & Expression** (14): differential-expression, rna-quantification, expression-matrix
+- **Single-Cell & Spatial** (25): single-cell, spatial-transcriptomics
+- **Variant Analysis** (21): variant-calling, copy-number, phasing-imputation
+- **Epigenomics** (25): chip-seq, atac-seq, methylation-analysis, hi-c-analysis
+- **Metagenomics & Microbiome** (13): metagenomics, microbiome
+- **Genomics & Assembly** (29): genome-assembly, genome-annotation, genome-intervals, genome-engineering, primer-design
+- **Regulatory & Causal** (13): gene-regulatory-networks, causal-genomics, rna-structure
+- **Temporal & Ecological** (11): temporal-genomics, ecological-genomics
+- **Immunology & Clinical** (25): immunoinformatics, clinical-databases, tcr-bcr-analysis, epidemiological-genomics
+- **Specialized Omics** (36): proteomics, metabolomics, alternative-splicing, chemoinformatics, liquid-biopsy
+- **RNA Biology** (20): small-rna-seq, epitranscriptomics, clip-seq, ribo-seq
+- **Phylogenetics & Evolution** (16): phylogenetics, population-genetics, comparative-genomics
+- **Structural & Systems** (11): structural-biology, systems-biology
+- **Screens & Cytometry** (22): crispr-screens, flow-cytometry, imaging-mass-cytometry
+- **Pathway & Integration** (14): pathway-analysis, multi-omics-integration, restriction-analysis
+- **Infrastructure** (39): data-visualization, machine-learning, workflow-management, reporting, experimental-design, long-read-sequencing
+- **Workflows** (40): end-to-end pipelines (FASTQ to results)
 
 ## After Installation
 
@@ -59,22 +59,3 @@ Once installed, skills are automatically triggered based on the task at hand. Ex
 ## Source
 
 GitHub: https://github.com/GPTomics/bioSkills
-
-## Related Skills
-
-After installation, 425 individual skills become available across these categories:
-sequence-io, sequence-manipulation, database-access, alignment, alignment-files,
-variant-calling, phylogenetics, differential-expression, structural-biology,
-single-cell, pathway-analysis, restriction-analysis, methylation-analysis,
-chip-seq, metagenomics, long-read-sequencing, read-qc, read-alignment,
-rna-quantification, genome-assembly, genome-intervals, data-visualization,
-expression-matrix, copy-number, proteomics, flow-cytometry, population-genetics,
-multi-omics-integration, spatial-transcriptomics, machine-learning,
-workflow-management, microbiome, metabolomics, phasing-imputation,
-primer-design, hi-c-analysis, imaging-mass-cytometry, atac-seq,
-crispr-screens, reporting, experimental-design, clinical-databases,
-tcr-bcr-analysis, small-rna-seq, epitranscriptomics, clip-seq, ribo-seq,
-genome-engineering, systems-biology, epidemiological-genomics,
-immunoinformatics, comparative-genomics, alternative-splicing,
-chemoinformatics, liquid-biopsy, genome-annotation, gene-regulatory-networks,
-causal-genomics, rna-structure, temporal-genomics, ecological-genomics, workflows
