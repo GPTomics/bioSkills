@@ -36,6 +36,10 @@ Tell your AI agent what you want to do:
 
 > "Generate a Manhattan plot of Fst values"
 
+> "My two populations have very different sample sizes, which Fst estimator should I use?"
+
+> "I don't have population labels for my samples, how do I compute Fst?"
+
 ### Haplotype-Based Tests
 > "Compute iHS scores to detect ongoing selection"
 
@@ -66,6 +70,9 @@ Tell your AI agent what you want to do:
 - Use multiple statistics to reduce false positives
 - Always adjust for recombination rate variation
 - Empirical outlier cutoffs (top 1%) are often more reliable than p-values
+- For Fst with unequal sample sizes, prefer Weir & Cockerham or Hudson over Nei's Gst
+- Compute mean Fst as ratio-of-averages, not the mean of per-SNP ratios
+- Without population labels, infer structure first via PCA or ADMIXTURE before computing Fst
 
 ## Selection Signatures Reference
 
