@@ -41,7 +41,9 @@ ac_subpops = gt.count_alleles_subpops(subpops)
 
 num, den = allel.hudson_fst(ac_subpops['pop1'], ac_subpops['pop2'])
 fst_per_snp = num / den
-print(f'Mean Fst: {np.nanmean(fst_per_snp):.4f}')
+# ratio-of-averages (preferred over mean of per-SNP ratios)
+fst_mean = np.nansum(num) / np.nansum(den)
+print(f'Mean Fst: {fst_mean:.4f}')
 ```
 
 ### Windowed Fst
@@ -69,6 +71,33 @@ vcftools --vcf data.vcf --weir-fst-pop pop1.txt --weir-fst-pop pop2.txt --out fs
 vcftools --vcf data.vcf --weir-fst-pop pop1.txt --weir-fst-pop pop2.txt \
          --fst-window-size 100000 --fst-window-step 50000 --out fst_windowed
 ```
+
+### Choosing an Fst Estimator
+
+| Estimator | Method | Best for |
+|-----------|--------|----------|
+| Weir & Cockerham (1984) | `vcftools --weir-fst-pop` | Unequal sample sizes; corrects for sample size bias |
+| Hudson (Bhatia et al. 2013) | `allel.hudson_fst()` | Very unequal sample sizes; robust two-population estimator |
+| Nei's Gst | `allel.average_nei_fst()` | Avoid when sample sizes are unequal; biased downward with small samples |
+
+When sample sizes between populations are known and unequal, prefer Weir & Cockerham or Hudson over Nei's Gst. Hudson's estimator is especially robust when one population is much larger than the other (Bhatia et al. 2013).
+
+For genome-wide mean Fst, always compute as ratio-of-averages (`sum(numerators) / sum(denominators)`), not the arithmetic mean of per-SNP Fst values. Per-SNP ratios are noisy at low-diversity loci and inflate the average.
+
+Fst estimator methodology evolves; before selecting an estimator, verify current best practices by checking the latest scikit-allel and vcftools documentation for any updated or newly recommended approaches.
+
+### When Population Labels Are Unknown
+
+When samples lack predefined population assignments, population structure must be inferred before computing Fst:
+
+1. Run PCA (`allel.pca()` or PLINK `--pca`) to identify clusters visually
+2. Use an assignment method (ADMIXTURE, `sklearn.cluster.KMeans` on PC space) to assign population labels
+3. Compute Fst between inferred groups
+
+For continuous population structure (isolation-by-distance, clines), per-population Fst may not be meaningful. Consider instead:
+- Pairwise individual-level relatedness or kinship matrices
+- Spatial autocorrelation of allele frequencies
+- Landscape genomics approaches (see ecological-genomics/landscape-genomics)
 
 ## Tajima's D - Departures from Neutrality
 
