@@ -365,8 +365,8 @@ dds <- DESeq(dds)
 # 5. Get results with shrinkage
 res <- lfcShrink(dds, coef = resultsNames(dds)[2], type = 'apeglm')
 
-# 6. Filter significant genes
-sig_genes <- subset(res, padj < 0.05 & abs(log2FoldChange) > 1)
+# 6. Filter significant results
+sig <- subset(res, padj < 0.05)
 ```
 
 ## Related Skills

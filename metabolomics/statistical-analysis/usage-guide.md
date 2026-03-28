@@ -7,11 +7,11 @@ Statistical analysis identifies metabolites associated with biological condition
 ## Prerequisites
 
 ```bash
+# Python
+pip install scipy statsmodels numpy pandas matplotlib scikit-learn
+
 # R packages
 install.packages(c("mixOmics", "ropls", "pROC"))
-
-# Python
-pip install scikit-learn scipy statsmodels
 ```
 
 ## Quick Start
@@ -23,9 +23,9 @@ Tell your AI agent what you want to do:
 ## Example Prompts
 
 ### Univariate Analysis
-> "Run t-tests comparing treatment vs control with FDR correction"
+> "Run Welch's t-tests on my log2-transformed metabolomics data with BH FDR correction"
 > "Perform ANOVA across my three treatment groups and identify significant metabolites"
-> "Calculate fold changes and create a volcano plot"
+> "Calculate log2 fold changes and create a volcano plot"
 
 ### Multivariate Analysis
 > "Run PCA for exploratory analysis and check sample grouping"
@@ -52,6 +52,8 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
+- Log2-transform raw intensities before statistical testing; compute fold change as difference of means on the log2 scale (not log2 of ratio of raw means)
+- Always use Welch's t-test over Student's; in Python, set `equal_var=False` in `scipy.stats.ttest_ind()`
 - Always correct for multiple testing (FDR/BH method is standard)
 - Validate PLS-DA with permutation testing (Q2 should exceed permuted values)
 - VIP > 1 is common threshold, but combine with FDR for confidence
@@ -62,8 +64,10 @@ Tell your AI agent what you want to do:
 
 | Method | Samples | Use Case |
 |--------|---------|----------|
-| t-test | 2 groups | Simple comparison |
-| ANOVA | 3+ groups | Multiple conditions |
+| Welch's t-test | 2 groups | Default for two-group comparison |
+| limma moderated t | 2 groups, small n | Better with < 5 samples per group |
+| Mann-Whitney U | 2 groups | Non-parametric alternative |
+| Welch's ANOVA | 3+ groups | Multiple conditions |
 | PCA | Any | Exploratory, QC |
 | PLS-DA | 2+ groups | Classification, VIP |
 | OPLS-DA | 2 groups | Biomarker discovery |
