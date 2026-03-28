@@ -162,7 +162,13 @@ results['significant'] = results['padj'] < 0.05
 
 ## Fold Change Calculation
 
-**Goal:** Quantify the magnitude and direction of abundance changes between groups.
+| Scenario | Test | Notes |
+|----------|------|-------|
+| 2 groups, n >= 5/group | Welch's t-test | Always prefer over Student's; unequal variance is the norm |
+| 2 groups, non-normal after log | Mann-Whitney U | Cannot reach p < 0.05 with n < 4/group |
+| 2 groups, n < 5/group | limma moderated t | `eBayes(trend=TRUE)` borrows variance across features |
+| Paired samples | Paired t-test | Pre/post, matched case-control |
+| 3+ groups | Welch's ANOVA | Post-hoc: Games-Howell or Dunn's test |
 
 **Approach:** Compute the difference of group means on log2-transformed data, which equals log2(geometric_mean_case / geometric_mean_control).
 
