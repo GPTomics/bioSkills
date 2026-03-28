@@ -2,17 +2,17 @@
 
 ## Overview
 
-ChIP-seq analysis using MACS3 for peak calling, ChIPseeker for annotation, and DiffBind for differential binding. Used to study protein-DNA interactions including transcription factor binding and histone modifications.
+ChIP-seq analysis using MACS3 and HOMER for peak calling, ChIPseeker for annotation, and DiffBind for differential binding. Used to study protein-DNA interactions including transcription factor binding and histone modifications.
 
-**Tool type:** mixed | **Primary tools:** MACS3 (CLI), ChIPseeker (R), DiffBind (R)
+**Tool type:** mixed | **Primary tools:** MACS3 (CLI), HOMER (CLI), ChIPseeker (R), DiffBind (R), pandas (Python)
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| peak-calling | Call peaks with MACS3 from ChIP-seq BAM files |
-| peak-annotation | Annotate peaks to genes with ChIPseeker |
-| differential-binding | Differential binding analysis with DiffBind |
+| peak-calling | Call peaks with MACS3 and/or HOMER, including multi-caller consensus |
+| peak-annotation | Annotate peaks to genomic features and nearest genes (ChIPseeker, HOMER, Python) |
+| differential-binding | Differential binding from BAMs (DiffBind) or count matrices (DESeq2, PyDESeq2) |
 | chipseq-visualization | Visualize ChIP-seq data and peaks |
 | motif-analysis | De novo and known motif enrichment with HOMER/MEME |
 | chipseq-qc | Quality metrics: FRiP, NSC/RSC, IDR for replicate concordance |
@@ -22,12 +22,14 @@ ChIP-seq analysis using MACS3 for peak calling, ChIPseeker for annotation, and D
 
 - "Call peaks from my ChIP-seq BAM with MACS3"
 - "Run MACS3 with input control"
+- "Call peaks with both MACS3 and HOMER for a high-confidence set"
 - "Call broad peaks for H3K27me3"
 - "Annotate my peaks with nearby genes"
 - "Find peaks in promoters vs enhancers"
 - "What genes have peaks in their promoter?"
 - "Find differential peaks between treatment and control"
 - "Compare binding between two conditions with DiffBind"
+- "Run differential binding on my ChIP-seq count matrix"
 - "Identify lost and gained peaks"
 - "Create a heatmap of peak signal"
 - "Plot peak distribution around TSS"
@@ -56,7 +58,12 @@ conda install -c bioconda phantompeakqualtools idr deeptools
 ```
 
 ```r
-BiocManager::install(c('ChIPseeker', 'DiffBind', 'TxDb.Hsapiens.UCSC.hg38.knownGene'))
+BiocManager::install(c('ChIPseeker', 'DiffBind', 'DESeq2', 'TxDb.Hsapiens.UCSC.hg38.knownGene'))
+```
+
+```bash
+# Python (differential binding from count matrices)
+pip install pydeseq2 pandas numpy
 ```
 
 ## Related Skills

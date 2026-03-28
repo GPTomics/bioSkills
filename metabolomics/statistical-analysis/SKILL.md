@@ -1,15 +1,16 @@
 ---
 name: bio-metabolomics-statistical-analysis
 description: Statistical analysis for metabolomics data. Covers univariate testing, multivariate methods (PCA, PLS-DA), and biomarker discovery. Use when identifying differentially abundant metabolites or building classification models.
-tool_type: r
+tool_type: mixed
 primary_tool: mixOmics
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: R stats (base), ggplot2 3.5+
+Reference examples tested with: scipy 1.12+, statsmodels 0.14+, numpy 1.26+, pandas 2.1+, R stats (base), mixOmics 6.28+, ggplot2 3.5+
 
 Before using code patterns, verify installed versions match. If versions differ:
+- Python: `pip show <package>` then `help(module.function)` to check signatures
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
@@ -17,56 +18,92 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metabolomics Statistical Analysis
 
+## Processing Order
+
+Standard pipeline: missing value handling → sample normalization (TIC/PQN) → log2 transformation → statistical testing. Fold change and t-tests operate on log2-transformed, unscaled data. Pareto or auto-scaling distorts fold change magnitudes — apply only for multivariate methods (PCA, PLS-DA).
+
+If raw data contains zeros, impute before log transformation: half-minimum per feature (`min(nonzero) / 2`) for below-LOD values, or use a pseudocount (`log2(x + 1)`).
+
 ## Univariate Analysis
 
-**Goal:** Identify differentially abundant metabolites between experimental groups using feature-wise statistical tests.
+**Goal:** Identify differentially abundant metabolites between experimental groups using per-feature statistical tests on log2-transformed data.
 
-**Approach:** Apply t-tests to each feature independently, then correct for multiple testing with Benjamini-Hochberg FDR.
+**Approach:** Log2-transform raw intensities, apply Welch's t-tests per feature, then correct for multiple testing with Benjamini-Hochberg FDR.
 
-**"Find the differentially abundant metabolites between my groups"** → Apply univariate and multivariate statistical methods to identify metabolites with significant abundance differences.
+**"Find differentially abundant metabolites between my groups"** → Log2-transform intensities, apply per-feature Welch's t-tests, correct with BH FDR.
+- Python: `scipy.stats.ttest_ind(equal_var=False)` + `statsmodels.stats.multitest.multipletests()`
+- R: `t.test()` (Welch's by default) + `p.adjust(method='BH')`
+
+```python
+import numpy as np
+import pandas as pd
+from scipy.stats import ttest_ind
+from statsmodels.stats.multitest import multipletests
+
+intensities = pd.read_csv('feature_table.csv', index_col=0)
+metadata = pd.read_csv('sample_info.csv')
+treat_samples = metadata.loc[metadata['group'] == 'treatment', 'sample_id'].tolist()
+ctrl_samples = metadata.loc[metadata['group'] == 'control', 'sample_id'].tolist()
+
+log2_data = np.log2(intensities)
+
+pvalues, log2fcs = [], []
+for feature in log2_data.index:
+    treat_vals = log2_data.loc[feature, treat_samples].values.astype(float)
+    ctrl_vals = log2_data.loc[feature, ctrl_samples].values.astype(float)
+    _, pval = ttest_ind(treat_vals, ctrl_vals, equal_var=False)  # Welch's -- scipy defaults to Student's
+    pvalues.append(pval)
+    log2fcs.append(treat_vals.mean() - ctrl_vals.mean())
+
+results = pd.DataFrame({'feature_id': log2_data.index, 'log2fc': log2fcs, 'pvalue': pvalues})
+_, results['padj'], _, _ = multipletests(results['pvalue'], method='fdr_bh')
+results['significant'] = results['padj'] < 0.05
+```
 
 ```r
-library(tidyverse)
-
-# Load normalized data
-data <- read.csv('normalized_data.csv', row.names = 1)
+data <- read.csv('feature_table.csv', row.names = 1)
 groups <- factor(read.csv('sample_info.csv')$group)
 
-# T-test for each feature
-ttest_results <- apply(data, 2, function(x) {
-    test <- t.test(x ~ groups)
-    c(pvalue = test$p.value,
-      fc = mean(x[groups == levels(groups)[2]]) - mean(x[groups == levels(groups)[1]]))
+data_log2 <- log2(data)
+
+ttest_results <- apply(data_log2, 2, function(x) {
+    treat_vals <- x[groups == 'treatment']
+    ctrl_vals <- x[groups == 'control']
+    test <- t.test(treat_vals, ctrl_vals)  # Welch's by default (var.equal=FALSE)
+    c(pvalue = test$p.value, log2fc = mean(treat_vals) - mean(ctrl_vals))
 })
 ttest_results <- as.data.frame(t(ttest_results))
-ttest_results$fdr <- p.adjust(ttest_results$pvalue, method = 'BH')
-
-# Significant features
-sig_features <- ttest_results[ttest_results$fdr < 0.05, ]
-cat('Significant features (FDR<0.05):', nrow(sig_features), '\n')
+ttest_results$padj <- p.adjust(ttest_results$pvalue, method = 'BH')
+sig_features <- ttest_results[ttest_results$padj < 0.05, ]
 ```
+
+### Test Selection
+
+| Scenario | Test | Notes |
+|----------|------|-------|
+| 2 groups, n >= 5/group | Welch's t-test | Always prefer over Student's; unequal variance is the norm |
+| 2 groups, non-normal after log | Mann-Whitney U | Cannot reach p < 0.05 with n < 4/group |
+| 2 groups, n < 5/group | limma moderated t | `eBayes(trend=TRUE)` borrows variance across features |
+| Paired samples | Paired t-test | Pre/post, matched case-control |
+| 3+ groups | Welch's ANOVA | Post-hoc: Games-Howell or Dunn's test |
 
 ## Fold Change Calculation
 
 **Goal:** Quantify the magnitude and direction of abundance changes between groups.
 
-**Approach:** Compute group means for each feature and calculate log2 fold change as the ratio of group means.
+**Approach:** Compute the difference of group means on log2-transformed data, which equals log2(geometric_mean_treatment / geometric_mean_control).
+
+```python
+log2_data = np.log2(intensities)
+log2fc = log2_data.loc[:, treat_samples].mean(axis=1) - log2_data.loc[:, ctrl_samples].mean(axis=1)
+```
 
 ```r
-# Calculate fold change between groups
-calculate_fc <- function(data, groups) {
-    group_means <- aggregate(data, by = list(groups), FUN = mean, na.rm = TRUE)
-    rownames(group_means) <- group_means$Group.1
-    group_means <- group_means[, -1]
-
-    fc <- as.numeric(group_means[2, ]) / as.numeric(group_means[1, ])
-    log2fc <- log2(fc)
-
-    return(data.frame(feature = colnames(data), fold_change = fc, log2fc = log2fc))
-}
-
-fc_results <- calculate_fc(data, groups)
+data_log2 <- log2(data)
+log2fc <- colMeans(data_log2[groups == 'treatment', ]) - colMeans(data_log2[groups == 'control', ])
 ```
+
+Always compute fold change on log2-transformed, unscaled data. The naive alternative — `log2(mean(case) / mean(control))` — uses arithmetic means and can reverse fold change direction when group variances differ. The difference-of-log-means approach uses geometric means, consistent with limma and DESeq2.
 
 ## Volcano Plot
 
@@ -74,20 +111,33 @@ fc_results <- calculate_fc(data, groups)
 
 **Approach:** Plot log2 fold change (x-axis) vs -log10 p-value (y-axis), highlighting features passing both thresholds.
 
+```python
+import matplotlib.pyplot as plt
+
+results['significant'] = (results['padj'] < 0.05) & (results['log2fc'].abs() > 1)
+colors = ['red' if s else 'gray' for s in results['significant']]
+
+plt.figure(figsize=(8, 6))
+plt.scatter(results['log2fc'], -np.log10(results['pvalue']), c=colors, alpha=0.6, s=20)
+plt.axhline(-np.log10(0.05), linestyle='--', color='gray')
+plt.axvline(-1, linestyle='--', color='gray')
+plt.axvline(1, linestyle='--', color='gray')
+plt.xlabel('Log2 Fold Change')
+plt.ylabel('-log10(p-value)')
+plt.savefig('volcano_plot.png', dpi=150, bbox_inches='tight')
+```
+
 ```r
 library(ggplot2)
 
-# Combine statistics
-results <- merge(ttest_results, fc_results, by.x = 'row.names', by.y = 'feature')
-results$significant <- results$fdr < 0.05 & abs(results$log2fc) > 1
+ttest_results$significant <- ttest_results$padj < 0.05 & abs(ttest_results$log2fc) > 1
 
-# Plot
-ggplot(results, aes(x = log2fc, y = -log10(pvalue), color = significant)) +
+ggplot(ttest_results, aes(x = log2fc, y = -log10(pvalue), color = significant)) +
     geom_point(alpha = 0.6) +
     scale_color_manual(values = c('gray', 'red')) +
     geom_hline(yintercept = -log10(0.05), linetype = 'dashed') +
     geom_vline(xintercept = c(-1, 1), linetype = 'dashed') +
-    labs(x = 'Log2 Fold Change', y = '-log10(p-value)', title = 'Metabolomics Volcano Plot') +
+    labs(x = 'Log2 Fold Change', y = '-log10(p-value)') +
     theme_bw()
 
 ggsave('volcano_plot.png', width = 8, height = 6)

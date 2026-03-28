@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-chipseq-pipeline
-description: End-to-end ChIP-seq workflow from FASTQ files to annotated peaks. Covers QC, alignment, peak calling with MACS3, and peak annotation with ChIPseeker. Use when processing ChIP-seq data from alignment through peak annotation.
+description: End-to-end ChIP-seq workflow from FASTQ files to annotated peaks. Covers QC, alignment, peak calling with MACS3 (or HOMER), and peak annotation with ChIPseeker. Use when processing ChIP-seq data from alignment through peak annotation.
 tool_type: mixed
 primary_tool: MACS3
 workflow: true
@@ -19,7 +19,7 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: Bowtie2 2.5.3+, MACS3 3.0+, bedtools 2.31+, fastp 0.23+, samtools 1.19+
+Reference examples tested with: Bowtie2 2.5.3+, MACS3 3.0+, HOMER 4.11+, bedtools 2.31+, fastp 0.23+, samtools 1.19+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -145,6 +145,8 @@ macs3 callpeak \
     --broad-cutoff 0.1
 ```
 
+For higher-confidence peaks, consider also running HOMER and intersecting results. See chip-seq/peak-calling for HOMER commands and multi-caller consensus guidance.
+
 ### Step 5: QC Metrics
 
 ```bash
@@ -171,32 +173,38 @@ plotFingerprint \
 - FRiP >1% (ideally >5% for good enrichment)
 - Fingerprint shows clear separation between IP and Input
 
-### Step 6: Peak Annotation with ChIPseeker
+### Step 6: Peak Annotation
+
+When a custom GTF is provided, use it directly via `makeTxDbFromGFF()` (R), `annotatePeaks.pl -gtf` (HOMER), or Python. See chip-seq/peak-annotation for all three approaches. Only fall back to pre-built TxDb packages (e.g., `TxDb.Hsapiens.UCSC.hg38.knownGene`) when no project-specific annotation is available.
 
 ```r
 library(ChIPseeker)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-library(org.Hs.eg.db)
+library(GenomicFeatures)
+library(rtracklayer)
 
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+# Custom GTF approach (preferred when a GTF is provided)
+txdb <- makeTxDbFromGFF('annotation.gtf', format = 'gtf')
+# Standard genome approach (when no custom GTF)
+# library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+# txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 
-# Read peaks
 peaks <- readPeakFile('peaks/experiment_peaks.narrowPeak')
+peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000))
 
-# Annotate
-peak_anno <- annotatePeak(peaks, TxDb = txdb, annoDb = 'org.Hs.eg.db',
-                          tssRegion = c(-3000, 3000))
+# Map gene symbols from GTF (annoDb only works with pre-built TxDb)
+gtf <- import('annotation.gtf')
+gene_map <- unique(data.frame(
+    gene_id = sub('\\..*', '', gtf$gene_id),
+    symbol = gtf$gene_name, stringsAsFactors = FALSE))
+anno_df <- as.data.frame(peak_anno)
+anno_df$geneId_base <- sub('\\..*', '', anno_df$geneId)
+anno_df$SYMBOL <- gene_map$symbol[match(anno_df$geneId_base, gene_map$gene_id)]
 
-# Visualize
 plotAnnoPie(peak_anno)
 plotDistToTSS(peak_anno)
 
-# Export
-write.csv(as.data.frame(peak_anno), 'peaks/annotated_peaks.csv')
-
-# Get genes with peaks in promoter
-promoter_peaks <- as.data.frame(peak_anno)
-promoter_genes <- unique(promoter_peaks$SYMBOL[grepl('Promoter', promoter_peaks$annotation)])
+write.csv(anno_df, 'peaks/annotated_peaks.csv', row.names = FALSE)
+promoter_genes <- unique(anno_df$SYMBOL[grepl('Promoter', anno_df$annotation)])
 write.table(promoter_genes, 'peaks/promoter_genes.txt', row.names = FALSE, col.names = FALSE, quote = FALSE)
 ```
 
@@ -268,7 +276,7 @@ echo "Pipeline complete. Peaks: ${OUTDIR}/peaks/experiment_peaks.narrowPeak"
 
 ## Related Skills
 
-- chip-seq/peak-calling - MACS3 parameters and options
+- chip-seq/peak-calling - MACS3/HOMER parameters, multi-caller consensus
 - chip-seq/peak-annotation - ChIPseeker annotation details
 - chip-seq/differential-binding - Compare conditions with DiffBind
 - chip-seq/chipseq-qc - Comprehensive QC metrics
