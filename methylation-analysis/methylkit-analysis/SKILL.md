@@ -215,5 +215,6 @@ meth_pooled <- pool(meth_united, sample.ids = c('control', 'treatment'))
 
 - bismark-alignment - Generate input BAM files
 - methylation-calling - Extract coverage files
+- differential-cpg-testing - Per-CpG testing with t-test, Mann-Whitney, limma
 - dmr-detection - Advanced DMR methods
 - pathway-analysis/go-enrichment - Functional annotation

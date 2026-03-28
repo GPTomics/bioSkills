@@ -191,5 +191,6 @@ bismark --genome /path/to/genome_folder/ --hisat2 \
 
 - methylation-calling - Extract methylation from Bismark BAM
 - methylkit-analysis - Import Bismark output to R
+- differential-cpg-testing - Per-CpG testing from coverage data
 - sequence-io/read-sequences - FASTQ handling
 - alignment-files/sam-bam-basics - BAM manipulation

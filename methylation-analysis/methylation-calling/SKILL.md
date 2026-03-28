@@ -197,4 +197,5 @@ cov_filtered = cov[cov['coverage'] >= 10]
 
 - bismark-alignment - Generate input BAM files
 - methylkit-analysis - Import coverage files to R
+- differential-cpg-testing - Statistical testing on per-CpG count data
 - dmr-detection - Find differentially methylated regions

@@ -115,7 +115,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **single-cell** | 14 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication |
 | **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
-| **methylation-analysis** | 4 | Bismark, methylKit, bsseq | Bisulfite alignment, methylation calling, DMRs |
+| **methylation-analysis** | 5 | Bismark, methylKit, bsseq, scipy | Bisulfite alignment, methylation calling, per-CpG testing, DMRs |
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
 | **metagenomics** | 7 | Kraken2, MetaPhlAn, Bracken, HUMAnN | Taxonomic classification, abundance estimation, functional profiling, AMR detection |
 | **long-read-sequencing** | 8 | Dorado, minimap2, Clair3, modkit, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, methylation, Iso-Seq |
@@ -136,7 +136,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **chemoinformatics** | 7 | RDKit, DeepChem, AutoDock Vina | Molecular I/O, descriptors, similarity, ADMET, virtual screening, reaction enumeration |
 | **liquid-biopsy** | 6 | ichorCNA, fgbio, VarDict, FinaleToolkit | cfDNA preprocessing, fragmentomics, tumor fraction, ctDNA mutations, longitudinal monitoring |
 | **workflows** | 40 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics, time-course, eDNA |
-| **proteomics** | 9 | pyOpenMS, MSstats, limma, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
+| **proteomics** | 9 | pyOpenMS, limma, DEqMS, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
 | **crispr-screens** | 8 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, base/prime editing |
@@ -166,11 +166,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 425 skills across 62 categories**
+**Total: 426 skills across 62 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 425 skills across 62 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 426 skills across 62 categories:
 
 ```
 # RNA-seq & Differential Expression

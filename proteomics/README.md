@@ -4,7 +4,7 @@
 
 Mass spectrometry-based proteomics analysis from raw data to differential abundance.
 
-**Tool type:** mixed | **Primary tools:** pyOpenMS, MSstats, limma, QFeatures
+**Tool type:** mixed | **Primary tools:** pyOpenMS, limma, DEqMS, QFeatures
 
 ## Skills
 
@@ -14,7 +14,7 @@ Mass spectrometry-based proteomics analysis from raw data to differential abunda
 | peptide-identification | Peptide-spectrum matching and protein identification |
 | quantification | Label-free and labeled (TMT/iTRAQ/SILAC) protein quantification |
 | proteomics-qc | Quality control, missing value analysis, batch effect detection |
-| differential-abundance | Statistical testing for differentially abundant proteins |
+| differential-abundance | Statistical testing with preprocessing, empirical Bayes moderation, and FC shrinkage |
 | ptm-analysis | Post-translational modification identification and localization |
 | protein-inference | Protein grouping, inference, and FDR control |
 | dia-analysis | Data-independent acquisition analysis with DIA-NN |
@@ -35,8 +35,8 @@ Mass spectrometry-based proteomics analysis from raw data to differential abunda
 pip install pyopenms pandas numpy scipy
 
 # R
-install.packages(c("MSstats", "limma"))
-BiocManager::install(c("QFeatures", "proDA", "MSnbase"))
+install.packages(c("limma", "ashr"))
+BiocManager::install(c("DEqMS", "QFeatures", "proDA", "MSnbase"))
 ```
 
 ## Related Skills

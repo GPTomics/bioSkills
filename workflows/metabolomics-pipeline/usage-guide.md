@@ -83,13 +83,13 @@ Sample3.mzML,Treatment,1,4
 
 ### 5. Normalization
 - Corrects systematic variation
-- Options: median, quantile, LOESS
-- QC-based correction for batches
+- Options: PQN (recommended default for untargeted LC-MS), median centering, cyclic loess, VSN
+- QC-RSC (LOESS on QC samples) for multi-batch correction
 
 ### 6. Statistical Analysis
-- limma for differential analysis
+- limma with `eBayes(trend=TRUE, robust=TRUE)` for intensity-dependent variance modeling
 - Handles missing values
-- Multiple testing correction
+- Multiple testing correction (BH FDR)
 
 ### 7. Annotation
 - Match m/z to databases (HMDB, KEGG, LipidMaps)

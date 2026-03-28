@@ -1,8 +1,8 @@
 ---
 name: bio-workflows-proteomics-pipeline
-description: End-to-end proteomics workflow from MaxQuant output to differential protein abundance. Orchestrates data import, normalization, imputation, and statistical testing with MSstats or limma. Use when processing mass spectrometry proteomics.
+description: End-to-end proteomics workflow from MaxQuant output to differential protein abundance. Orchestrates data import, normalization, imputation, and statistical testing with limma (default) or MSstats for complex feature-level designs. Use when processing mass spectrometry proteomics.
 tool_type: mixed
-primary_tool: MSstats
+primary_tool: limma
 workflow: true
 depends_on:
   - proteomics/data-import
@@ -14,7 +14,7 @@ depends_on:
 
 ## Version Compatibility
 
-Reference examples tested with: MSnbase 2.28+, ggplot2 3.5+, limma 3.58+
+Reference examples tested with: MSnbase 2.28+, ggplot2 3.5+, limma 3.58+, DEqMS 1.20+, ashr 2.2+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -24,7 +24,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Proteomics Pipeline
 
-**"Process my proteomics data from raw MS files to differential abundance"** → Orchestrate data import (pyopenms/MaxQuant), QC assessment, protein quantification, normalization, differential abundance testing (MSstats/limma), and PTM analysis.
+**"Process my proteomics data from raw MS files to differential abundance"** → Orchestrate data import (pyopenms/MaxQuant), QC assessment, protein quantification, normalization, differential abundance testing (limma/DEqMS, or MSstats for feature-level designs), and PTM analysis.
 
 ## Pipeline Overview
 
@@ -111,9 +111,9 @@ colnames(design) <- levels(sample_info$condition)
 fit <- lmFit(as.matrix(imputed), design)
 contrast <- makeContrasts(Treatment - Control, levels = design)
 fit2 <- contrasts.fit(fit, contrast)
-fit2 <- eBayes(fit2)
+fit2 <- eBayes(fit2, trend = TRUE, robust = TRUE)
 
-results <- topTable(fit2, number = Inf, adjust.method = 'BH')
+results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')
 results$protein <- rownames(results)
 results$significant <- abs(results$logFC) > 1 & results$adj.P.Val < 0.05
 

@@ -35,6 +35,8 @@ Tell your AI agent what you want to do:
 
 > "Compare methylation between tumor and normal"
 
+> "Run per-CpG differential methylation with Welch's t-test instead of methylKit"
+
 > "Annotate my DMRs with gene features"
 
 ## Input Requirements
@@ -50,7 +52,7 @@ Tell your AI agent what you want to do:
 2. **Alignment** - Map bisulfite-converted reads with Bismark
 3. **Deduplication** - Remove PCR duplicates
 4. **Methylation Calling** - Extract methylation status per CpG
-5. **Analysis** - Statistical analysis with methylKit
+5. **Per-CpG Analysis** - Statistical testing with methylKit (R) or scipy (Python)
 6. **DMR Detection** - Find differentially methylated regions
 
 ## Tips
@@ -59,3 +61,4 @@ Tell your AI agent what you want to do:
 - **Conversion rate**: Should be >99%; check with spike-in controls
 - **M-bias**: Check for position bias and trim if needed
 - **Replicates**: Minimum 2-3 per condition for reliable DMR calling
+- **Python alternative**: For per-CpG testing without R, use Welch's t-test on beta values with scipy (large n) or limma on M-values (small n)

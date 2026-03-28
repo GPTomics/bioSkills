@@ -67,9 +67,9 @@ imputed[is.na(imputed)] <- min(imputed, na.rm = TRUE) - 1
 
 fit <- lmFit(imputed, design)
 contrast <- makeContrasts(Treatment - Control, levels = design)
-fit2 <- eBayes(contrasts.fit(fit, contrast))
+fit2 <- eBayes(contrasts.fit(fit, contrast), trend = TRUE, robust = TRUE)
 
-results <- topTable(fit2, number = Inf, adjust.method = 'BH')
+results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')
 results$significant <- abs(results$logFC) > 1 & results$adj.P.Val < 0.05
 cat('Significant features:', sum(results$significant), '\n')
 

@@ -74,9 +74,9 @@ colnames(design) <- levels(sample_info$condition)
 
 fit <- lmFit(as.matrix(imputed), design)
 contrast <- makeContrasts(Treatment - Control, levels = design)
-fit2 <- eBayes(contrasts.fit(fit, contrast))
+fit2 <- eBayes(contrasts.fit(fit, contrast), trend = TRUE, robust = TRUE)
 
-results <- topTable(fit2, number = Inf, adjust.method = 'BH')
+results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')
 results$protein <- rownames(results)
 results$significant <- abs(results$logFC) > lfc_threshold & results$adj.P.Val < fdr_threshold
 
