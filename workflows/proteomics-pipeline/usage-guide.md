@@ -7,7 +7,7 @@ End-to-end workflow for label-free proteomics analysis from MaxQuant/DIA-NN outp
 ## Prerequisites
 
 ```r
-BiocManager::install(c('limma', 'DEP', 'MSstats'))
+BiocManager::install(c('limma', 'DEqMS', 'ashr', 'DEP', 'MSstats'))
 install.packages(c('pheatmap', 'ggplot2'))
 ```
 

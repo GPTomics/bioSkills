@@ -26,7 +26,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | hic-pipeline | Hi-C data to compartments, TADs, and loops |
 | multiome-pipeline | Joint scRNA + scATAC analysis |
 | somatic-variant-pipeline | Tumor-normal somatic calling with Mutect2/Strelka2 |
-| proteomics-pipeline | MaxQuant to differential protein abundance with MSstats/limma |
+| proteomics-pipeline | MaxQuant to differential protein abundance with limma/DEqMS |
 | microbiome-pipeline | 16S amplicon to differential taxa with DADA2 and ALDEx2 |
 | crispr-screen-pipeline | FASTQ to hit genes via MAGeCK counting and analysis |
 | metabolomics-pipeline | Raw MS to differential metabolites via XCMS and pathway mapping |

@@ -9,6 +9,7 @@ depends_on:
   - methylation-analysis/bismark-alignment
   - methylation-analysis/methylation-calling
   - methylation-analysis/methylkit-analysis
+  - methylation-analysis/differential-cpg-testing
   - methylation-analysis/dmr-detection
 qc_checkpoints:
   - after_qc: "Q30 >80%, adapter content removed"
@@ -51,7 +52,7 @@ FASTQ files
 [4. Methylation Calling] -> bismark_methylation_extractor
     |
     v
-[5. Analysis] -----------> methylKit (R)
+[5. Per-CpG Analysis] ---> methylKit (R) or scipy (Python)
     |
     v
 [6. DMR Detection] ------> methylKit/DSS
@@ -167,6 +168,26 @@ getMethylationStats(meth_obj[[1]], plot = TRUE)
 getCoverageStats(meth_obj[[1]], plot = TRUE)
 ```
 
+### Step 5b: Python Alternative for Per-CpG Testing
+
+When methylKit is unavailable or a Python-only workflow is preferred, per-CpG testing can be performed with scipy and statsmodels on beta values computed from the coverage files.
+
+```python
+import pandas as pd
+from scipy.stats import ttest_ind
+from statsmodels.stats.multitest import multipletests
+import numpy as np
+
+# Read Bismark coverage files and compute beta values
+# beta = count_methylated / (count_methylated + count_unmethylated)
+# Filter CpGs with < 10x coverage in any sample
+# Run per-CpG Welch's t-test between groups
+# Apply BH FDR correction: multipletests(pvals, method='fdr_bh')
+# See methylation-analysis/differential-cpg-testing for full pipeline
+```
+
+This approach is appropriate for large sample sizes (>10 per group). For small sample sizes (3-5 per group), use limma on M-values instead (also covered in the differential-cpg-testing skill).
+
 ### Step 6: DMR Detection
 
 ```r
@@ -264,4 +285,5 @@ echo "Pipeline complete. Run R script for DMR analysis."
 - methylation-analysis/bismark-alignment - Bismark parameters
 - methylation-analysis/methylation-calling - Calling details
 - methylation-analysis/methylkit-analysis - methylKit functions
+- methylation-analysis/differential-cpg-testing - Per-CpG testing (Python/R alternatives)
 - methylation-analysis/dmr-detection - DMR algorithms

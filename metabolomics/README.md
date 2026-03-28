@@ -4,7 +4,7 @@
 
 LC-MS and GC-MS metabolomics analysis from raw data to metabolite identification and pathway interpretation.
 
-**Tool type:** r | **Primary tools:** XCMS, MetaboAnalystR, lipidr, MS-DIAL
+**Tool type:** mixed | **Primary tools:** XCMS, MetaboAnalystR, limma, lipidr, MS-DIAL, scipy, statsmodels
 
 ## Skills
 
@@ -13,7 +13,7 @@ LC-MS and GC-MS metabolomics analysis from raw data to metabolite identification
 | xcms-preprocessing | Peak detection, alignment, and grouping with XCMS |
 | metabolite-annotation | Metabolite identification and database matching |
 | normalization-qc | QC-based normalization and batch correction |
-| statistical-analysis | Univariate and multivariate statistics for metabolomics |
+| statistical-analysis | Preprocessing, limma/Welch's testing, fold change estimation, and multivariate methods |
 | pathway-mapping | Map metabolites to KEGG/Reactome pathways |
 | lipidomics | Lipid-specific analysis with lipidr |
 | targeted-analysis | Absolute quantification with standard curves |
@@ -37,7 +37,7 @@ BiocManager::install(c("xcms", "MSnbase", "CAMERA", "lipidr", "SummarizedExperim
 devtools::install_github("xia-lab/MetaboAnalystR")
 
 # Additional packages for statistical analysis
-install.packages(c("limma", "pheatmap"))
+install.packages(c("mixOmics", "limma", "ashr", "pheatmap"))
 
 # MS-DIAL: Download from https://systemsomicslab.github.io/compms/msdial/main.html
 # (GUI application, not an R package)
@@ -45,7 +45,7 @@ install.packages(c("limma", "pheatmap"))
 
 ```bash
 # Python
-pip install pyopenms matchms
+pip install pyopenms matchms scipy statsmodels numpy pandas matplotlib
 ```
 
 ## Related Skills
