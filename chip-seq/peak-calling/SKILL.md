@@ -56,6 +56,8 @@ The choice depends on the biology of the target, not a preference:
 
 If uncertain about the target's enrichment pattern, check published ENCODE data for that mark or search current literature before proceeding.
 
+**HOMER note:** The MACS3 modes above do not map directly to HOMER styles. For HOMER, use `-style factor` only for transcription factors. All histone marks — including narrow marks like H3K4me3 and H3K27ac — perform better with `-style histone` (benchmarked in Omnipeak, NAR 2025). See the HOMER section below.
+
 ### 2. Model Building vs --nomodel
 
 MACS3 estimates fragment size by finding paired plus/minus strand peaks. This requires at least 100 such pairs within the `--mfold` enrichment range. Use `--nomodel` when model building is expected to fail:
@@ -70,17 +72,25 @@ MACS3 estimates fragment size by finding paired plus/minus strand peaks. This re
 
 When using `--nomodel`, set `--extsize` based on the mark type (see table below). When model building fails unexpectedly, try widening `--mfold` (e.g., `--mfold 3 50`) before falling back to `--nomodel`.
 
-### 3. Extension Size by Mark Type
+### 3. Fragment Size and Extension
 
-When using `--nomodel`, choose `--extsize` to match the expected enrichment width:
+When using `--nomodel`, the `--extsize` value should come from data when possible, not a generic default:
 
-| Mark type | Typical --extsize | Rationale |
+1. **Best:** Estimate from strand cross-correlation using phantompeakqualtools (SPP). This is the ENCODE standard — the same analysis produces QC metrics (NSC/RSC). See chipseq-qc for cross-correlation details.
+2. **Good:** Estimate using `macs3 predictd -i chip.bam -g hs --outdir .` and read the fragment size from stderr. Requires sufficient enriched regions (same constraint as model building).
+3. **Fallback:** Use mark-type defaults from the table below.
+
+Fragment sizes vary across experiments — ENCODE H3K4me3 datasets show cross-correlation estimates from 95-245bp within a single experiment. Using an estimated value is always preferable to a default.
+
+| Mark type | Fallback --extsize | Rationale |
 |-----------|-------------------|-----------|
-| TFs (CTCF, p53) | 150-200 | Matches typical ChIP fragment size |
-| H3K4me3, H3K27ac | 150 | Sharp peaks around promoters/enhancers |
+| TFs (CTCF, p53) | 150-200 | Typical ChIP fragment size range |
+| H3K4me3, H3K27ac | 147 | Nucleosome core particle is 147bp; these marks are nucleosome-proximal |
 | H3K4me1 | 200 | Slightly broader enhancer marks |
 | H3K36me3, H3K79me2 | 200-300 | Gene body marks, broader signal |
 | H3K27me3, H3K9me3 | 200 | Extension less critical since `--broad` links subpeaks |
+
+The ENCODE pipeline always uses `--nomodel --shift 0 --extsize {fraglen}` where fraglen comes from cross-correlation, even when model building would succeed. This ensures consistency between peak calling and signal track generation.
 
 ### 4. Input Format
 
@@ -187,7 +197,7 @@ Use built-in shortcuts for model organisms, or provide a numeric value for non-m
 | Human chr21 only | 46700000 | ~46.7M mappable bases |
 | Custom/targeted | numeric | Sum of mappable bases in target regions |
 
-For single-chromosome or targeted data, always provide the numeric effective genome size rather than the whole-genome shortcut. Using `hs` when only chr21 data is present inflates the background model and suppresses real peaks.
+For single-chromosome or targeted data, always provide the numeric effective genome size rather than the whole-genome shortcut. MACS computes genome-wide background as lambda_BG = (control_reads x fragment_size) / genome_size. Using `hs` (2.9e9) on chr21-only data (~46.7M) deflates lambda_BG by ~62x, making the background floor artificially low and allowing false positives in regions where local lambda is also low.
 
 ## Fixed Fragment Size (--nomodel)
 
@@ -274,21 +284,21 @@ makeTagDirectory input_tags/ control.tagAlign.gz -format bed
 
 Tag directories store pre-processed alignment data and compute QC metrics (fragment length, strand enrichment) automatically.
 
-### Narrow Peaks (TFs, H3K4me3, H3K27ac)
+### Transcription Factors
 
 ```bash
 findPeaks chip_tags/ -style factor -i input_tags/ -gsize 2.7e9 -o peaks.txt
 ```
 
-`-style factor` uses fixed-width peaks with all three filters active (control enrichment `-F 4`, local enrichment `-L 4`, clonal filtering `-C 2`). Peak width is auto-estimated from tag autocorrelation.
+`-style factor` uses fixed-width peaks with all three filters active (control enrichment `-F 4`, local enrichment `-L 4`, clonal filtering `-C 2`). Peak width is auto-estimated from tag autocorrelation. Use for point-source TF binding (CTCF, p53, GATA1).
 
-### Broad Peaks (H3K27me3, H3K36me3)
+### Histone Marks (H3K4me3, H3K27ac, H3K27me3, H3K36me3)
 
 ```bash
 findPeaks chip_tags/ -style histone -i input_tags/ -gsize 2.7e9 -o regions.txt
 ```
 
-`-style histone` uses variable-width region stitching and disables local enrichment filtering (`-L 0`), because broad marks are locally enriched by definition — a local filter would eliminate the signal being sought.
+`-style histone` uses variable-width region stitching (500bp building blocks stitched within 1000bp) and disables local enrichment filtering (`-L 0`). Use for **all histone marks**, including narrow marks like H3K4me3 and H3K27ac. Benchmarking (Omnipeak, NAR 2025) shows histone mode outperforms factor mode for H3K4me3 because it captures the variable-width enrichment around modified nucleosomes rather than clipping to a fixed-width center. For broad marks (H3K27me3, H3K36me3), `-L 0` is essential since local enrichment filtering would eliminate the signal being sought.
 
 ### Converting HOMER Output to BED
 
@@ -318,7 +328,7 @@ awk 'BEGIN{OFS="\t"} !/^#/ && NF>=5 {print $2, $3, $4, $1, $8}' peaks.txt > peak
 
 ## Multi-Caller Consensus
 
-Running MACS3 and HOMER on the same data and intersecting results produces higher-confidence peaks than either caller alone. This removes tool-specific false positives: MACS3's local Poisson model and HOMER's three-filter approach have different error profiles, so their intersection is enriched for true signal.
+When both MACS3 and HOMER are available, running both and intersecting results is the recommended approach for final peak sets. MACS3's local Poisson model and HOMER's three-filter approach have different error profiles, so their intersection removes tool-specific false positives. For quick exploration with a single tool, MACS3 alone is sufficient.
 
 ```bash
 bedtools intersect -a macs3_peaks.narrowPeak -b homer_peaks.bed -wa -u > consensus_peaks.bed
@@ -330,9 +340,14 @@ For lenient matching (peaks within 500bp), use `bedtools window`:
 bedtools window -a macs3_peaks.narrowPeak -b homer_peaks.bed -w 500 | cut -f1-10 | sort -k1,1 -k2,2n | uniq > consensus_peaks.bed
 ```
 
-**When to use consensus:** When a high-confidence peak set matters more than sensitivity — downstream motif analysis, functional enrichment, or comparison across conditions. When maximizing discovery (e.g., cataloging all possible binding sites), use the union instead and filter by signal strength.
+**Single-caller vs consensus:** Single-caller (MACS3 alone) is appropriate for exploratory analysis, quick surveys, or when only one tool is installed. Consensus is preferred for final peak sets used in downstream motif analysis, functional enrichment, cross-condition comparison, or publication.
 
-**Consensus vs IDR:** These address different questions. IDR measures replicate reproducibility (same caller, multiple replicates). Consensus measures algorithmic agreement (multiple callers, same data). For publication-quality analysis, consider both: IDR for replicate consistency, consensus for caller robustness.
+**Consensus vs IDR vs naive overlap:** These address different questions:
+- **IDR** measures replicate reproducibility (same caller, multiple replicates). ENCODE standard for TF ChIP-seq.
+- **Naive overlap** identifies peaks found across replicates. ENCODE standard for histone marks — IDR is too conservative for the variable dynamic range of histone signal.
+- **Multi-caller consensus** measures algorithmic agreement (multiple callers, same data). Widely used for higher-confidence peak sets.
+
+For publication-quality analysis, consider both replicate thresholding (IDR or naive overlap) and multi-caller consensus.
 
 ## Sanity-Checking Results
 
@@ -407,6 +422,19 @@ sort -k7,7nr peaks.narrowPeak > peaks.sorted.narrowPeak
 | -B | false | Generate bedGraph |
 | --SPMR | false | Signal per million reads |
 | --nolambda | false | Use local background only (skip genome-wide lambda) |
+
+## ENCODE Pipeline Reference
+
+The ENCODE ChIP-seq pipeline uses these MACS2 parameters as its standard:
+
+```bash
+macs2 callpeak -t chip.tagAlign.gz -c input.tagAlign.gz \
+    -f BED -g {gsize} -p 1e-2 \
+    --nomodel --shift 0 --extsize {fraglen} \
+    --keep-dup all -B --SPMR
+```
+
+Key differences from default MACS3 settings: uses `-p 0.01` (p-value, not q-value) because IDR or naive overlap thresholding is applied downstream to filter peaks across replicates; uses `--keep-dup all` because duplicates are handled upstream during BAM processing; fragment length comes from phantompeakqualtools cross-correlation, not MACS model building. For histone marks, ENCODE applies naive overlap across replicates rather than IDR.
 
 ## Related Skills
 

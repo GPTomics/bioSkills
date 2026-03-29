@@ -22,7 +22,8 @@ ChIP-seq analysis using MACS3 and HOMER for peak calling, ChIPseeker for annotat
 
 - "Call peaks from my ChIP-seq BAM with MACS3"
 - "Run MACS3 with input control"
-- "Call peaks with both MACS3 and HOMER for a high-confidence set"
+- "Call peaks with both MACS3 and HOMER for a high-confidence consensus set"
+- "Estimate fragment size from my ChIP-seq data before peak calling"
 - "Call broad peaks for H3K27me3"
 - "Annotate my peaks with nearby genes"
 - "Find peaks in promoters vs enhancers"

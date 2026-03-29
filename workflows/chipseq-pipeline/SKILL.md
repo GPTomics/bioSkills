@@ -145,7 +145,7 @@ macs3 callpeak \
     --broad-cutoff 0.1
 ```
 
-For higher-confidence peaks, consider also running HOMER and intersecting results. See chip-seq/peak-calling for HOMER commands and multi-caller consensus guidance.
+For higher-confidence peaks, run HOMER as well and intersect results (recommended for final peak sets). When using `--nomodel`, estimate fragment size from cross-correlation or `macs3 predictd` rather than using a generic default; 147bp (nucleosome core) is the biologically grounded fallback for histone marks. For HOMER, use `-style histone` for all histone marks including H3K4me3. See chip-seq/peak-calling for HOMER commands and multi-caller consensus guidance.
 
 ### Step 5: QC Metrics
 
@@ -189,7 +189,9 @@ txdb <- makeTxDbFromGFF('annotation.gtf', format = 'gtf')
 # txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 
 peaks <- readPeakFile('peaks/experiment_peaks.narrowPeak')
-peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000))
+# overlap='all' couples gene assignment with feature overlap (host-gene convention);
+# default overlap='TSS' assigns nearest-TSS gene independently of feature overlap
+peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000), overlap = 'all')
 
 # Map gene symbols from GTF (annoDb only works with pre-built TxDb)
 gtf <- import('annotation.gtf')

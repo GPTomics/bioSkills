@@ -64,7 +64,7 @@ Tell your AI agent what you want to do:
 1. Determine whether to use a pre-built annotation database or a provided GTF file
 2. Parse the annotation and extract gene models, exon coordinates, and TSS positions
 3. Handle coordinate system differences (GTF 1-based vs BED 0-based)
-4. Find the nearest gene (by TSS distance) for each peak
+4. Choose a gene assignment convention (host-gene or nearest-TSS) based on the biological context
 5. Classify peaks as promoter, exon, intron, or intergenic with proper priority
 6. Collapse detailed subcategories (5' UTR, 3' UTR -> exon; downstream -> intergenic)
 7. Compute signed distance to TSS (negative = upstream, positive = downstream)
@@ -77,6 +77,7 @@ Tell your AI agent what you want to do:
 - Ensure chromosome naming is consistent between peaks and annotations (chr1 vs 1); use `seqlevelsStyle()` in R to convert
 - ChIPseeker's `annoDb` parameter does not work with custom TxDb from `makeTxDbFromGFF()` -- map gene symbols from the GTF manually using rtracklayer
 - HOMER's built-in promoter definition (-1kb to +100bp) is not configurable; reclassify by Distance to TSS column for custom windows
+- Gene assignment and feature classification can be decoupled: by default, HOMER and ChIPseeker assign the nearest-TSS gene independently of which gene's feature the peak overlaps. A peak inside gene A's intron near gene B's TSS will be labeled gene B / intron -- the intron belongs to gene A, not B. Use ChIPseeker's `overlap='all'` or the host-gene Python approach to couple gene and feature. This is important when gene-feature consistency matters (e.g., functional enrichment of annotated genes)
 - Feature priority matters when categories overlap: promoter > exon > intron > intergenic
 - Peak center = (start + end) / 2 for BED coordinates; this is the reference point for all distance calculations
 - For GENCODE GTFs, gene IDs include version suffixes (e.g., ENSG00000142192.25); strip versions with `sub('\\..*', '', id)` when matching
