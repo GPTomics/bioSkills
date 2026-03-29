@@ -59,14 +59,15 @@ Tell your AI agent what you want to do:
 ## What the Agent Will Do
 
 1. Assess the data: identify input format (BAM, tagAlign/BED), sequencing layout (SE vs PE), target mark type, genome scope, and read count
-2. Choose peak caller(s) based on available tools and analysis goals (MACS3, HOMER, or both)
-3. Choose peak mode (narrow vs broad) based on the target mark's biology
-4. Decide whether MACS3 model building is feasible or `--nomodel` is needed based on read count and genome scope
-5. Set genome size appropriately — numeric value for subset data, shortcut for whole genomes
-6. Run peak calling, review stderr/output for warnings
-7. If both callers are available, consider intersecting results for a high-confidence consensus
-8. Sanity-check peak counts against expected ranges for the mark type and data scope
-9. Convert output to the requested format (e.g., narrowPeak to BED) if needed
+2. Choose peak caller(s) based on available tools and analysis goals — if both MACS3 and HOMER are available, prefer running both for a multi-caller consensus
+3. Choose peak mode: narrow vs broad for MACS3; `-style factor` (TFs only) vs `-style histone` (all histone marks including H3K4me3) for HOMER
+4. Estimate fragment size from the data when possible (cross-correlation or `macs3 predictd`); fall back to mark-type defaults (147bp for nucleosome-proximal marks) only when estimation is not feasible
+5. Decide whether MACS3 model building is feasible or `--nomodel` is needed based on read count and genome scope
+6. Set genome size appropriately — numeric value for subset data (e.g., 46709983 for chr21), shortcut for whole genomes
+7. Run peak calling, review stderr/output for warnings
+8. If both callers were run, intersect results for the final consensus peak set
+9. Sanity-check peak counts against expected ranges for the mark type and data scope
+10. Convert output to the requested format (e.g., narrowPeak to BED) if needed
 
 ## Troubleshooting
 
@@ -101,12 +102,14 @@ When troubleshooting does not resolve the issue, read the MACS3 stderr output ca
 ## Tips
 
 - Always use input/IgG control when available — peaks without control have higher false positive rates
-- Use `--broad` (MACS3) or `-style histone` (HOMER) for histone marks that form wide domains
+- Use `--broad` (MACS3) for histone marks that form wide domains (H3K27me3, H3K36me3)
+- For HOMER, use `-style histone` for all histone marks — including narrow marks like H3K4me3. Use `-style factor` only for transcription factors
+- Estimate fragment size from data (cross-correlation or `macs3 predictd`) before falling back to generic extsize values. For histone marks, 147bp (nucleosome core) is the biologically grounded fallback
 - Default q-value threshold is 0.05; use `-q 0.01` for higher stringency
 - For subset data (single chromosome, targeted capture), always provide numeric genome size to both MACS3 (`-g`) and HOMER (`-gsize`)
 - TagAlign files are BED6 format — use `-f BED` with MACS3 or `-format bed` with HOMER's makeTagDirectory
 - MACS3 reads gzipped files directly — no need to decompress .tagAlign.gz or .bed.gz
-- When both MACS3 and HOMER are installed, running both and intersecting peaks is a low-cost way to improve confidence
+- When both MACS3 and HOMER are installed, running both and intersecting peaks is the recommended approach for final peak sets
 - Check peak counts against known ranges: H3K4me3 typically gives 20,000-50,000 peaks genome-wide; scale proportionally for subset data
 - HOMER's tag directory computes fragment size and QC metrics automatically — check `tagInfo.txt` for diagnostics
 

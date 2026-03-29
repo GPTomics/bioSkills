@@ -8,6 +8,12 @@ This repository provides AI agents with expert knowledge for bioinformatics work
 
 Target users range from undergrads learning computational biology to PhD researchers processing large-scale data. The skills cover the full spectrum from basic sequence manipulation to advanced analyses like single-cell RNA-seq and population genetics.
 
+## Performance
+
+![benchmark_performance_20260328](resources/benchmark_performance_20260328.png)
+
+Evaluation summary report available at [bioskills_eval_20260328.pdf](resources/bioskills_eval_20260328.pdf). Evaluations were performed on the [Bio-Task Bench](https://github.com/GPTomics/bioTaskBench) dataset. 
+
 ## Requirements
 
 ### Python

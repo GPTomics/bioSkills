@@ -25,10 +25,10 @@ def parse_gtf(gtf_path):
 
 
 def annotate_peaks(peaks_path, gtf_path, promoter_window=2000):
-    '''Annotate peaks with nearest gene, signed distance to TSS, and feature.
-
-    Promoter window defines max distance from TSS to classify as promoter.
-    Feature priority: promoter > exon > intron > intergenic.
+    '''Annotate peaks with gene assignment and genomic feature using
+    host-gene convention: exon/intron peaks are assigned to the gene
+    whose body contains the peak. Intergenic and promoter peaks use
+    the nearest TSS. Feature priority: promoter > exon > intron > intergenic.
     Signed distance: negative = upstream, positive = downstream.
     '''
     gtf = parse_gtf(gtf_path)
@@ -37,30 +37,38 @@ def annotate_peaks(peaks_path, gtf_path, promoter_window=2000):
     exons = gtf[gtf['feature'] == 'exon']
 
     peaks = pd.read_csv(peaks_path, sep='\t', header=None,
-                         names=['chr', 'start', 'end', 'name', 'score'])
+                         names=['chr', 'start', 'end', 'peak_id', 'score'])
     peaks['center'] = (peaks['start'] + peaks['end']) // 2
 
     results = []
     for _, peak in peaks.iterrows():
         chrom_genes = genes[genes['chrom'] == peak['chr']]
+        chrom_exons = exons[exons['chrom'] == peak['chr']]
         abs_dists = (chrom_genes['tss'] - peak['center']).abs()
-        nearest = chrom_genes.loc[abs_dists.idxmin()]
+        nearest_tss_gene = chrom_genes.loc[abs_dists.idxmin()]
 
-        raw_dist = peak['center'] - nearest['tss']
-        signed_dist = -raw_dist if nearest['strand'] == '-' else raw_dist
-
-        # Feature classification: promoter > exon > intron > intergenic
-        if abs(raw_dist) <= promoter_window:
-            feature = 'promoter'
+        if abs_dists.min() <= promoter_window:
+            feature, assigned = 'promoter', nearest_tss_gene
         else:
-            chrom_exons = exons[exons['chrom'] == peak['chr']]
-            in_exon = ((chrom_exons['start'] <= peak['center']) & (peak['center'] < chrom_exons['end'])).any()
-            in_gene = ((chrom_genes['start'] <= peak['center']) & (peak['center'] < chrom_genes['end'])).any()
-            feature = 'exon' if in_exon else ('intron' if in_gene else 'intergenic')
+            exon_hits = chrom_exons[(chrom_exons['start'] <= peak['center']) & (peak['center'] < chrom_exons['end'])]
+            gene_hits = chrom_genes[(chrom_genes['start'] <= peak['center']) & (peak['center'] < chrom_genes['end'])]
+            if len(exon_hits) > 0:
+                host_gene_name = exon_hits.iloc[0].get('gene_name', '')
+                host = chrom_genes[chrom_genes['gene_name'] == host_gene_name]
+                feature, assigned = 'exon', host.iloc[0] if len(host) > 0 else nearest_tss_gene
+            elif len(gene_hits) > 0:
+                closest_host = gene_hits.loc[(gene_hits['tss'] - peak['center']).abs().idxmin()]
+                feature, assigned = 'intron', closest_host
+            else:
+                feature, assigned = 'intergenic', nearest_tss_gene
 
-        results.append({'chr': peak['chr'], 'start': peak['start'], 'end': peak['end'],
-                        'nearest_gene': nearest['gene_name'], 'distance_to_tss': int(signed_dist),
-                        'feature': feature})
+        raw_dist = peak['center'] - assigned['tss']
+        signed_dist = -raw_dist if assigned['strand'] == '-' else raw_dist
+
+        results.append({'peak_id': peak['peak_id'], 'chr': peak['chr'],
+                        'start': peak['start'], 'end': peak['end'],
+                        'nearest_gene': assigned['gene_name'],
+                        'distance_to_tss': int(signed_dist), 'feature': feature})
 
     return pd.DataFrame(results)
 

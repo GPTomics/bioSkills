@@ -18,9 +18,9 @@ txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 peaks <- readPeakFile(peak_file)
 cat('Total peaks:', length(peaks), '\n')
 
-# Annotate peaks
+# Annotate peaks (overlap='all' couples gene with overlapping feature; see chip-seq/peak-annotation)
 peak_anno <- annotatePeak(peaks, TxDb = txdb, annoDb = 'org.Hs.eg.db',
-                          tssRegion = c(-3000, 3000), verbose = FALSE)
+                          tssRegion = c(-3000, 3000), overlap = 'all', verbose = FALSE)
 
 # Visualizations
 pdf(file.path(output_dir, 'annotation_plots.pdf'), width = 10, height = 8)

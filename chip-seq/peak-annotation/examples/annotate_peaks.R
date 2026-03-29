@@ -7,7 +7,10 @@ library(rtracklayer)
 txdb <- makeTxDbFromGFF('genes.gtf.gz', format = 'gtf')
 peaks <- readPeakFile('peaks.bed')
 
-peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000))
+# overlap='all': host-gene convention -- peaks inside a gene body are assigned to
+# that gene rather than the nearest TSS gene. Use overlap='TSS' (default) to match
+# HOMER behavior where gene assignment is always by nearest TSS.
+peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000), overlap = 'all')
 anno_df <- as.data.frame(peak_anno)
 
 # Map gene symbols from GTF (annoDb does not work with custom TxDb)

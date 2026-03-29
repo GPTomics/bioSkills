@@ -30,7 +30,8 @@ macs3 callpeak \
 # --- Example 3: tagAlign input, single-chromosome, --nomodel ---
 # tagAlign (BED6) is common from ENCODE. Use -f BED.
 # For single-chromosome or low-read-count data, skip model building.
-# --extsize 150 is typical for H3K4me3; adjust per mark type.
+# --extsize 147 (nucleosome core particle) is the biologically grounded
+# default for histone marks; use cross-correlation estimate when available.
 macs3 callpeak \
     -t treatment.tagAlign.gz \
     -c control.tagAlign.gz \
@@ -39,23 +40,25 @@ macs3 callpeak \
     -n chr21_h3k4me3 \
     --outdir $OUTPUT_DIR \
     --nomodel \
-    --extsize 150 \
+    --extsize 147 \
     -q 0.05
 
-# --- Example 4: HOMER peak calling (narrow, TF/H3K4me3) ---
+# --- Example 4: HOMER peak calling (TF, narrow) ---
 makeTagDirectory chip_tags/ chip.sorted.bam
 makeTagDirectory input_tags/ input.sorted.bam
 findPeaks chip_tags/ -style factor -i input_tags/ -gsize 2.7e9 -o $OUTPUT_DIR/homer_peaks.txt
 pos2bed.pl $OUTPUT_DIR/homer_peaks.txt > $OUTPUT_DIR/homer_peaks.bed
 
-# --- Example 5: HOMER with tagAlign input and custom genome size ---
+# --- Example 5: HOMER with tagAlign input, histone mark, custom genome size ---
+# Use -style histone for all histone marks including H3K4me3 and H3K27ac.
+# Histone mode captures variable-width enrichment and disables local filtering.
 makeTagDirectory chip_tags_chr21/ treatment.tagAlign.gz -format bed
 makeTagDirectory input_tags_chr21/ control.tagAlign.gz -format bed
-findPeaks chip_tags_chr21/ -style factor -i input_tags_chr21/ -gsize 46700000 -o $OUTPUT_DIR/homer_chr21.txt
+findPeaks chip_tags_chr21/ -style histone -i input_tags_chr21/ -gsize 46700000 -o $OUTPUT_DIR/homer_chr21.txt
 pos2bed.pl $OUTPUT_DIR/homer_chr21.txt > $OUTPUT_DIR/homer_chr21.bed
 
 # --- Example 6: Multi-caller consensus (MACS3 + HOMER intersection) ---
-# Intersect MACS3 and HOMER peaks within 500bp for high-confidence set.
+# Recommended for final peak sets. Intersect within 500bp for high-confidence set.
 bedtools window \
     -a $OUTPUT_DIR/chr21_h3k4me3_peaks.narrowPeak \
     -b $OUTPUT_DIR/homer_chr21.bed \

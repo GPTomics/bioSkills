@@ -50,6 +50,33 @@ BED files use 0-based half-open coordinates `[start, end)`. GTF files use 1-base
 - Plus-strand: `distance = peak_center - tss`
 - Minus-strand: `distance = -(peak_center - tss)`
 
+## Gene Assignment Conventions
+
+Peak annotation involves two decisions: (1) which gene to assign, and (2) what genomic feature the peak overlaps. These can come from different genes, creating a decoupling problem that affects downstream interpretation.
+
+### Nearest-TSS vs Host-Gene Assignment
+
+| Approach | Gene assigned from | Feature assigned from | Tools |
+|----------|-------------------|----------------------|-------|
+| Nearest-TSS | Gene with closest TSS | Physical overlap at peak center | ChIPseeker default (`overlap='TSS'`), HOMER |
+| Host-gene priority | Gene whose body contains the peak | Same gene's features | ChIPseeker `overlap='all'` |
+
+**Nearest-TSS (default):** HOMER and ChIPseeker both use a two-step process by default. Step 1 finds the gene with the nearest TSS. Step 2 independently determines the genomic feature at the peak center. A peak inside gene A's intron but near gene B's TSS reports: nearest_gene=B, feature=intron -- but the intron belongs to gene A, not gene B.
+
+**Host-gene priority:** ChIPseeker's `overlap='all'` parameter changes this. If a peak overlaps any part of a gene body, that gene is reported as nearest, coupling gene and feature. Peaks with no gene body overlap fall back to nearest TSS.
+
+### Choosing a Convention
+
+| Context | Convention | Rationale |
+|---------|-----------|-----------|
+| Distal TF binding (enhancers) | Nearest-TSS | Enhancers often regulate the nearest gene, not the gene they sit in |
+| Histone marks in gene bodies (H3K36me3, H3K27me3) | Host-gene | Mark typically reflects host gene's transcriptional state |
+| Promoter-associated marks (H3K4me3, H3K27ac) | Either | Most peaks are at promoters where both conventions agree |
+| Custom annotation against a specific GTF | Host-gene | Consistent gene-feature coupling avoids misleading annotations |
+| Reproducing published HOMER results | Nearest-TSS | Matches HOMER's default behavior |
+
+When a task requests "nearest gene," clarify whether it means nearest by TSS distance or the gene whose feature the peak physically overlaps. For most annotation tasks where gene and feature should be consistent, use the host-gene convention.
+
 ## Annotation with ChIPseeker (R)
 
 ### Pre-built TxDb (Standard Genomes)
@@ -78,7 +105,7 @@ library(rtracklayer)
 
 txdb <- makeTxDbFromGFF('genes.gtf.gz', format = 'gtf')
 peaks <- readPeakFile('peaks.bed')
-peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000))
+peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000), overlap = 'all')
 anno_df <- as.data.frame(peak_anno)
 
 # Map gene symbols from GTF (annoDb does not work with custom TxDb)
@@ -185,6 +212,8 @@ annotatePeaks.pl peaks.bed hg38 -gtf genes.gtf -annStats ann_stats.txt > annotat
 
 ### Parse HOMER Output
 
+HOMER uses a two-part annotation process: (1) find the nearest TSS to assign a gene, and (2) independently classify the genomic feature at the peak center. The gene and annotation can come from different genes -- a peak in gene A's intron near gene B's TSS reports gene B with an intron annotation. This matches ChIPseeker's default `overlap='TSS'` behavior.
+
 HOMER produces 19 tab-delimited columns. Key columns for annotation:
 
 | Column | Name | Content |
@@ -252,43 +281,53 @@ genes['tss'] = genes.apply(lambda r: r['start'] if r['strand'] == '+' else r['en
 exons = gtf[gtf['feature'] == 'exon']
 ```
 
-### Find Nearest Gene and Classify Features
+### Annotate Peaks with Host-Gene Convention
 
-**Goal:** For each peak, find the nearest gene by TSS distance, compute signed distance, and assign a feature category with proper priority.
+**Goal:** For each peak, classify its genomic feature and assign it to the appropriate gene with consistent gene-feature coupling.
 
-**Approach:** Calculate absolute TSS distance for all genes on the same chromosome, select the nearest, compute strand-aware signed distance, then classify using promoter window -> exon overlap -> gene body overlap -> intergenic, in priority order.
+**Approach:** Check features in priority order (promoter > exon > intron > intergenic). For promoter, find the nearest TSS within the window. For exon or intron, assign the host gene whose body contains the peak. For intergenic, fall back to nearest TSS. Compute strand-aware signed distance relative to the assigned gene's TSS.
 
 ```python
 peaks = pd.read_csv('peaks.bed', sep='\t', header=None,
-                     names=['chr', 'start', 'end', 'name', 'score'])
+                     names=['chr', 'start', 'end', 'peak_id', 'score'])
 peaks['center'] = (peaks['start'] + peaks['end']) // 2
 promoter_window = 2000  # bp from TSS; match to analysis requirements
 
 results = []
 for _, peak in peaks.iterrows():
     chrom_genes = genes[genes['chrom'] == peak['chr']]
+    chrom_exons = exons[exons['chrom'] == peak['chr']]
     abs_dists = (chrom_genes['tss'] - peak['center']).abs()
-    nearest = chrom_genes.loc[abs_dists.idxmin()]
+    nearest_tss_gene = chrom_genes.loc[abs_dists.idxmin()]
 
-    raw_dist = peak['center'] - nearest['tss']
-    signed_dist = -raw_dist if nearest['strand'] == '-' else raw_dist
-
-    # Feature classification: promoter > exon > intron > intergenic
-    if abs(raw_dist) <= promoter_window:
-        feature = 'promoter'
+    # Feature classification with host-gene coupling: promoter > exon > intron > intergenic
+    if abs_dists.min() <= promoter_window:
+        feature, assigned = 'promoter', nearest_tss_gene
     else:
-        chrom_exons = exons[exons['chrom'] == peak['chr']]
-        in_exon = ((chrom_exons['start'] <= peak['center']) & (peak['center'] < chrom_exons['end'])).any()
-        in_gene = ((chrom_genes['start'] <= peak['center']) & (peak['center'] < chrom_genes['end'])).any()
-        feature = 'exon' if in_exon else ('intron' if in_gene else 'intergenic')
+        exon_hits = chrom_exons[(chrom_exons['start'] <= peak['center']) & (peak['center'] < chrom_exons['end'])]
+        gene_hits = chrom_genes[(chrom_genes['start'] <= peak['center']) & (peak['center'] < chrom_genes['end'])]
+        if len(exon_hits) > 0:
+            host_gene_name = exon_hits.iloc[0].get('gene_name', '')
+            host = chrom_genes[chrom_genes['gene_name'] == host_gene_name]
+            feature, assigned = 'exon', host.iloc[0] if len(host) > 0 else nearest_tss_gene
+        elif len(gene_hits) > 0:
+            closest_host = gene_hits.loc[(gene_hits['tss'] - peak['center']).abs().idxmin()]
+            feature, assigned = 'intron', closest_host
+        else:
+            feature, assigned = 'intergenic', nearest_tss_gene
 
-    results.append({'chr': peak['chr'], 'start': peak['start'], 'end': peak['end'],
-                    'nearest_gene': nearest['gene_name'], 'distance_to_tss': int(signed_dist),
-                    'feature': feature})
+    raw_dist = peak['center'] - assigned['tss']
+    signed_dist = -raw_dist if assigned['strand'] == '-' else raw_dist
+
+    results.append({'peak_id': peak['peak_id'], 'chr': peak['chr'], 'start': peak['start'],
+                    'end': peak['end'], 'nearest_gene': assigned['gene_name'],
+                    'distance_to_tss': int(signed_dist), 'feature': feature})
 
 result_df = pd.DataFrame(results)
 result_df.to_csv('annotations.tsv', sep='\t', index=False)
 ```
+
+When multiple genes overlap the peak center (common on opposite strands), the host gene with the closest TSS is selected as a tiebreaker.
 
 ### Alternative: pyranges
 
@@ -329,7 +368,7 @@ plotDistToTSS(anno_list)
 | tssRegion | c(-3000, 3000) | Promoter window around TSS |
 | level | "transcript" | "transcript" or "gene"; gene-level merges all isoforms |
 | genomicAnnotationPriority | Promoter > ... > Intergenic | Feature priority for overlapping annotations |
-| overlap | "TSS" | "TSS" (nearest by TSS) or "all" (any gene body overlap) |
+| overlap | "TSS" | "TSS": gene = nearest TSS (gene and feature can be from different genes). "all": gene = host gene if peak overlaps any gene body (coupled annotation). Use "all" when gene-feature consistency matters |
 | sameStrand | FALSE | Restrict to same-strand genes only |
 | addFlankGeneInfo | FALSE | Include neighboring gene information |
 
