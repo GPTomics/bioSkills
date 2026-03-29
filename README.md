@@ -10,9 +10,9 @@ Target users range from undergrads learning computational biology to PhD researc
 
 ## Performance
 
-![benchmark_performance_20260328](resources/benchmark_performance_20260328.png)
-
 Evaluation summary report available at [bioskills_eval_20260328.pdf](resources/bioskills_eval_20260328.pdf). Evaluations were performed on the [Bio-Task Bench](https://github.com/GPTomics/bioTaskBench) dataset. 
+
+![benchmark_performance_20260328](resources/benchmark_performance_20260328.png)
 
 ## Requirements
 
