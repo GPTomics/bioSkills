@@ -17,6 +17,18 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Reactome Pathway Enrichment
 
+## When to Use Reactome
+
+| Scenario | Reactome? | Alternative |
+|----------|-----------|-------------|
+| Signaling pathway detail (reaction-level) | Yes -- best choice | KEGG (pathway-level only) |
+| Metabolic pathway focus | Supplement | KEGG has stronger metabolic coverage |
+| Reproducibility / open license required | Yes (CC0) | WikiPathways (CC0) |
+| Non-model organism (bacteria, plants) | No (7 species only) | KEGG (8,000+ species) |
+| Non-human model organism (mouse, rat, fly) | Caution | Annotations are computationally inferred via orthology from human; may contain errors |
+
+Reactome pathways are curated by PhD-level biologists and externally peer-reviewed, making them the highest-quality curated pathway database. Human is the primary species; all others are computationally inferred.
+
 ## Core Pattern - Over-Representation Analysis
 
 **Goal:** Identify Reactome pathways over-represented in a gene list from differential expression or other analyses.
@@ -205,6 +217,14 @@ dotplot(compare_result)
 | Fly | fly | org.Dm.eg.db |
 | C. elegans | celegans | org.Ce.eg.db |
 | Yeast | yeast | org.Sc.sgd.db |
+
+## Interpretation Notes
+
+- Reactome is very granular -- some pathways contain only 2-3 genes. Use `minGSSize = 10` to filter these out.
+- The deep hierarchy means parent pathways will often appear alongside child pathways. Look for the most specific (deepest) enriched pathway.
+- Always specify a background universe (all tested genes) to avoid inflated significance.
+- Examine fold enrichment (GeneRatio / BgRatio), not just p-values.
+- For non-human species, note that annotations are orthology-inferred and may not capture species-specific pathway biology.
 
 ## Related Skills
 

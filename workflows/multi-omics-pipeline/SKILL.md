@@ -170,12 +170,15 @@ library(org.Hs.eg.db)
 rna_weights <- get_weights(mofa, views = 'RNA', factors = 1)[[1]][, 1]
 top_genes <- names(sort(abs(rna_weights), decreasing = TRUE))[1:200]
 
-# GO enrichment
+# GO enrichment -- use all RNA features as background (not the full genome)
+all_rna_genes <- names(rna_weights)
 ego <- enrichGO(gene = top_genes,
+                universe = all_rna_genes,
                 OrgDb = org.Hs.eg.db,
                 keyType = 'SYMBOL',
                 ont = 'BP',
                 pvalueCutoff = 0.05)
+ego <- simplify(ego, cutoff = 0.7, by = 'p.adjust')
 
 dotplot(ego, showCategory = 15)
 ggsave('factor1_enrichment.png', width = 8, height = 10)

@@ -182,6 +182,53 @@ def remove_gappy_columns(alignment, threshold=0.5):
 cleaned = remove_gappy_columns(alignment, threshold=0.5)
 ```
 
+## Alignment Trimming: Decision Framework
+
+Trimming (removing unreliable columns before downstream analysis) is **controversial**. Research is split on whether it helps or hurts phylogenetic inference. The approach matters more than whether to trim.
+
+### Tool Recommendations (Best to Worst)
+
+| Tool | Approach | When to Use |
+|------|----------|-------------|
+| ClipKIT | Retains parsimony-informative + constant sites | Default choice; `kpic-smart-gap` mode consistently outperforms others |
+| trimAl `-automated1` | Gap + similarity scoring | When ClipKIT unavailable; equal or better than unfiltered in most tests |
+| Gblocks (relaxed params) | Block-based removal | Only with relaxed parameters; default settings are too aggressive |
+
+**Key insight**: ClipKIT inverts the traditional approach. Instead of removing "bad" columns, it identifies and retains informative ones. This paradigm shift consistently produces better trees.
+
+**When NOT to trim**: Single-gene phylogenetics with well-curated alignments. Aggressive trimming (>20-30% of sites removed) causes rapid tree deterioration.
+
+```bash
+# ClipKIT (recommended)
+clipkit alignment.fasta -m kpic-smart-gap -o trimmed.fasta
+
+# trimAl automated mode
+trimal -in alignment.fasta -out trimmed.fasta -automated1
+
+# trimAl with explicit gap threshold
+trimal -in alignment.fasta -out trimmed.fasta -gt 0.5
+```
+
+## Gap Handling for Phylogenetics
+
+How gaps are treated in downstream phylogenetic analysis significantly affects tree topology:
+
+| Treatment | Method | Tradeoff |
+|-----------|--------|----------|
+| Missing data (default) | Gaps = unknown character | Most common; can be statistically inconsistent under ML |
+| Fifth state | Gap = 5th nucleotide | Biologically problematic (gaps of different lengths treated equally) |
+| Simple indel coding | Each unique indel coded as binary character | Most biologically realistic; adds phylogenetic signal |
+
+Indel coding and fifth-state outperform missing-data treatment ~90% of the time on empirical datasets. For important analyses, consider indel coding to capture the phylogenetic information in gap patterns.
+
+## Identifying Unreliable Alignment Regions
+
+Columns exhibiting **both** high gap fraction AND low conservation are the strongest indicators of alignment uncertainty. These often reflect guide tree artifacts rather than true evolutionary events. Before phylogenetic analysis:
+
+1. Flag columns with gap fraction >50%, which may be alignment artifacts
+2. Check if gappy regions coincide with insertions in a single divergent sequence (remove that sequence and re-align)
+3. For critical analyses, run GUIDANCE2 or MUSCLE5 ensemble to get per-column confidence scores; mask columns below the reliability threshold (default: 0.93 for GUIDANCE2)
+
 ## Consensus Sequence
 
 **"Get consensus sequence"** → Derive a single representative sequence from an MSA based on majority-rule voting at each column.
@@ -360,7 +407,8 @@ def sequence_to_alignment_position(record, seq_pos):
 
 ## Related Skills
 
+- multiple-alignment - Run MSA tools (MAFFT, MUSCLE5, ClustalOmega) to generate alignments
 - alignment-io - Read/write alignment files in various formats
 - pairwise-alignment - Create pairwise alignments
 - msa-statistics - Calculate conservation metrics
-- sequence-manipulation/motif-search - Search for patterns
+- phylogenetics/tree-building - Build trees from processed alignments

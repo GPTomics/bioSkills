@@ -369,6 +369,99 @@ res <- lfcShrink(dds, coef = resultsNames(dds)[2], type = 'apeglm')
 sig <- subset(res, padj < 0.05)
 ```
 
+## Decision Guidance
+
+### Shrinkage Method Selection
+
+| Method | Use When | Limitation |
+|--------|----------|------------|
+| apeglm (default) | Coefficient-based comparisons (`coef=`) | Cannot use `contrast=` |
+| ashr | Arbitrary contrasts needed; many coefficients | Slightly less aggressive shrinkage |
+| normal | **Avoid** — over-shrinks large precise effects | Kept for backward compatibility only |
+
+Shrinkage changes LFC estimates only, NOT p-values. Use shrunken LFCs for ranking (GSEA input, heatmap ordering) and visualization (volcano x-axis). Use un-shrunken p-values for significance calls.
+
+### LRT vs Wald Test
+
+| Scenario | Test |
+|----------|------|
+| Pairwise comparison (A vs B) | Wald (default) |
+| Factor with >= 3 levels (any gene changing across conditions) | LRT with `reduced = ~ 1` |
+| Time series (any temporal change) | LRT |
+| Testing a specific coefficient direction | Wald |
+
+LRT is omnibus (ANOVA-like). The LFC in LRT output is last-level-vs-reference, NOT the omnibus effect. Filter LRT results on padj only, not LFC.
+
+### Why padj = NA
+
+| Cause | baseMean | pvalue | padj |
+|-------|----------|--------|------|
+| Zero counts across all samples | 0 | NA | NA |
+| Cook's distance outlier (automatic when any group >= 7 samples) | > 0 | NA | NA |
+| Below independent filtering threshold | > 0 | numeric | NA |
+
+Independent filtering optimizes a mean-expression cutoff at the `results()` step to maximize BH-adjusted rejections. This is separate from manual pre-filtering and uses the fitted model's information.
+
+### Size Factor Alternatives
+
+Default median-of-ratios assumes most genes are NOT differentially expressed.
+
+| Scenario | Solution |
+|----------|----------|
+| High zero-inflation (single-cell) | `type = 'poscounts'` |
+| Very small libraries | `type = 'iterate'` |
+| Known stable reference genes available | `controlGenes` parameter |
+| Prokaryotic stress (majority DE) | Spike-in normalization or `controlGenes` |
+
+### Pre-filtering
+
+```r
+# Minimal (speed only; independent filtering handles statistical optimization)
+keep <- rowSums(counts(dds)) >= 10
+
+# Group-aware (recommended): require counts in at least the smallest group
+keep <- rowSums(counts(dds) >= 10) >= min(table(dds$condition))
+```
+
+### Prokaryotic RNA-seq
+
+Bacterial/archaeal experiments differ from eukaryotic in ways that affect DESeq2:
+- Use non-spliced aligners (BWA-MEM, Bowtie2) — no introns in prokaryotes
+- Polycistronic operons cause read-through between adjacent genes
+- rRNA depletion is essential (80-95% rRNA without poly-A selection)
+- Under stress conditions, a majority of genes may be DE, violating normalization assumptions — use spike-in normalization or `controlGenes` with known stable housekeeping genes
+- KEGG organism codes are strain-specific (e.g., `pae` for P. aeruginosa PAO1); find codes with `clusterProfiler::search_kegg_organism()`
+- Annotation: use Prokka/Bakta GFF files rather than Ensembl/biomaRt
+
+### Choosing DESeq2 vs edgeR
+
+| Scenario | Recommended | Rationale |
+|----------|-------------|-----------|
+| Standard bulk RNA-seq (n >= 3/group) | Either — expect ~90% overlap | Both perform well; concordance is high |
+| Very small sample size (n = 2-3/group) | edgeR QL F-test | QL framework provides tighter FPR control with few replicates |
+| Salmon/Kallisto quantification | DESeq2 via tximport | DESeqDataSetFromTximport handles offset matrix natively |
+| Need LFC shrinkage for ranking/GSEA | DESeq2 | apeglm/ashr shrinkage built in; edgeR has no equivalent |
+| Formal fold-change threshold testing | edgeR `glmTreat` | More flexible than DESeq2 `lfcThreshold` |
+| Large datasets (>100 samples) | edgeR | Faster with C++ backend in v4 |
+| Python-only environment | DESeq2 (via PyDESeq2) | No edgeR Python equivalent |
+
+If overlap between DESeq2 and edgeR is < 60%, investigate filtering, normalization, or dispersion — discordance usually indicates a modeling issue.
+
+### Python Alternative: PyDESeq2
+
+```python
+from pydeseq2.dds import DeseqDataSet
+from pydeseq2.ds import DeseqStats
+
+dds = DeseqDataSet(counts=count_df, metadata=metadata, design='~condition')
+dds.deseq2()
+stat_res = DeseqStats(dds, contrast=('condition', 'treated', 'control'))
+stat_res.summary()
+results_df = stat_res.results_df
+```
+
+PyDESeq2 (scverse, v0.5+) supports Wald test, multi-factor designs, apeglm shrinkage. No LRT yet. Results closely match R DESeq2.
+
 ## Related Skills
 
 - edger-basics - Alternative DE analysis with edgeR

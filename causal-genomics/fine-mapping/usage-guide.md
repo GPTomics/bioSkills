@@ -31,7 +31,7 @@ Tell your AI agent what you want to do:
 
 ### SuSiE Fine-Mapping
 
-> "I have GWAS summary stats and an LD matrix for a locus on chromosome 6 -- run SuSiE and report the credible sets"
+> "I have GWAS summary stats and an LD matrix for a locus on chromosome 6. Run SuSiE and report the credible sets."
 
 > "Fine-map my GWAS signal using susie_rss with L = 10"
 

@@ -114,12 +114,12 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **database-access** | 11 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API, STRINGdb | NCBI/UniProt queries, SRA downloads, BLAST, homology searches, interaction databases |
 | **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics, validation |
 | **variant-calling** | 13 | bcftools, cyvcf2, Manta, Delly, VEP, SnpEff | VCF/BCF calling, SVs, filtering, annotation, clinical interpretation |
-| **alignment** | 4 | Bio.Align, Bio.AlignIO | Pairwise and multiple sequence alignment, MSA statistics, alignment I/O |
+| **alignment** | 5 | Bio.Align, MAFFT, MUSCLE5 | MSA tool selection (MAFFT/MUSCLE5/ClustalOmega), pairwise alignment, MSA statistics, alignment I/O |
 | **phylogenetics** | 5 | Bio.Phylo, IQ-TREE2, RAxML-ng | Tree I/O, visualization, ML inference with model selection, ultrafast bootstrap |
 | **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
 | **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
 | **single-cell** | 14 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication |
-| **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment |
+| **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment; ORA vs GSEA guidance, prokaryotic support, background universe, multi-condition comparison |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 5 | Bismark, methylKit, bsseq, scipy | Bisulfite alignment, methylation calling, per-CpG testing, DMRs |
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
@@ -172,11 +172,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 426 skills across 62 categories**
+**Total: 427 skills across 62 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 426 skills across 62 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 427 skills across 62 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -283,6 +283,10 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 "Compare biodiversity across my sampling sites using Hill number rarefaction"
 "Find loci under local adaptation across an elevation gradient"
 "Estimate effective population size for my endangered species"
+
+# Sequence Alignment
+"Align these 50 protein sequences with the most accurate MSA method"
+"Prepare a codon alignment for selection analysis with PAML"
 
 # Phylogenetics & Evolution
 "Build a phylogenetic tree and visualize evolutionary relationships"

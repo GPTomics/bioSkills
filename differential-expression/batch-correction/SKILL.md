@@ -232,19 +232,29 @@ seurat_obj <- RunUMAP(seurat_obj, reduction = 'harmony', dims = 1:30)
 seurat_obj <- FindNeighbors(seurat_obj, reduction = 'harmony', dims = 1:30)
 ```
 
-## When NOT to Correct
+## Critical: When NOT to Use Corrected Counts
 
-```r
-# DON'T use batch-corrected values for:
-# - Differential expression (use design formula instead)
-# - Count-based methods expecting raw/normalized counts
+**Never use batch-corrected counts as input to DESeq2 or edgeR.** Two-step correction (ComBat/ComBat-Seq then DE) introduces correlation structure in residuals, inflating or deflating significance. Include batch as a covariate in the design formula (`~ batch + condition`) instead.
 
-# DO use batch-corrected values for:
-# - Visualization (PCA, UMAP, heatmaps)
-# - Clustering
-# - Machine learning features
-# - Cross-study comparisons
-```
+`limma::removeBatchEffect()` is designed for visualization only — it does not produce counts suitable for DE testing.
+
+| Task | Use Raw Counts + Design | Use Corrected Values |
+|------|------------------------|---------------------|
+| Differential expression | Yes (`~ batch + condition`) | **No** |
+| Pathway analysis on DE results | Yes (from design-based DE) | **No** |
+| PCA, UMAP, heatmaps | — | Yes |
+| Clustering | — | Yes |
+| Machine learning features | — | Yes |
+| Cross-study meta-analysis | — | Yes (ComBat-Seq) |
+
+## Confounding and Limitations
+
+| Situation | Detectable? | Solution |
+|-----------|------------|----------|
+| Batch partially correlated with condition | Yes (PCA) | Include batch in design; results are valid but power is reduced |
+| Batch perfectly correlated with condition (all treated in batch 1, all control in batch 2) | Yes (PCA) | **Unfixable** — cannot separate batch from condition |
+| Unknown batch variables | Sometimes (PCA shows unexplained clustering) | Use SVA to estimate surrogate variables |
+| Over-correction removing biological signal | Hard to detect | Compare results with and without correction; balanced designs prevent this |
 
 ## Related Skills
 

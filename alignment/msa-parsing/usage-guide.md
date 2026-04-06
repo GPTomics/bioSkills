@@ -66,8 +66,11 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Always check gap content before phylogenetic analysis
-- Gappy columns can be artifacts of alignment algorithms
-- Conservation thresholds depend on alignment diversity
+- Always check gap content before phylogenetic analysis. Columns with >50% gaps often indicate alignment artifacts or inclusion of non-homologous sequences
+- Gappy columns can reflect guide tree topology rather than true evolutionary events; divergent sequences disproportionately introduce gaps
+- For trimming before phylogenetics, prefer ClipKIT (`kpic-smart-gap` mode) over traditional removal tools; aggressive trimming (>20-30% of sites) can hurt tree quality
+- Conservation thresholds depend on alignment diversity. 80% conservation in a 5-sequence alignment means less than 80% in a 500-sequence alignment
+- For critical analyses, quantify alignment reliability per column using GUIDANCE2 or MUSCLE5 ensemble before phylogenetic inference
+- How gaps are handled downstream matters: missing data (default) can be statistically inconsistent; consider indel coding for maximum phylogenetic signal
 - Stockholm format preserves annotations other formats lose
 - Position numbering is 0-based (first column is 0)

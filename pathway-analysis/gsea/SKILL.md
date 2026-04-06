@@ -21,6 +21,17 @@ package and adapt the example to match the actual API rather than retrying.
 
 GSEA uses **all genes ranked by a statistic** (log2FC, signed p-value) rather than a subset of significant genes. It finds gene sets where members are enriched at the top or bottom of the ranked list.
 
+## When to Use GSEA vs ORA
+
+| Scenario | Preferred | Why |
+|----------|-----------|-----|
+| Have ranked DE results for all genes | GSEA | Uses full information; no arbitrary cutoff |
+| Biological signal involves many modest but coordinated changes | GSEA | Core strength -- detects "distributed enrichment" ORA misses |
+| Gene list NOT from ranking (co-expression module, GWAS hits) | ORA | No meaningful ranking exists |
+| Few total measured genes, cannot construct meaningful ranking | ORA | GSEA needs large ranked lists to be powerful |
+
+In benchmarks, GSEA-family methods outperform ORA by ~35% higher F1 score on simulated data. GSEA is strictly preferred for DE-derived analyses.
+
 ## Prepare Ranked Gene List
 
 **Goal:** Create a sorted named vector of gene-level statistics suitable for GSEA input.
@@ -59,25 +70,34 @@ names(gene_list_entrez) <- gene_ids$ENTREZID[match(names(gene_list_entrez), gene
 gene_list_entrez <- sort(gene_list_entrez, decreasing = TRUE)
 ```
 
-## Alternative Ranking Statistics
+## Ranking Metric Selection
 
 **Goal:** Choose a ranking metric that balances magnitude and significance for GSEA.
 
-**Approach:** Use signed p-value (-log10(p) * sign(FC)) or Wald statistic as alternatives to raw log2 fold change.
+**Approach:** The ranking metric choice matters enormously. Match the metric to the DE tool used.
+
+| DE Tool | Recommended Metric | Column | Why |
+|---------|-------------------|--------|-----|
+| DESeq2 | Wald statistic | `stat` | Combines effect size + variance; best overall for RNA-seq |
+| DESeq2 (shrunk) | Shrunken log2FC | `log2FoldChange` | Use `type='apeglm'` or `type='ashr'`; NOT `type='normal'` (deprecated) |
+| limma/voom | Moderated t-statistic | `t` | Borrows strength across genes |
+| edgeR | Signed p-value | `sign(logFC) * -log10(PValue)` | edgeR has no Wald-equivalent column |
 
 ```r
-# Signed p-value (recommended for detecting both up and down)
-gene_list <- -log10(de_results$pvalue) * sign(de_results$log2FoldChange)
-names(gene_list) <- de_results$gene_id
-gene_list <- sort(gene_list, decreasing = TRUE)
-
-# Wald statistic (from DESeq2)
-# Note: lfcShrink() with type='apeglm' or 'ashr' drops the stat column.
-# If using shrunk results, pull stat from unshrunk results(dds) instead.
+# DESeq2 Wald statistic (default recommendation)
 gene_list <- de_results$stat
 names(gene_list) <- de_results$gene_id
-gene_list <- sort(gene_list, decreasing = TRUE)
+gene_list <- sort(gene_list[!is.na(gene_list)], decreasing = TRUE)
+
+# Signed p-value (for edgeR or when Wald stat unavailable)
+# Replace p=0 with small value to avoid Inf
+pvals <- pmax(de_results$pvalue, 1e-300)
+gene_list <- -log10(pvals) * sign(de_results$log2FoldChange)
+names(gene_list) <- de_results$gene_id
+gene_list <- sort(gene_list[!is.na(gene_list)], decreasing = TRUE)
 ```
+
+**Never use:** shrunken log2FC from `lfcShrink(type='normal')` -- the prior distorts rankings. Also: `lfcShrink()` with type='apeglm'/'ashr' drops the `stat` column, so pull stat from unshrunk `results(dds)` if needed.
 
 ## GSEA with GO
 
@@ -183,7 +203,22 @@ results <- as.data.frame(gse_go)
 |-----|----------------|
 | Positive (> 0) | Gene set enriched in upregulated genes |
 | Negative (< 0) | Gene set enriched in downregulated genes |
-| |NES| > 1.5 | Strong enrichment |
+| |NES| > 1.5 | Strong enrichment (but see caveats below) |
+
+**Correct interpretation order:**
+1. Check FDR first. Use FDR < 0.25 (Broad Institute recommendation) or FDR < 0.05 (common in publications). High |NES| with non-significant FDR is meaningless.
+2. Use NES for prioritization among significant results.
+3. Examine the leading edge genes to understand what drives the signal.
+
+**NES caveats:** Very large gene sets (> 500 genes) can achieve high |NES| even randomly. Very small sets (< 10 genes) can be driven by a single outlier. Always cross-check with minGSSize/maxGSSize filtering.
+
+## Leading Edge Interpretation
+
+The `core_enrichment` column contains the "leading edge" genes -- those driving the enrichment signal. These appear before the enrichment peak in the ranked list.
+
+- **High leading edge count, concentrated at the extreme of the ranked list:** Strong, trustworthy enrichment. The pathway's genes are coordinated at one end.
+- **Low leading edge count:** Enrichment may be driven by 1-2 extreme outlier genes, not coordinated pathway regulation. Inspect the individual genes.
+- The leading edge genes are the most biologically actionable output of GSEA -- use them for downstream analysis (pathway visualization, network analysis).
 
 ## Key Parameters
 
@@ -214,6 +249,22 @@ write.csv(results_df, 'gsea_go_results.csv', row.names = FALSE)
 leading_edge <- strsplit(results_df$core_enrichment[1], '/')[[1]]
 ```
 
+## Duplicate Gene Handling
+
+Duplicate gene IDs in the ranked list will bias enrichment scores. After ID conversion, some genes may map to multiple IDs. Always deduplicate:
+
+```r
+# Remove duplicates -- keep the entry with the largest absolute value
+gene_list <- gene_list[!duplicated(names(gene_list))]
+
+# Or more carefully, keep the most extreme signal per gene:
+gene_df <- data.frame(id = names(gene_list), val = gene_list)
+gene_df <- gene_df[order(-abs(gene_df$val)), ]
+gene_df <- gene_df[!duplicated(gene_df$id), ]
+gene_list <- setNames(gene_df$val, gene_df$id)
+gene_list <- sort(gene_list, decreasing = TRUE)
+```
+
 ## Notes
 
 - **Must be sorted** - gene list must be sorted in decreasing order
@@ -221,6 +272,8 @@ leading_edge <- strsplit(results_df$core_enrichment[1], '/')[[1]]
 - **No arbitrary cutoffs** - uses all genes, not just significant ones
 - **NES sign matters** - positive = upregulated enrichment
 - **Leading edge** - core_enrichment contains driving genes
+- **FDR threshold** - Broad Institute recommends FDR < 0.25 for GSEA (more lenient than ORA's 0.05) because GSEA is a competitive test with less power
+- **No duplicates** - deduplicate the ranked list after ID conversion
 
 ## Related Skills
 

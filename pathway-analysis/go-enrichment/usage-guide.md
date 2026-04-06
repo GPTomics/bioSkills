@@ -65,8 +65,13 @@ Tell your AI agent what you want to do:
 | Cellular Component | CC | Where in cell |
 
 ## Tips
-- Always specify a background universe (all expressed genes) for better results
-- Use simplify() to reduce redundant hierarchical terms (cutoff = 0.7 is a good start)
+- Always specify a background universe (all tested genes, not the full genome). This is the single most common ORA error
+- Use `options(enrichment_force_universe = TRUE)` to prevent clusterProfiler from dropping unannotated genes from the background
+- Use simplify() to reduce redundant hierarchical terms (cutoff = 0.7 is a good start); simplify() does not work with ont='ALL', so run BP, MF, CC separately
 - Run separate enrichment on up- and down-regulated genes to see directional patterns
+- Examine fold enrichment (GeneRatio / BgRatio), not just p-values, to assess biological significance
+- For RNA-seq data, consider GOseq (goseq package) which corrects for gene length bias
 - If no terms are found, check gene ID conversion success rate and loosen thresholds
+- After bitr(), deduplicate to avoid counting genes with many-to-many ID mappings multiple times
 - See enrichment-visualization skill for plotting options (dotplot, cnetplot, emapplot)
+- Treat enrichment results as hypothesis generation, not validation. Enrichments derived from DE results cannot "validate" those same DE results

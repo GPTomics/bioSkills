@@ -41,17 +41,37 @@ import math
 
 **Approach:** Count matching non-gap positions divided by total aligned positions; optionally compute a full N-by-N identity matrix.
 
+### Percent Identity Definitions
+
+There are four common denominators, producing **up to 11.5% difference** on the same alignment. Combined with different alignment algorithms, variation reaches 22%. Always report which method was used.
+
+| Method | Denominator | Code |
+|--------|-------------|------|
+| PID1 | Aligned positions including internal gaps | `sum(a != '-' or b != '-' for a, b in zip(s1, s2))` |
+| PID2 | Aligned residue pairs only (no gaps) | `sum(a != '-' and b != '-' for a, b in zip(s1, s2))` |
+| PID3 | Shorter sequence length (ungapped) | `min(len(s1.replace('-','')), len(s2.replace('-','')))` |
+| PID4 | Mean sequence length (ungapped) | Best correlation with structural similarity (r=0.86) |
+
+PID2 always gives the highest value; PID4 correlates best with structural similarity and is recommended for evolutionary analyses.
+
 ### Calculate Identity Between Two Sequences
 ```python
-def pairwise_identity(seq1, seq2):
+def pairwise_identity(seq1, seq2, method='pid1'):
     matches = sum(a == b and a != '-' for a, b in zip(seq1, seq2))
-    aligned_positions = sum(a != '-' or b != '-' for a, b in zip(seq1, seq2))
-    return matches / aligned_positions if aligned_positions > 0 else 0
+    if method == 'pid1':
+        denom = sum(a != '-' or b != '-' for a, b in zip(seq1, seq2))
+    elif method == 'pid2':
+        denom = sum(a != '-' and b != '-' for a, b in zip(seq1, seq2))
+    elif method == 'pid3':
+        denom = min(len(seq1.replace('-', '')), len(seq2.replace('-', '')))
+    elif method == 'pid4':
+        denom = (len(seq1.replace('-', '')) + len(seq2.replace('-', ''))) / 2
+    return matches / denom if denom > 0 else 0
 
 alignment = AlignIO.read('alignment.fasta', 'fasta')
 seq1, seq2 = str(alignment[0].seq), str(alignment[1].seq)
-identity = pairwise_identity(seq1, seq2)
-print(f'Identity: {identity * 100:.1f}%')
+for method in ['pid1', 'pid2', 'pid3', 'pid4']:
+    print(f'{method}: {pairwise_identity(seq1, seq2, method) * 100:.1f}%')
 ```
 
 ### Identity Matrix for All Sequences
@@ -342,6 +362,26 @@ for i, row in enumerate(pssm[:10]):
     print(f'Position {i}: {row}')
 ```
 
+## Alignment Quality Assessment
+
+### When to Worry About Alignment Quality
+
+| Warning Sign | Implication | Action |
+|-------------|-------------|--------|
+| Average pairwise identity <25% (protein) | Twilight zone; alignment may be unreliable | Use GUIDANCE2 to assess; consider structural alignment |
+| >30% of columns have >50% gaps | Possible non-homologous sequences or misalignment | Remove outlier sequences and re-align |
+| Identity varies dramatically across regions | Domain architecture mismatch | Align domains separately |
+| Conservation pattern absent in expected functional regions | Alignment error or non-homology | Verify with BLAST that sequences are truly homologous |
+
+### Quantifying Alignment Uncertainty
+
+For critical downstream analyses (phylogenetics, selection analysis), alignment uncertainty should be quantified rather than assumed. Two approaches:
+
+- **GUIDANCE2**: Generates ~400 perturbed alignments varying guide trees, gap penalties, and co-optimal solutions. Column confidence = frequency of that column arrangement across perturbations. Default reliability threshold: 0.93.
+- **MUSCLE5 ensemble**: Generates alignments with perturbed HMM parameters. Column confidence = fraction of ensemble members supporting that column. Faster than GUIDANCE2.
+
+Alignment uncertainty propagates directly into evolutionary inference. Different aligners can produce phylogenies supporting fundamentally different biological conclusions. For selection analysis (dN/dS), misaligned codons create artificial nonsynonymous differences, leading to false positive selection signals.
+
 ## Note on Bio.Align.AlignInfo
 
 The `AlignInfo.SummaryInfo` class is **deprecated** in recent Biopython versions. Use the custom functions in this skill instead:
@@ -369,7 +409,8 @@ The `AlignInfo.SummaryInfo` class is **deprecated** in recent Biopython versions
 
 ## Related Skills
 
-- msa-parsing - Parse and manipulate alignments
+- multiple-alignment - Run MSA tools and quantify alignment confidence with ensembles
+- msa-parsing - Parse, filter, trim, and assess alignment quality
 - alignment-io - Read/write alignment files
 - pairwise-alignment - Create and score pairwise alignments
 - sequence-manipulation/sequence-properties - Sequence-level statistics

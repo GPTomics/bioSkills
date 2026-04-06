@@ -46,7 +46,7 @@ Tell the AI agent what to model:
 ### Changepoint Detection
 > "Find genes where expression dynamics change abruptly during my developmental time course."
 
-> "Detect breakpoints in my temporal gene expression data -- when does the expression regime shift?"
+> "Detect breakpoints in my temporal gene expression data. When does the expression regime shift?"
 
 ### Model Selection
 > "For each gene, compare linear, quadratic, and GAM fits to my time-series data and report which model fits best by AIC."

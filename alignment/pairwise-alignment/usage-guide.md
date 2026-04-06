@@ -53,14 +53,17 @@ Tell your AI agent what you want to do:
 
 | Mode | Best For |
 |------|----------|
-| Global | Full-length sequence comparison |
-| Local | Finding conserved regions |
-| Semiglobal | Overlapping sequences, primer alignment |
+| Global | Full-length comparison of similar-length homologs |
+| Local | Finding conserved domains, divergent termini, database-style searches |
+| Semiglobal | Fragment-to-reference, overlap detection, primer alignment |
 
 ## Tips
 
-- For **DNA/RNA**: Use simple match/mismatch scoring (match=2, mismatch=-1)
-- For **proteins**: Always use a substitution matrix like BLOSUM62
-- For **finding regions**: Use local mode instead of global
+- For **DNA/RNA**: Use simple match/mismatch scoring (match=2, mismatch=-1); or load NUC.4.4 for IUPAC ambiguity support
+- For **proteins**: Always use a substitution matrix. BLOSUM62 for general use, BLOSUM80 for close homologs, BLOSUM45 for distant
+- For **finding regions**: Use local mode instead of global; global alignment of very different-length sequences forces meaningless terminal gaps
 - For **many alignments**: Set `max_alignments` to limit memory usage
-- Alignment score depends heavily on gap penalties - adjust if results seem wrong
+- Gap penalties heavily impact results: always use affine (gap open >> gap extend) to model real indel biology; typical protein values: open=-11, extend=-1
+- Sequences below ~25% protein identity are in the **twilight zone** where alignment reliability drops sharply; consider profile methods (HHpred) or structural alignment
+- Percent identity has multiple definitions (different denominators); always report which method was used
+- Alignment algorithms always produce output even for unrelated sequences. Check statistical significance (E-value/bit score) to confirm homology

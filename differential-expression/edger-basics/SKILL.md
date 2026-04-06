@@ -403,13 +403,61 @@ topTags(qlf, n = 20)
 
 ## Choosing edgeR vs DESeq2
 
-| Aspect | edgeR | DESeq2 |
-|--------|-------|--------|
-| Model | Negative binomial + QL | Negative binomial |
-| Shrinkage | Empirical Bayes on dispersions | Shrinkage estimators for LFC |
-| Small samples | Robust with QL framework | Good with shrinkage |
-| Speed | Generally faster | Slower for large datasets |
-| Output | F-statistic, FDR | Wald statistic, padj |
+| Scenario | Recommended | Rationale |
+|----------|-------------|-----------|
+| Standard bulk RNA-seq (n >= 3/group) | Either — expect ~90% overlap | Both perform well; concordance is high |
+| Very small sample size (n = 2-3/group) | edgeR QL F-test | QL framework provides tighter FPR control with few replicates |
+| Large datasets (>100 samples, many conditions) | edgeR | Faster; C++ backend in v4 |
+| Salmon/Kallisto quantification | DESeq2 via tximport | DESeqDataSetFromTximport handles offset matrix natively |
+| Need LFC shrinkage for ranking/GSEA | DESeq2 | apeglm/ashr shrinkage built in; edgeR has no equivalent |
+| Formal fold-change threshold testing | edgeR `glmTreat` | More flexible than DESeq2 `lfcThreshold` |
+| Python-only environment | DESeq2 (via PyDESeq2) | No edgeR Python equivalent |
+| Omnibus test (>= 3 groups) | Either (LRT) | Both support likelihood ratio tests |
+
+If overlap between DESeq2 and edgeR is < 60%, investigate differences in filtering, normalization, or dispersion estimation — discordance usually indicates a modeling issue, not a tool difference.
+
+## Decision Guidance
+
+### Test Selection
+
+| Test | When to Use | Key Property |
+|------|-------------|--------------|
+| QL F-test (`glmQLFit` + `glmQLFTest`) | **Default for most experiments** | Best FPR control with small n; accounts for dispersion uncertainty |
+| LRT (`glmFit` + `glmLRT`) | Large samples (n >= 6 per group); complex designs where QL is too conservative | More powerful but can be anti-conservative with few replicates |
+| Exact test (`exactTest`) | Simple two-group comparison only | No design matrix; cannot adjust for covariates |
+| TREAT (`glmTreat`) | Testing against a minimum fold-change threshold | Tests H0: \|LFC\| <= threshold, not H0: LFC = 0 |
+
+QL F-test p-values are always >= LRT p-values. In null comparisons (replicates vs replicates), QL consistently returns ~0 false positives while LRT can return many.
+
+### edgeR v4 Changes
+
+- Constant NB dispersion estimated from the most highly expressed genes (v3 used trended dispersions)
+- `estimateDisp()` is now optional before `glmQLFit()` (but still needed for BCV plots)
+- Fractional count support for transcript quantification uncertainty (Gibbs sampling)
+- C++ backend for model fitting (faster)
+- `decidetestsDGE()` removed; use `decideTests()` instead
+- `mglmLS()`, `mglmSimple()` retired; use `mglmLevenberg()` or `mglmOneWay()`
+
+### filterByExpr Internals
+
+Default parameters: `min.count = 10`, `min.total.count = 15`, `large.n = 10`, `min.prop = 0.7`.
+
+Algorithm:
+1. Convert `min.count` to CPM cutoff: `min.count / median(lib.size) * 1e6`
+2. Determine minimum number of samples `n` from design (smallest group size)
+3. If group size > `large.n`: `n = large.n + (group_size - large.n) * min.prop`
+4. Keep gene if CPM >= cutoff in >= n samples AND total count >= `min.total.count`
+
+Example: median library 51M reads -> CPM cutoff ~0.2; 3 replicates per group -> need CPM >= 0.2 in >= 3 samples.
+
+### Normalization Caveats
+
+TMM/RLE both assume most genes are NOT DE. This assumption breaks in:
+- Prokaryotic stress responses (majority of genes may be DE)
+- Extreme perturbations or cross-species comparisons
+- Single-cell with many zeros
+
+When violated, consider spike-in normalization or supplying known stable reference genes. For prokaryotic RNA-seq, also note: use non-spliced aligners (BWA-MEM, Bowtie2), rRNA depletion is essential, and KEGG organism codes are strain-specific.
 
 ## Related Skills
 

@@ -399,6 +399,50 @@ brewer.pal(n = 8, name = 'Set1')
 | Dispersion | Model fit | `plotDispEsts()`, `plotBCV()` |
 | Counts | Individual genes | `plotCounts()` |
 
+## Diagnostic Interpretation
+
+### P-value Histogram
+
+Check raw p-value distribution before trusting DE results:
+
+| Shape | Meaning | Action |
+|-------|---------|--------|
+| Uniform + spike near 0 | Correct: null genes uniform, true DE near 0 | Proceed normally |
+| Anti-conservative (U-shape, spikes at 0 and 1) | Inflated significance; unmodeled batch or violated assumptions | Check for batch effects, verify model specification |
+| Conservative (depleted near 0, spike near 1) | Over-correction; too many covariates or wrong dispersion | Simplify model, check dispersion plot |
+| Spike at p = 1 only | Discrete artifact from low-count genes | Pre-filter more aggressively |
+
+### MA Plot Diagnostics
+
+| Pattern | Meaning |
+|---------|---------|
+| Symmetric cloud centered at LFC = 0 | Correct normalization |
+| Cloud shifted up or down | Normalization failure; majority-DE experiment may violate assumptions |
+| Funnel shape widening at low expression | Expected — low-count genes have noisier fold changes |
+| Discrete horizontal bands | Low-count artifacts; consider stronger pre-filtering |
+
+### Volcano Plot: Shrunken LFCs
+
+Use shrunken LFCs (apeglm/ashr) on the x-axis and un-shrunken p-values on the y-axis. This combination gives stable fold change estimates while preserving the original significance assessment. Without shrinkage, low-count genes with extreme but unreliable fold changes dominate the plot edges.
+
+### Dispersion Plot Diagnostics
+
+| Pattern | Meaning |
+|---------|---------|
+| Gene-wise points scattered around fitted line | Good model fit |
+| Gene-wise points far above fitted line | Possible outlier genes or unmodeled batch effects |
+| Fitted line flat (no trend) | Unusual — check if data is over-filtered or has unusual structure |
+| Final estimates much lower than gene-wise | Expected — shrinkage toward the fitted trend |
+
+### PCA Diagnostics
+
+| Pattern | Meaning | Action |
+|---------|---------|--------|
+| Clear separation by condition on PC1/PC2 | Strong biological signal | Proceed |
+| Separation by batch, not condition | Batch effect dominates | Include batch in model; do NOT use corrected counts for DE |
+| One sample far from its group | Potential outlier or sample swap | Check library QC metrics; consider removing |
+| No separation on PC1/PC2 but present on PC3+ | Subtle effects | May still find DE genes; check dispersion estimates |
+
 ## Related Skills
 
 - deseq2-basics - Generate DESeq2 results for visualization

@@ -66,3 +66,13 @@ Tell your AI agent what you want to do:
 - Use `lfcShrink()` with type='apeglm' for better fold change estimates
 - Use `vst()` instead of `rlog()` for large datasets (>100 samples)
 - Check `resultsNames(dds)` to see available coefficients for results()
+- For prokaryotic data, verify normalization assumptions (majority-DE experiments violate median-of-ratios)
+- Use PyDESeq2 for Python-only environments; results closely match R DESeq2
+
+## Related Skills
+
+- edger-basics - Alternative DE analysis with edgeR
+- de-visualization - MA plots, volcano plots, heatmaps
+- de-results - Extract and export significant genes
+- pathway-analysis/go-enrichment - Functional analysis of DE gene lists
+- expression-matrix/counts-ingest - Loading count matrices from various formats

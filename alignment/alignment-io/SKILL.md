@@ -194,27 +194,79 @@ alignment = MultipleSeqAlignment(records)
 AlignIO.write(alignment, 'new_alignment.fasta', 'fasta')
 ```
 
+## Format Selection for Downstream Tools
+
+Choosing the output format depends on which downstream tool consumes the alignment:
+
+| Downstream Tool | Required Format | BioPython Format String |
+|----------------|-----------------|------------------------|
+| RAxML-NG, IQ-TREE | PHYLIP (relaxed) | `'phylip-relaxed'` |
+| MrBayes | NEXUS | `'nexus'` |
+| PAUP* | NEXUS or PHYLIP | `'nexus'` or `'phylip'` |
+| HMMER, Infernal | Stockholm | `'stockholm'` |
+| Pfam/Rfam databases | Stockholm | `'stockholm'` |
+| PAML/codeml | PHYLIP (sequential) | `'phylip-sequential'` |
+| Most tools | FASTA | `'fasta'` |
+
+### Annotation Preservation
+
+Not all formats support annotations. Converting between formats can silently discard metadata:
+
+| Format | Sequence Annotations | Column Annotations | Secondary Structure |
+|--------|---------------------|-------------------|-------------------|
+| Stockholm | Yes (GS/GR lines) | Yes (GC lines) | Yes (SS_cons) |
+| NEXUS | Partial (SETS block) | Via CHARSET | No |
+| Clustal | No (conservation marks not parsed) | No | No |
+| PHYLIP | No | No | No |
+| FASTA | No | No | No |
+
+Converting Stockholm to FASTA or PHYLIP discards all annotations, secondary structure markup, and per-residue quality scores. If annotations matter, keep a Stockholm master copy.
+
 ## Format-Specific Notes
 
-### PHYLIP Format
+### PHYLIP Format Pitfalls
+
+PHYLIP has two incompatible variants (interleaved vs sequential) and two name-length modes (strict vs relaxed). Confusing these causes silent data corruption.
+
+**Strict PHYLIP** truncates sequence names to exactly 10 characters. This can silently merge distinct sequences whose names share a 10-character prefix (e.g., `Homo_sapiens_chr1` and `Homo_sapiens_chr2` both become `Homo_sapie`).
+
 ```python
-# Standard PHYLIP (10 char names, interleaved)
+# Strict PHYLIP (10-char names, interleaved) -- only for tools requiring it
 alignment = AlignIO.read('file.phy', 'phylip')
 
-# Sequential PHYLIP
+# Sequential PHYLIP (10-char names, one sequence at a time) -- PAML/codeml
 alignment = AlignIO.read('file.phy', 'phylip-sequential')
 
-# Relaxed PHYLIP (allows longer names)
+# Relaxed PHYLIP (no name limit) -- RAxML-NG, IQ-TREE (recommended default)
 alignment = AlignIO.read('file.phy', 'phylip-relaxed')
+
+# Always prefer phylip-relaxed for writing unless the downstream tool
+# specifically requires strict format
+AlignIO.write(alignment, 'output.phy', 'phylip-relaxed')
 ```
 
-### Stockholm Format (with Annotations)
+### Stockholm Format Annotations
+
+Stockholm format (used by Pfam, Rfam, HMMER) supports four annotation line types:
+
+| Line Prefix | Scope | Description | Example |
+|-------------|-------|-------------|---------|
+| `#=GF` | File | Alignment-level metadata (ID, accession, description) | `#=GF AC PF00001` |
+| `#=GC` | Column | Per-column annotation (1 char per alignment column) | `#=GC SS_cons ..(((...)))..` |
+| `#=GS` | Sequence | Per-sequence free text (organism, description) | `#=GS seq1 OS Homo sapiens` |
+| `#=GR` | Residue | Per-residue annotation (1 char per residue) | `#=GR seq1 SS ..HHH..EEE..` |
+
+Common GC annotations: `SS_cons` (consensus secondary structure), `RF` (reference coordinates), `seq_cons` (consensus sequence). RNA families in Rfam use `<>` for base pairs, `.` for unpaired.
+
 ```python
 alignment = AlignIO.read('pfam.sto', 'stockholm')
 
-# Access annotations
 for record in alignment:
     print(record.id, record.annotations)
+    if 'secondary_structure' in record.letter_annotations:
+        print(f'  SS: {record.letter_annotations["secondary_structure"]}')
+
+# Column annotations are accessible via alignment.column_annotations
 ```
 
 ### Clustal Format
@@ -295,6 +347,7 @@ Align.write(alignment, 'output.fasta', 'fasta')
 
 ## Related Skills
 
+- multiple-alignment - Run MSA tools (MAFFT, MUSCLE5, ClustalOmega) to generate alignments
 - pairwise-alignment - Create pairwise alignments with PairwiseAligner
 - msa-parsing - Analyze alignment content and annotations
 - msa-statistics - Calculate conservation and identity

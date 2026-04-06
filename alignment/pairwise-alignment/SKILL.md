@@ -42,6 +42,26 @@ from Bio import SeqIO
 |------|-----------|----------|
 | `global` | Needleman-Wunsch | Full-length alignment, similar-length sequences |
 | `local` | Smith-Waterman | Find best matching regions, different-length sequences |
+| `global` + free end gaps | Semi-global | Overlap detection, fragment-to-reference alignment |
+
+### Choosing the Right Mode
+
+- **Global**: Both sequences are expected to be homologous over their full length (e.g., two orthologs of similar size). Forces end-to-end alignment.
+- **Local**: Conserved domains or motifs within otherwise dissimilar sequences. BLAST uses local alignment internally. Preferred when protein termini are highly divergent (termini accumulate mutations faster than core regions).
+- **Semi-global**: One sequence is a fragment or subsequence of the other (e.g., primer to template, read to reference, detecting overlap between shotgun reads). Free end gaps prevent penalizing unaligned flanking regions.
+
+**Common mistake**: Global alignment of sequences with very different lengths forces biologically meaningless terminal gaps. If sequences differ substantially in length, use local or semi-global instead.
+
+### DNA vs Protein Alignment
+
+| Scenario | Align As | Rationale |
+|----------|----------|-----------|
+| Nucleotide identity >70% | DNA | Sufficient signal at nucleotide level |
+| Nucleotide identity <70% | Protein | Codon degeneracy masks signal at DNA level; protein alignment is ~3x more sensitive |
+| Noncoding sequences (UTRs, intergenic) | DNA | No protein translation possible |
+| Coding sequences for dN/dS analysis | Protein first, then back-translate codons (PAL2NAL) | Preserves reading frame for selection analysis |
+
+When in doubt, align at the protein level. It captures functional constraint better because 20 amino acids provide richer signal than 4 nucleotides.
 
 ## Creating an Aligner
 
@@ -152,31 +172,52 @@ aligner = PairwiseAligner(mode='global', substitution_matrix=blosum62, open_gap_
 aligner = PairwiseAligner(mode='local', match_score=2, mismatch_score=-1, open_gap_score=-10, extend_gap_score=-0.5)
 ```
 
-### Semiglobal (Overlap/Extension)
+### Semiglobal (Overlap/Fragment Alignment)
 ```python
-# Allow free end gaps on query (useful for primer alignment)
+# Free end gaps on query -- for aligning a fragment against a full-length reference
+# or detecting overlap between reads
 aligner = PairwiseAligner(mode='global')
 aligner.query_left_open_gap_score = 0
 aligner.query_left_extend_gap_score = 0
 aligner.query_right_open_gap_score = 0
 aligner.query_right_extend_gap_score = 0
+
+# Free end gaps on BOTH sequences -- for overlap detection between two reads
+aligner = PairwiseAligner(mode='global')
+aligner.end_gap_score = 0.0
 ```
 
-## Available Substitution Matrices
+## Substitution Matrix Selection
 
-**Goal:** Load and select substitution matrices for protein alignment scoring.
+**Goal:** Select the appropriate substitution matrix based on expected sequence divergence.
 
-**Approach:** List available matrices with `substitution_matrices.load()` and load specific ones (BLOSUM62 for general, BLOSUM80 for close homologs, PAM250 for distant).
+**Approach:** Match matrix to divergence level. BLOSUM and PAM number in **opposite directions**: higher BLOSUM = closer sequences; higher PAM = more distant sequences.
+
+| Divergence Level | BLOSUM | PAM | When To Use |
+|-----------------|--------|-----|-------------|
+| Very close (<20% divergence) | BLOSUM80, BLOSUM90 | PAM30 | Recently duplicated genes, strain comparison |
+| Moderate | BLOSUM62 (default) | PAM120 | General-purpose, most analyses |
+| Distant (>50% divergence) | BLOSUM45, BLOSUM50 | PAM250 | Remote homology detection |
+
+**BLOSUM62 is the universal default** (used by BLAST, most alignment tools). When in doubt, use BLOSUM62. Switch to BLOSUM80 for very similar proteins or BLOSUM45 for distant homologs.
+
+**DNA matrices**: `NUC.4.4` (match=+5, mismatch=-4) handles IUPAC ambiguity codes. `HOXD70` is tuned for human-mouse whole-genome alignment from noncoding regions.
 
 ```python
 from Bio.Align import substitution_matrices
-print(substitution_matrices.load())  # List all available matrices
+print(substitution_matrices.load())  # List all 30 available matrices
 
-# Common matrices
-blosum62 = substitution_matrices.load('BLOSUM62')  # General protein
-blosum80 = substitution_matrices.load('BLOSUM80')  # Closely related proteins
-pam250 = substitution_matrices.load('PAM250')      # Distantly related proteins
+blosum62 = substitution_matrices.load('BLOSUM62')  # General protein (default)
+blosum80 = substitution_matrices.load('BLOSUM80')  # Close homologs
+blosum45 = substitution_matrices.load('BLOSUM45')  # Distant homologs
+nuc44 = substitution_matrices.load('NUC.4.4')      # DNA with IUPAC support
 ```
+
+### Affine Gap Penalties: Biological Rationale
+
+Gap penalties control how gaps (insertions/deletions) are scored. The **affine model** (`penalty = open + extend * (L-1)`) is almost always preferred over linear because it reflects indel biology: a DNA break introduces the first gap (costly), but extending an existing gap is mechanistically easier (less costly). This models the observation that indels in real sequences tend to occur as single contiguous events.
+
+Typical values with BLOSUM62: gap open = -11, gap extend = -1 (BLASTP defaults). Setting gap open equal to gap extend (linear model) over-penalizes long indels and under-penalizes scattered single-residue gaps, producing biologically unrealistic alignments.
 
 ## Working with SeqRecord Objects
 
@@ -257,20 +298,38 @@ print(format(alignment, 'sam'))       # SAM format
 | Low scores | Wrong scoring scheme | Use substitution matrix for proteins |
 | No alignments in local mode | Scores all negative | Ensure `match_score` > 0 |
 
-## Decision Tree: Choosing Alignment Mode
+## Percent Identity: Definitions Matter
 
-```
-Need full-length comparison?
-├── Yes → Use mode='global'
-│   └── Sequences similar length?
-│       ├── Yes → Standard global
-│       └── No → Consider semiglobal (free end gaps)
-└── No → Use mode='local'
-    └── Find best matching regions only
-```
+There are four common ways to calculate percent identity from the same alignment, producing different values:
+
+| Method | Denominator | Best For |
+|--------|-------------|----------|
+| PID1 | Aligned positions + internal gaps | Gap-aware, conservative |
+| PID2 | Aligned residue pairs (excluding gaps) | Always highest value |
+| PID3 | Shorter sequence length | Length-normalized |
+| PID4 | Mean sequence length | Best correlation with structural similarity |
+
+**Practical impact**: Up to 11.5% difference between methods on a single alignment. Combined with different alignment algorithms, variation reaches 22%. Always report which method was used. The `counts()` method above uses aligned non-gap positions (similar to PID2).
+
+## Interpreting Alignment Significance
+
+Raw alignment scores are not directly interpretable across different scoring schemes. For database searches (BLAST), two normalized measures are used:
+
+- **Bit score**: Normalized, database-size-independent. Scores >50 are generally reliable; <50 are suspect.
+- **E-value**: Expected number of alignments with this score or better by chance. Database-size dependent. E < 1e-5 is a common significance threshold; E < 1e-50 is near-certain homology. E-values are NOT p-values (they can exceed 1).
+
+**Compositional bias**: Low-complexity regions (poly-Q, proline-rich) and transmembrane segments inflate alignment scores. Use SEG (protein) or DUST (DNA) filtering to mask these regions before significance assessment.
+
+## When Alignment Is NOT Appropriate
+
+- **Twilight zone** (20-35% protein identity): Alignment reliability drops sharply. Below ~25% identity, >90% of detected sequence pairs are NOT structurally similar. Alignment length matters: 30% over 200 residues is more meaningful than 30% over 50.
+- **Below 20% identity**: Sequence signal is lost in noise. Use profile-profile methods (HHpred), protein language model embeddings (ESM-2), or structural alignment (TM-align) instead.
+- **Non-homologous sequences**: Alignment algorithms always produce an alignment, even for unrelated sequences. Statistical significance (E-value/bit score) is essential to distinguish true from false homology.
+- **Highly repetitive sequences**: Tandem repeats cause alignment ambiguity and can produce artifactually high scores.
 
 ## Related Skills
 
+- multiple-alignment - Align three or more sequences with MAFFT, MUSCLE5, ClustalOmega
 - alignment-io - Save alignments to files in various formats
 - msa-parsing - Work with multiple sequence alignments
 - msa-statistics - Calculate identity, similarity metrics

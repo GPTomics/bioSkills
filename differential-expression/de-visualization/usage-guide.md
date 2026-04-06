@@ -67,6 +67,16 @@ Tell your AI agent what you want to do:
 
 - Always use variance-stabilized counts (vst) for PCA and heatmaps
 - Scale heatmap rows (z-score) for comparable gene patterns
-- Check p-value histogram for analysis quality
+- Check p-value histogram for analysis quality (uniform + spike near 0 is correct; U-shape means batch effects)
+- Use shrunken LFCs for volcano plot x-axis, un-shrunken p-values for y-axis
 - Use colorblind-friendly palettes for publications
 - Save vector formats (PDF) for publications, raster (PNG) for presentations
+- MA plot cloud should be symmetric around LFC=0; asymmetry suggests normalization failure
+
+## Related Skills
+
+- deseq2-basics - Generate DESeq2 results for visualization
+- edger-basics - Generate edgeR results for visualization
+- de-results - Filter genes before visualization
+- data-visualization/specialized-omics-plots - Custom ggplot2 volcano/MA/PCA
+- data-visualization/heatmaps-clustering - Advanced heatmap customization

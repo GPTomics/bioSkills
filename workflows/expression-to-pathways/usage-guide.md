@@ -66,7 +66,12 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **Gene counts**: Need 50-500 genes for reliable ORA
-- **GSEA ranking**: Use stat or log2FC, not p-value
-- **Simplify**: Use simplify() to reduce redundant GO terms
-- **Multiple testing**: Check adjusted p-values, not raw
+- **Gene counts**: need 50-500 genes for reliable ORA; fewer than 20 suggests switching to GSEA
+- **GSEA ranking**: use Wald statistic (DESeq2), moderated t (limma), or signed p-value (edgeR), not raw p-value alone
+- **Background universe**: always specify all tested genes as universe in ORA (not the full genome). This is the #1 ORA error
+- **Simplify**: use simplify() to reduce redundant GO terms (does not work with ont='ALL')
+- **Multiple testing**: check adjusted p-values (padj), not raw; FDR < 0.25 is acceptable for GSEA
+- **Effect sizes**: examine fold enrichment and leading edge genes, not just p-values
+- **Multi-condition**: use compareCluster or mitch. Never compare p-values from separate enrichment runs
+- **Bacteria**: use locus tags with keyType='kegg' directly; no bitr() or OrgDb needed
+- **Deduplicate**: after gene ID conversion, remove duplicates to avoid biased enrichment scores

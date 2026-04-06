@@ -68,6 +68,9 @@ Tell your AI agent what you want to do:
 - Rhythm detection only applies when sampling covers at least one full cycle (24h for circadian)
 - GAM basis dimension k should not exceed (n_timepoints - 1); k=5 is a safe default
 - Per-cluster enrichment reveals distinct biological processes; compare across clusters for a systems view
+- Always specify a background universe (all temporal genes, not the full genome) when running per-cluster ORA
+- Use simplify() on GO results to remove redundant parent-child terms before interpreting clusters
+- Examine fold enrichment (GeneRatio / BgRatio), not just p-values. Small clusters can produce misleading p-values
 - For organisms other than human/mouse, swap org.Hs.eg.db for the appropriate OrgDb package
 
 ## Related Skills

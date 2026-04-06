@@ -66,5 +66,13 @@ Tell your AI agent what you want to do:
 - Use `filterByExpr()` for automatic low-count filtering
 - The quasi-likelihood framework (glmQLFit) is recommended over exact test
 - For complex designs, use design matrices without intercept (~ 0 + group)
-- `glmTreat()` tests for log fold changes above a threshold
+- `glmTreat()` tests for log fold changes above a threshold (H0: |LFC| <= threshold), preferred over post-hoc LFC filtering
 - edgeR v4+ makes `estimateDisp()` optional before `glmQLFit()`
+- For prokaryotic data, TMM normalization assumes most genes are not DE — verify this holds
+
+## Related Skills
+
+- deseq2-basics - Alternative DE analysis with DESeq2
+- de-visualization - MA plots, volcano plots, heatmaps
+- de-results - Extract and export significant genes
+- pathway-analysis/go-enrichment - Functional analysis of DE gene lists

@@ -73,8 +73,10 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Identity can be calculated different ways (with/without gaps) - specify which you need
-- Conservation and entropy are inversely related
+- Percent identity has **four common definitions** (different denominators) producing up to 11.5% difference on the same alignment. Always specify which method: PID1 (gap-inclusive), PID2 (aligned pairs only), PID3 (shorter sequence), PID4 (mean length, recommended for evolutionary studies)
+- Conservation and entropy are inversely related; both should be computed ignoring gap characters for interpretable results
 - For proteins, use BLOSUM62 for scoring; for DNA, use simple match/mismatch
-- Gap-rich columns often indicate alignment uncertainty
-- Compare metrics across columns to find functional regions
+- Gap-rich columns often indicate alignment uncertainty or guide tree artifacts rather than true biology
+- For critical analyses (phylogenetics, selection), quantify alignment confidence per column with GUIDANCE2 or MUSCLE5 ensemble before inference
+- Alignment uncertainty propagates to downstream results: different aligners can support different tree topologies; always report alignment method and consider sensitivity analysis
+- Average pairwise identity <25% (protein) signals the twilight zone where alignment reliability is questionable and structural methods should be considered

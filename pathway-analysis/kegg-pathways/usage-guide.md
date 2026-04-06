@@ -45,16 +45,21 @@ Tell your AI agent what you want to do:
 
 ## Common Organism Codes
 
-| Code | Organism |
-|------|----------|
-| hsa | Human |
-| mmu | Mouse |
-| rno | Rat |
-| dre | Zebrafish |
-| dme | Drosophila |
-| cel | C. elegans |
-| sce | S. cerevisiae |
-| ath | Arabidopsis |
+| Code | Organism | Notes |
+|------|----------|-------|
+| hsa | Human | |
+| mmu | Mouse | |
+| rno | Rat | |
+| dre | Zebrafish | |
+| dme | Drosophila | |
+| cel | C. elegans | |
+| sce | S. cerevisiae | |
+| ath | Arabidopsis | |
+| eco | E. coli K-12 | Bacterial |
+| pae | P. aeruginosa PAO1 | Bacterial |
+| bsu | B. subtilis 168 | Bacterial |
+
+Use `search_kegg_organism('species_name', by = 'scientific_name')` to find codes for other organisms. KEGG covers 8,000+ species.
 
 ## Understanding Results
 
@@ -70,9 +75,13 @@ Tell your AI agent what you want to do:
 | Count | Number of genes |
 
 ## Tips
-- KEGG requires Entrez gene IDs - always convert from symbols first
-- Use search_kegg_organism() to find the correct organism code
-- Use setReadable() to convert Entrez IDs back to symbols in results
+- **Eukaryotes**: KEGG requires Entrez gene IDs. Convert from symbols with bitr() using org.*.eg.db
+- **Bacteria/prokaryotes**: use locus tags directly as KEGG gene IDs with `keyType = 'kegg'`. No bitr() or OrgDb needed
+- Always specify a background universe (all tested genes) to avoid inflated significance
+- Use search_kegg_organism() to find the correct organism code for any species
+- Use setReadable() to convert Entrez IDs back to symbols in results (eukaryotes only)
+- When comparing enrichment across conditions, use set operations on pathway IDs or compareCluster(). Never compare raw p-values
 - KEGG queries require internet connection; use use_internal_data = TRUE for cached data
 - See enrichment-visualization skill for plotting (dotplot, barplot, browseKEGG)
-- Try enrichMKEGG() for KEGG module analysis (smaller functional units)
+- Try enrichMKEGG() for KEGG module analysis (smaller functional units within pathways)
+- Examine fold enrichment (GeneRatio / BgRatio), not just p-values

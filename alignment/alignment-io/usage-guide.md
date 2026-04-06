@@ -55,21 +55,21 @@ Tell your AI agent what you want to do:
 4. Write output in specified format
 5. Report alignment statistics (length, sequence count)
 
-## Supported Formats
+## Format Selection for Downstream Tools
 
-| Format | Use Case |
-|--------|----------|
-| Clustal | ClustalW/Omega output |
-| FASTA | General purpose, simple |
-| PHYLIP | Phylogenetic analysis |
-| Stockholm | Pfam/Rfam databases |
-| Nexus | MrBayes, PAUP |
-| MAF | Whole-genome alignments |
+| Downstream Tool | Format | BioPython String |
+|----------------|--------|-----------------|
+| RAxML-NG, IQ-TREE | PHYLIP relaxed | `'phylip-relaxed'` |
+| MrBayes | NEXUS | `'nexus'` |
+| HMMER, Infernal | Stockholm | `'stockholm'` |
+| PAML/codeml | PHYLIP sequential | `'phylip-sequential'` |
+| Most tools | FASTA | `'fasta'` |
 
 ## Tips
 
-- Use `phylip-relaxed` when sequence names exceed 10 characters
-- Stockholm format preserves annotations that other formats lose
-- FASTA is the most portable but loses annotation information
+- **Always use `phylip-relaxed` over `phylip`** unless the downstream tool explicitly requires strict format. Strict PHYLIP truncates names to 10 characters, which can silently merge distinct sequences with shared prefixes
+- Stockholm format preserves annotations (secondary structure, per-residue quality, metadata) that all other formats lose. Keep a Stockholm master copy if annotations matter
+- PHYLIP has two incompatible layout variants (interleaved vs sequential); tools expecting one will fail silently on the other. Use `phylip-sequential` for PAML
+- FASTA is the most portable but carries zero annotation information
 - For large alignments, `parse()` is more memory efficient than `read()`
-- When converting, some format-specific metadata may be lost
+- When converting, check what metadata the target format supports. Stockholm-to-FASTA conversion silently discards all annotations

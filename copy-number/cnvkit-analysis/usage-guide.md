@@ -152,7 +152,7 @@ cnvkit.py sex *.cnr *.cnn
 
 Both `segmetrics` and `genemetrics` share most statistics flags: `--ci`, `--pi`, `--iqr`, `--alpha`, `--bootstrap`, `--mean`, `--median`, `--stdev`, `--sem`, `--mad`.
 
-Two key differences: (1) t-test flag naming -- `segmetrics` uses `--t-test` (hyphenated), `genemetrics` uses `--ttest` (no hyphen); (2) `--smooth-bootstrap` exists only in `segmetrics` (smoothed CI).
+Two key differences: (1) t-test flag naming: `segmetrics` uses `--t-test` (hyphenated), `genemetrics` uses `--ttest` (no hyphen); (2) `--smooth-bootstrap` exists only in `segmetrics` (smoothed CI).
 
 ```bash
 # Per-segment confidence intervals and prediction intervals

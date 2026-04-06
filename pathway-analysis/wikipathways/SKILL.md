@@ -17,6 +17,16 @@ package and adapt the example to match the actual API rather than retrying.
 
 # WikiPathways Enrichment
 
+## When to Use WikiPathways
+
+WikiPathways is community-curated (wiki model), not expert or peer-reviewed like KEGG/Reactome. This means:
+
+- **Strengths**: disease-specific and drug-related pathways not found in KEGG/Reactome; fully open (CC0 license); newer pathways contributed by active researchers; 30+ species
+- **Limitations**: quality varies by pathway -- some are meticulously curated by domain experts, others may be incomplete or contributed by non-specialists
+- **Best use**: complement to KEGG/Reactome, not a standalone primary database. Run WikiPathways alongside KEGG or Reactome to catch pathways unique to the WikiPathways collection.
+
+Check the "Last edited" date and contributor for specific pathways before relying on them for key conclusions.
+
 ## Core Pattern - Over-Representation Analysis
 
 **Goal:** Identify WikiPathways that are over-represented in a gene list.

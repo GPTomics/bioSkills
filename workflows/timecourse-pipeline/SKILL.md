@@ -305,19 +305,28 @@ for cl_id in range(n_clusters):
 library(clusterProfiler)
 library(org.Hs.eg.db)
 
+# Background = all temporal genes tested (not the full genome)
+all_temporal_entrez <- bitr(rownames(expr_sig), fromType = 'SYMBOL', toType = 'ENTREZID',
+                            OrgDb = org.Hs.eg.db)
+
 enrichment_results <- list()
 for (i in seq_along(core_genes)) {
     genes <- core_genes[[i]]$NAME
 
-    # Convert symbols to Entrez IDs
     entrez <- bitr(genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
 
-    # GO Biological Process enrichment
-    # pvalueCutoff 0.05: standard; qvalueCutoff 0.05 for FDR control
-    ego <- enrichGO(gene = entrez$ENTREZID, OrgDb = org.Hs.eg.db,
+    # GO Biological Process enrichment with proper background
+    ego <- enrichGO(gene = entrez$ENTREZID,
+                    universe = all_temporal_entrez$ENTREZID,
+                    OrgDb = org.Hs.eg.db,
                     ont = 'BP', pAdjustMethod = 'BH',
                     pvalueCutoff = 0.05, qvalueCutoff = 0.05,
                     readable = TRUE)
+
+    # Simplify redundant GO terms (parent-child hierarchy creates redundancy)
+    if (nrow(as.data.frame(ego)) > 0) {
+        ego <- simplify(ego, cutoff = 0.7, by = 'p.adjust')
+    }
 
     enrichment_results[[i]] <- ego
     message(sprintf('Cluster %d: %d significant GO terms', i, nrow(as.data.frame(ego))))
@@ -329,11 +338,15 @@ for (i in seq_along(core_genes)) {
 ```python
 import gseapy as gp
 
+# Use all temporal genes as background for proper enrichment statistics
+all_temporal_genes = list(expr_sig.index)
+
 for cl_id in range(n_clusters):
     cl_genes = [g for g, l in zip(expr_sig.index, labels) if l == cl_id]
 
     enr = gp.enrichr(gene_list=cl_genes, gene_sets='GO_Biological_Process_2023',
-                     organism='human', outdir=f'enrichr_cluster_{cl_id}')
+                     organism='human', background=all_temporal_genes,
+                     outdir=f'enrichr_cluster_{cl_id}')
     sig_terms = enr.results[enr.results['Adjusted P-value'] < 0.05]
     print(f'Cluster {cl_id}: {len(sig_terms)} significant GO terms')
 ```

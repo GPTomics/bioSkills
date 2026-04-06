@@ -116,7 +116,7 @@ Avoid hard-thresholding FCs at a p-value cutoff (setting non-significant FCs to 
 ## Tips
 
 - Always log2-transform raw intensities before statistical testing; compute fold change as difference of means on the log2 scale (geometric mean ratio), not `log2(mean_ratio)` which uses arithmetic means
-- Use limma with `eBayes(trend=TRUE, robust=TRUE)` as the default for metabolomics -- even with n > 5, it is never worse than a plain t-test and is often better
+- Use limma with `eBayes(trend=TRUE, robust=TRUE)` as the default for metabolomics. Even with n > 5, it is never worse than a plain t-test and is often better
 - In Python, set `equal_var=False` in `scipy.stats.ttest_ind()` for Welch's t-test (scipy defaults to Student's)
 - Pass `method='fdr_bh'` explicitly to `statsmodels.multipletests()` (the default is Holm-Sidak, not BH)
 - Include batch as a covariate in the design matrix if samples were processed separately; do not use `removeBatchEffect()` before testing
@@ -125,7 +125,7 @@ Avoid hard-thresholding FCs at a p-value cutoff (setting non-significant FCs to 
 - Distinguish biological zeros (metabolite truly absent) from technical zeros (below detection limit) before imputation
 - Validate PLS-DA with permutation testing (Q2 should exceed permuted values)
 - VIP > 1 is a common threshold, but combine with FDR for confidence
-- Check volcano plot symmetry -- strongly asymmetric patterns may indicate normalization issues
+- Check volcano plot symmetry. Strongly asymmetric patterns may indicate normalization issues
 - Report: number tested, normalization method, statistical method, thresholds, and number significant
 
 ## Related Skills
