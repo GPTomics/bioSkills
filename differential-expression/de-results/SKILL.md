@@ -370,9 +370,99 @@ res[which(is.na(res$pvalue) & res$baseMean > 0), ]
 | `PValue` | Raw p-value |
 | `FDR` | False discovery rate |
 
+## Interpretation Guidance
+
+### Typical DE Gene Proportions
+
+| Experiment Type | Expected % DE (padj < 0.05, \|LFC\| > 1) |
+|----------------|-------------------------------------------|
+| Subtle perturbation (low-dose drug, mild stress) | 0.5-3% |
+| Standard treatment vs control | 3-10% |
+| Different tissues or cell types | 15-40% |
+| Cancer vs normal | 10-30% |
+| Prokaryotic stress response | 10-50%+ |
+
+If >50% of genes are DE in a standard comparison, suspect a technical issue (batch effect, normalization failure, sample swap). Prokaryotic stress experiments are the exception — bacteria can rewire large portions of their transcriptome.
+
+### LFC Cutoff Selection
+
+| Cutoff | When to Use | Rationale |
+|--------|------------|-----------|
+| \|LFC\| > 0 (padj only) | Exploratory; generating ranked lists for GSEA | Captures all statistically significant changes |
+| \|LFC\| > 0.5 (~1.4-fold) | Default for most experiments | Filters trivially small but statistically significant changes |
+| \|LFC\| > 1 (~2-fold) | Standard stringent cutoff | Conventional in literature; good for large-effect studies |
+| \|LFC\| > 2 (~4-fold) | Drug screens, very high-signal comparisons | May miss biologically important small changes (e.g., transcription factors) |
+
+Prefer formal threshold testing (`lfcThreshold` in DESeq2, `glmTreat` in edgeR) over post-hoc filtering. Formal tests control the false positive rate at the threshold boundary; post-hoc filtering does not.
+
+### P-value Histogram Diagnostics
+
+Check the raw p-value distribution before trusting DE results:
+
+| Shape | Interpretation | Action |
+|-------|---------------|--------|
+| Uniform + spike near 0 | Correct: null genes uniform, true DE near 0 | Proceed normally |
+| Anti-conservative (U-shape or spike at both ends) | Inflated significance; unmodeled batch or violated assumptions | Check for batch effects, verify model |
+| Conservative (spike near 1, depleted near 0) | Over-correction; too many covariates or wrong dispersion | Simplify model, check dispersion plot |
+| Spike at p = 1 only | Discrete artifact from low-count genes | Pre-filter more aggressively |
+
+### Shrunken vs Un-shrunken LFCs
+
+| Task | Use |
+|------|-----|
+| Significance calls (which genes are DE) | Un-shrunken p-values (padj/FDR) |
+| Ranking genes by effect size | Shrunken LFCs (apeglm/ashr) |
+| GSEA input (ranked gene list) | Shrunken LFCs or Wald statistic |
+| Volcano plot x-axis | Shrunken LFCs |
+| Post-hoc LFC filtering | Apply to shrunken LFCs for more stable gene lists |
+
+### Preparing Gene Lists for Pathway Analysis
+
+| Method | Input Required | How to Prepare |
+|--------|---------------|----------------|
+| ORA (enrichGO, enrichKEGG) | Significant gene list + background | `sig_genes <- subset(res, padj < 0.05)`; background = all tested genes |
+| GSEA (fgsea, clusterProfiler::GSEA) | ALL genes ranked, no cutoff | Rank by `stat` (DESeq2 Wald) or `sign(logFC) * -log10(PValue)` (edgeR) |
+
+Never use ORA on a ranked list or GSEA on a filtered list. For ORA, always supply the background (all genes that were tested), not just the genome — pre-filtering and independent filtering reduce the tested set.
+
+```r
+# GSEA ranking from DESeq2
+gsea_ranks <- res_df$stat
+names(gsea_ranks) <- res_df$gene
+gsea_ranks <- sort(gsea_ranks[!is.na(gsea_ranks)], decreasing = TRUE)
+
+# GSEA ranking from edgeR
+gsea_ranks <- sign(results$logFC) * -log10(results$PValue)
+names(gsea_ranks) <- rownames(results)
+gsea_ranks <- sort(gsea_ranks[is.finite(gsea_ranks)], decreasing = TRUE)
+```
+
+### Prokaryotic Gene Annotation
+
+For bacterial/archaeal organisms, Ensembl and org.db packages are unavailable. Use:
+
+```r
+# Load annotation from Prokka/Bakta GFF
+library(rtracklayer)
+gff <- import('annotation.gff3')
+gene_info <- as.data.frame(gff[gff$type == 'gene', c('locus_tag', 'Name', 'product')])
+
+# Merge with DE results
+res_annotated <- merge(res_df, gene_info, by.x = 'gene', by.y = 'locus_tag', all.x = TRUE)
+
+# KEGG enrichment with bacterial organism code
+library(clusterProfiler)
+# Find strain-specific KEGG code
+search_kegg_organism('Pseudomonas aeruginosa', by = 'scientific_name')
+# Use the code (e.g., 'pae' for PAO1)
+kegg_res <- enrichKEGG(gene = sig_gene_ids, organism = 'pae', keyType = 'kegg')
+```
+
 ## Related Skills
 
 - deseq2-basics - Run DESeq2 analysis
 - edger-basics - Run edgeR analysis
 - de-visualization - Visualize results
-- pathway-analysis - Use gene lists for enrichment
+- pathway-analysis/go-enrichment - GO over-representation analysis
+- pathway-analysis/kegg-pathways - KEGG pathway enrichment
+- pathway-analysis/gsea - Gene set enrichment analysis

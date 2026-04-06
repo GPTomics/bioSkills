@@ -63,7 +63,17 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - Always use adjusted p-values (padj/FDR), not raw p-values
-- Check for NA values in padj (indicates filtering or outliers)
-- Use lfcShrink() results for ranking genes
+- Check for NA values in padj — three distinct causes: zero counts, Cook's distance outliers, independent filtering threshold
+- Use lfcShrink() results for ranking genes and GSEA input
 - Export both all results and filtered significant genes
-- Include multiple test corrections in reports
+- For GSEA: rank ALL genes (no cutoff); for ORA: use significant genes + background
+- Check p-value histogram before trusting results (uniform + spike at 0 is correct)
+- For prokaryotic organisms, use Prokka/Bakta GFF for annotation and strain-specific KEGG codes
+
+## Related Skills
+
+- deseq2-basics - Run DESeq2 analysis
+- edger-basics - Run edgeR analysis
+- de-visualization - Visualize results
+- pathway-analysis/go-enrichment - GO over-representation analysis
+- pathway-analysis/gsea - Gene set enrichment analysis

@@ -23,7 +23,7 @@ Tell your AI agent what you want to do:
 ### Full Pipeline
 > "I have raw protein intensities in a TSV file with samples as columns. Log2 transform, median normalize, and run differential abundance testing between case and control groups. Report fold changes with shrinkage applied."
 
-> "Analyze my TMT proteomics data for differential abundance between treatment and control. I have PSM counts per protein -- use DEqMS for the analysis."
+> "Analyze my TMT proteomics data for differential abundance between treatment and control. I have PSM counts per protein, so use DEqMS for the analysis."
 
 ### Statistical Testing
 > "Run limma differential analysis comparing treatment vs control groups on my normalized protein matrix"
@@ -96,7 +96,7 @@ Typical thresholds for proteomics:
 - Pass `method='fdr_bh'` explicitly to `statsmodels.stats.multitest.multipletests` (the default is Holm-Sidak, not BH)
 - Include batch as a covariate in the design matrix if samples were processed separately; do not use `removeBatchEffect()` before testing
 - Consider ashr fold change shrinkage in R when effect size accuracy matters; for GSEA or meta-analysis, use raw FCs
-- Check volcano plot symmetry -- strongly asymmetric patterns may indicate normalization issues
+- Check volcano plot symmetry. Strongly asymmetric patterns may indicate normalization issues
 - Report: number tested, normalization method, statistical method, thresholds, and number significant
 
 ## Related Skills

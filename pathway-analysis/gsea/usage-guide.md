@@ -59,23 +59,29 @@ Tell your AI agent what you want to do:
 
 ## Choosing a Ranking Statistic
 
-| Statistic | Formula | Best For |
-|-----------|---------|----------|
-| log2FC | log2FoldChange | Magnitude of change |
-| Signed p | -log10(p) * sign(FC) | Both significance and direction |
-| Wald | stat column from DESeq2 | Pre-computed statistic |
-| t-statistic | From limma | Moderated statistics |
+| DE Tool | Recommended Metric | Column | Notes |
+|---------|-------------------|--------|-------|
+| DESeq2 | Wald statistic | `stat` | Best overall for RNA-seq; combines magnitude + variance |
+| DESeq2 (shrunk) | Shrunken log2FC | `log2FoldChange` | Use apeglm/ashr, NOT normal type |
+| limma/voom | Moderated t-statistic | `t` | Borrows strength across genes |
+| edgeR | Signed p-value | `sign(logFC) * -log10(PValue)` | No Wald-equivalent; replace p=0 with 1e-300 |
+| Any | log2FC alone | `log2FoldChange` | Use only when magnitude is all that matters; noisy for low-count genes |
 
 ## Interpreting NES (Normalized Enrichment Score)
 - Positive NES: Gene set genes tend to be upregulated
 - Negative NES: Gene set genes tend to be downregulated
 - |NES| > 1.5: Strong enrichment
-- |NES| > 2.0: Very strong enrichment
+- Always check FDR first (< 0.25 per Broad, < 0.05 for publication), then use NES for prioritization
+- High |NES| with non-significant FDR is meaningless
+- Examine the leading edge genes (core_enrichment column) to see what drives the enrichment
 
 ## Tips
-- GSEA uses ALL genes, not just significant ones - include the full ranked list
+- GSEA uses ALL genes, not just significant ones. Include the full ranked list
 - Ensure the gene list is sorted in decreasing order before running
-- Remove NAs from the ranked list before analysis
-- The signed p-value statistic (-log10(p) * sign(FC)) often works best
+- Remove NAs and Inf values from the ranked list before analysis
+- Use the Wald statistic from DESeq2 as the default ranking metric; use signed p-value for edgeR
+- Always deduplicate the ranked list after gene ID conversion (duplicates bias enrichment scores)
+- FDR threshold: use < 0.25 (Broad recommendation) or < 0.05; GSEA is less powerful than ORA so uses a more lenient threshold
+- Leading edge genes (core_enrichment column) are the most actionable result. Examine them to understand what drives enrichment
 - See enrichment-visualization skill for gseaplot2(), ridgeplot(), and dotplot()
-- If no enriched terms, try a different ranking statistic or increase pvalueCutoff
+- If no enriched terms, try a different ranking statistic, increase pvalueCutoff, or check for duplicate gene IDs

@@ -29,13 +29,13 @@ Tell your AI agent what you want to do:
 
 ### Standard Colocalization
 
-> "I have GWAS and eQTL summary stats for chromosome 6 -- run coloc.abf and interpret the posterior probabilities"
+> "I have GWAS and eQTL summary stats for chromosome 6. Run coloc.abf and interpret the posterior probabilities."
 
 > "Test colocalization between my disease GWAS and this gene's eQTL data"
 
 ### Multiple Causal Variants
 
-> "There might be multiple signals at this locus -- run SuSiE-coloc instead of standard coloc"
+> "There might be multiple signals at this locus. Run SuSiE-coloc instead of standard coloc."
 
 > "Use coloc.susie with my LD matrix to test colocalization allowing multiple causal variants"
 

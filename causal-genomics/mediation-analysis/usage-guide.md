@@ -27,7 +27,7 @@ Tell your AI agent what you want to do:
 
 ### eQTL Mediation
 
-> "I have genotype, expression, and disease data -- test if expression of BRCA1 mediates the SNP effect on breast cancer"
+> "I have genotype, expression, and disease data. Test if expression of BRCA1 mediates the SNP effect on breast cancer."
 
 > "Run mediation analysis for all eQTL genes at this locus"
 

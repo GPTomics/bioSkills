@@ -113,33 +113,41 @@ mkk <- enrichMKEGG(
 
 ## Common Organism Codes
 
-| Organism | Code | Common Name |
-|----------|------|-------------|
-| hsa | Human | Homo sapiens |
-| mmu | Mouse | Mus musculus |
-| rno | Rat | Rattus norvegicus |
-| dre | Zebrafish | Danio rerio |
-| dme | Fruit fly | Drosophila melanogaster |
-| cel | Worm | C. elegans |
-| sce | Yeast | S. cerevisiae |
-| ath | Arabidopsis | A. thaliana |
-| eco | E. coli K-12 | |
+| Code | Organism | Notes |
+|------|----------|-------|
+| hsa | Human (Homo sapiens) | |
+| mmu | Mouse (Mus musculus) | |
+| rno | Rat (Rattus norvegicus) | |
+| dre | Zebrafish (Danio rerio) | |
+| dme | Fruit fly (Drosophila) | |
+| cel | Worm (C. elegans) | |
+| sce | Yeast (S. cerevisiae) | |
+| ath | Arabidopsis thaliana | |
+| eco | E. coli K-12 | Bacterial |
+| pae | P. aeruginosa PAO1 | Bacterial |
+| bsu | B. subtilis 168 | Bacterial |
+| sau | S. aureus N315 | Bacterial |
+| mtc | M. tuberculosis H37Rv | Bacterial |
+| ko | KEGG Orthology | Cross-species, use with KO IDs |
 
+KEGG covers 8,000+ organisms. Always verify the code for the specific strain:
 ```r
-# Find organism codes
-search_kegg_organism('mouse')
-search_kegg_organism('zebrafish')
+search_kegg_organism('Pseudomonas', by = 'scientific_name')
+search_kegg_organism('aeruginosa', by = 'scientific_name')
 ```
 
-## With Background Universe
+## Background Universe (Critical)
 
 **Goal:** Restrict KEGG enrichment to genes actually measured in the experiment.
 
 **Approach:** Convert all tested genes to Entrez IDs and pass as the universe parameter.
 
+Without specifying the universe, enrichKEGG uses all KEGG-annotated genes as background. This inflates significance for tissue-specific pathways (e.g., liver-expressed pathways in a liver RNA-seq experiment will appear enriched simply because liver genes are expressed and brain genes are not).
+
 ```r
-all_genes <- de_results$gene_id
-universe_ids <- bitr(all_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+# Background = all tested genes (non-NA pvalue from DE analysis)
+all_tested <- de_results$gene_id[!is.na(de_results$pvalue)]
+universe_ids <- bitr(all_tested, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
 
 kk <- enrichKEGG(
     gene = gene_list,
@@ -220,12 +228,61 @@ ck <- compareCluster(
 dotplot(ck)
 ```
 
+## Prokaryotic / Non-Model Organism KEGG
+
+Bacteria and non-model organisms do NOT use org.*.eg.db packages or bitr(). Bacterial genes use locus tags (e.g., PA0001 for P. aeruginosa, b0001 for E. coli) that map directly as KEGG gene IDs.
+
+```r
+# Bacterial KEGG ORA -- no bitr() or OrgDb needed
+# Gene IDs should be locus tags matching the KEGG genome
+kegg_bac <- enrichKEGG(
+    gene = sig_locus_tags,       # e.g., c('PA0001', 'PA0612', 'PA3476')
+    organism = 'pae',            # P. aeruginosa PAO1
+    keyType = 'kegg',            # use locus tags directly
+    pvalueCutoff = 0.05,
+    pAdjustMethod = 'BH'
+)
+
+# Note: setReadable() requires an OrgDb which does not exist for most bacteria
+# Instead, map gene IDs manually or use KEGG gene names from the result
+```
+
+For organisms without KEGG strain-specific annotation, use KEGG Orthology (KO) with organism = 'ko'. Map genes to KO IDs via eggNOG-mapper or BlastKOALA first.
+
+## Multi-Condition Comparison
+
+**Goal:** Find shared and condition-specific enriched pathways across experimental conditions.
+
+**Approach:** Run enrichKEGG per condition, then use set operations on significant pathway IDs. Do NOT compare p-values across conditions (they depend on sample size and DE gene count).
+
+```r
+# Run enrichment per condition
+kk_A <- enrichKEGG(gene = sig_genes_A, organism = 'hsa', pvalueCutoff = 0.05)
+kk_B <- enrichKEGG(gene = sig_genes_B, organism = 'hsa', pvalueCutoff = 0.05)
+
+# Set operations on enriched pathway IDs
+paths_A <- as.data.frame(kk_A)$ID
+paths_B <- as.data.frame(kk_B)$ID
+shared <- intersect(paths_A, paths_B)
+only_A <- setdiff(paths_A, paths_B)
+only_B <- setdiff(paths_B, paths_A)
+
+# Or use compareCluster for side-by-side visualization
+gene_clusters <- list(ConditionA = sig_genes_A, ConditionB = sig_genes_B)
+ck <- compareCluster(geneClusters = gene_clusters, fun = 'enrichKEGG', organism = 'hsa')
+dotplot(ck, showCategory = 10)
+```
+
+For proper multi-contrast enrichment that avoids p-value comparison pitfalls, use the mitch package (rank-MANOVA approach).
+
 ## Notes
 
-- **No readable parameter** - use `setReadable()` with OrgDb
+- **No readable parameter** - use `setReadable()` with OrgDb (eukaryotes only)
 - **Requires internet** - queries KEGG database online
 - **use_internal_data** - set TRUE to use cached KEGG data (may be outdated)
 - **Pathway IDs** - format is organism code + 5 digits (e.g., hsa04110)
+- **Licensing** - KEGG data is free for academic web browsing but bulk downloads and commercial use require a license; for reproducibility-critical work, consider Reactome or WikiPathways (fully open)
+- **Background universe** - always specify; default uses all KEGG-annotated genes which inflates significance
 
 ## Related Skills
 

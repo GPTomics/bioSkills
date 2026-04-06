@@ -358,6 +358,35 @@ all_sig <- union(sig_limma, rownames(sigs$sig.genes$sig.profiles))
 cat('Significant genes:', length(all_sig), '\n')
 ```
 
+## Decision Guidance
+
+### Method Selection
+
+| Scenario | Recommended Method | Rationale |
+|----------|-------------------|-----------|
+| >= 5 time points, smooth dynamics expected | limma with splines | Flexible; captures non-linear trends |
+| >= 5 time points, multiple conditions | maSigPro | Built for multi-group time-course regression |
+| Transient responses (spike/pulse patterns) | ImpulseDE2 | Sigmoid-based model fits rise-then-fall patterns |
+| 2-3 discrete time points | DESeq2 LRT | Treat time as factor; too few points for splines |
+| Paired/longitudinal (same subjects over time) | limma with blocking | Include subject as random effect via `duplicateCorrelation()` |
+
+### Spline Degrees of Freedom
+
+The `df` parameter in `ns(time, df=...)` controls curve flexibility:
+- `df = 2`: monotonic trends only (linear-ish)
+- `df = 3`: one inflection point (default, good for most designs)
+- `df = 4-5`: complex dynamics with multiple inflections (need >= 6 time points)
+- Rule of thumb: df <= (number of unique time points) / 2
+
+### Time as Continuous vs Factor
+
+| Design | Treatment |
+|--------|-----------|
+| Many time points (>= 5), evenly spaced | Continuous with splines |
+| Few time points (2-3) | Factor (each time point is a level) |
+| Unevenly spaced time points | Continuous with splines (handles irregular spacing naturally) |
+| Interest in specific pairwise time comparisons | Factor with contrasts |
+
 ## Related Skills
 
 - differential-expression/deseq2-basics - Standard DE analysis

@@ -112,14 +112,25 @@ def prioritize_variant(v):
 
 > "Apply ACMG classification criteria to my variants"
 
+## What the Agent Will Do
+
+1. Annotate variants with ClinVar clinical significance and disease associations
+2. Filter by population frequency using gnomAD to flag rare variants
+3. Apply computational prediction scores (CADD, SIFT, PolyPhen) for prioritization
+4. Classify variants using ACMG 5-tier criteria where applicable
+5. Generate a prioritized variant list ranked by clinical relevance
+
 ## Tips
 
 - Always include variant evidence and classification rationale
-- VUS variants may be reclassified with new evidence
+- VUS variants may be reclassified with new evidence -- periodic re-analysis is recommended
 - Consider family segregation data when available
 - Follow laboratory/institutional reporting guidelines
+- ClinVar assertions vary in review status -- prioritize variants with multiple submitters or expert panel review
 
-## See Also
+## Related Skills
 
-- [ACMG guidelines](https://www.acmg.net/ACMG/Medical-Genetics-Practice-Resources/)
-- [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/)
+- variant-calling/variant-annotation - Add annotations from ClinVar, gnomAD, and other databases
+- variant-calling/filtering-best-practices - Filter variants before clinical review
+- variant-calling/variant-normalization - Normalize variants before database lookups
+- pathway-analysis/go-enrichment - Functional enrichment of genes harboring clinical variants

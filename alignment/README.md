@@ -2,14 +2,15 @@
 
 ## Overview
 
-Sequence alignment using Biopython's Bio.Align and Bio.AlignIO modules for pairwise and multiple sequence alignments. Distinct from alignment-files which handles read-to-reference alignments (SAM/BAM).
+Pairwise and multiple sequence alignment: running MSA tools (MAFFT, MUSCLE5, ClustalOmega, T-Coffee), BioPython pairwise alignment, alignment I/O, and post-alignment analysis. Distinct from alignment-files which handles read-to-reference alignments (SAM/BAM).
 
-**Tool type:** python | **Primary tools:** Bio.Align, Bio.AlignIO
+**Tool type:** mixed | **Primary tools:** Bio.Align, Bio.AlignIO, MAFFT, MUSCLE5, ClustalOmega
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
+| multiple-alignment | Run MSA tools (MAFFT, MUSCLE5, ClustalOmega, T-Coffee) with algorithm selection guidance |
 | pairwise-alignment | Global/local alignment using PairwiseAligner (Needleman-Wunsch, Smith-Waterman) |
 | alignment-io | Read, write, convert MSA files (Clustal, PHYLIP, Stockholm, FASTA) |
 | msa-parsing | Parse and analyze MSA content: gaps, conservation, filtering, consensus |
@@ -17,26 +18,28 @@ Sequence alignment using Biopython's Bio.Align and Bio.AlignIO modules for pairw
 
 ## Example Prompts
 
+- "Align these 50 protein sequences with the most accurate MSA method"
+- "I have 5000 sequences, what MSA tool and settings should I use?"
+- "Prepare a codon alignment for dN/dS analysis with codeml"
+- "These sequences share about 30% identity, can I trust the alignment?"
 - "Align these two DNA sequences and show the result"
 - "Compare this protein to the reference using BLOSUM62"
 - "Find the best matching region between these sequences"
-- "What is the alignment score between seq1 and seq2?"
 - "Read this Clustal alignment and show sequence IDs"
-- "Convert my PHYLIP alignment to FASTA format"
-- "Extract columns 100-200 from the alignment"
-- "Save this alignment as Stockholm format"
+- "Convert my PHYLIP alignment to FASTA format for RAxML"
 - "Find conserved positions in this alignment"
 - "Remove columns with more than 50% gaps"
 - "Generate a consensus sequence"
-- "Filter out sequences with too many gaps"
 - "Calculate pairwise identity matrix"
 - "Show conservation score at each position"
 - "Calculate Shannon entropy for each column"
+- "Quantify alignment uncertainty before phylogenetic analysis"
 
 ## Requirements
 
 ```bash
 pip install biopython numpy
+conda install -c bioconda mafft muscle clustalo t-coffee pal2nal
 ```
 
 ## Related Skills

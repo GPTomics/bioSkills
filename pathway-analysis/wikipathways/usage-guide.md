@@ -86,7 +86,9 @@ getPathwayInfo('WP554')
 ## Tips
 - Use the exact scientific name from listOrganisms() for the organism parameter
 - WikiPathways requires internet access to download current pathway data
-- WikiPathways has fewer total pathways than KEGG - combine with other databases
-- Community pathways include specialized disease and drug-related pathways
+- WikiPathways has fewer total pathways than KEGG; best used as complement, not standalone
+- Always specify a background universe (all tested genes) for accurate results
+- Community pathways include specialized disease and drug-related pathways not found elsewhere
+- Quality varies: check pathway "Last edited" date and contributor before relying on specific results
 - Use setReadable() to convert Entrez IDs to gene symbols in results
 - See enrichment-visualization skill for dotplot() and other plots

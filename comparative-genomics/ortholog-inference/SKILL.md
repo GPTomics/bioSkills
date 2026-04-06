@@ -7,7 +7,7 @@ primary_tool: OrthoFinder
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, NCBI BLAST+ 2.15+, OrthoFinder 2.5+, pandas 2.2+
+Reference examples tested with: BioPython 1.83+, BUSCO 5.5+, NCBI BLAST+ 2.15+, OrthoFinder 2.5+, pandas 2.2+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,8 +17,40 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Ortholog Inference
 
-**"Find orthologs across my species"** → Identify orthologous gene groups, paralogs, and co-orthologs across multiple species using graph-based clustering of reciprocal best BLAST hits.
+**"Find orthologs across my species"** → Identify orthologous gene groups, paralogs, and co-orthologs across multiple species using sequence similarity clustering and gene tree reconciliation.
 - CLI: `orthofinder -f proteomes/` for all-vs-all orthogroup inference
+
+## Method Selection
+
+| Method | Approach | Best For | Tradeoff |
+|---|---|---|---|
+| OrthoFinder | Tree-based (gene tree reconciliation with species tree) | Accuracy, evolutionary analysis, gene duplication events | Slower, needs sufficient species |
+| ProteinOrtho | Graph-based (reciprocal best hits + connectivity) | Speed, many genomes, quick surveys | Less accurate for complex gene families |
+| OMA/FastOMA | Graph-based (strict pairwise, hierarchical groups) | Precision-critical applications, large-scale (1000+ genomes) | Lowest recall (misses distant orthologs) |
+| SonicParanoid2 | Graph-based (ML predictor + protein language model) | Fast + accurate graph-based | Newer, less community testing |
+
+**Tree-based methods** (OrthoFinder) build gene trees and reconcile with the species tree to distinguish speciation (orthology) from duplication (paralogy). More accurate but computationally expensive.
+
+**Graph-based methods** (ProteinOrtho, OMA, SonicParanoid) use sequence similarity with clustering. Faster but can confuse paralogs with orthologs when evolutionary rates vary.
+
+Default recommendation: OrthoFinder for most analyses. ProteinOrtho for quick surveys or 50+ genomes. OMA/FastOMA when precision is paramount.
+
+## Input Quality
+
+Annotation quality directly affects orthology inference. Heterogeneous annotations across species spuriously inflate lineage-specific gene counts, creating false gene family expansions/contractions in downstream CAFE analysis.
+
+- Use consistent annotation pipelines across species when possible
+- Verify proteome completeness with BUSCO/Compleasm before running orthology
+- Remove isoforms (keep longest per gene) to avoid inflating copy numbers
+- Incomplete gene models produce truncated proteins that split true orthogroups
+
+## Orthology Subtypes
+
+- **One-to-one orthologs**: single gene in each species, ideal for phylogenomics
+- **One-to-many / many-to-many**: lineage-specific duplications after speciation
+- **In-paralogs**: paralogs from duplication AFTER the speciation event of reference
+- **Out-paralogs**: paralogs from duplication BEFORE the speciation event
+- **Co-orthologs**: in-paralogous genes collectively orthologous to a gene in the outgroup
 
 ## OrthoFinder Workflow
 
@@ -40,20 +72,25 @@ def run_orthofinder(proteome_dir, output_dir=None, threads=4):
     Input: Directory with one FASTA file per species
     File naming: Species name derived from filename
 
-    OrthoFinder performs:
-    1. All-vs-all DIAMOND/BLAST
-    2. Gene tree inference
-    3. Species tree inference
-    4. Ortholog/paralog classification
+    OrthoFinder pipeline:
+    1. All-vs-all DIAMOND/BLAST search
+    2. Gene tree inference per orthogroup
+    3. Species tree inference (STAG/STRIDE)
+    4. Gene tree rooting and reconciliation
+    5. Ortholog/paralog classification via DLC model
+
+    Key options:
+    -M msa: Use MSA-based gene trees (more accurate, slower; recommended for <20 species)
+    -M dendroblast: Distance-based trees (default, faster; sufficient for >20 species)
+    -S diamond: Fast search (default)
+    -S blast: More sensitive (use for divergent species or small proteomes)
     '''
     cmd = f'orthofinder -f {proteome_dir} -t {threads}'
 
     if output_dir:
         cmd += f' -o {output_dir}'
 
-    # -M msa: Use MSA for gene trees (more accurate but slower)
-    # -S diamond: Fast search (default)
-    # -S blast: More sensitive search
+    # Add -M msa for MSA-based gene trees (more accurate for evolutionary analysis)
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
     # Output location
@@ -182,10 +219,13 @@ def parse_gene_trees(gene_trees_dir):
 def identify_paralogs(orthogroup, species):
     '''Identify in-paralogs within an orthogroup
 
-    In-paralogs: Duplications after speciation (within-species)
-    Out-paralogs: Duplications before speciation (between-species)
+    In-paralogs: Duplications AFTER speciation (within one lineage)
+    Out-paralogs: Duplications BEFORE speciation (separate orthogroups)
+    Multiple genes from same species in an orthogroup = in-paralogs
 
-    Multiple genes from same species in an orthogroup are in-paralogs
+    Distinguishing in- vs out-paralogs requires the species tree context
+    and depends on which speciation event is being considered.
+    OrthoFinder resolves this via gene tree reconciliation.
     '''
     genes = orthogroup.get(species, [])
     if len(genes) > 1:
@@ -276,14 +316,19 @@ def parse_proteinortho(ortho_file):
 def transfer_annotation(query_gene, orthologs, annotation_db):
     '''Transfer functional annotation via orthology
 
-    Annotation transfer guidelines:
-    - Single-copy orthologs: High confidence transfer
-    - Co-orthologs: Transfer to all, note potential subfunctionalization
-    - In-paralogs: Transfer with caution (may have diverged function)
+    Confidence hierarchy:
+    - One-to-one orthologs: Highest confidence; direct functional equivalence
+    - Co-orthologs: Transfer to all, but note potential sub/neofunctionalization
+    - In-paralogs (recent duplicates): Transfer with caution; function may have diverged
+    - Distant orthologs (dS > 2): Lowest confidence; verify with domain conservation
 
-    Evidence codes:
-    - IEA: Inferred from Electronic Annotation
-    - ISO: Inferred from Sequence Orthology
+    GO evidence codes:
+    - ISO: Inferred from Sequence Orthology (recommended for 1:1 orthologs)
+    - IBA: Inferred from Biological Aspect of Ancestor (phylogenetic propagation)
+    - IEA: Inferred from Electronic Annotation (automated, lower confidence)
+
+    Synteny context (see synteny-analysis) increases transfer confidence
+    for genes in conserved genomic neighborhoods.
     '''
     annotations = []
 
@@ -301,9 +346,24 @@ def transfer_annotation(query_gene, orthologs, annotation_db):
     return annotations
 ```
 
+## Completeness Assessment
+
+Before orthology analysis, verify proteome completeness with BUSCO or Compleasm:
+
+```bash
+# BUSCO: standard benchmark against OrthoDB single-copy orthologs
+busco -i proteome.fasta -m proteins -l <lineage> -o busco_out
+
+# Compleasm: 14x faster alternative using miniprot
+compleasm run -a genome.fasta -l <lineage> -o compleasm_out
+```
+
+BUSCO categories: Complete (single-copy + duplicated), Fragmented, Missing. Expect >90% complete for well-assembled genomes. High duplication rates may indicate assembly collapse or recent WGD. Choose the most specific available lineage for the clade being compared.
+
 ## Related Skills
 
-- comparative-genomics/synteny-analysis - Synteny-based ortholog verification
-- comparative-genomics/positive-selection - Selection analysis on orthologs
-- phylogenetics/modern-tree-inference - Build trees from single-copy orthologs
+- comparative-genomics/synteny-analysis - Synteny-based ortholog verification and context
+- comparative-genomics/positive-selection - Selection analysis on ortholog alignments
+- phylogenetics/modern-tree-inference - Build species trees from single-copy orthologs
 - alignment/pairwise-alignment - Align orthogroup sequences
+- genome-annotation/annotation-transfer - Transfer annotations via orthology

@@ -1,6 +1,6 @@
 ---
 name: bio-phylo-distance-calculations
-description: Compute evolutionary distances and build phylogenetic trees using Biopython Bio.Phylo.TreeConstruction. Use when creating distance matrices from alignments, building NJ/UPGMA trees, or generating bootstrap consensus trees.
+description: Compute evolutionary distances and build phylogenetic trees using Biopython Bio.Phylo.TreeConstruction. Use when creating distance matrices from alignments, building NJ/UPGMA trees, generating bootstrap consensus, or needing quick exploratory phylogenies before running full ML analysis.
 tool_type: python
 primary_tool: Bio.Phylo.TreeConstruction
 ---
@@ -21,6 +21,33 @@ package and adapt the example to match the actual API rather than retrying.
 - Python: `Bio.Phylo.TreeConstruction.DistanceCalculator()`, `DistanceTreeConstructor()`
 
 Compute distances from alignments and construct phylogenetic trees.
+
+## When to Use Distance Methods vs ML
+
+| Scenario | Recommended Method |
+|----------|-------------------|
+| Quick exploratory tree before committing to a long ML run | NJ |
+| Sanity check on data quality (unexpected groupings?) | NJ |
+| Very large datasets where ML is prohibitive | NJ |
+| Molecular clock data (ultrametric trees) | UPGMA (rare) |
+| Publication-quality trees | **ML (IQ-TREE2/RAxML-NG)** or Bayesian |
+| Formal hypothesis testing | **ML or Bayesian** |
+
+NJ trees are fast (O(n^3)) and useful for exploration. For any analysis intended for publication, use ML methods (see modern-tree-inference skill). NJ starting trees are used internally by IQ-TREE (BIONJ) and RAxML-NG.
+
+**UPGMA warning:** UPGMA assumes a molecular clock (equal rates across all lineages). This assumption is almost never met for molecular data. Use NJ instead unless clocklike behavior has been verified.
+
+## Evolutionary Distance Corrections
+
+Raw identity-based distances underestimate true evolutionary distance because they do not account for multiple substitutions at the same site. For divergent sequences, corrected distances are more appropriate:
+
+| Model | Correction | Use When |
+|-------|------------|----------|
+| Identity | None (raw mismatch proportion) | Closely related sequences; quick exploration |
+| Jukes-Cantor | Assumes equal substitution rates | Simple correction for moderate divergence |
+| Kimura 2-parameter | Distinguishes transitions from transversions | Better for DNA when Ti/Tv ratio differs from 1 |
+
+Biopython's `DistanceCalculator` models (`identity`, `blastn`, `trans`) provide basic corrections. For more sophisticated evolutionary distance estimation, use ML-based distances from IQ-TREE2 (`.mldist` output file).
 
 ## Required Import
 
@@ -146,17 +173,18 @@ tree = constructor.nj(dm)
 
 ## Parsimony Tree Construction
 
+Parsimony is largely superseded by ML for most molecular phylogenetics. It remains appropriate for morphological cladistics, rare genomic changes (retroelement insertions, gene order), and as a starting point for ML searches. Parsimony is statistically inconsistent in the Felsenstein zone (long branch attraction).
+
 ```python
 from Bio import AlignIO, Phylo
 from Bio.Phylo.TreeConstruction import ParsimonyScorer, NNITreeSearcher, ParsimonyTreeConstructor
 
 alignment = AlignIO.read('alignment.fasta', 'fasta')
 
-# Create scorer and searcher
 scorer = ParsimonyScorer()
 searcher = NNITreeSearcher(scorer)
 
-# Build parsimony tree (needs starting tree)
+# Parsimony needs a starting tree (NJ is standard)
 constructor = DistanceTreeConstructor(DistanceCalculator('identity'), 'nj')
 starting_tree = constructor.build_tree(alignment)
 
@@ -300,5 +328,6 @@ Phylo.write(consensus_tree, 'bootstrap_consensus.nwk', 'newick')
 - tree-io - Save constructed trees to files
 - tree-visualization - Draw resulting trees
 - tree-manipulation - Root and process built trees
+- modern-tree-inference - ML tree inference for publication-quality results
 - alignment/alignment-io - Read alignments for tree building
 - alignment/msa-statistics - Alignment quality before tree building

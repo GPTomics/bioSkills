@@ -76,10 +76,13 @@ Tell your AI agent what you want to do:
 - Overview: dotplot() - works for GSEA too
 
 ## Tips
-- dotplot() is the most common choice for publications - start there
-- For emapplot(), always run pairwise_termsim() first on your enrichment result
-- Use showCategory parameter to control number of terms displayed
+- dotplot() is the most common choice for publications. Start there
+- For emapplot(), always run pairwise_termsim() first; use method='Wang' for GO terms (more biologically meaningful than Jaccard default)
+- Limit plots to 15-20 terms max (showCategory parameter); more becomes unreadable
+- For GO results, run simplify() before plotting to remove redundant parent terms
 - For long term names, increase plot width and reduce font size
-- cnetplot() with circular = TRUE helps with crowded networks
+- cnetplot() with circular = TRUE helps with crowded networks; limit to 5-10 terms
+- ridgeplot() for GSEA: shifted right = upregulated, shifted left = downregulated, bimodal = heterogeneous pathway
 - gseaplot2() accepts multiple geneSetID values to compare pathways
+- Always show both overlap count and total pathway size for proper context
 - Use ggsave() for better control over output dimensions and resolution

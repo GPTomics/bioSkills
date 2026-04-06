@@ -180,16 +180,24 @@ bcftools stats variants/cohort.filtered.vcf.gz > variants/vcf_stats.txt
 
 ## Alternative Path: BWA + GATK HaplotypeCaller
 
-### Step 4 Alternative: GATK Variant Calling
+### Step 4 Alternative: GATK Variant Calling (DRAGEN Mode -- Recommended)
 
 ```bash
-# Create sequence dictionary (once)
 gatk CreateSequenceDictionary -R reference.fa
-
-# Index reference (once)
 samtools faidx reference.fa
 
-# Base Quality Score Recalibration (BQSR)
+# DRAGEN-GATK mode: no BQSR needed, improved STR handling and QUAL calibration
+gatk HaplotypeCaller \
+    -R reference.fa \
+    -I aligned/sample1.markdup.bam \
+    -O variants/sample1.g.vcf.gz \
+    -ERC GVCF \
+    --dragen-mode
+```
+
+### Step 4 Alternative: GATK Standard Mode (with BQSR)
+
+```bash
 gatk BaseRecalibrator \
     -R reference.fa \
     -I aligned/sample1.markdup.bam \
@@ -202,7 +210,6 @@ gatk ApplyBQSR \
     --bqsr-recal-file recal_data.table \
     -O aligned/sample1.recal.bam
 
-# HaplotypeCaller (per-sample GVCF mode)
 gatk HaplotypeCaller \
     -R reference.fa \
     -I aligned/sample1.recal.bam \
@@ -272,16 +279,19 @@ gatk ApplyVQSR \
 | bcftools filter | DP | >10, <2x mean | >20 |
 | GATK | intervals | - | Target BED |
 
-## Choosing Between bcftools and GATK
+## Choosing a Variant Caller
 
-| Criterion | bcftools | GATK |
-|-----------|----------|------|
-| Speed | Faster | Slower |
-| Memory | Lower | Higher |
-| Best for | Germline SNPs/indels | Germline, somatic |
-| Cohort size | Any | Scales well |
-| BQSR | Not supported | Recommended |
-| VQSR | Not supported | For large cohorts |
+| Criterion | bcftools | GATK HaplotypeCaller | DeepVariant |
+|-----------|----------|---------------------|-------------|
+| Speed | Fastest | Moderate | Slowest (without GPU) |
+| SNP accuracy | Good | Good | Highest |
+| Indel accuracy | Moderate (weak in homopolymers) | Good (local assembly) | Highest |
+| Joint calling | Basic multi-sample | GVCF workflow (scales to 100k+) | GLnexus (scales to 250k+) |
+| Best for | Quick analysis, non-model organisms | Clinical pipelines, GATK ecosystem | Highest accuracy, GPU available |
+| VQSR | Not supported | For large cohorts (>30 samples) | Not needed (use GLnexus) |
+| DRAGEN mode | N/A | Recommended for single-sample (skips BQSR) | N/A |
+
+For human germline: DeepVariant provides the highest accuracy. GATK DRAGEN-mode is the recommended standard-mode alternative (no BQSR needed). bcftools is best for exploratory work, non-model organisms, or when computational resources are limited.
 
 ## Troubleshooting
 

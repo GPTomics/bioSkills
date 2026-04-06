@@ -147,7 +147,7 @@ outdir = Path('outbreak_results')
 # Build ML tree
 subprocess.run([
     'iqtree2', '-s', str(outdir / 'alignment/core.aln'),
-    '-m', 'GTR+G', '-bb', '1000', '-nt', 'AUTO',
+    '-m', 'GTR+G', '-B', '1000', '-bnni', '-T', 'AUTO',
     '--prefix', str(outdir / 'phylo/outbreak')
 ], check=True)
 

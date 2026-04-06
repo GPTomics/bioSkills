@@ -1,6 +1,6 @@
 ---
 name: bio-variant-annotation
-description: Comprehensive variant annotation using bcftools annotate/csq, VEP, SnpEff, and ANNOVAR. Add database annotations, predict functional consequences, and assess clinical significance. Use when annotating variants with functional and clinical information.
+description: Comprehensive variant annotation using bcftools annotate/csq, VEP, SnpEff, and ANNOVAR. Add database annotations, predict functional consequences, and assess clinical significance with MANE transcript selection and pathogenicity scoring. Use when annotating variants with functional and clinical information.
 tool_type: mixed
 primary_tool: VEP
 ---
@@ -28,6 +28,47 @@ package and adapt the example to match the actual API rather than retrying.
 | SnpEff | Fast batch annotation | Fast | VCF |
 | ANNOVAR | Flexible databases | Moderate | TXT |
 
+## Normalization Before Annotation
+
+Variant normalization is mandatory before annotation. The same variant represented differently (e.g., left-aligned vs right-aligned indels, multiallelic vs biallelic) produces different annotations. Always normalize first:
+
+```bash
+bcftools norm -f reference.fa -m-any input.vcf.gz -Oz -o normalized.vcf.gz
+```
+
+The `-m-any` flag splits multiallelic records into biallelic, ensuring each allele gets its own annotation. Without this step, downstream tools may annotate only the first alternate allele or produce ambiguous consequence calls.
+
+## Transcript Selection Strategy
+
+Transcript choice determines which consequence is reported. This single decision changes whether a variant is classified as missense, synonymous, or intronic.
+
+| Strategy | When to Use | Recommended? |
+|----------|-------------|--------------|
+| MANE Select | Clinical reporting; one transcript per gene | Yes -- current standard |
+| MANE Plus Clinical | Genes with clinically relevant non-MANE transcripts | Yes -- supplements MANE Select |
+| Canonical (Ensembl) | Legacy pipelines | Being phased out in favor of MANE |
+| Longest transcript | Legacy convention | No -- may miss clinically relevant variants in shorter isoforms |
+| All transcripts | Research; comprehensive annotation | Good for discovery; report worst consequence per ACMG guidelines |
+
+VEP flags: `--mane_select` adds MANE Select transcript info to output. `--pick` selects one consequence per variant using VEP's internal priority ranking (canonical > biotype > length). For clinical applications, using both together reports the MANE Select consequence when available.
+
+## Tool Concordance
+
+Concordance between VEP, SnpEff, and ANNOVAR is lower than commonly assumed: only 58.52% agreement on HGVSc notation, 84.04% on HGVSp, and 85.58% on coding impact classification. Loss-of-function discrepancies affect ACMG PVS1 interpretation in 33-44% of cases.
+
+Practical implication: for clinical applications, annotate with multiple tools and compare results. For research, pick one tool and apply it consistently across all samples. VEP with MANE Select is the current community standard for clinical genomics.
+
+## Clinical vs Research Annotation
+
+| Aspect | Clinical | Research |
+|--------|----------|----------|
+| Transcript | MANE Select mandatory | Any consistent approach |
+| Tools | VEP + SnpEff cross-validation recommended | Single tool acceptable |
+| Pathogenicity | ACMG criteria (PP3/BP4 for computational) | Score-based ranking |
+| Reporting | Only clinically significant variants | All variants of interest |
+| Databases | ClinVar (reviewed), HGMD (licensed) | ClinVar, gnomAD, research DBs |
+| Re-analysis | Required periodically (new evidence) | Optional |
+
 ## bcftools annotate
 
 **Goal:** Add or remove INFO/ID annotations from external databases using bcftools.
@@ -50,12 +91,6 @@ bcftools annotate -a dbsnp.vcf.gz -c ID input.vcf.gz -Oz -o annotated.vcf.gz
 | `INFO` | Copy all INFO fields |
 | `INFO/TAG` | Copy specific INFO field |
 | `+INFO/TAG` | Add to existing values |
-
-### Add rsIDs from dbSNP
-
-```bash
-bcftools annotate -a dbsnp.vcf.gz -c ID input.vcf.gz -Oz -o with_rsids.vcf.gz
-```
 
 ### Add Multiple Annotations
 
@@ -350,7 +385,7 @@ for variant in VCF('snpeff_output.vcf'):
 
 **Goal:** Run a full annotation workflow from normalization through VEP annotation to impact filtering.
 
-**Approach:** Normalize variants, annotate with VEP (--everything --pick), then filter for HIGH/MODERATE impact.
+**Approach:** Normalize variants (mandatory -- same variant represented differently gets different annotations), annotate with VEP using MANE Select transcript selection and comprehensive flags, then filter for HIGH/MODERATE impact.
 
 ```bash
 #!/bin/bash
@@ -361,15 +396,18 @@ REFERENCE=$2
 VEP_CACHE=$3
 OUTPUT_PREFIX=$4
 
-# Normalize variants
+# Normalize variants (mandatory before annotation)
 bcftools norm -f $REFERENCE -m-any $INPUT -Oz -o ${OUTPUT_PREFIX}_norm.vcf.gz
 bcftools index ${OUTPUT_PREFIX}_norm.vcf.gz
 
-# VEP annotation
+# VEP annotation with MANE Select transcript selection
+# --mane_select: adds MANE Select transcript info
+# --pick: selects one consequence per variant (uses MANE Select when available)
+# For research (all transcripts): remove --pick, add --per_gene
 vep -i ${OUTPUT_PREFIX}_norm.vcf.gz \
     -o ${OUTPUT_PREFIX}_vep.vcf \
     --vcf --cache --offline --dir_cache $VEP_CACHE \
-    --assembly GRCh38 --everything --pick --fork 4
+    --assembly GRCh38 --everything --mane_select --pick --fork 4
 
 bgzip ${OUTPUT_PREFIX}_vep.vcf
 bcftools index ${OUTPUT_PREFIX}_vep.vcf.gz
@@ -381,12 +419,15 @@ bcftools view -i 'INFO/CSQ~"HIGH" || INFO/CSQ~"MODERATE"' \
 
 ## Pathogenicity Predictors
 
-| Predictor | Deleterious | Benign |
-|-----------|-------------|--------|
-| SIFT | < 0.05 | >= 0.05 |
-| PolyPhen-2 (HDIV) | > 0.957 (probably), > 0.453 (possibly) | <= 0.453 |
-| CADD | > 20 (top 1%), > 30 (top 0.1%) | < 10 |
-| REVEL | > 0.5 | < 0.5 |
+| Predictor | Deleterious Threshold | Scope | Notes |
+|-----------|----------------------|-------|-------|
+| SIFT | < 0.05 | Missense | Sequence conservation-based; fast but limited |
+| PolyPhen-2 (HDIV) | > 0.957 (probably), > 0.453 (possibly) | Missense | Structure + conservation |
+| CADD | >= 20 (top 1%), >= 30 (top 0.1%) | All variant types | Low specificity (~12%) at default thresholds; good for ranking, poor for binary classification |
+| REVEL | > 0.5 (ClinGen recommended) | Missense | Generally best-performing single missense predictor; ensemble of 13 tools |
+| AlphaMissense | > 0.564 (pathogenic), < 0.340 (benign) | Missense | Protein structure-based (AlphaFold2); MCC=0.81; classified 89% of all possible human missense variants; not trained on pathogenicity labels |
+
+No single predictor is sufficient for clinical classification. ACMG/AMP guidelines (PP3/BP4) require that computational evidence be treated as supporting, not standalone. ClinGen recommends REVEL >= 0.644 for PP3 (supporting pathogenic) and REVEL <= 0.290 for BP4 (supporting benign) with strong evidence thresholds at >= 0.773 and <= 0.183 respectively.
 
 ## Clinical Significance (ClinVar)
 
@@ -409,7 +450,9 @@ bcftools view -i 'INFO/CSQ~"HIGH" || INFO/CSQ~"MODERATE"' \
 
 ## Related Skills
 
-- variant-calling/variant-normalization - Normalize before annotating
-- variant-calling/filtering-best-practices - Filter by annotations
+- variant-calling/variant-normalization - Normalize before annotating (mandatory preprocessing step)
+- variant-calling/filtering-best-practices - Filter by annotations and quality metrics
+- variant-calling/clinical-interpretation - ACMG classification and clinical reporting
 - variant-calling/vcf-basics - Query annotated fields
-- database-access/entrez-fetch - Download annotation databases
+- variant-calling/vcf-manipulation - Merge and manipulate annotated VCFs
+- database-access/entrez-fetch - Download annotation databases (ClinVar, dbSNP)

@@ -15,9 +15,22 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
-# Variant Calling
+# Variant Calling with bcftools
 
-Call SNPs and indels from aligned reads using bcftools.
+Call SNPs and indels from aligned reads using bcftools mpileup/call.
+
+## When to Use bcftools vs Other Callers
+
+| Scenario | Recommended Caller | Rationale |
+|----------|-------------------|-----------|
+| Quick exploratory analysis | bcftools | Fast, minimal setup, good accuracy for SNPs |
+| Non-model organisms | bcftools or FreeBayes | No training data required (unlike VQSR); adjustable ploidy |
+| Haploid/bacterial genomes | bcftools with `--ploidy 1` | Native ploidy support; simpler model appropriate for haploids |
+| Highest accuracy (human) | DeepVariant or GATK DRAGEN-mode | Deep learning or local assembly outperforms pileup-based calling |
+| Cohort joint genotyping | GATK (GVCF workflow) | bcftools multi-sample calling does not scale well beyond ~100 samples |
+| Somatic variants | Mutect2 or DeepSomatic | bcftools is not designed for low-VAF somatic detection |
+
+bcftools mpileup/call uses a Bayesian statistical model on pileup data. It is fast and effective for germline SNPs, but its indel calling is less accurate than local-assembly callers (GATK HaplotypeCaller, DeepVariant) in homopolymer and low-complexity regions. For production human germline pipelines, prefer DeepVariant or GATK; use bcftools for rapid exploration, non-model organisms, or when computational resources are limited.
 
 ## Basic Workflow
 
@@ -114,8 +127,10 @@ bcftools mpileup -f reference.fa -d 1000 input.bam | bcftools call -mv -o varian
 
 | Flag | Model | Use Case |
 |------|-------|----------|
-| `-m` | Multiallelic caller | Default, recommended |
-| `-c` | Consensus caller | Legacy, single sample |
+| `-m` | Multiallelic caller | Default, recommended for all new analyses |
+| `-c` | Consensus caller | Legacy; only for backward compatibility with older pipelines |
+
+The multiallelic caller (`-m`) handles sites with multiple ALT alleles natively and is statistically superior. The consensus caller (`-c`) is retained only for reproducibility of legacy analyses.
 
 ### Output Variants Only
 ```bash
@@ -130,17 +145,25 @@ bcftools mpileup -f reference.fa input.bam | bcftools call -m -o all_sites.vcf
 ```
 
 ### Ploidy
+
+Correct ploidy is critical -- calling a diploid organism as haploid halves heterozygous sensitivity; calling haploid as diploid produces false heterozygous calls.
+
 ```bash
-# Haploid calling
+# Haploid calling (bacteria, mitochondria, chrY in males)
 bcftools mpileup -f reference.fa input.bam | bcftools call -m --ploidy 1 -o variants.vcf
 
-# Specify ploidy file
+# Ploidy file for mixed-ploidy organisms (e.g., sex chromosomes, polyploids)
+# Format: CHROM FROM TO SEX PLOIDY
 bcftools mpileup -f reference.fa input.bam | bcftools call -m --ploidy-file ploidy.txt -o variants.vcf
+
+# Built-in ploidy presets
+bcftools call -m --ploidy GRCh38 ...  # Human with sex chromosome handling
 ```
 
 ### Prior Probability
 ```bash
-# Adjust variant prior (default 1.1e-3)
+# Adjust variant prior (default 1.1e-3 for human)
+# Lower for highly inbred lines; higher for diverse/outbred populations
 bcftools mpileup -f reference.fa input.bam | bcftools call -m -P 0.001 -o variants.vcf
 ```
 
@@ -250,17 +273,27 @@ bcftools mpileup -Ou -f reference.fa input.bam | bcftools call -mv -Ou | \
 | Multi-sample | `bcftools mpileup -f ref.fa s1.bam s2.bam \| bcftools call -mv` |
 | With annotations | `bcftools mpileup -f ref.fa -a DP,AD in.bam \| bcftools call -mv` |
 
+## Difficult Region Considerations
+
+bcftools pileup-based calling is particularly vulnerable in:
+- **Homopolymers**: Runs of identical bases cause indel false positives. Validate indel calls in homopolymers >6bp with a second caller or manual review.
+- **Low-complexity regions**: ~35 Mb of GRCh38 is flagged as LCR. Consider excluding with `-T ^lcr.bed` or flagging calls in these regions.
+- **Segmental duplications**: Reads from paralogs pile up, creating false SNPs. Check MQ values -- sites with mean MQ <40 suggest ambiguous mapping.
+- **High-depth regions**: Set `-d` (max depth) to 3-4x the expected mean coverage. The default (250) may be too low for targeted panels or too high for low-coverage WGS.
+
 ## Common Errors
 
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `no FASTA reference` | Missing -f | Add `-f reference.fa` |
 | `reference mismatch` | Wrong reference | Use same reference as alignment |
-| `no variants called` | Low quality/depth | Lower quality thresholds |
+| `no variants called` | Low quality/depth | Lower quality thresholds or check BAM is not empty |
 
 ## Related Skills
 
 - vcf-basics - View and query resulting VCF
 - filtering-best-practices - Filter variants by quality
 - variant-normalization - Normalize indels
+- variant-calling/gatk-variant-calling - Higher accuracy with local assembly
+- variant-calling/deepvariant - Deep learning alternative
 - alignment-files/pileup-generation - Alternative pileup generation

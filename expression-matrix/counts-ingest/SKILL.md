@@ -7,7 +7,7 @@ primary_tool: pandas
 
 ## Version Compatibility
 
-Reference examples tested with: pandas 2.2+
+Reference examples tested with: pandas 2.2+, tximport 1.30+, tximeta 1.20+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,6 +17,27 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 package and adapt the example to match the actual API rather than retrying.
 
 # Count Matrix Ingestion
+
+## Expression Units Decision Table
+
+| Unit | Source | Use for DE | Use for visualization | Cross-sample comparison |
+|------|--------|------------|----------------------|------------------------|
+| Raw counts | featureCounts, HTSeq, STAR | Yes (DE tools normalize internally) | No | No |
+| Estimated counts | Salmon, kallisto (via tximport) | Yes (with offset correction) | No | No |
+| TPM | Salmon, kallisto | No | Within-sample gene comparison | Partially (same composition caveat) |
+| FPKM/RPKM | Cufflinks, legacy tools | No | Within-sample only | No (composition bias) |
+| Normalized counts | DESeq2, edgeR | Via DE tool | Prefer VST/rlog | Yes |
+
+For differential expression, always provide raw integer counts. DE tools (DESeq2, edgeR, limma-voom) model count distributions and handle normalization internally.
+
+## Transcript-Level vs Gene-Level Quantification
+
+Salmon and kallisto quantify at the transcript level. Naive summation of transcript counts to gene level introduces **length bias**: if treatment causes a shift from short to long isoforms, the gene appears upregulated even if the number of mRNA molecules is unchanged. Use tximport in R (or equivalent offset handling in Python) to correct for this.
+
+For detailed tximport workflows, see rna-quantification/tximport-workflow. Key decisions:
+- `countsFromAbundance='no'` (default): raw estimated counts with length offsets for DESeq2 (recommended)
+- `countsFromAbundance='lengthScaledTPM'`: required for limma-voom, which cannot use offset matrices
+- `countsFromAbundance='scaledTPM'`: prevents differential transcript usage from creating spurious DGE
 
 ## Basic CSV/TSV Loading
 
@@ -77,6 +98,55 @@ def load_salmon_quants(quant_dirs, column='NumReads'):
 quant_dirs = ['salmon_out/sample1', 'salmon_out/sample2', 'salmon_out/sample3']
 counts = load_salmon_quants(quant_dirs, column='NumReads')
 tpm = load_salmon_quants(quant_dirs, column='TPM')
+```
+
+## STAR ReadsPerGene Files
+
+**Goal:** Load STAR gene-level count output, selecting the correct strandedness column.
+
+**Approach:** STAR outputs 4 columns per gene: gene ID, unstranded counts, sense-strand counts, antisense-strand counts. Selecting the wrong strand column silently halves the counts.
+
+```python
+import pandas as pd
+from pathlib import Path
+
+def load_star_genecounts(filepaths, strandedness='reverse'):
+    '''Load STAR ReadsPerGene.out.tab files.
+
+    strandedness: 'unstranded' (col 1), 'forward' (col 2), 'reverse' (col 3)
+    For Illumina TruSeq stranded libraries, use 'reverse'.
+    '''
+    col_map = {'unstranded': 1, 'forward': 2, 'reverse': 3}
+    col_idx = col_map[strandedness]
+    dfs = {}
+    for fp in filepaths:
+        sample = Path(fp).name.replace('_ReadsPerGene.out.tab', '')
+        df = pd.read_csv(fp, sep='\t', header=None, index_col=0)
+        dfs[sample] = df.iloc[4:, col_idx - 1]  # Skip first 4 summary rows
+    return pd.DataFrame(dfs)
+```
+
+Strandedness verification: compare total counts in columns 2 vs 3 across samples. The column with much larger totals corresponds to the correct strand. If roughly equal, the library is unstranded (use column 1).
+
+## HTSeq Count Files
+
+**Goal:** Load per-sample HTSeq count output into a combined matrix.
+
+**Approach:** Read each file (two columns: gene ID and count), skipping the 5 summary lines at the end (prefixed with `__`), then merge.
+
+```python
+import pandas as pd
+from pathlib import Path
+
+def load_htseq_counts(filepaths):
+    '''Load multiple HTSeq count files into a matrix.'''
+    dfs = {}
+    for fp in filepaths:
+        sample = Path(fp).stem.replace('_counts', '')
+        df = pd.read_csv(fp, sep='\t', header=None, index_col=0, names=['gene', 'count'])
+        df = df[~df.index.str.startswith('__')]  # Remove __no_feature, __ambiguous, etc.
+        dfs[sample] = df['count']
+    return pd.DataFrame(dfs)
 ```
 
 ## kallisto Abundance Files
@@ -185,18 +255,41 @@ counts = combine_count_files('counts/*_counts.tsv')
 
 ## Filter Low-Count Genes
 
-**Goal:** Remove genes with insufficient expression to reduce noise in downstream analysis.
+**Goal:** Remove genes with insufficient expression to reduce noise and multiple testing burden.
 
-**Approach:** Apply count and sample-number thresholds to retain only reliably detected genes.
+**Approach:** Apply expression thresholds appropriate for the downstream DE tool. edgeR requires explicit filtering; DESeq2 handles it internally but benefits from a speed-only pre-filter.
+
+### edgeR: Design-Aware Filtering (Recommended)
+
+```r
+library(edgeR)
+
+# filterByExpr uses smallest group size from design matrix
+# Requires CPM above threshold in at least n samples (n = smallest group)
+keep <- filterByExpr(y, design=model.matrix(~condition, data=metadata))
+y <- y[keep, , keep.lib.sizes=FALSE]
+```
+
+Forgetting `filterByExpr` in edgeR inflates the multiple testing burden because edgeR's quasi-likelihood pipeline does not have DESeq2's automatic independent filtering.
+
+### DESeq2: Speed Pre-Filter
+
+```r
+# Manual pre-filter for speed only -- independent filtering at results() handles statistics
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep, ]
+```
+
+### Python
 
 ```python
-# Keep genes with at least 10 counts in at least 3 samples
+# Group-aware filter: require min_counts in at least min_samples
 min_counts, min_samples = 10, 3
 expressed = (counts >= min_counts).sum(axis=1) >= min_samples
 counts_filtered = counts.loc[expressed]
 
-# Alternative: total counts threshold
-counts_filtered = counts[counts.sum(axis=1) >= 50]
+# For min_samples, use the smallest experimental group size
+# e.g., if 3 controls and 5 treated, use min_samples=3
 ```
 
 ## Handle Gene ID Versions
@@ -235,7 +328,7 @@ adata.write_h5ad('counts.h5ad')
 
 **Goal:** Load count data in R from common formats including featureCounts and Salmon/kallisto via tximport.
 
-**Approach:** Use base R read functions or tximport for pseudo-alignment outputs.
+**Approach:** Use base R read functions for alignment-based counts, or tximport with a tx2gene mapping for pseudo-alignment outputs (Salmon/kallisto). tximport handles length-bias correction automatically.
 
 ```r
 # Basic CSV/TSV
@@ -246,16 +339,24 @@ counts <- read.delim('counts.tsv', row.names=1)
 fc <- read.delim('featurecounts.txt', comment.char='#', row.names=1)
 counts <- fc[, 6:ncol(fc)]
 
-# tximport for Salmon/kallisto
+# tximport for Salmon/kallisto (RECOMMENDED over manual loading)
+# Use tx2gene for gene-level summarization with length-offset correction
 library(tximport)
+tx2gene <- read.csv('tx2gene.csv')  # columns: TXNAME, GENEID
 files <- file.path('salmon_out', samples, 'quant.sf')
-txi <- tximport(files, type='salmon', txOut=TRUE)
-counts <- txi$counts
+names(files) <- samples
+txi <- tximport(files, type='salmon', tx2gene=tx2gene)
+
+# For DESeq2: use DESeqDataSetFromTximport (handles offsets natively)
+# For limma-voom: use countsFromAbundance='lengthScaledTPM' in tximport
+# See rna-quantification/tximport-workflow for full details
 ```
 
 ## Related Skills
 
 - rna-quantification/featurecounts-counting - Generate featureCounts output
 - rna-quantification/alignment-free-quant - Generate Salmon/kallisto output
+- rna-quantification/tximport-workflow - Import Salmon/kallisto with length-offset correction
+- expression-matrix/normalization - Normalize counts for downstream analysis
 - expression-matrix/sparse-handling - Memory-efficient storage
 - expression-matrix/gene-id-mapping - Convert gene identifiers

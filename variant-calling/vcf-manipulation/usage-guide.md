@@ -406,10 +406,24 @@ bcftools merge --force-samples file1.vcf.gz file2.vcf.gz -Oz -o merged.vcf.gz
 
 > "Extract specific samples from a multi-sample VCF"
 
-## See Also
+## What the Agent Will Do
 
-- [bcftools merge documentation](http://www.htslib.org/doc/bcftools.html#merge)
-- [bcftools concat documentation](http://www.htslib.org/doc/bcftools.html#concat)
-- [bcftools isec documentation](http://www.htslib.org/doc/bcftools.html#isec)
-- **vcf-basics** - View and query VCF files
-- **filtering-best-practices** - Filter variants before manipulation
+1. Determine the appropriate operation (merge vs concat vs isec) based on the task
+2. Check that input VCFs are compressed and indexed
+3. Normalize VCFs before comparison if from different callers
+4. Execute the bcftools operation with proper output format
+5. Index the result and verify sample counts or variant overlaps
+
+## Tips
+
+- Always normalize VCFs before intersecting callsets from different callers
+- Use merge for combining samples, concat for combining regions -- not interchangeable
+- Index all input files before merge, isec, or region-based operations
+- Use `-Ou` (uncompressed BCF) between piped steps for speed
+- The -w flag in bcftools isec controls which file's records appear in output
+
+## Related Skills
+
+- variant-calling/vcf-basics - View and query VCF files
+- variant-calling/filtering-best-practices - Filter variants before manipulation
+- variant-calling/variant-normalization - Normalize before comparing callsets

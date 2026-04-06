@@ -66,6 +66,20 @@ bcftools consensus -f reference.fa -H 2 input.vcf.gz > haplotype2.fa
 | `-H R` | Apply REF alleles where heterozygous |
 | `-I` | Apply IUPAC ambiguity codes (separate flag) |
 
+### Phasing Requirements
+
+The `-H 1` and `-H 2` flags select haplotypes based on the phased genotype separator (`|`). With unphased genotypes (using `/`, e.g. `0/1`), the assignment of alleles to haplotype 1 vs 2 is arbitrary and does not reflect true chromosomal phase. Verify phasing status before haplotype extraction:
+
+```bash
+bcftools query -f '%CHROM\t%POS[\t%GT]\n' input.vcf.gz | head
+```
+
+Phased genotypes appear as `0|1` or `1|0`; unphased as `0/1`. Sources of phased genotypes:
+- Read-backed phasing: WhatsHap, HapCUT2 (requires aligned reads)
+- Trio phasing: Mendelian inheritance with parental genotypes
+- Statistical phasing: SHAPEIT, Eagle (population-level, less accurate for rare variants)
+- Long-read phasing: direct observation of haplotype blocks from PacBio/ONT reads
+
 ## IUPAC Codes for Heterozygous Sites
 
 ```bash
@@ -154,6 +168,29 @@ sample="sample1"
 bcftools consensus -f reference.fa -s "$sample" -H 1 input.vcf.gz > "${sample}_hap1.fa"
 bcftools consensus -f reference.fa -s "$sample" -H 2 input.vcf.gz > "${sample}_hap2.fa"
 ```
+
+## VCF Normalization Before Consensus
+
+Normalize the VCF before applying variants to the reference. Non-normalized indel representations (left-aligned vs right-aligned, or decomposed vs multi-allelic) can produce incorrect consensus sequences:
+
+```bash
+bcftools norm -f reference.fa input.vcf.gz | bcftools consensus -f reference.fa > consensus.fa
+```
+
+Normalization left-aligns indels and splits multi-allelic records, ensuring variant positions match the reference context exactly. Without normalization, overlapping or adjacent indels are more likely to conflict, and bcftools consensus may silently produce unexpected sequence at those sites despite logging warnings to stderr.
+
+## Diploid Consensus Considerations
+
+For diploid organisms, a single consensus sequence is inherently a simplification -- the organism carries two distinct haplotype sequences. The choice of representation depends on downstream use:
+
+| Strategy | Flag | Best for |
+|----------|------|----------|
+| Both haplotypes separately | `-H 1`, `-H 2` | Phasing-aware analyses, allele-specific expression |
+| IUPAC ambiguity codes | `-I` | Retaining heterozygosity information |
+| All ALT alleles | `-H A` | Maximum divergence from reference |
+| Majority/reference allele | `-H R` | Conservative consensus |
+
+For phylogenetic applications, IUPAC codes can cause issues with some alignment and tree-building tools that do not handle ambiguity codes (or treat them as missing data). Using a single haplotype or applying only homozygous ALT alleles (`bcftools view -i 'GT="1/1" || GT="1|1"'`) produces cleaner input for tree inference.
 
 ## Filtering Before Consensus
 
@@ -264,14 +301,14 @@ bcftools view -H input.vcf.gz | wc -l
 
 ## Handling Overlapping Variants
 
-bcftools consensus handles overlapping variants automatically:
-- Applies variants in order
-- Warns about conflicts
+bcftools consensus processes variants in coordinate order. When variants overlap (particularly indels whose reference alleles span the same positions), later variants may conflict with already-applied changes. bcftools consensus logs warnings to stderr but still produces output -- the result at conflicting sites may not reflect the intended genotype. Normalizing the VCF beforehand (see above) reduces but does not eliminate this issue.
 
 Check for warnings:
 ```bash
 bcftools consensus -f reference.fa input.vcf.gz 2>&1 | grep -i warn
 ```
+
+If overlapping variant warnings appear, inspect the affected regions and consider filtering one of the conflicting records or resolving manually.
 
 ## cyvcf2 Consensus (Simple Cases)
 
@@ -334,7 +371,8 @@ Note: Use `bcftools consensus` for production - handles indels and edge cases pr
 
 ## Related Skills
 
-- variant-calling - Generate VCF for consensus
-- filtering-best-practices - Filter variants before consensus
-- variant-normalization - Normalize indels first
+- variant-calling/variant-calling - Generate VCF for consensus
+- variant-calling/filtering-best-practices - Filter variants before consensus
+- variant-calling/variant-normalization - Normalize indels first
 - alignment-files/reference-operations - Reference manipulation
+- phylogenetics/tree-inference - Tree building from consensus alignments

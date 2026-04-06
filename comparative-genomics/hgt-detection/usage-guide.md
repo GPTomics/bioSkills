@@ -55,19 +55,28 @@ Tell your AI agent what you want to do:
 
 ## What the Agent Will Do
 
-1. Calculate genome-wide GC content baseline
-2. Identify genes with anomalous composition (GC, codon usage)
-3. Run HGTector for phyletic distribution analysis
-4. Flag genes with unexpected taxonomic matches
+1. Calculate genome-wide GC content and codon usage baselines
+2. Identify genes with anomalous composition (GC z-score, CAI)
+3. Run HGTector for phyletic distribution analysis if database available
+4. Flag genes with unexpected taxonomic distribution
 5. Cluster anomalous genes into genomic islands
-6. Annotate islands for mobile elements
-7. Report HGT candidates with confidence levels
+6. Annotate islands for mobile element signatures (integrases, transposases)
+7. Cross-validate with phylogenetic incongruence where possible
+8. Report HGT candidates with multi-method confidence levels (strong/moderate/suggestive)
 
 ## Tips
 
-- **GC threshold** - Z-score > 2 suggests foreign origin; adjust for genome
-- **Codon usage** - CAI < 0.5 indicates potential HGT
-- **Island size** - Minimum 3 genes for confident island calls
-- **Mobile elements** - Integrases/transposases support HGT origin
-- **tRNA sites** - Common integration hotspots for genomic islands
-- **Amelioration** - Ancient HGT may have host-like composition
+- **Use multiple methods** - No single method catches all HGT; combine compositional + phylogenetic + HGTector for robust calls
+- **GC threshold** - |Z| > 2 moderate, |Z| > 3 strong; adjust for genomes with high GC variance (e.g., Streptomyces)
+- **Amelioration window** - Compositional methods only detect recent HGT (<10 Myr); ancient transfers are fully ameliorated
+- **ILS vs HGT** - Gene tree discordance can be incomplete lineage sorting, not HGT; expect ILS at rapid radiations
+- **Contamination** - Always rule out assembly contamination before claiming HGT, especially in draft assemblies
+- **Island signatures** - Minimum 3 genes, flanking mobile elements, tRNA integration sites all increase confidence
+- **Eukaryotic HGT** - Rarer but documented; exclude organellar gene transfer (EGT) as alternative
+- **Donor identification** - Phylogenetic placement within a distant clade (not sister) is the strongest HGT signal
+
+## Related Skills
+
+- comparative-genomics/ortholog-inference - Identify orthologs for phylogenetic tests
+- phylogenetics/modern-tree-inference - Build gene trees for incongruence analysis
+- metagenomics/amr-detection - AMR genes often on mobile elements

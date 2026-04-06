@@ -353,9 +353,26 @@ bcftools consensus -f reference.fa input.vcf.gz 2>&1 | grep -i "overlap"
 
 > "Mask low-coverage regions in my consensus sequence with N characters"
 
-## See Also
+## What the Agent Will Do
 
-- [bcftools consensus documentation](http://www.htslib.org/doc/bcftools.html#consensus)
-- **variant-calling** - Generate VCF files
-- **filtering-best-practices** - Filter variants before consensus
-- **variant-normalization** - Normalize variants first
+1. Verify the VCF is indexed and the reference FASTA matches
+2. Determine whether haplotype extraction or default consensus is needed
+3. Apply quality filters before consensus generation if appropriate
+4. Run bcftools consensus with correct flags for the use case
+5. Generate chain files for coordinate mapping when indels are present
+
+## Tips
+
+- The reference FASTA must be the same one used for variant calling -- mismatches cause errors
+- Always index the VCF before running bcftools consensus
+- Use IUPAC ambiguity codes (`-I`) when downstream tools support them, otherwise pick a haplotype
+- Filter variants before consensus to avoid applying low-confidence calls
+- Use `-c chain.txt` to produce a chain file when indels shift coordinates
+- For viral genomes, mask low-coverage regions with N to avoid false consensus bases
+
+## Related Skills
+
+- variant-calling/variant-calling - Generate VCF files
+- variant-calling/filtering-best-practices - Filter variants before consensus
+- variant-calling/variant-normalization - Normalize variants first
+- variant-calling/vcf-basics - View and query VCF data

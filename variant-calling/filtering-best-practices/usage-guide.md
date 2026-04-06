@@ -98,5 +98,5 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- **variant-calling/gatk-variant-calling** - VQSR details
-- **variant-calling/bcftools-variant-calling** - bcftools usage
+- variant-calling/gatk-variant-calling - VQSR details
+- variant-calling/variant-calling - bcftools calling

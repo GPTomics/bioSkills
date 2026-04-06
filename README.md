@@ -113,13 +113,13 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **sequence-manipulation** | 7 | Bio.Seq, Bio.SeqUtils | Transcription, translation, motif search, sequence properties |
 | **database-access** | 11 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API, STRINGdb | NCBI/UniProt queries, SRA downloads, BLAST, homology searches, interaction databases |
 | **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics, validation |
-| **variant-calling** | 13 | bcftools, cyvcf2, Manta, Delly, VEP, SnpEff | VCF/BCF calling, SVs, filtering, annotation, clinical interpretation |
-| **alignment** | 4 | Bio.Align, Bio.AlignIO | Pairwise and multiple sequence alignment, MSA statistics, alignment I/O |
-| **phylogenetics** | 5 | Bio.Phylo, IQ-TREE2, RAxML-ng | Tree I/O, visualization, ML inference with model selection, ultrafast bootstrap |
+| **variant-calling** | 13 | bcftools, GATK, DeepVariant, Manta, Delly, VEP | Germline/SV calling, DRAGEN-GATK mode, VQSR/hard filtering, MANE annotation, ACMG interpretation |
+| **alignment** | 5 | Bio.Align, MAFFT, MUSCLE5 | MSA tool selection (MAFFT/MUSCLE5/ClustalOmega), pairwise alignment, MSA statistics, alignment I/O |
+| **phylogenetics** | 8 | Bio.Phylo, IQ-TREE2, RAxML-NG, MrBayes, BEAST2, ASTRAL-III | Tree I/O, ML/Bayesian inference, divergence dating, coalescent species trees, concordance factors |
 | **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
 | **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
 | **single-cell** | 14 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication |
-| **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment |
+| **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment; ORA vs GSEA guidance, prokaryotic support, background universe, multi-condition comparison |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 5 | Bismark, methylKit, bsseq, scipy | Bisulfite alignment, methylation calling, per-CpG testing, DMRs |
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
@@ -130,7 +130,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **population-genetics** | 6 | PLINK, FlashPCA2, ADMIXTURE, scikit-allel | GWAS, biobank-scale PCA, admixture, selection statistics |
 | **rna-quantification** | 4 | featureCounts, Salmon, kallisto, tximport | Gene/transcript quantification, count matrix QC |
 | **read-alignment** | 4 | bwa-mem2, bowtie2, STAR, HISAT2 | Short-read alignment for DNA and RNA-seq |
-| **expression-matrix** | 4 | pandas, anndata, scanpy, biomaRt | Count matrix handling, gene ID mapping |
+| **expression-matrix** | 5 | pandas, anndata, DESeq2, edgeR, biomaRt | Count matrix handling, normalization, gene ID mapping |
 | **copy-number** | 4 | CNVkit, GATK | CNV detection, visualization, annotation |
 | **phasing-imputation** | 4 | Beagle, SHAPEIT5, bcftools | Haplotype phasing, genotype imputation |
 | **atac-seq** | 6 | MACS3, DiffBind, chromVAR, TOBIAS | ATAC-seq peaks, differential accessibility, footprinting, TF motif deviation |
@@ -163,7 +163,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **systems-biology** | 5 | cobrapy, CarveMe, memote | Flux balance analysis, metabolic reconstruction, model curation, gene essentiality |
 | **epidemiological-genomics** | 5 | mlst, TreeTime, TransPhylo, AMRFinderPlus | Pathogen typing, phylodynamics, transmission networks, AMR surveillance |
 | **immunoinformatics** | 5 | mhcflurry, pVACtools, BepiPred | MHC binding prediction, neoantigen identification, epitope prediction |
-| **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference |
+| **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder, HyPhy | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference, HGT detection |
 | **genome-annotation** | 6 | Bakta, BRAKER3, eggNOG-mapper, RepeatMasker | Prokaryotic/eukaryotic annotation, functional assignment, repeats, ncRNA, annotation transfer |
 | **gene-regulatory-networks** | 5 | pySCENIC, SCENIC+, WGCNA, CellOracle | Co-expression networks, regulon inference, multiomics GRN, perturbation simulation |
 | **causal-genomics** | 5 | TwoSampleMR, coloc, susieR, MR-PRESSO | Mendelian randomization, colocalization, fine-mapping, mediation, pleiotropy |
@@ -172,11 +172,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 426 skills across 62 categories**
+**Total: 431 skills across 62 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 426 skills across 62 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 431 skills across 62 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -283,6 +283,10 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 "Compare biodiversity across my sampling sites using Hill number rarefaction"
 "Find loci under local adaptation across an elevation gradient"
 "Estimate effective population size for my endangered species"
+
+# Sequence Alignment
+"Align these 50 protein sequences with the most accurate MSA method"
+"Prepare a codon alignment for selection analysis with PAML"
 
 # Phylogenetics & Evolution
 "Build a phylogenetic tree and visualize evolutionary relationships"

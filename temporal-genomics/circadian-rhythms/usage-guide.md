@@ -41,7 +41,7 @@ Tell the AI agent what to analyze:
 ### Parameter Estimation
 > "Fit cosinor models to my circadian data and give me the phase, amplitude, and MESOR for each gene."
 
-> "I need to know when each rhythmic gene peaks -- extract acrophase from my time-series expression data."
+> "I need to know when each rhythmic gene peaks. Extract acrophase from my time-series expression data."
 
 ### Multi-Method Comparison
 > "Compare JTK_CYCLE, RAIN, and cosinor results on my circadian dataset. Which genes are consistently rhythmic?"

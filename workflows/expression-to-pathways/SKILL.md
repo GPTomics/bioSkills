@@ -31,6 +31,18 @@ package and adapt the example to match the actual API rather than retrying.
 
 Convert differential expression results into biological insights through functional enrichment analysis.
 
+## Method Selection
+
+| Scenario | Method | Why |
+|----------|--------|-----|
+| Have DE results with Wald stat / t-stat for all genes | GSEA (Step 4) | Uses full ranking; no arbitrary cutoff; ~35% higher F1 than ORA |
+| Clear gene list from non-DE source (co-expression, GWAS) | ORA (Steps 1-3) | No ranking available |
+| RNA-seq with known gene length bias | GOseq (goseq package) | Standard ORA ignores length bias |
+| Bacterial / prokaryotic data | KEGG with locus tags | No org.*.eg.db; use keyType='kegg' |
+| Multiple conditions to compare | compareCluster or mitch | Never compare p-values across separate enrichments |
+
+When in doubt, run both ORA and GSEA and compare. Concordant results are more trustworthy.
+
 ## Workflow Overview
 
 ```
@@ -73,14 +85,15 @@ res <- read.csv('deseq2_results.csv', row.names = 1)
 # Significant genes for ORA
 sig_genes <- rownames(subset(res, padj < 0.05 & abs(log2FoldChange) > 1))
 
-# All genes for background
-all_genes <- rownames(res)
+# Background = all tested genes (NOT the full genome)
+# Pre-filtering and independent filtering reduce the tested set; use only genes that were tested
+background_genes <- rownames(res[!is.na(res$pvalue), ])
 
-# Ranked list for GSEA (by stat or log2FC)
-ranked_genes <- res$log2FoldChange
+# Ranked list for GSEA — prefer Wald statistic (combines magnitude + precision)
+# Alternatives: shrunken LFC, or sign(logFC) * -log10(PValue) for edgeR
+ranked_genes <- res$stat
 names(ranked_genes) <- rownames(res)
-ranked_genes <- sort(ranked_genes, decreasing = TRUE)
-ranked_genes <- ranked_genes[!is.na(ranked_genes)]
+ranked_genes <- sort(ranked_genes[!is.na(ranked_genes)], decreasing = TRUE)
 ```
 
 ### Gene ID Conversion
@@ -100,8 +113,12 @@ names(ranked_list) <- ranked_entrez$ENTREZID
 ## Step 1: GO Over-representation Analysis
 
 ```r
-# Biological Process
+# Convert background genes too
+bg_entrez <- bitr(background_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+
+# Biological Process — always specify universe (background)
 go_bp <- enrichGO(gene = sig_entrez$ENTREZID,
+                  universe = bg_entrez$ENTREZID,
                   OrgDb = org.Hs.eg.db,
                   ont = 'BP',
                   pAdjustMethod = 'BH',
@@ -111,6 +128,7 @@ go_bp <- enrichGO(gene = sig_entrez$ENTREZID,
 
 # Molecular Function
 go_mf <- enrichGO(gene = sig_entrez$ENTREZID,
+                  universe = bg_entrez$ENTREZID,
                   OrgDb = org.Hs.eg.db,
                   ont = 'MF',
                   pAdjustMethod = 'BH',
@@ -119,6 +137,7 @@ go_mf <- enrichGO(gene = sig_entrez$ENTREZID,
 
 # Cellular Component
 go_cc <- enrichGO(gene = sig_entrez$ENTREZID,
+                  universe = bg_entrez$ENTREZID,
                   OrgDb = org.Hs.eg.db,
                   ont = 'CC',
                   pAdjustMethod = 'BH',
@@ -270,16 +289,19 @@ cat('Significant genes:', length(sig_genes), '\n')
 sig_entrez <- bitr(sig_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
 cat('Converted to Entrez:', nrow(sig_entrez), '\n')
 
-# Ranked list for GSEA
-ranked <- res$log2FoldChange
+# Ranked list for GSEA (Wald statistic preferred over LFC)
+ranked <- res$stat
 names(ranked) <- rownames(res)
 ranked <- sort(ranked[!is.na(ranked)], decreasing = TRUE)
 ranked_entrez <- bitr(names(ranked), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
 ranked_list <- ranked[ranked_entrez$SYMBOL]
 names(ranked_list) <- ranked_entrez$ENTREZID
 
-# GO enrichment
-go_bp <- enrichGO(sig_entrez$ENTREZID, OrgDb = org.Hs.eg.db, ont = 'BP', readable = TRUE)
+# Background genes (all tested, not full genome)
+bg_entrez <- bitr(rownames(res[!is.na(res$pvalue), ]), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+
+# GO enrichment with background
+go_bp <- enrichGO(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, OrgDb = org.Hs.eg.db, ont = 'BP', readable = TRUE)
 go_bp_simple <- simplify(go_bp, cutoff = 0.7)
 
 # KEGG
@@ -312,6 +334,42 @@ cat('KEGG pathways:', nrow(as.data.frame(kegg)), '\n')
 cat('Reactome pathways:', nrow(as.data.frame(reactome)), '\n')
 ```
 
+## Prokaryotic Organisms
+
+For bacteria/archaea, standard org.db annotation packages are unavailable. Use KEGG directly with strain-specific organism codes:
+
+```r
+# Find organism code
+search_kegg_organism('Pseudomonas aeruginosa', by = 'scientific_name')
+
+# KEGG ORA with bacterial organism code (e.g., 'pae' for P. aeruginosa PAO1)
+kegg_bac <- enrichKEGG(gene = sig_gene_ids, organism = 'pae', keyType = 'kegg',
+                       pvalueCutoff = 0.05)
+
+# For organisms without KEGG annotation, use KEGG Orthology
+# Map genes to KO IDs via eggNOG-mapper or KOALA, then:
+kegg_ko <- enrichKEGG(gene = ko_ids, organism = 'ko', keyType = 'kegg')
+```
+
+GO enrichment for prokaryotes: use `enricher()` with custom GO-to-gene mapping from eggNOG-mapper or InterProScan output, rather than org.db packages.
+
+## Multi-Condition Enrichment Comparison
+
+When comparing enrichment across conditions (e.g., treatment A vs B vs C):
+
+```r
+# compareCluster: run ORA across multiple gene lists
+gene_clusters <- list(
+    ConditionA = sig_genes_A,
+    ConditionB = sig_genes_B,
+    ConditionC = sig_genes_C
+)
+cc <- compareCluster(gene_clusters, fun = 'enrichKEGG', organism = 'hsa')
+dotplot(cc, showCategory = 10) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Do not compare raw -log10(p-values) across conditions — they scale with sample size. Compare NES (normalized enrichment scores) for GSEA, or use compareCluster for ORA.
+
 ## Related Skills
 
 - pathway-analysis/go-enrichment - GO enrichment details
@@ -319,3 +377,4 @@ cat('Reactome pathways:', nrow(as.data.frame(reactome)), '\n')
 - pathway-analysis/reactome-pathways - Reactome analysis
 - pathway-analysis/gsea - GSEA methods
 - pathway-analysis/enrichment-visualization - Visualization options
+- differential-expression/de-results - Preparing gene lists for enrichment

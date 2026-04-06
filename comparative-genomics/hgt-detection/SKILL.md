@@ -20,6 +20,39 @@ package and adapt the example to match the actual API rather than retrying.
 **"Find horizontally transferred genes in my genome"** → Detect HGT events through compositional anomaly (GC%, codon bias), phylogenetic incongruence, or taxonomic distribution analysis.
 - Python: `hgtector search` → `hgtector analyze` for BLAST-based HGT scoring
 
+## Method Selection and Limitations
+
+| Method | Detects | Misses | Best For |
+|---|---|---|---|
+| Compositional (GC%, codon bias) | Recent HGT with distinct donor composition | Ancient HGT that has ameliorated to host composition | Quick initial screen; recent transfers |
+| Phylogenetic incongruence | HGT at any age (if gene tree signal preserved) | Deep divergences where gene trees lose resolution | Confident dating and donor identification |
+| HGTector (phyletic distribution) | Genes with unexpected taxonomic BLAST hits | Genes transferred from close relatives | Broad screen; no need for gene trees |
+
+### Amelioration Timeline
+
+Compositional methods have a detection window. After transfer, foreign DNA gradually adapts to the host genome's composition through mutation bias:
+- **Recent HGT (<10 Myr)**: Strong GC and codon usage anomalies; easily detected
+- **Intermediate (10-100 Myr)**: Partially ameliorated; weaker signal, higher false negative rate
+- **Ancient (>100 Myr)**: Fully ameliorated; compositionally indistinguishable from native genes
+- Amelioration rate depends on mutation rate, generation time, and selection on codon usage
+
+### Distinguishing HGT from Incomplete Lineage Sorting (ILS)
+
+Gene tree / species tree discordance does NOT automatically indicate HGT. Alternative explanations:
+- **ILS (deep coalescence)**: Ancestral polymorphism sorted randomly in descendant lineages; expected for rapid radiations and short internodes
+- **Gene duplication + loss**: Differential gene loss after duplication mimics HGT topologies
+- **Hybridization/introgression**: Reticulate evolution, especially in plants and microbes
+
+To distinguish: HGT typically shows genes phylogenetically nested within a distantly related clade (not a sister relationship), with supporting compositional anomalies, mobile element signatures, or patchy taxonomic distribution.
+
+### Eukaryotic HGT
+
+HGT in eukaryotes is rarer but well-documented:
+- **Endosymbiotic gene transfer (EGT)**: Organellar genes transferred to nucleus (mitochondria, plastids)
+- **Plant-to-plant**: Via parasitic plants (Striga, Cuscuta) or grafting
+- **Microbe-to-eukaryote**: Especially in organisms with close microbial associations (rumen fungi, bdelloid rotifers)
+- Detection requires excluding contamination as an alternative explanation (particularly in genome assemblies from non-axenic cultures)
+
 ## HGTector Workflow
 
 **Goal:** Detect horizontally transferred genes using BLAST-based phyletic distribution analysis.
@@ -170,10 +203,18 @@ def group_synonymous_codons(codon_usage):
 def detect_gc_anomalies(genome_fasta, cds_gff, window_size=5000):
     '''Detect regions with anomalous GC content
 
-    Horizontally transferred regions often have
-    different GC content than the host genome
+    Horizontally transferred regions often have different
+    GC content than the host genome.
 
-    Threshold: >2 standard deviations from genome mean
+    Thresholds:
+    - |Z| > 2: Moderate anomaly, worth investigating
+    - |Z| > 3: Strong anomaly, high HGT confidence
+    - Some native regions (rRNA operons, phage remnants) also show anomalies
+
+    Limitations:
+    - Only detects recent HGT (before amelioration)
+    - Genomes with high GC variance (e.g., Streptomyces) need stricter thresholds
+    - Window size should match expected island size (~5-20 kb typical)
     '''
     # Load genome
     genome = SeqIO.read(genome_fasta, 'fasta')
@@ -343,8 +384,26 @@ def annotate_island_features(island_genes, mobile_element_db):
     return features
 ```
 
+## Multi-Method Confidence Framework
+
+Combine evidence from multiple methods for robust HGT calls:
+
+| Evidence Level | Criteria | Confidence |
+|---|---|---|
+| Strong | Phylogenetic incongruence + compositional anomaly + mobile elements | High |
+| Moderate | Two of: phylogenetic, compositional, or HGTector + island context | Moderate |
+| Suggestive | Single method only (e.g., GC anomaly alone) | Low -- requires validation |
+
+For publication-quality HGT claims:
+- Cross-validate with at least two independent methods
+- Identify the likely donor lineage via phylogenetic placement
+- Report amelioration state (is the gene still compositionally distinct?)
+- Check for contamination as alternative explanation (especially in draft assemblies)
+- AU/SH topology tests provide statistical support for incongruent placement
+
 ## Related Skills
 
 - comparative-genomics/ortholog-inference - Identify orthologs for phylogenetic tests
 - phylogenetics/modern-tree-inference - Build gene trees for incongruence analysis
 - metagenomics/amr-detection - AMR genes often on mobile elements
+- genome-annotation/functional-annotation - Annotate island gene functions

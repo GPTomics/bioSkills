@@ -1,6 +1,6 @@
 ---
 name: bio-phylo-tree-visualization
-description: Draw and export phylogenetic trees using Biopython Bio.Phylo with matplotlib. Use when creating publication-quality tree figures, customizing colors and labels, or exporting to image formats.
+description: Draw and export phylogenetic trees using Biopython Bio.Phylo with matplotlib and modern alternatives. Use when creating tree figures, customizing colors and labels, exporting to image formats, or choosing between Bio.Phylo, ggtree, ETE4, and iTOL for publication.
 tool_type: python
 primary_tool: Bio.Phylo
 ---
@@ -20,7 +20,25 @@ package and adapt the example to match the actual API rather than retrying.
 **"Create a publication-quality tree figure"** → Draw and customize phylogenetic tree visualizations with colored branches, tip labels, and bootstrap support values using matplotlib.
 - Python: `Bio.Phylo.draw()` with matplotlib customization
 
-Draw phylogenetic trees using matplotlib integration.
+Draw phylogenetic trees using matplotlib integration. Bio.Phylo provides basic rectangular tree plots suitable for quick visualization. For publication-quality figures with complex annotations, circular layouts, or metadata heatmaps, consider the alternatives below.
+
+## Visualization Tool Decision
+
+| Tool | Type | Best For | Limitations |
+|------|------|----------|-------------|
+| Bio.Phylo + matplotlib | Python | Quick rectangular plots, scripted pipelines | No circular/radial layouts, limited annotation |
+| **ggtree** (R/Bioconductor) | R | Publication figures with complex annotations, metadata heatmaps | Requires R |
+| **ETE4** (Python) | Python | Python-based pipelines, NCBI taxonomy integration, tree comparison | More complex API |
+| **iTOL v6** (web) | GUI | Rapid interactive visualization, large trees, collaboration | Requires upload; web-dependent |
+| **FigTree** | Desktop | Quick inspection during analysis | No scripting |
+
+**For publication:** ggtree (R) or ETE4 (Python) for reproducible, customizable figures. iTOL for rapid prototyping, then export SVG and refine in Illustrator/Inkscape.
+
+**For quick exploration:** Bio.Phylo (below) or FigTree.
+
+**Key ggtree features:** `%<+%` operator connects metadata dataframes to the tree; `geom_cladelabel()` for clade bars; `gheatmap()` for aligned heatmaps; supports circular, fan, rectangular, unrooted layouts.
+
+**Tanglegrams (comparing two trees):** R: `phytools::cophylo()` or dendextend; Python: ETE4 tree comparison functions.
 
 ## Required Import
 
@@ -250,7 +268,7 @@ plt.close()
 |----------|--------|-------------|
 | `draw_graphviz()` | Removed (1.79) | Use `Phylo.draw()` for rectangular trees |
 
-For radial (circular) tree layouts, use external tools like ETE3 or DendroPy.
+For radial (circular) tree layouts, use ggtree (R), ETE4, or iTOL. Bio.Phylo only supports rectangular layouts.
 
 ## Common Issues
 
@@ -266,3 +284,5 @@ For radial (circular) tree layouts, use external tools like ETE3 or DendroPy.
 - tree-io - Read and write tree files
 - tree-manipulation - Ladderize and reroot before visualization
 - distance-calculations - Build trees from alignments for visualization
+- modern-tree-inference - ML tree inference produces trees for visualization
+- data-visualization/ggplot2-fundamentals - R-based visualization for ggtree users

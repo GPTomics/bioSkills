@@ -34,7 +34,7 @@ Tell your AI agent what you want to do:
 
 > "Test for directional pleiotropy using the Egger intercept"
 
-> "What is the I-squared for my MR-Egger analysis -- is the NOME assumption satisfied?"
+> "What is the I-squared for my MR-Egger analysis? Is the NOME assumption satisfied?"
 
 ### Comprehensive Sensitivity
 

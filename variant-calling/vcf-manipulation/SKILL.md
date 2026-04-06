@@ -30,6 +30,15 @@ Merge, concat, sort, and compare VCF files using bcftools.
 | Intersect | `bcftools isec` | Compare/intersect call sets |
 | Subset | `bcftools view` | Extract samples or regions |
 
+## Merge vs Concat Decision
+
+| Operation | Input structure | Result | Requires index |
+|-----------|----------------|--------|----------------|
+| `bcftools merge` | Different **samples** at (potentially) same positions | Multi-sample VCF | Yes |
+| `bcftools concat` | Same **samples** from different **regions** | Combined-region VCF | No (unless `-a`) |
+
+Common mistake: using concat when merge is needed (or vice versa). `concat --allow-overlaps` (`-a`) can handle some overlap cases but does not merge genotypes across samples -- it only resolves duplicate records from the same sample.
+
 ## bcftools merge
 
 **Goal:** Combine VCF files from different samples into a single multi-sample VCF.
@@ -75,6 +84,21 @@ When sample names conflict:
 
 ```bash
 bcftools merge --force-samples sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
+```
+
+### Multiallelic Handling During Merge
+
+When merging VCFs, if the same site has different ALT alleles across files, bcftools merge creates a multiallelic record by default. This is usually correct behavior. Use `--merge none` to keep records separate, or `--merge snps`/`--merge indels` to control merging granularity.
+
+```bash
+# Default: merge all variant types at same position
+bcftools merge sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
+
+# Keep SNPs and indels at same position as separate records
+bcftools merge --merge snps sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
+
+# No merging -- every record stays separate
+bcftools merge --merge none sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
 ```
 
 ### Merge Specific Regions
@@ -167,6 +191,14 @@ bcftools sort -m 4G input.vcf.gz -Oz -o sorted.vcf.gz
 
 Intersect and compare VCF files.
 
+**Normalize before comparing:** Before intersecting VCF files from different callers, ALWAYS normalize both files first. Different callers may represent the same variant differently (e.g., different indel left-alignment, multiallelic vs biallelic representation). Without normalization, bcftools isec will report false discordance. See variant-normalization for details.
+
+```bash
+bcftools norm -m-any -f ref.fa gatk.vcf.gz -Oz -o gatk_norm.vcf.gz
+bcftools norm -m-any -f ref.fa bcftools_calls.vcf.gz -Oz -o bcftools_norm.vcf.gz
+bcftools isec -p comparison gatk_norm.vcf.gz bcftools_norm.vcf.gz
+```
+
 ### Find Shared Variants
 
 ```bash
@@ -204,9 +236,14 @@ bcftools isec -p output_dir -n=2 sample1.vcf.gz sample2.vcf.gz
 
 ### Two-File Intersection
 
+The `-w` flag selects which file's records appear in the output. `-w1` outputs records from the first file, `-w2` from the second. This matters when the two files carry different INFO/FORMAT annotations -- the output inherits whichever file's records are selected.
+
 ```bash
-# Variants in both files
+# Variants in both files, output records from file 1 (with file 1 annotations)
 bcftools isec -n=2 -w1 sample1.vcf.gz sample2.vcf.gz -Oz -o shared.vcf.gz
+
+# Same intersection, but output records from file 2
+bcftools isec -n=2 -w2 sample1.vcf.gz sample2.vcf.gz -Oz -o shared_file2_annot.vcf.gz
 
 # Variants only in sample1
 bcftools isec -n~10 -w1 sample1.vcf.gz sample2.vcf.gz -Oz -o only_sample1.vcf.gz
@@ -423,7 +460,8 @@ print(f'Unique to sample2: {unique}')
 
 ## Related Skills
 
-- vcf-basics - View and query VCF files
-- filtering-best-practices - Filter variants before manipulation
-- variant-normalization - Normalize before comparing
-- vcf-statistics - Compare statistics after manipulation
+- variant-calling/vcf-basics - View and query VCF files
+- variant-calling/filtering-best-practices - Filter variants before manipulation
+- variant-calling/variant-normalization - Normalize before comparing (critical for isec accuracy)
+- variant-calling/vcf-statistics - Compare statistics after manipulation
+- variant-calling/variant-calling - Upstream variant discovery that produces input VCFs

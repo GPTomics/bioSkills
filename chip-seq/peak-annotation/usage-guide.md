@@ -75,9 +75,9 @@ Tell your AI agent what you want to do:
 - When a specific GTF is provided, always use it directly instead of a pre-built TxDb package to avoid gene name mismatches between annotation sources
 - Promoter window size significantly affects results; match the definition to the analysis requirements (commonly 1-3kb)
 - Ensure chromosome naming is consistent between peaks and annotations (chr1 vs 1); use `seqlevelsStyle()` in R to convert
-- ChIPseeker's `annoDb` parameter does not work with custom TxDb from `makeTxDbFromGFF()` -- map gene symbols from the GTF manually using rtracklayer
+- ChIPseeker's `annoDb` parameter does not work with custom TxDb from `makeTxDbFromGFF()`. Map gene symbols from the GTF manually using rtracklayer
 - HOMER's built-in promoter definition (-1kb to +100bp) is not configurable; reclassify by Distance to TSS column for custom windows
-- Gene assignment and feature classification can be decoupled: by default, HOMER and ChIPseeker assign the nearest-TSS gene independently of which gene's feature the peak overlaps. A peak inside gene A's intron near gene B's TSS will be labeled gene B / intron -- the intron belongs to gene A, not B. Use ChIPseeker's `overlap='all'` or the host-gene Python approach to couple gene and feature. This is important when gene-feature consistency matters (e.g., functional enrichment of annotated genes)
+- Gene assignment and feature classification can be decoupled: by default, HOMER and ChIPseeker assign the nearest-TSS gene independently of which gene's feature the peak overlaps. A peak inside gene A's intron near gene B's TSS will be labeled gene B / intron. The intron belongs to gene A, not B. Use ChIPseeker's `overlap='all'` or the host-gene Python approach to couple gene and feature. This is important when gene-feature consistency matters (e.g., functional enrichment of annotated genes)
 - Feature priority matters when categories overlap: promoter > exon > intron > intergenic
 - Peak center = (start + end) / 2 for BED coordinates; this is the reference point for all distance calculations
 - For GENCODE GTFs, gene IDs include version suffixes (e.g., ENSG00000142192.25); strip versions with `sub('\\..*', '', id)` when matching

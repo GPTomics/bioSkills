@@ -193,7 +193,7 @@ Tell your AI agent what you want to do:
 - **Normalization**: Pre-normalize each modality separately before integration
 - **Missing views**: MOFA2 handles missing views better than DIABLO
 - **Feature selection**: Select top variable features per modality to reduce noise
-- **Interpretation**: Run pathway enrichment on top-weighted features per factor
+- **Interpretation**: Run pathway enrichment on top-weighted features per factor; use all features in the view as background (not the full genome), and simplify() GO results to remove redundant terms
 
 ## References
 

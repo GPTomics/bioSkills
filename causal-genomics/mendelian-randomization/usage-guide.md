@@ -25,7 +25,7 @@ Tell your AI agent what you want to do:
 
 ### Basic MR Analysis
 
-> "I have GWAS summary stats for BMI and T2D -- run a Mendelian randomization analysis"
+> "I have GWAS summary stats for BMI and T2D. Run a Mendelian randomization analysis."
 
 > "Use TwoSampleMR to test if LDL cholesterol causally affects stroke risk"
 
@@ -43,7 +43,7 @@ Tell your AI agent what you want to do:
 
 ### Local Data
 
-> "I have local GWAS files for exposure and outcome -- set up the MR pipeline without using OpenGWAS"
+> "I have local GWAS files for exposure and outcome. Set up the MR pipeline without using OpenGWAS."
 
 ## What the Agent Will Do
 

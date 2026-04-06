@@ -17,6 +17,18 @@ package and adapt the example to match the actual API rather than retrying.
 
 # GO Over-Representation Analysis
 
+## When to Use ORA vs GSEA
+
+| Scenario | Method | Why |
+|----------|--------|-----|
+| Clear DE gene list with arbitrary cutoff (padj + FC) | ORA, but consider GSEA instead | ORA discards magnitude; GSEA uses all genes ranked by statistic |
+| Genes from co-expression module, GWAS loci, screen hits | ORA | No ranking available; ORA is appropriate |
+| All genes with DE statistics available | GSEA (gseGO) | Avoids arbitrary cutoff; detects subtle coordinated changes |
+| Very few DE genes (< 20) | GSEA | ORA has no power with small lists |
+| RNA-seq with known length bias | GOseq (goseq package) | Standard ORA ignores length bias; longer genes are more likely DE |
+
+ORA converts continuous measures into binary (significant/not), losing information. When in doubt, run both ORA and GSEA and compare.
+
 ## Core Pattern
 
 **Goal:** Identify enriched Gene Ontology terms in a gene list from differential expression or similar analyses.
@@ -77,20 +89,30 @@ converted <- bitr(genes, fromType = 'ENSEMBL', toType = 'ENTREZID', OrgDb = org.
 converted <- bitr(genes, fromType = 'SYMBOL', toType = c('ENTREZID', 'ENSEMBL'), OrgDb = org.Hs.eg.db)
 ```
 
-## With Background Universe
+## Background Universe (Critical)
 
 **Goal:** Improve enrichment specificity by restricting the background to genes actually tested in the experiment.
 
 **Approach:** Pass all expressed genes (not just significant ones) as the universe parameter to enrichGO.
 
+The background must be genes that *could have* appeared in the list. Getting this wrong is the single most common ORA error (95% of published analyses fail to specify an appropriate background). Using the whole genome (~20,000 genes) when only 12,000 were expressed inflates significance for tissue-specific pathways.
+
+| Experiment Type | Correct Background |
+|----------------|-------------------|
+| RNA-seq | All genes with detectable expression (e.g., > 1 CPM in >= N samples) |
+| Microarray | All probes on the array (mapped to genes) |
+| Proteomics | All detected proteins |
+| Targeted panel | Only genes on the panel |
+
 ```r
-# Use all expressed genes as background (recommended)
-all_genes <- de_results$gene_id
-universe_ids <- bitr(all_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+# Background = all genes that were tested (NOT the full genome)
+# For DESeq2: genes with non-NA pvalue survived independent filtering
+all_tested <- de_results$gene_id[!is.na(de_results$pvalue)]
+universe_ids <- bitr(all_tested, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
 
 ego <- enrichGO(
     gene = gene_list,
-    universe = universe_ids$ENTREZID,  # Background gene set
+    universe = universe_ids$ENTREZID,
     OrgDb = org.Hs.eg.db,
     keyType = 'ENTREZID',
     ont = 'BP',
@@ -98,6 +120,8 @@ ego <- enrichGO(
     pvalueCutoff = 0.05
 )
 ```
+
+**Warning:** clusterProfiler silently drops unannotated genes from the background. To prevent this: `options(enrichment_force_universe = TRUE)` before running enrichGO.
 
 ## All Three Ontologies
 
@@ -156,10 +180,18 @@ sig_terms <- results_df[results_df$p.adjust < 0.01 & results_df$Count >= 5, ]
 
 **Approach:** Cluster GO terms by semantic similarity and retain representative terms using the simplify function.
 
+GO terms form a DAG (directed acyclic graph), not a flat list. If "mitotic cell cycle" is enriched, parent terms ("cell cycle", "cell cycle process") will also be enriched because they contain supersets of the same genes. Always simplify before interpretation.
+
 ```r
 # Remove redundant GO terms (keeps representative terms)
 ego_simplified <- simplify(ego, cutoff = 0.7, by = 'p.adjust', select_fun = min)
+
+# measure options: 'Wang' (default, graph-based, stable across releases),
+# 'Resnik', 'Lin', 'Jiang', 'Rel' (IC-based, depend on annotation version)
+ego_simplified <- simplify(ego, cutoff = 0.7, measure = 'Wang')
 ```
+
+**Limitations:** `simplify()` does NOT work with `ont='ALL'` -- run BP, MF, CC separately. Cutoff 0.7 is a reasonable default; lower retains more terms, higher is more aggressive.
 
 ## Different Organisms
 
@@ -210,9 +242,34 @@ ggo <- groupGO(
 | maxGSSize | 500 | Max genes per term |
 | readable | FALSE | Convert to symbols |
 
+## Interpreting Results
+
+Always examine effect size alongside p-values. A pathway with 500 genes can achieve p < 1e-15 with a modest 1.2x fold enrichment, while a 10-gene pathway with 4x enrichment at p = 0.01 is biologically more interesting.
+
+- **Fold enrichment** = GeneRatio / BgRatio. Values > 2 suggest strong enrichment.
+- **Count**: number of query genes in the term. Very large counts (> 50) may indicate overly broad terms.
+- `minGSSize=10, maxGSSize=500` filters out uninformative extremes.
+
+## Gene ID Mapping Pitfalls
+
+- **Many-to-many mappings**: one Ensembl gene can map to multiple Entrez IDs. Deduplicate after `bitr()` to avoid counting genes multiple times.
+- **Lost genes**: if > 15% of genes fail to convert, results may be unreliable. Always report the conversion rate.
+- **Best practice**: use the same ID type throughout the pipeline. Convert at the last step if possible.
+
+## RNA-seq Gene Length Bias
+
+In RNA-seq, longer transcripts produce more fragments, increasing statistical power to detect DE. This systematically biases ORA toward pathways enriched in long genes (extracellular matrix, cell adhesion) and against short-gene pathways (ribosomal, mitochondrial). Standard normalization (RPKM, TMM) does NOT fix this.
+
+For length-corrected GO enrichment, use GOseq:
+```r
+library(goseq)
+pwf <- nullp(de_vector, 'hg38', 'ensGene', bias.data = gene_lengths)
+goseq_results <- goseq(pwf, 'hg38', 'ensGene', method = 'Wallenius')
+```
+
 ## Related Skills
 
 - kegg-pathways - KEGG pathway enrichment
 - gsea - Gene Set Enrichment Analysis for GO
 - enrichment-visualization - Visualize enrichment results
-- differential-expression - Generate input gene lists
+- differential-expression/de-results - Generate input gene lists

@@ -9,11 +9,13 @@ PREFIX="iqtree_analysis"
 # For test data, download example alignment:
 # wget https://raw.githubusercontent.com/Cibiv/IQ-TREE/master/example.phy
 
-# Basic run with ModelFinder Plus and ultrafast bootstrap
-# -m MFP: Automatic model selection integrated with tree inference
+# Standard analysis: ModelFinder + UFBoot2 + SH-aLRT
+# -m MFP: ModelFinder Plus (tests FreeRate models; -m TEST does not)
 # -B 1000: 1000 UFBoot replicates (minimum for publication; use 10000 for final)
-# -T AUTO: Detect available threads automatically
-iqtree2 -s "$ALIGNMENT" -m MFP -B 1000 -T AUTO --prefix "$PREFIX"
+# -alrt 1000: SH-aLRT for complementary support measure
+# -bnni: Reduces UFBoot overestimation via NNI optimization of bootstrap trees
+# --seed: Fixed seed for reproducibility
+iqtree2 -s "$ALIGNMENT" -m MFP -B 1000 -alrt 1000 -bnni -T AUTO --seed 12345 --prefix "$PREFIX"
 
 # Output files:
 # ${PREFIX}.treefile     - Best ML tree (Newick format)

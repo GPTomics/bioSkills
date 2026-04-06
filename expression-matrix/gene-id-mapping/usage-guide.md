@@ -190,8 +190,22 @@ def validate_mapping(original_ids, mapping, expected_mapped_pct=0.8):
 ```
 
 ## Tips
-- Always batch queries - query multiple IDs at once rather than one at a time
+
+- Always batch queries -- query multiple IDs at once rather than one at a time
 - Cache results for reuse across analyses
 - Use local databases (org.db packages) for faster lookups than API calls
-- Remove version numbers from Ensembl IDs before mapping (ENSG00000141510.15 -> ENSG00000141510)
-- Validate mapping rates - low rates often indicate wrong species or ID type
+- Remove version numbers from Ensembl IDs before mapping (ENSG00000141510.15 -> ENSG00000141510), but keep versions when reproducibility with a specific Ensembl release is needed
+- Validate mapping rates -- low rates often indicate wrong species or ID type
+- Use stable IDs (Ensembl or Entrez) as computational keys; symbols change frequently and should only be used as display labels
+- Check for PAR gene duplicates after mapping -- genes in pseudo-autosomal regions may have entries on both X and Y chromosomes
+- For cross-species work, use only one-to-one orthologs from Ensembl Compara for scRNA-seq integration
+- Pin mappings to a specific database release and archive the cross-reference table for reproducibility
+- org.db packages update every 6 months; for current mappings, query mygene.info or NCBI gene_info
+
+## Related Skills
+
+- expression-matrix/counts-ingest - Load count data
+- expression-matrix/metadata-joins - Add annotations
+- rna-quantification/tximport-workflow - Uses tx2gene mapping
+- pathway-analysis/go-enrichment - Requires Entrez IDs
+- pathway-analysis/kegg-pathways - Requires Entrez IDs

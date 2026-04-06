@@ -67,9 +67,12 @@ Tell your AI agent what you want to do:
 | Count | Number of genes |
 
 ## Tips
-- Reactome requires Entrez gene IDs - convert from symbols first with bitr()
+- Reactome requires Entrez gene IDs. Convert from symbols first with bitr()
 - Use readable = TRUE in enrichPathway() to get gene symbols in output
+- Always specify a background universe (all tested genes) for accurate results
+- Use `minGSSize = 10` to filter out very small pathways (Reactome has some with only 2-3 genes)
+- For non-human species, Reactome annotations are computationally inferred via orthology from human. Verify species-specific findings independently
+- Reactome is fully open (CC0 license), unlike KEGG which requires a commercial license
 - viewPathway() opens interactive pathway visualization in browser
-- Reactome has fewer species than KEGG but more detailed pathway annotation
 - Combine Reactome with KEGG/WikiPathways for comprehensive pathway coverage
 - See enrichment-visualization skill for dotplot() and other plots

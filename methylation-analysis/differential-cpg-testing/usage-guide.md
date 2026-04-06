@@ -64,15 +64,15 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- For small samples (n < 5/group), use M-values (logit of beta) for statistical testing with limma -- M-values are homoscedastic unlike beta values. For large samples (n > 10/group), t-test on beta values directly is standard and acceptable
-- Report delta_beta (difference in mean beta values) for effect sizes -- directly interpretable as percentage-point methylation difference
-- Always pass `equal_var=False` to `scipy.stats.ttest_ind` -- the default is Student's t-test which assumes equal variance
-- Always pass `method='fdr_bh'` to `statsmodels.stats.multitest.multipletests` -- the default is Holm-Sidak, not Benjamini-Hochberg
+- For small samples (n < 5/group), use M-values (logit of beta) for statistical testing with limma. M-values are homoscedastic unlike beta values. For large samples (n > 10/group), t-test on beta values directly is standard and acceptable
+- Report delta_beta (difference in mean beta values) for effect sizes, directly interpretable as percentage-point methylation difference
+- Always pass `equal_var=False` to `scipy.stats.ttest_ind`. The default is Student's t-test which assumes equal variance
+- Always pass `method='fdr_bh'` to `statsmodels.stats.multitest.multipletests`. The default is Holm-Sidak, not Benjamini-Hochberg
 - For fewer than 5 samples per group, strongly prefer limma on M-values over a simple t-test
 - Coverage filtering at 10x is standard; increase to 30x+ for targeted bisulfite sequencing
 - Effect size thresholds: 0.10 for discovery/EWAS, 0.20 for standard analysis, 0.30 for stringent filtering
-- Compute delta_beta from original beta values, not from model coefficients -- methylKit's meth.diff and limma's logFC on M-values do not equal mean(case) - mean(ctrl) on beta values
-- Do not pool counts across biological replicates for Fisher's exact test -- this ignores biological variance and inflates false positives
+- Compute delta_beta from original beta values, not from model coefficients. methylKit's meth.diff and limma's logFC on M-values do not equal mean(case) - mean(ctrl) on beta values
+- Do not pool counts across biological replicates for Fisher's exact test. This ignores biological variance and inflates false positives
 
 ## Related Skills
 

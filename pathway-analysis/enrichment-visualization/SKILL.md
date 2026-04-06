@@ -118,6 +118,22 @@ emapplot(ego_pt, showCategory = 30, cex_label_category = 0.6)
 emapplot(ego_pt, group_category = TRUE, group_legend = TRUE)
 ```
 
+### pairwise_termsim() Method Selection
+
+```r
+# Default: Jaccard Coefficient (works with any gene set type)
+ego_pt <- pairwise_termsim(ego)
+
+# For GO terms: Wang semantic similarity (more biologically meaningful)
+ego_pt <- pairwise_termsim(ego, method = 'Wang', semData = godata('org.Hs.eg.db', ont = 'BP'))
+```
+
+| Method | Type | When to Use |
+|--------|------|-------------|
+| JC (Jaccard) | Gene overlap | Default; works with KEGG, Reactome, any gene set |
+| Wang | Graph-based | Best for GO; captures biological relationships independent of annotation version |
+| Resnik/Lin/Jiang | IC-based | GO only; depends on annotation corpus (results change between database releases) |
+
 ## Tree Plot
 
 Hierarchical clustering of enriched terms.
@@ -172,6 +188,13 @@ ridgeplot(gse, showCategory = 15)
 # Order by NES
 ridgeplot(gse, showCategory = 20) + theme(axis.text.y = element_text(size = 8))
 ```
+
+**Reading ridge plots:**
+- **Shifted right (positive values):** Gene set enriched among upregulated genes
+- **Shifted left (negative values):** Gene set enriched among downregulated genes
+- **Bimodal distribution:** Pathway contains both strongly up- and down-regulated genes; may indicate heterogeneous pathway with opposing components
+- **Narrow peak:** Enrichment driven by a small cluster of similarly ranked genes
+- **Broad distribution:** Many genes with varied rankings (more diffuse, less concentrated signal)
 
 ## GO-Specific Plot (goplot)
 
@@ -270,6 +293,25 @@ ggsave('dotplot.pdf', p, width = 10, height = 8)
 | ridgeplot | Fold change distribution | GSEA |
 | goplot | GO DAG structure | GO only |
 | heatplot | Gene-concept matrix | ORA |
+
+## Choosing the Right Visualization
+
+| Goal | Plot | Key Tip |
+|------|------|---------|
+| First overview of top enriched terms | dotplot | Best starting point; shows 3 dimensions (ratio, count, p-value) |
+| Which genes drive multiple enriched terms | cnetplot | Limit to 5-10 terms; use `circular = TRUE` for crowded networks |
+| Identify functional modules among terms | emapplot | Run `pairwise_termsim()` first; if everything connects to everything, results are redundant |
+| GSEA: detailed single-pathway view | gseaplot2 | Check where genes cluster in the ranked list |
+| GSEA: overview of all enriched sets | ridgeplot | Read direction (left/right shift) and shape (narrow vs broad) |
+| Compare enrichment across conditions | dotplot on compareCluster | Use `facet_grid(~Cluster)` for side-by-side panels |
+
+## Common Visualization Mistakes
+
+- **Too many terms**: plots with > 30 terms are unreadable. Use `showCategory = 15-20`.
+- **Not simplifying GO first**: showing 15 redundant GO terms (cell cycle, cell cycle process, mitotic cell cycle...) wastes space and misleads. Run `simplify()` before plotting.
+- **Missing gene set size**: always show both the overlap count and the total pathway size. A 3/5 overlap (60%) is very different from 30/500 (6%).
+- **Bar plots for GSEA**: bar plots show count or enrichment. For GSEA, use NES on the x-axis, not p-value. Use dotplot or ridgeplot instead.
+- **Skipping pairwise_termsim()**: emapplot and treeplot will fail or produce meaningless results without it.
 
 ## Related Skills
 

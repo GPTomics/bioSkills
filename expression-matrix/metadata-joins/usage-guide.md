@@ -216,8 +216,23 @@ def export_for_limma(counts, metadata, prefix):
 ```
 
 ## Tips
+
 - Always verify sample order matches between counts and metadata before analysis
-- Set factor reference levels explicitly (e.g., 'control' before 'treated') for interpretable results
+- Set factor reference levels explicitly (e.g., 'control' before 'treated') for interpretable results -- do not rely on alphabetical ordering
 - Include batch information whenever available to account for technical variation
+- Check for confounding between experimental variables and batch early -- if perfectly confounded, no correction is possible
+- Run a sex check using XIST and Y-linked genes before DE analysis to catch sample mislabeling
+- For paired designs, include the pairing variable before the condition of interest in the model formula
+- When using interaction terms, remember that the main effect applies only at the reference level of the other factor
 - Validate metadata completeness early to avoid cryptic errors in downstream tools
 - Use descriptive column names and document the meaning of categorical levels
+- Keep batch, sex, age, RIN, and library prep date in metadata even if not part of the design -- they may be needed for QC or covariate adjustment
+
+## Related Skills
+
+- expression-matrix/counts-ingest - Load count data
+- expression-matrix/gene-id-mapping - Convert gene IDs
+- expression-matrix/normalization - Normalize before visualization
+- differential-expression/deseq2-basics - Downstream DE analysis
+- differential-expression/batch-correction - Batch effect correction
+- single-cell/preprocessing - Single-cell metadata handling

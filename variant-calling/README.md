@@ -2,27 +2,27 @@
 
 ## Overview
 
-Variant calling and VCF/BCF file manipulation using bcftools and cyvcf2. Covers calling SNPs/indels from alignments, structural variant detection, filtering, normalization, annotation, and downstream analysis.
+Variant calling and VCF/BCF file manipulation. Covers germline SNP/indel calling (bcftools, GATK HaplotypeCaller, DeepVariant), structural variant detection (Manta, Delly, GRIDSS), filtering (VQSR, hard filters, allele-specific), normalization, annotation (VEP, SnpEff, ANNOVAR), clinical interpretation (ACMG/ClinVar), and VCF utilities.
 
-**Tool type:** cli | **Primary tools:** bcftools, cyvcf2, Manta, Delly, VEP, SnpEff
+**Tool type:** mixed | **Primary tools:** bcftools, GATK, DeepVariant, VEP, Manta, Delly
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| vcf-basics | View, query, understand VCF/BCF format structure |
-| variant-calling | Call SNPs/indels from BAM files using mpileup/call |
-| gatk-variant-calling | GATK HaplotypeCaller, GVCF workflow, VQSR filtering |
-| deepvariant | Deep learning variant calling with Google DeepVariant |
-| joint-calling | Multi-sample joint calling with GATK CombineGVCFs |
-| structural-variant-calling | Call SVs (DEL, DUP, INV, INS, BND) with Manta/Delly |
-| filtering-best-practices | Comprehensive filtering with GATK hard filters and bcftools |
-| vcf-manipulation | Merge, concat, sort, intersect VCF files |
-| variant-normalization | Left-align indels, split multiallelic sites |
-| variant-annotation | Annotation with bcftools, VEP, SnpEff, ANNOVAR |
-| clinical-interpretation | ClinVar lookup, ACMG classification, pathogenicity |
-| vcf-statistics | Generate quality metrics, Ti/Tv ratio, concordance |
-| consensus-sequences | Apply variants to reference FASTA |
+| vcf-basics | View, query, understand VCF/BCF format structure and field interpretation (QUAL vs GQ, AD vs DP) |
+| variant-calling | Call SNPs/indels from BAM files using bcftools mpileup/call with caller selection guidance |
+| gatk-variant-calling | GATK HaplotypeCaller with DRAGEN-GATK mode, GVCF workflow, VQSR and hard filtering |
+| deepvariant | Deep learning variant calling with CNN-based model selection (WGS/WES/PacBio/ONT) |
+| joint-calling | Multi-sample joint genotyping with GenomicsDB/CombineGVCFs and GLnexus, cohort size guidance |
+| structural-variant-calling | Call SVs with Manta/Delly/GRIDSS consensus approach, short-read vs long-read decision framework |
+| filtering-best-practices | VQSR decision tree, hard filter rationale, allele-specific filtering, common pitfalls |
+| vcf-manipulation | Merge, concat, sort, intersect VCF files with normalization-before-comparison guidance |
+| variant-normalization | Left-align indels, split multiallelic sites with pipeline order and splitting caveats |
+| variant-annotation | VEP/SnpEff/ANNOVAR with MANE Select transcripts, tool concordance data, AlphaMissense |
+| clinical-interpretation | ClinVar/ACMG classification rules, pathogenicity score interpretation, re-analysis guidance |
+| vcf-statistics | QC metrics with expected ranges, stratified evaluation, population-scale QC |
+| consensus-sequences | Apply variants to reference FASTA with phasing requirements and diploid considerations |
 
 ## Example Prompts
 
@@ -48,20 +48,23 @@ Variant calling and VCF/BCF file manipulation using bcftools and cyvcf2. Covers 
 ## Requirements
 
 ```bash
-# bcftools
-conda install -c bioconda bcftools
-
-# cyvcf2
+# Core tools
+conda install -c bioconda bcftools htslib samtools
 pip install cyvcf2
+
+# Variant callers
+conda install -c bioconda gatk4
+# DeepVariant: use Docker (google/deepvariant:1.6.1)
 
 # SV callers
 conda install -c bioconda manta delly smoove survivor
+# GRIDSS: requires Java 11+ and R
 
 # Annotation tools
 conda install -c bioconda ensembl-vep snpeff
 
-# GATK
-conda install -c bioconda gatk4
+# Joint calling
+# GLnexus: use Docker (quay.io/mlin/glnexus:v1.4.1)
 ```
 
 ## Related Skills
