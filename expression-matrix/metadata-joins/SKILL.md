@@ -232,7 +232,6 @@ def validate_metadata(counts, metadata, required_columns=['condition']):
     '''Check metadata validity.'''
     issues = []
 
-    # Check sample overlap
     count_samples = set(counts.columns)
     meta_samples = set(metadata.index)
 
@@ -244,7 +243,6 @@ def validate_metadata(counts, metadata, required_columns=['condition']):
         if extra:
             issues.append(f'Extra metadata samples: {extra}')
 
-    # Check required columns
     for col in required_columns:
         if col not in metadata.columns:
             issues.append(f'Missing required column: {col}')
@@ -259,6 +257,122 @@ def validate_metadata(counts, metadata, required_columns=['condition']):
 
     print('Metadata validation passed')
     return True
+```
+
+## Sample Swap Detection
+
+**Goal:** Identify mislabeled samples before they contaminate downstream analysis.
+
+**Approach:** Use sex-linked gene expression (XIST for females, Y-chromosome genes for males) and within-pair clustering to detect swaps.
+
+### Sex Check
+
+```python
+import pandas as pd
+import numpy as np
+
+def sex_check(counts, metadata, sex_column='sex'):
+    '''Verify reported sex matches gene expression.
+
+    Males: high DDX3Y/RPS4Y1/UTY, low XIST
+    Females: high XIST, low/zero Y-linked genes
+    '''
+    female_markers = ['XIST']
+    male_markers = ['DDX3Y', 'RPS4Y1', 'UTY', 'KDM5D', 'EIF1AY']
+
+    available_female = [g for g in female_markers if g in counts.index]
+    available_male = [g for g in male_markers if g in counts.index]
+
+    if not available_female or not available_male:
+        print('Sex marker genes not found -- are gene symbols in the index?')
+        return None
+
+    female_expr = counts.loc[available_female].sum()
+    male_expr = counts.loc[available_male].sum()
+
+    predicted_sex = pd.Series('unknown', index=counts.columns)
+    predicted_sex[male_expr > female_expr] = 'M'
+    predicted_sex[female_expr > male_expr] = 'F'
+
+    if sex_column in metadata.columns:
+        mismatches = predicted_sex != metadata[sex_column]
+        if mismatches.any():
+            print(f'SEX MISMATCHES DETECTED ({mismatches.sum()} samples):')
+            for sample in metadata.index[mismatches]:
+                print(f'  {sample}: reported={metadata.loc[sample, sex_column]}, predicted={predicted_sex[sample]}')
+        else:
+            print('Sex check passed -- all samples match')
+    return predicted_sex
+```
+
+```r
+# R sex check
+sex_check <- function(counts, coldata, sex_col='sex') {
+    xist <- counts['XIST', ]
+    y_genes <- c('DDX3Y', 'RPS4Y1', 'UTY', 'KDM5D', 'EIF1AY')
+    y_expr <- colSums(counts[intersect(y_genes, rownames(counts)), , drop=FALSE])
+    predicted <- ifelse(y_expr > xist, 'M', 'F')
+    mismatches <- predicted != coldata[[sex_col]]
+    if (any(mismatches)) cat('Sex mismatches:', colnames(counts)[mismatches], '\n')
+    return(predicted)
+}
+```
+
+## Experimental Design Guidance
+
+### Reference Level Selection
+
+The reference level determines the direction of fold changes and the baseline for model coefficients. Set it explicitly **before** creating the DE dataset.
+
+```r
+# Always set reference explicitly -- do not rely on alphabetical order
+metadata$condition <- factor(metadata$condition, levels=c('control', 'treated'))
+# or
+metadata$condition <- relevel(factor(metadata$condition), ref='control')
+```
+
+```python
+metadata['condition'] = pd.Categorical(metadata['condition'], categories=['control', 'treated'], ordered=True)
+```
+
+Common mistake: forgetting to relevel, resulting in fold changes in the wrong direction (e.g., control vs treated instead of treated vs control).
+
+### Paired Designs
+
+For paired samples (e.g., tumor vs normal from the same patient), include the pairing variable in the model **before** the condition of interest. This absorbs inter-subject variability and dramatically increases statistical power.
+
+```r
+# Pairing variable MUST come before condition
+design = ~ patient + condition
+
+# edgeR alternative: blocking factor in design matrix
+design_matrix <- model.matrix(~ patient + condition, data=coldata)
+```
+
+### Interaction Terms
+
+Interaction models test whether the effect of one factor differs across levels of another (e.g., does drug response differ between genotypes?).
+
+```r
+# Full interaction model
+design = ~ genotype + treatment + genotype:treatment
+
+# The interaction coefficient represents the DIFFERENCE in treatment effect
+# between genotypes -- NOT the overall treatment effect
+# Main effect 'treatment' = treatment effect at REFERENCE level of genotype only
+```
+
+When interactions are present, the main effect coefficient applies only at the reference level of the other factor. This is a common misinterpretation.
+
+### Confounding vs Batch Effects
+
+If all treated samples were processed in batch 1 and all controls in batch 2, the batch effect is **perfectly confounded** with treatment and cannot be corrected by any statistical method. Check for confounding early:
+
+```python
+# Check for confounding between condition and batch
+ct = pd.crosstab(metadata['condition'], metadata['batch'])
+print(ct)
+# Rows/columns with all zeros indicate complete confounding
 ```
 
 ## Merge Multiple Metadata Files
@@ -280,5 +394,7 @@ metadata = merge_metadata_files(['clinical.csv', 'sequencing.csv', 'qc.csv'])
 
 - expression-matrix/counts-ingest - Load count data
 - expression-matrix/gene-id-mapping - Convert gene IDs
-- differential-expression/deseq2-basics - Downstream analysis
+- expression-matrix/normalization - Normalize before visualization
+- differential-expression/deseq2-basics - Downstream DE analysis
+- differential-expression/batch-correction - Batch effect correction
 - single-cell/preprocessing - Single-cell metadata handling

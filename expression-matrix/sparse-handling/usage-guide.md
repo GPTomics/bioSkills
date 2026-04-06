@@ -191,8 +191,20 @@ vals = np.array(sparse_matrix[0, :].todense()).flatten()
 ```
 
 ## Tips
-- Use CSR format for row operations and CSC for column operations
-- Avoid converting to dense unless absolutely necessary (e.g., for DESeq2)
-- Process in chunks for very large matrices to manage memory
-- Scanpy and AnnData handle sparse matrices natively - let them do the work
-- Monitor memory usage with psutil when working with large datasets
+
+- Use CSR format for row operations and CSC for column operations; AnnData recommends CSR for smaller files
+- Avoid converting to dense unless absolutely necessary (e.g., for DESeq2 export)
+- After log-transformation or normalization with prior counts, re-check sparsity -- if below ~50%, dense format may be more memory-efficient
+- Use backed mode (`sc.read_h5ad(path, backed='r')`) for datasets too large to fit in memory
+- Process in chunks for very large datasets: load cell subsets, process, concatenate
+- Scanpy and AnnData handle sparse matrices natively -- let them do the work
+- Be aware of the sparse + dense arithmetic gotcha: result may be `numpy.matrix` (deprecated), always wrap in `np.asarray()`
+- Monitor memory usage with `psutil.Process().memory_info().rss` when working with large datasets
+- For DE analysis export, convert to dense integer counts (`sparse_matrix.toarray().astype(int)`)
+
+## Related Skills
+
+- expression-matrix/counts-ingest - Load count data
+- expression-matrix/normalization - Normalization affects sparsity
+- single-cell/data-io - Single-cell data loading
+- single-cell/preprocessing - Single-cell normalization

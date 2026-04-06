@@ -72,4 +72,4 @@ Tell your AI agent what you want to do:
 - differential-expression/deseq2-basics - DE with batch in design formula
 - differential-expression/de-visualization - PCA plots for batch assessment
 - single-cell/clustering - Harmony and other integration methods
-- expression-matrix/matrix-operations - Data transformation
+- expression-matrix/normalization - Data normalization and transformation

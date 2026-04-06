@@ -260,4 +260,4 @@ seurat_obj <- FindNeighbors(seurat_obj, reduction = 'harmony', dims = 1:30)
 
 - differential-expression/deseq2-basics - DE with batch in design
 - single-cell/clustering - Integration methods
-- expression-matrix/matrix-operations - Data transformation
+- expression-matrix/normalization - Data normalization and transformation

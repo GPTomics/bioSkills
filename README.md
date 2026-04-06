@@ -130,7 +130,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **population-genetics** | 6 | PLINK, FlashPCA2, ADMIXTURE, scikit-allel | GWAS, biobank-scale PCA, admixture, selection statistics |
 | **rna-quantification** | 4 | featureCounts, Salmon, kallisto, tximport | Gene/transcript quantification, count matrix QC |
 | **read-alignment** | 4 | bwa-mem2, bowtie2, STAR, HISAT2 | Short-read alignment for DNA and RNA-seq |
-| **expression-matrix** | 4 | pandas, anndata, scanpy, biomaRt | Count matrix handling, gene ID mapping |
+| **expression-matrix** | 5 | pandas, anndata, DESeq2, edgeR, biomaRt | Count matrix handling, normalization, gene ID mapping |
 | **copy-number** | 4 | CNVkit, GATK | CNV detection, visualization, annotation |
 | **phasing-imputation** | 4 | Beagle, SHAPEIT5, bcftools | Haplotype phasing, genotype imputation |
 | **atac-seq** | 6 | MACS3, DiffBind, chromVAR, TOBIAS | ATAC-seq peaks, differential accessibility, footprinting, TF motif deviation |
@@ -172,11 +172,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 
-**Total: 427 skills across 62 categories**
+**Total: 428 skills across 62 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 427 skills across 62 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows—the full collection covers 428 skills across 62 categories:
 
 ```
 # RNA-seq & Differential Expression

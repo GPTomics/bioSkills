@@ -38,14 +38,22 @@ Tell your AI agent what you want to do:
 
 ## Common Formats
 
-| Source | Format | Key Columns |
-|--------|--------|-------------|
-| featureCounts | TSV | Geneid + 5 meta cols + counts |
-| Salmon | quant.sf per sample | NumReads, TPM |
-| kallisto | abundance.tsv per sample | est_counts, tpm |
-| STAR | ReadsPerGene.out.tab | gene_id, unstranded/stranded counts |
-| 10X | matrix.mtx + features/barcodes | Sparse format |
-| HTSeq | TSV | gene_id, count |
+| Source | Format | Key Columns | Notes |
+|--------|--------|-------------|-------|
+| featureCounts | TSV | Geneid + 5 meta cols + counts | Integer counts; discards multi-mapped reads by default |
+| Salmon | quant.sf per sample | NumReads, TPM | Fractional estimates from EM; use tximport for gene-level |
+| kallisto | abundance.tsv per sample | est_counts, tpm | Fractional estimates; use tximport for gene-level |
+| STAR | ReadsPerGene.out.tab | gene_id + 3 strand columns | Must select correct strandedness column |
+| 10X | matrix.mtx + features/barcodes | Sparse format | Use scanpy or cellranger |
+| HTSeq | TSV | gene_id, count | Last 5 rows are summary stats (prefixed `__`) |
+
+### Critical: Salmon/kallisto Require tximport
+
+Salmon and kallisto produce transcript-level estimates. Loading NumReads/est_counts directly and summing to gene level introduces length bias (genes switching isoforms appear falsely DE). Always use tximport (R) or equivalent offset handling. See rna-quantification/tximport-workflow.
+
+### Critical: STAR Strandedness Column Selection
+
+STAR ReadsPerGene.out.tab columns: gene_id | unstranded | sense | antisense. For Illumina TruSeq stranded libraries, the antisense column (column 4) is correct. Verify by comparing total counts in columns 3 vs 4 -- the larger total indicates the correct strand.
 
 ## Complete Loading Pipeline
 
@@ -148,7 +156,20 @@ with open('counts.txt', 'r') as f:
 ```
 
 ## Tips
+
 - Always check the matrix shape and library sizes after loading to catch parsing errors early
-- Remove version suffixes from Ensembl IDs (e.g., ENSG00000141510.15 -> ENSG00000141510) before downstream analysis
+- Remove version suffixes from Ensembl IDs (e.g., ENSG00000141510.15 -> ENSG00000141510) before downstream analysis; but keep versions when reproducibility with a specific Ensembl release is needed
+- For Salmon/kallisto, always use tximport rather than manually loading and summing transcript counts -- naive summation introduces length bias
+- Verify STAR strandedness before loading: compare column totals to determine the correct strand
 - Use sparse matrices for single-cell data or bulk RNA-seq with >90% zeros
-- Batch query multiple samples at once rather than loading one at a time for better performance
+- For DE analysis, always provide raw integer counts; DE tools normalize internally
+- featureCounts and HTSeq discard multi-mapped reads by default, which systematically undercounts genes with overlapping isoforms or paralogs
+
+## Related Skills
+
+- rna-quantification/featurecounts-counting - Generate featureCounts output
+- rna-quantification/alignment-free-quant - Generate Salmon/kallisto output
+- rna-quantification/tximport-workflow - Import Salmon/kallisto with length-offset correction
+- expression-matrix/normalization - Normalize counts for downstream analysis
+- expression-matrix/sparse-handling - Memory-efficient storage
+- expression-matrix/gene-id-mapping - Convert gene identifiers
