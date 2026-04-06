@@ -7,7 +7,7 @@ primary_tool: MCScanX
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, PAML 4.10+, matplotlib 3.8+, minimap2 2.26+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+Reference examples tested with: BioPython 1.83+, JCVI 1.3+, PAML 4.10+, matplotlib 3.8+, minimap2 2.26+, numpy 1.26+, pandas 2.2+, scipy 1.12+, SyRI 1.6+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -20,6 +20,40 @@ package and adapt the example to match the actual API rather than retrying.
 **"Compare genome structure between my species"** → Detect conserved gene order (syntenic blocks), chromosomal rearrangements, and whole-genome duplications by aligning genomic collinearity.
 - CLI: `MCScanX` for collinear block detection from BLAST results
 - Python: `jcvi.compara.synteny` for synteny visualization (dot plots, macro/micro)
+
+## Assembly Quality Requirements
+
+Synteny analysis is highly sensitive to assembly fragmentation. Key thresholds:
+
+- **Minimum N50 of 1 Mb** for robust synteny detection; below this, results are tool-dependent and unreliable
+- Fragmented assemblies can **underestimate synteny by up to 40%** (different tools disagree extensively)
+- Gene-dense genomes tolerate more fragmentation than gene-sparse ones
+- Chromosome-level assemblies are strongly preferred for detecting inversions and translocations
+- **Reference-guided scaffolding creates false synteny** -- scaffolding against a related species propagates gene order assumptions, producing circular reasoning in synteny comparisons
+
+Always verify assembly contiguity (N50, BUSCO completeness) before interpreting synteny results. Report assembly quality alongside synteny findings.
+
+## Macrosynteny vs Microsynteny
+
+- **Macrosynteny**: Chromosome-level conservation of gene content (same chromosome, not necessarily same order). Detectable across hundreds of millions of years but decays via accumulation of rearrangements.
+- **Microsynteny**: Local conservation of gene order at sub-chromosomal level (few to dozens of genes). Can be deeply conserved, especially for metabolic gene clusters. Used in synteny network analysis for phylogenetic inference.
+
+MCScanX and JCVI detect both scales; SyRI focuses on structural rearrangements at the macrosynteny level.
+
+## Tool Selection
+
+| Tool | Best For | Key Characteristic |
+|---|---|---|
+| MCScanX | General synteny, WGD detection, downstream analyses (14 tools) | Dynamic programming on BLAST hits; most widely used |
+| JCVI/MCScan (Python) | Visualization, publication figures, multi-genome | Superior plotting; `--cscore 0.99` for reciprocal best hits |
+| i-ADHoRe 3.0 | Ancient WGD, highly diverged species | Ordered gene lists (no sequence needed); iterative detection |
+| AnchorWave | Plant genomes with WGD, polyploidy | CDS/exon anchors; WGD-aware alignment for known ploidy levels |
+| SyRI | Structural rearrangements between assemblies | Inversions, translocations, duplications from whole-genome alignment |
+| ntSynt | Multi-genome macrosynteny at scale | Alignment-free, minimizer graphs; handles >15% divergence |
+
+## Repeat Masking
+
+Softmask genomes before synteny analysis. Unmasked repeats produce millions of spurious BLAST alignments from transposable elements, drowning real syntenic signal. Use RepeatMasker with a species-specific library (or build one with RepeatModeler2 for non-model organisms). Always softmask (lowercase), never hardmask (N's), to preserve information for downstream tools.
 
 ## MCScanX Workflow
 
@@ -63,10 +97,14 @@ def run_mcscanx(gff1, gff2, blast_file, output_prefix):
     '''Run MCScanX for synteny detection
 
     Key parameters:
-    -k: Match score for collinear genes (default 50)
-    -g: Gap penalty (default -1)
-    -s: Minimum syntenic block size (default 5 genes)
-    -e: E-value threshold for BLAST (default 1e-5)
+    -k 50: Match score per collinear gene pair
+    -g -1: Gap penalty per intervening gene
+    -s 5: Minimum block size (5 genes default; use 10+ for stringent analysis)
+    -m 25: Maximum gaps between anchor pairs (25 default)
+    -e 1e-5: BLAST E-value threshold (use 1e-10 for close species)
+
+    Default parameters: ~0.59 sensitivity / 0.81 precision on benchmarks.
+    Tandem duplications are automatically collapsed before detection.
     '''
     # Combine GFF files
     subprocess.run(f'cat {gff1} {gff2} > {output_prefix}.gff', shell=True)
@@ -75,8 +113,8 @@ def run_mcscanx(gff1, gff2, blast_file, output_prefix):
     subprocess.run(f'cp {blast_file} {output_prefix}.blast', shell=True)
 
     # Run MCScanX
-    # -s 5: Minimum 5 genes per syntenic block (smaller = more noise)
-    # -m 25: Maximum gaps allowed (larger = more relaxed blocks)
+    # -s 5: Min genes per block (raise to 10 for stringent, lower to 3 for sensitive)
+    # -m 25: Max gaps (raise for degraded synteny, lower for recent comparisons)
     cmd = f'MCScanX -s 5 -m 25 {output_prefix}'
     subprocess.run(cmd, shell=True)
 
@@ -211,7 +249,13 @@ def parse_syri_output(syri_file):
 def create_synteny_plot(blocks_file, layout_file, output_file):
     '''Create synteny dot plot with JCVI
 
-    JCVI (python-jcvi) provides publication-ready figures
+    JCVI (python-jcvi) provides publication-ready figures.
+
+    Key JCVI parameters for pairwise synteny:
+    --cscore 0.70: Default hit stringency (ratio of best to 2nd-best hit)
+    --cscore 0.99: Reciprocal best hits only (strictest, fewest false positives)
+    --minspan 20: Minimum syntenic block size in genes
+    --tandem_Nmax 10: Filter tandem duplicates within this gene distance
     '''
     from jcvi.graphics.dotplot import dotplot
     from jcvi.graphics.karyotype import karyotype
@@ -230,12 +274,18 @@ def detect_wgd(blocks, min_parallel_blocks=3):
     '''Detect whole-genome duplication signatures
 
     WGD indicators:
-    - Multiple parallel syntenic blocks
-    - 2:1 or 4:1 chromosome ratios
-    - Similar Ks peaks across blocks
+    - Multiple parallel syntenic blocks in self-comparison
+    - 2:1 or 4:1 chromosome ratios between genomes
+    - Ks distribution peak at consistent value across syntenic pairs
+    - MCScanX "duplication depth" of 1 = one WGD round
 
-    min_parallel_blocks: Minimum parallel blocks to call WGD
-    A 2:1 ratio suggests one WGD, 4:1 suggests two WGDs
+    Pitfalls:
+    - Very recent WGDs (low Ks) can be masked by continuous small-scale duplications
+    - Ks peaks from different WGDs can merge if timing is similar
+    - Ks > 2 is saturated and unreliable for dating ancient WGDs
+    - Use wgd v2 tool for mixture model fitting and phylogenetic dating
+
+    min_parallel_blocks: Minimum parallel blocks to call WGD (3 minimum)
     '''
     chrom_ratios = defaultdict(list)
 
@@ -261,11 +311,14 @@ def calculate_ks_for_pairs(cds_file1, cds_file2, gene_pairs):
 
     Ks interpretation:
     - Ks < 0.1: Very recent divergence or gene conversion
-    - Ks 0.1-0.5: Within-species duplication
-    - Ks 0.5-1.5: Between closely related species
-    - Ks > 1.5: Saturated, unreliable
+    - Ks 0.1-0.5: Within-species duplication (recent WGD)
+    - Ks 0.5-1.5: Between closely related species (older WGD)
+    - Ks 1.5-2.0: Approaching saturation, interpret with caution
+    - Ks > 2.0: Saturated -- synonymous sites have undergone multiple substitutions
 
-    Ks peaks indicate WGD events
+    Ks peaks indicate WGD events. Use mixture models (e.g., wgd v2) to
+    formally fit components rather than visually identifying peaks.
+    Polyploids show multiple peaks (one per WGD event).
     '''
     from Bio import SeqIO
     from Bio.Seq import Seq
@@ -313,9 +366,19 @@ def plot_ks_distribution(ks_values, output_file):
     return fig
 ```
 
+## Polyploidy Considerations
+
+For polyploid genomes (common in plants, ~35% are recent polyploids):
+- **Autopolyploids**: Subgenome assignment is extremely challenging due to high homeolog similarity; risk of chimeric assembly
+- **Allopolyploids**: Easier to resolve subgenomes (greater parental divergence); assign subgenomes before comparative analysis
+- AnchorWave handles WGD-aware alignment when ploidy level is specified (`proali` mode with `-R` for ploidy)
+- OrthoFinder and similar tools cannot natively handle polyploid genomes -- each subgenome appears as "extra" genes; assign subgenomes first or use multi-labeled tree methods
+- Ks plots in polyploids show multiple peaks (one per WGD event); peaks from different events can merge if timing overlaps
+
 ## Related Skills
 
-- comparative-genomics/positive-selection - dN/dS analysis on syntenic genes
-- comparative-genomics/ortholog-inference - Identify orthologs for synteny
+- comparative-genomics/positive-selection - dN/dS analysis on syntenic gene pairs
+- comparative-genomics/ortholog-inference - Identify orthologs for synteny context
 - phylogenetics/modern-tree-inference - Phylogenetic context for synteny dating
 - alignment/pairwise-alignment - Sequence alignment for Ks calculation
+- genome-annotation/annotation-transfer - Transfer annotations using syntenic context

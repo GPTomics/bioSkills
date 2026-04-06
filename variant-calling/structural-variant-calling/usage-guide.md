@@ -241,3 +241,26 @@ For complete structural variation analysis, combine SV callers with CNV detectio
 > "Filter my SV calls to keep only high-confidence variants with PE and SR support"
 
 > "Annotate my structural variants with gene overlaps and pathogenicity predictions"
+
+## What the Agent Will Do
+
+1. Select appropriate SV callers based on the analysis type (germline vs somatic, WGS vs WES)
+2. Run multiple callers and merge results with SURVIVOR for high-confidence calls
+3. Filter by quality, size, and read support (PE/SR evidence)
+4. Annotate SVs with gene overlaps using AnnotSV
+5. Generate summary statistics of SV types and size distribution
+
+## Tips
+
+- Running multiple callers and requiring agreement (2 of 3) dramatically reduces false positives
+- Manta is the best single-caller choice for both germline and somatic SV detection
+- Exclude blacklist regions (centromeres, telomeres, segmental duplications) to reduce artifacts
+- Short-read SV calls have imprecise breakpoints (~100bp uncertainty) -- use CIPOS/CIEND fields
+- For SVs >10Mb or complex rearrangements, long-read sequencing substantially outperforms short reads
+
+## Related Skills
+
+- variant-calling/filtering-best-practices - General variant filtering principles
+- variant-calling/vcf-basics - View and query SV VCF files
+- variant-calling/variant-annotation - Annotate SVs with functional information
+- variant-calling/clinical-interpretation - Clinical significance of structural variants

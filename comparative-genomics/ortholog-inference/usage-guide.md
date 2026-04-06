@@ -46,19 +46,29 @@ Tell your AI agent what you want to do:
 
 ## What the Agent Will Do
 
-1. Prepare proteome FASTA files (one per species)
-2. Run OrthoFinder or ProteinOrtho for ortholog detection
-3. Parse orthogroup results into structured format
-4. Classify orthogroups (single-copy, universal, partial)
-5. Extract single-copy orthologs if needed
-6. Identify paralogs and co-orthologs
-7. Enable annotation transfer via orthology
+1. Verify proteome completeness with BUSCO/Compleasm
+2. Prepare proteome FASTA files (one per species, isoforms removed)
+3. Select method based on dataset size and accuracy needs (OrthoFinder vs ProteinOrtho)
+4. Run ortholog detection with appropriate parameters
+5. Parse orthogroup results and classify by copy number pattern
+6. Extract single-copy orthologs for phylogenomics if needed
+7. Identify in-paralogs, out-paralogs, and co-orthologs
+8. Enable annotation transfer with appropriate confidence levels
 
 ## Tips
 
-- **Input format** - One proteome FASTA per species; filename becomes species name
-- **Single-copy** - Ideal for phylogenomics; one gene per species, no paralogs
-- **OrthoFinder** - More accurate gene trees; better for evolution studies
-- **ProteinOrtho** - Faster; good for many genomes or quick surveys
-- **Co-orthologs** - Multiple genes orthologous to one gene indicate duplication
-- **Annotation transfer** - Most reliable for single-copy orthologs
+- **Input quality** - Remove isoforms (keep longest per gene) to avoid inflating copy numbers; verify completeness with BUSCO first
+- **Annotation consistency** - Heterogeneous annotations across species create false lineage-specific expansions; use consistent pipelines when possible
+- **OrthoFinder** - Tree-based, most accurate; use `-M msa` for <20 species; default for evolutionary analysis
+- **ProteinOrtho** - Graph-based, faster; good for 50+ genomes or quick surveys
+- **OMA/FastOMA** - Highest precision but lowest recall; use when false positives are costly
+- **Single-copy orthologs** - Ideal for phylogenomics; one gene per species, no paralogy complications
+- **In-paralogs vs out-paralogs** - Distinguishing them requires speciation context; OrthoFinder resolves via gene tree reconciliation
+- **Annotation transfer** - Highest confidence for 1:1 orthologs; decreases with co-orthologs and distant homologs
+
+## Related Skills
+
+- comparative-genomics/synteny-analysis - Synteny-based ortholog verification
+- comparative-genomics/positive-selection - Selection analysis on orthologs
+- phylogenetics/modern-tree-inference - Build trees from single-copy orthologs
+- genome-annotation/annotation-transfer - Transfer annotations via orthology

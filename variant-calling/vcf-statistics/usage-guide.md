@@ -409,9 +409,24 @@ bcftools norm -c w -f reference.fa input.vcf.gz > /dev/null
 
 > "Check for sample swaps or contamination in my cohort VCF"
 
-## See Also
+## What the Agent Will Do
 
-- [bcftools stats documentation](http://www.htslib.org/doc/bcftools.html#stats)
-- [bcftools gtcheck documentation](http://www.htslib.org/doc/bcftools.html#gtcheck)
-- **filtering-best-practices** - Filter based on statistics
-- **vcf-basics** - Query VCF data
+1. Identify the VCF/BCF file and check indexing status
+2. Run bcftools stats with appropriate flags (per-sample, region-based, or comparison mode)
+3. Extract key metrics -- variant counts, Ti/Tv ratio, depth distribution
+4. Generate plots with plot-vcfstats if visualization is requested
+5. Flag potential issues such as low Ti/Tv ratio or sample swaps
+
+## Tips
+
+- Ti/Tv ratio around 2.0-2.1 for WGS and 2.8-3.3 for exomes indicates good quality calls
+- Use `-s -` to enable per-sample statistics in bcftools stats
+- Compare stats before and after filtering to assess how much data is removed
+- Low Ti/Tv ratio may indicate contamination, wrong reference, or sequencing artifacts
+- plot-vcfstats requires matplotlib -- install it separately if needed
+
+## Related Skills
+
+- variant-calling/filtering-best-practices - Filter based on statistics
+- variant-calling/vcf-basics - Query VCF data
+- variant-calling/variant-calling - Generate variants for QC assessment

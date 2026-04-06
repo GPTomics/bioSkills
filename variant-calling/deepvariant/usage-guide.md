@@ -148,7 +148,9 @@ bcftools stats output.vcf.gz | grep TSTV
 | WES | 32 GB | 30 min |
 | WGS + GPU | 32 GB | 1-2 hours |
 
-## See Also
+## Related Skills
 
-- [DeepVariant GitHub](https://github.com/google/deepvariant)
-- [GIAB benchmarking](https://github.com/genome-in-a-bottle)
+- variant-calling/variant-calling - Standard bcftools/GATK variant calling
+- variant-calling/vcf-basics - View and query VCF output
+- variant-calling/filtering-best-practices - Post-call variant filtering
+- variant-calling/vcf-statistics - QC metrics for called variants

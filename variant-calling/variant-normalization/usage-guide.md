@@ -322,9 +322,25 @@ bcftools norm -f reference.fa input.vcf.gz 2>&1 | grep "records modified"
 
 > "Split multiallelic sites but keep SNPs and indels separate"
 
-## See Also
+## What the Agent Will Do
 
-- [bcftools norm documentation](http://www.htslib.org/doc/bcftools.html#norm)
-- [Variant normalization paper](https://doi.org/10.1093/bioinformatics/btv112)
-- **vcf-manipulation** - Compare normalized VCFs
-- **variant-annotation** - Annotate after normalization
+1. Check input VCF sorting and index status
+2. Run bcftools norm with left-alignment and multiallelic splitting as needed
+3. Remove duplicate records introduced by splitting
+4. Verify normalization results by comparing variant counts before and after
+5. Index the output VCF for downstream use
+
+## Tips
+
+- Always normalize before comparing VCFs from different callers -- indel representation varies
+- Use `-m-both` instead of `-m-any` to avoid mixing SNPs and indels at the same position
+- Normalization can increase variant count because multiallelic sites become multiple records
+- Run `bcftools norm -c w` to check for REF allele mismatches against the reference genome
+- Normalize before annotation to maximize database matching rates
+
+## Related Skills
+
+- variant-calling/vcf-manipulation - Compare normalized VCFs with bcftools isec
+- variant-calling/variant-annotation - Annotate after normalization
+- variant-calling/filtering-best-practices - Filter after normalization
+- variant-calling/vcf-basics - View and query normalized VCF files

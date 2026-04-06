@@ -56,15 +56,53 @@ Followed by sample columns
 | Column | Description |
 |--------|-------------|
 | CHROM | Chromosome |
-| POS | 1-based position |
-| ID | Variant identifier (e.g., rs number) |
+| POS | 1-based position of the first base in REF |
+| ID | Variant identifier (e.g., rs number) or `.` if novel |
 | REF | Reference allele |
-| ALT | Alternate allele(s), comma-separated |
-| QUAL | Phred-scaled quality score |
-| FILTER | PASS or filter name |
-| INFO | Semicolon-separated key=value pairs |
-| FORMAT | Colon-separated format keys |
-| SAMPLE | Colon-separated values matching FORMAT |
+| ALT | Alternate allele(s), comma-separated. `*` indicates an overlapping deletion at this site |
+| QUAL | Phred-scaled probability that a variant exists at this site (site-level, NOT per-sample) |
+| FILTER | PASS or semicolon-separated filter names. `.` means filters were not applied |
+| INFO | Semicolon-separated key=value pairs (site-level annotations) |
+| FORMAT | Colon-separated format keys defining per-sample field order |
+| SAMPLE | Colon-separated values matching FORMAT order |
+
+## Critical Field Interpretation
+
+Understanding what each field actually measures -- and what it does not -- is essential for filtering and interpretation decisions.
+
+### QUAL vs GQ: Different Questions
+
+| Metric | Scope | Question Answered | When Most Useful |
+|--------|-------|-------------------|------------------|
+| QUAL | Site-level | "Is there any variant here at all?" | Multi-sample calling where site confidence matters |
+| GQ | Sample-level | "Is this specific genotype assignment correct?" | Per-sample genotype confidence |
+| QD | Site-level | QUAL normalized by allele depth | Preferred over raw QUAL for filtering (depth-independent) |
+
+QUAL can be high even when an individual sample's genotype is uncertain. Conversely, a sample may have a confident genotype (high GQ) at a site with moderate QUAL.
+
+### AD vs DP Discrepancy
+
+The sum of AD (allelic depth) values is often less than DP (total depth). This is expected behavior, not an error:
+- **DP** counts all reads spanning the position, including uninformative reads (low base quality, ambiguous alignment)
+- **AD** counts only reads that confidently support a specific allele
+- INFO/DP (site-level) differs from FORMAT/DP (per-sample) -- site DP is the sum across all samples
+
+### Key INFO Annotations for Filtering
+
+| Annotation | Meaning | What It Detects |
+|-----------|---------|-----------------|
+| QD | QUAL / allele depth | Low values suggest variant quality not supported by reads |
+| FS | Fisher strand bias (phred-scaled) | Variant reads predominantly on one strand (artifact) |
+| SOR | Strand odds ratio | Same as FS but handles high-depth sites better |
+| MQ | Root mean square mapping quality | Low values indicate reads map ambiguously (paralogous regions) |
+| MQRankSum | MQ difference: ref vs alt reads | Very negative = alt reads map much worse than ref (suspicious) |
+| ReadPosRankSum | Read position: ref vs alt reads | Very negative = variant only at read ends (misalignment artifact) |
+
+### PL (Phred-Scaled Likelihoods)
+
+PL encodes the relative likelihood of each possible genotype. For a biallelic site: `PL = [P(0/0), P(0/1), P(1/1)]`. The most likely genotype always has PL=0; GQ equals the difference between the lowest and second-lowest PL values.
+
+For multiallelic sites with n alleles, PL contains n*(n+1)/2 values covering all possible diploid genotypes.
 
 ## bcftools view
 
@@ -205,9 +243,19 @@ bcftools index -t input.vcf.gz
 | `0/0` | Homozygous reference |
 | `0/1` | Heterozygous |
 | `1/1` | Homozygous alternate |
-| `1/2` | Heterozygous (two different alts) |
-| `./.` | Missing |
-| `0\|1` | Phased heterozygous |
+| `1/2` | Heterozygous for two different ALT alleles (compound het at multiallelic site) |
+| `./.` | Missing genotype (no confident call) |
+| `0\|1` | Phased heterozygous (allele before `\|` is on haplotype 1) |
+
+### Phased vs Unphased
+
+- `/` separates **unphased** alleles -- the two chromosomal copies are known, but which came from which parent is not
+- `|` separates **phased** alleles -- haplotype assignment is known (e.g., from read-backed phasing, trio analysis, or long-read sequencing)
+- Phasing matters for compound heterozygosity: two variants on the same gene are pathogenic only if they are on different haplotypes (in *trans*), not the same haplotype (in *cis*)
+
+### Multiallelic Genotypes
+
+At multiallelic sites (e.g., ALT = G,T), allele indices reference the comma-separated ALT list: 0=REF, 1=first ALT, 2=second ALT. Genotype `1/2` means one copy of each ALT allele. Splitting multiallelic sites into biallelic records with `bcftools norm -m-` converts `1/2` into two `0/1` records, losing compound heterozygosity information -- see variant-normalization for caveats.
 
 ## cyvcf2 Python Alternative
 

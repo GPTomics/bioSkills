@@ -383,9 +383,25 @@ bcftools annotate -a database.vcf.gz -c INFO/AF \
 
 > "Add ClinVar clinical significance annotations to my VCF"
 
-## See Also
+## What the Agent Will Do
 
-- [bcftools annotate documentation](http://www.htslib.org/doc/bcftools.html#annotate)
-- [bcftools csq documentation](http://www.htslib.org/doc/bcftools.html#csq)
-- **variant-normalization** - Normalize before annotating
-- **filtering-best-practices** - Filter by annotations
+1. Check annotation database availability and index status
+2. Verify chromosome naming consistency between input VCF and annotation source
+3. Run bcftools annotate or bcftools csq with appropriate column mappings
+4. Validate output contains expected annotation fields
+5. Report annotation hit rate and any warnings
+
+## Tips
+
+- Normalize variants before annotating to ensure consistent matching against databases
+- Chromosome naming mismatches (chr1 vs 1) are the most common cause of empty annotations -- check both files
+- For large annotation databases, restrict to specific regions with `-r` to speed up processing
+- Use `bcftools +split-vep` to parse nested VEP/csq annotation strings into queryable fields
+- Always verify annotation source genome build matches the input VCF (GRCh37 vs GRCh38)
+
+## Related Skills
+
+- variant-calling/variant-normalization - Normalize variants before annotating
+- variant-calling/filtering-best-practices - Filter variants by annotation values
+- variant-calling/vcf-basics - View and query annotated VCF files
+- variant-calling/clinical-interpretation - Clinical significance from ClinVar annotations

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers calling SNPs and indels from aligned reads using bcftools.
+This guide covers calling SNPs and indels from aligned reads using bcftools mpileup/call. bcftools is best suited for rapid exploratory analysis, non-model organisms, and haploid genomes. For highest accuracy on human data, consider DeepVariant or GATK DRAGEN-mode instead.
 
 ## Prerequisites
 
@@ -360,10 +360,25 @@ bcftools query -f '%CHROM\t%POS\t%INFO/DP\n' variants.vcf
 
 > "Generate a VCF with depth and allelic depth annotations"
 
-## See Also
+## What the Agent Will Do
 
-- [bcftools mpileup documentation](http://www.htslib.org/doc/bcftools.html#mpileup)
-- [bcftools call documentation](http://www.htslib.org/doc/bcftools.html#call)
-- **vcf-basics** - View and query resulting VCF files
-- **filtering-best-practices** - Filter variants by quality
-- **variant-normalization** - Normalize indels after calling
+1. Verify the BAM file is sorted, indexed, and matches the reference
+2. Select appropriate mpileup options (quality thresholds, annotations, regions)
+3. Run bcftools mpileup piped to bcftools call with the multiallelic caller
+4. Compress and index the output VCF
+5. Report basic variant statistics (SNP/indel counts, Ti/Tv ratio)
+
+## Tips
+
+- Use `-Ou` (uncompressed BCF) between piped steps for speed
+- Set `-d` (max depth) to 3-4x expected mean coverage to avoid memory issues
+- Always request FORMAT/DP and FORMAT/AD annotations for downstream filtering
+- For parallel processing, split by chromosome and concatenate results
+- bcftools is fast but less accurate than GATK/DeepVariant for indels in homopolymers
+
+## Related Skills
+
+- variant-calling/vcf-basics - View and query resulting VCF files
+- variant-calling/filtering-best-practices - Filter variants by quality
+- variant-calling/variant-normalization - Normalize indels after calling
+- variant-calling/gatk-variant-calling - Production-quality calling with GATK HaplotypeCaller

@@ -114,3 +114,11 @@ Key files:
 - hapmap_3.3.hg38.vcf.gz
 - 1000G_omni2.5.hg38.vcf.gz
 - Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
+
+## Related Skills
+
+- variant-calling/variant-calling - Lightweight variant calling with bcftools mpileup/call
+- variant-calling/filtering-best-practices - Filter variants by quality metrics
+- variant-calling/variant-normalization - Normalize indels after calling
+- variant-calling/vcf-basics - View and query resulting VCF files
+- read-alignment/bwa-alignment - Align reads before variant calling

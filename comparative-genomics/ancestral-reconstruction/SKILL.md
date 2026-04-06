@@ -21,6 +21,34 @@ package and adapt the example to match the actual API rather than retrying.
 - Python: PAML `codeml` with `RateAncestor = 1` for ancestral reconstruction
 - CLI: `iqtree2 -s aln -m model --ancestral` for marginal reconstruction
 
+## When ASR is Reliable vs Unreliable
+
+ASR accuracy depends on several factors -- understanding these limits is critical before interpreting results:
+
+| Factor | Good for ASR | Poor for ASR |
+|---|---|---|
+| Tree depth | Shallow-moderate divergence | Very deep divergence (pre-Cambrian) |
+| Branch lengths | Short-moderate, evenly distributed | Long branches (low confidence at those nodes) |
+| Taxon sampling | Dense sampling near node of interest | Sparse sampling with long gaps |
+| Alignment quality | High-confidence alignment columns | Ambiguously aligned regions |
+| Model fit | Model matches data well (use ModelFinder) | Severe model misspecification |
+| Sequence type | Proteins (20 states = more signal) | Nucleotides at 3rd codon positions (saturated) |
+
+**Key limitation**: ASR reconstructs the most likely ancestral sequence given the model, but the reconstructed protein may not be functional due to epistatic interactions not captured by site-independent models. Experimentally resurrected proteins should always be tested for activity.
+
+## Joint vs Marginal Reconstruction
+
+- **Marginal**: Integrates over uncertainty at all other nodes; provides posterior probabilities per site. Better for identifying ambiguous positions and designing alternative constructs. Default in IQ-TREE.
+- **Joint**: Finds the single most likely set of ancestral states across all nodes simultaneously. No per-site probabilities. Faster but less informative.
+- Use marginal reconstruction for protein resurrection studies (need per-site confidence).
+
+## Alignment Recommendations
+
+- Use PRANK for coding sequences -- correctly models insertions (other aligners overestimate deletions)
+- Gaps in alignments represent indels; indel reconstruction is a separate problem from substitution reconstruction
+- PAML treats gaps as missing data or removes gapped columns (`cleandata=0` keeps them as ambiguity; `cleandata=1` removes all columns with any gap)
+- IQ-TREE handles gaps better than PAML for large datasets with extensive indel variation
+
 ## PAML Ancestral Reconstruction
 
 **Goal:** Reconstruct ancestral sequences at internal phylogenetic nodes using maximum likelihood.
@@ -42,9 +70,17 @@ def create_asr_control(alignment, tree, output_dir, seq_type='protein'):
     RateAncestor = 1: Enable ancestral reconstruction
     Generates RST file with ancestral sequences
 
+    IMPORTANT: Tree MUST be rooted -- ancestral states at internal nodes
+    depend on the root position. Use outgroup rooting or midpoint rooting.
+
     For codons: Use codeml with seqtype = 1
     For amino acids: Use codeml with seqtype = 2
     For nucleotides: Use baseml
+
+    Model selection:
+    - Proteins: LG or WAG with +G (rate variation); use ModelFinder for data-driven choice
+    - Codons: M0 (single omega) for ASR; site models are for selection testing, not ASR
+    - Use the same model for tree inference and ASR for consistency
     '''
     if seq_type == 'protein':
         ctl = f'''
@@ -285,14 +321,20 @@ def design_asr_construct(ancestral_seq, extant_reference, ambiguous_sites):
     '''Design constructs for ancestral protein resurrection
 
     Strategy:
-    1. Use most probable state at each position
-    2. Create alternative constructs at ambiguous sites
+    1. Use most probable (ML) state at each position as primary construct
+    2. Create alternative constructs at ambiguous sites (P < 0.95)
     3. Consider codon optimization for expression host
 
+    Epistasis warning: Site-independent models assume positions evolve
+    independently, but intramolecular epistasis means certain residue
+    combinations may be incompatible. The ML ancestral sequence may contain
+    never-tested combinations of residues, potentially yielding non-functional
+    proteins. Test multiple alternative constructs, not just the ML sequence.
+
     Validation:
-    - Test activity of resurrected proteins
-    - Compare to extant proteins
-    - Test alternative constructs at ambiguous positions
+    - Test activity of primary + alternative resurrected proteins
+    - Compare activity to extant homologs as positive controls
+    - Titrate ambiguous positions systematically (especially buried residues)
     '''
     constructs = [{'name': 'ASR_ML', 'sequence': ancestral_seq, 'description': 'Maximum likelihood ancestral'}]
 
@@ -314,5 +356,6 @@ def design_asr_construct(ancestral_seq, extant_reference, ambiguous_sites):
 
 - comparative-genomics/positive-selection - Selection analysis on ancestral branches
 - comparative-genomics/ortholog-inference - Identify orthologs for reconstruction
-- phylogenetics/modern-tree-inference - Generate trees for ASR
+- phylogenetics/modern-tree-inference - Generate rooted trees for ASR
+- alignment/multiple-alignment - PRANK alignment for ASR (correctly handles indels)
 - alignment/pairwise-alignment - Prepare MSA for reconstruction

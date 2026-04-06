@@ -39,13 +39,13 @@ Tell your AI agent what you want to do:
 | Reference | FASTA | Reference genome |
 | Coverage | >10x | Higher is better for SVs |
 
-## What the Workflow Does
+## What the Agent Will Do
 
-1. **Quality Control** - Assess read length and quality
-2. **Alignment** - Map reads with minimap2
-3. **SV Calling** - Detect structural variants
-4. **Filtering** - Remove low-quality calls
-5. **Annotation** - Add gene/clinical annotations
+1. Assess read length and quality with NanoPlot
+2. Align reads to reference with minimap2 (map-ont or map-hifi preset)
+3. Call structural variants with Sniffles2 or cuteSV
+4. Filter SV calls by quality and size
+5. Annotate with AnnotSV for gene and clinical context
 
 ## Sniffles vs cuteSV
 
@@ -58,7 +58,15 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **Coverage**: 15-30x recommended for reliable SV calling
-- **Read length**: Longer reads detect larger SVs better
-- **Tandem repeats**: Provide TR annotation to improve accuracy
-- **Filtering**: Start with QUAL>=20, adjust based on validation
+- 15-30x coverage recommended for reliable SV calling
+- Longer reads detect larger SVs and resolve complex rearrangements better
+- Provide tandem repeat annotation to Sniffles2 to improve accuracy
+- Start with QUAL>=20, adjust based on validation
+- Use PBMM2 instead of minimap2 for PacBio HiFi data with pbsv
+
+## Related Skills
+
+- variant-calling/structural-variant-calling - Short-read SV calling and consensus approach
+- long-read-sequencing/structural-variants - Long-read SV details
+- long-read-sequencing/long-read-alignment - Minimap2 alignment options
+- variant-calling/vcf-manipulation - Merge SV calls across callers

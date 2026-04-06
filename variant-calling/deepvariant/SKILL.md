@@ -1,52 +1,91 @@
 ---
 name: bio-variant-calling-deepvariant
-description: Deep learning-based variant calling with Google DeepVariant. Provides high accuracy for germline SNPs and indels from Illumina, PacBio, and ONT data. Use when calling variants with DeepVariant deep learning caller.
+description: Deep learning-based variant calling with Google DeepVariant. Provides high accuracy for germline SNPs and indels from Illumina, PacBio, and ONT data. Use when calling variants with DeepVariant deep learning caller or when highest germline calling accuracy is required.
 tool_type: cli
 primary_tool: DeepVariant
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: GATK 4.5+, bcftools 1.19+
+Reference examples tested with: DeepVariant 1.6+, GLnexus 1.4+, bcftools 1.19+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- CLI: `docker run google/deepvariant:<tag> --version` to confirm build
+- `bcftools --version` and `bcftools --help` to confirm flags
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+If code throws errors, introspect the installed container and adapt the example
+to match the actual API rather than retrying.
 
 # DeepVariant Variant Calling
 
+## How DeepVariant Works
+
+DeepVariant reframes variant calling as an image classification problem rather than a
+statistical genotyping problem. For each candidate variant site, the make_examples step
+encodes the local read pileup as a 100x221x6-channel image tensor. The six channels
+encode: read base identity, base quality, mapping quality, strand orientation, read
+support for the variant allele, and reference base mismatch. A convolutional neural
+network (CNN) then classifies each pileup image into one of three genotype classes:
+homozygous reference, heterozygous, or homozygous alternate.
+
+This image-based approach is why DeepVariant outperforms statistical callers in
+difficult genomic contexts such as homopolymer runs, tandem repeats, and low-complexity
+regions -- the CNN learns visual patterns in pileup geometry that heuristic filters
+miss. Separate models are trained for each sequencing platform because read error
+profiles differ substantially (e.g., Illumina substitution errors vs. ONT indel errors
+in homopolymers).
+
+DeepVariant calls germline variants only. For somatic variant calling, use DeepSomatic,
+a separate tool from the same team.
+
 ## Installation
-
-**Goal:** Install DeepVariant via Docker or Singularity container.
-
-**Approach:** Pull the pre-built container image matching the target platform (CPU or GPU).
-
-### Docker (Recommended)
 
 ```bash
 docker pull google/deepvariant:1.6.1
 
-# Or with GPU support
+# GPU support (NVIDIA GPU + nvidia-container-toolkit required)
 docker pull google/deepvariant:1.6.1-gpu
 ```
 
-### Singularity
+Singularity alternative:
 
 ```bash
 singularity pull docker://google/deepvariant:1.6.1
 ```
 
+## Model Selection Guide
+
+| Model | Data Type | Notes |
+|-------|-----------|-------|
+| `WGS` | Illumina short-read WGS | Default model; trained on 30-50x PCR-free data |
+| `WES` | Illumina exome/targeted | Must supply `--regions` BED for efficiency; without it, wastes time scanning non-target regions |
+| `PACBIO` | PacBio HiFi only | Not trained on CLR reads; CLR error profile is fundamentally different |
+| `ONT_R104` | ONT R10.4+ chemistry | Accuracy lower than HiFi model; R9.4 reads perform poorly with this model |
+| `HYBRID_PACBIO_ILLUMINA` | Mixed platforms | Emerging use case for samples with both HiFi and Illumina data |
+
+Model selection has a large effect on accuracy. Using the wrong model (e.g., WGS model
+on HiFi data) silently degrades results because the CNN expects platform-specific error
+patterns in the pileup images.
+
+## When to Use DeepVariant
+
+**Best choice when:**
+- Highest germline accuracy is the primary goal
+- GPU resources are available (or CPU time is acceptable)
+- Single-sample calling or small cohort with GLnexus for joint genotyping
+- Data is from a supported platform (Illumina, HiFi, ONT R10.4+)
+
+**Consider GATK HaplotypeCaller instead when:**
+- Joint calling across large cohorts (GATK GenomicsDB + GenotypeGVCFs scales better)
+- VQSR-based filtering is needed (DeepVariant QUAL scores are CNN confidence, not amenable to VQSR)
+- Clinical pipeline requires established GATK validation and regulatory precedent
+
+**Consider Clair3 instead when:**
+- Long-read data where speed matters more than marginal accuracy gains
+- ONT data specifically (Clair3 has strong ONT-specific models)
+- Resource-constrained environments without GPU access
+
 ## Basic Usage
-
-**Goal:** Call germline variants from aligned reads using DeepVariant's deep learning model.
-
-**Approach:** Run the all-in-one `run_deepvariant` wrapper specifying model type, reference, reads, and output paths.
-
-**"Call variants with DeepVariant"** → Convert aligned read pileups into image tensors, classify with a CNN, and output genotyped VCF.
-
-### One-Step Run (run_deepvariant)
 
 ```bash
 docker run -v "${PWD}:/input" -v "${PWD}/output:/output" \
@@ -60,23 +99,12 @@ docker run -v "${PWD}:/input" -v "${PWD}/output:/output" \
     --num_shards=16
 ```
 
-### Model Types
-
-| Model | Data Type | Use Case |
-|-------|-----------|----------|
-| `WGS` | Illumina WGS | Whole genome sequencing |
-| `WES` | Illumina WES | Whole exome/targeted |
-| `PACBIO` | PacBio HiFi | Long-read HiFi |
-| `ONT_R104` | ONT R10.4 | Oxford Nanopore |
-| `HYBRID_PACBIO_ILLUMINA` | Mixed | Hybrid assemblies |
+Always generate gVCFs (`--output_gvcf`) even for single samples -- they enable
+downstream joint calling without re-running DeepVariant.
 
 ## Step-by-Step Workflow
 
-**Goal:** Run DeepVariant in three explicit stages for more control over intermediate outputs.
-
-**Approach:** Generate pileup image tensors (make_examples), classify with the CNN (call_variants), then merge and genotype (postprocess_variants).
-
-For more control, run each step separately:
+For more control over intermediate outputs, run each stage separately:
 
 ### Step 1: Make Examples
 
@@ -114,9 +142,9 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
 
 ## GPU Acceleration
 
-**Goal:** Speed up DeepVariant inference using GPU hardware.
-
-**Approach:** Use the GPU-enabled container image with Docker `--gpus` flag.
+GPU acceleration primarily benefits the call_variants step (CNN inference). The
+make_examples and postprocess_variants steps are CPU-bound and benefit more from
+`--num_shards` parallelism.
 
 ```bash
 docker run --gpus all -v "${PWD}:/data" \
@@ -131,10 +159,6 @@ docker run --gpus all -v "${PWD}:/data" \
 
 ## PacBio HiFi Calling
 
-**Goal:** Call variants from PacBio HiFi long reads.
-
-**Approach:** Use the PACBIO model type which is trained on HiFi read characteristics.
-
 ```bash
 docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     /opt/deepvariant/bin/run_deepvariant \
@@ -145,11 +169,10 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     --num_shards=16
 ```
 
+HiFi reads achieve Q30+ per-read accuracy, giving DeepVariant cleaner pileup images.
+The PACBIO model is not suitable for CLR reads (Q10-Q15 accuracy).
+
 ## ONT Calling
-
-**Goal:** Call variants from Oxford Nanopore long reads.
-
-**Approach:** Use the ONT_R104 model type trained on Nanopore R10.4 chemistry.
 
 ```bash
 docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
@@ -161,11 +184,10 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     --num_shards=16
 ```
 
+R10.4+ chemistry substantially reduces systematic indel errors in homopolymers compared
+to R9.4. For R9.4 data, consider Clair3 which has dedicated R9.4 models.
+
 ## Exome/Targeted Sequencing
-
-**Goal:** Call variants from exome or targeted panel data.
-
-**Approach:** Use WES model type with a BED file restricting calling to target regions.
 
 ```bash
 docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
@@ -178,16 +200,14 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     --num_shards=8
 ```
 
+The `--regions` flag is not strictly required but omitting it causes DeepVariant to
+scan the entire genome, wasting hours on off-target reads with minimal coverage.
+
 ## Joint Calling with GLnexus
 
-**Goal:** Perform joint genotyping across a cohort from DeepVariant gVCFs.
-
-**Approach:** Generate per-sample gVCFs, then merge and jointly genotype with GLnexus using a DeepVariant-specific config.
-
-For multi-sample cohorts, use gVCFs with GLnexus:
+For multi-sample cohorts, use per-sample gVCFs merged with GLnexus:
 
 ```bash
-# Generate gVCFs for each sample
 for bam in *.bam; do
     sample=$(basename $bam .bam)
     docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
@@ -200,7 +220,6 @@ for bam in *.bam; do
         --num_shards=16
 done
 
-# Joint genotyping with GLnexus
 docker run -v "${PWD}:/data" quay.io/mlin/glnexus:v1.4.1 \
     /usr/local/bin/glnexus_cli \
     --config DeepVariantWGS \
@@ -208,39 +227,33 @@ docker run -v "${PWD}:/data" quay.io/mlin/glnexus:v1.4.1 \
     | bcftools view - -Oz -o cohort.vcf.gz
 ```
 
-## GLnexus Configurations
+### GLnexus Configuration
 
-| Config | Use Case |
-|--------|----------|
-| `DeepVariantWGS` | Illumina WGS |
-| `DeepVariantWES` | Illumina exome |
-| `DeepVariant_unfiltered` | Keep all variants |
+| Config | Use Case | Notes |
+|--------|----------|-------|
+| `DeepVariantWGS` | Illumina WGS gVCFs | Default for most WGS cohorts |
+| `DeepVariantWES` | Illumina exome gVCFs | Tuned for higher-depth, narrower-region calling |
+| `DeepVariant_unfiltered` | Keep all variant sites | Useful for research exploration; produces more false positives |
+
+GLnexus performance is driven by the call confidence distribution across sites, not
+cohort size per se. A cohort of 100 samples with clean 30x WGS merges faster than 20
+samples with noisy 10x data. GLnexus scales well to thousands of samples.
 
 ## Output Quality Metrics
 
-**Goal:** Assess the quality of DeepVariant calls.
-
-**Approach:** Generate summary statistics with bcftools stats and check Ti/Tv ratio as a quality indicator.
-
 ```bash
-# Variant statistics
 bcftools stats output.vcf.gz > stats.txt
 
-# Filter by quality
-bcftools view -i 'QUAL>20 && FMT/GQ>20' output.vcf.gz -Oz -o filtered.vcf.gz
-
-# Ti/Tv ratio (expect ~2.0-2.1 for WGS)
+# Ti/Tv ratio: expect ~2.0-2.1 for WGS, ~2.8-3.3 for WES
 bcftools stats output.vcf.gz | grep TSTV
+
+# Filter by quality (QUAL is CNN confidence, GQ is genotype quality)
+bcftools view -i 'QUAL>20 && FMT/GQ>20' output.vcf.gz -Oz -o filtered.vcf.gz
 ```
 
 ## Benchmarking Against Truth Set
 
-**Goal:** Evaluate DeepVariant accuracy against a GIAB truth set.
-
-**Approach:** Run hap.py to compute precision, recall, and F1 for SNPs and indels.
-
 ```bash
-# Using hap.py for GIAB benchmarking
 docker run -v "${PWD}:/data" jmcdani20/hap.py:latest \
     /opt/hap.py/bin/hap.py \
     /data/HG002_GRCh38_truth.vcf.gz \
@@ -250,11 +263,37 @@ docker run -v "${PWD}:/data" jmcdani20/hap.py:latest \
     --threads 16
 ```
 
+## Comparison with Other Callers
+
+Benchmark numbers below are approximate, derived from GIAB HG002/HG003/HG004 truth
+sets on GRCh38. Exact values vary by sample, coverage, and version.
+
+| Caller | SNP F1 | Indel F1 | Speed (30x WGS) | Notes |
+|--------|--------|----------|------------------|-------|
+| DeepVariant | ~0.999 | ~0.993 | ~4-6 hrs CPU, ~1-2 hrs GPU | Highest accuracy; slow without GPU |
+| GATK HC | ~0.999 | ~0.989 | ~4-8 hrs CPU | Strong ecosystem; joint calling pipeline |
+| Strelka2 | ~0.998 | ~0.960 | ~1-2 hrs CPU | Fastest; no longer actively maintained |
+| Clair3 | ~0.998 | ~0.980 | ~8 hrs (50x ONT) | Strong for long reads; active development |
+
+Caveat: DeepVariant models are trained and evaluated heavily on GIAB reference samples.
+Performance on underrepresented populations or complex structural variant regions may
+not match published benchmarks. Independent benchmarking on population-matched samples
+is recommended before clinical deployment.
+
+## Resource Requirements
+
+| Data Type | RAM | CPU Time | GPU Time | Notes |
+|-----------|-----|----------|----------|-------|
+| WGS 30x | 64 GB | ~4-6 hrs | ~1-2 hrs | `--num_shards` scales make_examples linearly |
+| WES | 32 GB | ~30 min | ~10 min | Much faster due to smaller target region |
+| PacBio HiFi 30x | 64 GB | ~3-5 hrs | ~1-2 hrs | Fewer but longer reads |
+| ONT 50x | 64 GB | ~6-8 hrs | ~2-3 hrs | Higher error rate means more candidate sites |
+
+GPU acceleration primarily benefits the call_variants step. For large cohorts,
+parallelizing across samples on CPU nodes may be more cost-effective than queuing
+for GPU access.
+
 ## Complete Workflow Script
-
-**Goal:** Run DeepVariant end-to-end with indexing and statistics in a single script.
-
-**Approach:** Wrap run_deepvariant, bcftools index, and bcftools stats in a parameterized shell script.
 
 ```bash
 #!/bin/bash
@@ -290,26 +329,10 @@ echo "VCF: ${OUTPUT_PREFIX}.vcf.gz"
 echo "gVCF: ${OUTPUT_PREFIX}.g.vcf.gz"
 ```
 
-## Comparison with Other Callers
-
-| Caller | Speed | Accuracy | Best For |
-|--------|-------|----------|----------|
-| DeepVariant | Moderate | Highest | Production, benchmarking |
-| GATK HaplotypeCaller | Moderate | High | GATK ecosystem |
-| bcftools | Fast | Good | Quick analysis |
-| Clair3 | Fast | High | Long reads |
-
-## Resource Requirements
-
-| Data Type | Memory | CPU Time (30x WGS) |
-|-----------|--------|-------------------|
-| WGS | 64 GB | ~4-6 hours |
-| WES | 32 GB | ~30 min |
-| With GPU | 32 GB | ~1-2 hours (WGS) |
-
 ## Related Skills
 
-- variant-calling/gatk-variant-calling - GATK alternative
-- variant-calling/variant-calling - bcftools calling
-- long-read-sequencing/clair3-variants - Long-read alternative
-- variant-calling/filtering-best-practices - Post-calling filtering
+- variant-calling/gatk-variant-calling - GATK alternative with joint calling ecosystem and VQSR integration
+- variant-calling/variant-calling - bcftools calling for quick, lightweight analysis
+- variant-calling/filtering-best-practices - Post-calling filtering strategies
+- variant-calling/joint-calling - GATK joint genotyping alternative to GLnexus
+- long-read-sequencing/clair3-variants - Long-read variant calling alternative, especially for ONT

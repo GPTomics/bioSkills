@@ -21,12 +21,23 @@ package and adapt the example to match the actual API rather than retrying.
 ## Filter Selection Decision Tree
 
 ```
-Is dataset large enough for VQSR? (>30 exomes or WGS)
-├── Yes → Use VQSR (machine learning)
-└── No → Use hard filters
-    ├── Germline → GATK recommended thresholds
-    └── Somatic → Caller-specific filters + manual review
+Is this somatic data?
+├── Yes → FilterMutectCalls (GATK), not VQSR or hard filters
+└── No (germline) →
+    Was DRAGEN-GATK mode used?
+    ├── Yes → Hard filter on QUAL only (DRAGEN QUAL is well-calibrated)
+    └── No →
+        Is dataset large enough for VQSR?
+        ├── Yes (>30 WGS/exomes, human, truth sets available) → VQSR
+        │   └── Large cohort? → Use allele-specific VQSR (-AS flag)
+        └── No → Hard filtering
+            ├── Non-model organism → Hard filtering only (no training resources)
+            └── Targeted panel → Hard filtering (too few variants for VQSR model)
 ```
+
+VQSR requires a Gaussian mixture model trained on known truth sets (HapMap, 1000G, dbSNP).
+With fewer than ~30 samples, the model cannot learn the annotation distributions reliably.
+Targeted panels produce too few variants for stable model convergence, regardless of sample count.
 
 ## GATK Hard Filter Thresholds
 
@@ -62,16 +73,16 @@ gatk VariantFiltration \
 
 ## Understanding Quality Metrics
 
-| Metric | Meaning | Good Value |
-|--------|---------|------------|
-| QD | Quality by Depth | >2 (variant quality normalized by depth) |
-| FS | Fisher Strand | <60 SNP, <200 indel (strand bias) |
-| MQ | Mapping Quality | >40 (RMS mapping quality) |
-| MQRankSum | MQ Rank Sum | >-12.5 (ref vs alt mapping quality) |
-| ReadPosRankSum | Read Position | >-8 (position in read bias) |
-| SOR | Strand Odds Ratio | <3 SNP, <10 indel (strand bias) |
-| DP | Depth | Sample-specific, avoid extremes |
-| GQ | Genotype Quality | >20 (confidence in genotype) |
+| Metric | Threshold | Rationale |
+|--------|-----------|-----------|
+| QD | <2.0 | Quality normalized by depth; preferred over raw QUAL because high-depth sites inflate QUAL regardless of evidence quality. QD < 2.0 means variant quality is not supported by sufficient per-read evidence. |
+| FS | >60 (SNP), >200 (indel) | Fisher strand bias p-value (Phred-scaled). Indels naturally exhibit more strand bias due to alignment artifacts near insertions/deletions, hence the relaxed indel threshold. |
+| SOR | >3.0 (SNP), >10.0 (indel) | Symmetric odds ratio for strand bias. Handles high-depth sites better than FS by avoiding the inflated p-values that Fisher's exact test produces at high counts. |
+| MQ | <40.0 | RMS mapping quality across all reads. Low MQ suggests reads map ambiguously, indicating paralogous regions or segmental duplications. |
+| MQRankSum | <-12.5 | Compares mapping quality of alt-supporting vs ref-supporting reads. Large negative values mean alt reads map significantly worse, suggesting they originate from mismapped paralogs. |
+| ReadPosRankSum | <-8.0 (SNP), <-20.0 (indel) | Position within read where the variant allele appears. Large negative values mean the variant clusters at read ends, a hallmark of misalignment or sequencing error. Indels tolerate a wider range because alignment uncertainty near indels shifts read positions. |
+| DP | Sample-specific | Extreme depth (>2x mean or <0.3x mean) suggests collapsed repeats or poor capture. Filtering on depth alone removes real variants in duplicated regions; always combine with other annotations. |
+| GQ | <20 | Phred-scaled confidence in the assigned genotype. GQ 20 = 99% confidence. |
 
 ## bcftools filter
 
@@ -207,16 +218,27 @@ bcftools filter -i 'GT="het" -> (AD[1]/(AD[0]+AD[1]) > 0.2 && AD[1]/(AD[0]+AD[1]
 
 ## Region-Based Filtering
 
-**Goal:** Include or exclude variants based on genomic region annotations.
+**Goal:** Include or exclude variants based on genomic region annotations and artifact-prone regions.
 
-**Approach:** Use bcftools view with BED files to restrict to target regions or exclude blacklisted areas.
+**Approach:** Use bcftools view with BED files to exclude known problematic regions and restrict to targets. Always benchmark filtering stratified by genomic context.
+
+Key BED resources for region filtering:
+- **ENCODE exclusion list** (formerly blacklist): regions with anomalous signal across cell types (centromeres, telomeres, satellite repeats). Available at github.com/Boyle-Lab/Blacklist.
+- **GIAB difficult regions**: stratified BED files for low-complexity, segmental duplications, tandem repeats, and other challenging contexts. Essential for honest benchmarking.
+- **LCR (low-complexity region) BED files**: homopolymers, dinucleotide repeats, and other simple sequences where indel calling is unreliable. Heng Li's LCR-hs38 is widely used.
 
 ```bash
-# Exclude problematic regions
-bcftools view -T ^blacklist.bed input.vcf -o filtered.vcf
+# Exclude ENCODE exclusion list regions
+bcftools view -T ^ENCFF356LFX.bed input.vcf -o filtered.vcf
+
+# Exclude low-complexity regions
+bcftools view -T ^LCR-hs38.bed.gz input.vcf -o lcr_filtered.vcf
 
 # Keep only exonic regions
 bcftools view -R exons.bed input.vcf -o exonic.vcf
+
+# Stratified evaluation against GIAB truth set
+bcftools isec -p benchmark_dir filtered.vcf truth.vcf.gz
 ```
 
 ## Sample-Level Filtering
@@ -358,21 +380,46 @@ vcf.close()
 
 ## Validate Filtering
 
-**Goal:** Assess the impact of filtering on variant quality and retention.
+**Goal:** Assess the impact of filtering on variant quality and retention using diagnostic metrics.
 
-**Approach:** Compare before/after bcftools stats, check Ti/Tv ratio improvement, and count variants per filter label.
+**Approach:** Compare before/after bcftools stats, check Ti/Tv and Het/Hom ratios against expected ranges, and verify known variant recovery.
+
+Expected metric ranges for human samples:
+
+| Metric | WGS | WES | Interpretation |
+|--------|-----|-----|----------------|
+| Ti/Tv | 2.0-2.1 | 2.8-3.3 | Below range suggests excess false positives; above range suggests over-filtering. WES is higher due to coding region enrichment (CpG transitions). |
+| Het/Hom | 1.5-2.0 | 1.5-2.0 | Population-dependent. Outliers suggest contamination (high het) or inbreeding (low het). |
+| Known variant % | >99% (dbSNP) | >99% | Low recovery of known variants indicates over-filtering. |
+
+If Ti/Tv drops after filtering, the filters may be preferentially removing true transitions.
 
 ```bash
 # Compare before/after stats
 bcftools stats input.vcf > before_stats.txt
 bcftools stats filtered.vcf > after_stats.txt
 
-# Ti/Tv ratio (should be ~2.1 for WGS, ~2.8-3.3 for exomes)
+# Ti/Tv ratio
 bcftools stats filtered.vcf | grep 'TSTV'
 
-# Count variants per filter
+# Het/Hom ratio
+bcftools stats -s - filtered.vcf | grep ^PSC | awk '{print $3, "het/hom:", $5/$6}'
+
+# Count variants per filter label
 bcftools query -f '%FILTER\n' filtered.vcf | sort | uniq -c
+
+# Known variant recovery (requires dbSNP-annotated VCF)
+bcftools view -i 'ID!="."' filtered.vcf | bcftools stats | grep 'number of SNPs'
 ```
+
+## Common Filtering Pitfalls
+
+- **Over-filtering rare variants**: Strict annotation thresholds disproportionately penalize rare variants, which have fewer supporting reads and therefore noisier annotations. Consider tiered filtering: relaxed thresholds for singletons, standard for common variants.
+- **Applying SNP filters to indels**: SNPs and indels have fundamentally different annotation distributions (e.g., FS, SOR, ReadPosRankSum). Always separate by variant type before filtering.
+- **Ignoring multiallelic sites**: Standard VQSR evaluates all alleles at a site together. For large cohorts, allele-specific VQSR (-AS flag) evaluates each allele independently, preventing a single poor allele from dragging down a good one.
+- **Not verifying filter effects**: Always check Ti/Tv, Het/Hom, and known variant recovery rate before and after filtering. A filter that improves one metric while degrading another may be miscalibrated.
+- **Filtering on depth alone**: DP filtering removes sites in collapsed segmental duplications that may harbor real variants. Combine DP with other annotations (MQ, MQRankSum) to distinguish true high-depth from mapping artifacts.
+- **Not examining annotation distributions**: Plot histograms of each annotation (QD, FS, MQ) stratified by known true positives (e.g., HapMap sites) vs likely false positives before choosing thresholds. GATK defaults are population-level recommendations; specific datasets may warrant adjustment.
 
 ## Quick Reference
 
@@ -397,7 +444,10 @@ bcftools query -f '%FILTER\n' filtered.vcf | sort | uniq -c
 
 ## Related Skills
 
-- variant-calling/variant-calling - Generate VCF files
-- variant-calling/gatk-variant-calling - GATK VQSR
-- variant-calling/variant-annotation - Annotation after filtering
-- variant-calling/vcf-statistics - Evaluate filter effects
+- variant-calling/variant-calling - Variant calling with bcftools to generate VCF files
+- variant-calling/gatk-variant-calling - GATK HaplotypeCaller and VQSR pipelines
+- variant-calling/deepvariant - Deep learning variant calling as an alternative to GATK
+- variant-calling/variant-annotation - Functional annotation after filtering
+- variant-calling/vcf-statistics - Evaluate filter effects with concordance and summary metrics
+- variant-calling/vcf-basics - VCF format fundamentals and field interpretation
+- variant-calling/variant-normalization - Left-align and decompose before filtering for consistent comparisons

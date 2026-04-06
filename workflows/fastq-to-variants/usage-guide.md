@@ -51,13 +51,13 @@ Tell your AI agent what you want to do:
 | Targets (optional) | BED | For exome/targeted sequencing |
 | Known sites (GATK) | VCF | dbSNP for BQSR |
 
-## What the Workflow Does
+## What the Agent Will Do
 
-1. **Quality Control** - Trim adapters and low-quality bases
-2. **Alignment** - Map reads to reference genome
-3. **BAM Processing** - Sort, mark duplicates, index
-4. **Variant Calling** - Identify SNPs and indels
-5. **Filtering** - Remove low-quality calls
+1. Trim adapters and low-quality bases with fastp
+2. Align reads to reference genome with bwa-mem2
+3. Sort, mark duplicates, and index BAM files
+4. Call SNPs and indels with bcftools or GATK HaplotypeCaller
+5. Filter variants by quality metrics and validate with Ti/Tv ratio
 
 ## Choosing Between bcftools and GATK
 
@@ -70,8 +70,16 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **Read groups**: Always add read group information during alignment
-- **Duplicates**: Mark duplicates for PCR-based libraries
-- **Depth**: Check coverage before variant calling (aim for 30x WGS, 100x exome)
-- **Joint calling**: Improves sensitivity, especially for rare variants
-- **Filtering**: Start with default filters, adjust based on Ti/Tv ratio and known site overlap
+- Always add read group information during alignment -- required for GATK
+- Mark duplicates for PCR-based libraries (PCR-free libraries still benefit)
+- Check coverage before variant calling (aim for 30x WGS, 100x exome)
+- Joint calling improves sensitivity, especially for rare variants
+- Start with default filters, adjust based on Ti/Tv ratio and known site overlap
+
+## Related Skills
+
+- variant-calling/variant-calling - bcftools calling details
+- variant-calling/gatk-variant-calling - GATK HaplotypeCaller and DRAGEN mode
+- variant-calling/filtering-best-practices - VQSR and hard filtering
+- read-qc/fastp-workflow - Read QC details
+- read-alignment/bwa-alignment - Alignment details

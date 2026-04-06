@@ -1,5 +1,5 @@
 '''Positive selection analysis with PAML codeml'''
-# Reference: biopython 1.83+, hyphy 2.5+, paml 4.10+, scipy 1.12+ | Verify API if version differs
+# Reference: biopython 1.83+, hyphy 2.5+, paml 4.10+, prank 170427+, scipy 1.12+ | Verify API if version differs
 
 import os
 import subprocess
@@ -212,12 +212,16 @@ if __name__ == '__main__':
 
     summarize_selection_test(m7_example, m8_example)
 
-    print('\n\nTo run on real data:')
-    print('1. Prepare codon alignment (in-frame, PHYLIP format)')
-    print('2. Generate phylogenetic tree')
-    print('3. ctl_m7 = write_codeml_control(aln, tree, "m7.mlc", "M7")')
-    print('4. ctl_m8 = write_codeml_control(aln, tree, "m8.mlc", "M8")')
-    print('5. run_codeml(ctl_m7); run_codeml(ctl_m8)')
-    print('6. m7 = parse_mlc_file("m7.mlc")')
-    print('7. m8 = parse_mlc_file("m8.mlc")')
-    print('8. summarize_selection_test(m7, m8)')
+    print('\n\nRecommended pipeline for real data:')
+    print('1. Align CDS with PRANK: prank -d=cds.fasta -o=aligned -codon')
+    print('2. Screen for recombination: hyphy gard --alignment aligned.best.fas')
+    print('3. If breakpoints found, partition alignment at breakpoints')
+    print('4. Screen gene-wide: hyphy busted --alignment aln.fasta --tree tree.nwk')
+    print('5. If BUSTED significant, run site models:')
+    print('   ctl_m8a = write_codeml_control(aln, tree, "m8a.mlc", "M8a")')
+    print('   ctl_m8 = write_codeml_control(aln, tree, "m8.mlc", "M8")')
+    print('   run_codeml(ctl_m8a); run_codeml(ctl_m8)')
+    print('6. LRT with df=1 for M8 vs M8a (more stringent than M7 vs M8)')
+    print('7. Cross-validate with MEME for episodic site selection')
+    print('8. Inspect alignment at BEB-flagged sites for artifacts')
+    print('9. Check dS values -- if dS > 3, results are unreliable')

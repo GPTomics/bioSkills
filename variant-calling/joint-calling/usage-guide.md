@@ -59,10 +59,10 @@ Tell your AI agent what you want to do:
 
 ## Why Joint Calling?
 
-- **Better sensitivity**: Leverage information across samples
-- **Consistent sites**: Same positions called in all samples
-- **VQSR eligible**: Machine learning filtering requires cohorts
-- **Population frequencies**: Calculate allele frequencies across cohort
+- Better sensitivity: leverage information across samples
+- Consistent sites: same positions called in all samples
+- VQSR eligible: machine learning filtering requires cohorts
+- Population frequencies: calculate allele frequencies across cohort
 
 ## Workflow Overview
 
@@ -158,6 +158,9 @@ gatk VariantFiltration \
     -O filtered.vcf.gz
 ```
 
-## See Also
+## Related Skills
 
-- [GATK joint calling tutorial](https://gatk.broadinstitute.org/hc/en-us/articles/360035531152)
+- variant-calling/gatk-variant-calling - Single-sample calling and VQSR
+- variant-calling/filtering-best-practices - VQSR and hard filtering details
+- variant-calling/deepvariant - DeepVariant + GLnexus alternative joint calling
+- population-genetics/plink-basics - Population analysis of joint calls

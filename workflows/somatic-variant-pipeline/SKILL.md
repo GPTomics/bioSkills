@@ -260,7 +260,7 @@ echo "Stats: ${OUTPUT_PREFIX}_stats.txt"
 
 ## Tumor-Only Mode
 
-When matched normal is unavailable:
+When matched normal is unavailable (e.g., archival FFPE, cell lines):
 
 ```bash
 gatk Mutect2 \
@@ -271,7 +271,26 @@ gatk Mutect2 \
     -O tumor_only.vcf.gz
 ```
 
-Note: Higher false positive rate without matched normal.
+Higher false positive rate without matched normal -- many germline variants will pass filters. The PoN and gnomAD germline resource become critical for artifact and germline removal respectively.
+
+## Consensus Calling (Improved Accuracy)
+
+Running multiple callers and requiring agreement improves both precision and recall:
+
+```bash
+# Run Mutect2, Strelka2, and MuSE independently, then intersect
+# Majority voting (2/3 agreement) achieves F1 ~0.927 for SNVs
+bcftools isec -n+2 -p consensus_dir \
+    mutect2_pass.vcf.gz strelka2_pass.vcf.gz muse_pass.vcf.gz
+
+# For indels: Mutect2 + Strelka2 + VarScan2 with 2/3 agreement
+```
+
+Strict intersection (all agree) sacrifices too much recall; union includes too many false positives. Majority voting provides the best balance.
+
+## Emerging: DeepSomatic
+
+DeepSomatic extends DeepVariant's CNN approach to somatic calling with platform-specific models (Illumina, PacBio HiFi, ONT). Published Nature Biotechnology 2025, it achieves higher F1 than existing callers across all platforms and supports tumor-only and FFPE modes.
 
 ## Key Resources
 
@@ -301,5 +320,5 @@ bcftools query -f '%AF\n' somatic_final.vcf.gz | \
 - variant-calling/gatk-variant-calling - Germline variant calling
 - variant-calling/filtering-best-practices - Filtering strategies
 - variant-calling/variant-annotation - VEP/SnpEff annotation
+- variant-calling/structural-variant-calling - Somatic SV detection (Manta tumor-normal mode)
 - copy-number/cnvkit-analysis - Somatic CNV calling
-- variant-calling/variant-annotation - Germline pipeline

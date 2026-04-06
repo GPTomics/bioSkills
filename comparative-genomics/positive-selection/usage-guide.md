@@ -46,19 +46,32 @@ Tell your AI agent what you want to do:
 
 ## What the Agent Will Do
 
-1. Prepare codon alignment in PHYLIP format
-2. Create codeml control file for appropriate model
-3. Run site models (M7 vs M8) or branch-site tests
-4. Perform likelihood ratio test for significance
-5. Extract positively selected sites (BEB posterior > 0.95)
-6. Alternatively run HyPhy BUSTED/MEME for episodic selection
-7. Report sites with significance levels
+1. Align CDS sequences with PRANK (codon-aware) or verify existing alignment quality
+2. Screen for recombination with GARD; partition alignment if breakpoints found
+3. Run gene-wide selection screen (BUSTED) to test for any positive selection
+4. If significant, run site models (M8 vs M8a or M7 vs M8) and/or MEME for site identification
+5. Perform likelihood ratio test with appropriate chi-squared distribution
+6. Extract positively selected sites (BEB posterior > 0.95)
+7. Check for false-positive signals (saturation, gBGC, alignment artifacts at flagged sites)
+8. Apply multiple testing correction (FDR) when analyzing gene families
 
 ## Tips
 
-- **Codon alignment** - Must be in-frame; remove sequences with frameshifts
-- **Site models** - Use M8 vs M7 for most analyses; M8 vs M8a is more stringent
-- **Branch-site** - Mark foreground with #1 in tree; useful for lineage-specific selection
+- **Alignment first** - Use PRANK for codon alignment (correctly handles insertions); avoid Gblocks filtering
+- **Check for recombination** - Run GARD before any selection test to avoid inflated false positives
+- **Site models** - M8 vs M8a is the recommended primary test (more stringent than M7 vs M8)
+- **Branch-site LRT** - Uses 50:50 chi-squared mixture distribution; critical value is 2.71 (not 3.84)
 - **BEB thresholds** - P > 0.95 significant (*), P > 0.99 highly significant (**)
-- **HyPhy preference** - Use MEME for episodic selection, FEL for pervasive
-- **Multiple testing** - Correct p-values when testing many genes
+- **HyPhy pipeline** - BUSTED (gene-wide) -> aBSREL (branch) -> MEME (episodic sites) / FEL (pervasive sites)
+- **False positives** - dN/dS > 1 can result from GC-biased gene conversion, saturation (dS > 3), or alignment errors rather than positive selection
+- **Multiple testing** - Use FDR (Benjamini-Hochberg) across genes, not Bonferroni (genes are non-independent)
+- **Saturation check** - If dS > 3, codon-based analysis is unreliable; switch to amino acid comparison
+
+## Related Skills
+
+- comparative-genomics/synteny-analysis - Synteny context for gene pairs
+- comparative-genomics/ortholog-inference - Identify orthologs for analysis
+- comparative-genomics/ancestral-reconstruction - Reconstruct sequences at selected branches
+- alignment/msa-parsing - Parse and manipulate codon alignments
+- alignment/multiple-alignment - PRANK codon-aware alignment
+- phylogenetics/modern-tree-inference - Generate trees for codeml

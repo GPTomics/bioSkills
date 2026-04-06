@@ -20,12 +20,23 @@ package and adapt the example to match the actual API rather than retrying.
 **"Joint genotype my cohort samples"** → Combine per-sample gVCFs into a single cohort callset with consistent genotyping across all sites, enabling VQSR and population-level analysis.
 - CLI: `gatk HaplotypeCaller -ERC GVCF` → `gatk GenomicsDBImport` → `gatk GenotypeGVCFs`
 
-## Why Joint Calling?
+## Why Joint Calling Matters
 
-- **Improved sensitivity** - Leverage information across samples
-- **Consistent genotyping** - Same sites called across all samples
-- **VQSR eligible** - Requires cohort for machine learning filtering
-- **Population analysis** - Allele frequencies across cohort
+Single-sample calling discards cross-sample evidence that is critical for accurate genotyping:
+
+- **Statistical power from shared evidence** - A site with 2 alt reads in one sample is borderline and would typically be missed. If 50 other samples in the cohort also show 2 alt reads at that site, the evidence is overwhelming and the variant is clearly real. Joint calling aggregates this weak-per-sample signal into strong cohort-level evidence.
+- **Genotype refinement via cohort priors** - Individual genotype likelihoods are combined with cohort allele frequencies as a Bayesian prior. A heterozygous call at a common variant site (AF=0.3) receives more support than the same call at a site with no other carriers. This prior dramatically improves accuracy for low-coverage samples.
+- **Consistent site representation** - All samples are genotyped at the same sites, producing homozygous-reference calls where applicable. Without joint calling, a missing genotype is ambiguous: it could mean homozygous-reference or simply insufficient coverage. This "missing = reference" assumption is a common source of false negatives in downstream analysis.
+- **VQSR eligibility** - Variant quality score recalibration requires cohort-level variant distributions and generally needs 30+ samples to build reliable models.
+
+## Cohort Size Decision Table
+
+| Cohort Size | Approach | Notes |
+|---|---|---|
+| <100 | CombineGVCFs or GenomicsDB | Either works; CombineGVCFs is simpler to manage |
+| 100-10,000 | GenomicsDB + GenotypeGVCFs | Standard GATK Best Practices; shard by chromosome |
+| 10,000-100,000 | GATK Biggest Practices | Heavily sharded and parallelized across intervals |
+| >100,000 | DeepVariant + GLnexus, or Hail VDS | GATK becomes unwieldy at this scale; purpose-built tools required |
 
 ## Workflow Overview
 
@@ -146,6 +157,16 @@ gatk GenomicsDBImport \
     -L chr1
 ```
 
+### GenomicsDB Critical Caveats
+
+GenomicsDB is powerful but has sharp edges that can cause data loss or silent failures:
+
+- **No sample replacement** - Existing samples cannot be updated or overwritten. Only new samples with different names can be added. To fix a sample, the entire workspace must be recreated.
+- **Intervals locked at import time** - The genomic intervals specified during the initial import cannot be changed on incremental updates. Adding new regions requires reimporting from scratch.
+- **Fragment accumulation** - Each incremental batch creates a new database fragment. After thousands of incremental additions, file handle exhaustion becomes likely. Run `--consolidate` periodically to merge fragments.
+- **Corruption risk on failed adds** - A failed incremental import can leave the datastore in an inconsistent state. Always backup the workspace directory before running `--genomicsdb-update-workspace-path`.
+- **Batch size for memory** - Use `--batch-size 50` (the default) to control memory consumption. Larger batches load more gVCFs simultaneously and can exhaust heap space.
+
 ## Step 3: GenotypeGVCFs
 
 ### From Combined gVCF
@@ -181,6 +202,8 @@ bcftools concat chr{1..22}.vcf.gz chrX.vcf.gz chrY.vcf.gz \
 
 ### With Allele-Specific Annotations
 
+For larger cohorts where multiallelic sites are common, allele-specific annotations allow VQSR to evaluate each allele independently rather than penalizing a good allele because a co-occurring allele is poor:
+
 ```bash
 gatk GenotypeGVCFs \
     -R reference.fa \
@@ -189,6 +212,8 @@ gatk GenotypeGVCFs \
     -G StandardAnnotation \
     -G AS_StandardAnnotation
 ```
+
+When allele-specific annotations are present, use `-AS` mode in VariantRecalibrator and ApplyVQSR for allele-level filtering.
 
 ## Step 4: Filtering
 
@@ -250,6 +275,44 @@ gatk VariantFiltration \
     --filter-expression "MQ < 40.0" --filter-name "MQ40" \
     -O cohort.filtered.vcf.gz
 ```
+
+## Batch Effects in Joint Calling
+
+Joint genotyping mitigates most batch effects because it re-evaluates genotype likelihoods across all samples simultaneously, recalibrating quality scores against the full cohort distribution. However, certain batch effects persist through joint calling because they affect the underlying read data, not the genotyping model:
+
+- **Different library prep protocols** - PCR-free vs PCR-based libraries produce different duplicate and error profiles
+- **Different capture kits (WES)** - Exome kits target different regions; sites outside the intersection have systematically missing data in some batches
+- **Significantly different coverage distributions** - 10x WGS samples mixed with 30x samples will have systematically different genotype quality at heterozygous sites
+- **Different reference genome versions** - Mixing GRCh37 and GRCh38 alignments is not valid; all samples must use the same reference
+- **Mixing WGS and WES** - Fundamentally different coverage profiles; off-target WES regions behave like very-low-coverage WGS
+
+Mitigation: process all samples through an identical upstream pipeline (same aligner, same duplicate marking, same BQSR resources). If batches are unavoidable, include batch as a covariate in downstream association or differential analyses.
+
+## When to Re-genotype
+
+| Scenario | Action | Rationale |
+|---|---|---|
+| Adding new samples | Re-genotype (GenomicsDB incremental add + GenotypeGVCFs on full database) | New samples change cohort allele frequencies, improving all genotype calls |
+| Changing reference genome | Full reprocess from alignment | gVCF coordinates are reference-specific |
+| Updating caller version | Optional but recommended for consistency | Different caller versions may produce different quality scores; mixing versions adds noise |
+| Adding new genomic intervals | Reimport from scratch | GenomicsDB intervals are locked at initial import; incremental update cannot expand them |
+
+## DeepVariant + GLnexus Alternative
+
+For cohorts using DeepVariant as the primary caller, GLnexus provides a scalable joint calling pathway that has been validated at 250,000+ samples:
+
+```bash
+# Step 1: Run DeepVariant per sample to produce gVCFs
+deepvariant --model_type=WGS \
+    --ref=reference.fa --reads=sample.bam \
+    --output_vcf=sample.vcf.gz --output_gvcf=sample.g.vcf.gz
+
+# Step 2: Joint call with GLnexus (pre-tuned configs available)
+glnexus_cli --config DeepVariantWGS --bed intervals.bed \
+    sample1.g.vcf.gz sample2.g.vcf.gz ... | bcftools view - | bgzip -c > cohort.vcf.gz
+```
+
+Pre-tuned GLnexus configs: `DeepVariantWGS` for whole-genome, `DeepVariantWES` for whole-exome. These configs encode appropriate genotype quality thresholds and multiallelic handling tuned for DeepVariant output.
 
 ## Complete Pipeline Script
 
@@ -314,25 +377,18 @@ echo "Joint VCF: $OUTPUT_DIR/vcfs/cohort.vcf.gz"
 ### Memory for Large Cohorts
 
 ```bash
-# Increase Java heap
+# Increase Java heap for GenotypeGVCFs (default 4g is often insufficient for >500 samples)
 gatk --java-options "-Xmx64g" GenotypeGVCFs ...
 
-# Batch size for GenomicsDBImport
+# For GenomicsDBImport, --batch-size controls how many gVCFs are loaded simultaneously
 gatk GenomicsDBImport --batch-size 50 ...
-```
-
-### Incremental Updates
-
-```bash
-# Add new samples to existing database
-gatk GenomicsDBImport \
-    --genomicsdb-update-workspace-path existing_db \
-    --sample-name-map new_samples.txt
 ```
 
 ## Related Skills
 
-- variant-calling/gatk-variant-calling - Single-sample calling
-- variant-calling/filtering-best-practices - VQSR and hard filtering
+- variant-calling/gatk-variant-calling - Single-sample HaplotypeCaller workflow
+- variant-calling/deepvariant - DeepVariant caller for use with GLnexus pathway
+- variant-calling/filtering-best-practices - VQSR and hard filtering strategies
+- variant-calling/vcf-manipulation - Merging and subsetting joint-called VCFs
 - population-genetics/plink-basics - Population analysis of joint calls
 - workflows/fastq-to-variants - End-to-end germline pipeline

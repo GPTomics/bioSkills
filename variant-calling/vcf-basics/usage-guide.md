@@ -61,9 +61,20 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Always use bgzip (not gzip) for VCF compression - bcftools requires it
+- Always use bgzip (not gzip) for VCF compression -- bcftools requires it
 - Index files (.tbi or .csi) enable fast region queries
 - BCF format is faster to process than VCF for large files
 - Use `-H` flag with bcftools query to skip the header line
 - cyvcf2 is faster than PyVCF for large files
 - Filter status of `None` in cyvcf2 means the variant passed all filters
+- QUAL measures site-level variant existence; GQ measures per-sample genotype confidence -- filtering on both is recommended
+- The sum of AD values may be less than DP because DP includes uninformative reads -- this is expected, not an error
+- QD (quality by depth) is generally preferred over raw QUAL for filtering because it normalizes for coverage
+- At multiallelic sites, splitting into biallelic records loses compound heterozygosity information -- consider whether downstream tools need multiallelic or biallelic input
+
+## Related Skills
+
+- variant-calling - Generate VCF from alignments
+- filtering-best-practices - Filter variants by quality/criteria
+- vcf-manipulation - Merge, concat, intersect VCFs
+- alignment-files/pileup-generation - Generate pileup for calling

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Call somatic mutations from tumor-normal paired samples.
+Call somatic mutations from tumor-normal paired samples using Mutect2 or Strelka2, with contamination estimation, orientation bias filtering, and annotation.
 
 ## Prerequisites
 
@@ -11,50 +11,13 @@ conda install -c bioconda gatk4 strelka bcftools
 pip install pysam
 ```
 
-## Pipeline Overview
+## Quick Start
 
-```
-Tumor BAM + Normal BAM
-    ├── Preprocessing (MarkDuplicates, BQSR)
-    ├── Variant Calling (Mutect2 or Strelka2)
-    ├── Filtering (contamination, orientation bias)
-    ├── Annotation (VEP, Funcotator)
-    └── Final VCF
-```
-
-## Quick Start: Mutect2
-
-```bash
-# Call variants
-gatk Mutect2 \
-    -R reference.fa \
-    -I tumor.bam \
-    -I normal.bam \
-    -normal normal_sample_name \
-    --germline-resource gnomad.vcf.gz \
-    --panel-of-normals pon.vcf.gz \
-    -O somatic.vcf.gz
-
-# Filter
-gatk FilterMutectCalls \
-    -R reference.fa \
-    -V somatic.vcf.gz \
-    -O filtered.vcf.gz
-```
-
-## Quick Start: Strelka2
-
-```bash
-# Configure
-configureStrelkaSomaticWorkflow.py \
-    --normalBam normal.bam \
-    --tumorBam tumor.bam \
-    --referenceFasta reference.fa \
-    --runDir strelka_run
-
-# Run
-strelka_run/runWorkflow.py -m local -j 16
-```
+Tell your AI agent what you want to do:
+- "Call somatic mutations from my tumor-normal BAM pair"
+- "Run Mutect2 with contamination estimation and orientation bias filtering"
+- "Create a panel of normals from my normal samples"
+- "Annotate somatic variants with VEP"
 
 ## Complete Mutect2 Workflow
 
@@ -142,13 +105,6 @@ bcftools stats filtered.vcf.gz > stats.txt
 bcftools view -f PASS filtered.vcf.gz | bcftools stats -
 ```
 
-## Tips
-
-- Always use matched normal when available
-- Use gnomAD as germline resource
-- Panel of normals reduces false positives
-- Check tumor purity affects sensitivity
-
 ## Example Prompts
 
 > "Call somatic mutations from my tumor-normal BAM pair using Mutect2"
@@ -159,7 +115,26 @@ bcftools view -f PASS filtered.vcf.gz | bcftools stats -
 
 > "Annotate my somatic variants with VEP or Funcotator"
 
-## See Also
+## What the Agent Will Do
 
-- [GATK Mutect2 tutorial](https://gatk.broadinstitute.org/hc/en-us/articles/360035531132)
-- [Strelka2 documentation](https://github.com/Illumina/strelka)
+1. Run Mutect2 or Strelka2 on tumor-normal paired BAMs
+2. Estimate cross-sample contamination and learn orientation bias model
+3. Apply FilterMutectCalls with contamination and orientation bias corrections
+4. Extract PASS somatic variants
+5. Annotate with VEP or Funcotator for functional interpretation
+
+## Tips
+
+- Always use matched normal when available -- tumor-only mode has higher false positive rate
+- Use gnomAD as germline resource to filter common germline variants
+- Panel of normals (40+ normals from same platform) reduces systematic artifacts
+- Tumor purity affects sensitivity -- low-purity samples need higher sequencing depth
+- Consensus calling with 2+ callers (Mutect2 + Strelka2) improves accuracy
+
+## Related Skills
+
+- variant-calling/gatk-variant-calling - Germline variant calling
+- variant-calling/filtering-best-practices - Filtering strategies
+- variant-calling/variant-annotation - VEP/SnpEff annotation
+- variant-calling/structural-variant-calling - Somatic SV detection with Manta
+- copy-number/cnvkit-analysis - Somatic CNV calling
