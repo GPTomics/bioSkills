@@ -301,5 +301,5 @@ Before proceeding to downstream analysis, verify alignment quality:
 - alignment-io - Read/write MSA files in various formats
 - msa-parsing - Parse, filter, trim, and assess MSA quality
 - msa-statistics - Calculate identity, conservation, entropy metrics
-- phylogenetics/tree-building - Build phylogenetic trees from MSAs
+- phylogenetics/modern-tree-inference - Build phylogenetic trees from MSAs
 - sequence-io/read-sequences - Read input sequences for alignment

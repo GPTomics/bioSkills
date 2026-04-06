@@ -94,4 +94,4 @@ Tell your AI agent what you want to do:
 - alignment-io - Read/write MSA files in various formats
 - msa-parsing - Parse, filter, trim, and assess alignment quality
 - msa-statistics - Calculate identity, conservation, entropy metrics
-- phylogenetics/tree-building - Build phylogenetic trees from MSAs
+- phylogenetics/modern-tree-inference - Build phylogenetic trees from MSAs

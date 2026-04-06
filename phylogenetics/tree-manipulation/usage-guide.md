@@ -74,7 +74,19 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - Root trees before comparing topologies
+- Prefer multiple outgroup taxa over a single taxon (single outgroup has ~50% misplacement risk)
+- Avoid very distant outgroups, as they introduce long branches that distort topology near the root
+- Use midpoint rooting only for approximately clocklike data (e.g., viruses); validate with MAD rooting
 - Ladderize before drawing for consistent appearance
 - Check `is_monophyletic()` before rooting with multiple outgroups
 - Prune iteratively when removing many taxa
+- When collapsing by support, use the correct threshold for the support type (70 for standard bootstrap, 95 for UFBoot2)
 - Save backup before destructive operations
+
+## Related Skills
+
+- tree-io - Read and write tree files
+- tree-visualization - Draw modified trees
+- distance-calculations - Build trees from alignments
+- modern-tree-inference - ML tree inference
+- species-trees - Coalescent methods and concordance factors

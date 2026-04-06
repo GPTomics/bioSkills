@@ -67,8 +67,18 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Use `identity` model for quick exploratory analysis
+- Distance methods (NJ) are ideal for quick exploratory trees; use ML (IQ-TREE2) for publication
+- Use `identity` model for quick exploratory analysis; for divergent sequences, corrected distances (Jukes-Cantor, Kimura) are more accurate
 - Use `blosum62` for protein alignments
-- NJ is generally preferred over UPGMA (no clock assumption)
+- NJ is strongly preferred over UPGMA because UPGMA assumes a molecular clock (equal rates), which is almost never true for real data
 - 100-1000 bootstrap replicates is typical
 - Check alignment quality before tree building
+- NJ is still valuable as a sanity check before committing to expensive ML analyses. Unexpected groupings in an NJ tree warrant investigation
+- Parsimony is largely superseded by ML for molecular data but remains useful for morphological characters and rare genomic changes
+
+## Related Skills
+
+- tree-io - Save constructed trees
+- tree-visualization - Draw resulting trees
+- tree-manipulation - Root and process built trees
+- modern-tree-inference - ML tree inference for publication-quality results

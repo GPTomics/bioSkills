@@ -411,4 +411,4 @@ def sequence_to_alignment_position(record, seq_pos):
 - alignment-io - Read/write alignment files in various formats
 - pairwise-alignment - Create pairwise alignments
 - msa-statistics - Calculate conservation metrics
-- phylogenetics/tree-building - Build trees from processed alignments
+- phylogenetics/modern-tree-inference - Build trees from processed alignments

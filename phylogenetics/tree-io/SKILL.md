@@ -7,7 +7,7 @@ primary_tool: Bio.Phylo
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, scanpy 1.10+
+Reference examples tested with: BioPython 1.83+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures

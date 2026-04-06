@@ -1,6 +1,6 @@
 ---
 name: bio-phylo-tree-manipulation
-description: Modify phylogenetic tree structure using Biopython Bio.Phylo. Use when rooting trees with outgroups or midpoint, pruning taxa, collapsing clades, ladderizing branches, or extracting subtrees.
+description: Modify phylogenetic tree structure using Biopython Bio.Phylo. Use when rooting trees with outgroups, midpoint, or MAD methods, pruning taxa, collapsing clades, ladderizing branches, or extracting subtrees. Includes rooting method decision guidance.
 tool_type: python
 primary_tool: Bio.Phylo
 ---
@@ -22,6 +22,19 @@ package and adapt the example to match the actual API rather than retrying.
 
 Modify phylogenetic tree structure: rooting, pruning, ladderizing, and subtree extraction.
 
+## Rooting Method Decision
+
+| Method | Mechanism | When to Use | Pitfalls |
+|--------|-----------|-------------|----------|
+| Outgroup | External taxon(a) known to be sister to ingroup | **Default method** when a suitable outgroup exists | Too-distant outgroup causes LBA; single outgroup has ~50% misplacement risk |
+| Midpoint | Root halfway between most divergent taxa | Quick exploratory; when outgroup is unknown; viral phylogenetics | Assumes clocklike evolution; fails with rate variation |
+| MAD | Minimizes ancestor branch deviation across all tip pairs | More robust than midpoint; good complement to outgroup | Still assumes approximately clocklike rates |
+| RootDigger | Non-reversible substitution model (CLI tool) | When outgroup is unavailable and clock assumption is untenable | Computationally intensive |
+
+**Best practice:** Use outgroup rooting with multiple sister-group taxa as the primary method. Validate with MAD. If results conflict, investigate rate variation. A single outgroup taxon gives only ~50% accuracy for root placement, so always prefer multiple outgroups that form a monophyletic group.
+
+**Common mistake:** Using a very distant outgroup (e.g., a bacterial sequence to root a eukaryotic tree) introduces a long branch that attracts other long branches, distorting topology near the root.
+
 ## Required Import
 
 ```python
@@ -31,39 +44,46 @@ from io import StringIO
 
 ## Rooting Trees
 
-### Root with Outgroup
+### Root with Outgroup (Preferred)
+
+**Goal:** Root the tree using known sister-group taxa as outgroup.
+
+**Approach:** Verify outgroup taxa are monophyletic, then reroot. Prefer multiple outgroup taxa over a single taxon to improve root placement accuracy.
 
 ```python
 tree = Phylo.read('tree.nwk', 'newick')
 
-# Root with single taxon
+# Root with single taxon (acceptable but less reliable)
 tree.root_with_outgroup({'name': 'Outgroup'})
 
-# Root with multiple taxa (must be monophyletic)
+# Root with multiple taxa (preferred -- must be monophyletic)
 outgroup = [{'name': 'TaxonA'}, {'name': 'TaxonB'}]
 if tree.is_monophyletic(outgroup):
     tree.root_with_outgroup(*outgroup)
 else:
-    print('Outgroup is not monophyletic')
+    print('Outgroup is not monophyletic -- check taxon selection')
 ```
 
 ### Root at Midpoint
+
+Appropriate when no suitable outgroup exists and evolution is approximately clocklike (e.g., viral phylogenetics). Not reliable when substitution rates vary substantially across lineages.
 
 ```python
 tree = Phylo.read('tree.nwk', 'newick')
 tree.root_at_midpoint()
 ```
 
+### MAD Rooting (CLI Alternative)
+
+Minimal Ancestor Deviation rooting is more robust to rate variation than midpoint. Install via `pip install mad` or use the standalone tool. Useful as a validation of outgroup rooting results.
+
 ### Check Rooting Status
 
 ```python
-# Check if tree is rooted (bifurcating at root)
-print(f'Is bifurcating: {tree.is_bifurcating()}')
-
-# Count children of root
+# 2 children at root = rooted; 3+ = unrooted
 root = tree.root
 print(f'Root has {len(root.clades)} children')
-# 2 children = rooted, 3+ children = unrooted
+print(f'Is bifurcating: {tree.is_bifurcating()}')
 ```
 
 ## Ladderizing
@@ -115,7 +135,7 @@ for term in terminals:
 
 ## Collapsing Clades
 
-Collapse branches below a threshold.
+Collapse branches below a support threshold into polytomies. The threshold depends on the support measure used: >= 70 for standard bootstrap, >= 95 for UFBoot2 (these are not equivalent scales).
 
 ```python
 tree = Phylo.read('tree.nwk', 'newick')
@@ -125,10 +145,11 @@ target = tree.find_any(name='SomeInternalNode')
 if target:
     tree.collapse(target)
 
-# Collapse all clades matching criteria (branch length threshold)
+# Collapse by branch length
 tree.collapse_all(lambda c: c.branch_length and c.branch_length < 0.01)
 
-# Collapse all poorly-supported nodes
+# Collapse poorly-supported nodes
+# Use 70 for standard bootstrap; use 95 for UFBoot2 values
 tree.collapse_all(lambda c: c.confidence is not None and c.confidence < 70)
 ```
 
@@ -366,3 +387,5 @@ random_tree = Tree.randomized(taxa, branch_length=1.0)
 - tree-io - Read and write tree files
 - tree-visualization - Draw modified trees
 - distance-calculations - Build trees from alignments
+- modern-tree-inference - ML tree inference (rooting before/after inference)
+- species-trees - Coalescent methods and concordance factors

@@ -62,8 +62,19 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
+- Bio.Phylo is best for quick rectangular tree plots; for circular layouts, metadata heatmaps, or complex annotations, use ggtree (R), ETE4 (Python), or iTOL (web)
 - Always `ladderize()` trees before drawing for cleaner appearance
 - Scale figure height with number of taxa (0.3 inches per taxon works well)
 - Set `do_show=False` when saving to file to avoid display issues
 - Convert to PhyloXML for better color support
 - Use `bbox_inches='tight'` when saving to avoid cropped labels
+- For publication, consider ggtree which supports `gheatmap()` for aligned metadata panels, `geom_cladelabel()` for clade bars, and circular/fan layouts
+- iTOL is excellent for interactive exploration and sharing with collaborators; export SVG for final figure editing
+
+## Related Skills
+
+- tree-io - Read and write tree files
+- tree-manipulation - Ladderize and reroot before visualization
+- distance-calculations - Build trees from alignments
+- modern-tree-inference - ML tree inference
+- data-visualization/ggplot2-fundamentals - R-based visualization fundamentals
