@@ -141,7 +141,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **alternative-splicing** | 6 | rMATS-turbo, SUPPA2, IsoformSwitchAnalyzeR | Splicing quantification, differential splicing, isoform switching, sashimi visualization |
 | **chemoinformatics** | 7 | RDKit, DeepChem, AutoDock Vina | Molecular I/O, descriptors, similarity, ADMET, virtual screening, reaction enumeration |
 | **liquid-biopsy** | 6 | ichorCNA, fgbio, VarDict, FinaleToolkit | cfDNA preprocessing, fragmentomics, tumor fraction, ctDNA mutations, longitudinal monitoring |
-| **workflows** | 40 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics, time-course, eDNA |
+| **workflows** | 41 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics, time-course, eDNA, clinical trials |
 | **proteomics** | 9 | pyOpenMS, limma, DEqMS, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
@@ -171,12 +171,13 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **temporal-genomics** | 5 | CosinorPy, Mfuzz, mgcv, statsmodels, scipy | Circadian rhythms, temporal clustering, trajectory modeling, dynamic GRN inference, periodicity detection |
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
+| **clinical-biostatistics** | 6 | statsmodels, scipy, tableone, pyreadstat | CDISC data handling, logistic regression, categorical tests, effect measures, subgroup analysis, trial reporting |
 
-**Total: 431 skills across 62 categories**
+**Total: 438 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 431 skills across 62 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 438 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -283,6 +284,11 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 "Compare biodiversity across my sampling sites using Hill number rarefaction"
 "Find loci under local adaptation across an elevation gradient"
 "Estimate effective population size for my endangered species"
+
+# Clinical Biostatistics
+"Run logistic regression on my clinical trial data controlling for age and sex, and extract odds ratios"
+"Test association between vaccination status and disease severity with chi-square"
+"Analyze treatment effects across patient subgroups and generate a forest plot"
 
 # Sequence Alignment
 "Align these 50 protein sequences with the most accurate MSA method"

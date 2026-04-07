@@ -50,6 +50,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | causal-genomics-pipeline | GWAS summary statistics to causal inference via MR, colocalization, and fine-mapping |
 | timecourse-pipeline | Expression matrix to temporal patterns via Mfuzz clustering, rhythm detection, and GAM fitting |
 | edna-pipeline | eDNA amplicons to community ecology via OBITools3/DADA2, iNEXT, and vegan |
+| clinical-trial-pipeline | CDISC data to statistical analysis with logistic regression, subgroup tests, and Table 1 |
 
 ## Example Prompts
 
@@ -85,6 +86,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 - "Run post-GWAS causal inference on my summary statistics"
 - "Analyze my time-course expression experiment end to end"
 - "Process my eDNA water samples through the full biodiversity pipeline"
+- "Analyze my clinical trial data from CDISC files to odds ratios and forest plots"
 
 ## Requirements
 
@@ -112,3 +114,4 @@ BiocManager::install(c('DESeq2', 'Seurat', 'clusterProfiler'))
 - **causal-genomics** - Causal inference from GWAS
 - **temporal-genomics** - Circadian rhythms, temporal clustering, trajectory modeling
 - **ecological-genomics** - eDNA metabarcoding, biodiversity metrics, community ecology
+- **clinical-biostatistics** - Clinical trial statistical methods
