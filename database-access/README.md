@@ -22,6 +22,10 @@ Access NCBI and UniProt databases, download sequences, query SRA/GEO, and run BL
 | uniprot-access | Query UniProt protein database, ID mapping, batch retrieval |
 | interaction-databases | Query STRING, BioGRID, IntAct protein interaction databases |
 
+## External Complement
+
+- **[Paperzilla](https://github.com/paperzilla-ai/paperzilla-skills)** ([ClawHub](https://clawhub.ai/pors/paperzilla)) - Conversational literature monitoring and paper chat for biology and medical research. It currently supports project-based bioRxiv and medRxiv feeds, can fetch paper markdown for summarization and relevance assessment, and has PubMed support planned.
+
 ## Example Prompts
 
 - "Find PubMed articles about CRISPR published in 2024"
