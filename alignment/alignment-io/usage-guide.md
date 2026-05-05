@@ -8,6 +8,9 @@ This skill handles reading, writing, and converting multiple sequence alignment 
 
 ```bash
 pip install biopython
+
+# Optional for Pfam-scale streaming and A2M/A3M handling:
+pip install pyhmmer
 ```
 
 ## Quick Start

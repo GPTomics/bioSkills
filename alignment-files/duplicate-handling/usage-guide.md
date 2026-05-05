@@ -110,7 +110,9 @@ samtools markdup -f stats.txt input.bam marked.bam
 
 ### Optical Duplicates (Patterned Flowcells)
 ```bash
+samtools markdup -d 100 input.bam marked.bam   # HiSeq (unpatterned)
 samtools markdup -d 2500 input.bam marked.bam  # NovaSeq, NextSeq
+# HiSeq: -d 100; NovaSeq/NextSeq patterned: -d 2500. See SKILL.md for full optical-distance matrix.
 ```
 
 ### Check Duplicate Rate
@@ -177,13 +179,7 @@ def remove_duplicates(input_bam, output_bam):
 
 ## Expected Duplicate Rates
 
-| Library Type | Typical Rate | Concerning |
-|--------------|--------------|------------|
-| WGS | 5-15% | >25% |
-| Exome | 10-20% | >40% |
-| ChIP-seq | 10-30% | >50% |
-| ATAC-seq | 20-40% | >60% |
-| Targeted panels | 30-60% | >80% |
+See SKILL.md "When to Mark Duplicates" decision table for assay-specific expected duplicate rates.
 
 High duplicate rates suggest:
 - Low library complexity

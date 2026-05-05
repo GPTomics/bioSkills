@@ -35,16 +35,26 @@ Pileup shows all reads covering each position in the reference, used for:
 - Allele frequency calculation
 - SNP/indel detection
 
-## samtools mpileup
+## samtools mpileup vs bcftools mpileup (Deprecation)
+
+`samtools mpileup -g/-u` (BCF output for variant calling) has been **deprecated since samtools 1.9** -- the genotype-likelihood code now lives in `bcftools mpileup`, which keeps mpileup logic versioned alongside `bcftools call` and avoids version-skew bugs.
+
+| Use case | Recommended tool |
+|----------|------------------|
+| Quick allele counts at known sites | `samtools mpileup` or pysam pileup |
+| Germline variant calling (small genomes, simple cohorts) | `bcftools mpileup` -> `bcftools call` |
+| Germline WGS / WES production | DeepVariant or HaplotypeCaller (not mpileup) |
+| Somatic SNV/indel | Mutect2 / VarDict / VarScan2 (direct from BAM) |
+| Long-read small variants | clair3 / DeepVariant ONT (direct from BAM) |
+| Long-read SV | Sniffles / cuteSV (direct from BAM) |
+| Ultra-low-frequency (ctDNA / MRD) | fgbio consensus -> `bcftools call` or hot-spot Mutect2 |
+| Per-position allele counts (custom) | pysam pileup |
+
+`samtools mpileup` (without `-g`) is still the standard tool for human-readable per-position read summaries.
 
 ### Basic Pileup
 ```bash
 samtools mpileup -f reference.fa input.bam > pileup.txt
-```
-
-### Pileup for Variant Calling (Output BCF)
-```bash
-samtools mpileup -f reference.fa -g input.bam -o output.bcf
 ```
 
 ### Pileup Specific Region
@@ -111,35 +121,78 @@ samtools mpileup -f reference.fa -Q 20 input.bam
 samtools mpileup -f reference.fa -q 20 -Q 20 input.bam
 ```
 
-### Maximum Depth
+### Maximum Depth (Critical Trap)
 ```bash
-# Prevent memory issues with high coverage
-samtools mpileup -f reference.fa -d 1000 input.bam
+# samtools mpileup default -d 8000 silently truncates targeted / mt-DNA / amplicon / UMI-deduped data
+# bcftools mpileup default -d 250 is far lower; both must be set explicitly when piping
+samtools mpileup -f reference.fa -d 0 input.bam        # no cap
+samtools mpileup -f reference.fa -d 1000000 input.bam  # explicit high cap
+
+# WRONG -- samtools 8000 cap, then bcftools 250 cap re-applied
+samtools mpileup -f ref.fa in.bam | bcftools call -mv
+
+# RIGHT -- single tool, explicit -d
+bcftools mpileup -d 1000000 -f ref.fa in.bam | bcftools call -mv
 ```
 
-## Variant Calling Pipeline
+## BAQ: Base Alignment Quality (Critical Default)
+
+When `-f ref.fa` is passed, BAQ is enabled by default. BAQ Phred-scales the probability that a base is misaligned (HMM realignment over a small window) and reduces base quality near indels. Tradeoffs: ~30% slower; suppresses FP SNVs near indels; hurts indel detection sensitivity.
+
+| Flag | Behavior |
+|------|----------|
+| (default with `-f`) | BAQ on (computed from CIGAR if MD missing) |
+| `-B` / `--no-BAQ` | Disable BAQ -- raw qualities |
+| `-E` / `--redo-BAQ` | Force recompute (after BQSR; if MD stale) |
+
+**BAQ ON for:** short-read germline SNV (BWA, Bowtie2, HISAT2), short-read somatic SNV.
+
+**BAQ OFF (`-B`) for:** long-read variant calling (ONT, PacBio HiFi), SV calling, RNA-seq near splice junctions, viral / amplicon, ultra-deep ctDNA from consensus reads (consensus quality already inflated), aDNA (qualities pre-rescaled by mapDamage).
+
+`-A` (count anomalous read pairs / orphans) is required for amplicon -- amplicon reads are by design not properly paired.
+
+`-aa` (output all positions, including zero-coverage) is required for ARTIC SARS-CoV-2 consensus generation.
+
+### Library-Typed Flags Cheat Sheet
+
+| Library | Flags |
+|---------|-------|
+| Short-read germline WGS (BWA) | `-q 20 -Q 20 -d 0` (BAQ on default) |
+| Short-read tumor WGS | `-q 1 -Q 13 -d 0 -B` (low MAPQ kept; BAQ off) |
+| Amplicon viral (ARTIC) | `-aa -A -d 600000 -B -Q 20` |
+| Capture / exome | `-q 20 -Q 20 -d 250` |
+| Long-read ONT R10.4+ | `-q 30 -Q 0 -B -d 0 --max-BQ 50` |
+| PacBio HiFi | `-q 20 -Q 0 -B -d 0` |
+| RNA-seq variants | `-q 20 -Q 20 -B -d 0` |
+| Forensic / aDNA | `-q 0 -Q 0 -A -d 0 -B` |
+
+## Variant Calling Pipeline (Modern: bcftools mpileup)
 
 **Goal:** Call variants from alignment data using the pileup-based approach.
 
-**Approach:** Pipe `samtools mpileup` output directly into `bcftools call` for variant detection, applying quality filters at the pileup stage.
+**Approach:** Use `bcftools mpileup` (not `samtools mpileup -g`) so genotype-likelihood code is co-versioned with `bcftools call`. Apply quality and depth caps explicitly; annotate FORMAT fields needed for downstream filtering.
 
-### mpileup to bcftools call
+### Modern Germline Calling
 ```bash
-samtools mpileup -f reference.fa input.bam | bcftools call -mv -o variants.vcf
+bcftools mpileup -f reference.fa -d 1000000 -q 20 -Q 20 \
+    --annotate FORMAT/AD,FORMAT/DP,FORMAT/SP,INFO/AD \
+    input.bam | \
+  bcftools call -mv -Oz -o variants.vcf.gz
+bcftools index -t variants.vcf.gz
 ```
 
-### Direct BCF Output
+### Multi-Sample Joint Calling
 ```bash
-samtools mpileup -f reference.fa -g -o output.bcf input.bam
-bcftools call -mv output.bcf -o variants.vcf
+bcftools mpileup -f reference.fa --threads 4 -d 250 -q 20 -Q 20 \
+    -a FORMAT/AD,FORMAT/DP s1.bam s2.bam s3.bam | \
+  bcftools call -mv --threads 4 -Oz -o joint.vcf.gz
 ```
 
-### Full Pipeline
-```bash
-samtools mpileup -f reference.fa -q 20 -Q 20 input.bam | \
-    bcftools call -mv -Oz -o variants.vcf.gz
-bcftools index variants.vcf.gz
-```
+For somatic / low-VAF, prefer Mutect2 / Strelka2 / DeepVariant -- materially better than mpileup-based callers.
+
+### Overlap Detection Defaults
+
+When fragment length < 2 * read_length, R1 and R2 overlap. `bcftools mpileup` detects overlap and counts once by default; `samtools mpileup` does not. Doubled support inflates somatic VAFs at sites covered by overlapping pairs (especially in cfDNA / FFPE). Prefer `bcftools mpileup` or use `samtools mpileup --ignore-overlaps`.
 
 ## pysam Python Alternative
 
@@ -279,16 +332,20 @@ pileup_text('input.bam', 'reference.fa', 'chr1', 1000000, 1000100)
 
 ## Pileup Options Summary
 
-| Option | Description |
-|--------|-------------|
-| `-f FILE` | Reference FASTA (required) |
-| `-r REGION` | Restrict to region |
-| `-l FILE` | BED file of regions |
-| `-q INT` | Min mapping quality |
-| `-Q INT` | Min base quality |
-| `-d INT` | Max depth (default 8000) |
-| `-g` | Output BCF format |
-| `-u` | Uncompressed BCF output |
+| Option | Description | Common pitfall |
+|--------|-------------|----------------|
+| `-f FILE` | Reference FASTA | Triggers BAQ ON by default |
+| `-r REGION` | Restrict to region | |
+| `-l FILE` | BED file of regions | |
+| `-q INT` | Min mapping quality | Aligner-dependent semantics |
+| `-Q INT` | Min base quality | `-Q 0` with default overlap detection has subtle behavior |
+| `-d INT` | Max depth | **Default 8000 silently truncates**; bcftools mpileup default is 250 |
+| `-B` | Disable BAQ | Often correct for long reads, SV, viral, consensus |
+| `-A` | Count anomalous pairs | Required for amplicon |
+| `-aa` | Output all positions | Required for consensus generation |
+| `--ignore-overlaps` | Disable mate-overlap correction | Rarely correct |
+| `--max-BQ INT` | Cap BQ (default 60) | Useful for ONT (Q values inflated) |
+| `-g` (DEPRECATED) | Old BCF output | Use `bcftools mpileup` instead |
 
 ## Quick Reference
 
@@ -297,8 +354,7 @@ pileup_text('input.bam', 'reference.fa', 'chr1', 1000000, 1000100)
 | Basic pileup | `samtools mpileup -f ref.fa in.bam` |
 | Quality filter | `samtools mpileup -f ref.fa -q 20 -Q 20 in.bam` |
 | Region | `samtools mpileup -f ref.fa -r chr1:1-1000 in.bam` |
-| BCF output | `samtools mpileup -f ref.fa -g in.bam -o out.bcf` |
-| To bcftools | `samtools mpileup -f ref.fa in.bam \| bcftools call -mv` |
+| To bcftools | `bcftools mpileup -f ref.fa -d 1000000 in.bam \| bcftools call -mv` |
 
 ## Common Errors
 
@@ -311,6 +367,8 @@ pileup_text('input.bam', 'reference.fa', 'chr1', 1000000, 1000100)
 ## Related Skills
 
 - alignment-filtering - Filter BAM before pileup
-- reference-operations - Index reference for pileup
-- bam-statistics - depth command for coverage
-- variant-calling - bcftools call from pileup
+- reference-operations - Index reference for pileup; M5 cross-check
+- bam-statistics - mosdepth, depth tool selection
+- variant-calling/variant-calling - Full variant calling workflows
+- variant-calling/vcf-basics - VCF/BCF I/O
+- variant-calling/joint-calling - Multi-sample joint calling

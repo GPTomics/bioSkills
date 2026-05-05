@@ -1,4 +1,13 @@
-# Reference: matplotlib 3.8+, numpy 1.26+, picard 3.1+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
+# Reference: numpy 1.26+, pysam 0.22+ | Verify API if version differs
+
+# Threshold rationale (germline short-read DNA defaults; assay-specific):
+#   sample_size=100000 -- enough reads for stable mean/median; head-of-file bias
+#       toward chr1 is acknowledged limitation (use samtools view -s for unbiased).
+#   mapping rate >= 0.9   -- WGS/WES expectation; ATAC/ChIP/RNA/aDNA can be lower.
+#   proper-pair >= 0.8     -- WGS/WES expectation; spliced RNA-seq and amplicon lower.
+#   strand balance 0.45-0.55 -- autosomal DNA-seq expectation; deviates for stranded RNA / bisulfite.
+#   MAPQ >= 30             -- conservative across BWA, HISAT2, minimap2 (Phred-scaled).
+#                            Wrong threshold for STAR (sentinel 255) or Bowtie2 (max 42).
 import pysam
 import numpy as np
 import argparse

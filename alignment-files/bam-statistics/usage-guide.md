@@ -165,14 +165,7 @@ def region_coverage(bam_path, chrom, start, end):
 
 ## QC Thresholds
 
-### Typical Good Values
-| Metric | WGS | Exome | RNA-seq |
-|--------|-----|-------|---------|
-| Mapping rate | >95% | >95% | >80% |
-| Proper pair rate | >90% | >90% | >80% |
-| Duplicate rate | <20% | <30% | N/A |
-| Mean depth | 30-50x | 50-100x | N/A |
-| Target coverage (20x) | >95% | >90% | N/A |
+Per-assay thresholds (mapping rate, duplicate rate, proper-pair rate, MAPQ, mitochondrial fraction across WGS / WES / RNA-seq / scRNA / ATAC / ChIP / long-read / aDNA) are in SKILL.md "QC Thresholds Are Assay-Specific" -- avoid duplicating tables across SKILL.md and usage-guide.md.
 
 ### Red Flags
 - Mapping rate <80%: Contamination, wrong reference, poor quality
@@ -210,7 +203,7 @@ samtools idxstats sample.bam
 Use region filtering or sampling:
 ```bash
 samtools depth -r chr1:1-10000000 sample.bam  # Single chromosome
-samtools view -s 0.1 sample.bam | samtools depth -  # Sample 10%
+samtools view -s 42.1 -b -o sub.bam sample.bam && samtools depth sub.bam  # Reproducible 10% sample
 ```
 
 ## Tips

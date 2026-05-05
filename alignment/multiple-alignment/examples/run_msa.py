@@ -1,3 +1,4 @@
+'''Run MAFFT, MUSCLE5, or ClustalOmega based on dataset size, then summarize the alignment.'''
 # Reference: MAFFT 7.520+, MUSCLE 5.1+, ClustalOmega 1.2.4+ | Verify CLI flags if version differs
 
 import subprocess

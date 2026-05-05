@@ -67,3 +67,4 @@ Tell your AI agent what you want to do:
 - Sequences below ~25% protein identity are in the **twilight zone** where alignment reliability drops sharply; consider profile methods (HHpred) or structural alignment
 - Percent identity has multiple definitions (different denominators); always report which method was used
 - Alignment algorithms always produce output even for unrelated sequences. Check statistical significance (E-value/bit score) to confirm homology
+- For one query against millions of targets, switch from pairwise DP to MMseqs2 (or MMseqs2-GPU on L40S/A100/H100 hardware) or jackhmmer; iterating Bio.Align over a database is the wrong tool

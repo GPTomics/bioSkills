@@ -7,7 +7,10 @@ This skill focuses on parsing and analyzing multiple sequence alignments (MSAs).
 ## Prerequisites
 
 ```bash
-pip install biopython
+pip install biopython numpy
+
+# Optional for Pfam-scale streaming:
+pip install pyhmmer
 ```
 
 ## Quick Start
@@ -63,6 +66,23 @@ Tell your AI agent what you want to do:
 | Conservation | Fraction of sequences with same residue at a position |
 | Consensus | Most common character at each position |
 | Gap | Missing data represented by '-' |
+
+## Working with Annotations
+
+Stockholm-derived alignments expose secondary-structure markup, GC/GR per-column annotations, and per-sequence metadata via `record.annotations`, `record.letter_annotations`, and `alignment.column_annotations`:
+
+```python
+from Bio import AlignIO
+
+alignment = AlignIO.read('pfam.sto', 'stockholm')
+for record in alignment:
+    if 'secondary_structure' in record.letter_annotations:
+        print(record.id, record.letter_annotations['secondary_structure'])
+
+ss_cons = alignment.column_annotations.get('secondary_structure')
+```
+
+GC SS_cons (consensus secondary structure), GC RF (reference coordinates), and GS metadata (organism, taxonomy) survive read/write through the `'stockholm'` format string but are silently discarded when writing to FASTA, PHYLIP, or NEXUS. Keep a Stockholm master copy if annotations matter for downstream analysis.
 
 ## Tips
 

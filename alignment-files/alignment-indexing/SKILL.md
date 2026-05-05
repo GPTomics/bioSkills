@@ -26,11 +26,34 @@ Create indices for random access to alignment files using samtools and pysam.
 
 ## Index Types
 
-| Index | Extension | Use Case |
-|-------|-----------|----------|
-| BAI | `.bai` | Standard BAM index, chromosomes < 512 Mbp |
-| CSI | `.csi` | Large chromosomes, custom bin sizes |
-| CRAI | `.crai` | CRAM index |
+| Index | Extension | Max contig | Bin shift | When required |
+|-------|-----------|-----------|-----------|---------------|
+| BAI | `.bai` / `.bam.bai` | 2^29-1 = ~536 Mbp | fixed (16 kb) | Default for human, mouse, fly, fish |
+| CSI | `.csi` / `.bam.csi` | 2^(min_shift + depth*3) | configurable via `-m` | **Required** for any contig >536 Mbp |
+| CRAI | `.crai` / `.cram.crai` | chunk-based | n/a | CRAM only |
+| TBI | `.tbi` | 2^29-1 | fixed | tabix VCF/BED -- same limit as BAI |
+
+### Which Index for Which Genome
+
+| Genome | Largest contig | Index |
+|--------|---------------|-------|
+| GRCh38 / GRCh37 (human) | 248 Mbp | BAI |
+| GRCm39 (mouse) | 195 Mbp | BAI |
+| GRCz11 (zebrafish), TAIR10 (Arabidopsis) | 78 Mbp / 30 Mbp | BAI |
+| Wheat IWGSC (Triticum aestivum) | ~830 Mbp avg | **CSI** |
+| Pine, fir, axolotl, sugar pine | multi-Gbp | **CSI with larger `-m`** |
+| Long-read assembly with very large contigs | varies | check `cut -f2 ref.fa.fai \| sort -nr \| head -1` |
+
+For polyploid plants and salamander-scale genomes, increase the bin shift:
+```bash
+# Default CSI matches BAI bin layout: 2^(14 + 5*3) = 2^29 ≈ 512 Mbp per contig
+samtools index -c file.bam
+
+# Larger min_shift for contigs >512 Mbp (wheat, axolotl, sugar pine)
+samtools index -c -m 18 file.bam   # 2^(18+15) = 2^33 = ~8.5 Gbp per contig
+```
+
+**Index file precedence trap:** when both `.bai` and `.csi` exist, samtools uses `.bai`. After re-indexing to CSI for a long contig, delete the old `.bai` or operations fail confusingly.
 
 ## samtools index
 
@@ -187,7 +210,22 @@ chr2    242193529    4500000    0
 *       0            0          10000
 ```
 
-Columns: reference name, length, mapped reads, unmapped reads
+Columns: reference name, length, mapped reads, unmapped reads.
+
+### What "mapped" Actually Counts (Caveat)
+
+The mapped column counts **every alignment record with that RNAME, including secondary AND supplementary**. For long-read minimap2 output, where a single read can produce many supplementary chimeric alignments, idxstats overcounts input reads -- typically 1.5-3x.
+
+For unique read counts, use primary-only:
+```bash
+samtools view -c -F 2304 input.bam chr1   # primary only
+```
+
+Cross-check unmapped consistency (a senior sanity check):
+```bash
+samtools idxstats file.bam | awk '{sum+=$4} END {print sum}'   # idxstats unmapped (sum across all rows; PE orphans get a contig RNAME)
+samtools view -c -f 4 -F 2304 file.bam                         # primary unmapped (should match)
+```
 
 ### Sum Total Mapped Reads
 ```bash
@@ -231,6 +269,27 @@ with pysam.FastaFile('reference.fa') as ref:
 | Index stats | `samtools idxstats file.bam` | `bam.get_index_statistics()` |
 | Index FASTA | `samtools faidx ref.fa` | Automatic with FastaFile |
 
+## Index Staleness
+
+If the BAM was modified after indexing, the index points to wrong file offsets and region queries return wrong (or zero) reads. Quick check:
+```bash
+if [ input.bam -nt input.bam.bai ]; then
+    echo "Index older than BAM; re-indexing"
+    samtools index input.bam
+fi
+```
+
+## Contig-Naming Sanity Check
+
+A leading cause of "my variant calling produced empty VCFs" tickets: querying `chrM` against a BAM that uses `MT` (or `chr1` vs `1`). Always inspect contig conventions before region queries:
+```bash
+samtools view -H input.bam | grep '^@SQ' | head -3
+# Compare with reference dict:
+samtools dict ref.fa | head -3
+```
+
+UCSC convention uses `chr1`/`chrM`; Ensembl/NCBI uses `1`/`MT`. The two are not interchangeable; tools fail with "contig not found" or silently return zero reads.
+
 ## Common Errors
 
 | Error | Cause | Solution |
@@ -238,6 +297,8 @@ with pysam.FastaFile('reference.fa') as ref:
 | `random alignment retrieval only works for indexed BAM` | Missing index | Run `samtools index file.bam` |
 | `file is not sorted` | Unsorted BAM | Sort first with `samtools sort` |
 | `chromosome not found` | Wrong chromosome name | Check names with `samtools view -H` |
+| Region query returns zero reads on a known-populated locus | Stale BAI / `chr` vs no-`chr` mismatch | Re-index; verify naming convention |
+| BAI silently truncates reads on contigs >536 Mbp | Plant / amphibian / amplified genome | Use CSI: `samtools index -c file.bam` |
 
 ## Related Skills
 

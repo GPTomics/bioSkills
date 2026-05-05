@@ -32,22 +32,34 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 ```
 
-## Supported Formats
+## Format Coverage Map
 
-| Format | Extension | Read | Write | Description |
-|--------|-----------|------|-------|-------------|
-| `clustal` | .aln | Yes | Yes | Clustal W/X output |
-| `fasta` | .fasta, .fa | Yes | Yes | Aligned FASTA |
-| `phylip` | .phy | Yes | Yes | Interleaved PHYLIP |
-| `phylip-sequential` | .phy | Yes | Yes | Sequential PHYLIP |
-| `phylip-relaxed` | .phy | Yes | Yes | PHYLIP with long names |
-| `stockholm` | .sto, .stk | Yes | Yes | Pfam/Rfam annotated |
-| `nexus` | .nex | Yes | Yes | NEXUS format |
-| `emboss` | .txt | Yes | No | EMBOSS tools output |
-| `fasta-m10` | .txt | Yes | No | FASTA -m 10 output |
-| `maf` | .maf | Yes | Yes | Multiple Alignment Format |
-| `mauve` | .xmfa | Yes | No | progressiveMauve output |
-| `msf` | .msf | Yes | No | GCG MSF format |
+Three Python libraries cover the alignment-format space, with overlapping but non-identical support. Pick by what is actually required.
+
+| Format | `Bio.AlignIO` | `Bio.Align` (modern) | `pyhmmer.easel` | Notes |
+|--------|---------------|----------------------|-----------------|-------|
+| Aligned FASTA | R/W | R/W | R/W | Most portable; loses annotations |
+| Clustal | R/W | R/W | R | Clustal conservation marks NOT round-tripped |
+| PHYLIP (interleaved/sequential/relaxed) | R/W | R/W | R | Strict 10-char names is silent footgun |
+| Stockholm | R/W | R/W | R/W | Only format preserving GS/GR/GC/GF annotations |
+| NEXUS | R/W | R/W | -- | MrBayes / PAUP* input |
+| MAF (Multiple Alignment Format) | R/W | R/W | -- | UCSC whole-genome alignments |
+| A2M / A3M | -- (use `'fasta'` parser then post-process) | -- | R/W | HMMER (a2m), HHsuite/ColabFold (a3m) |
+| MSF (GCG) | R | -- | -- | GCG legacy |
+| EMBOSS / Mauve XMFA / FASTA-m10 | R | partial | -- | One-way: read-only |
+
+**Formats NOT in BioPython** (use dedicated tools):
+
+| Format | Tool | Why |
+|--------|------|-----|
+| HAL | progressiveCactus, halTools | HDF5-backed multi-genome alignments at TB scale |
+| chain / net | UCSC Kent tools (`liftOver`, `chainNet`) | Pairwise genome alignment |
+| AXT | BLASTZ / lastz native | Pairwise alignment blocks |
+| PSL | UCSC Kent tools (`pslPretty`, `blat`) | BLAT alignment summary |
+| GFA / rGFA | `vg`, `odgi`, `pggb`, gfatools | Pangenome graph |
+| GAF | `vg surject`, `vg call` | Graph alignment format (read-to-graph) |
+
+Recommend `Bio.Align` (modern API) over `Bio.AlignIO` (legacy) for new code; it returns `Alignment` objects with built-in `.counts()` and `.substitutions` properties. For multi-gigabyte Stockholm databases such as Pfam-A.full, `pyhmmer.easel.MSAFile` streams record-by-record where `Bio.AlignIO.parse` works but at higher per-record cost.
 
 ## Reading Alignments
 
@@ -245,6 +257,36 @@ alignment = AlignIO.read('file.phy', 'phylip-relaxed')
 AlignIO.write(alignment, 'output.phy', 'phylip-relaxed')
 ```
 
+#### PHYLIP-Relaxed Dialect Mismatches Between Tree Tools
+
+Biopython's `'phylip-relaxed'` writes a single space between name and sequence. RAxML-NG and IQ-TREE accept this; PhyML rejects sequence names containing colons or parentheses; PAML's codeml expects sequential format with name-truncation behaviour distinct from interleaved. Common silent failures:
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| RAxML-NG: `terminating with uncaught exception ... bad alphabet` | Stop codons (`*`) in protein alignment | Replace `*` with `X` before writing |
+| IQ-TREE: `not a valid PHYLIP file` | Sequence name contains `:` (NEXUS-tree-style refs) | Sanitize names: `re.sub(r'[():,]', '_', record.id)` |
+| PhyML: silently truncated names | Names >100 chars | PhyML truncates without warning at 100 chars in current build |
+| codeml: `cannot read sequences` | Used `phylip-relaxed` instead of `phylip-sequential` | codeml requires strict sequential |
+
+Always verify by running the downstream tool's "validate input only" mode (e.g. `iqtree2 -s file.phy --check`) before committing to a long compute.
+
+### MAF Block Coordinate Conventions
+
+UCSC MAF (read via `AlignIO.parse(file, 'maf')`) returns blocks with per-row `annotations`:
+- `start` (0-based; converts directly to BED but is off-by-one vs GFF)
+- `size` (length on src strand)
+- `strand` (`+` or `-`)
+- `srcSize` (length of source chromosome)
+
+For minus-strand rows, `start` is measured from the END of the source contig: the corresponding plus-strand start is `srcSize - start - size`. Without this conversion, lifting MAF to genome coordinates places minus-strand blocks at the wrong locus. Reference: UCSC MAF spec at genome.ucsc.edu/FAQ/FAQformat.html#format5.
+
+```python
+def maf_to_plus_strand_coords(row_anno):
+    if row_anno['strand'] == '-':
+        return row_anno['srcSize'] - row_anno['start'] - row_anno['size']
+    return row_anno['start']
+```
+
 ### Stockholm Format Annotations
 
 Stockholm format (used by Pfam, Rfam, HMMER) supports four annotation line types:
@@ -256,7 +298,9 @@ Stockholm format (used by Pfam, Rfam, HMMER) supports four annotation line types
 | `#=GS` | Sequence | Per-sequence free text (organism, description) | `#=GS seq1 OS Homo sapiens` |
 | `#=GR` | Residue | Per-residue annotation (1 char per residue) | `#=GR seq1 SS ..HHH..EEE..` |
 
-Common GC annotations: `SS_cons` (consensus secondary structure), `RF` (reference coordinates), `seq_cons` (consensus sequence). RNA families in Rfam use `<>` for base pairs, `.` for unpaired.
+Common GC annotations: `SS_cons` (consensus secondary structure), `RF` (reference coordinates), `seq_cons` (consensus sequence).
+
+**WUSS notation** in RNA `#=GC SS_cons` lines uses nested bracket pairs (`<>`, `()`, `[]`, `{}`) for paired bases and characters like `_`, `-`, `,`, `:`, `.`, `~` for unpaired regions; pseudoknots use upper/lower-case letter pairs (`Aa`, `Bb`). Consult the Infernal user guide for the full character table before writing or parsing custom SS_cons strings.
 
 ```python
 alignment = AlignIO.read('pfam.sto', 'stockholm')
@@ -266,8 +310,43 @@ for record in alignment:
     if 'secondary_structure' in record.letter_annotations:
         print(f'  SS: {record.letter_annotations["secondary_structure"]}')
 
-# Column annotations are accessible via alignment.column_annotations
+ss_cons = alignment.column_annotations.get('secondary_structure')
 ```
+
+**Round-trip caveat:** `AlignIO.write(alignment, 'out.fasta', 'fasta')` discards every Stockholm annotation silently. Re-reading and re-writing as Stockholm preserves GC/GR but dropped/added sequences invalidate the per-residue annotations -- regenerate annotations after edits.
+
+**Pfam-style `name/start-end` identifier convention:** Pfam, Rfam, and Dfam Stockholm IDs (e.g. `Q9Y6Y0/45-198`) encode a 1-based inclusive region. Biopython does not split this; before passing to RAxML or IQ-TREE, parse the suffix into `record.annotations['start']` / `['end']` and strip from `record.id`, then restore it after.
+
+### A2M / A3M Conventions
+
+A2M (HMMER) and A3M (HHsuite, ColabFold) encode match vs insert columns by case (uppercase / `-` = match column, lowercase / `.` = insert column). A2M pads inserts across rows so it loads as a rectangular MSA; A3M does not, so convert with HHsuite `reformat.pl a3m a2m in.a3m out.a2m` (or `pyhmmer.easel.MSAFile(..., format='a2m')`) before parsing as a normal alignment.
+
+**reformat.pl pitfall:** HHsuite's `reformat.pl a3m a2m` uses the FIRST sequence in the A3M as the match-state reference. ColabFold MSAs typically place the query first, which is the desired reference; merged or sorted A3Ms can have a non-query first sequence, producing match-state assignments that mis-align the query. Either (a) verify the first sequence is the query before reformatting, or (b) renormalise with `hhfilter -i in.a3m -o out.a3m -id 100 -qid 0 -cov 0` before running `reformat.pl`. A3M files emitted by `hhblits` always have the query first; A3M files concatenated from MSA databases do not.
+
+```python
+alignment = AlignIO.read('hhsearch.a2m', 'fasta')
+match_only_seqs = [
+    ''.join(c for c in str(r.seq) if c.isupper() or c == '-')
+    for r in alignment
+]
+```
+
+### Streaming Large Stockholm Databases
+
+`Bio.AlignIO.read()` is in-memory; for Pfam-A.full (multi-gigabyte; ~22,000 family alignments in Pfam 37) or BFD (>2 TB), use `pyhmmer.easel.MSAFile` for streaming Stockholm or A3M.
+
+```python
+import pyhmmer
+
+with pyhmmer.easel.MSAFile('Pfam-A.full', digital=True) as msa_file:
+    for msa in msa_file:
+        if msa.nseq < 50:
+            continue
+        weights = msa.compute_weights(method='pb')
+        print(msa.name.decode(), msa.nseq, msa.alen, f'sum_w={sum(weights):.1f}')
+```
+
+`msa.compute_weights(method='pb')` computes Henikoff PB weights via the same Easel routine HMMER uses; the weights sum to the number of sequences (not Neff). For an Henikoff-style Neff estimate, see `msa-parsing/examples/neff.py`.
 
 ### Clustal Format
 ```python
@@ -347,8 +426,20 @@ Align.write(alignment, 'output.fasta', 'fasta')
 
 ## Related Skills
 
-- multiple-alignment - Run MSA tools (MAFFT, MUSCLE5, ClustalOmega) to generate alignments
-- pairwise-alignment - Create pairwise alignments with PairwiseAligner
-- msa-parsing - Analyze alignment content and annotations
-- msa-statistics - Calculate conservation and identity
+- alignment/multiple-alignment - Run MSA tools (MAFFT, MUSCLE5, ClustalOmega) to generate alignments
+- alignment/pairwise-alignment - Create pairwise alignments with PairwiseAligner
+- alignment/msa-parsing - Analyze alignment content and annotations
+- alignment/msa-statistics - Calculate conservation and identity
+- alignment/structural-alignment - Foldseek/TM-align outputs and Foldmason `result_aa.fa` / `result_3di.fa` MSAs (FASTA-loadable; the per-column LDDT report is HTML, not BioPython-parseable)
+- alignment/alignment-trimming - Pre-format trimming with column-mapping retention
 - sequence-io/format-conversion - Convert sequence (non-alignment) formats
+
+## References
+
+- Nawrocki EP, Eddy SR. 2013. Infernal 1.1: 100-fold faster RNA homology searches. Bioinf 29:2933-2935 (WUSS notation reference; see also the Infernal user guide).
+- Larralde M et al. 2023. PyHMMER: a Python library binding to HMMER for efficient sequence analysis. Bioinf 39:btad214.
+- Cock PJA et al. 2009. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinf 25:1422-1423.
+- Mistry J et al. 2021. Pfam: the protein families database in 2021. NAR 49:D412-D419.
+- Steinegger M et al. 2019. HH-suite3 for fast remote homology detection and deep protein annotation. BMC Bioinf 20:473.
+- Mirdita M et al. 2022. ColabFold: making protein folding accessible to all. Nat Methods 19:679-682.
+- Blanchette M et al. 2004. Aligning multiple genomic sequences with the threaded blockset aligner. Genome Res 14:708-715.

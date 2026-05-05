@@ -112,9 +112,9 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **sequence-io** | 9 | Bio.SeqIO | Read, write, convert FASTA/FASTQ/GenBank and 40+ formats |
 | **sequence-manipulation** | 7 | Bio.Seq, Bio.SeqUtils | Transcription, translation, motif search, sequence properties |
 | **database-access** | 11 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API, STRINGdb | NCBI/UniProt queries, SRA downloads, BLAST, homology searches, interaction databases |
-| **alignment-files** | 9 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics, validation |
+| **alignment-files** | 10 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics, validation, amplicon clipping |
 | **variant-calling** | 13 | bcftools, GATK, DeepVariant, Manta, Delly, VEP | Germline/SV calling, DRAGEN-GATK mode, VQSR/hard filtering, MANE annotation, ACMG interpretation |
-| **alignment** | 5 | Bio.Align, MAFFT, MUSCLE5 | MSA tool selection (MAFFT/MUSCLE5/ClustalOmega), pairwise alignment, MSA statistics, alignment I/O |
+| **alignment** | 7 | Bio.Align, MAFFT, MUSCLE5, Foldseek, ClipKIT | MSA tools (incl. BAli-Phy joint MSA+tree co-estimation), pairwise alignment, structural alignment (Foldseek/Foldseek-Multimer/TM-align/US-align/DALI/Foldmason), post-MSA trimming (ClipKIT/trimAl/BMGE/PhyIN), alignment I/O, MSA statistics |
 | **phylogenetics** | 8 | Bio.Phylo, IQ-TREE2, RAxML-NG, MrBayes, BEAST2, ASTRAL-III | Tree I/O, ML/Bayesian inference, divergence dating, coalescent species trees, concordance factors |
 | **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
 | **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
@@ -173,11 +173,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 | **clinical-biostatistics** | 6 | statsmodels, scipy, tableone, pyreadstat | CDISC data handling, logistic regression, categorical tests, effect measures, subgroup analysis, trial reporting |
 
-**Total: 438 skills across 63 categories**
+**Total: 441 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 438 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 441 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -293,6 +293,12 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 # Sequence Alignment
 "Align these 50 protein sequences with the most accurate MSA method"
 "Prepare a codon alignment for selection analysis with PAML"
+"These proteins are 12% identical; align via predicted structures instead of sequence"
+"Trim this MSA before phylogenetic inference and tell me which trimmer to use"
+"Detect coevolving residue pairs with mutual-information APC correction"
+"Align these two DNA sequences and pick the right pairwise library for scale"
+"Calculate Capra-Singh JSD conservation per column and flag functional residues"
+"Convert my Stockholm alignment to PHYLIP-relaxed for IQ-TREE input"
 
 # Phylogenetics & Evolution
 "Build a phylogenetic tree and visualize evolutionary relationships"
