@@ -79,20 +79,44 @@ samtools sort -t CB -o sorted_by_barcode.bam input.bam
 bwa mem ref.fa reads.fq | samtools sort -o aligned.bam
 ```
 
-## samtools collate
+## samtools collate vs sort -n
 
-Group paired reads together without full sorting (faster than name sort for some workflows):
+| Tool | Algorithm | Speed | Memory | Output guarantee |
+|------|-----------|-------|--------|------------------|
+| `sort -n` | Full lexicographic sort by QNAME | Slowest | Spills to `-T` | Strict total order by name |
+| `collate` | Hash-bucket grouping | ~3-10x faster | Bounded | Mates adjacent; between-mate order undefined |
+
+Use `collate` when extracting paired FASTQ, re-aligning, or streaming through markdup. Use `sort -n` only when a tool requires true lexicographic name order (e.g. RSEM, Salmon alignment-mode).
 
 ```bash
-# Collate paired reads
-samtools collate -o collated.bam input.bam
+# Fast paired FASTQ extraction
+samtools collate -O -u in.bam tmp_prefix | \
+    samtools fastq -1 R1.fq.gz -2 R2.fq.gz -0 /dev/null -s /dev/null -n -
 
-# With output prefix for temp files
-samtools collate -O input.bam /tmp/collate > collated.bam
-
-# Fast mode (output to stdout)
-samtools collate -u -O input.bam /tmp/collate | samtools fastq -1 R1.fq -2 R2.fq -
+# Markdup pre-processing (collate beats sort -n here)
+samtools collate -O -u in.bam tmp_prefix | \
+    samtools fixmate -m -u - - | \
+    samtools sort -u - | \
+    samtools markdup - out.bam
 ```
+
+### Sort Order Required by Downstream Tool
+
+| Operation | Required sort |
+|-----------|---------------|
+| `samtools index` | coordinate (hard requirement) |
+| `samtools fixmate -m` | name (or collate; needs mates adjacent) |
+| `samtools markdup` | coordinate (after fixmate) |
+| GATK MarkDuplicatesSpark | coordinate or queryname |
+| `samtools mpileup` / `bcftools mpileup` | coordinate |
+| GATK HaplotypeCaller, Mutect2 | coordinate |
+| featureCounts / HTSeq | coordinate or name (`-p` for paired) |
+| umi_tools dedup | coordinate (with index) |
+| fgbio GroupReadsByUmi | queryname (hard requirement) |
+| fgbio CallMolecularConsensusReads | TemplateCoordinate (`fgbio SortBam`) |
+| Sniffles, cuteSV, Manta, Delly | coordinate (need SA tags) |
+| Salmon alignment-mode | name |
+| RSEM (with STAR `--quantMode TranscriptomeSAM`) | name (hard requirement) |
 
 ## Check Sort Order
 
@@ -129,19 +153,14 @@ pysam.sort('-n', '-o', 'namesorted.bam', 'input.bam')
 pysam.sort('-@', '4', '-m', '2G', '-o', 'sorted.bam', 'input.bam')
 ```
 
-### Manual Sorting in Python
+### Avoid In-Python Sorting
+
+Do not load BAM records into a list and call `sorted()`. `pysam.sort()` calls samtools' external-merge sort which spills to disk; loading reads into memory blows up around ~30M reads (~10 GB human BAM). Always delegate to `pysam.sort()`:
 ```python
 import pysam
 
-with pysam.AlignmentFile('input.bam', 'rb') as infile:
-    header = infile.header
-    reads = list(infile)
-
-reads.sort(key=lambda r: (r.reference_id, r.reference_start))
-
-with pysam.AlignmentFile('sorted.bam', 'wb', header=header) as outfile:
-    for read in reads:
-        outfile.write(read)
+pysam.sort('-@', '4', '-m', '2G', '-T', '/tmp/sortpfx',
+           '-o', 'sorted.bam', 'input.bam')
 ```
 
 ### Check Sort Order in pysam
@@ -165,40 +184,28 @@ subprocess.run(
 )
 ```
 
-Or use pysam with a named pipe:
-```python
-import os
-import pysam
-import subprocess
-
-os.mkfifo('aligner.pipe')
-try:
-    aligner = subprocess.Popen(['bwa', 'mem', 'ref.fa', 'reads.fq'],
-                               stdout=open('aligner.pipe', 'w'))
-    pysam.sort('-o', 'aligned.bam', 'aligner.pipe')
-    aligner.wait()
-finally:
-    os.unlink('aligner.pipe')
-```
-
 ## samtools merge
 
-Combine multiple BAM files into one.
+Combine multiple BAM files into one. `samtools merge` does NOT validate sort-order consistency across inputs; mismatched inputs silently produce a malformed output.
 
-### Basic Merge
+### Verify Sort Order Consistency First
 ```bash
-samtools merge merged.bam sample1.bam sample2.bam sample3.bam
+for f in *.bam; do samtools view -H "$f" | head -1; done | sort -u
+# Should print exactly ONE line, e.g. "@HD VN:1.6 SO:coordinate"
 ```
 
-### Merge with Threads
+### Safe Merge (dedup @PG/@CO and @RG)
+```bash
+# -c dedups @PG and @CO; -p dedups @RG ID collisions
+samtools merge -c -p -@ 8 merged.bam sample1.bam sample2.bam sample3.bam
+```
+
+When merging BAMs from different lanes / machines / aligners, RG IDs may collide. `-c` and `-p` deduplicate header records, but RG IDs that genuinely refer to different lane-level read groups must be made unique upstream (`samtools addreplacerg`) before merge -- otherwise GATK BQSR (which keys models by RGID/PU) silently produces wrong recalibration.
+
+### Merge with Threads / from File List
 ```bash
 samtools merge -@ 4 merged.bam sample1.bam sample2.bam sample3.bam
-```
-
-### Merge from File List
-```bash
-# files.txt contains one BAM path per line
-samtools merge -b files.txt merged.bam
+samtools merge -b files.txt merged.bam   # one BAM path per line
 ```
 
 ### Force Overwrite
@@ -215,7 +222,7 @@ samtools merge -R chr1:1000000-2000000 merged_region.bam sample1.bam sample2.bam
 ```python
 import pysam
 
-pysam.merge('-f', 'merged.bam', 'sample1.bam', 'sample2.bam', 'sample3.bam')
+pysam.merge('-c', '-p', '-f', 'merged.bam', 'sample1.bam', 'sample2.bam', 'sample3.bam')
 ```
 
 ## Common Workflows
@@ -258,13 +265,30 @@ samtools collate -u -O input.bam /tmp/collate | \
 |-----------|--------|
 | `-@ N` | Use N additional threads |
 | `-m SIZE` | Memory per thread (e.g., 4G) |
-| `-T PREFIX` | Temp file location (use fast disk) |
+| `-T PREFIX` | Temp file location (use fast SSD scratch) |
 | `-l LEVEL` | Compression level (1-9, default 6) |
+
+### Compression Level Decision
+
+| Level | Use | Wall-time vs default | Size vs default |
+|-------|-----|----------------------|------------------|
+| `-l 0` / `-u` | Pipe between samtools tools | 0% (skips BGZF) | +200-400% |
+| `-l 1` | Final output if disk is cheap | ~+10% | ~+30% |
+| `-l 6` | Default | baseline | baseline |
+| `-l 9` | Archival, write-once | ~+50-100% | ~-2-5% |
+
+```bash
+# WRONG -- pipe re-compresses then decompresses every step
+samtools fixmate -m in.bam - | samtools sort -o out.bam
+
+# RIGHT -- uncompressed (-u) between piped samtools commands
+samtools fixmate -m -u in.bam - | samtools sort -o out.bam
+```
 
 ### Optimal Settings for Large Files
 ```bash
-# Use 8 threads, 4GB per thread, low compression for speed
-samtools sort -@ 8 -m 4G -l 1 -o sorted.bam input.bam
+# 8 threads, 2GB per thread, low compression for output written to fast disk
+samtools sort -@ 8 -m 2G -l 1 -T /scratch/sortpfx -o sorted.bam input.bam
 ```
 
 ## Quick Reference

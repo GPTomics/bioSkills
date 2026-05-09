@@ -51,7 +51,22 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **LSI component 1**: Often depth-correlated, skip it
-- **WNN weights**: Check modality contribution per cluster
-- **Gene-peak links**: Helps identify regulatory elements
-- **Cell types**: Annotate using RNA markers primarily
+- **LSI component 1**: Often depth-correlated, skip it (always use `dims=2:30`)
+- **WNN weights**: Check modality contribution per cluster; ATAC sparseness can dominate noise
+- **Gene-peak links**: Signac LinkPeaks for direct correlation; for full ABC enhancer-gene see atac-seq/enhancer-gene-linking
+- **Cell types**: Annotate using RNA markers primarily; gene activity scores from ATAC are approximate
+- **cellranger-arc vs cellranger-atac**: Multiome (paired) requires cellranger-arc; barcode universes differ
+- **Per-cell TF activity**: chromVAR via `Signac::RunChromVAR` after AddMotifs; see atac-seq/motif-deviation
+- **Cis-regulatory inference**: Cicero on the ATAC assay or ArchR getCoAccessibility; see atac-seq/co-accessibility
+
+## Related Skills
+
+- single-cell/data-io - 10X data loading
+- single-cell/preprocessing - QC and normalization
+- single-cell/multimodal-integration - WNN details
+- single-cell/scatac-analysis - ATAC-specific processing
+- atac-seq/single-cell-atac - Signac / ArchR / SnapATAC2 ecosystem decision
+- atac-seq/co-accessibility - Cicero / ArchR getCoAccessibility for cis-regulatory inference
+- atac-seq/enhancer-gene-linking - ABC, ENCODE-rE2G for enhancer-gene mapping
+- atac-seq/motif-deviation - chromVAR for per-cell TF motif activity
+- atac-seq/footprinting - scprinter for single-cell footprinting

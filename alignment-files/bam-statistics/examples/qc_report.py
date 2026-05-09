@@ -33,7 +33,8 @@ def qc_report(bam_path):
     print(f'=== QC Report: {bam_path} ===\n')
     print(f'Total reads:       {stats["total"]:,}')
     print(f'Mapped:            {stats["mapped"]:,} ({stats["mapped"]/stats["total"]*100:.1f}%)')
-    print(f'Properly paired:   {stats["proper_pair"]:,} ({stats["proper_pair"]/stats["paired"]*100:.1f}%)')
+    prop_pct = stats['proper_pair'] / stats['paired'] * 100 if stats['paired'] else 0
+    print(f'Properly paired:   {stats["proper_pair"]:,} ({prop_pct:.1f}%)')
     print(f'Duplicates:        {stats["duplicate"]:,} ({stats["duplicate"]/stats["total"]*100:.1f}%)')
     print(f'Secondary:         {stats["secondary"]:,}')
     print(f'Supplementary:     {stats["supplementary"]:,}')

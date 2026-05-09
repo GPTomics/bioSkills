@@ -1,3 +1,4 @@
+'''Protein-guided codon alignment: align proteins with MAFFT, then thread DNA with PAL2NAL.'''
 # Reference: MAFFT 7.520+, PAL2NAL 14+ | Verify CLI flags if version differs
 
 import subprocess

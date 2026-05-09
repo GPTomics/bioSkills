@@ -1,6 +1,6 @@
 ---
 name: bio-splicing-pipeline
-description: End-to-end alternative splicing analysis from FASTQ to differential splicing results. Aligns with STAR 2-pass mode, performs junction QC, runs rMATS-turbo for differential analysis, and generates sashimi visualizations. Use when performing comprehensive splicing analysis from raw RNA-seq data.
+description: End-to-end alternative splicing analysis from FASTQ to differential splicing results for short-read bulk RNA-seq. Aligns with STAR 2-pass cohort-style, performs junction QC (RSeQC, MaxEntScan, SpliceAI), runs rMATS-turbo and leafcutter for concordant differential analysis, optionally MAJIQ V3 for complex events / heterogeneous cohorts, isoform-switching with NMD/ORF/domain consequences (IsoformSwitchAnalyzeR v2 + DRIMSeq+DEXSeq+stageR DTU), and sashimi visualizations. Use when performing comprehensive splicing analysis from raw bulk RNA-seq data; for variant-driven splice prediction see splice-variant-prediction; for rare-disease single-patient outlier detection see outlier-splicing-detection; for full-isoform PacBio/ONT analysis see long-read-splicing.
 tool_type: mixed
 primary_tool: rMATS-turbo
 ---
@@ -239,9 +239,29 @@ rmats.py --b1 control_bams.txt --b2 treatment_bams.txt \
 echo "Pipeline complete. Check rmats_output/ for results."
 ```
 
+## When NOT to Use This Pipeline (Pipeline Variants)
+
+This pipeline targets **bulk short-read RNA-seq differential splicing between two groups**. For other regimes, use the dedicated skill:
+
+| Question | Use instead |
+|----------|-------------|
+| "Does this DNA variant alter splicing?" | alternative-splicing/splice-variant-prediction (SpliceAI, Pangolin, MMSplice, ClinGen SVI 2023) |
+| "What is aberrant in this single rare-disease patient?" | alternative-splicing/outlier-splicing-detection (FRASER 2.0, OUTRIDER, DROP) |
+| "Full-isoform analysis from PacBio Iso-Seq / ONT" | alternative-splicing/long-read-splicing (FLAIR, IsoQuant, Bambu, SQANTI3, rMATS-long) |
+| "Single-cell splicing analysis" | alternative-splicing/single-cell-splicing (chemistry-first decision; MARVEL, BRIE2 plate; long-read SC) |
+| "Heterogeneous cohort, n>=10 vs n>=10" | This pipeline + MAJIQ V3 HET module (see alternative-splicing/differential-splicing) |
+| "Microexon-focused (3-27 nt)" | This pipeline with VAST-TOOLS or MicroExonator; see alternative-splicing/splicing-quantification |
+
 ## Related Skills
 
-- alternative-splicing/splicing-quantification - Quantification details
-- alternative-splicing/differential-splicing - Analysis methods
-- alternative-splicing/sashimi-plots - Visualization
-- read-alignment/star-alignment - STAR alignment options
+- alternative-splicing/splicing-quantification - PSI computation, event taxonomy, sign conventions
+- alternative-splicing/differential-splicing - Tool selection, MAJIQ V3, Shiba, leafcutter, reconciliation
+- alternative-splicing/isoform-switching - DTU + NMD/ORF/domain consequences (IsoformSwitchAnalyzeR v2, stageR)
+- alternative-splicing/sashimi-plots - ggsashimi, MAJIQ-VOILA, leafviz visualization
+- alternative-splicing/splicing-qc - STAR 2-pass cohort-style, library prep, depth thresholds
+- alternative-splicing/single-cell-splicing - 10X chemistry decision; plate-based and long-read SC
+- alternative-splicing/splice-variant-prediction - SpliceAI / Pangolin / MMSplice variant interpretation
+- alternative-splicing/outlier-splicing-detection - FRASER 2.0 / DROP rare-disease workflow
+- alternative-splicing/long-read-splicing - PacBio HiFi / ONT full-isoform analysis
+- read-alignment/star-alignment - STAR 2-pass cohort-style configuration
+- rna-quantification/alignment-free-quant - Salmon TPM for SUPPA2 and DTU pipelines

@@ -1,60 +1,71 @@
 # Sashimi Plots - Usage Guide
 
 ## Overview
-Create sashimi plots to visualize splicing events with read coverage and splice junction counts. These plots show coverage across exons and arcs representing junction-spanning reads, essential for validating differential splicing results.
+Visualize splicing events as sashimi-style plots showing per-sample read coverage and splice junction arcs labeled by read counts. Tools differ in input handling, group aggregation, and customization: ggsashimi (publication overlays), rmats2sashimiplot (rMATS-aware), MAJIQ-VOILA (LSV posteriors interactive HTML), leafviz (leafcutter Shiny), Jutils (tool-agnostic), pyGenomeTracks (multi-track figures).
 
 ## Prerequisites
 ```bash
-# ggsashimi (recommended)
-pip install ggsashimi
+# Python / CLI
+pip install pandas
+conda install -c bioconda ggsashimi rmats2sashimiplot pygenometracks
 
-# rmats2sashimiplot (for rMATS output)
-pip install rmats2sashimiplot
+# R for leafviz
+BiocManager::install('leafcutter')
 
-# Dependencies
-pip install matplotlib pysam pandas
+# MAJIQ-VOILA bundled with MAJIQ V3 (majiq.biociphers.org)
+
+# Jutils
+conda install -c bioconda jutils
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Create sashimi plots for my significant splicing events"
-- "Visualize the exon skipping event at gene X"
-- "Generate sashimi plots comparing control vs treatment"
-- "Plot junction coverage for my top differential splicing results"
+- "Create sashimi plots for the top 20 differential splicing events from rMATS"
+- "Visualize a specific exon-skipping event with samples grouped by condition"
+- "Generate publication-quality sashimi with intron shrinking and per-condition aggregation"
+- "Make MAJIQ VOILA interactive HTML for browsing LSV posteriors"
+- "Plot splicing alongside ChIP-seq tracks for the same locus"
 
 ## Example Prompts
 
-### Single Event
-> "Create a sashimi plot for the region chr1:1000000-1010000 showing my control and treatment samples."
+### Single Event Visualization
+> "Plot a sashimi for chr17:43094000-43125000 (BRCA1 region) with control vs treatment groups, intron shrinking, and matched y-axis scales."
 
-> "Visualize the exon skipping event in TP53 with junction read counts."
+### Batch Plotting from Differential Output
+> "Iterate ggsashimi over the top 25 significant rMATS events; output per-event PDFs with flanking 500nt context."
 
-### Batch Processing
-> "Generate sashimi plots for my top 20 significant differential splicing events from rMATS."
+### MAJIQ VOILA
+> "Run voila on MAJIQ deltapsi output to generate interactive HTML browser of LSV posteriors and splice graphs."
 
-> "Create publication-ready sashimi plots with shrunk introns for all significant events."
+### leafviz
+> "Generate leafcutter Shiny app for interactive cluster-level browsing with NMD annotation."
 
-### Customization
-> "Make sashimi plots with samples grouped by condition and color-coded."
+### Multi-Track Figures
+> "Use pyGenomeTracks to combine RNA-seq coverage tracks with H3K4me3 ChIP-seq for the same locus."
 
-> "Generate high-resolution PDF sashimi plots with consistent y-axis scaling."
+### Tool-Agnostic Heatmaps
+> "Use Jutils to create a unified heatmap of significant events across rMATS, leafcutter, and MAJIQ output."
 
 ## What the Agent Will Do
-1. Create sample grouping file with BAM paths and conditions
-2. Define genomic regions for events of interest
-3. Generate sashimi plots with coverage and junction arcs
-4. Apply visualization options (shrunk introns, fixed y-scale)
-5. Export plots in requested format (PDF, PNG, SVG)
+1. Choose visualization tool based on the upstream differential analysis (rMATS, leafcutter, MAJIQ) or general region request
+2. Configure sample grouping with consistent colors per condition
+3. Apply intron shrinking, fixed y-scales, and replicate aggregation flags
+4. Iterate over significant events for batch plotting
+5. Generate publication-ready PDFs/SVGs with annotation tracks
 
 ## Tips
-- Use `--shrink` option for genes with large introns
-- Set `--fix-y-scale` when comparing between groups
-- Aggregate replicates with `-A mean` to reduce clutter
-- Minimum junction reads (-M) of 5-10 filters noise
-- Limit to 3-4 groups per plot for readability
-- Include flanking exons to show full splicing context
+- Use `--shrink` for genes with large introns (TTN, brain genes) to keep exons visible
+- `--fix-y-scale` is essential for cross-group comparisons; otherwise auto-rescaling exaggerates differences
+- Aggregate replicates with `-O 3 -A mean_j` to reduce clutter while preserving variance via alpha
+- Limit to 3-4 groups per figure; more becomes hard to read
+- Include 200-500 nt flanking exons for splicing context
+- For MXE events, plot both alternative exons; otherwise only half of the event is visible
+- VOILA requires MAJIQ build output (splicegraph.zarr in V3; the V2 splicegraph.sql is deprecated) plus the .voila file
+- IGV sashimi is for interactive ad-hoc inspection, not figures
 
 ## Related Skills
+
 - differential-splicing - Identify events to plot
 - splicing-quantification - Context for PSI values
-- data-visualization/ggplot2-fundamentals - Further customization
+- data-visualization/genome-browser-tracks - Multi-track figure design
+- data-visualization/ggplot2-fundamentals - ggsashimi customization

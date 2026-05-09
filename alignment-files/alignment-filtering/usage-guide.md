@@ -128,13 +128,13 @@ samtools view -L targets.bed -F 2308 -q 30 -o filtered_targets.bam input.bam
 
 ### Subsampling
 ```bash
-samtools view -s 0.1 -o subset.bam input.bam      # ~10% of reads
-samtools view -s 42.1 -o subset.bam input.bam     # Reproducible (seed 42)
+samtools view -s 42.1 -o subset.bam input.bam     # Reproducible 10% (seed 42)
+# Always use seed.fraction (e.g. 42.1) form -- bare 0.1 is not reproducible.
 
-# Downsample to target count
+# Downsample to target count (seed 42 + computed fraction)
 total=$(samtools view -c input.bam)
-frac=$(echo "scale=6; 1000000 / $total" | bc)
-samtools view -s "$frac" -o subset.bam input.bam
+frac=$(echo "scale=6; 1000000 / $total" | bc)         # e.g. .025
+samtools view -s "42${frac}" -o subset.bam input.bam   # -> -s 42.025
 ```
 
 ### Output Options

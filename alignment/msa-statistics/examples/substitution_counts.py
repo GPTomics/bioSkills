@@ -1,5 +1,5 @@
 '''Count substitutions observed in alignment'''
-# Reference: biopython 1.83+, numpy 1.26+ | Verify API if version differs
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import AlignIO
 from collections import defaultdict
@@ -16,21 +16,22 @@ def substitution_counts(alignment):
                     counts[pair] += 1
     return dict(counts)
 
-alignment = AlignIO.read('alignment.fasta', 'fasta')
-print(f'Alignment: {len(alignment)} sequences, {alignment.get_alignment_length()} columns\n')
+if __name__ == '__main__':
+    alignment = AlignIO.read('alignment.fasta', 'fasta')
+    print(f'Alignment: {len(alignment)} sequences, {alignment.get_alignment_length()} columns\n')
 
-subs = substitution_counts(alignment)
-total_subs = sum(subs.values())
+    subs = substitution_counts(alignment)
+    total_subs = sum(subs.values())
 
-print(f'Total substitutions observed: {total_subs}\n')
-print('Substitution counts (sorted by frequency):')
-for pair, count in sorted(subs.items(), key=lambda x: -x[1]):
-    pct = count / total_subs * 100
-    print(f'  {pair[0]} <-> {pair[1]}: {count:5d} ({pct:5.1f}%)')
+    print(f'Total substitutions observed: {total_subs}\n')
+    print('Substitution counts (sorted by frequency):')
+    for pair, count in sorted(subs.items(), key=lambda x: -x[1]):
+        pct = count / total_subs * 100
+        print(f'  {pair[0]} <-> {pair[1]}: {count:5d} ({pct:5.1f}%)')
 
-transitions = sum(v for k, v in subs.items() if set(k) in [{'A', 'G'}, {'C', 'T'}])
-transversions = total_subs - transitions
-print(f'\nTransitions: {transitions}')
-print(f'Transversions: {transversions}')
-if transversions > 0:
-    print(f'Ti/Tv ratio: {transitions/transversions:.2f}')
+    transitions = sum(v for k, v in subs.items() if set(k) in [{'A', 'G'}, {'C', 'T'}])
+    transversions = total_subs - transitions
+    print(f'\nTransitions: {transitions}')
+    print(f'Transversions: {transversions}')
+    if transversions > 0:
+        print(f'Ti/Tv ratio: {transitions/transversions:.2f}')

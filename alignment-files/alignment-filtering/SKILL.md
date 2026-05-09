@@ -116,15 +116,25 @@ samtools view -q 30 -o highqual.bam input.bam
 samtools view -F 4 -q 30 -o filtered.bam input.bam
 ```
 
-### Common MAPQ Thresholds
+### Aligner-Aware MAPQ Thresholds
 
-| MAPQ | Meaning |
-|------|---------|
-| 0 | Mapped to multiple locations equally well |
-| 20 | ~1% chance of wrong mapping |
-| 30 | ~0.1% chance of wrong mapping |
-| 40 | ~0.01% chance of wrong mapping |
-| 60 | Unique mapping (BWA max) |
+MAPQ scales differ by aligner; the same `-q 30` filter does different things. See sam-bam-basics for the full MAPQ-by-aligner table. Filtering recommendations:
+
+| Aligner | "Drop ambiguous" | "High confidence" |
+|---------|------------------|-------------------|
+| BWA-MEM / BWA-MEM2 | `-q 1` | `-q 30` (or `-q 60` for unique only) |
+| Bowtie2 | `-q 1` | `-q 23` (~99% accurate per Heng Li) |
+| **STAR** | `-q 255` | `-q 255` (255 is the unique-mapped sentinel; -q 60 drops everything) |
+| HISAT2 | `-q 1` | `-q 60` |
+| minimap2 (DNA, long-read) | `-q 1` | `-q 60` |
+| pbmm2 (PacBio) | `-q 1` | `-q 60` |
+
+For Phred-scaled aligners (BWA, minimap2), MAPQ Q maps to ~10^(-Q/10) probability of wrong mapping. For STAR, the values 0/1/2/3/255 are sentinels, not probabilities.
+
+### Drop Ambiguous Across Aligners (Universal)
+```bash
+samtools view -q 1 in.bam   # exclude MAPQ=0; works for all aligners
+```
 
 ## Filter by Region
 
@@ -162,42 +172,96 @@ samtools view -F 3332 -q 30 -o filtered.bam input.bam
 # 3332 = 4 (unmapped) + 256 (secondary) + 1024 (duplicate) + 2048 (supplementary)
 ```
 
-### Variant Calling Prep
+### Variant Calling Prep -- Assay-Aware
 
-**Goal:** Prepare alignments for variant calling by keeping only properly paired, primary, deduplicated reads.
+**Goal:** Choose a filter that matches what the downstream caller expects. Stripping supplementary alignments breaks SV callers; requiring proper-pair drops valid spliced RNA-seq reads.
 
-**Approach:** Require proper pair flag (-f 2), exclude secondary/duplicate/supplementary (-F 3328), and set a MAPQ floor.
+| Assay / caller | Recommended filter | Why |
+|----------------|-------------------|-----|
+| Germline WGS short-variant (HaplotypeCaller, DeepVariant) | `-f 2 -F 3328 -q 20` | Primary, no dup, proper pair, MAPQ>=20 |
+| Somatic short-variant (Mutect2, Strelka2) | `-F 3328 -q 1` | Drop only MAPQ=0; somatic callers handle low MAPQ; chimeric reads at SVs may carry real somatic SNVs |
+| Long-read short-variant (clair3, DeepVariant ONT) | `-F 3328 -q 5` | Long-read MAPQ scale is lower |
+| Long-read SV (Sniffles, cuteSV) | `-F 1024` only | **Keep supplementary** -- SA tag is the SV signal |
+| Short-read SV (Manta, GRIDSS, Delly, SvABA) | `-F 1024` only | Same -- supplementary required |
+| ChIP-seq peak calling | `-F 1804 -q 30` | Drop dup + secondary + supp + unmapped + mate-unmapped + QC-fail |
+| ATAC-seq | `-F 1804 -q 30 -f 2` | Same plus proper pair |
+| RNA-seq quantification (STAR) | `-q 255` | Unique only (STAR sentinel) |
+| RNA-seq quantification (HISAT2) | `-F 256 -q 60` | Different aligner semantics |
+| RNA-seq variant (after `SplitNCigarReads`) | `-F 3328 -q 20` | Standard germline after split-N-trim |
+| Panel / amplicon | After `samtools ampliconclip`; `-F 1024 -q 20` | Primer overlap makes proper-pair unreliable |
+| ctDNA / cfDNA (UMI) | After fgbio consensus; do not pre-filter raw | |
 
 **Reference (samtools 1.19+):**
 ```bash
+# Short-variant germline
 samtools view -f 2 -F 3328 -q 20 -o clean.bam input.bam
 # 3328 = 256 (secondary) + 1024 (duplicate) + 2048 (supplementary)
-# Note: -f 2 (proper pair) implies mapped, so -F 4 is not strictly needed
+
+# SV calling: KEEP supplementary
+samtools view -F 1024 -o sv_input.bam input.bam   # NOT -F 2304 or -F 3328
+
+# ChIP-seq / ATAC-seq common filter
+samtools view -F 1804 -q 30 -o filtered.bam input.bam
+# 1804 = 4 + 8 + 256 + 512 + 1024 = unmapped + mate-unmapped + secondary + QC-fail + duplicate
 ```
 
-### ChIP-seq Filter
+**Cost of getting this wrong:** filtering `-F 2304` or `-F 3328` before SV calling produces zero SV calls -- a single-flag mistake that silently invalidates the analysis.
+
+## Subsample Reads (Deterministic, Pair-Consistent)
+
+`samtools view -s SEED.FRAC` -- integer is the hash seed; fractional is the keep fraction. The hash is on QNAME, so:
+1. Mate consistency: read1 and read2 are kept or dropped together.
+2. Reproducibility: same seed + same fraction returns the same reads.
+3. **Sequential downsampling requires different seeds.** `-s 1.5` then `-s 1.25` keeps a nested 5/8 of the original (not 12.5%). Use different integer seeds for independent samples.
+
 ```bash
-# Remove duplicates and low MAPQ
-samtools view -F 1024 -q 30 -o filtered.bam input.bam
+# 10% with seed 42 (always the same reads; pair-consistent)
+samtools view -s 42.1 -b -o subset.bam input.bam
+
+# Sequential cuts with INDEPENDENT seeds
+samtools view -s 1.5 -b in.bam > half1.bam
+samtools view -s 2.25 -b half1.bam > quarter.bam   # 12.5% of original
+
+# Coverage-matching to a target read count
+total=$(samtools view -c -F 2304 input.bam)
+target=10000000
+frac=$(awk -v t=$target -v n=$total 'BEGIN{printf "%.6f", t/n}')
+samtools view -s "1.${frac#*.}" -b -o matched.bam input.bam
+
+# Tumor-normal coverage matching (pull tumor down to normal)
+normal_reads=$(samtools view -c -F 2308 normal.bam)
+tumor_reads=$(samtools view -c -F 2308 tumor.bam)
+if [ "$tumor_reads" -gt "$normal_reads" ]; then
+    frac=$(awk -v n=$normal_reads -v t=$tumor_reads 'BEGIN{printf "%.6f", n/t}')
+    samtools view -s "1.${frac#*.}" -b -o tumor_matched.bam tumor.bam
+fi
 ```
 
-## Subsample Reads
+A subsampled BAM without an integer seed (`-s 0.1`) is non-reproducible -- production pipelines should reject it.
 
-### Random Subsample
+## Expression Filtering
+
+`samtools view -e EXPR` (or `--expr`, since samtools 1.16) supports arbitrary expression filtering on tags, FLAG, MAPQ, RNAME, CIGAR, etc. Powerful for filtering by `NM`, `AS`, `NH`, `cs`, etc. that the FLAG-based filters cannot reach:
 ```bash
-# Keep ~10% of reads
-samtools view -s 0.1 -o subset.bam input.bam
+# Reads with >=2 mismatches (NM tag)
+samtools view -e '[NM] >= 2' in.bam
 
-# With seed for reproducibility
-samtools view -s 42.1 -o subset.bam input.bam
+# Soft clip on the left, on chr1
+samtools view -e 'cigar=~"^[0-9]+S" && rname=="chr1"' in.bam
+
+# Combine with FLAG and MAPQ
+samtools view -F 2308 -q 30 -e '[NM] <= 5 && [AS] >= 100' in.bam
+
+# Drop reads with low mapped fraction (samtools-internal helpers)
+samtools view -e 'sclen / qlen < 0.2' in.bam
 ```
 
-### Subsample to Target Count
+Note: in samtools 1.16+, `![NM]` is true only if NM is missing (was buggy in earlier versions); NULL values from missing tags propagate through arithmetic.
+
+## Filter by Read Group
 ```bash
-# Calculate fraction needed
-total=$(samtools view -c input.bam)
-frac=$(echo "scale=4; 1000000 / $total" | bc)
-samtools view -s "$frac" -o subset.bam input.bam
+samtools view -r library_A in.bam              # single read group
+samtools view -R rg_list.txt in.bam            # multiple via file (one ID per line)
 ```
 
 ## pysam Python Alternative
@@ -285,18 +349,24 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
                 outfile.write(read)
 ```
 
-### Subsample
+### Subsample (Pair-Consistent)
+
+Hash on QNAME so mates stay together (a fresh `random.random()` per read drops mates inconsistently and breaks paired-end tools):
 ```python
 import pysam
-import random
+import zlib
 
-random.seed(42)
 fraction = 0.1
+seed = 42
+threshold = int(0xffffffff * fraction)
+
+def template_hash(qname, seed):
+    return zlib.crc32(qname.encode()) ^ seed
 
 with pysam.AlignmentFile('input.bam', 'rb') as infile:
     with pysam.AlignmentFile('subset.bam', 'wb', header=infile.header) as outfile:
         for read in infile:
-            if random.random() < fraction:
+            if template_hash(read.query_name, seed) <= threshold:
                 outfile.write(read)
 ```
 
@@ -312,7 +382,7 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
 | High MAPQ | `view -q 30` |
 | Region | `view file.bam chr1:1-1000` |
 | BED regions | `view -L file.bed` |
-| Subsample 10% | `view -s 0.1` |
+| Subsample 10% (reproducible) | `view -s 42.1` |
 | Standard filter | `view -F 3332 -q 30` |
 
 ## Common Filter Combinations
@@ -332,8 +402,9 @@ Flag breakdowns:
 
 ## Related Skills
 
-- sam-bam-basics - View and understand alignment files
+- sam-bam-basics - FLAG semantics, MAPQ-by-aligner, secondary vs supplementary
 - alignment-sorting - Sort before/after filtering
 - alignment-indexing - Required for region filtering
+- alignment-amplicon-clipping - Primer clipping for amplicon panels
 - duplicate-handling - Mark duplicates before filtering
 - bam-statistics - Check filter effects

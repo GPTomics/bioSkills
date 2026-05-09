@@ -23,14 +23,15 @@ def consensus_sequence(alignment, threshold=0.5, gap_char='-', ambiguous='N'):
             consensus.append(ambiguous)
     return ''.join(consensus)
 
-alignment = AlignIO.read('alignment.fasta', 'fasta')
-print(f'Alignment: {len(alignment)} sequences, {alignment.get_alignment_length()} columns\n')
+if __name__ == '__main__':
+    alignment = AlignIO.read('alignment.fasta', 'fasta')
+    print(f'Alignment: {len(alignment)} sequences, {alignment.get_alignment_length()} columns\n')
 
-consensus_50 = consensus_sequence(alignment, threshold=0.5, ambiguous='N')
-print(f'Consensus (50% threshold):\n{consensus_50}\n')
+    consensus_50 = consensus_sequence(alignment, threshold=0.5, ambiguous='N')
+    print(f'Consensus (50% threshold):\n{consensus_50}\n')
 
-consensus_70 = consensus_sequence(alignment, threshold=0.7, ambiguous='N')
-print(f'Consensus (70% threshold):\n{consensus_70}\n')
+    consensus_70 = consensus_sequence(alignment, threshold=0.7, ambiguous='N')
+    print(f'Consensus (70% threshold):\n{consensus_70}\n')
 
-consensus_100 = consensus_sequence(alignment, threshold=1.0, ambiguous='N')
-print(f'Consensus (100% threshold):\n{consensus_100}')
+    consensus_100 = consensus_sequence(alignment, threshold=1.0, ambiguous='N')
+    print(f'Consensus (100% threshold):\n{consensus_100}')

@@ -1,7 +1,7 @@
 # Splicing Pipeline - Usage Guide
 
 ## Overview
-Complete alternative splicing analysis workflow from raw RNA-seq FASTQ files to differential splicing results and visualizations. Includes QC checkpoints and best practices.
+Complete bulk short-read alternative splicing analysis workflow from raw RNA-seq FASTQ files to differential splicing results and visualizations. Includes QC checkpoints and best practices. For variant-driven splice prediction use splice-variant-prediction; for rare-disease single-patient outlier detection use outlier-splicing-detection; for PacBio/ONT full-isoform analysis use long-read-splicing.
 
 ## Prerequisites
 ```bash
@@ -54,7 +54,14 @@ Tell your AI agent what you want to do:
 - Always require minimum junction reads (>= 10) for reliability
 
 ## Related Skills
-- alternative-splicing/splicing-quantification - Quantification details
-- alternative-splicing/differential-splicing - Analysis methods
-- alternative-splicing/sashimi-plots - Visualization
-- read-alignment/star-alignment - STAR alignment options
+
+- alternative-splicing/splicing-quantification - PSI computation, event taxonomy
+- alternative-splicing/differential-splicing - Tool selection, MAJIQ V3, Shiba, leafcutter
+- alternative-splicing/isoform-switching - DTU and NMD/domain consequences
+- alternative-splicing/sashimi-plots - Visualization tools
+- alternative-splicing/splicing-qc - QC prerequisites
+- alternative-splicing/single-cell-splicing - Chemistry-first single-cell decision
+- alternative-splicing/splice-variant-prediction - Variant impact (SpliceAI/Pangolin)
+- alternative-splicing/outlier-splicing-detection - Rare-disease single-patient (FRASER 2.0)
+- alternative-splicing/long-read-splicing - Full-isoform PacBio/ONT analysis
+- read-alignment/star-alignment - STAR 2-pass cohort-style configuration

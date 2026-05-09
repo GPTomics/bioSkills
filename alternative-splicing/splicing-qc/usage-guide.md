@@ -1,60 +1,70 @@
 # Splicing QC - Usage Guide
 
 ## Overview
-Assess RNA-seq data quality specifically for splicing analysis. Evaluates junction saturation, splice site strength, and coverage metrics to determine if data is suitable for reliable splicing quantification.
+Assesses RNA-seq data quality specifically for alternative splicing analysis. Splicing analysis is more demanding than DGE on read length, depth, library prep, alignment strategy, and annotation choice. Failures silently bias PSI estimates and inflate novel-junction false positives. QC layers include experimental design audit (library prep, read length, depth, replicates), STAR 2-pass alignment, junction saturation curves, novel-vs-known junction ratio, splice-site strength scoring (MaxEntScan, SpliceAI), strandedness, and rRNA contamination.
 
 ## Prerequisites
 ```bash
-# RSeQC
-pip install rseqc
+# Python
+pip install rseqc maxentpy pysam pandas matplotlib spliceai
 
-# MaxEntScan scoring
-pip install maxentpy
+# CLI
+conda install -c bioconda regtools fastq_screen
 
-# Additional dependencies
-pip install pysam pandas matplotlib
+# Reference files
+# - GENCODE basic.gtf
+# - BED of canonical transcripts (for RSeQC)
+# - Genome FASTA matching alignment reference
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Check if my RNA-seq data has sufficient depth for splicing analysis"
-- "Run junction saturation analysis on my BAM files"
-- "Evaluate splice site strength for my detected junctions"
-- "Assess junction coverage across my samples"
+- "Audit my RNA-seq design for splicing analysis suitability"
+- "Compute junction saturation curves and check whether sequencing depth is sufficient"
+- "Classify junctions as known vs novel and flag samples with low known-junction fraction"
+- "Score 5' and 3' splice sites with MaxEntScan and SpliceAI"
+- "Verify library strandedness and recommend STAR 2-pass strategy"
 
 ## Example Prompts
 
-### Junction Saturation
-> "Run junction saturation analysis to check if I have enough sequencing depth for splicing."
+### Pre-Sequencing Design Review
+> "Will PE 100nt poly(A)-selected libraries at 30M reads/sample support splicing analysis? If not, what should change?"
 
-> "Generate saturation curves for junction detection in my samples."
+### Post-Alignment QC
+> "Run junction_saturation.py and junction_annotation.py across all my BAMs and report samples below acceptable thresholds."
 
-### Junction Quality
-> "Classify my detected junctions as known or novel using the annotation."
+### STAR 2-Pass
+> "Configure cohort-style STAR 2-pass alignment for 12 samples - collect SJ.out.tab from pass 1 and re-align everything in pass 2 with the augmented junction set."
 
-> "What proportion of my junctions are in the reference annotation?"
+### Splice-Site Scoring
+> "For my candidate cryptic splice sites, compute MaxEntScan donor and acceptor scores plus SpliceAI in-vivo usage probability."
 
-### Splice Site Analysis
-> "Score the splice site strength for my differential splicing events."
-
-> "Identify weak splice sites that might indicate regulatory splicing."
+### Diagnostic
+> "I'm seeing high novel-junction rate (>40%); diagnose whether it's annotation gaps, mapping artifacts, contamination, or biology (TDP-43, SF3B1)."
 
 ## What the Agent Will Do
-1. Run junction saturation analysis with RSeQC
-2. Classify junctions as known/novel using annotation
-3. Calculate junction read coverage distribution
-4. Score splice site strength with MaxEntScan
-5. Generate QC summary with pass/fail recommendations
+1. Audit experimental design vs splicing analysis requirements
+2. Run RSeQC junction_saturation, junction_annotation, infer_experiment per sample
+3. Compute per-junction read counts and overhang distributions with pysam
+4. Score splice sites with MaxEntScan + SpliceAI
+5. Check rRNA contamination
+6. Flag samples failing thresholds; recommend specific fixes (re-sequencing, library re-prep, annotation update)
 
 ## Tips
-- Junction saturation should reach a plateau for reliable splicing analysis
-- If curves are still rising, consider deeper sequencing
-- High proportion (>80%) of known junctions indicates good alignment
-- 5' splice site scores typically 8-10 bits, 3' sites 8-12 bits
-- Weak splice sites (score < 5) may indicate cryptic or regulated splicing
-- Note: RSeQC v3.0+ removed the `-s` flag from junction_saturation.py
+- For IR analysis, rRNA-depleted libraries are mandatory; poly(A) selection biases against pre-mRNA
+- 50nt single-end is poor for AS - junction-spanning reads need >=8nt overhang on each side
+- Cohort-style STAR 2-pass beats per-sample basic 2-pass for differential splicing (consistent junction sets)
+- High novel-junction rate may be biology (TDP-43 cryptic exons in ALS, SF3B1 cryptic 3'ss in MDS) not artifact
+- MaxEntScan = sequence intrinsic strength; SpliceAI = context-aware in-vivo probability - report both
+- GENCODE basic = canonical (rMATS-friendly); comprehensive = discovery (DTU-friendly, higher noise)
+- Wrong strandedness halves usable junction reads; always verify with infer_experiment.py
+- Junction overhang <8nt flags weakly-supported, often false-positive junctions
 
 ## Related Skills
-- splicing-quantification - Proceed to quantification after QC passes
-- read-alignment/star-alignment - Alignment quality affects junction detection
+
+- splicing-quantification - PSI estimation after QC passes
+- read-alignment/star-alignment - STAR 2-pass detail
 - read-qc/quality-reports - General sequencing QC
+- read-qc/contamination-screening - rRNA / contamination
+- splice-variant-prediction - SpliceAI / Pangolin for variant impact
+- long-read-splicing - When short-read QC is fundamentally limiting

@@ -1,50 +1,71 @@
 #!/usr/bin/env Rscript
-# Reference: bedtools 2.31+, deepTools 3.5+, numpy 1.26+, pandas 2.2+, picard 3.1+, pyBigWig 0.3+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
-# ATAC-seq QC metrics
+# Reference: ATACseqQC 1.26+, GenomicAlignments 1.38+, samtools 1.19+, pysam 0.22+ | Verify API if version differs
+# ENCODE 4 ATAC-seq QC metrics. Computes both ENCODE-style and ATACseqQC-style TSS enrichment.
 
-library(ATACseqQC)
-library(GenomicAlignments)
+suppressPackageStartupMessages({
+    library(ATACseqQC); library(GenomicAlignments); library(GenomicRanges)
+    library(TxDb.Hsapiens.UCSC.hg38.knownGene); library(rtracklayer)
+})
 
 calculate_atac_qc <- function(bam_file, peaks_file = NULL, output_prefix = 'atac_qc') {
-    cat('=== ATAC-seq QC ===\n')
+    cat('=== ENCODE 4 ATAC-seq QC ===\n')
 
-    # Fragment size distribution
-    cat('Fragment size distribution...\n')
+    # Fragment-size distribution -> visual periodicity check
+    pdf(sprintf('%s_fragsize.pdf', output_prefix))
     frag_sizes <- fragSizeDist(bam_file, output_prefix)
+    dev.off()
 
-    # TSS enrichment (requires TxDb)
-    library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+    # MAPQ-filtered alignments (paired-end)
     gal <- readGAlignmentPairs(bam_file, param = ScanBamParam(mapqFilter = 30))
+    cat(sprintf('Paired alignments (MAPQ >= 30): %d\n', length(gal)))
+
+    # ATACseqQC TSS enrichment (sum-over-window method; not ENCODE-comparable)
     txs <- transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene)
     tsse <- TSSEscore(gal, txs)
-    cat(sprintf('TSS enrichment score: %.2f\n', tsse$TSSEscore))
+    cat(sprintf('ATACseqQC TSSEscore: %.2f\n', tsse$TSSEscore))
+    cat('  (ATACseqQC uses 100bp center / 1000bp flanks; typically 2-3x ENCODE pyTSSe)\n')
 
-    # FRiP (Fraction of Reads in Peaks)
-    if (!is.null(peaks_file) && file.exists(peaks_file)) {
-        library(GenomicRanges)
+    # Fragment-size class fractions
+    frags <- width(gal)
+    nfr <- sum(frags < 100); mono <- sum(frags >= 180 & frags <= 247)
+    di <- sum(frags >= 315 & frags <= 473); tri <- sum(frags >= 558 & frags <= 615)
+    cat(sprintf('NFR: %d (%.1f%%)  Mono: %d (%.1f%%)  Di: %d (%.1f%%)  Tri: %d\n',
+                nfr, 100 * nfr / length(gal), mono, 100 * mono / length(gal),
+                di, 100 * di / length(gal), tri))
+
+    # FRiP requires peaks file
+    frip <- NA_real_
+    if (!is.null(peaks_file) && nzchar(peaks_file) && file.exists(peaks_file)) {
         peaks <- import(peaks_file)
-        reads_in_peaks <- countOverlaps(gal, peaks)
-        frip <- sum(reads_in_peaks > 0) / length(gal)
-        cat(sprintf('FRiP: %.3f\n', frip))
+        in_peaks <- sum(countOverlaps(gal, peaks) > 0)
+        frip <- in_peaks / length(gal)
+        cat(sprintf('FRiP: %.3f  (ENCODE: ideal >= 0.3, accept >= 0.2)\n', frip))
     }
 
-    # NFR ratio
-    nfr <- sum(width(gal) < 100)
-    mono <- sum(width(gal) >= 180 & width(gal) <= 247)
-    nfr_ratio <- nfr / (nfr + mono)
-    cat(sprintf('NFR ratio: %.3f\n', nfr_ratio))
+    # ENCODE pass/fail grading (subset; adapt thresholds for non-Omni protocols)
+    grade <- function(value, accept, ideal, inverted = FALSE) {
+        if (is.na(value)) return('NA')
+        if (inverted) {
+            if (value > accept) 'FAIL' else if (value <= ideal) 'PASS' else 'WARN'
+        } else {
+            if (value < accept) 'FAIL' else if (value >= ideal) 'PASS' else 'WARN'
+        }
+    }
 
-    # Save metrics
     metrics <- data.frame(
         sample = output_prefix,
-        tss_enrichment = tsse$TSSEscore,
-        nfr_ratio = nfr_ratio,
-        total_fragments = length(gal)
+        nuclear_reads_M = round(length(gal) / 1e6, 1),
+        ATACseqQC_TSSEscore = round(tsse$TSSEscore, 2),
+        nfr_fraction = round(nfr / length(gal), 3),
+        mono_fraction = round(mono / length(gal), 3),
+        FRiP = ifelse(is.na(frip), NA, round(frip, 3)),
+        nuc_reads_grade = grade(length(gal) / 1e6, 25, 50),
+        FRiP_grade = grade(frip, 0.2, 0.3)
     )
-    write.csv(metrics, paste0(output_prefix, '_metrics.csv'), row.names = FALSE)
+    write.csv(metrics, sprintf('%s_metrics.csv', output_prefix), row.names = FALSE)
+    cat('\nReport card:\n'); print(metrics)
 }
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) > 0) {
-    calculate_atac_qc(args[1], args[2], args[3])
-}
+if (length(args) > 0) calculate_atac_qc(args[1], if (length(args) > 1) args[2] else NULL,
+                                        if (length(args) > 2) args[3] else 'sample')
