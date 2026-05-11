@@ -4,16 +4,16 @@
 
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-<PROJECT_ID-SHORTNAME>}"
-LANTA_ACCOUNT="${LANTA_ACCOUNT:-<LANTA_ACCOUNT>}"
+export PROJECT_ID="${PROJECT_ID:-<PROJECT_ID-SHORTNAME>}"
+export LANTA_ACCOUNT="${LANTA_ACCOUNT:-<LANTA_ACCOUNT>}"
 NFCORE_RNASEQ_VERSION="${NFCORE_RNASEQ_VERSION:-3.25.0}"
 SAMPLESHEET="${SAMPLESHEET:-rnaseq_samplesheet.csv}"
 FASTA="${FASTA:-/project/${PROJECT_ID}/refs/genome.fa}"
 GTF="${GTF:-/project/${PROJECT_ID}/refs/genes.gtf}"
-OUTDIR="${OUTDIR:-/project/${PROJECT_ID}/results/rnaseq}"
-WORKDIR="${WORKDIR:-/scratch/${PROJECT_ID}/${USER}/nextflow-work/rnaseq}"
-APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/scratch/${PROJECT_ID}/${USER}/apptainer-cache}"
-APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-/scratch/${PROJECT_ID}/${USER}/apptainer-tmp}"
+export OUTDIR="${OUTDIR:-/project/${PROJECT_ID}/results/rnaseq}"
+export WORKDIR="${WORKDIR:-/scratch/${PROJECT_ID}/${USER}/nextflow-work/rnaseq}"
+export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-/scratch/${PROJECT_ID}/${USER}/apptainer-cache}"
+export APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-/scratch/${PROJECT_ID}/${USER}/apptainer-tmp}"
 CONFIG="${CONFIG:-nextflow.lanta.config}"
 NEXTFLOW_MODULE="${NEXTFLOW_MODULE:-}"
 APPTAINER_MODULE="${APPTAINER_MODULE:-}"
@@ -56,8 +56,6 @@ if ! command -v apptainer >/dev/null 2>&1 && ! command -v singularity >/dev/null
   exit 1
 fi
 
-export APPTAINER_CACHEDIR APPTAINER_TMPDIR
-
 nextflow run nf-core/rnaseq \
   -r "$NFCORE_RNASEQ_VERSION" \
   -c "$CONFIG" \
@@ -65,10 +63,6 @@ nextflow run nf-core/rnaseq \
   --outdir "$OUTDIR" \
   --fasta "$FASTA" \
   --gtf "$GTF" \
-  --project_id "$PROJECT_ID" \
-  --lanta_account "$LANTA_ACCOUNT" \
-  --apptainer_cache "$APPTAINER_CACHEDIR" \
-  --apptainer_tmp "$APPTAINER_TMPDIR" \
   -work-dir "$WORKDIR" \
   -resume \
   -with-report "$OUTDIR/report.html" \
