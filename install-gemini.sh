@@ -37,6 +37,11 @@ copy_skill_files() {
         mkdir -p "$target_dir/references"
         cp "$src_dir/usage-guide.md" "$target_dir/references/"
     fi
+    if [ -d "$src_dir/references" ]; then
+        mkdir -p "$target_dir/references"
+        rsync -a --exclude='*.pyc' --exclude='__pycache__' \
+            "$src_dir/references/" "$target_dir/references/"
+    fi
 }
 
 run_installer "$@"
