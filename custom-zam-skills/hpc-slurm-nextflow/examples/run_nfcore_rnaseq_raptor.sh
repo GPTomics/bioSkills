@@ -4,17 +4,17 @@
 
 set -euo pipefail
 
-RAPTOR_PARTITION="${RAPTOR_PARTITION:-<PARTITION>}"
-PROJECT_DIR="${PROJECT_DIR:-<PROJECT_DIR>}"
-SCRATCH_DIR="${SCRATCH_DIR:-<SCRATCH_DIR>}"
+export RAPTOR_PARTITION="${RAPTOR_PARTITION:-<PARTITION>}"
+export PROJECT_DIR="${PROJECT_DIR:-<PROJECT_DIR>}"
+export SCRATCH_DIR="${SCRATCH_DIR:-<SCRATCH_DIR>}"
 NFCORE_RNASEQ_VERSION="${NFCORE_RNASEQ_VERSION:-3.25.0}"
 SAMPLESHEET="${SAMPLESHEET:-rnaseq_samplesheet.csv}"
 FASTA="${FASTA:-${PROJECT_DIR}/refs/genome.fa}"
 GTF="${GTF:-${PROJECT_DIR}/refs/genes.gtf}"
-OUTDIR="${OUTDIR:-${PROJECT_DIR}/results/rnaseq}"
-WORKDIR="${WORKDIR:-${SCRATCH_DIR}/nextflow-work/rnaseq}"
-APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-${SCRATCH_DIR}/apptainer-cache}"
-APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${SCRATCH_DIR}/apptainer-tmp}"
+export OUTDIR="${OUTDIR:-${PROJECT_DIR}/results/rnaseq}"
+export WORKDIR="${WORKDIR:-${SCRATCH_DIR}/nextflow-work/rnaseq}"
+export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-${SCRATCH_DIR}/apptainer-cache}"
+export APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${SCRATCH_DIR}/apptainer-tmp}"
 CONFIG="${CONFIG:-nextflow.raptor.config}"
 NEXTFLOW_MODULE="${NEXTFLOW_MODULE:-nextflow}"
 APPTAINER_MODULE="${APPTAINER_MODULE:-apptainer}"
@@ -57,8 +57,6 @@ command -v apptainer >/dev/null 2>&1 || {
   exit 1
 }
 
-export APPTAINER_CACHEDIR APPTAINER_TMPDIR
-
 nextflow run nf-core/rnaseq \
   -r "$NFCORE_RNASEQ_VERSION" \
   -c "$CONFIG" \
@@ -66,11 +64,6 @@ nextflow run nf-core/rnaseq \
   --outdir "$OUTDIR" \
   --fasta "$FASTA" \
   --gtf "$GTF" \
-  --raptor_partition "$RAPTOR_PARTITION" \
-  --project_dir "$PROJECT_DIR" \
-  --scratch_dir "$SCRATCH_DIR" \
-  --apptainer_cache "$APPTAINER_CACHEDIR" \
-  --apptainer_tmp "$APPTAINER_TMPDIR" \
   -work-dir "$WORKDIR" \
   -resume \
   -with-report "$OUTDIR/report.html" \
