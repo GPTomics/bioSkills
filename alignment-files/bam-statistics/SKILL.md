@@ -1,6 +1,6 @@
 ---
-name: bio-alignment-files-bam-statistics
-description: Generate alignment statistics using samtools flagstat, stats, depth, and coverage. Use when assessing alignment quality, calculating coverage, or generating QC reports.
+name: bio-bam-statistics
+description: Generate alignment statistics using samtools flagstat, stats, depth, coverage, and mosdepth. Use when assessing alignment quality, calculating coverage, or generating QC reports.
 tool_type: cli
 primary_tool: samtools
 ---
@@ -26,13 +26,34 @@ Generate alignment statistics using samtools and pysam.
 
 ## Quick Summary Commands
 
-| Command | Output | Speed |
-|---------|--------|-------|
-| `flagstat` | Read counts by category | Very fast |
-| `idxstats` | Per-chromosome counts | Very fast (needs index) |
-| `stats` | Comprehensive statistics | Moderate |
-| `depth` | Per-position depth | Slow (full scan) |
-| `coverage` | Per-region coverage | Fast (needs index) |
+| Question | Best tool | Why |
+|----------|-----------|-----|
+| Quick read counts by FLAG category | `samtools flagstat` | Fast; counts secondary+supp in totals |
+| Per-chromosome counts | `samtools idxstats` | Fast (needs index); **counts secondary+supp** |
+| Insert size, MAPQ, error, GC | `samtools stats -r ref.fa` | Comprehensive; feeds MultiQC |
+| Per-position depth (small region) | `samtools depth` or pysam pileup | Slow on full genome |
+| Per-position depth (genome-wide) | **`mosdepth`** | 3-10x faster than `samtools depth` |
+| Per-region coverage (BED) | `mosdepth --by regions.bed` | Production default |
+| Coverage histogram / cumulative | `mosdepth -t 4 --no-per-base` | Single-pass histogram |
+| Breadth at depth thresholds | `mosdepth --thresholds 1,10,30,100` | Standard exome QC |
+| Targeted enrichment QC | `picard CollectHsMetrics` | PCT_OFF_BAIT, FOLD_80_BASE_PENALTY, AT/GC dropout |
+| Cross-sample contamination | `verifybamid2`, `somalier` | FREEMIX < 0.01 expected |
+
+### What Each Tool Counts (and Doesn't)
+
+| Counting category | flagstat | stats | idxstats |
+|-------------------|----------|-------|----------|
+| Primary alignments | `in total` minus supp | `raw total sequences` | mapped column |
+| Secondary | `secondary` line | filtered out | counted in mapped |
+| Supplementary | `supplementary` line | filtered out | counted in mapped |
+| Mapping rate denominator | total *including* supp | primary only | mapped+unmapped |
+
+For long-read data where one read produces many supplementary alignments, the senior cross-check:
+```
+input_read_count = flagstat_total - secondary - supplementary
+                 = stats_raw_total_sequences
+```
+Reports of "the file has 1.2M reads" where the input was actually 800k with 400k supplementary chimeric splits trace to flagstat misinterpretation.
 
 ## samtools flagstat
 
@@ -151,10 +172,32 @@ samtools depth -r chr1:1000-2000 input.bam
 samtools depth -a input.bam > depth_with_zeros.txt
 ```
 
-### Maximum Depth Cap
+### Maximum Depth Cap (Critical Trap)
 ```bash
-samtools depth -d 0 input.bam  # No cap (default 8000)
+# samtools <1.13: silently caps at 8000 -- pipelines pinned to old versions are silently wrong
+# samtools 1.13+: no cap by default
+# Always set explicitly to be portable:
+samtools depth -d 0 input.bam
 ```
+
+Pipelines that routinely break the 8000 cap: targeted oncology hotspots (5000-50000x), mitochondrial DNA (small genome, large read share), amplicon viral (ARTIC: 1000-100000x per amplicon), UMI-deduped capture (14000-17000x post-collapse), highly expressed transcripts (rRNA, mt-RNA).
+
+### Overlapping Pair Correction
+```bash
+# When fragment length < 2 * read_length, R1 and R2 overlap.
+# Default samtools depth double-counts overlap; -s deducts:
+samtools depth -s input.bam
+```
+Without `-s`, doubled support inflates somatic VAFs at sites covered by overlapping pairs (especially in fragmented samples: FFPE, cfDNA). `mosdepth` does not double-count overlap; `bcftools mpileup` corrects by default; `samtools mpileup` does not.
+
+### mosdepth (Modern Default)
+```bash
+mosdepth -t 4 sample input.bam                                                       # genome-wide per-base
+mosdepth -t 4 --by exome.bed --thresholds 1,10,20,30,100 --no-per-base sample input.bam   # exome QC
+mosdepth -t 4 --quantize 0:1:10:100: sample input.bam                                # CNV-style bands
+mosdepth -t 4 -f ref.fa sample input.cram                                            # CRAM with reference
+```
+`mosdepth` filters dup/secondary/supp by default; configurable via `--flag`. Memory ~ 4 bytes x longest chrom (1 GB for human chr1, 12+ GB for axolotl). Does not honor base quality; use `samtools depth -q INT` if needed.
 
 ### Depth from BED Regions
 ```bash
@@ -328,20 +371,51 @@ print(f'Min: {min(sizes)}, Max: {max(sizes)}')
 | Per-position depth | `samtools depth input.bam` |
 | Mean depth | `samtools depth input.bam \| awk '{sum+=$3;n++}END{print sum/n}'` |
 
-## Common Metrics
+## QC Thresholds Are Assay-Specific
 
-| Metric | Good | Concerning |
-|--------|------|------------|
-| Mapping rate | >95% | <80% |
-| Proper pair rate | >90% | <70% |
-| Duplicate rate | <20% | >40% |
-| Error rate | <1% | >2% |
-| Coverage uniformity | <2x CV | >3x CV |
+A single "mapping rate > 95%" rule rejects valid ATAC, ChIP, RNA-seq, metagenomics, and aDNA samples. The threshold question is "is this rate normal for this assay?" not "is this rate above 95%?"
+
+| Metric | WGS PCR-free | WGS PCR | WES | Targeted panel | Deep panel (UMI) | RNA-seq | scRNA (10x) | ATAC | ChIP | Long-read | aDNA |
+|--------|--------------|---------|-----|----------------|------------------|---------|-------------|------|------|-----------|------|
+| Mapping rate | >99% | >98% | >95% | >95% | >95% | >90% | >70% | >50% | >60% | >95% | 1-50% |
+| Duplicate rate | <5% | 5-15% | 20-50% | 20-50% | 50-90% pre-consensus | (skip) | (use UMI) | 10-30% | 5-30% | n/a | 20-60% |
+| Proper pair rate | >95% | >95% | >85% | >80% | >80% | >70% | n/a | >50% | >70% | n/a | >60% |
+| Mean MAPQ | bimodal at 0/60 | bimodal | bimodal | bimodal | bimodal | bimodal incl 255 (STAR) | 0/3/255 | 30-55 | 30-55 | 30-50 | 20-40 |
+| Mt fraction | 0.1-2% | 0.1-2% | <1% | <0.1% | <0.1% | varies | varies | **<10% target** | <2% | n/a | varies |
+
+Mean MAPQ is misleading; the distribution is bimodal (0 and aligner-max). The fraction at MAPQ >= 30 is more informative:
+```bash
+samtools view -c -F 2308 -q 30 in.bam   # primary, mapped, MAPQ>=30
+samtools view -c -F 2308 in.bam          # primary, mapped (denominator)
+# For STAR/STARsolo, use -q 255 instead of -q 30 (255 is the unique-mapping sentinel)
+```
+
+## What Flagstat Does Not Reveal
+
+A 99% flagstat mapping rate does NOT mean the data is usable. Common false-positive scenarios:
+
+1. **Adapter readthrough**: short fragments (insert < 2 * read_length) sequence into adapter; aligners soft-clip the adapter portion and flag the read as MAPPED. Detect:
+   ```bash
+   samtools stats input.bam | grep "bases soft-clipped"   # >5% suggests adapter contamination
+   ```
+2. **Off-target enrichment** (capture/WES): detect via `picard CollectHsMetrics` PCT_OFF_BAIT or PCT_SELECTED_BASES.
+3. **Low-complexity pile-up**: telomere/centromere reads mass at MAPQ-0; counted as mapped but useless. Detect via MAPQ distribution.
+4. **Cross-sample contamination**: detect via `verifybamid2` or `somalier` (FREEMIX > 1% degrades somatic calling; > 5% breaks germline calling).
+5. **Wrong reference build**: a BAM aligned to GRCh37 viewed against GRCh38 looks fine to flagstat but produces nonsense pileups. Compare `@SQ M5:` from BAM header with `samtools dict ref.fa` -- see alignment-validation.
+
+## Insert Size Caveats
+
+`samtools stats` reports the IS section only for FR-oriented properly paired reads. So:
+- Mate-pair libraries (RF orientation): IS section *empty* -- proper-pair flag not set for RF
+- ATAC-seq: bimodal/multimodal expected (nucleosome ladder ~50/~180/~340 bp). Unimodal suggests poor transposition.
+- RNA-seq: TLEN includes intron span -- mean meaningless
+- Bisulfite (PBAT): orientation reversed; samtools may not flag proper pair
 
 ## Related Skills
 
-- sam-bam-basics - View alignment files
-- alignment-indexing - idxstats requires index
-- duplicate-handling - Check duplicate rates
+- sam-bam-basics - View alignment files; aligner-aware MAPQ semantics
+- alignment-indexing - idxstats requires index; secondary+supp counted
+- alignment-validation - Insert size by library, contamination, sample-swap detection
+- duplicate-handling - Library-aware duplicate rate expectations
 - alignment-filtering - Filter before stats
 - sequence-io/sequence-statistics - FASTA/FASTQ statistics

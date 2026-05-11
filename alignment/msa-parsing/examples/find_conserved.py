@@ -4,8 +4,6 @@
 from Bio import AlignIO
 from collections import Counter
 
-alignment = AlignIO.read('alignment.fasta', 'fasta')
-
 def find_conserved_positions(alignment, threshold=0.8):
     conserved = []
     for col_idx in range(alignment.get_alignment_length()):
@@ -21,10 +19,13 @@ def find_conserved_positions(alignment, threshold=0.8):
             conserved.append((col_idx, most_common_char, conservation))
     return conserved
 
-print('Fully conserved positions (100%):')
-for pos, char, cons in find_conserved_positions(alignment, threshold=1.0):
-    print(f'  Position {pos}: {char}')
+if __name__ == '__main__':
+    alignment = AlignIO.read('alignment.fasta', 'fasta')
 
-print('\nHighly conserved positions (80%+):')
-for pos, char, cons in find_conserved_positions(alignment, threshold=0.8):
-    print(f'  Position {pos}: {char} ({cons*100:.0f}%)')
+    print('Fully conserved positions (100%):')
+    for pos, char, cons in find_conserved_positions(alignment, threshold=1.0):
+        print(f'  Position {pos}: {char}')
+
+    print('\nHighly conserved positions (80%+):')
+    for pos, char, cons in find_conserved_positions(alignment, threshold=0.8):
+        print(f'  Position {pos}: {char} ({cons*100:.0f}%)')

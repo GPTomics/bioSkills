@@ -10,8 +10,11 @@ depends_on:
   - alignment-files/duplicate-handling
   - atac-seq/atac-peak-calling
   - atac-seq/atac-qc
+  - atac-seq/consensus-peakset
   - atac-seq/differential-accessibility
   - atac-seq/footprinting
+  - atac-seq/motif-deviation
+  - atac-seq/nucleosome-positioning
 qc_checkpoints:
   - after_qc: "Q30 >85%, adapter content <5%"
   - after_alignment: "Mapping rate >80%, mitochondrial <20%"
@@ -144,32 +147,33 @@ bedtools bamtobed -i aligned/${sample}.dedup.bam | \
 
 ### Step 4: Peak Calling with MACS3
 
+`-f BAMPE` mode silently IGNORES `--shift/--extsize`; use `-f BAM` for the ENCODE-style shift-extend pattern, or omit `--shift/--extsize` when using BAMPE. See atac-seq/atac-peak-calling for the full ENCODE 4 IDR + pseudoreplicate pipeline.
+
 ```bash
-# Call peaks (use --shift and --extsize for shifted reads)
+# ENCODE 4 pattern: shift-extend on single-end-ified reads (-f BAM)
 macs3 callpeak \
     -t aligned/sample1.shifted.bam \
-    -f BAMPE \
+    -f BAM \
     -g hs \
     -n sample1 \
     --outdir peaks \
-    --nomodel \
-    --shift -75 \
-    --extsize 150 \
+    --nomodel --shift -75 --extsize 150 \
     --keep-dup all \
-    -q 0.01
+    -p 0.01
 
-# For calling on all samples together
+# For calling on all samples together (pooled)
 macs3 callpeak \
     -t aligned/*.shifted.bam \
-    -f BAMPE \
+    -f BAM \
     -g hs \
     -n consensus \
     --outdir peaks \
-    --nomodel \
-    --shift -75 \
-    --extsize 150 \
-    -q 0.01
+    --nomodel --shift -75 --extsize 150 \
+    --keep-dup all \
+    -p 0.01
 ```
+
+For consensus peakset construction (Corces 2018 iterative overlap, 501 bp fixed-width), see atac-seq/consensus-peakset.
 
 ### Step 5: ATAC-seq QC
 
@@ -348,8 +352,16 @@ echo "Pipeline complete. Peaks: ${OUTDIR}/peaks/consensus_peaks.narrowPeak"
 
 ## Related Skills
 
-- atac-seq/atac-peak-calling - MACS3 ATAC parameters
-- atac-seq/atac-qc - TSS enrichment, FRiP details
-- atac-seq/differential-accessibility - DiffBind for ATAC
-- atac-seq/footprinting - TOBIAS and HINT details
+- atac-seq/atac-peak-calling - MACS3 / Genrich / HMMRATAC details, ENCODE 4 IDR
+- atac-seq/atac-qc - TSS enrichment, FRiP, NRF/PBC1/PBC2 details
+- atac-seq/consensus-peakset - Corces 2018 iterative-overlap fixed-width consensus
+- atac-seq/differential-accessibility - DiffBind / csaw / DESeq2; spike-in normalization
+- atac-seq/footprinting - TOBIAS three-step; per-TF failure modes
+- atac-seq/motif-deviation - chromVAR for motif accessibility variability
+- atac-seq/nucleosome-positioning - V-plot, NucleoATAC, +1 nucleosome
+- atac-seq/single-cell-atac - For scATAC instead of bulk
+- atac-seq/co-accessibility - Cicero cis-regulatory inference
+- atac-seq/enhancer-gene-linking - ABC, ENCODE-rE2G enhancer-gene mapping
+- atac-seq/deep-learning-atac - chromBPNet variant effect prediction
+- atac-seq/allele-specific-accessibility - WASP + caQTL mapping
 - chip-seq/peak-annotation - Annotate ATAC peaks to genes

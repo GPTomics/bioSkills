@@ -71,34 +71,8 @@ Tell your AI agent what you want to do:
 
 ## Key Metrics and Thresholds
 
-### Mapping Rate
-Percentage of reads successfully aligned to the reference.
-
-| Status | WGS | Exome | RNA-seq |
-|--------|-----|-------|---------|
-| Good | > 95% | > 95% | > 80% |
-| Warning | 90-95% | 90-95% | 70-80% |
-| Fail | < 90% | < 90% | < 70% |
-
-### Proper Pairing
-Percentage of paired reads aligned with correct orientation and insert size.
-
-| Status | Threshold |
-|--------|-----------|
-| Good | > 90% |
-| Warning | 80-90% |
-| Fail | < 80% |
-
-### Insert Size
-Fragment size distribution should match library preparation protocol.
-
-| Library Type | Expected Size |
-|--------------|---------------|
-| Standard WGS | 300-500 bp |
-| PCR-free WGS | 350-550 bp |
-| RNA-seq | 150-300 bp |
-| ChIP-seq | 150-300 bp |
-| ATAC-seq | Multimodal (nucleosome pattern) |
+### Mapping Rate, Proper Pairing, Insert Size
+Thresholds and expected ranges are assay-specific. See SKILL.md "QC Thresholds Are Assay-Specific" table for mapping rate, proper-pair rate, duplicate rate, mean MAPQ, and Mt fraction across WGS, WES, panels, RNA-seq, scRNA, ATAC, ChIP, long-read, and aDNA.
 
 ### Strand Balance
 Forward/reverse strand ratio should be approximately 0.5 (balanced).

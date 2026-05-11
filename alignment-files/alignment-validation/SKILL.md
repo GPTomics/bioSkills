@@ -24,6 +24,72 @@ Post-alignment quality control to verify alignment quality and identify issues.
 - CLI: `samtools flagstat`, `samtools stats`, Picard `CollectAlignmentSummaryMetrics`
 - Python: `pysam.AlignmentFile` iteration with metric calculations
 
+## Two Different Validations
+
+| Concern | Tools | What it catches |
+|---------|-------|-----------------|
+| **File integrity** | `samtools quickcheck`, `picard ValidateSamFile` | Truncation, missing EOF, malformed records, wrong CIGAR, MAPQ out of range |
+| **Sequence dictionary identity** | `samtools dict` + M5 diff | BAM aligned to wrong reference flavor / different decoy / chr vs no-chr |
+| **QC metrics** | `samtools stats`, `flagstat`, `mosdepth`, Picard `CollectMultipleMetrics` / `CollectHsMetrics` / `CollectWgsMetrics` | Are the data biologically reasonable for the assay? |
+| **Contamination / sample swap** | `verifybamid2`, `somalier`, Picard `CrosscheckFingerprints` | Cross-sample contamination, tumor-normal swap, mislabeled sample |
+
+A file can pass `quickcheck` and still be malformed in ways that crash GATK three hours into HaplotypeCaller. Conversely, a QC-poor BAM can be structurally valid.
+
+### File Integrity
+```bash
+# Fast: header + EOF block check (misses mid-file truncation, invalid CIGAR)
+samtools quickcheck -v in.bam || echo "QUICKCHECK FAILED"
+samtools quickcheck -v *.bam > bad_bams.fofn   # one fail-line per bad file
+
+# Slow but thorough: structural validation
+picard ValidateSamFile I=in.bam MODE=SUMMARY R=ref.fa
+
+# Production: ignore expected-but-noisy
+picard ValidateSamFile I=in.bam MODE=SUMMARY R=ref.fa \
+    IGNORE=INVALID_MAPPING_QUALITY \
+    IGNORE=MISMATCH_FLAG_MATE_NEG_STRAND
+```
+
+CI-safe one-liner:
+```bash
+test -s in.bam \
+  && samtools quickcheck -v in.bam \
+  && [ $(samtools view -c -F 2304 in.bam) -gt 1000 ] \
+  || { echo "BAM failed integrity"; exit 1; }
+```
+
+### Sequence Dictionary Cross-Validation (M5)
+```bash
+# Compare per-contig MD5 between BAM and reference
+diff \
+    <(samtools view -H in.bam | grep '^@SQ' | tr '\t' '\n' | grep '^M5:' | sort) \
+    <(samtools dict ref.fa | grep '^@SQ' | tr '\t' '\n' | grep '^M5:' | sort)
+```
+
+If M5s differ, the BAM was aligned to a different sequence than the current reference (even if contig names match). Concrete failure modes: GRCh38 vs GRCh38.p13 vs GRCh38_no_alt (alt contigs differ); UCSC `chr1` vs Ensembl `1` (names differ, M5s match -- pure renaming); soft-masked vs hard-masked (M5 matches, viewers differ). The M5 tag is the only definitive identity check.
+
+### Contamination and Sample Swap
+
+No alignment QC is complete without these in production:
+```bash
+# Cross-sample contamination
+verifybamid2 --SVDPrefix /resources/1000g.b38.vcf.gz.SVD \
+    --Reference ref.fa --BamFile sample.bam --Output sample.contam
+# FREEMIX < 0.01 = clean; > 0.03 = problematic; > 0.05 breaks germline calling
+
+# Relatedness, sex check, sample swap detection
+somalier extract -d extracted/ -s /resources/sites.GRCh38.vcf.gz \
+    -f ref.fa sample.bam
+somalier relate --infer extracted/*.somalier
+
+# Tumor/normal pairing verification
+picard CrosscheckFingerprints I=tumor.bam I=normal.bam \
+    HAPLOTYPE_MAP=Homo_sapiens_assembly38.haplotype_database.txt
+# LOD > 5 = same individual; < -5 = different
+```
+
+Sample-swap rates of 0.5-1% in production cohorts are typical. Without `somalier` or `CrosscheckFingerprints`, swaps are detected only when a downstream finding contradicts clinical expectation.
+
 ## Insert Size Distribution
 
 **Goal:** Verify that the fragment length distribution matches the library preparation protocol.
@@ -46,15 +112,27 @@ java -jar picard.jar CollectInsertSizeMetrics \
     H=insert_histogram.pdf
 ```
 
-### Expected Insert Sizes
+### Expected Insert Sizes by Library
 
-| Library Type | Expected Size |
-|--------------|---------------|
-| Standard WGS | 300-500 bp |
-| PCR-free | 350-550 bp |
-| RNA-seq | 150-300 bp |
-| ChIP-seq | 150-300 bp |
-| ATAC-seq | Multimodal |
+| Library | Mean insert | Distribution shape | Diagnostic |
+|---------|-------------|-------------------|-----------|
+| TruSeq DNA PCR-free WGS | 400-500 bp | Roughly Gaussian | Sharp peak; bimodality = degraded sample |
+| TruSeq DNA Nano (PCR) WGS | 300-400 bp | Gaussian, narrower | |
+| Twist / IDT exome capture | 250-350 bp | Gaussian | |
+| TruSeq Stranded mRNA | 200-300 bp | Right-skewed (transcript distribution) | Long tail = poor size selection |
+| Ribo-Zero rRNA-depleted | 250-400 bp | Right-skewed | |
+| Smart-seq2 / Smart-seq3 | 200-700 bp | Broad | |
+| 10x Chromium (3') | n/a -- not informative | n/a | |
+| TruSeq ChIP | 200-400 bp | Sharp | |
+| ATAC-seq (Buenrostro / Omni-ATAC) | Multimodal | Peaks at ~50, ~180, ~340 bp | **Missing multimodal pattern = bad library**; missing ~180 bp = under-digested |
+| Hi-C / Micro-C | Multimodal | Peak at ligation-junction size | |
+| cfDNA / ctDNA | 160-180 bp | Multimodal; ~167 bp mononucleosomal + ~340 dinuc | Tumor-derived shorter (~145 bp); shape itself is a biomarker |
+| FFPE | 100-250 bp | Right-skewed, broad | |
+| aDNA | 30-80 bp | Sharp left-skewed | |
+| ONT (native) | 1-30 kb | n/a | |
+| PacBio HiFi | 10-25 kb | Sharp peak | |
+
+For ATAC, the multimodal pattern *is* the QC. If the mononucleosomal peak (~180 bp) is absent, Tn5 was over-titrated, under-titrated, or DNA was degraded. Use ATACseqQC `fragSizeDist()` for the standard ATAC fragment-size diagnostic.
 
 ### Python Insert Size Analysis
 
@@ -150,7 +228,7 @@ computeGCBias \
 
 ## Strand Balance
 
-Forward and reverse strand should be balanced.
+A balanced 0.48-0.52 forward/reverse ratio applies to WGS / WES / generic DNA-seq on autosomes. Expected to deviate for: stranded RNA-seq (deliberately strand-asymmetric -- verify with RSeQC `infer_experiment.py`), bisulfite (CT vs GA), small-RNA / strand-specific RNA-seq, and chrY/chrM regions. Per-chromosome strand imbalance > 5% on autosomes suggests aligner artifacts; on chrX/chrY suggests sex-mismatch.
 
 ### Calculate Strand Ratio
 
@@ -187,15 +265,9 @@ samtools view input.bam | cut -f5 | sort -n | uniq -c | sort -k2 -n
 samtools view input.bam | awk '{sum+=$5; count++} END {print "Mean MAPQ:", sum/count}'
 ```
 
-### MAPQ Thresholds
+### MAPQ Distribution Is Bimodal and Aligner-Specific
 
-| MAPQ | Meaning |
-|------|---------|
-| 0 | Multi-mapper |
-| 1-10 | Low confidence |
-| 20-30 | Moderate |
-| 40+ | High confidence |
-| 60 | Unique (BWA) |
+Mean MAPQ is misleading; distributions are bimodal (0 and aligner-max). For aligner-specific scales and "unique mapping" sentinels, see sam-bam-basics. The fraction of primary mapped reads at MAPQ >= 30 is a more informative summary than the mean.
 
 ## Chromosome Coverage Balance
 
@@ -205,21 +277,21 @@ samtools view input.bam | awk '{sum+=$5; count++} END {print "Mean MAPQ:", sum/c
 samtools idxstats input.bam | awk '{print $1, $3/$2}' | head -25
 ```
 
-### Check for Aneuploidy/Contamination
+### Check for Aneuploidy / Sex Chromosome Imbalance
 
+Median-normalized per-autosome coverage (1.0 = expected diploid; 0.5 = monosomy/sex; 1.5 = trisomy):
 ```bash
-samtools idxstats input.bam | awk '$3 > 0 {
-    sum += $3
-    len[$1] = $2
-    reads[$1] = $3
-} END {
-    for (chr in reads) {
-        expected = len[chr] / sum * reads[chr]
-        ratio = reads[chr] / expected
-        if (ratio < 0.8 || ratio > 1.2) print chr, ratio
-    }
+samtools idxstats in.bam | awk '$2>0 && $1!~/^chr[XYM]|^GL|^KI|^chrUn|^chrEBV/ {
+    cov[$1] = $3 / $2
+}
+END {
+    n = asort(cov, sorted)
+    med = sorted[int(n/2)+1]
+    for (c in cov) printf "%s\t%.3f\n", c, cov[c]/med
 }'
 ```
+
+For full ancestry / contamination / relatedness checking, use `verifybamid2`, `somalier`, or `peddy` -- they account for population AFs, not just per-contig depth.
 
 ## Mismatch Rate
 
@@ -289,72 +361,21 @@ echo -e "\nReport: $OUTDIR/report.txt"
 
 ## Python Validation Module
 
+A skeleton; full implementation is in `examples/validate_alignment.py`:
 ```python
 import pysam
-import numpy as np
-from collections import Counter
 
 class AlignmentValidator:
     def __init__(self, bam_file):
         self.bam = pysam.AlignmentFile(bam_file, 'rb')
 
-    def mapping_rate(self):
-        stats = self.bam.get_index_statistics()
-        mapped = sum(s.mapped for s in stats)
-        unmapped = sum(s.unmapped for s in stats)
-        return mapped / (mapped + unmapped) * 100
-
-    def proper_pair_rate(self, sample_size=100000):
-        proper = 0
-        paired = 0
-        for i, read in enumerate(self.bam.fetch()):
-            if i >= sample_size:
-                break
-            if read.is_paired:
-                paired += 1
-                if read.is_proper_pair:
-                    proper += 1
-        return proper / paired * 100 if paired > 0 else 0
-
-    def mapq_distribution(self, sample_size=100000):
-        mapqs = []
-        for i, read in enumerate(self.bam.fetch()):
-            if i >= sample_size:
-                break
-            if not read.is_unmapped:
-                mapqs.append(read.mapping_quality)
-        return Counter(mapqs)
-
-    def strand_balance(self, sample_size=100000):
-        forward = 0
-        reverse = 0
-        for i, read in enumerate(self.bam.fetch()):
-            if i >= sample_size:
-                break
-            if not read.is_unmapped:
-                if read.is_reverse:
-                    reverse += 1
-                else:
-                    forward += 1
-        return forward / (forward + reverse) if (forward + reverse) > 0 else 0.5
-
-    def report(self):
-        print(f'Mapping rate: {self.mapping_rate():.1f}%')
-        print(f'Proper pairing: {self.proper_pair_rate():.1f}%')
-        print(f'Strand balance: {self.strand_balance():.3f}')
-
-        mapq_dist = self.mapq_distribution()
-        high_qual = sum(v for k, v in mapq_dist.items() if k >= 30)
-        total = sum(mapq_dist.values())
-        print(f'High MAPQ (>=30): {high_qual/total*100:.1f}%')
-
-    def close(self):
-        self.bam.close()
-
-validator = AlignmentValidator('sample.bam')
-validator.report()
-validator.close()
+    def report(self, sample_size=100000):
+        # Sample reads, compute mapping rate, proper-pair rate, MAPQ dist, strand balance
+        # See examples/validate_alignment.py for full implementation
+        ...
 ```
+
+The first-N-reads sampling pattern is biased toward chr1 (different GC content and complexity than chrM/chrX/chrY/alt contigs). For unbiased per-chromosome statistics, use `samtools view -s 42.01 input.bam` (seed-prefixed fraction `INT.FRAC` is reproducible; bare `0.01` is not) instead of head-of-file iteration.
 
 ## Quality Thresholds Summary
 
@@ -362,14 +383,15 @@ validator.close()
 |--------|------|---------|------|
 | Mapping rate | > 95% | 90-95% | < 90% |
 | Proper pairing | > 90% | 80-90% | < 80% |
-| Duplicate rate | < 10% | 10-20% | > 20% |
+| Duplicate rate (assay-specific) | see bam-statistics decision table | -- | -- |
 | Strand balance | 0.48-0.52 | 0.45-0.55 | Outside |
 | Mean MAPQ | > 40 | 30-40 | < 30 |
 | GC bias | < 1.2x | 1.2-1.5x | > 1.5x |
 
 ## Related Skills
 
-- bam-statistics - Basic flagstat and depth
-- duplicate-handling - Mark/remove duplicates
-- alignment-filtering - Filter low-quality reads
-- chip-seq/chipseq-qc - ChIP-specific metrics
+- bam-statistics - Per-assay metric thresholds, depth/coverage tools, mosdepth
+- alignment-filtering - Aligner-specific MAPQ thresholds (canonical home)
+- duplicate-handling - Library-aware dedup decisions
+- sam-bam-basics - MAPQ-by-aligner table
+- chip-seq/chipseq-qc - ChIP-specific QC (FRiP, NSC, RSC)

@@ -380,3 +380,7 @@ def run_scenic_pipeline(adata_path, tf_list_path, db_paths, motif_annotations_pa
 - gene-regulatory-networks/perturbation-simulation - CellOracle details
 - single-cell/clustering - Upstream cell type annotation
 - single-cell/preprocessing - QC and normalization before GRN inference
+- atac-seq/single-cell-atac - scATAC preprocessing for SCENIC+ Multiome input
+- atac-seq/co-accessibility - Cicero / SCENIC+ cis-regulatory connections
+- atac-seq/enhancer-gene-linking - ABC / ENCODE-rE2G enhancer-gene mapping
+- atac-seq/motif-deviation - chromVAR for TF motif accessibility

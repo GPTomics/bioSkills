@@ -1,74 +1,129 @@
 # Differential Accessibility - Usage Guide
 
 ## Overview
-Identify chromatin regions that change accessibility between conditions using DiffBind or DESeq2, revealing condition-specific regulatory elements.
+
+Identify chromatin regions with significantly different accessibility between conditions. Choose between consensus-peak workflows (DiffBind, DESeq2 directly) and peak-free sliding-window workflows (csaw). Pick the correct normalization (reads-in-peaks vs full-library vs spike-in) for the biological setting, correct batch effects with SVA/RUVseq, and report effect sizes with calibrated FDR.
 
 ## Prerequisites
+
 ```r
-BiocManager::install(c('DiffBind', 'DESeq2', 'ChIPseeker', 'clusterProfiler'))
-BiocManager::install('TxDb.Hsapiens.UCSC.hg38.knownGene')
-BiocManager::install('org.Hs.eg.db')
+BiocManager::install(c('DiffBind', 'DESeq2', 'edgeR', 'csaw', 'limma',
+                       'ChIPseeker', 'sva', 'RUVSeq', 'GenomicRanges',
+                       'TxDb.Hsapiens.UCSC.hg38.knownGene', 'org.Hs.eg.db'))
 ```
 
 ```bash
-conda install -c bioconda bedtools homer
+conda install -c bioconda subread bedtools homer
 ```
+
+Inputs: per-sample BAM files (deduplicated, chrM-stripped), per-sample peak files (narrowPeak), and a sample sheet defining conditions and any covariates.
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Run differential accessibility analysis between treatment and control"
-- "Find regions that gain or lose accessibility after drug treatment"
+- "Run DiffBind with default DESeq2 backend on 3 control vs 3 treated ATAC samples"
+- "Use edgeR QL F-test because I only have 2 replicates per condition"
+- "Switch DiffBind normalization from reads-in-peaks to full-library because the treatment causes global compaction"
+- "Run csaw sliding-window analysis since differentiation collapses peak calls"
+- "Add SVA surrogate variables for hidden batch and re-fit"
+- "Filter to FDR < 0.05 AND abs(log2FC) >= 1, then annotate to nearest gene with ChIPseeker"
 
 ## Example Prompts
-### Basic Differential Analysis
-> "Run DiffBind analysis to compare chromatin accessibility between treatment and control ATAC-seq samples"
 
-### Multi-Condition Comparison
-> "Compare accessibility across WT, KO, and rescue conditions with multiple contrasts"
+### Standard 3v3 Comparison
+> "Run DiffBind on three replicates per group with DESeq2 backend, `summits=250` for fixed-width counting, native (RiP) normalization, and report peaks with FDR < 0.05 and abs(log2FC) >= 1."
 
-### Batch-Corrected Analysis
-> "Run differential accessibility analysis accounting for batch effects in my experimental design"
+### Low Replicate Power
+> "I have 2 reps per condition. Use DiffBind with edgeR backend (better at low n) or skip DiffBind and run edgeR QL directly. Do not use DESeq2 + apeglm shrinkage because shrinkage at n=2 is over-aggressive."
 
-### Downstream Annotation
-> "Annotate differential peaks with nearby genes and run GO enrichment analysis"
+### Global Accessibility Shift
+> "Treatment is an HDAC inhibitor that globally opens chromatin. Run DiffBind with `normalize=DBA_NORM_LIB` (full library) instead of the RiP default, since RiP normalization will erase the global biology."
 
-### Motif Enrichment
-> "Find enriched TF motifs in regions that gain accessibility after treatment"
+### Window-based Analysis
+> "Conditions are pre- and post-differentiation. Peak structure differs dramatically. Use csaw with `width=150` windows, `filter.global` at log2FC >= 3, edgeR QL F-test, then merge significant adjacent windows."
+
+### Hidden Batch Correction
+> "Three batches of samples processed weeks apart. Run svaseq with n.sv=2 to estimate hidden surrogates, then re-fit DESeq2 with `~SV1 + SV2 + condition` design."
+
+### Multi-factor Design
+> "Adjust for batch and donor as covariates. Use DiffBind `dba.contrast(..., design='~Batch + Donor + Condition')` with explicit factor levels."
+
+### Annotate and Enrich
+> "After DA analysis, annotate peaks to genes using ChIPseeker with promoter region `-2000 to +500`, then run GO enrichment on opened-vs-closed gene lists separately."
 
 ## What the Agent Will Do
-1. Create consensus peak set across all samples
-2. Count reads in peaks for each sample
-3. Normalize counts using DiffBind or DESeq2
-4. Generate QC visualizations (PCA, correlation heatmap)
-5. Run statistical testing for differential accessibility
-6. Annotate significant peaks with nearby genes
-7. Optionally run motif enrichment analysis
+
+1. Verify input BAMs are deduplicated, MAPQ-filtered, chrM-stripped
+2. Build consensus peakset (DiffBind built-in OR custom iterative overlap)
+3. Re-center peaks on summits +/- 250 bp for fixed-width counting
+4. Choose normalization based on whether treatment causes global accessibility shift
+5. Pick statistical method by replicate count and peak-structure stability
+6. Add batch / donor / time as covariates if applicable
+7. Run SVA or RUVseq for hidden batch when needed
+8. Apply FDR < 0.05 and abs(log2FC) >= 1 thresholds (or stricter for high-confidence)
+9. Annotate differential peaks with ChIPseeker; split opened vs closed lists
+10. Pass gene lists downstream to GO enrichment skill
 
 ## Sample Sheet Format
+
 ```csv
-SampleID,Condition,Replicate,bamReads,Peaks,PeakCaller
-ctrl_rep1,control,1,ctrl_rep1.bam,ctrl_rep1_peaks.narrowPeak,macs
-ctrl_rep2,control,2,ctrl_rep2.bam,ctrl_rep2_peaks.narrowPeak,macs
-treat_rep1,treated,1,treat_rep1.bam,treat_rep1_peaks.narrowPeak,macs
-treat_rep2,treated,2,treat_rep2.bam,treat_rep2_peaks.narrowPeak,macs
+SampleID,Condition,Replicate,Batch,bamReads,Peaks,PeakCaller
+ctrl_rep1,control,1,A,ctrl_rep1.bam,ctrl_rep1_peaks.narrowPeak,macs
+ctrl_rep2,control,2,B,ctrl_rep2.bam,ctrl_rep2_peaks.narrowPeak,macs
+treat_rep1,treated,1,A,treat_rep1.bam,treat_rep1_peaks.narrowPeak,macs
+treat_rep2,treated,2,B,treat_rep2.bam,treat_rep2_peaks.narrowPeak,macs
 ```
 
-## Interpreting Results
+Add `Donor`, `Sex`, `Time`, etc. columns as needed and include in the design formula.
 
-### Key Columns
-- **Conc**: Mean concentration (log2)
-- **Fold**: Log2 fold change
-- **p.value**: Raw p-value
-- **FDR**: Adjusted p-value
+## Method Selection Quick Reference
 
-### Standard Thresholds
-- Significant: FDR < 0.05, |Fold| > 1 (2-fold change)
-- Stringent: FDR < 0.01, |Fold| > 2 (4-fold change)
+| Replicate count | Method |
+|-----------------|--------|
+| 1 per group | Cannot do statistical DA; report log2FC only with caveat |
+| 2 per group | edgeR QL (DiffBind edgeR backend); avoid DESeq2 + apeglm |
+| 3 per group | DiffBind DESeq2 (default) is fine |
+| 5+ per group | DESeq2 with apeglm shrinkage; can also use limma-voom |
+| 10+ heterogeneous | DESeq2 LRT for primary effect + interactions |
+
+## Normalization Quick Reference
+
+| Treatment biology | Normalization |
+|-------------------|---------------|
+| Localized differential (most experiments) | DiffBind default `DBA_NORM_NATIVE` (RiP) |
+| Global accessibility shift (HDACi, DNMTi) | `DBA_NORM_LIB` OR exogenous spike-in |
+| Outlier-prone counts | `DBA_NORM_TMM` (edgeR-style) |
+| Cross-cell-type comparison | `DBA_NORM_LIB` (cell-type biology often global) |
+
+## Effect Size Quick Reference
+
+| Goal | Threshold |
+|------|-----------|
+| Standard reporting | FDR < 0.05, abs(log2FC) >= 1 |
+| Conservative high-confidence | FDR < 0.01, abs(log2FC) >= 1 |
+| Primary cell types (smaller effects) | FDR < 0.05, abs(log2FC) >= 0.585 (1.5x) |
+| Discovery for follow-up validation | FDR < 0.1, shrunken log2FC magnitude reported |
 
 ## Tips
-- Use at least 2 biological replicates per condition
-- Normalize to reads in peaks (not total library size) for ATAC-seq
-- Check PCA and correlation plots to identify batch effects or outliers
-- Use design formula (~Batch + Condition) to correct for known batch effects
-- Opened regions (positive fold change) often indicate activated regulatory elements
-- Follow up with motif analysis to identify TFs driving accessibility changes
+
+- DiffBind's default RiP normalization erases global accessibility shifts; switch to `DBA_NORM_LIB` whenever the biology is whole-genome.
+- Always set `summits=250` to re-center peaks on summit; otherwise peak-width differences inflate counts.
+- For low replicates (n=2), edgeR QL is the safe choice. DESeq2 + apeglm shrinkage at n=2 over-shrinks.
+- csaw is the only valid choice when peak structure differs dramatically between conditions; don't force a stable consensus when one doesn't exist.
+- Filter low-count peaks aggressively (`filterByExpr`) before fitting; tail peaks inflate dispersion and FDR.
+- Compute log2FC on shrunken estimates only when n >= 3; below that, report unshrunken with caveat.
+- For peak-to-gene assignment, use `tssRegion=c(-2000, 500)` not the ChIPseeker default `(-3000, 3000)` -- the default over-counts promoter assignments by lumping in distal elements.
+- Spike-in normalization (Reske 2020) is the gold standard for global-shift biology; budget for it in experimental design.
+- Reproducibility: report the consensus peakset strategy, normalization, and exact tool versions; results vary across DiffBind versions even with identical inputs.
+
+## Related Skills
+
+- atac-seq/atac-peak-calling - Generate input peaks per replicate
+- atac-seq/consensus-peakset - Build differential-ready consensus
+- atac-seq/atac-qc - Drop failing replicates before differential
+- atac-seq/single-cell-atac - Pseudobulk-level differential
+- atac-seq/co-accessibility - Cis-regulatory follow-up
+- differential-expression/deseq2-basics - Underlying DESeq2 patterns
+- differential-expression/de-results - Effect-size shrinkage details
+- chip-seq/differential-binding - Same DiffBind workflow for ChIP
+- pathway-analysis/go-enrichment - Downstream gene-level enrichment

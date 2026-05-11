@@ -1,72 +1,82 @@
 #!/usr/bin/env Rscript
-# Reference: Rsamtools 2.18+, matplotlib 3.8+, numpy 1.26+, pyBigWig 0.3+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
-# Nucleosome positioning analysis from ATAC-seq
+# Reference: ATACseqQC 1.26+, GenomicAlignments 1.38+, TxDb.Hsapiens.UCSC.hg38.knownGene 3.18+, BSgenome.Hsapiens.UCSC.hg38 1.4+ | Verify API if version differs
+# Nucleosome positioning from ATAC-seq: V-plot diagnostic, fragment classes, TSS-anchored signal, +1 nucleosome aggregate.
 
-library(ATACseqQC)
-library(GenomicAlignments)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-library(ggplot2)
+suppressPackageStartupMessages({
+    library(ATACseqQC); library(GenomicAlignments); library(GenomicRanges)
+    library(TxDb.Hsapiens.UCSC.hg38.knownGene); library(BSgenome.Hsapiens.UCSC.hg38)
+    library(ggplot2)
+})
 
-analyze_nucleosomes <- function(bam_file, output_prefix = 'nucleosome') {
-    cat('Loading BAM file...\n')
+analyze_nucleosomes <- function(bam_file, output_prefix='nucleosome', upstream=1000, downstream=1000) {
+    cat('=== Nucleosome positioning analysis ===\n')
 
-    # Fragment size distribution
-    cat('Calculating fragment size distribution...\n')
-    frag_sizes <- fragSizeDist(bam_file, output_prefix)
-
-    # Plot fragment sizes
-    pdf(paste0(output_prefix, '_fragsize.pdf'), width = 8, height = 6)
-    plot(frag_sizes, type = 'l', xlab = 'Fragment Size (bp)', ylab = 'Proportion',
-         main = 'ATAC-seq Fragment Size Distribution')
-    abline(v = c(100, 180, 247, 315, 473), lty = 2, col = 'grey')
-    text(x = c(50, 150, 210, 280, 400), y = max(frag_sizes$proportion) * 0.9,
-         labels = c('NFR', 'Mono', '', 'Di', ''), cex = 0.8)
+    # Fragment-size distribution + diagnostic plot with Buenrostro 2013 windows
+    pdf(sprintf('%s_fragsize.pdf', output_prefix), 8, 6)
+    fragSizeDist(bam_file, output_prefix)
     dev.off()
 
-    # Read BAM
-    gal <- readGAlignmentPairs(bam_file, param = ScanBamParam(mapqFilter = 30))
+    # MAPQ-filtered alignments
+    gal <- readGAlignmentPairs(bam_file, param=ScanBamParam(mapqFilter=30))
+    cat(sprintf('Paired alignments (MAPQ>=30): %d\n', length(gal)))
 
-    # Split by nucleosome occupancy
-    cat('Splitting reads by fragment size...\n')
+    # Fragment-class counts (Buenrostro 2013 / ENCODE convention)
+    frags <- width(gal)
+    nfr  <- gal[frags < 100]
+    mono <- gal[frags >= 180 & frags <= 247]
+    di   <- gal[frags >= 315 & frags <= 473]
+    cat(sprintf('NFR (<100): %d (%.1f%%)\n', length(nfr), 100 * length(nfr) / length(gal)))
+    cat(sprintf('Mono (180-247): %d (%.1f%%)\n', length(mono), 100 * length(mono) / length(gal)))
+    cat(sprintf('Di (315-473): %d (%.1f%%)\n', length(di), 100 * length(di) / length(gal)))
+
+    # Tn5 shift correction is required before splitting by fragment class
+    cat('Applying Tn5 shift correction...\n')
+    gal_shifted <- shiftGAlignmentsList(GAlignmentsList(gal))
+
+    # Get TSS regions (protein-coding only avoids ncRNA noise)
     txs <- transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene)
+    tss <- promoters(txs, upstream=upstream, downstream=downstream)
 
-    # NFR: < 100bp
-    # Mono: 180-247bp
-    # Di: 315-473bp
-    nfr <- gal[width(gal) < 100]
-    mono <- gal[width(gal) >= 180 & width(gal) <= 247]
-    di <- gal[width(gal) >= 315 & width(gal) <= 473]
+    # Split fragments into NFR / mono / di and compute aggregate signal at TSS
+    cat('Computing TSS-aligned fragment-class signal...\n')
+    objs <- splitGAlignmentsByCut(gal_shifted, txs=txs, genome=BSgenome.Hsapiens.UCSC.hg38)
+    sigs <- featureAlignedSignal(cvglist=objs, feature.gr=tss,
+                                 upstream=upstream, downstream=downstream)
 
-    cat(sprintf('NFR reads: %d\n', length(nfr)))
-    cat(sprintf('Mono-nucleosome reads: %d\n', length(mono)))
-    cat(sprintf('Di-nucleosome reads: %d\n', length(di)))
+    # V-plot at TSS (fragment size vs position; classic V/W indicates positioning is recoverable)
+    cat('Generating V-plot at TSS...\n')
+    pdf(sprintf('%s_vplot.pdf', output_prefix), 8, 6)
+    vPlot(gal_shifted, tss, genome=BSgenome.Hsapiens.UCSC.hg38,
+          upstream=upstream, downstream=downstream)
+    dev.off()
 
-    # TSS enrichment score
-    cat('Calculating TSS enrichment...\n')
-    tsse <- TSSEscore(gal, txs)
-    cat(sprintf('TSS enrichment score: %.2f\n', tsse$TSSEscore))
+    # Nucleosome positioning heatmap (NFR + mono signal aligned to TSS)
+    pdf(sprintf('%s_heatmap.pdf', output_prefix), 8, 10)
+    featureAlignedHeatmap(sigs, tss, upstream=upstream, downstream=downstream)
+    dev.off()
 
-    # Save results
-    results <- list(
-        fragment_sizes = frag_sizes,
+    # Export NFR and mono BAMs for downstream tools
+    rtracklayer::export(objs$NucleosomeFree %||% objs$NussomeFree,
+                        sprintf('%s_nfr.bam', output_prefix))
+    rtracklayer::export(objs$mononucleosome,
+                        sprintf('%s_mono.bam', output_prefix))
+
+    # Summary
+    summary <- data.frame(
+        sample = output_prefix,
+        total_pairs = length(gal),
         nfr_count = length(nfr),
         mono_count = length(mono),
         di_count = length(di),
-        tss_enrichment = tsse$TSSEscore
+        nfr_to_mono_ratio = round(length(nfr) / length(mono), 2)
     )
-
-    saveRDS(results, paste0(output_prefix, '_results.rds'))
-    cat('Saved:', paste0(output_prefix, '_results.rds\n'))
-
-    return(results)
+    write.csv(summary, sprintf('%s_summary.csv', output_prefix), row.names=FALSE)
+    cat('\nSummary:\n'); print(summary)
+    invisible(summary)
 }
 
-# Run if executed directly
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) > 0) {
-    bam_file <- args[1]
-    output_prefix <- if (length(args) > 1) args[2] else 'nucleosome'
-    analyze_nucleosomes(bam_file, output_prefix)
-} else {
-    cat('Usage: Rscript nucleosome_analysis.R input.bam [output_prefix]\n')
-}
+`%||%` <- function(a, b) if (!is.null(a)) a else b
+
+args <- commandArgs(trailingOnly=TRUE)
+if (length(args) > 0) analyze_nucleosomes(args[1],
+                                          if (length(args) > 1) args[2] else 'nucleosome')

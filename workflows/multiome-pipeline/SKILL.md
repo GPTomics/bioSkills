@@ -10,6 +10,9 @@ depends_on:
   - single-cell/clustering
   - single-cell/multimodal-integration
   - single-cell/scatac-analysis
+  - atac-seq/single-cell-atac
+  - atac-seq/co-accessibility
+  - atac-seq/motif-deviation
 qc_checkpoints:
   - after_loading: "Both modalities detected per cell"
   - after_rna_qc: "RNA quality filters passed"
@@ -288,3 +291,8 @@ cat('Clusters:', length(unique(seurat_obj$seurat_clusters)), '\n')
 - single-cell/preprocessing - QC and normalization
 - single-cell/multimodal-integration - WNN details
 - single-cell/scatac-analysis - ATAC-specific processing
+- atac-seq/single-cell-atac - Signac / ArchR / SnapATAC2 ecosystem decision; AMULET; cellranger-arc
+- atac-seq/co-accessibility - Cicero / ArchR getCoAccessibility for cis-regulatory inference
+- atac-seq/enhancer-gene-linking - ABC / ENCODE-rE2G for enhancer-gene mapping
+- atac-seq/motif-deviation - chromVAR for per-cell TF motif activity
+- atac-seq/footprinting - scprinter for sc footprinting

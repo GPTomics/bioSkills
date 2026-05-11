@@ -85,13 +85,6 @@ Tell your AI agent what you want to do:
 - Always align proteins rather than DNA when comparing sequences below ~70% nucleotide identity since protein alignment is 3x more sensitive for detecting distant homology
 - For selection analysis (dN/dS), never align coding DNA directly; align proteins first and back-translate with PAL2NAL to preserve reading frame
 - Guide tree effects are real: the same sequences aligned with different guide trees produce different alignments. For critical analyses, use MUSCLE5 ensemble or GUIDANCE2 to quantify uncertainty
-- Sequences below ~20% protein identity are in the twilight zone where sequence alignment becomes unreliable; consider structural alignment (TM-align) or profile-profile methods (HHpred) instead
+- For very small datasets (<70 sequences) where alignment uncertainty matters most, BAli-Phy v3 joint MSA+tree co-estimation is the theoretically correct gold standard; runtime climbs to weeks above 100 sequences, so MUSCLE5 ensemble is the practical default for medium datasets
+- Sequences below ~20% protein identity are in the twilight zone where sequence alignment becomes unreliable; consider structural alignment (Foldseek, TM-align) or profile-profile methods (HHpred) instead
 - After alignment, always check gap distribution before phylogenetic analysis. Columns with >50% gaps may indicate misalignment or inclusion of non-homologous sequences
-
-## Related Skills
-
-- pairwise-alignment - Compare two sequences using PairwiseAligner
-- alignment-io - Read/write MSA files in various formats
-- msa-parsing - Parse, filter, trim, and assess alignment quality
-- msa-statistics - Calculate identity, conservation, entropy metrics
-- phylogenetics/modern-tree-inference - Build phylogenetic trees from MSAs

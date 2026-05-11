@@ -36,6 +36,27 @@ from Bio.Seq import Seq
 from Bio import SeqIO
 ```
 
+## Pairwise Library Selection
+
+`Bio.Align.PairwiseAligner` is the right default for interactive use, scripting, and pair sizes up to a few thousand residues, but it is not the fastest or most scalable option. For high-throughput screens, very long sequences, or production pipelines, switch to a SIMD-accelerated or specialised library.
+
+| Library | Speed vs Bio.Align | Alphabet | Scoring | Vectorization | When to use |
+|---------|-------------------|----------|---------|---------------|-------------|
+| `Bio.Align.PairwiseAligner` (BioPython) | 1x baseline | DNA / RNA / protein | Matrix + affine | C-backed Gotoh | Default, <10 kb pairs, interactive use |
+| `parasail` (Daily 2016 BMC Bioinf) | 10-100x | DNA / protein | Matrix + affine | SSE / AVX SIMD | High-throughput SW or NW; benchmark loops |
+| `edlib` (Sosic & Sikic 2017 Bioinf) | 100-1000x | DNA only | Edit distance only | Bit-parallel Myers | Read mapping, k-mer search, primer placement |
+| `pywfa` / WFA2 (Marco-Sola 2021 Bioinf; BiWFA: Marco-Sola 2023 Nat Comp Sci) | Best for low-divergence | DNA | Matrix + affine | Wavefront, O(s) memory | Long, near-identical sequences (>10 kb, <5% diverged) |
+| `mappy` / minimap2 (Li 2018 Bioinf) | Production reads-to-genome | DNA | Chain + base-level | k-mer chain | Long-read mapping, splice-aware DNA |
+| `Bio.pairwise2` | DEPRECATED | -- | -- | -- | Migrate to `PairwiseAligner` (deprecated in BioPython 1.80; not yet removed; migrate proactively) |
+| EMBOSS `needle` / `water` | ~Bio.Align | DNA / protein | Matrix + affine | None | Reproducibility, audit trails (1996 published defaults) |
+
+Speed numbers in the table are rough; benchmark on representative inputs before committing. Critical caveats:
+- **WFA / BiWFA**: 10-100x faster than Gotoh below 5% divergence; above ~10% it converges to Gotoh complexity. Right tool for PacBio HiFi self-similarity or assembly-vs-reference; not for distant homologs.
+- **edlib**: 100-1000x faster than Gotoh at low divergence (<5% errors); above ~50% divergence the effective speedup drops to ~64x. For high-divergence DNA (<70% nucleotide identity), prefer parasail's SIMD score-only mode.
+- **parasail**: SIMD only realises its advantage on long sequences in amortised batch loops.
+
+When uncertain which algorithm Biopython's aligner selected internally, inspect `aligner.algorithm` after configuration -- it returns the resolved variant ("Needleman-Wunsch", "Smith-Waterman", "Gotoh global alignment algorithm", "Gotoh local alignment algorithm", "Waterman-Smith-Beyer global alignment algorithm", "Waterman-Smith-Beyer local alignment algorithm") for deterministic auditing.
+
 ## Core Concepts
 
 | Mode | Algorithm | Use Case |
@@ -154,6 +175,10 @@ print(f'Percent identity: {percent_identity:.1f}%')
 ```
 
 ## Common Scoring Configurations
+
+### PairwiseAligner Default Gap Penalties Are 0
+
+`PairwiseAligner()` with no arguments uses match_score=1, mismatch_score=0, open_gap_score=0, extend_gap_score=0. Combined with a positive-scoring substitution matrix (BLOSUM62), this produces alignments with arbitrarily many short gaps -- gaps cost nothing while matches pay positive score. **Always specify gap penalties explicitly when using a substitution matrix.** BLASTP defaults: open=-11, extend=-1 with BLOSUM62; Smith-Waterman EMBOSS `water` defaults: open=-10, extend=-0.5. Inspect with `print(aligner)` after configuration to verify the resolved parameter set.
 
 ### DNA/RNA Alignment
 ```python
@@ -311,26 +336,66 @@ There are four common ways to calculate percent identity from the same alignment
 
 **Practical impact**: Up to 11.5% difference between methods on a single alignment. Combined with different alignment algorithms, variation reaches 22%. Always report which method was used. The `counts()` method above uses aligned non-gap positions (similar to PID2).
 
-## Interpreting Alignment Significance
+## Statistical Significance: Karlin-Altschul
 
-Raw alignment scores are not directly interpretable across different scoring schemes. For database searches (BLAST), two normalized measures are used:
+Use bit score (database-size-independent) and E-value (expected chance hits) to interpret raw alignment scores; never compare raw scores across scoring schemes. For non-default gap penalties or non-protein/DNA alphabets, generate empirical p-values via sequence shuffling instead of trusting the formula (`examples/empirical_pvalue.py`; for DNA, use the dinucleotide shuffle of Altschul & Erickson 1985 via `ushuffle`).
 
-- **Bit score**: Normalized, database-size-independent. Scores >50 are generally reliable; <50 are suspect.
-- **E-value**: Expected number of alignments with this score or better by chance. Database-size dependent. E < 1e-5 is a common significance threshold; E < 1e-50 is near-certain homology. E-values are NOT p-values (they can exceed 1).
+| Bit score | E-value (typical 1e6 db) | Interpretation |
+|-----------|--------------------------|----------------|
+| > 200 | < 1e-50 | Essentially certain homology |
+| 50-200 | 1e-5 to 1e-50 | Likely homology |
+| 30-50 | 0.01 to 1e-5 | Possible homology; verify with profile methods |
+| < 30 | > 0.01 | Suspect; not significant |
 
-**Compositional bias**: Low-complexity regions (poly-Q, proline-rich) and transmembrane segments inflate alignment scores. Use SEG (protein) or DUST (DNA) filtering to mask these regions before significance assessment.
+Karlin-Altschul lambda/K are calibrated empirically per (matrix, gap-open, gap-extend) tuple; switching gap penalties without recalibrating produces wrong E-values.
+
+**Mask compositional bias before scoring.** Low-complexity regions (poly-Q, proline-rich, leucine-rich TM helices) inflate raw scores. Pre-filter with SEG for protein or DUST for DNA, then run BLAST with `-comp_based_stats 2` (modern default; Yu & Altschul 2005 Bioinf, conditional) or `-comp_based_stats 3` for repeat-rich queries (Yu & Altschul 2005 unconditional; Schaffer et al 2001 NAR introduced the original level-1 statistics). SEG pre-filtering is complementary to `-comp_based_stats`, not redundant.
 
 ## When Alignment Is NOT Appropriate
 
-- **Twilight zone** (20-35% protein identity): Alignment reliability drops sharply. Below ~25% identity, >90% of detected sequence pairs are NOT structurally similar. Alignment length matters: 30% over 200 residues is more meaningful than 30% over 50.
-- **Below 20% identity**: Sequence signal is lost in noise. Use profile-profile methods (HHpred), protein language model embeddings (ESM-2), or structural alignment (TM-align) instead.
-- **Non-homologous sequences**: Alignment algorithms always produce an alignment, even for unrelated sequences. Statistical significance (E-value/bit score) is essential to distinguish true from false homology.
-- **Highly repetitive sequences**: Tandem repeats cause alignment ambiguity and can produce artifactually high scores.
+Pick the alignment method by protein identity; below 15% identity DP alignments are statistically indistinguishable from random pairings, so escape to structure or pLM tools.
+
+| Identity (protein) | Recommended approach |
+|-------------------|---------------------|
+| >= 40% | Any DP aligner; Bio.Align or BLAST is sufficient |
+| 25-40% | Use sensitive iterative methods (MMseqs2 iterative, BLASTP with composition-based statistics) |
+| 15-25% | Profile-profile (HHsearch, HMMER `phmmer`/`jackhmmer`) |
+| < 15% | Structural alignment (Foldseek, TM-align, US-align) or pLM embeddings (TM-Vec, ESM-2 + cosine) -- see structural-alignment |
+
+Length amplifies the signal: 30% identity over 200 residues is far more reliable than 30% over 50.
+
+**When pairwise becomes the wrong tool.** A single DP pairwise alignment is correct for two sequences. For one query against thousands to millions of targets (genome-scale homology search) or for many-vs-many all-by-all (clustering, ortholog detection), the right tool is profile- or k-mer-indexed search, not iterated DP:
+- BLASTP / DIAMOND -- standard query-vs-database baseline
+- MMseqs2 (Steinegger & Soding 2017 Nat Biotech) -- ~400x faster than PSI-BLAST at higher sensitivity; iterative profile mode `--num-iterations 3` matches PSI-BLAST and approaches `jackhmmer`
+- MMseqs2-GPU (Mirdita et al 2025 Nat Methods) -- GPU-accelerated; ~177x faster than `jackhmmer` for single queries on one NVIDIA L40S; use when GPU is available and the dataset is sensitivity-bound
+- jackhmmer (HMMER) -- gold standard for distant homology when run to convergence; slow but the most sensitive non-structural method
+- Foldseek -- escape to structural search when both query and database have predicted structures (see `alignment/structural-alignment`)
+
+Other failure modes:
+- **Non-homologous sequences**: All DP aligners return an alignment regardless of homology. E-value or bit score is the homology gate, not the existence of an alignment.
+- **Repetitive sequences**: Tandem repeats produce ambiguous, artifactually high-scoring alignments; mask first.
+- **NUC.4.4 IUPAC partial matches**: Biopython's NUC.4.4 matrix scores partial-match IUPAC codes (e.g. `R` vs `A`) as +1 rather than +5; verify behaviour with `print(substitution_matrices.load('NUC.4.4'))` before relying on ambiguity-aware scoring.
 
 ## Related Skills
 
-- multiple-alignment - Align three or more sequences with MAFFT, MUSCLE5, ClustalOmega
-- alignment-io - Save alignments to files in various formats
-- msa-parsing - Work with multiple sequence alignments
-- msa-statistics - Calculate identity, similarity metrics
+- alignment/multiple-alignment - Align three or more sequences with MAFFT, MUSCLE5, ClustalOmega
+- alignment/alignment-io - Save alignments to files in various formats
+- alignment/msa-parsing - Work with multiple sequence alignments
+- alignment/msa-statistics - Calculate identity, similarity metrics
+- alignment/structural-alignment - Twilight-zone alternative when sequence signal fails (Foldseek, TM-align, pLM aligners)
+- alignment/alignment-trimming - Remove unreliable columns post-alignment
 - sequence-manipulation/motif-search - Pattern matching in sequences
+
+## References
+
+- Karlin S, Altschul SF. 1990. Methods for assessing the statistical significance of molecular sequence features. PNAS 87:2264-2268.
+- Schaffer AA et al. 2001. Improving the accuracy of PSI-BLAST protein database searches with composition-based statistics. NAR 29:2994-3005.
+- Rost B. 1999. Twilight zone of protein sequence alignments. Prot Eng 12:85-94.
+- Steinegger M, Soding J. 2017. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nat Biotech 35:1026-1028.
+- Mirdita M, Steinegger M et al. 2025. GPU-accelerated homology search with MMseqs2. Nat Methods (in press; bioRxiv 2024.11.13.623350).
+- Sosic M, Sikic M. 2017. Edlib: a C/C++ library for fast, exact sequence alignment. Bioinf 33:1394-1395.
+- Daily J. 2016. Parasail: SIMD C library for global, semi-global, and local pairwise sequence alignments. BMC Bioinf 17:81.
+- Marco-Sola S et al. 2021. Fast gap-affine pairwise alignment using the wavefront algorithm. Bioinf 37:456-463.
+- Marco-Sola S et al. 2023. Optimal gap-affine alignment in O(s) space. Nat Comp Sci.
+- Yu YK, Altschul SF. 2005. The construction of amino acid substitution matrices for the comparison of proteins with non-standard compositions. Bioinf 21:902-911.
+- Altschul SF, Erickson BW. 1985. Significance of nucleotide sequence alignments: a method for random sequence permutation that preserves dinucleotide and codon usage. MBE 2:526-538.

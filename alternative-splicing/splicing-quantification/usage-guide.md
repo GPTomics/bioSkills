@@ -1,59 +1,72 @@
 # Splicing Quantification - Usage Guide
 
 ## Overview
-Quantify alternative splicing events from RNA-seq data by calculating PSI (percent spliced in) values. Supports multiple event types including skipped exons, alternative splice sites, mutually exclusive exons, and retained introns.
+Quantify alternative splicing events from RNA-seq data as PSI (percent spliced in) values. Supports the five canonical event classes (SE, A5SS, A3SS, MXE, RI), special classes (microexons, exitrons, AFE/ALE), and intron retention subtypes (canonical RI vs detained introns). Tools span event-based (rMATS-turbo, SUPPA2, VAST-TOOLS), LSV-based (MAJIQ V3), junction-cluster (leafcutter), and the 2025 SOTA Shiba.
 
 ## Prerequisites
 ```bash
-# SUPPA2 (TPM-based)
-pip install suppa
+# Python tools
+pip install rmats-turbo suppa pandas
 
-# rMATS-turbo (BAM-based)
-pip install rmats-turbo
+# leafcutter (R) and regtools (CLI)
+BiocManager::install('leafcutter')
+conda install -c bioconda regtools
 
-# Additional dependencies
-pip install pandas numpy
+# MAJIQ V3 (academic license at majiq.biociphers.org)
+# VAST-TOOLS (perl-based; conda install -c bioconda vast-tools)
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Quantify exon skipping events from my RNA-seq data"
-- "Calculate PSI values for all splicing events in my samples"
-- "Generate splicing event quantification from my Salmon TPM files"
-- "Run rMATS to quantify splicing from my BAM files"
+- "Quantify exon skipping events from my RNA-seq BAMs with rMATS-turbo"
+- "Calculate PSI values for all splicing events using my Salmon TPM"
+- "Run MAJIQ to quantify local splice variations including complex events"
+- "Detect intron retention separately from cassette exon events"
+- "Quantify microexons that standard tools miss"
 
 ## Example Prompts
 
-### SUPPA2 Analysis
-> "I have transcript TPM values from Salmon. Quantify all alternative splicing events using SUPPA2."
+### Tool Choice
+> "I have STAR-aligned BAMs and a GENCODE GTF; quantify SE/A5SS/A3SS/MXE/RI events with rMATS-turbo and filter for >=10 junction reads per replicate."
 
-> "Generate PSI values for skipped exon events from my kallisto quantification."
+> "Use SUPPA2 to compute event PSI from my existing Salmon transcript TPMs without re-aligning."
 
-### rMATS Analysis
-> "Quantify splicing events from my aligned BAMs using rMATS-turbo."
+> "For complex multi-junction events, run MAJIQ V3 with the splice-graph local-splice-variation framework."
 
-> "Calculate inclusion levels for mutually exclusive exons across my samples."
+### Special Event Classes
+> "Detect microexons (3-27nt) in my brain RNA-seq using VAST-TOOLS or rMATS with reduced anchor length."
 
-### Event-Specific
-> "Focus on retained intron events in my RNA-seq data."
+> "Distinguish detained introns (nuclear-retained, regulated) from canonical NMD-targeted intron retention."
 
-> "Quantify alternative 5' and 3' splice site usage."
+> "Separate alternative first/last exon events from spliceosomal AS - they're often promoter or APA driven."
+
+### QC and Validation
+> "Compute per-event coverage statistics from rMATS output and filter for reliable PSI estimates."
+
+> "Cross-validate rMATS event PSI against MAJIQ LSV PSI for the same comparison."
 
 ## What the Agent Will Do
-1. Select appropriate tool based on input (TPM vs BAM)
-2. Generate splicing event annotations from GTF
-3. Calculate PSI values for each event type
-4. Filter events by junction read support (minimum 10-20 reads)
-5. Output PSI matrices for downstream analysis
+1. Choose tools based on input (BAMs vs TPM) and question (event-level vs LSV vs DTU)
+2. Generate event annotations from GTF (SUPPA2 generateEvents, MAJIQ build, or use VastDB)
+3. Compute per-event PSI with effective-length normalization (IncFormLen / SkipFormLen for rMATS)
+4. Filter by junction read support, replicate consistency, and dynamic-range thresholds
+5. Output PSI matrices, per-replicate counts, and event coordinates for downstream analysis
 
 ## Tips
-- SUPPA2 requires transcript-level TPM from Salmon or kallisto
-- rMATS-turbo works directly from BAM files
-- Minimum 10-20 junction reads recommended for reliable PSI
-- PSI values range 0-1 where 1 = fully included, 0 = fully excluded
-- Events with PSI consistently near 0 or 1 are constitutive, not alternative
+- Run two complementary tools (rMATS + leafcutter) and reconcile rather than relying on one
+- Use rRNA-depleted libraries for IR analysis; poly(A) selection biases against pre-mRNA
+- STAR 2-pass alignment is essential - 1-pass loses ~14% of novel junctions
+- For SF3B1-mutant cancer samples, expect cryptic 3'ss ~10-30nt upstream of canonical (Darman 2015)
+- For TDP-43-loss ALS/FTD samples, use annotation-free leafcutter or MAJIQ denovo for cryptic exons
+- JC vs JCEC: prefer JC for clean cassette analysis; JCEC adds power for short alternative exons
+- AFE/ALE are usually promoter or APA driven, not spliceosomal - flag separately
 
 ## Related Skills
-- differential-splicing - Compare PSI between conditions
-- rna-quantification/alignment-free-quant - Generate transcript TPM for SUPPA2
-- read-alignment/star-alignment - Align reads with junction detection
+
+- differential-splicing - Test PSI differences between conditions
+- isoform-switching - DTU framework with functional consequences
+- splicing-qc - Sequencing depth, library, alignment QC
+- splice-variant-prediction - SpliceAI/Pangolin for variant impact
+- long-read-splicing - Full-isoform PSI without anchor-length limits
+- read-alignment/star-alignment - STAR 2-pass setup
+- rna-quantification/alignment-free-quant - Salmon/kallisto for SUPPA2

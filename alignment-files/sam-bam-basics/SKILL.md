@@ -138,11 +138,62 @@ samtools view -b input.sam > output.bam
 | 0x400 | 1024 | PCR duplicate |
 | 0x800 | 2048 | Supplementary |
 
-### Decode Flags
+### Decode Flags (Bidirectional)
 ```bash
+# Number to mnemonics
 samtools flags 147
 # 0x93 147 PAIRED,PROPER_PAIR,REVERSE,READ2
+
+# Mnemonics to number
+samtools flags PAIRED,PROPER_PAIR,REVERSE,READ2   # 147
 ```
+
+### Secondary vs Supplementary (Different Semantics)
+
+Two different concepts that are routinely conflated:
+
+| Bit | Name | Meaning | Filter implication |
+|-----|------|---------|--------------------|
+| 0x100 (256) | Secondary | An alternative candidate alignment for the same read; not the primary location | `-F 256` is correct for SNV/indel calling on short reads |
+| 0x800 (2048) | Supplementary | A piece of a chimeric/split alignment (the read is split across loci) | Carries SA:Z tag; **required** by SV callers (Manta, Sniffles, cuteSV, GRIDSS, Delly) |
+
+`-F 2304` removes both. Strip supplementary only when downstream is small-variant calling; keep supplementary for SV calling, fusion detection, or any analysis that follows split-reads.
+
+## MAPQ Is Not Portable Across Aligners
+
+`samtools view -q 30` does different things depending on what produced the BAM. MAPQ is an aligner-specific scale, not a universal probability:
+
+| Aligner | MAPQ scale | "Unique" sentinel | Common gotcha |
+|---------|-----------|-------------------|----------------|
+| BWA-MEM / BWA-MEM2 | 0-60 | 60 | `-q 30` is sensible "high confidence" |
+| minimap2 (DNA / pbmm2) | 0-60 | 60 | Spec-compliant |
+| HISAT2 | 0-60 | 60 | Spec-compliant |
+| Bowtie2 | 0-42 | 42 (rare) | `-q 60` drops everything; `-q 23` is the established 99% threshold |
+| STAR | 0, 1, 2, 3, 255 | **255 = uniquely mapped (sentinel, not a quality)** | `-q 255` for "unique only"; `-q 30` accidentally keeps unique only too |
+| DRAGEN | 0 to `--mapq-max` (often ~250) | varies | `-q 30` still meaningful; distribution shape differs |
+| Cell Ranger / STARsolo | inherits STAR | 255 | Same trap as STAR |
+
+Verify the actual scale of any unfamiliar BAM:
+```bash
+samtools view input.bam | awk '{print $5}' | sort -un | head
+samtools view -H input.bam | grep '^@PG' | head -1   # which aligner produced this BAM
+```
+
+## 0-Based vs 1-Based Coordinates (Footgun)
+
+| Context | Coordinate system |
+|---------|-------------------|
+| SAM text POS | 1-based, inclusive |
+| `samtools view chr1:100-200` | 1-based, closed interval |
+| `samtools faidx chr1:100-200` | 1-based, closed interval |
+| BAM binary internal | 0-based, half-open |
+| `pysam read.reference_start` | 0-based |
+| `bam.fetch('chr1', 100, 200)` | 0-based, half-open |
+| BED files | 0-based, half-open |
+| VCF | 1-based |
+| GFF/GTF | 1-based, inclusive |
+
+`samtools view bam chr1:100-200` and `bam.fetch('chr1', 100, 200)` return different read sets at boundaries.
 
 ## CIGAR Operations
 
@@ -151,13 +202,80 @@ samtools flags 147
 | M | Alignment match (can be mismatch) |
 | I | Insertion to reference |
 | D | Deletion from reference |
-| N | Skipped region (introns in RNA-seq) |
-| S | Soft clipping |
-| H | Hard clipping |
-| = | Sequence match |
-| X | Sequence mismatch |
+| N | Skipped region (introns in RNA-seq; do NOT count as covered bases) |
+| S | Soft clipping (sequence in SEQ but not aligned) |
+| H | Hard clipping (sequence not in SEQ) |
+| = | Sequence match (explicit) |
+| X | Sequence mismatch (explicit) |
+| P | Padding (rare; multiple-sequence-alignment context) |
 
 Example: `50M2I30M` = 50 bases match, 2 base insertion, 30 bases match
+
+CIGAR `M` is overloaded -- it is the union of `=` and `X`. Some aligners (minimap2, BWA with `-Y`) emit `=`/`X` directly; bcftools / Picard often need `M` and rebuild MD/NM with `samtools calmd`. `N` operations break naive coverage calculations: a 1000 bp RNA-seq read with one 50 kb intron does not cover 50 kb. Distinguish soft-clip (`S`, bases retained) from hard-clip (`H`, bases discarded -- irreversible).
+
+## Context-Specific Tags
+
+Beyond the standard fields, downstream tools depend on optional tags whose presence depends on aligner and assay. Inspect with `samtools view input.bam | head -1 | tr '\t' '\n'` or pysam `read.get_tag('XX')`.
+
+| Tag | Set by | Meaning | Required by |
+|-----|--------|---------|-------------|
+| NM:i | bwa, samtools calmd | Edit distance to reference | mapDamage, many filters |
+| MD:Z | bwa, samtools calmd | Mismatch positions (text) | bcftools mpileup BAQ, IGV mismatch coloring |
+| MC:Z | samtools fixmate -m | Mate CIGAR | samtools markdup |
+| MS:i | samtools fixmate -m | Mate score | samtools markdup |
+| RG:Z | aligner from -R | Read group ID | GATK BQSR, MarkDuplicates LB lookup |
+| SA:Z | All split-read aligners | Comma-list of supplementary coords | Sniffles, Manta, cuteSV, GRIDSS, Delly |
+| NH:i | STAR, HISAT2 | Number of reported hits | featureCounts multimapper handling, Salmon |
+| HI:i | STAR | Hit index (0-based among NH) | RSEM |
+| XS:A | STAR, HISAT2, minimap2 -ax splice | Strand inferred from splice motif | StringTie, Cufflinks |
+| CB:Z | Cell Ranger, STARsolo | Corrected cell barcode | scRNA quantification |
+| UB:Z | Cell Ranger, STARsolo | Corrected UMI | UMI-aware dedup |
+| RX:Z | fgbio AnnotateBamWithUmis | Raw UMI (bulk) | fgbio GroupReadsByUmi |
+| MI:Z | fgbio CallMolecularConsensusReads | Molecular identifier (consensus) | Duplex calling |
+| cs:Z | minimap2 --cs | Compact CIGAR-with-bases | paftools, SV tools |
+
+Missing tags fail in two modes: silently wrong (featureCounts ignoring multimappers without NH; markdup marking nothing without MC/MS) or loudly (consensus tools rejecting input without MD).
+
+## Provenance: @PG Chain
+
+The `@PG` lines record every tool that touched the BAM, linked through `PP` (previous program) tags. This is the audit trail.
+
+```bash
+samtools view -H input.bam | grep '^@PG'
+```
+
+A clean germline pipeline:
+```
+@PG ID:bwa-mem PN:bwa VN:0.7.17
+@PG ID:samtools.1 PN:samtools VN:1.20 PP:bwa-mem CL:samtools sort
+@PG ID:samtools.2 PN:samtools VN:1.20 PP:samtools.1 CL:samtools fixmate
+@PG ID:samtools.3 PN:samtools VN:1.20 PP:samtools.2 CL:samtools markdup
+```
+
+A broken/missing chain (no PP, unknown tools, gaps) means the BAM cannot be reliably reproduced. Production pipelines often reject inputs without a complete chain.
+
+## CRAM Reference Resolution (Critical)
+
+CRAM stores reads relative to a reference; without it, the file is unreadable. htslib resolves the reference in this order:
+
+1. Command-line `-T ref.fa` / `--reference`
+2. `REF_CACHE` env var (local MD5-named cache)
+3. `REF_PATH` env var (colon-separated; can include URLs)
+4. `UR:` URL in SAM `@SQ` header
+5. Last resort: EBI ENA download via MD5 in `M5:` tag (fails on offline HPC)
+
+On HPC nodes without internet, populate a local cache once:
+```bash
+mkdir -p $HOME/cram_cache
+seq_cache_populate.pl -root $HOME/cram_cache reference.fa
+export REF_CACHE=$HOME/cram_cache/%2s/%2s/%s
+export REF_PATH=$REF_CACHE   # disables ENA fallback
+
+samtools quickcheck -v file.cram   # header + EOF only
+samtools view -c file.cram          # forces full decode; proves reference reachable
+```
+
+CRAM operations can be irreversibly lossy: `--output-fmt-option=archive=1` enables 8-bin Illumina quality binning (~30-50% additional size reduction; benign for >=30x germline WGS, harmful for low-coverage / somatic / forensic / archival). Convert against the *exact* reference the BAM was aligned to (matched by `@SQ M5:`); a different reference silently corrupts bases on read-back.
 
 ## pysam Python Alternative
 
@@ -248,5 +366,7 @@ with pysam.AlignmentFile('input.bam', 'rb') as infile:
 - alignment-indexing - Create indices for random access (required for fetch/region queries)
 - alignment-sorting - Sort alignments by coordinate or name
 - alignment-filtering - Filter alignments by flags, quality, regions
+- alignment-validation - Sequence dictionary cross-validation (M5 checksums)
 - bam-statistics - Generate statistics from alignment files
+- reference-operations - REF_PATH/REF_CACHE setup for CRAM
 - sequence-io/read-sequences - Parse FASTA/FASTQ input files

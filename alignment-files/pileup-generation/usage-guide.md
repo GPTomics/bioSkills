@@ -104,22 +104,20 @@ samtools mpileup -f reference.fa -l targets.bed input.bam
 ```
 
 ### Variant Calling Pipeline
+`samtools mpileup -g/-u` (BCF output) was deprecated in samtools 1.9; use `bcftools mpileup` for variant calling.
 ```bash
-# Simple pipeline
-samtools mpileup -f reference.fa input.bam | bcftools call -mv -o variants.vcf
-
-# With quality filtering
-samtools mpileup -f reference.fa -q 20 -Q 20 input.bam | \
+# Modern single-sample pipeline (with quality filtering and per-sample annotations)
+bcftools mpileup -f reference.fa -d 1000000 -q 20 -Q 20 -a FORMAT/AD,FORMAT/DP input.bam | \
     bcftools call -mv -Oz -o variants.vcf.gz
 bcftools index variants.vcf.gz
 
-# BCF intermediate (more efficient)
-samtools mpileup -f reference.fa -g -o raw.bcf input.bam
+# BCF intermediate (more efficient than re-piping)
+bcftools mpileup -f reference.fa -d 1000000 -Ob -o raw.bcf input.bam
 bcftools call -mv raw.bcf -o variants.vcf
 
 # Multi-sample calling
-samtools mpileup -f reference.fa sample1.bam sample2.bam sample3.bam | \
-    bcftools call -mv -o variants.vcf
+bcftools mpileup -f reference.fa -d 1000000 -a FORMAT/AD,FORMAT/DP sample1.bam sample2.bam sample3.bam | \
+    bcftools call -mv -Oz -o variants.vcf.gz
 ```
 
 ### Performance Options
@@ -129,10 +127,11 @@ samtools mpileup -f reference.fa -d 1000 input.bam
 
 # Parallel by chromosome
 for chr in chr1 chr2 chr3; do
-    samtools mpileup -f reference.fa -r "$chr" input.bam | \
-        bcftools call -mv -o "${chr}.vcf" &
+    bcftools mpileup -f reference.fa -r "$chr" -d 1000000 input.bam | \
+        bcftools call -mv -Oz -o "${chr}.vcf.gz" &
 done
 wait
+bcftools concat -Oz -o all.vcf.gz chr*.vcf.gz && bcftools index all.vcf.gz
 ```
 
 ## Python with pysam
