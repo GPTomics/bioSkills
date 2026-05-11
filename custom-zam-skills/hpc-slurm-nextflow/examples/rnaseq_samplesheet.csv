@@ -1,0 +1,5 @@
+sample,fastq_1,fastq_2,strandedness,seq_platform,seq_center
+CONTROL_REP1,/project/<PROJECT_ID-SHORTNAME>/data/fastq/CONTROL_REP1_R1.fastq.gz,/project/<PROJECT_ID-SHORTNAME>/data/fastq/CONTROL_REP1_R2.fastq.gz,auto,ILLUMINA,<CENTER>
+CONTROL_REP2,/project/<PROJECT_ID-SHORTNAME>/data/fastq/CONTROL_REP2_R1.fastq.gz,/project/<PROJECT_ID-SHORTNAME>/data/fastq/CONTROL_REP2_R2.fastq.gz,auto,ILLUMINA,<CENTER>
+TREATED_REP1,/project/<PROJECT_ID-SHORTNAME>/data/fastq/TREATED_REP1_R1.fastq.gz,/project/<PROJECT_ID-SHORTNAME>/data/fastq/TREATED_REP1_R2.fastq.gz,auto,ILLUMINA,<CENTER>
+TREATED_REP2,/project/<PROJECT_ID-SHORTNAME>/data/fastq/TREATED_REP2_R1.fastq.gz,/project/<PROJECT_ID-SHORTNAME>/data/fastq/TREATED_REP2_R2.fastq.gz,auto,ILLUMINA,<CENTER>
