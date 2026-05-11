@@ -33,6 +33,15 @@ copy_skill_files() {
     if [ -f "$src_dir/usage-guide.md" ]; then
         cp "$src_dir/usage-guide.md" "$target_dir/" 2>/dev/null || true
     fi
+    if [ -d "$src_dir/references" ]; then
+        mkdir -p "$target_dir/references"
+        rsync -a --exclude='*.pyc' --exclude='__pycache__' \
+            "$src_dir/references/" "$target_dir/references/"
+    fi
+    if [ -d "$src_dir/examples" ]; then
+        rsync -a --exclude='*.pyc' --exclude='__pycache__' \
+            "$src_dir/examples/" "$target_dir/examples/"
+    fi
 }
 
 run_installer "$@"
