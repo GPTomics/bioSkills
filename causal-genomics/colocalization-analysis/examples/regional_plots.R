@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+ | Verify API if version differs
+# Reference: ggplot2 3.5+, patchwork 1.2+ | Verify API if version differs
 ## Regional association and LocusCompare plots for colocalization
 ##
 ## Visualizes GWAS and eQTL signals at a locus to accompany coloc results.

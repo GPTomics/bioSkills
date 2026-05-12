@@ -47,7 +47,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | liquid-biopsy-pipeline | cfDNA analysis for tumor fraction estimation and mutation detection |
 | genome-annotation-pipeline | Assembled contigs to functional annotation for prokaryotic and eukaryotic genomes |
 | grn-pipeline | Single-cell data to regulon discovery and perturbation simulation via pySCENIC/SCENIC+ |
-| causal-genomics-pipeline | GWAS summary statistics to causal inference via MR, colocalization, and fine-mapping |
+| causal-genomics-pipeline | GWAS summary statistics to triangulated causal inference via MR (with CHP-aware sensitivity), colocalization, fine-mapping, mediation, TWAS, cis-pQTL drug-target MR, effector-gene prioritization, heritability partitioning, genetic correlation, and GenomicSEM common-factor GWAS |
 | timecourse-pipeline | Expression matrix to temporal patterns via Mfuzz clustering, rhythm detection, and GAM fitting |
 | edna-pipeline | eDNA amplicons to community ecology via OBITools3/DADA2, iNEXT, and vegan |
 | clinical-trial-pipeline | CDISC data to statistical analysis with logistic regression, subgroup tests, and Table 1 |

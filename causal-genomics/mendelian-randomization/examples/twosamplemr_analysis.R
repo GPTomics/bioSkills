@@ -1,4 +1,4 @@
-# Reference: TwoSampleMR 0.5+ | Verify API if version differs
+# Reference: TwoSampleMR 0.5.11+, MendelianRandomization 0.10+ | Verify API if version differs
 ## Two-sample Mendelian randomization with TwoSampleMR
 ##
 ## Demonstrates: instrument selection, clumping, harmonization,
@@ -18,6 +18,7 @@ exposure_gwas <- data.frame(
   A1 = sample(c('A', 'C', 'G', 'T'), n_snps, replace = TRUE),
   A2 = sample(c('A', 'C', 'G', 'T'), n_snps, replace = TRUE),
   EAF = runif(n_snps, 0.1, 0.9),
+  N = rep(50000, n_snps),
   stringsAsFactors = FALSE
 )
 exposure_gwas$P <- 2 * pnorm(-abs(exposure_gwas$BETA / exposure_gwas$SE))
@@ -31,6 +32,7 @@ outcome_gwas <- data.frame(
   A1 = exposure_gwas$A1,
   A2 = exposure_gwas$A2,
   EAF = exposure_gwas$EAF + rnorm(nrow(exposure_gwas), 0, 0.02),
+  N = rep(80000, nrow(exposure_gwas)),
   stringsAsFactors = FALSE
 )
 outcome_gwas$P <- 2 * pnorm(-abs(outcome_gwas$BETA / outcome_gwas$SE))
@@ -44,7 +46,7 @@ exposure_dat <- read_exposure_data(
   filename = 'exposure_gwas.txt', sep = '\t',
   snp_col = 'SNP', beta_col = 'BETA', se_col = 'SE',
   effect_allele_col = 'A1', other_allele_col = 'A2',
-  pval_col = 'P', eaf_col = 'EAF'
+  pval_col = 'P', eaf_col = 'EAF', samplesize_col = 'N'
 )
 
 # --- Step 2: Instrument strength ---
@@ -60,7 +62,7 @@ outcome_dat <- read_outcome_data(
   snps = exposure_dat$SNP,
   snp_col = 'SNP', beta_col = 'BETA', se_col = 'SE',
   effect_allele_col = 'A1', other_allele_col = 'A2',
-  pval_col = 'P', eaf_col = 'EAF'
+  pval_col = 'P', eaf_col = 'EAF', samplesize_col = 'N'
 )
 
 # --- Step 4: Harmonize ---

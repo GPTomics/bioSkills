@@ -1,4 +1,4 @@
-# Reference: TwoSampleMR 0.5+ | Verify API if version differs
+# Reference: TwoSampleMR 0.5.11+ | Verify API if version differs
 ## MR visualization with TwoSampleMR
 ##
 ## Demonstrates scatter, forest, leave-one-out, and funnel plots.
