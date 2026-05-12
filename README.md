@@ -167,18 +167,18 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder, HyPhy | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference, HGT detection |
 | **genome-annotation** | 6 | Bakta, BRAKER3, eggNOG-mapper, RepeatMasker | Prokaryotic/eukaryotic annotation, functional assignment, repeats, ncRNA, annotation transfer |
 | **gene-regulatory-networks** | 5 | pySCENIC, SCENIC+, WGCNA, CellOracle | Co-expression networks, regulon inference, multiomics GRN, perturbation simulation |
-| **causal-genomics** | 5 | TwoSampleMR, coloc, susieR, MR-PRESSO | Mendelian randomization, colocalization, fine-mapping, mediation, pleiotropy |
+| **causal-genomics** | 11 | TwoSampleMR, MendelianRandomization, coloc, susieR, CAUSE, LHC-MR, LDSC, LDAK, HDL, LAVA, FUSION, MetaXcan, FOCUS, MAGMA, PoPS, GenomicSEM, MTAG | Mendelian randomization (incl. MVMR, cis-MR drug-target, CHP-aware CAUSE/LHC-MR/LCV), colocalization (coloc.abf/susie, SMR/HEIDI, eCAVIAR, PWCoCo, moloc, HyPrColoc), fine-mapping (SuSiE/SuSiE-inf, FINEMAP, PolyFun, SuSiEx), mediation (CMAverse 4-way, HIMA2 high-D EWAS, MR-mediation), pleiotropy (UHP vs CHP), TWAS with triangulation, heritability partitioning (LDSC/LDAK, baseline-LD, Finucane 2018 cell-type), proteome MR for drug targets (UKB-PPP/deCODE), effector-gene prioritization (L2G/MAGMA/PoPS/cS2G), genetic correlation (LDSC/HDL/LAVA), GenomicSEM common-factor GWAS |
 | **rna-structure** | 3 | ViennaRNA, Infernal, ShapeMapper2 | RNA secondary structure prediction, ncRNA search, structure probing |
 | **temporal-genomics** | 5 | CosinorPy, Mfuzz, mgcv, statsmodels, scipy | Circadian rhythms, temporal clustering, trajectory modeling, dynamic GRN inference, periodicity detection |
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 | **clinical-biostatistics** | 6 | statsmodels, scipy, tableone, pyreadstat | CDISC data handling, logistic regression, categorical tests, effect measures, subgroup analysis, trial reporting |
 
-**Total: 450 skills across 63 categories**
+**Total: 456 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 450 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 456 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -278,9 +278,13 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 "Simulate what happens if I knock out this transcription factor"
 
 # Causal Genomics
-"Run Mendelian randomization to test if BMI causes heart disease"
-"Test whether my GWAS hit and eQTL share the same causal variant"
-"Fine-map my GWAS locus to identify the most likely causal variants"
+"Run Mendelian randomization to test if BMI causes heart disease with full UHP+CHP sensitivity (CAUSE, LHC-MR, MR-PRESSO, Egger NOME-corrected)"
+"Test whether my GWAS hit and eQTL share the same causal variant with coloc.susie and a p12 sensitivity grid"
+"Fine-map my GWAS locus with SuSiE-RSS, include LD-mismatch diagnostics, and add PolyFun functional priors"
+"Run cis-pQTL MR for PCSK9 on coronary disease using UKB-PPP and triangulate with coloc PP.H4"
+"Estimate stratified heritability with LDSC + baseline-LD and prioritize the trait-relevant tissue"
+"Triangulate a TWAS hit with S-PrediXcan, cis-eQTL MR, coloc.susie, and FOCUS fine-mapping"
+"Build a common-factor GWAS for psychiatric traits with GenomicSEM and report Q_SNP heterogeneity"
 
 # RNA Structure
 "Predict the secondary structure and folding energy of my RNA sequence"

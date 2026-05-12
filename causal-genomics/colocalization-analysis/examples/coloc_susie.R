@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+ | Verify API if version differs
+# Reference: coloc 5.2.3+, susieR 0.12.35+ | Verify API if version differs
 ## SuSiE-coloc for multiple causal variants
 ##
 ## When a locus has multiple independent signals, standard coloc.abf
@@ -39,6 +39,9 @@ eqtl_beta[causal1] <- 0.35
 eqtl_se <- rep(0.04, n_snps)
 
 snp_ids <- paste0('rs', 1:n_snps)
+
+# coloc::runsusie matches the `snp` vector to dimnames(LD); unnamed LD errors out.
+dimnames(ld_matrix) <- list(snp_ids, snp_ids)
 
 # --- Format for SuSiE ---
 gwas_data <- list(

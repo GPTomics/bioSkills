@@ -1,4 +1,4 @@
-# Reference: MR-PRESSO 1.0+ | Verify API if version differs
+# Reference: MR-PRESSO 1.0+, TwoSampleMR 0.5.11+ | Verify API if version differs
 ## MR-PRESSO outlier detection and correction
 ##
 ## Detects horizontal pleiotropy among MR instruments, identifies

@@ -23,8 +23,11 @@ disease <- rbinom(n, 1, plogis(logit_p))
 dat <- data.frame(genotype, expression, disease, age, sex)
 
 # --- Fit models and run mediation ---
+# medsens() requires linear or probit-link outcome; logit is NOT supported.
+# Use binomial(link = 'probit') for the outcome model when binary.
 med_model <- lm(expression ~ genotype + age + sex, data = dat)
-out_model <- glm(disease ~ genotype + expression + age + sex, data = dat, family = binomial)
+out_model <- glm(disease ~ genotype + expression + age + sex,
+                 data = dat, family = binomial(link = 'probit'))
 
 med_result <- mediate(med_model, out_model,
                       treat = 'genotype', mediator = 'expression',

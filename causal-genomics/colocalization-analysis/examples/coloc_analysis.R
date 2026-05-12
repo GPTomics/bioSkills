@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+ | Verify API if version differs
+# Reference: coloc 5.2.3+ | Verify API if version differs
 ## Bayesian colocalization with coloc.abf
 ##
 ## Tests whether a GWAS signal and eQTL share a causal variant.

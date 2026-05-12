@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reference: ggplot2 3.5+ | Verify API if version differs
+# Reference: FINEMAP 1.4.2+, PLINK 1.9+ | Verify CLI flags if version differs
 ## FINEMAP pipeline
 ##
 ## Prepares input files and runs FINEMAP for fine-mapping a GWAS locus.
