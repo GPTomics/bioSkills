@@ -1,6 +1,6 @@
 # bioSkills
 
-A collection of skills that guide AI coding agents (Claude Code, OpenAI Codex, Google Gemini, OpenClaw) through common bioinformatics tasks.
+A collection of skills that guide AI coding agents (Claude Code, OpenAI Codex, Google Gemini, OpenCode, OpenClaw) through common bioinformatics tasks.
 
 ## Project Goal
 
@@ -88,6 +88,20 @@ cd bioSkills
 ./install-gemini.sh --uninstall                  # Remove all bio-* skills
 ```
 
+### OpenCode
+
+```bash
+./install-opencode.sh                            # Install globally to ~/.config/opencode/skills/
+./install-opencode.sh --project /path/to/project # Or install to specific project
+./install-opencode.sh --categories "single-cell,variant-calling"  # Install specific categories
+./install-opencode.sh --list                     # List available skills
+./install-opencode.sh --validate                 # Validate all skills
+./install-opencode.sh --update                   # Only update changed skills
+./install-opencode.sh --uninstall                # Remove all bio-* skills
+```
+
+OpenCode also auto-discovers Agent Skills from `~/.claude/skills/` and `~/.agents/skills/`, so installs produced by `install-claude.sh` or `install-codex.sh` work in OpenCode without re-running.
+
 ### OpenClaw
 
 Install directly from [ClawHub](https://clawhub.ai/djemec/bioskills), or use the install script:
@@ -104,7 +118,7 @@ Install directly from [ClawHub](https://clawhub.ai/djemec/bioskills), or use the
 ./install-openclaw.sh --uninstall                # Remove all bio-* skills
 ```
 
-All installers support `--categories` for selective installation and `--dry-run` for previewing. Codex and Gemini convert to the Agent Skills standard (`examples/` -> `scripts/`, `usage-guide.md` -> `references/`). OpenClaw keeps the original directory structure and optionally adds dependency metadata with `--tool-type-metadata`.
+All installers support `--categories` for selective installation and `--dry-run` for previewing. Codex, Gemini, and OpenCode convert to the Agent Skills standard (`examples/` -> `scripts/`, `usage-guide.md` -> `references/`). OpenClaw keeps the original directory structure and optionally adds dependency metadata with `--tool-type-metadata`.
 
 ## Skill Categories
 

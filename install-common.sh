@@ -247,11 +247,21 @@ install_skills() {
         echo "Estimated always-loaded overhead (descriptions): ~${desc_tokens} tokens"
         echo "Average per-skill body (loaded on activation): ~${avg_body} tokens"
     else
-        echo "Installation complete."
+        if [ $errors -gt 0 ]; then
+            echo "Installation finished with errors."
+        else
+            echo "Installation complete."
+        fi
         echo "  Installed: $installed"
-        [ "$UPDATE_MODE" = true ] && echo "  Skipped (unchanged): $skipped"
-        [ $errors -gt 0 ] && echo -e "  ${RED}Errors: $errors${NC}"
+        if [ "$UPDATE_MODE" = true ]; then
+            echo "  Skipped (unchanged): $skipped"
+        fi
+        if [ $errors -gt 0 ]; then
+            echo -e "  ${RED}Errors: $errors${NC}"
+            return 1
+        fi
     fi
+    return 0
 }
 
 uninstall_skills() {
@@ -382,7 +392,7 @@ run_installer() {
         exit 0
     fi
 
-    install_skills "$TARGET_DIR"
+    install_skills "$TARGET_DIR" || exit $?
 
     echo ""
     if type post_install_message &>/dev/null; then
