@@ -121,6 +121,10 @@ For most standard ATAC analysis, classical pipelines remain primary. Deep learni
 
 ## chromBPNet Standard Pipeline
 
+**Goal:** Train a bias-corrected CNN that predicts per-base accessibility from sequence, then score variants with it.
+
+**Approach:** Generate train/valid/test chromosome splits, train the Tn5 bias model on background regions, train the accessibility model with bias correction, then run the standalone variant-scorer repo to predict ref-vs-alt effects at SNPs.
+
 ```bash
 # 1. Generate train / valid / test chromosome splits (output is a JSON file with chrom assignments)
 chrombpnet prep splits \
@@ -172,6 +176,10 @@ python variant-scorer/src/variant_scoring.py \
 
 The maintained version is `tfmodisco-lite` (jmschrei/tfmodisco-lite, `pip install modisco-lite`), which exposes a CLI rather than the deprecated v1 `TfModiscoWorkflow` Python API. The original `kundajelab/tfmodisco` package (with `tfmodisco.tfmodisco_workflow.workflow.TfModiscoWorkflow`) is unmaintained and incompatible with `modisco-lite`.
 
+**Goal:** Discover de novo motifs from a trained chromBPNet model using per-base contribution scores.
+
+**Approach:** Extract one-hot sequences and DeepLIFT/SHAP contributions from chromBPNet, run modisco-lite to cluster seqlets into motif patterns, then generate an annotated HTML report matched against a known motif database.
+
 ```bash
 # Generate one-hot sequence and SHAP / DeepLIFT contribution score arrays from chromBPNet
 # (chromBPNet `chrombpnet contribs_bw` writes hypothetical contributions; convert to numpy via shap_to_modisco)
@@ -195,6 +203,10 @@ modisco report \
 `-n 2000` caps seqlets per metacluster; `-w 500` is the sliding-window length. `motifs_meme.txt` (e.g. JASPAR or HOCOMOCO MEME-format) lets `modisco report` annotate clusters against known motifs.
 
 ## In Silico Variant Effect Prediction
+
+**Goal:** Score the effect of SNPs on predicted accessibility using a trained chromBPNet model.
+
+**Approach:** Load the bias-free chromBPNet model, build ref and alt one-hot windows centered on each SNP, run tangermeme's substitution_effect to get paired predictions, then compute log2(alt/ref) per variant.
 
 ```python
 import numpy as np

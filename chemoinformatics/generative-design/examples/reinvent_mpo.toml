@@ -1,0 +1,55 @@
+# Reference: REINVENT 4.0+ | Verify API if version differs
+# Multi-parameter optimization (MPO) RL configuration for de novo design
+# Components: activity QSAR, QED, SA score, diversity
+
+[run]
+type = "reinforcement_learning"
+device = "cuda:0"
+logging_path = "logs/rl.log"
+
+[parameters]
+prior_file = "priors/reinvent.prior"
+agent_file = "priors/reinvent.prior"
+batch_size = 64
+unique_sequences = true
+sigma = 128.0
+n_steps = 500
+randomize_smiles = false
+
+[diversity_filter]
+type = "IdenticalMurckoScaffold"
+nbmax = 25
+minscore = 0.4
+minsimilarity = 0.4
+
+[scoring_function]
+name = "multi-component"
+parallel = false
+
+# Predicted activity (sigmoid 5-8 pIC50)
+[[scoring_function.components]]
+type = "predictive_property"
+name = "kinase_pIC50"
+weight = 0.4
+specific_parameters = { container_type = "scikit_learn_container", model_path = "kinase_qsar.pkl", scikit_learn_model_type = "regression", transformation = { transformation_type = "sigmoid", low = 5.0, high = 8.0, k = 0.5 } }
+
+# Drug-likeness QED
+[[scoring_function.components]]
+type = "qed_score"
+name = "qed"
+weight = 0.2
+specific_parameters = {}
+
+# Synthetic accessibility (reverse sigmoid 4-2; lower is better)
+[[scoring_function.components]]
+type = "sa_score"
+name = "sa"
+weight = 0.2
+specific_parameters = { transformation = { transformation_type = "reverse_sigmoid", low = 2.0, high = 4.0, k = 0.5 } }
+
+# Tanimoto novelty (reverse sigmoid 0.4-0.6; lower similarity is better)
+[[scoring_function.components]]
+type = "tanimoto_similarity"
+name = "novelty"
+weight = 0.2
+specific_parameters = { smiles = ["c1ccccc1"], transformation = { transformation_type = "reverse_sigmoid", low = 0.4, high = 0.6, k = 0.5 } }

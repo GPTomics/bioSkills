@@ -73,5 +73,16 @@ def annotate_peaks(peaks_path, gtf_path, promoter_window=2000):
     return pd.DataFrame(results)
 
 
-annotations = annotate_peaks('peaks.bed', 'genes.gtf.gz', promoter_window=2000)
-annotations.to_csv('annotations.tsv', sep='\t', index=False)
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Annotate ChIP-seq peaks with host-gene convention')
+    parser.add_argument('peaks', help='BED file with peak coordinates (chr, start, end, peak_id, score)')
+    parser.add_argument('gtf', help='Gene annotation GTF (gzipped OK)')
+    parser.add_argument('--out', default='annotations.tsv', help='Output TSV')
+    parser.add_argument('--promoter-window', type=int, default=2000,
+                        help='bp around TSS treated as promoter (default 2000)')
+    args = parser.parse_args()
+
+    annotations = annotate_peaks(args.peaks, args.gtf, promoter_window=args.promoter_window)
+    annotations.to_csv(args.out, sep='\t', index=False)
+    print(f'Annotated {len(annotations)} peaks -> {args.out}')

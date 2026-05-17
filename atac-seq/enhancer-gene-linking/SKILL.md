@@ -141,6 +141,10 @@ ENCODE-rE2G generally outperforms ABC at CRISPRi recall, especially at modest di
 
 ## ABC Standard Pipeline
 
+**Goal:** Compute per-(enhancer, gene) ABC scores combining ATAC accessibility, H3K27ac activity, and Hi-C contact.
+
+**Approach:** Build RPGC-normalized ATAC and H3K27ac bigWigs, define non-promoter candidate enhancers from ATAC peaks, run ABC neighborhoods to compute per-candidate activity, then run ABC predict against a Hi-C contact matrix and threshold the per-pair ABC score.
+
 ```bash
 # 1. Generate ATAC and H3K27ac signal tracks (BAM -> bigWig)
 bamCoverage --bam atac.bam --outFileName atac.bw --binSize 50 --normalizeUsing RPGC \
@@ -226,6 +230,10 @@ For predictions to be publication-grade, ENCODE 4 expects:
 **Operational rule for high-confidence reporting:** Predictions used for therapeutic target nomination must be (a) above ABC >= 0.02 OR ENCODE-rE2G >= 0.5, AND (b) consistent across two methods (ABC + ENCODE-rE2G or ABC + HiChIP), AND (c) validated experimentally (CRISPRi-FlowFISH preferred). Single-method high-score predictions are exploratory hypotheses.
 
 ## Combining Multiple Predictions
+
+**Goal:** Build a high-confidence enhancer-gene set by intersecting ABC, ENCODE-rE2G, and HiChIP evidence.
+
+**Approach:** Load each method's output, merge ABC and ENCODE-rE2G on enhancer-gene pair above per-method thresholds, then flag pairs with HiChIP loop support for triple-method evidence.
 
 ```python
 import pandas as pd

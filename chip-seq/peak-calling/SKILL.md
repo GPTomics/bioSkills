@@ -1,448 +1,278 @@
 ---
 name: bio-chipseq-peak-calling
-description: ChIP-seq peak calling using MACS3 and HOMER findPeaks. Call narrow peaks for transcription factors or broad peaks for histone modifications. Supports single-caller and multi-caller consensus approaches, input control, fragment size modeling, and various output formats. Use when calling peaks from ChIP-seq alignments.
+description: Calls ChIP-seq peaks with MACS3, MACS2, HOMER, or SPP across narrow (TF) and broad (histone) modes. Handles input control matching, fragment-size modeling vs --nomodel, effective genome size, ENCODE-style IDR vs naive overlap, hyper-ChIPable artifacts, and aligner-specific shifts. Use when calling peaks from ChIP-seq alignments, choosing between narrow vs broad mode for a histone mark, deciding model vs nomodel for low-depth data, applying ENCODE pseudoreplicate IDR, or reconciling MACS vs HOMER vs SPP results.
 tool_type: cli
 primary_tool: macs3
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: MACS2 2.2+, MACS3 3.0+, HOMER 4.11+
+Reference examples tested with: MACS3 3.0.4+, MACS2 2.2.9+, HOMER 4.11+, SPP 1.16+, samtools 1.19+, bedtools 2.31+, IDR 2.0.4+.
 
-Before using code patterns, verify installed versions match. If versions differ:
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+Before running, verify versions: `<tool> --version` and `<tool> --help` to confirm flags. If a flag is missing, check the changelog — MACS2->MACS3 is API-compatible for `callpeak` but `predictd`, `bdgpeakcall`, and `hmmratac` differ.
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+# ChIP-seq Peak Calling
 
-# Peak Calling
+**"Identify protein-DNA binding sites from ChIP-seq alignments"** -> Detect statistically enriched genomic regions by comparing IP signal to input control (or genomic background), with peak shape (narrow/broad) determined by target biology (TF vs histone mark).
 
-**"Call peaks from my ChIP-seq data"** → Identify significantly enriched regions (narrow peaks for TFs, broad peaks for histone marks) by comparing IP signal to input control.
-- CLI (MACS3): `macs3 callpeak -t chip.bam -c input.bam -f BAM -g hs -n sample`
-- CLI (HOMER): `makeTagDirectory tags/ chip.bam` then `findPeaks tags/ -style factor -i input_tags/ -o peaks.txt`
+- CLI (ENCODE TF default): `macs2 callpeak -t chip.bam -c input.bam -f BAM -g hs -n sample --keep-dup all -p 1e-2`
+- CLI (ENCODE histone default): same with `--broad --broad-cutoff 0.1` for H3K27me3, H3K9me3, H3K36me3
+- CLI (alternative): `macs3 callpeak ...` (API-identical, active development), HOMER `findPeaks tags/ -style histone -i input_tags/`, SPP via phantompeakqualtools wrapper
 
-## Choosing a Peak Caller
+ENCODE TF pipeline still uses **SPP for peak ranking + IDR**, with MACS2 producing the signal tracks. Histone pipeline uses **MACS2 + naive overlap** (IDR is too conservative for histone signal dynamic range). MACS3 is the actively maintained successor; MACS2 receives only bug fixes.
 
-MACS3 and HOMER use fundamentally different statistical approaches. MACS3 builds a dynamic local Poisson model (taking the maximum of genome-wide, 1kb, 5kb, and 10kb background estimates). HOMER applies three independent sequential filters: control enrichment, local enrichment, and clonal signal complexity. Neither is universally superior — the choice depends on the analysis context.
+## Critical Pre-Call Validation
 
-| Context | Recommended | Why |
-|---------|-------------|-----|
-| ENCODE compliance / IDR workflows | MACS3 | ENCODE standard; IDR designed around MACS2/SPP output |
-| Broad marks (H3K27me3, H3K36me3) | MACS3 `--broad` | Two-tier Poisson produces gapped peaks with internal structure |
-| Paired-end data | MACS3 with `-f BAMPE` | Native fragment pileup without read extension |
-| Integrated motif + annotation workflow | HOMER | Peak calling, motif discovery, and annotation share one tag directory |
-| Super-enhancer identification | HOMER `-style super` | Native ROSE-like algorithm from H3K27ac data |
-| High-confidence peak sets | Both + consensus | Multi-caller intersection removes tool-specific false positives |
-| Repetitive genomes or PCR artifacts | HOMER | Clonal filter (`-C`) catches false positives over repeats |
+Before any peak calling, three things must be true or the output is unreliable:
 
-When both tools are available and runtime permits, running both and taking the intersection produces a higher-confidence peak set than either caller alone. See Multi-Caller Consensus below.
+1. **Antibody validated** — KO/KD orthogonal control, peptide-array specificity for histone modifications, or vendor-provided CRISPR-validated lot (Epicypher, CST). "ChIP-grade" marketing is not validation. See chipseq-qc.
+2. **Fragment-size distribution is sane** — TF ChIP should show sub-nucleosomal (~50-100 bp) enrichment; histone ChIP should show clean mono- (~150) and di-nucleosomal (~300) peaks. Flat distribution = over-sonication; rescue is impossible. Check via `samtools view -f 0x2 sample.bam | awk '{print $9}' | sort | uniq -c`.
+3. **Input control matches** — Sonicated input is biased toward open chromatin; MNase input toward nucleosomes. Input from a different library prep batch or fragmentation method introduces bias that subtraction cannot fix.
 
-MACS3 is the actively developed successor to MACS2. Commands are identical except the binary name. MACS2 is in maintenance mode.
+## Algorithmic Taxonomy
 
-## Decision Framework
+| Tool | Model | Treats fragments as | Strength | Fails when |
+|------|-------|---------------------|----------|------------|
+| MACS3/MACS2 callpeak | Dynamic local Poisson (max of genome-wide, 1kb, 5kb, 10kb lambda) + BH-FDR | Single-end shifts; PE fragments via BAMPE | Mature, fast, ENCODE-default, narrow + broad modes, integrated signal tracks | Confounds NFR with broad accessible domains; default narrow mode segments broad enrichment; assumes most genome NOT enriched (breaks for genome-wide marks) |
+| SPP (Kharchenko 2008) | Strand cross-correlation peak detection + Poisson fold-enrichment | Single-end with cross-corr-derived shift | ENCODE TF caller; integrated NSC/RSC QC; robust for sharp TF peaks | Underperforms for broad marks; older R codebase; phantompeakqualtools wrapper has R-version compatibility issues |
+| HOMER `-style factor` | Fixed-width peaks + three sequential filters (control / local / clonal) | Tag positions; auto-estimated width | Fast on tag directories; clonal filter `-C` removes PCR-artifact peaks | Less calibrated p-values; fixed width clips variable-width factor binding |
+| HOMER `-style histone` | Variable-width region stitching (500 bp blocks, 1000 bp gap merging); L=0 (no local enrichment) | Tag positions | Captures variable-width histone enrichment; Omnipeak 2025 benchmark: outperforms `-style factor` for ALL histone marks including H3K4me3 | Less sensitive than MACS for very sharp TF binding |
+| Genrich `-y` (ChIP mode) | q-value on log-transformed p-value, joint replicate model | Whole fragments (PE intervals) | Joint replicate analysis; chrM exclusion via `-e chrM`; auto blacklist via `-E` | Less peer-reviewed than MACS/SPP; thin literature; control handling less mature |
+| MACS3 hmmratac | 3-state HMM on fragment-size signal | Fragment-size classes | Best for ATAC, not ChIP | Wrong tool for ChIP; ChIP fragment-size distribution doesn't drive useful HMM states |
+| SEACR (Meers 2019) | Empirical threshold on signal block totals | Bedgraph signal blocks | Designed for sparse CUT&RUN/CUT&Tag data; "stringent" mode with IgG strongly preferred | Not for traditional ChIP-seq (assumes near-zero background); see cut-and-run-tag |
+| LanceOtron (Hentges 2022) | CNN trained on ENCODE peaks | bigWig signal | Competitive for both narrow and broad without parameter tuning | Newer; less validated; web-only or pip install |
 
-Before running any peak calling command, assess the data and choose parameters accordingly. The three key decisions are peak mode, model building strategy, and genome size.
+For CUT&RUN / CUT&Tag specifically, see chip-seq/cut-and-run-tag — protocol differences (lower depth, IgG-only control, E. coli spike-in carryover) drive different caller choice (MACS2 + SEACR consensus, not MACS3 alone).
 
-### 1. Peak Mode: Narrow vs Broad
+## Decision: Narrow vs Broad
 
-The choice depends on the biology of the target, not a preference:
+Driven by target biology, not preference. Calling broad mode does not make a sharp signal broad; it changes how MACS stitches adjacent enrichment.
 
-| Target type | Examples | Mode | Why |
-|-------------|----------|------|-----|
-| Transcription factors | CTCF, p53, GATA1 | Narrow (default) | TFs bind discrete motif sites, producing sharp peaks |
-| Active promoter marks | H3K4me3, H3K27ac | Narrow (default) | These marks localize to narrow regulatory elements |
-| Elongation/body marks | H3K36me3, H3K79me2 | `--broad` | Deposited across gene bodies, forming wide domains |
-| Repressive marks | H3K27me3, H3K9me3 | `--broad` | Spread across large chromatin domains |
+| Target | Mode | Why |
+|--------|------|-----|
+| Transcription factors (CTCF, p53, GATA1, FOXA1) | Narrow (default) | Discrete motif binding produces sharp peaks |
+| H3K4me3, H3K27ac at promoters/enhancers | Narrow | Localized at regulatory elements |
+| H3K4me1 at enhancers | Narrow or broad-cutoff 0.1 | Variable; check published data for the cell type |
+| H3K36me3, H3K79me2 (elongation) | Broad | Deposited across active gene bodies (5-50 kb domains) |
+| H3K27me3, H3K9me3 (repressive) | Broad | Spread across 10-100+ kb domains |
+| H4K20me3 (constitutive het) | Broad | Heterochromatin domains |
+| Pol II (RNAPII) | Narrow at promoter + broad option for elongation profile | Two separate analyses if doing elongation biology |
 
-If uncertain about the target's enrichment pattern, check published ENCODE data for that mark or search current literature before proceeding.
+For HOMER: use `-style histone` for ALL histone marks (Omnipeak 2025 benchmark, btaf375); `-style factor` ONLY for transcription factors.
 
-**HOMER note:** The MACS3 modes above do not map directly to HOMER styles. For HOMER, use `-style factor` only for transcription factors. All histone marks — including narrow marks like H3K4me3 and H3K27ac — perform better with `-style histone` (benchmarked in Omnipeak, NAR 2025). See the HOMER section below.
+## Decision: Model vs --nomodel
 
-### 2. Model Building vs --nomodel
+MACS2/3 fragment-size modeling needs ≥100 paired plus/minus enrichment regions within `--mfold` (default `[5, 50]`). Silent failure produces wrong fragment size and warped peaks — always inspect `_model.r` output.
 
-MACS3 estimates fragment size by finding paired plus/minus strand peaks. This requires at least 100 such pairs within the `--mfold` enrichment range. Use `--nomodel` when model building is expected to fail:
+| Condition | Model? | Fallback |
+|-----------|--------|----------|
+| Whole-genome, ≥1M treatment reads, narrow TF | Yes | `--mfold 3 50` if fails |
+| Paired-end with `-f BAMPE` | N/A | Fragment size from mate pairs |
+| Single chromosome or targeted capture | No | `--nomodel --extsize <data-derived or mark default>` |
+| Low read count (<500k) | No | Same |
+| Broad histone mark | Either | Mark-type default if no estimate available |
 
-| Condition | Use --nomodel? | Why |
-|-----------|---------------|-----|
-| Whole-genome, >1M treatment reads | No — let MACS3 model | Enough data for reliable fragment size estimation |
-| Single chromosome or small region | Yes | Too few enriched regions for 100 paired peaks |
-| Low read count (<500k treatment) | Yes | Sparse signal makes modeling unreliable |
-| ATAC-seq or DNase-seq | Yes, with `--extsize 150 --shift -75` | Open chromatin has no directional shift to model |
-| Paired-end data (`-f BAMPE`) | N/A | Fragment size comes from mate pairs, no modeling needed |
+When `--nomodel` is required, choose `--extsize` in priority order: (1) cross-correlation estimate from phantompeakqualtools (ENCODE standard, gives NSC/RSC simultaneously); (2) `macs3 predictd -i chip.bam -g hs` and read stderr; (3) mark-type fallback (147 for nucleosome-proximal marks, 200 for broader marks).
 
-When using `--nomodel`, set `--extsize` based on the mark type (see table below). When model building fails unexpectedly, try widening `--mfold` (e.g., `--mfold 3 50`) before falling back to `--nomodel`.
+## Effective Genome Size — Often Wrong, Always Matters
 
-### 3. Fragment Size and Extension
+`-g hs` (2.7e9) and `-g mm` (1.87e9) are decade-old approximations. Modern read-length-matched values (deepTools `effectiveGenomeSize` table):
 
-When using `--nomodel`, the `--extsize` value should come from data when possible, not a generic default:
+| Genome | Read length | Effective size |
+|--------|-------------|----------------|
+| hg38 | 50 bp | 2.913e9 |
+| hg38 | 75 bp | 2.747e9 |
+| hg38 | 100 bp | 2.701e9 |
+| hg38 | 150 bp | 2.620e9 |
+| mm10 | 50 bp | 2.652e9 |
+| mm10 | 100 bp | 2.407e9 |
 
-1. **Best:** Estimate from strand cross-correlation using phantompeakqualtools (SPP). This is the ENCODE standard — the same analysis produces QC metrics (NSC/RSC). See chipseq-qc for cross-correlation details.
-2. **Good:** Estimate using `macs3 predictd -i chip.bam -g hs --outdir .` and read the fragment size from stderr. Requires sufficient enriched regions (same constraint as model building).
-3. **Fallback:** Use mark-type defaults from the table below.
+Wrong size shifts every q-value but rarely peak ranks. For subset data (single chromosome, targeted), provide numeric `-g <bp>`; the shorthand inflates lambda_BG by 60× and produces false positives at low-signal regions.
 
-Fragment sizes vary across experiments — ENCODE H3K4me3 datasets show cross-correlation estimates from 95-245bp within a single experiment. Using an estimated value is always preferable to a default.
+## Hyper-ChIPable Regions Are a Persistent Artifact
 
-| Mark type | Fallback --extsize | Rationale |
-|-----------|-------------------|-----------|
-| TFs (CTCF, p53) | 150-200 | Typical ChIP fragment size range |
-| H3K4me3, H3K27ac | 147 | Nucleosome core particle is 147bp; these marks are nucleosome-proximal |
-| H3K4me1 | 200 | Slightly broader enhancer marks |
-| H3K36me3, H3K79me2 | 200-300 | Gene body marks, broader signal |
-| H3K27me3, H3K9me3 | 200 | Extension less critical since `--broad` links subpeaks |
+Teytelman 2013 (PNAS) and Park 2013 (PLoS One) demonstrated that highly-transcribed genes (rRNA, tRNA, histone gene cluster, snoRNA hosts, mitochondrial-encoded genes, abundant housekeeping loci) appear "bound" in ChIP-seq with untagged GFP, no antibody, or non-existent targets. ENCODE blacklist v2 catches repeat-driven artifacts but NOT these hyper-ChIPable transcribed regions.
 
-The ENCODE pipeline always uses `--nomodel --shift 0 --extsize {fraglen}` where fraglen comes from cross-correlation, even when model building would succeed. This ensures consistency between peak calling and signal track generation.
+Always interpret peaks at rRNA loci, tRNA clusters, replication-dependent histone genes (HIST1/2 clusters), mitochondrial DNA, and the top-1% input-signal regions with skepticism. For rigorous claims: (1) require motif enrichment at the peak (artifact has no motif); (2) require KO/KD signal loss; (3) build a cell-type-specific blacklist from the top 1% of input signal and intersect-out.
 
-### 4. Input Format
+## Pipeline Reference: ENCODE TF vs Histone
 
-| File type | Extension | -f flag | Notes |
-|-----------|-----------|---------|-------|
-| Aligned BAM (SE) | .bam | BAM | Most common |
-| Aligned BAM (PE) | .bam | BAMPE | Uses actual fragment sizes from mate pairs |
-| tagAlign / BED6 | .tagAlign.gz, .bed.gz | BED | ENCODE standard format; stores chr, start, end, name, score, strand |
-| SAM | .sam | SAM | Rarely used directly |
-
-TagAlign is a BED6 format widely used by ENCODE. MACS3 reads it with `-f BED` (not a special tagAlign flag).
-
-## Basic Peak Calling
+**TF pipeline (uses SPP for peak ranking):**
 
 ```bash
-macs3 callpeak -t chip.bam -c input.bam -f BAM -g hs -n sample --outdir peaks/
+# Per-replicate (loose) — IDR tightens downstream
+macs2 callpeak -t rep1.tagAlign.gz -c input.tagAlign.gz \
+    -f BED -g hs -n rep1 \
+    --nomodel --shift 0 --extsize {fraglen_from_xcor} \
+    --keep-dup all -B --SPMR -p 1e-2
+
+# Repeat for rep2, pooled, and pseudoreplicates (split each rep into halves)
+# Score peaks by signalValue, sort, run IDR (see Replicate Handling below)
 ```
 
-## Without Input Control
+**Histone pipeline (uses MACS2 broad / narrow + naive overlap):**
 
 ```bash
-macs3 callpeak -t chip.bam -f BAM -g hs -n sample --outdir peaks/
-```
-
-Calling without input control uses genomic background only. This is less accurate — always prefer matched input/IgG when available.
-
-## Narrow Peaks (TF, H3K4me3, H3K27ac)
-
-```bash
-macs3 callpeak \
-    -t chip.bam \
-    -c input.bam \
-    -f BAM \
-    -g hs \
-    -n sample_narrow \
-    --outdir peaks/ \
-    -q 0.05
-```
-
-## Broad Peaks (H3K36me3, H3K27me3, H3K9me3)
-
-```bash
-macs3 callpeak \
-    -t chip.bam \
-    -c input.bam \
-    -f BAM \
-    -g hs \
-    -n sample_broad \
-    --outdir peaks/ \
-    --broad \
-    --broad-cutoff 0.1
-```
-
-## Paired-End Data
-
-```bash
-macs3 callpeak \
-    -t chip.bam \
-    -c input.bam \
-    -f BAMPE \
-    -g hs \
-    -n sample_pe \
-    --outdir peaks/
-```
-
-BAMPE uses actual fragment sizes from mate pairs — no model building or `--extsize` needed.
-
-## tagAlign / BED Input
-
-```bash
-macs3 callpeak \
-    -t treatment.tagAlign.gz \
-    -c control.tagAlign.gz \
-    -f BED \
-    -g hs \
-    -n sample \
-    --outdir peaks/
-```
-
-MACS3 accepts gzipped tagAlign directly. No decompression needed.
-
-## Multiple Replicates
-
-```bash
-macs3 callpeak \
-    -t rep1.bam rep2.bam rep3.bam \
-    -c input.bam \
-    -f BAM \
-    -g hs \
-    -n pooled \
-    --outdir peaks/
-```
-
-## Genome Size
-
-Use built-in shortcuts for model organisms, or provide a numeric value for non-model organisms, single-chromosome data, or targeted captures:
-
-| Genome | Flag | Effective Size |
-|--------|------|----------------|
-| Human (whole) | hs | 2.7e9 |
-| Mouse (whole) | mm | 1.87e9 |
-| C. elegans | ce | 9e7 |
-| D. melanogaster | dm | 1.2e8 |
-| Human chr21 only | 46700000 | ~46.7M mappable bases |
-| Custom/targeted | numeric | Sum of mappable bases in target regions |
-
-For single-chromosome or targeted data, always provide the numeric effective genome size rather than the whole-genome shortcut. MACS computes genome-wide background as lambda_BG = (control_reads x fragment_size) / genome_size. Using `hs` (2.9e9) on chr21-only data (~46.7M) deflates lambda_BG by ~62x, making the background floor artificially low and allowing false positives in regions where local lambda is also low.
-
-## Fixed Fragment Size (--nomodel)
-
-```bash
-macs3 callpeak \
-    -t chip.bam \
-    -c input.bam \
-    -f BAM \
-    -g hs \
-    --nomodel \
-    --extsize 150 \
-    -n sample \
-    --outdir peaks/
-```
-
-See the decision framework above for when to use `--nomodel` and how to choose `--extsize`.
-
-## Rescuing Failed Model Building
-
-If model building fails with "needs at least 100 paired peaks":
-
-```bash
-macs3 callpeak \
-    -t chip.bam \
-    -c input.bam \
-    -f BAM \
-    -g hs \
-    --mfold 3 50 \
-    -n sample \
-    --outdir peaks/
-```
-
-Widening `--mfold` from the default `[5, 50]` to `[3, 50]` lowers the enrichment threshold for selecting model-building regions, which can recover enough paired peaks. If this still fails, use `--nomodel` with an appropriate `--extsize`.
-
-## Generate Signal Tracks
-
-```bash
-macs3 callpeak \
-    -t chip.bam \
-    -c input.bam \
-    -f BAM \
-    -g hs \
-    -n sample \
-    --outdir peaks/ \
-    -B \
-    --SPMR
-
-sort -k1,1 -k2,2n peaks/sample_treat_pileup.bdg > peaks/sample.sorted.bdg
-bedGraphToBigWig peaks/sample.sorted.bdg chrom.sizes peaks/sample.bw
-```
-
-## Cutoff Analysis
-
-```bash
-macs3 callpeak \
-    -t chip.bam \
-    -c input.bam \
-    -f BAM \
-    -g hs \
-    --cutoff-analysis \
-    -n sample \
-    --outdir peaks/
-```
-
-Generates a table of peak counts at various q-value cutoffs. Useful for choosing a threshold when expected peak counts are unclear.
-
-## HOMER Peak Calling
-
-HOMER peak calling requires two steps: creating a tag directory (which estimates fragment size via strand autocorrelation), then calling peaks against it.
-
-### Tag Directories
-
-```bash
-makeTagDirectory chip_tags/ chip.bam
-makeTagDirectory input_tags/ input.bam
-```
-
-For tagAlign/BED input, specify format explicitly:
-
-```bash
-makeTagDirectory chip_tags/ treatment.tagAlign.gz -format bed
-makeTagDirectory input_tags/ control.tagAlign.gz -format bed
-```
-
-Tag directories store pre-processed alignment data and compute QC metrics (fragment length, strand enrichment) automatically.
-
-### Transcription Factors
-
-```bash
-findPeaks chip_tags/ -style factor -i input_tags/ -gsize 2.7e9 -o peaks.txt
-```
-
-`-style factor` uses fixed-width peaks with all three filters active (control enrichment `-F 4`, local enrichment `-L 4`, clonal filtering `-C 2`). Peak width is auto-estimated from tag autocorrelation. Use for point-source TF binding (CTCF, p53, GATA1).
-
-### Histone Marks (H3K4me3, H3K27ac, H3K27me3, H3K36me3)
-
-```bash
-findPeaks chip_tags/ -style histone -i input_tags/ -gsize 2.7e9 -o regions.txt
-```
-
-`-style histone` uses variable-width region stitching (500bp building blocks stitched within 1000bp) and disables local enrichment filtering (`-L 0`). Use for **all histone marks**, including narrow marks like H3K4me3 and H3K27ac. Benchmarking (Omnipeak, NAR 2025) shows histone mode outperforms factor mode for H3K4me3 because it captures the variable-width enrichment around modified nucleosomes rather than clipping to a fixed-width center. For broad marks (H3K27me3, H3K36me3), `-L 0` is essential since local enrichment filtering would eliminate the signal being sought.
-
-### Converting HOMER Output to BED
-
-```bash
-pos2bed.pl peaks.txt > peaks.bed
-```
-
-HOMER peak files use 1-indexed inclusive coordinates; `pos2bed.pl` converts to 0-indexed BED format. For manual conversion:
-
-```bash
-awk 'BEGIN{OFS="\t"} !/^#/ && NF>=5 {print $2, $3, $4, $1, $8}' peaks.txt > peaks.bed
-```
-
-### HOMER Key Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| -style | factor | Peak mode: factor, histone, super, groseq, tss, dnase |
-| -i | none | Control tag directory |
-| -gsize | 2e9 | Effective genome size |
-| -size | auto | Peak size (auto for factor; 500 for histone) |
-| -F | 4.0 | Fold enrichment over control |
-| -L | 4.0 | Fold enrichment over local region (0 in histone mode) |
-| -C | 2.0 | Clonal signal filter (0 to disable) |
-| -fdr | 0.001 | FDR threshold |
-| -o | stdout | Output file (`auto` writes to tag directory) |
-
-## Multi-Caller Consensus
-
-When both MACS3 and HOMER are available, running both and intersecting results is the recommended approach for final peak sets. MACS3's local Poisson model and HOMER's three-filter approach have different error profiles, so their intersection removes tool-specific false positives. For quick exploration with a single tool, MACS3 alone is sufficient.
-
-```bash
-bedtools intersect -a macs3_peaks.narrowPeak -b homer_peaks.bed -wa -u > consensus_peaks.bed
-```
-
-For lenient matching (peaks within 500bp), use `bedtools window`:
-
-```bash
-bedtools window -a macs3_peaks.narrowPeak -b homer_peaks.bed -w 500 | cut -f1-10 | sort -k1,1 -k2,2n | uniq > consensus_peaks.bed
-```
-
-**Single-caller vs consensus:** Single-caller (MACS3 alone) is appropriate for exploratory analysis, quick surveys, or when only one tool is installed. Consensus is preferred for final peak sets used in downstream motif analysis, functional enrichment, cross-condition comparison, or publication.
-
-**Consensus vs IDR vs naive overlap:** These address different questions:
-- **IDR** measures replicate reproducibility (same caller, multiple replicates). ENCODE standard for TF ChIP-seq.
-- **Naive overlap** identifies peaks found across replicates. ENCODE standard for histone marks — IDR is too conservative for the variable dynamic range of histone signal.
-- **Multi-caller consensus** measures algorithmic agreement (multiple callers, same data). Widely used for higher-confidence peak sets.
-
-For publication-quality analysis, consider both replicate thresholding (IDR or naive overlap) and multi-caller consensus.
-
-## Sanity-Checking Results
-
-After peak calling, verify that results are biologically plausible before proceeding to downstream analysis:
-
-| Target | Typical peak count (whole genome) | Typical peak width |
-|--------|-----------------------------------|--------------------|
-| TFs (CTCF, p53) | 10,000-80,000 | 200-500 bp |
-| H3K4me3 | 20,000-50,000 | 500-2,000 bp |
-| H3K27ac | 30,000-80,000 | 500-3,000 bp |
-| H3K27me3 | 5,000-30,000 broad domains | 10-100+ kb |
-| H3K36me3 | 10,000-30,000 broad domains | 5-50 kb |
-
-For subset data (e.g., single chromosome), scale expectations proportionally — chr21 is ~1.5% of the human genome, so expect ~1.5% of whole-genome peak counts.
-
-Red flags that indicate parameter problems:
-- **Zero peaks:** Check genome size flag (using `hs` on subset data?), input format (`-f`), and whether input control is properly matched
-- **Orders of magnitude too many peaks:** Control sample may be swapped with treatment, or q-value cutoff is too permissive
-- **Orders of magnitude too few peaks:** Genome size may be too large for the data, or model building failed silently (check stderr)
-
-When results are unexpected, re-read the MACS3 stderr output — it reports tag counts, redundancy rates, fragment size estimates, and model building status. Search current MACS3 documentation or literature if the issue is not covered here.
-
-## Output Files
-
-| File | Description |
-|------|-------------|
-| *_peaks.narrowPeak | Peak coordinates (BED6+4) |
-| *_peaks.broadPeak | Broad peak coordinates |
-| *_summits.bed | Peak summit positions |
-| *_model.r | R script for model visualization |
-| *_treat_pileup.bdg | Treatment signal (with -B) |
-| *_control_lambda.bdg | Control signal (with -B) |
-
-## narrowPeak Format
-
-```
-chr1  100  200  peak_1  100  .  5.2  10.5  8.3  50
-```
-Columns: chr, start, end, name, score, strand, signalValue, pValue, qValue, peak
-
-## Convert narrowPeak to BED
-
-Many downstream tools and pipelines expect simple BED format (chr, start, end, name, score). Extract the first 5 columns from narrowPeak:
-
-```bash
-cut -f1-5 peaks.narrowPeak > peaks.bed
-```
-
-## Filter Peaks
-
-```bash
-awk '$9 > 2' peaks.narrowPeak > peaks.filtered.narrowPeak  # -log10(q) > 2 means q < 0.01
-sort -k7,7nr peaks.narrowPeak > peaks.sorted.narrowPeak
-```
-
-## Key Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| -t | required | Treatment file(s) |
-| -c | none | Control file(s) |
-| -f | AUTO | Format: BAM, BAMPE, BED, SAM |
-| -g | hs | Effective genome size (shortcut or numeric) |
-| -n | NA | Output prefix |
-| -q | 0.05 | Q-value cutoff |
-| -p | none | P-value cutoff (overrides -q) |
-| --broad | false | Broad peak calling |
-| --broad-cutoff | 0.1 | Q-value cutoff for broad regions |
-| --nomodel | false | Skip fragment size modeling |
-| --extsize | 200 | Read extension size (with --nomodel) |
-| --mfold | 5 50 | Enrichment range for model building |
-| -B | false | Generate bedGraph |
-| --SPMR | false | Signal per million reads |
-| --nolambda | false | Use local background only (skip genome-wide lambda) |
-
-## ENCODE Pipeline Reference
-
-The ENCODE ChIP-seq pipeline uses these MACS2 parameters as its standard:
-
-```bash
-macs2 callpeak -t chip.tagAlign.gz -c input.tagAlign.gz \
-    -f BED -g {gsize} -p 1e-2 \
+# Broad marks: H3K27me3, H3K9me3, H3K36me3
+macs2 callpeak -t rep1.tagAlign.gz -c input.tagAlign.gz \
+    -f BED -g hs -n rep1 \
+    --broad --broad-cutoff 0.1 \
     --nomodel --shift 0 --extsize {fraglen} \
-    --keep-dup all -B --SPMR
+    --keep-dup all -B --SPMR -p 1e-2
+
+# Naive overlap: a peak passes if it appears in ≥2 of N replicates
+# with ≥40% reciprocal overlap (ENCODE default, often misquoted as 50%)
+bedtools intersect -a rep1.broadPeak -b rep2.broadPeak -f 0.40 -r -u > naive_overlap.bed
 ```
 
-Key differences from default MACS3 settings: uses `-p 0.01` (p-value, not q-value) because IDR or naive overlap thresholding is applied downstream to filter peaks across replicates; uses `--keep-dup all` because duplicates are handled upstream during BAM processing; fragment length comes from phantompeakqualtools cross-correlation, not MACS model building. For histone marks, ENCODE applies naive overlap across replicates rather than IDR.
+`--keep-dup all` is intentional in the ENCODE pattern: duplicates were already filtered upstream by MarkDuplicates + `samtools view -F 1804 -q 30`. `-p 1e-2` is permissive because IDR (TF) or overlap (histone) tightens downstream.
+
+## Replicate Handling: IDR vs Naive Overlap
+
+ENCODE rules (Landt 2012 *Genome Res*):
+
+**TFs use IDR.** Run on signal-ranked peaks (sort by `-k8,8nr` p-value; `-k7,7nr` signal works for SPP but breaks for MACS pile-up if libraries differ).
+
+```bash
+sort -k8,8nr rep1.narrowPeak > rep1.sorted
+sort -k8,8nr rep2.narrowPeak > rep2.sorted
+
+idr --samples rep1.sorted rep2.sorted \
+    --input-file-type narrowPeak --rank p.value \
+    --idr-threshold 0.05 --output-file true_reps.idr --plot
+```
+
+**ENCODE Nself/Nt consistency rule** (often misremembered):
+- Nt = IDR-passing peaks across true biological replicates (threshold 0.05)
+- Nself (per rep) = IDR-passing peaks across pseudoreplicates of one library (threshold 0.10)
+- Library passes if `max(N1self, N2self) / min(N1self, N2self) ≤ 2` AND `max(Nt, max(Nself)) / min(Nt, min(Nself)) ≤ 2`
+- Both ratios > 2: library rejected
+
+**Histones use naive overlap.** IDR's high-vs-low-rank assumption breaks for histone dynamic range. Naive overlap: pool peaks, require each to appear in ≥2 replicates with ≥40% reciprocal overlap.
+
+## ENCODE 3 vs ENCODE 4 Differences
+
+| Feature | ENCODE 3 | ENCODE 4 |
+|---------|----------|----------|
+| TF peak ranker | SPP | SPP (unchanged) |
+| Histone caller | MACS2 | MACS2 (MACS3 not yet adopted) |
+| Aligner | bwa-mem | bwa-mem (chromap evaluated; not yet swapped) |
+| Blacklist | v1 (Hoffman 2013) | v2 (Amemiya 2019) |
+| TF significance | `-p 1e-2` + IDR @ 0.05 | Same |
+| Histone significance | `-p 1e-2` + naive overlap | Same |
+| Effective genome size | `hs`/`mm` shorthand | deepTools read-length-tabulated |
+| Pseudoreplicate IDR threshold | 0.10 self-consistency | 0.10 self-consistency |
+
+ENCODE 4 outputs are NOT numerically comparable to ENCODE 3 on the same BAM (blacklist change + genome size update shift peak counts ~3-10%).
+
+## Per-Tool Failure Modes
+
+### MACS2/3 -- Silent fragment-size model failure
+
+**Trigger:** Sparse signal, low replicate depth, or saturated samples; `_model.r` plot never inspected.
+
+**Mechanism:** Model needs ≥100 paired plus/minus enriched regions in `--mfold` range. Below threshold, MACS picks an arbitrary fragment size (often 50 or 1000 bp), producing miscentered or oversized peaks. Stderr shows a warning that gets ignored.
+
+**Symptom:** Peak summits shifted relative to known motif positions by hundreds of bp; visual inspection in IGV shows peaks displaced from pile-up centers.
+
+**Fix:** Inspect `<sample>_model.r` — if peaks look reasonable, accept; if degenerate, widen with `--mfold 3 50` or switch to `--nomodel --extsize <data-derived>`. For consistency across samples in a study, always use `--nomodel --extsize {fraglen}` with cross-correlation-derived fraglen (ENCODE pattern).
+
+### MACS2/3 -- Confounded narrow vs broad on intermediate marks
+
+**Trigger:** Marks of intermediate breadth (H3K4me1, H3K9ac) called with default narrow mode.
+
+**Mechanism:** Default narrow mode fragments wide enrichment into multiple sub-peaks; `--broad` over-stitches.
+
+**Symptom:** Peak count 3-5× higher than published for same cell type; mean peak width < 200 bp at known enhancer regions.
+
+**Fix:** For H3K4me1, try `--broad --broad-cutoff 0.1` and compare; for H3K9ac, narrow mode typically OK. Always cross-reference published peak counts for the cell type and antibody lot.
+
+### MACS2/3 -- `--call-summits` double-counts
+
+**Trigger:** Narrow mode + `--call-summits` flag.
+
+**Mechanism:** MACS adds sub-peak summits at multi-mode pile-ups; broad-shouldered peaks get split into 2-3 entries.
+
+**Symptom:** Peak count inflated; same genomic region appears as 2-3 adjacent peaks in narrowPeak output.
+
+**Fix:** Drop `--call-summits` unless deliberately analyzing multi-mode binding (rare); merge `bedtools merge -d 200` if needed post-hoc.
+
+### HOMER -- Wrong style for histones
+
+**Trigger:** `-style factor` used for histone marks.
+
+**Mechanism:** Factor mode uses fixed-width peaks with local enrichment filter `-L 4` that eliminates broad signal.
+
+**Symptom:** Far fewer peaks than expected for H3K4me3/H3K27ac/H3K27me3; missed enrichment at known regions.
+
+**Fix:** Use `-style histone` for ALL histone marks (Omnipeak 2025); reserve `-style factor` for TFs only.
+
+### SPP / phantompeakqualtools -- R version incompatibility
+
+**Trigger:** Running phantompeakqualtools wrapper script with R ≥ 4.0.
+
+**Mechanism:** spp R package has unmaintained dependencies; some functions silently fail or return NaN for NSC/RSC.
+
+**Fix:** Use conda env pinned to R 3.6 + spp 1.16; or use kundajelab/phantompeakqualtools fork (current); or substitute deepTools plotFingerprint for QC and MACS-derived fragment length.
+
+### chromap aligner -- Pre-applied shift double-counts
+
+**Trigger:** Using chromap (fast aligner) output as MACS input with `--shift -75 --extsize 150`.
+
+**Mechanism:** chromap pre-applies a Tn5/cut-site shift before fragment output (designed for ATAC); ChIP cut-site reasoning doesn't apply but the shift still happens silently.
+
+**Symptom:** Peaks shifted ~5-10 bp from bwa-mem output at the same locus.
+
+**Fix:** When using chromap, drop downstream shift OR use chromap's `--no-correction`. For ChIP, bwa-mem or bowtie2 are safer defaults until ENCODE switches.
+
+## Reconciliation: When Callers Disagree
+
+| Pattern | Likely cause | Action |
+|---------|--------------|--------|
+| MACS finds peak; HOMER misses | HOMER local-enrichment filter (`-L 4`) removed it at low-signal regions; or `-style factor` clipped a histone peak | Re-run HOMER with `-style histone -L 0` for histones; if persists, trust MACS |
+| HOMER finds peak; MACS misses | Clonal filter `-C 2` retained PCR artifact peaks; or HOMER's auto-width captured something MACS narrow mode segmented | Check if MACS broad mode rescues; check IGV for visual confirmation |
+| SPP and MACS narrow peaks differ by 10-50 bp summit | Different fragment-size estimates (SPP uses cross-corr; MACS models from data) | Use same fragment size for both: ENCODE pattern `--nomodel --extsize {xcor_fraglen}` |
+| MACS narrow + MACS broad on same data: 10× peak count difference | Expected — broad mode stitches subpeaks within 1 kb gap | Use narrow for differential analysis (consistent units); broad for domain annotation |
+| Per-rep MACS calls peak; pooled MACS does not | One replicate dominates; pooling smooths local lambda | Trust pooled + IDR over per-replicate counts |
+| Replicate count differs >2× | One replicate failed | Check FRiP, NSC, library complexity per replicate; do NOT average — drop the failing replicate or repeat |
+
+**Operational rule for publication-grade:** TFs require IDR ≤ 0.05 on true reps AND Nt/Nself ratios ≤ 2. Histones require naive overlap ≥2 reps with ≥40% reciprocal overlap. Both require FRiP, NSC, RSC, and library complexity thresholds met. See chipseq-qc.
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| 0 peaks called | Wrong genome size on subset data; wrong `-f` for input format; swapped treatment/control | Provide numeric `-g`; match `-f` to file type (BAM/BAMPE/BED); verify `-t` is enriched sample |
+| Peak count >> 500k | Did not deduplicate; chrM not removed; `-q` too loose; hyper-ChIPable artifacts dominate | Filter `samtools view -F 1804 -q 30`; remove chrM; tighten to `-q 0.01`; blacklist top-1% input regions |
+| Peaks shifted from motif by ~75 bp | `--shift` not set for `-f BAM`; or fragment-size model wrong | Add `--shift 0 --extsize {fraglen}`; or check `_model.r` |
+| `--shift/--extsize ignored` warning | Used `-f BAMPE` with these flags | Switch to `-f BAM` for ENCODE pattern, or accept that BAMPE uses true fragment spans |
+| IDR returns 0 reproducible peaks | Sorted by wrong column; ranks effectively random | `sort -k8,8nr` (p-value descending) on each peakset |
+| Naive overlap returns few peaks | Set `-f 0.5 -r` (50% reciprocal) — too strict | Use `-f 0.40 -r` (ENCODE default) |
+| FRiP < 1% | Bad ChIP (antibody, fragmentation, depth); peaks called on noise | Re-validate antibody with KO/KD; check fragment-size distribution; do not proceed |
+
+## References
+
+- Park PJ 2009 Nat Rev Genet 10:669 (foundational review)
+- Landt SG et al 2012 Genome Res 22:1813 (ENCODE/modENCODE guidelines, IDR Nself rule)
+- Zhang Y et al 2008 Genome Biol 9:R137 (MACS)
+- Kharchenko PV et al 2008 Nat Biotechnol 26:1351 (SPP)
+- Heinz S et al 2010 Mol Cell 38:576 (HOMER)
+- Li Q et al 2011 Ann Appl Stat 5:1752 (IDR framework)
+- Teytelman L et al 2013 PNAS 110:18602 (hyper-ChIPable regions)
+- Park D et al 2013 PLoS One 8:e83506 (independent hyper-ChIPable confirmation)
+- Amemiya HM et al 2019 Sci Rep 9:9354 (ENCODE blacklist v2)
+- ENCODE ChIP-seq pipeline v2.1.6 (github.com/ENCODE-DCC/chip-seq-pipeline)
+- Omnipeak benchmark 2025 Nucleic Acids Res (HOMER -style histone vs factor mode for histone marks; cited via publisher's bioinformatics aggregation)
 
 ## Related Skills
 
-- peak-annotation - Annotate peaks to genes (ChIPseeker or HOMER annotatePeaks.pl)
-- motif-analysis - De novo and known motif enrichment (HOMER findMotifsGenome.pl, MEME)
-- differential-binding - Compare peaks between conditions
-- chipseq-qc - QC metrics including FRiP, NSC/RSC, IDR
-- super-enhancers - Super-enhancer identification with ROSE or HOMER -style super
-- alignment-files/sam-bam-basics - BAM file preparation
-- chipseq-visualization - Visualize peaks and signal tracks
-- genome-intervals/interval-arithmetic - BED intersection, merging, and window operations
+- chip-seq/chipseq-qc - Fragment-size diagnostic, FRiP, NSC/RSC, antibody validation
+- chip-seq/cut-and-run-tag - SEACR + MACS for CUT&RUN/CUT&Tag (different QC, lower depth)
+- chip-seq/spike-in-normalization - When global signal shifts expected (HDACi, BETi, EZH2i)
+- chip-seq/differential-binding - DiffBind/csaw downstream of peak calling
+- chip-seq/peak-annotation - Annotate peaks to genes and cCREs
+- chip-seq/motif-analysis - Discover and scan binding motifs in peaks
+- chip-seq/super-enhancers - Stitch H3K27ac peaks into super-enhancer calls
+- atac-seq/atac-peak-calling - ATAC-specific shift/extend; no input control
+- alignment-files/sam-bam-basics - Pre-call BAM filtering and deduplication
+- genome-intervals/interval-arithmetic - Peak intersection and overlap

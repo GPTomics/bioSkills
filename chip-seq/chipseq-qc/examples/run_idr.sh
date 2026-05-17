@@ -13,12 +13,15 @@ fi
 
 OUTPUT=${OUTPUT:-idr_output}
 
-sort -k7,7nr "$REP1" > rep1_sorted.narrowPeak
-sort -k7,7nr "$REP2" > rep2_sorted.narrowPeak
+# Sort by -log10(p-value) column 8 per ENCODE TF convention.
+# Column 7 (signalValue) ranks differ between libraries when MACS pile-up
+# scaling differs, breaking the IDR rank-correlation assumption.
+sort -k8,8nr "$REP1" > rep1_sorted.narrowPeak
+sort -k8,8nr "$REP2" > rep2_sorted.narrowPeak
 
 idr --samples rep1_sorted.narrowPeak rep2_sorted.narrowPeak \
     --input-file-type narrowPeak \
-    --rank signal.value \
+    --rank p.value \
     --output-file "${OUTPUT}.txt" \
     --plot "${OUTPUT}.pdf" \
     --log-output-file "${OUTPUT}.log"

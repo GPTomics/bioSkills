@@ -20,7 +20,7 @@ dba_obj <- dba.count(dba_obj, summits = 250, minOverlap = 2)
 
 dba_obj <- dba.normalize(dba_obj)
 
-dba_obj <- dba.contrast(dba_obj, categories = DBA_CONDITION)
+dba_obj <- dba.contrast(dba_obj, design = '~ Condition')
 
 dba_obj <- dba.analyze(dba_obj, method = DBA_DESEQ2)
 

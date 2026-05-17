@@ -120,6 +120,10 @@ Connection thresholds typically 0.05-0.5; > 0.25 is high-confidence.
 
 ## Cicero Standard Workflow
 
+**Goal:** Infer cis-regulatory peak-peak connections from a scATAC peak-cell matrix.
+
+**Approach:** Build a Monocle3 CellDataSet, reduce dimensions via LSI + UMAP, aggregate cells into metacells, then run Cicero's graphical-lasso correlation across the cis window and threshold on connection score.
+
 ```r
 library(cicero); library(monocle3); library(GenomicRanges)
 
@@ -230,6 +234,10 @@ Cicero is appropriate when no 3D data exists; do not use Cicero in lieu of ABC w
 | > 50% of strong Cicero connections overlap Hi-C loops | High-confidence; Cicero captures real 3D structure |
 | 30-50% | Standard; some 3D contacts don't vary in accessibility |
 | < 20% | Co-accessibility may not reflect contacts; lineage-specific contacts may be missing |
+
+**Goal:** Quantify what fraction of strong Cicero connections are supported by Hi-C loop calls.
+
+**Approach:** Import HiCCUPS loops as GenomicInteractions, build a parallel object from Cicero connections, then count anchor-anchor overlaps and report the percentage.
 
 ```r
 # Compare Cicero against published Hi-C loops

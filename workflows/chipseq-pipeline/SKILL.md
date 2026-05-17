@@ -8,13 +8,18 @@ depends_on:
   - read-qc/fastp-workflow
   - read-alignment/bowtie2-alignment
   - alignment-files/duplicate-handling
+  - chip-seq/chipseq-qc
   - chip-seq/peak-calling
   - chip-seq/peak-annotation
-  - chip-seq/chipseq-qc
+  - chip-seq/differential-binding
+  - chip-seq/chipseq-visualization
+  - chip-seq/motif-analysis
 qc_checkpoints:
   - after_qc: "Q30 >85%, adapter content <5%"
   - after_alignment: "Mapping rate >80%, unique mapping >70%"
-  - after_peaks: "FRiP >1% (ideally >5%), peak count reasonable"
+  - after_dedup: "NRF >0.8, PBC1 >0.8 (compute pre-dedup)"
+  - after_peaks: "FRiP >1% (TF) or >5% (histone); NSC >1.05; RSC >0.8"
+  - after_idr: "Nself and Nt ratios both <=2 (ENCODE consistency rule)"
 ---
 
 ## Version Compatibility
@@ -278,8 +283,18 @@ echo "Pipeline complete. Peaks: ${OUTDIR}/peaks/experiment_peaks.narrowPeak"
 
 ## Related Skills
 
-- chip-seq/peak-calling - MACS3/HOMER parameters, multi-caller consensus
-- chip-seq/peak-annotation - ChIPseeker annotation details
-- chip-seq/differential-binding - Compare conditions with DiffBind
-- chip-seq/chipseq-qc - Comprehensive QC metrics
-- chip-seq/motif-analysis - Find enriched motifs in peaks
+- chip-seq/chipseq-qc - FRiP, NSC/RSC, library complexity, hyper-ChIPable detection, antibody validation
+- chip-seq/peak-calling - MACS3/MACS2/HOMER/SPP, IDR vs naive overlap, per-tool failure modes
+- chip-seq/peak-annotation - ChIPseeker, HOMER, ENCODE cCRE classification, GREAT regulatory domains
+- chip-seq/differential-binding - DiffBind, DESeq2, csaw with three-distinct-normalization-problems framing
+- chip-seq/chipseq-visualization - deepTools, pyGenomeTracks, heatmaps with bigWig normalization choices
+- chip-seq/motif-analysis - HOMER, MEME-ChIP (STREME), monaLisa with background-selection theory
+- chip-seq/super-enhancers - ROSE/ROSE2/LILY for SE calling with marker choice (H3K27ac vs MED1 vs BRD4)
+- chip-seq/cut-and-run-tag - SEACR + MACS2 consensus for CUT&RUN/CUT&Tag (different protocol)
+- chip-seq/spike-in-normalization - ChIP-Rx Drosophila spike-in for global-shift experiments (HDACi/BETi/EZH2i)
+- chip-seq/chromatin-state-segmentation - ChromHMM multi-mark integration into chromatin states
+- chip-seq/chip-deep-learning - BPNet/chromBPNet/EnFormer for variant effect prediction
+- chip-seq/allele-specific-binding - WASP/BaalChIP/RASQUAL for allele-specific TF binding
+- read-qc/fastp-workflow - Upstream adapter trimming and quality filtering
+- read-alignment/bowtie2-alignment - Standard ChIP-seq aligner
+- alignment-files/duplicate-handling - MarkDuplicates pre-peak-calling

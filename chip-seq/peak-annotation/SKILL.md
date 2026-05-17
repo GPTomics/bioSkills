@@ -1,383 +1,343 @@
 ---
 name: bio-chipseq-peak-annotation
-description: Annotate ChIP-seq peaks to genomic features and nearest genes. Classify peaks as promoter, exon, intron, or intergenic using ChIPseeker (R), HOMER annotatePeaks.pl (CLI), or Python (pandas/pyranges). Supports pre-built annotation databases and custom GTF files. Handles promoter definition, feature priority, category collapsing, and signed distance-to-TSS. Use when assigning genomic context to ChIP-seq peaks or linking peaks to target genes.
+description: Annotates ChIP-seq peaks to genomic features, nearest genes, ENCODE candidate cis-regulatory elements (cCREs), and regulatory domains. Uses ChIPseeker (R), HOMER annotatePeaks.pl (CLI), pyranges (Python), GREAT/rGREAT (regulatory domain gene-set enrichment), ChIP-Enrich (locus-length-adjusted), ENCODE SCREEN cCRE classification (PLS/pELS/dELS/CTCF-only/DNase-H3K4me3), and ENCODE-rE2G for cell-type-specific enhancer-gene linking. Handles nearest-TSS vs host-gene ambiguity, promoter window definition, and feature priority. Use when assigning genomic context to peaks, linking enhancer peaks to target genes, classifying peaks against ENCODE cCRE registry, or running gene-set enrichment on peak-associated genes.
 tool_type: mixed
 primary_tool: ChIPseeker
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: ChIPseeker 1.38+, GenomicFeatures 1.54+, rtracklayer 1.62+, HOMER 4.11+, pyranges 0.0.129+, pandas 2.2+
+Reference examples tested with: ChIPseeker 1.38+, GenomicFeatures 1.54+, rtracklayer 1.62+, HOMER 4.11+, rGREAT 2.4+, chipenrich 2.26+, pyranges 0.0.129+, pandas 2.2+.
 
-Before using code patterns, verify installed versions match. If versions differ:
-- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `annotatePeaks.pl` (HOMER prints version on run)
-
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+ENCODE cCRE registry expanded to 2.35M human and 927k mouse elements (Nature 2025; Vu Ernst expansion). SCREEN web app at screen.encodeproject.org provides browser access; ENCODE provides bed files for batch annotation.
 
 # Peak Annotation
 
-**"Annotate my peaks to genes and genomic features"** -> Assign each peak to a genomic feature category (promoter, exon, intron, intergenic), find the nearest gene, and calculate signed distance to TSS.
-- R: `ChIPseeker::annotatePeak(peaks, TxDb=txdb)`
-- CLI: `annotatePeaks.pl peaks.bed hg38 -gtf annotation.gtf`
-- Python: Parse GTF, compute intervals, classify by overlap
+**"What genes and regulatory elements do my peaks correspond to?"** -> Assign each peak to a genomic feature (promoter, exon, intron, intergenic), its target gene (via nearest-TSS or host-gene), and where applicable an ENCODE cCRE class (PLS/pELS/dELS/CTCF-only/DNase-H3K4me3).
+
+- R (gene-feature): `ChIPseeker::annotatePeak(peaks, TxDb=txdb)`
+- CLI (gene-feature): `annotatePeaks.pl peaks.bed hg38 -gtf annotation.gtf`
+- Python (custom): pyranges + pandas
+- R (cCRE classification): intersect peaks with ENCODE cCRE BED from SCREEN
+- R (gene-set enrichment): `rGREAT::great()` or `chipenrich::chipenrich()`
+
+The single biggest source of misinterpretation is the **nearest-TSS vs host-gene** distinction (see below). For enhancer-driven biology, ENCODE-rE2G or ABC (in atac-seq/enhancer-gene-linking) is more accurate than nearest-TSS.
 
 ## Choosing an Annotation Approach
 
 | Context | Recommended | Why |
 |---------|-------------|-----|
-| Standard genome, pre-built annotations available | ChIPseeker with TxDb package | Simplest setup; automatic gene symbol mapping via annoDb |
-| Custom or project-specific GTF provided | ChIPseeker + makeTxDbFromGFF, HOMER -gtf, or Python | All three handle custom annotations; choose based on pipeline |
-| HOMER already in pipeline | HOMER annotatePeaks.pl | Reuses tag directory; combined annotation + motif workflow |
-| Fine-grained control over classification logic | Python | Full control over priority rules, distance calculation, output format |
-| Quick annotation with standard categories | HOMER annotatePeaks.pl | Single command; no R environment required |
+| Standard genome, pre-built annotations available | ChIPseeker with TxDb package | Simplest; automatic gene symbol mapping via annoDb |
+| Custom or project-specific GTF | ChIPseeker + makeTxDbFromGFF, HOMER -gtf, or pyranges | All three handle custom annotations |
+| HOMER already in pipeline | HOMER annotatePeaks.pl | Reuses tag directory; combined with motif workflow |
+| Fine-grained control | pyranges (Python) | Full control over priority rules, distance calculation |
+| Enhancer peaks (distal regulatory) | GREAT / rGREAT | Regulatory domain assignment (basal + extension), not just nearest |
+| Cell-type-specific enhancer-gene linking | ENCODE-rE2G | Modern (2024); ABC-trained logistic regression with chromatin context |
+| Gene-set enrichment with locus-length adjustment | chipenrich / Broad-Enrich | Corrects for systematic gene-length bias in peak assignment |
+| Compare against ENCODE cCRE atlas | SCREEN cCRE BED intersect | Cross-reference standard regulatory registry |
+| Promoter-coverage decomposition | bedtools intersect with TSS windows | Quick stats per peak set |
 
-**Critical:** Always use the same annotation source for peak annotation as was used for the analysis. Mixing databases (e.g., UCSC knownGene TxDb with a GENCODE GTF alignment) produces gene name mismatches and incorrect feature assignments. When a specific GTF is provided, use it directly rather than a pre-built TxDb package.
+**Critical:** Use the same annotation source as the alignment (UCSC knownGene TxDb with GENCODE GTF alignment causes mismatches). When a specific GTF is provided, use it directly via `makeTxDbFromGFF` rather than a mismatched pre-built TxDb package.
 
-## Coordinate Systems and TSS
+## Nearest-TSS vs Host-Gene Convention
 
-BED files use 0-based half-open coordinates `[start, end)`. GTF files use 1-based closed coordinates `[start, end]`. Mixing these without conversion shifts annotations by one base.
+Peak annotation involves two decisions that should be coupled but often aren't:
+1. Which gene to assign (target gene)
+2. What feature the peak overlaps (promoter / exon / intron / intergenic)
 
-**Peak center** (from BED): `(start + end) // 2`
+Default tools decouple these, producing internally inconsistent annotations.
 
-**TSS from GTF:**
-- Plus-strand genes: TSS = `start` (1-based) -> 0-based: `start - 1`
-- Minus-strand genes: TSS = `end` (1-based) -> 0-based: `end`
-
-**Signed distance:** Negative = upstream of TSS, positive = downstream.
-- Plus-strand: `distance = peak_center - tss`
-- Minus-strand: `distance = -(peak_center - tss)`
-
-## Gene Assignment Conventions
-
-Peak annotation involves two decisions: (1) which gene to assign, and (2) what genomic feature the peak overlaps. These can come from different genes, creating a decoupling problem that affects downstream interpretation.
-
-### Nearest-TSS vs Host-Gene Assignment
-
-| Approach | Gene assigned from | Feature assigned from | Tools |
-|----------|-------------------|----------------------|-------|
-| Nearest-TSS | Gene with closest TSS | Physical overlap at peak center | ChIPseeker default (`overlap='TSS'`), HOMER |
+| Convention | Gene from | Feature from | Tools |
+|------------|-----------|---------------|-------|
+| Nearest-TSS (default) | Gene with closest TSS | Physical overlap at peak center | ChIPseeker `overlap='TSS'` (default), HOMER |
 | Host-gene priority | Gene whose body contains the peak | Same gene's features | ChIPseeker `overlap='all'` |
 
-**Nearest-TSS (default):** HOMER and ChIPseeker both use a two-step process by default. Step 1 finds the gene with the nearest TSS. Step 2 independently determines the genomic feature at the peak center. A peak inside gene A's intron but near gene B's TSS reports: nearest_gene=B, feature=intron -- but the intron belongs to gene A, not gene B.
+**Example failure:** Peak inside gene A's intron, near gene B's TSS. Default tools report `nearest_gene=B, feature=intron` — but the intron belongs to gene A, not gene B. The annotation is internally inconsistent.
 
-**Host-gene priority:** ChIPseeker's `overlap='all'` parameter changes this. If a peak overlaps any part of a gene body, that gene is reported as nearest, coupling gene and feature. Peaks with no gene body overlap fall back to nearest TSS.
-
-### Choosing a Convention
+### Choosing per Biology
 
 | Context | Convention | Rationale |
 |---------|-----------|-----------|
-| Distal TF binding (enhancers) | Nearest-TSS | Enhancers often regulate the nearest gene, not the gene they sit in |
-| Histone marks in gene bodies (H3K36me3, H3K27me3) | Host-gene | Mark typically reflects host gene's transcriptional state |
-| Promoter-associated marks (H3K4me3, H3K27ac) | Either | Most peaks are at promoters where both conventions agree |
-| Custom annotation against a specific GTF | Host-gene | Consistent gene-feature coupling avoids misleading annotations |
-| Reproducing published HOMER results | Nearest-TSS | Matches HOMER's default behavior |
+| Distal TF binding (enhancers) | Nearest-TSS, but prefer ENCODE-rE2G / ABC | Enhancers can regulate gene A despite sitting in gene B's intron |
+| Histone marks in gene bodies (H3K36me3, H3K27me3) | Host-gene | Mark reflects host transcriptional state |
+| Promoter-associated marks (H3K4me3, H3K27ac at promoters) | Either | Most peaks at promoters where conventions agree |
+| Custom annotation against project GTF | Host-gene | Internal consistency |
+| Reproducing published HOMER results | Nearest-TSS | Matches HOMER default |
 
-When a task requests "nearest gene," clarify whether it means nearest by TSS distance or the gene whose feature the peak physically overlaps. For most annotation tasks where gene and feature should be consistent, use the host-gene convention.
+When a task says "nearest gene," clarify which definition. For most annotation purposes where gene + feature should be consistent, use host-gene; for distal enhancer biology, use a proper enhancer-gene linker (ENCODE-rE2G, ABC).
 
-## Annotation with ChIPseeker (R)
+## Coordinate Systems and TSS
 
-### Pre-built TxDb (Standard Genomes)
+BED uses 0-based half-open `[start, end)`. GTF uses 1-based closed `[start, end]`. Mixing without conversion shifts annotations by one base.
+
+**Peak center (BED):** `(start + end) // 2`
+
+**TSS from GTF (1-based to 0-based):**
+- Plus-strand: `tss_0based = start - 1`
+- Minus-strand: `tss_0based = end`
+
+**Signed distance** (negative = upstream of TSS):
+- Plus-strand: `distance = peak_center - tss`
+- Minus-strand: `distance = -(peak_center - tss)`
+
+## ChIPseeker (R)
+
+**Goal:** Assign each ChIP-seq peak to a gene and a feature category using a transcript database.
+
+**Approach:** Load the TxDb (pre-built or custom-built from GTF), pass peaks to `annotatePeak()` with the desired `tssRegion` window and `overlap` convention (host-gene vs nearest-TSS), then export the annotated data frame with gene symbols mapped from `annoDb` or the original GTF.
+
+**Standard genome:**
 
 ```r
 library(ChIPseeker)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(org.Hs.eg.db)
 
-txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 peaks <- readPeakFile('peaks.narrowPeak')
-peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-3000, 3000), annoDb = 'org.Hs.eg.db')
+peak_anno <- annotatePeak(peaks,
+                           TxDb = TxDb.Hsapiens.UCSC.hg38.knownGene,
+                           tssRegion = c(-2000, 2000),
+                           annoDb = 'org.Hs.eg.db',
+                           overlap = 'all')   # host-gene convention
 anno_df <- as.data.frame(peak_anno)
 ```
 
-### Custom GTF Annotations
-
-**Goal:** Annotate peaks using a project-specific GTF rather than a pre-built annotation package.
-
-**Approach:** Build a TxDb from the GTF with `makeTxDbFromGFF()`, annotate peaks against it, then map gene symbols from the original GTF since custom TxDb objects lack the ID mappings that `annoDb` requires.
+**Custom GTF** (use makeTxDbFromGFF; map symbols from original GTF since custom TxDb objects lack annoDb mappings):
 
 ```r
-library(ChIPseeker)
 library(GenomicFeatures)
 library(rtracklayer)
 
 txdb <- makeTxDbFromGFF('genes.gtf.gz', format = 'gtf')
 peaks <- readPeakFile('peaks.bed')
-peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000), overlap = 'all')
-anno_df <- as.data.frame(peak_anno)
+peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000),
+                           overlap = 'all')
 
-# Map gene symbols from GTF (annoDb does not work with custom TxDb)
 gtf <- import('genes.gtf.gz')
 gene_map <- unique(data.frame(
     gene_id = sub('\\..*', '', gtf$gene_id),
     symbol = gtf$gene_name, stringsAsFactors = FALSE))
 gene_map <- gene_map[!is.na(gene_map$symbol), ]
-anno_df$geneId_base <- sub('\\..*', '', anno_df$geneId)
-anno_df$SYMBOL <- gene_map$symbol[match(anno_df$geneId_base, gene_map$gene_id)]
+anno_df <- as.data.frame(peak_anno)
+anno_df$gene_id_base <- sub('\\..*', '', anno_df$geneId)
+anno_df$SYMBOL <- gene_map$symbol[match(anno_df$gene_id_base, gene_map$gene_id)]
 ```
 
-The version-suffix stripping (`sub('\\..*', '', ...)`) handles GENCODE gene IDs like `ENSG00000142192.25` where the TxDb may store the full ID but the GTF attribute has it without the version.
+GENCODE gene IDs have version suffixes (`ENSG00000142192.25`); strip before joining.
 
-### Custom Promoter Definition
+**Promoter window:** `tssRegion = c(-2000, 2000)` is common; `c(-3000, 3000)` is ChIPseeker default. Match to analysis requirements.
 
-The `tssRegion` parameter defines the promoter window around each TSS:
+**Feature priority:** Default `Promoter > 5'UTR > 3'UTR > Exon > Intron > Downstream > Intergenic`. A peak in both a promoter (gene A) and an intron (gene B) receives "Promoter (gene A)" by default.
 
-| Window | Use case |
-|--------|----------|
-| c(-1000, 1000) | Strict core promoter |
-| c(-2000, 2000) | Common custom definition |
-| c(-3000, 3000) | ChIPseeker default; broader capture |
-| c(-2000, 500) | Asymmetric; emphasizes upstream regulatory elements |
-
-Match this to analysis requirements. Many studies define specific windows (e.g., 2kb symmetric) -- always check.
-
-### Annotation Priority
-
-ChIPseeker resolves overlapping features using `genomicAnnotationPriority`:
-
-Default: `Promoter > 5'UTR > 3'UTR > Exon > Intron > Downstream > Intergenic`
-
-A peak overlapping both a promoter of gene A and an intron of gene B receives "Promoter". To customize:
-
-```r
-peak_anno <- annotatePeak(peaks, TxDb = txdb, tssRegion = c(-2000, 2000),
-    genomicAnnotationPriority = c('Promoter', '5UTR', '3UTR', 'Exon', 'Intron',
-                                   'Downstream', 'Intergenic'))
-```
-
-### Collapse Annotation Categories
-
-ChIPseeker returns detailed subcategories. To collapse to four standard categories:
-
-| ChIPseeker Output | Collapsed |
-|-------------------|-----------|
-| Promoter (<=1kb), Promoter (1-2kb), Promoter (2-3kb) | promoter |
-| 5' UTR, 3' UTR, 1st Exon, Other Exon | exon |
-| 1st Intron, Other Intron | intron |
-| Downstream (<=300), Downstream (<=1kb), Distal Intergenic | intergenic |
-
-```r
-collapse_annotation <- function(ann) {
-    ifelse(grepl('Promoter', ann), 'promoter',
-    ifelse(grepl("5' UTR|3' UTR|Exon", ann), 'exon',
-    ifelse(grepl('Intron', ann), 'intron', 'intergenic')))
-}
-anno_df$feature <- collapse_annotation(anno_df$annotation)
-```
-
-To suppress subcategories at the source:
-
-```r
-options(ChIPseeker.ignore_1st_exon = TRUE)
-options(ChIPseeker.ignore_1st_intron = TRUE)
-options(ChIPseeker.ignore_promoter_subcategory = TRUE)
-```
-
-### Export Results
-
-```r
-output <- data.frame(chr = anno_df$seqnames, start = anno_df$start, end = anno_df$end,
-    nearest_gene = anno_df$SYMBOL, distance_to_tss = anno_df$distanceToTSS,
-    feature = anno_df$feature)
-write.table(output, 'annotations.tsv', sep = '\t', row.names = FALSE, quote = FALSE)
-```
-
-## Annotation with HOMER (CLI)
-
-### Standard Genome
+## HOMER annotatePeaks.pl (CLI)
 
 ```bash
+# Standard genome (HOMER's installed annotation)
 annotatePeaks.pl peaks.bed hg38 > annotated.txt
-```
 
-### Custom GTF
-
-```bash
-# With installed genome
+# Custom GTF (overrides HOMER's default)
 annotatePeaks.pl peaks.bed hg38 -gtf genes.gtf > annotated.txt
 
-# Without installed genome (annotation from GTF only)
+# Without installed genome, GTF only
 annotatePeaks.pl peaks.bed none -gtf genes.gtf > annotated.txt
+
+# Generate annotation statistics
+annotatePeaks.pl peaks.bed hg38 -gtf genes.gtf -annStats stats.txt > annotated.txt
 ```
 
-For gzipped GTFs, decompress first: `gunzip -k genes.gtf.gz`
+HOMER's 19-column output: columns 8 (Annotation), 10 (Distance to TSS), 16 (Gene Name) are the primary annotation columns.
 
-### Annotation Statistics
+**HOMER promoter window is fixed at -1kb / +100bp** — not configurable via flags. For custom windows, reclassify using the Distance to TSS column post-hoc.
+
+## ENCODE cCRE Classification
+
+The ENCODE Registry of candidate cis-Regulatory Elements (cCREs) provides 2.35M human + 927k mouse elements classified into 5 categories:
+
+| Class | Definition | Marker pattern |
+|-------|------------|-----------------|
+| **PLS** (Promoter-Like Signature) | ≤ 200 bp of annotated TSS; high DNase + high H3K4me3 | DNase + H3K4me3 |
+| **pELS** (Proximal Enhancer-Like Signature) | ≤ 2 kb of TSS; enhancer-like (DNase + H3K27ac, low H3K4me3) | DNase + H3K27ac |
+| **dELS** (Distal Enhancer-Like Signature) | > 2 kb of TSS; enhancer-like | DNase + H3K27ac |
+| **DNase-H3K4me3** | Promoter signature without annotated TSS | DNase + H3K4me3 (no TSS) |
+| **CTCF-only** | Potential boundary; DNase + CTCF | DNase + CTCF |
 
 ```bash
-annotatePeaks.pl peaks.bed hg38 -gtf genes.gtf -annStats ann_stats.txt > annotated.txt
+# Download ENCODE cCRE BED from SCREEN (hg38)
+wget https://api.wenglab.org/screen_v13/screen_human_ccres_simple.bed.gz
+gunzip screen_human_ccres_simple.bed.gz
+
+# Intersect peaks with cCRE; -wa preserves peak coords, -wb adds cCRE class
+bedtools intersect -a peaks.narrowPeak -b screen_human_ccres_simple.bed -wa -wb \
+    > peaks_ccre.tsv
 ```
 
-### Parse HOMER Output
+Cross-referencing peaks against cCREs:
+- Indicates whether peaks overlap canonical regulatory elements
+- Provides the cCRE class (PLS / pELS / dELS / CTCF-only / DNase-H3K4me3)
+- Cell-type-specific activity profiles available via SCREEN web app
 
-HOMER uses a two-part annotation process: (1) find the nearest TSS to assign a gene, and (2) independently classify the genomic feature at the peak center. The gene and annotation can come from different genes -- a peak in gene A's intron near gene B's TSS reports gene B with an intron annotation. This matches ChIPseeker's default `overlap='TSS'` behavior.
+## GREAT / rGREAT (Regulatory Domain Gene-Set Enrichment)
 
-HOMER produces 19 tab-delimited columns. Key columns for annotation:
+GREAT (McLean 2010) addresses two problems with standard gene-set enrichment on peaks:
+1. Peak-to-gene assignment via regulatory domains (not nearest TSS)
+2. Statistical correction for region-locus length bias
 
-| Column | Name | Content |
-|--------|------|---------|
-| 8 | Annotation | Feature category (promoter-TSS, exon, intron, Intergenic) |
-| 10 | Distance to TSS | Signed distance (negative = upstream) |
-| 16 | Gene Name | Gene symbol |
-
-```bash
-awk -F'\t' 'NR>1 {print $2, $3, $4, $16, $10, $8}' OFS='\t' annotated.txt > summary.tsv
-```
-
-### HOMER Category Mapping
-
-| HOMER Category | Collapsed |
-|---------------|-----------|
-| promoter-TSS | promoter |
-| 5' UTR, 3' UTR, exon, non-coding | exon |
-| intron | intron |
-| Intergenic, TTS | intergenic |
-
-**Limitation:** HOMER defines promoter as -1kb to +100bp from TSS; this window is not configurable via flags. For custom promoter windows, reclassify using the Distance to TSS column:
-
-```bash
-awk -F'\t' 'NR>1 {
-    dist = ($10 < 0) ? -$10 : $10
-    feat = (dist <= 2000) ? "promoter" : $8
-    print $2, $3, $4, $16, $10, feat
-}' OFS='\t' annotated.txt > reclassified.tsv
-```
-
-## Annotation with Python
-
-### Parse GTF and Extract Gene Models
-
-**Goal:** Build gene, exon, and TSS tables from a GTF file for peak annotation.
-
-**Approach:** Parse GTF line by line, extract gene and exon features, compute TSS positions from strand and coordinates, converting from 1-based GTF to 0-based BED coordinates.
-
-```python
-import gzip, pandas as pd
-
-def parse_gtf(gtf_path):
-    records = []
-    opener = gzip.open if gtf_path.endswith('.gz') else open
-    with opener(gtf_path, 'rt') as f:
-        for line in f:
-            if line.startswith('#'):
-                continue
-            fields = line.strip().split('\t')
-            attrs = {}
-            for item in fields[8].strip().rstrip(';').split(';'):
-                item = item.strip()
-                if ' ' in item:
-                    key, val = item.split(' ', 1)
-                    attrs[key] = val.strip('"')
-            records.append({'chrom': fields[0], 'feature': fields[2],
-                            'start': int(fields[3]) - 1, 'end': int(fields[4]),
-                            'strand': fields[6], **attrs})
-    return pd.DataFrame(records)
-
-gtf = parse_gtf('genes.gtf.gz')
-genes = gtf[gtf['feature'] == 'gene'].copy()
-genes['tss'] = genes.apply(lambda r: r['start'] if r['strand'] == '+' else r['end'], axis=1)
-exons = gtf[gtf['feature'] == 'exon']
-```
-
-### Annotate Peaks with Host-Gene Convention
-
-**Goal:** For each peak, classify its genomic feature and assign it to the appropriate gene with consistent gene-feature coupling.
-
-**Approach:** Check features in priority order (promoter > exon > intron > intergenic). For promoter, find the nearest TSS within the window. For exon or intron, assign the host gene whose body contains the peak. For intergenic, fall back to nearest TSS. Compute strand-aware signed distance relative to the assigned gene's TSS.
-
-```python
-peaks = pd.read_csv('peaks.bed', sep='\t', header=None,
-                     names=['chr', 'start', 'end', 'peak_id', 'score'])
-peaks['center'] = (peaks['start'] + peaks['end']) // 2
-promoter_window = 2000  # bp from TSS; match to analysis requirements
-
-results = []
-for _, peak in peaks.iterrows():
-    chrom_genes = genes[genes['chrom'] == peak['chr']]
-    chrom_exons = exons[exons['chrom'] == peak['chr']]
-    abs_dists = (chrom_genes['tss'] - peak['center']).abs()
-    nearest_tss_gene = chrom_genes.loc[abs_dists.idxmin()]
-
-    # Feature classification with host-gene coupling: promoter > exon > intron > intergenic
-    if abs_dists.min() <= promoter_window:
-        feature, assigned = 'promoter', nearest_tss_gene
-    else:
-        exon_hits = chrom_exons[(chrom_exons['start'] <= peak['center']) & (peak['center'] < chrom_exons['end'])]
-        gene_hits = chrom_genes[(chrom_genes['start'] <= peak['center']) & (peak['center'] < chrom_genes['end'])]
-        if len(exon_hits) > 0:
-            host_gene_name = exon_hits.iloc[0].get('gene_name', '')
-            host = chrom_genes[chrom_genes['gene_name'] == host_gene_name]
-            feature, assigned = 'exon', host.iloc[0] if len(host) > 0 else nearest_tss_gene
-        elif len(gene_hits) > 0:
-            closest_host = gene_hits.loc[(gene_hits['tss'] - peak['center']).abs().idxmin()]
-            feature, assigned = 'intron', closest_host
-        else:
-            feature, assigned = 'intergenic', nearest_tss_gene
-
-    raw_dist = peak['center'] - assigned['tss']
-    signed_dist = -raw_dist if assigned['strand'] == '-' else raw_dist
-
-    results.append({'peak_id': peak['peak_id'], 'chr': peak['chr'], 'start': peak['start'],
-                    'end': peak['end'], 'nearest_gene': assigned['gene_name'],
-                    'distance_to_tss': int(signed_dist), 'feature': feature})
-
-result_df = pd.DataFrame(results)
-result_df.to_csv('annotations.tsv', sep='\t', index=False)
-```
-
-When multiple genes overlap the peak center (common on opposite strands), the host gene with the closest TSS is selected as a tiebreaker.
-
-### Alternative: pyranges
-
-For projects with pyranges installed, GTF parsing is simpler:
-
-```python
-import pyranges as pr
-
-gtf = pr.read_gtf('genes.gtf.gz')  # auto-converts to 0-based half-open
-genes = gtf[gtf.Feature == 'gene']
-peaks = pr.read_bed('peaks.bed')
-nearest = peaks.nearest(genes)  # adds Distance column
-```
-
-Feature classification and signed distance still require manual logic on the result DataFrame.
-
-## Visualization
+**Regulatory domain rules** (default):
+- Basal domain: -5 kb / +1 kb of TSS
+- Extension: up to 1 Mb in each direction, OR until reaching neighbor's basal domain
+- Each peak is assigned to ALL genes whose regulatory domain it overlaps (not just nearest)
 
 ```r
-plotAnnoPie(peak_anno)
-plotAnnoBar(peak_anno)
-plotDistToTSS(peak_anno, title = 'Distribution of peaks relative to TSS')
+library(rGREAT)
+
+# Submit peaks for regulatory-domain gene-set enrichment
+res <- great(gr = peaks, gene_sets = 'GO:BP', tss_source = 'TxDb.Hsapiens.UCSC.hg38.knownGene',
+              biomart_dataset = 'hsapiens_gene_ensembl')
+
+# Top enriched gene sets
+table_results <- getEnrichmentTable(res)
+head(table_results)
+
+# Visualization
+plotVolcano(res)
+plotRegionGeneAssociationGraphs(res)
 ```
 
-### Compare Multiple Peak Sets
+GREAT is most appropriate for distal regulatory elements (enhancer ChIP, ATAC). For promoter-focused marks (H3K4me3), ChIP-Enrich is more standard.
+
+## ChIP-Enrich (Locus-Length-Adjusted Gene-Set Enrichment)
+
+Welch 2014: standard gene-set enrichment on peak-associated genes systematically over-counts long genes. ChIP-Enrich models locus length as a covariate.
 
 ```r
-peak_files <- list(H3K4me3 = 'h3k4me3_peaks.bed', H3K27ac = 'h3k27ac_peaks.bed')
-anno_list <- lapply(peak_files, function(f) annotatePeak(readPeakFile(f), TxDb = txdb))
-plotAnnoBar(anno_list)
-plotDistToTSS(anno_list)
+library(chipenrich)
+
+res <- chipenrich(peaks = 'peaks.bed', genome = 'hg38',
+                   genesets = 'GOBP', locusdef = 'nearest_tss',
+                   out_name = 'chipenrich_out', n_cores = 4)
+# Locus definitions: nearest_tss, nearest_gene, 1kb, 5kb, 10kb, gene_body, exon
+# Methods: chipenrich (default), polyenrich (for high peak counts), broadenrich (broad marks)
 ```
 
-## Key Parameters
+For broad marks (H3K27me3, H3K9me3): use `method = 'broadenrich'` which accounts for region width.
 
-| Parameter (ChIPseeker) | Default | Description |
-|------------------------|---------|-------------|
-| tssRegion | c(-3000, 3000) | Promoter window around TSS |
-| level | "transcript" | "transcript" or "gene"; gene-level merges all isoforms |
-| genomicAnnotationPriority | Promoter > ... > Intergenic | Feature priority for overlapping annotations |
-| overlap | "TSS" | "TSS": gene = nearest TSS (gene and feature can be from different genes). "all": gene = host gene if peak overlaps any gene body (coupled annotation). Use "all" when gene-feature consistency matters |
-| sameStrand | FALSE | Restrict to same-strand genes only |
-| addFlankGeneInfo | FALSE | Include neighboring gene information |
+## ENCODE-rE2G (Modern Enhancer-Gene Linking)
+
+ENCODE-rE2G (2024) replaces ABC for cell types with ENCODE data. Cell-type-specific logistic-regression weights map distal enhancer peaks to target genes with higher accuracy than nearest-TSS or basal+extension.
+
+See atac-seq/enhancer-gene-linking for full workflow; the same model applies to ChIP-seq enhancer marks (H3K27ac, H3K4me1, H3K4me2).
+
+## Per-Tool Failure Modes
+
+### ChIPseeker -- TxDb / annoDb genome mismatch
+
+**Trigger:** Using hg19 TxDb on hg38-aligned BAMs / peaks.
+
+**Mechanism:** Silent; ChIPseeker doesn't verify genome assembly.
+
+**Symptom:** Annotated gene symbols look reasonable but distance-to-TSS is wrong; promoter / intron classifications drift.
+
+**Fix:** Match TxDb to BAM alignment genome explicitly; verify with `seqlevels(peaks) == seqlevels(txdb)`.
+
+### ChIPseeker -- Default `overlap='TSS'` decouples gene from feature
+
+**Trigger:** Default annotation call on peaks in gene bodies.
+
+**Mechanism:** `overlap='TSS'` assigns nearest gene by TSS; feature classification is independent of that gene.
+
+**Symptom:** Annotation reports `nearest_gene=X, feature=intron` where the intron belongs to a different gene.
+
+**Fix:** Pass `overlap='all'` for host-gene-consistent annotation; or accept TSS-only convention and clarify in methods.
+
+### ChIPseeker -- Custom TxDb has no annoDb
+
+**Trigger:** Building TxDb from GTF and passing `annoDb='org.Hs.eg.db'`.
+
+**Mechanism:** Custom TxDb lacks the gene_id-to-symbol mapping that org.Hs.eg.db provides; ChIPseeker silently returns NA for symbols.
+
+**Fix:** Map symbols separately from the original GTF after annotation; strip Ensembl version suffixes before joining.
+
+### HOMER -- Hard-coded promoter window
+
+**Trigger:** Needing a 2 kb or 5 kb promoter window with HOMER.
+
+**Mechanism:** HOMER's promoter classification is hard-coded to -1 kb / +100 bp; not configurable.
+
+**Fix:** Post-hoc reclassify using `Distance to TSS` column:
+```bash
+awk -F'\t' 'NR>1 { dist = ($10 < 0) ? -$10 : $10; \
+    feat = (dist <= 2000) ? "promoter_custom" : $8; \
+    print $2, $3, $4, $16, $10, feat }' OFS='\t' annotated.txt
+```
+
+### GREAT -- Default regulatory domain inappropriate for some species / cell types
+
+**Trigger:** Using default basal+extension on insect or compact-genome data.
+
+**Mechanism:** 1 Mb maximum extension assumes vertebrate-scale enhancer-target distances; not appropriate for organisms with shorter regulatory ranges.
+
+**Fix:** Adjust `extension` parameter; for non-default species, configure regulatory domain explicitly.
+
+### GREAT -- Hyper-ChIPable peaks inflate enrichment
+
+**Trigger:** Including unfiltered peaks at rRNA / housekeeping / mtDNA in GREAT analysis.
+
+**Mechanism:** Hyper-ChIPable artifacts are enriched at highly-transcribed loci; GREAT assigns them to associated genes, inflating GO terms for "translation" and "ribosomal" categories.
+
+**Symptom:** Top enriched GO terms always include "ribosomal", "translation", "mitochondrion" regardless of biology.
+
+**Fix:** Blacklist filter + custom hyper-ChIPable filter (top-1% input signal) before GREAT.
+
+### ENCODE cCRE -- Cell-type-agnostic vs specific
+
+**Trigger:** Using the master cCRE BED (cell-type-agnostic) to claim cell-type-specific regulatory activity.
+
+**Mechanism:** Master cCRE BED is the union across all cell types. Specific activity profile per cell type is a separate dataset.
+
+**Fix:** Use SCREEN web app or per-cell-type activity profiles for cell-type-specific claims.
+
+## Reconciliation: When Methods Disagree
+
+| Pattern | Likely cause | Action |
+|---------|--------------|--------|
+| ChIPseeker nearest-TSS gene ≠ HOMER nearest gene | Different TSS reference; HOMER uses RefSeq | Verify both use same TxDb / RefSeq + UCSC knownGene |
+| GREAT enrichment ≠ ChIP-Enrich enrichment | GREAT uses regulatory domain; ChIP-Enrich uses locus length adjustment | Both are valid; use GREAT for distal regulatory, ChIP-Enrich for promoter-focused |
+| Peak overlaps cCRE but classified differently than expected | Cell-type-specific activity profile not used | Check SCREEN per-cell-type profile |
+| Enhancer peak's nearest gene differs from ENCODE-rE2G target | ENCODE-rE2G uses cell-type chromatin context | Use ENCODE-rE2G for cell-type-specific enhancer-gene claims |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `seqlevels` mismatch in ChIPseeker | chr vs no-chr naming | `seqlevelsStyle(peaks) <- 'UCSC'` |
+| Gene symbols all NA in ChIPseeker | Custom TxDb without annoDb | Map symbols from original GTF |
+| HOMER reports "no annotation" | Genome not installed | `perl configureHomer.pl -install hg38` |
+| rGREAT timeout | Large peak set + slow biomart | Use pre-computed gene sets; lower peak count |
+| chipenrich slow | Default locusdef computed on-the-fly | Use built-in locusdef shortcuts (`nearest_tss`, `1kb`) |
+| pyranges feature-overlap result missing strand | pyranges 0.x conversion drops strand by default | Pass `strandedness='same'` to overlap operations |
+
+## References
+
+- Yu G et al 2015 Bioinformatics 31:2382 (ChIPseeker)
+- Heinz S et al 2010 Mol Cell 38:576 (HOMER annotatePeaks)
+- McLean CY et al 2010 Nat Biotechnol 28:495 (GREAT)
+- Gu Z 2023 Bioinformatics 39:btac745 (rGREAT)
+- Welch RP et al 2014 Nucleic Acids Res 42:e105 (ChIP-Enrich)
+- Welch RP et al 2014 Bioinformatics 30:i393 (Broad-Enrich)
+- ENCODE Project Consortium 2020 Nature 583:699 (cCRE registry v1)
+- ENCODE Project Consortium 2025 Nature (expanded cCRE registry, 2.35M elements)
+- Fulco CP et al 2019 Nat Genet 51:1664 (ABC model precursor to ENCODE-rE2G)
+- Kundaje lab / ENCODE 2024 (ENCODE-rE2G)
+- SCREEN: screen.encodeproject.org
 
 ## Related Skills
 
-- peak-calling - Generate peak files with MACS3 or HOMER
-- motif-analysis - De novo and known motif enrichment in peak regions
-- differential-binding - Compare peaks between conditions
-- chipseq-visualization - Signal tracks, heatmaps, profile plots
-- genome-intervals/gtf-gff-handling - Parse and convert GTF/GFF annotation files
+- chip-seq/peak-calling - Generate peaks for annotation
+- chip-seq/chipseq-qc - Filter hyper-ChIPable peaks before GREAT / chipenrich
+- chip-seq/super-enhancers - Annotate SE-associated genes
+- chip-seq/differential-binding - Annotate differential peaks
+- atac-seq/enhancer-gene-linking - ENCODE-rE2G workflow for cell-type-specific E-G linking
+- pathway-analysis/go-enrichment - Standard GO enrichment on peak-associated genes
+- pathway-analysis/reactome-pathways - Reactome pathway enrichment
+- genome-intervals/gtf-gff-handling - Parse and convert GTF/GFF
 - genome-intervals/proximity-operations - bedtools closest and window operations
-- pathway-analysis/go-enrichment - Functional enrichment of peak-associated genes

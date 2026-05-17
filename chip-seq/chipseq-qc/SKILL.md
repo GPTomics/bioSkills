@@ -1,391 +1,311 @@
 ---
 name: bio-chipseq-qc
-description: ChIP-seq quality control metrics including FRiP (Fraction of Reads in Peaks), cross-correlation analysis (NSC/RSC), library complexity, and IDR (Irreproducibility Discovery Rate) for replicate concordance. Use to assess experiment quality before downstream analysis. Use when assessing ChIP-seq data quality metrics.
+description: Assesses ChIP-seq quality across antibody specificity, fragmentation, enrichment, replicate concordance, and library complexity. Computes FRiP, NSC/RSC (phantompeakqualtools), library complexity (NRF/PBC1/PBC2), deepTools plotFingerprint (JS distance, AUC, synthetic JS), ChIPQC, IDR with ENCODE Nself/Nt rules, and detects hyper-ChIPable artifacts. Use when validating an antibody, diagnosing failed peak calls, deciding whether to proceed with downstream analysis, grading against ENCODE thresholds, or auditing replicate concordance.
 tool_type: mixed
 primary_tool: deepTools
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: MACS3 3.0+, Subread 2.0+, bedtools 2.31+, deepTools 3.5+, pybedtools 0.9+, pysam 0.22+, samtools 1.19+
+Reference examples tested with: deepTools 3.5+, phantompeakqualtools 1.2.2+, ChIPQC 1.42+, IDR 2.0.4+, samtools 1.19+, bedtools 2.31+, pysam 0.22+, pybedtools 0.9+, MACS2 2.2.9+, MACS3 3.0.4+.
 
-Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
-
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+Verify versions before relying on numerical thresholds — phantompeakqualtools has known R-version compatibility issues with R ≥ 4.0 (use kundajelab fork or pin to R 3.6).
 
 # ChIP-seq Quality Control
 
-**"Assess the quality of my ChIP-seq experiment"** → Compute FRiP, cross-correlation (NSC/RSC), library complexity, and IDR replicate concordance to evaluate enrichment success.
-- CLI: `deeptools plotFingerprint`, `phantompeakqualtools run_spp.R`
-- Python: `pysam` + `pybedtools` for custom QC metrics
+**"Should I trust this ChIP-seq experiment?"** -> Validate antibody, fragmentation, enrichment, replicate concordance, library complexity, and absence of hyper-ChIPable artifacts before committing to downstream peak calling and differential analysis.
 
-Quality metrics for assessing ChIP-seq experiment success and replicate reproducibility.
+- CLI: `Rscript run_spp.R -c=chip.bam -out=cc.txt` (NSC/RSC), `plotFingerprint -b chip.bam input.bam` (enrichment shape), `idr --samples rep1.np rep2.np` (replicate IDR)
+- R: ChIPQC package (Carroll & Stark; computes the full ENCODE metric battery)
+- Python: pysam + pybedtools for custom FRiP and library-complexity metrics
 
-## FRiP (Fraction of Reads in Peaks)
+ChIP-seq fails for many independent reasons. The QC metrics below probe distinct failure modes — passing one metric does not rescue another. Antibody failure cannot be fixed by sequencing more.
 
-**Goal:** Quantify enrichment strength by measuring the proportion of reads falling within called peaks.
+## The Antibody Problem is the Real Problem
 
-**Approach:** Count reads overlapping peak regions and divide by total mapped reads.
+Every downstream metric is conditional on antibody specificity. "ChIP-grade" on a vendor datasheet is marketing, not validation. Run the cascade:
 
-### Calculate FRiP with bedtools
+| Step | What | Why |
+|------|------|-----|
+| 1. Western blot | Expected MW + KO/KD negative | Confirms the antibody hits a band of the right size and loses signal in KO |
+| 2. IP-Western | Pulls down the protein | Confirms IP recovery, not just recognition |
+| 3. ChIP-qPCR | Known positive + known negative loci | First chromatin-context test; cheap |
+| 4. ChIP-seq biological replicate | Two independent biological replicates | Reproducibility check |
+| 5. KO/KD orthogonal | ChIP in KO/KD cells | Gold-standard: signal should drop to background |
+| 6. Peptide array (histones) | Epicypher SNAP-ChIP or equivalent | Tests modification-state specificity |
+
+Histone modification cross-reactivity is universal: H3K9me2 vs H3K9me3, H3K27me2 vs H3K27me3, and H3K4me1 vs H3K4me2 antibodies routinely show 10-30% cross-reactivity. Polyclonals vary lot-to-lot. CRISPR-knockout-validated lots from CST and Epicypher are the modern standard. Always record antibody catalog number + lot in methods.
+
+## Fragment-Size Distribution is a Free Diagnostic
+
+The fragment-size distribution from a properly prepared ChIP BAM is itself a quality readout:
+
+| Distribution shape | Interpretation |
+|--------------------|----------------|
+| Sharp peak at ~50-100 bp (sub-nucleosomal) | Direct TF binding; expected for well-fragmented TF ChIP |
+| Sharp peak at ~150 bp + secondary at ~300 bp | Mono- + di-nucleosomal; expected for histone ChIP |
+| Bimodal at 150 + 300, no sub-nucleosomal | Histone-only signal; in TF ChIP, suggests trapping / hyper-ChIPable |
+| Broad continuum 100-1000 bp | Over-sonication; biology lost; cannot be rescued |
+| No peak structure, flat | Severe over-sonication or library prep failure |
 
 ```bash
-# Count reads in peaks
-reads_in_peaks=$(bedtools intersect -a chip.bam -b peaks.narrowPeak -u | samtools view -c -)
+# Quick diagnostic — count fragment sizes from properly-paired reads
+samtools view -f 0x2 sample.bam | awk '{print $9}' | awk '$1>0' \
+    | sort -n | uniq -c | awk '{print $2, $1}' > fragment_sizes.tsv
+```
+
+For CUT&Tag: 25-75 bp characteristic; fragments < 25 bp are Tn5 self-tagmentation noise (see cut-and-run-tag).
+
+## QC Metric Battery with ENCODE Thresholds
+
+| Metric | Tool | TF threshold | Histone threshold | Source / rationale |
+|--------|------|--------------|-------------------|---------------------|
+| **FRiP** (Fraction of Reads in Peaks) | bedtools / pysam / featureCounts | ≥ 0.01 minimum, > 0.05 ideal | ≥ 0.05, > 0.20 ideal; > 0.15 for H3K4me3 | Landt 2012; ENCODE flags experiments with FRiP < 1% |
+| **NSC** (Normalized Strand Cross-correlation) | phantompeakqualtools | > 1.05 marginal, > 1.10 ideal | > 1.05 | Landt 2012; min = 1 (no enrichment); ratio of fragment-length CC to background |
+| **RSC** (Relative Strand Cross-correlation) | phantompeakqualtools | > 0.8 marginal, > 1.0 ideal | > 0.8 | Landt 2012; ratio of (fragment - background) / (phantom - background) |
+| **QualityTag** | phantompeakqualtools | ≥ 0 acceptable, 1-2 ideal | ≥ 0 | Composite based on NSC/RSC; -2 to 2 scale |
+| **NRF** (Non-Redundant Fraction) | unique_pos / total | > 0.8 | > 0.8 | ENCODE; < 0.5 severe PCR bottleneck |
+| **PBC1** (M1 / Mdistinct) | bedtools / pysam | > 0.8 | > 0.8 | ENCODE; fraction of singly-occupied positions |
+| **PBC2** (M1 / M2) | bedtools / pysam | > 3 | > 3 | ENCODE; ratio of singletons to doubletons |
+| **JS distance** (plotFingerprint) | deepTools | > 0.3 | > 0.05 (broad) to > 0.3 (narrow) | Distance between cumulative signal curves IP vs Input |
+| **AUC** (plotFingerprint) | deepTools | < 0.6 | 0.6-0.9 | Input = ~0.5; lower AUC = more enrichment concentrated |
+| **Synthetic JS** (plotFingerprint) | deepTools | Should ≈ measured JS | — | Sanity check vs simulated null |
+| **Replicate Spearman correlation** | deepTools multiBamSummary / plotCorrelation | > 0.8 (true reps) | > 0.8 (true reps), > 0.6 (broad) | Replicates should correlate more than cross-condition |
+| **Read count per replicate** | samtools flagstat | ≥ 20M unique mapped | 20M (narrow histone), 40-60M (broad histone) | ENCODE 2012 |
+
+**Practical operational rule:** Compute the full battery. Reject any sample failing FRiP OR antibody validation OR fragment-size sanity check, regardless of other metrics. Failing one of NSC/RSC alone with strong FRiP can sometimes be rescued for narrow-peak biology; broad histones are more forgiving on NSC.
+
+## Hyper-ChIPable Region Detection
+
+Teytelman 2013 (PNAS): untagged GFP, no antibody, or non-existent targets all produce "binding" signal at highly-transcribed loci (rRNA, tRNA, histone gene clusters, snoRNA hosts, mtDNA, abundant housekeeping genes). ENCODE blacklist v2 (Amemiya 2019) catches repeat-driven artifacts but NOT these hyper-ChIPable transcribed regions.
+
+**Detection:**
+
+```bash
+# Top 1% input signal as cell-type-specific custom blacklist
+multiBigwigSummary BED-file -b input.bw -o input_signal.npz \
+    --BED genes.bed --outRawCounts input_per_gene.tsv
+awk 'NR > 1' input_per_gene.tsv | sort -k4,4nr | head -n $(($(wc -l < input_per_gene.tsv) / 100)) \
+    > hyper_chipable.bed
+
+# Intersect peaks against this list; flag peaks falling in hyper-ChIPable regions
+bedtools intersect -a peaks.narrowPeak -b hyper_chipable.bed -u > suspicious_peaks.bed
+```
+
+**Disprove a suspicious peak:** Required for any claim at rRNA loci, tRNA clusters, HIST1/2 clusters, mitochondrial DNA:
+1. Motif enrichment at peak (artifact has no enrichment)
+2. KO/KD signal loss at peak (artifact persists)
+3. Untagged-protein control ChIP shows no signal at this locus
+
+Many "novel binding" claims at the rDNA repeat, mtDNA, and HIST1 cluster are spurious artifacts.
+
+## Computing the Battery
+
+### FRiP
+
+```bash
 total_reads=$(samtools view -c -F 260 chip.bam)
-
-# Calculate FRiP
+reads_in_peaks=$(bedtools intersect -a chip.bam -b peaks.narrowPeak -u | samtools view -c -)
 frip=$(echo "scale=4; $reads_in_peaks / $total_reads" | bc)
-echo "FRiP: $frip"
 ```
 
-### Calculate FRiP with featureCounts
+### NSC / RSC / fragment length (phantompeakqualtools)
 
 ```bash
-# Convert peaks to SAF format
-awk 'BEGIN{OFS="\t"} {print $4, $1, $2, $3, "."}' peaks.narrowPeak > peaks.saf
-
-# Count reads in peaks
-featureCounts -a peaks.saf -F SAF -o peak_counts.txt chip.bam
-
-# FRiP from summary
-grep -v "^#" peak_counts.txt.summary
+Rscript run_spp.R -c=chip.bam -savp=qc/chip_cc.pdf -out=qc/chip_cc.txt
+# Output columns: filename | numReads | estFragLen | corr_estFragLen |
+#                 phantomPeak | corr_phantomPeak | argmin_corr | min_corr |
+#                 NSC | RSC | QualityTag
 ```
 
-### Calculate FRiP with pysam
-
-```python
-import pysam
-import pybedtools
-
-def calculate_frip(bam_file, peak_file):
-    bam = pysam.AlignmentFile(bam_file, 'rb')
-    total_reads = bam.count(read_callback=lambda r: not r.is_unmapped and not r.is_secondary)
-
-    peaks = pybedtools.BedTool(peak_file)
-    reads_in_peaks = 0
-    for peak in peaks:
-        reads_in_peaks += bam.count(peak.chrom, peak.start, peak.end)
-
-    frip = reads_in_peaks / total_reads
-    return frip
-
-frip = calculate_frip('chip.bam', 'peaks.narrowPeak')
-print(f'FRiP: {frip:.4f}')
-```
-
-### FRiP Thresholds
-
-| Target | Minimum FRiP | Good FRiP |
-|--------|--------------|-----------|
-| TF (narrow) | 0.01 | > 0.05 |
-| Histone (broad) | 0.10 | > 0.20 |
-| H3K4me3 | 0.05 | > 0.15 |
-| H3K27ac | 0.05 | > 0.10 |
-
-## Cross-Correlation Analysis (NSC/RSC)
-
-**Goal:** Assess ChIP enrichment quality by measuring strand cross-correlation signal.
-
-**Approach:** Calculate correlation between forward and reverse strand read coverage at varying shifts to detect fragment-length enrichment.
-
-### Run phantompeakqualtools
+### Library complexity
 
 ```bash
-# Run SPP cross-correlation analysis
-Rscript run_spp.R \
-    -c=chip.bam \
-    -savp=chip_cc.pdf \
-    -out=chip_cc.txt \
-    -odir=qc/
-
-# Output columns:
-# 1: filename
-# 2: numReads
-# 3: estFragLen (estimated fragment length)
-# 4: corr_estFragLen
-# 5: phantomPeak
-# 6: corr_phantomPeak
-# 7: argmin_corr (minimum strand shift)
-# 8: min_corr
-# 9: NSC (Normalized Strand Coefficient)
-# 10: RSC (Relative Strand Coefficient)
-# 11: QualityTag
-```
-
-### Interpret NSC and RSC
-
-```bash
-# Parse results
-awk -F'\t' '{
-    print "Fragment length:", $3
-    print "NSC:", $9
-    print "RSC:", $10
-    print "Quality:", $11
-}' chip_cc.txt
-```
-
-### NSC/RSC Thresholds
-
-| Metric | Marginal | Acceptable | Ideal |
-|--------|----------|------------|-------|
-| NSC | < 1.05 | 1.05 - 1.1 | > 1.1 |
-| RSC | < 0.8 | 0.8 - 1.0 | > 1.0 |
-| QualityTag | -2 | 0 | 1 or 2 |
-
-### Plot Cross-Correlation in R
-
-```r
-library(spp)
-
-chip_data <- read.bam.tags('chip.bam')
-binding_characteristics <- get.binding.characteristics(chip_data, srange=c(50, 500), bin=5)
-
-# Cross-correlation plot
-pdf('cc_plot.pdf')
-plot(binding_characteristics$cross.correlation, type='l',
-     xlab='Strand shift', ylab='Cross-correlation')
-abline(v=binding_characteristics$peak$x, col='red')
-dev.off()
-
-# Extract metrics
-print(paste('Fragment length:', binding_characteristics$peak$x))
-```
-
-## Library Complexity (NRF, PBC1, PBC2)
-
-**Goal:** Detect PCR amplification artifacts by measuring library complexity metrics.
-
-**Approach:** Calculate the fraction of unique reads and positional redundancy to assess PCR bottlenecking.
-
-### Calculate with bedtools
-
-```bash
-# NRF: Non-Redundant Fraction (unique reads / total reads)
+# NRF
 total=$(samtools view -c -F 260 chip.bam)
-unique=$(samtools view -F 260 chip.bam | cut -f1-4 | sort -u | wc -l)
+unique=$(samtools view -F 260 chip.bam | awk '{print $1, $3, $4}' | sort -u | wc -l)
 nrf=$(echo "scale=4; $unique / $total" | bc)
-echo "NRF: $nrf"
 
-# PBC1: PCR Bottleneck Coefficient 1 (M1/Mdistinct)
-# M1 = locations with exactly 1 read
-# Mdistinct = distinct genomic locations
-
-bedtools bamtobed -i chip.bam | \
-    awk '{print $1":"$2"-"$3}' | \
-    sort | uniq -c | \
-    awk '{
-        if($1==1) m1++
-        mdist++
-    } END {
-        print "M1:", m1
-        print "Mdistinct:", mdist
-        print "PBC1:", m1/mdist
-    }'
+# PBC1, PBC2 (singletons vs distinct positions vs doubletons)
+samtools view -F 260 chip.bam | awk '{print $3":"$4}' | sort | uniq -c \
+    | awk '{
+        if ($1 == 1) m1++;
+        if ($1 == 2) m2++;
+        mdist++;
+      } END {
+        print "M1:", m1; print "M2:", m2; print "Mdistinct:", mdist;
+        print "PBC1:", m1/mdist; print "PBC2:", m1/m2
+      }'
 ```
 
-### Library Complexity Thresholds
-
-| Metric | Severe | Mild | None |
-|--------|--------|------|------|
-| NRF | < 0.5 | 0.5 - 0.8 | > 0.8 |
-| PBC1 | < 0.5 | 0.5 - 0.8 | > 0.8 |
-| PBC2 | < 1 | 1 - 3 | > 3 |
-
-## IDR (Irreproducibility Discovery Rate)
-
-**Goal:** Assess replicate concordance by measuring consistency of ranked peak lists.
-
-**Approach:** Compare signal-ranked peaks from two replicates using IDR statistical framework to identify reproducible peaks.
-
-### Run IDR Analysis
+### deepTools plotFingerprint
 
 ```bash
-# Call peaks on each replicate
-macs3 callpeak -t rep1.bam -c input.bam -n rep1 -g hs
-macs3 callpeak -t rep2.bam -c input.bam -n rep2 -g hs
-
-# Sort by signal value (column 7)
-sort -k7,7nr rep1_peaks.narrowPeak > rep1_sorted.narrowPeak
-sort -k7,7nr rep2_peaks.narrowPeak > rep2_sorted.narrowPeak
-
-# Run IDR
-idr --samples rep1_sorted.narrowPeak rep2_sorted.narrowPeak \
-    --input-file-type narrowPeak \
-    --rank signal.value \
-    --output-file idr_output.txt \
-    --plot idr_plot.pdf \
-    --log-output-file idr.log
-```
-
-### IDR with Pooled Peaks
-
-```bash
-# Call peaks on pooled data
-samtools merge -f pooled.bam rep1.bam rep2.bam
-macs3 callpeak -t pooled.bam -c input.bam -n pooled -g hs
-
-# Run IDR with oracle
-idr --samples rep1_sorted.narrowPeak rep2_sorted.narrowPeak \
-    --peak-list pooled_peaks.narrowPeak \
-    --input-file-type narrowPeak \
-    --rank signal.value \
-    --output-file idr_oracle.txt
-```
-
-### Interpret IDR Results
-
-```bash
-# Count peaks at different IDR thresholds
-awk '$5 >= 540' idr_output.txt | wc -l  # IDR < 0.05 (conservative)
-awk '$5 >= 415' idr_output.txt | wc -l  # IDR < 0.1 (optimal)
-
-# IDR output columns:
-# 1-3: chr, start, end
-# 4: name
-# 5: scaled IDR (-125 * log2(IDR))
-# 6: strand
-# 7: signal (from rep1)
-# 8: signal (from rep2)
-# 9: local IDR
-# 10: global IDR
-```
-
-### IDR Self-Consistency Check
-
-```bash
-# Split one sample and check self-consistency
-samtools view -s 0.5 chip.bam -b > pseudo_rep1.bam
-samtools view -s 2.5 chip.bam -b > pseudo_rep2.bam
-
-# Call peaks on pseudo-replicates
-macs3 callpeak -t pseudo_rep1.bam -c input.bam -n pseudo1 -g hs
-macs3 callpeak -t pseudo_rep2.bam -c input.bam -n pseudo2 -g hs
-
-# Run IDR
-idr --samples pseudo1_peaks.narrowPeak pseudo2_peaks.narrowPeak \
-    --input-file-type narrowPeak \
-    --output-file self_idr.txt
-```
-
-### IDR Quality Guidelines
-
-| Comparison | Expected IDR Peaks | Notes |
-|------------|-------------------|-------|
-| True replicates | > 70% of pooled | Biological concordance |
-| Pseudo-replicates | > 80% of sample | Technical consistency |
-| Rep vs Pooled | ~100% of rep peaks | Subset relationship |
-
-## deepTools QC Metrics
-
-**Goal:** Visualize ChIP enrichment and sample correlation using deepTools fingerprint and correlation plots.
-
-**Approach:** Generate cumulative read coverage curves and pairwise sample correlation matrices from BAM files.
-
-### plotFingerprint
-
-```bash
-# Assess enrichment with fingerprint plot
 plotFingerprint \
     -b chip.bam input.bam \
     --labels ChIP Input \
-    -o fingerprint.pdf \
-    --outRawCounts fingerprint.tab \
-    --outQualityMetrics fingerprint_qc.txt
-
-# Good ChIP shows curve shifted right of diagonal
-# Input follows diagonal
+    -o qc/fingerprint.pdf \
+    --outRawCounts qc/fingerprint_counts.tab \
+    --outQualityMetrics qc/fingerprint_qc.txt
+# Inspect qc/fingerprint_qc.txt: AUC, JS distance, synthetic JS, X-intercept
+# Good ChIP: AUC < 0.6 (TF), JS > 0.3 (TF); Input near diagonal (AUC ~ 0.5)
 ```
 
-### computeMatrix and plotProfile
+### Replicate Spearman correlation
 
 ```bash
-# TSS enrichment
-computeMatrix reference-point \
-    -S chip.bw \
-    -R genes.bed \
-    --referencePoint TSS \
-    -a 3000 -b 3000 \
-    -o matrix.gz
-
-plotProfile \
-    -m matrix.gz \
-    -o tss_enrichment.pdf \
-    --perGroup
+multiBamSummary bins -b rep1.bam rep2.bam rep3.bam input.bam \
+    --binSize 10000 -o results.npz
+plotCorrelation -in results.npz --corMethod spearman \
+    --whatToPlot heatmap --plotNumbers -o corr.pdf \
+    --outFileCorMatrix corr_matrix.tab
+# Replicates: > 0.8 (narrow), > 0.6 (broad)
+# Cross-condition reps should correlate less than within-condition
 ```
 
-### plotCorrelation
+### ChIPQC R package
 
-```bash
-# Sample correlation
-multiBamSummary bins \
-    -b rep1.bam rep2.bam rep3.bam \
-    -o results.npz
-
-plotCorrelation \
-    -in results.npz \
-    --corMethod spearman \
-    --whatToPlot heatmap \
-    -o correlation.pdf \
-    --outFileCorMatrix correlation.tab
+```r
+library(ChIPQC)
+samples <- read.csv('samples.csv')
+qc <- ChIPQC(samples, annotation = 'hg38')
+ChIPQCreport(qc, reportFolder = 'ChIPQCreport')
+# Generates the full ENCODE battery report per sample in one call
 ```
 
-## Complete QC Pipeline
+ChIPQC remains Bioconductor-maintained but mature; phantompeakqualtools is the canonical NSC/RSC source.
 
-**Goal:** Run all major ChIP-seq QC metrics in a single automated script.
+## IDR and Replicate Consistency Rules
 
-**Approach:** Combine FRiP, cross-correlation, library complexity, and fingerprint analysis into one pipeline.
+For TFs: signal-ranked IDR with Nself/Nt consistency check; see chip-seq/peak-calling for full ENCODE workflow. Key thresholds:
 
-```bash
-#!/bin/bash
-sample=$1
-input=$2
-peaks=$3
+- True replicate IDR threshold: 0.05
+- Pseudoreplicate IDR threshold: 0.10 (per-rep self-consistency)
+- **Nself/Nt rule:** `max(N1self, N2self) / min(N1self, N2self) ≤ 2` AND `max(Nt, max(Nself)) / min(Nt, min(Nself)) ≤ 2`. Failing both ratios rejects the library.
 
-echo "=== ChIP-seq QC Report: $sample ===" > qc_report.txt
+For histones: naive overlap with ≥ 40% reciprocal overlap (ENCODE default; commonly misquoted as 50%). IDR is too conservative for histone signal dynamic range.
 
-# FRiP
-reads_in_peaks=$(bedtools intersect -a $sample -b $peaks -u | samtools view -c -)
-total_reads=$(samtools view -c -F 260 $sample)
-frip=$(echo "scale=4; $reads_in_peaks / $total_reads" | bc)
-echo "FRiP: $frip" >> qc_report.txt
+## ENCODE 3 vs ENCODE 4 Thresholds (unchanged for most QC)
 
-# Cross-correlation
-Rscript run_spp.R -c=$sample -out=cc.txt -odir=.
-nsc=$(cut -f9 cc.txt)
-rsc=$(cut -f10 cc.txt)
-echo "NSC: $nsc" >> qc_report.txt
-echo "RSC: $rsc" >> qc_report.txt
+| Metric | ENCODE 3 | ENCODE 4 |
+|--------|----------|----------|
+| FRiP minimum | 1% | 1% (unchanged) |
+| NSC threshold | > 1.05 | > 1.05 (unchanged) |
+| RSC threshold | > 0.8 | > 0.8 (unchanged) |
+| NRF threshold | > 0.8 | > 0.8 (unchanged) |
+| Blacklist | v1 | v2 (Amemiya 2019) |
+| Read depth (TF) | ≥ 20M unique mapped | ≥ 20M unchanged |
+| Read depth (broad histone) | ≥ 40M | 40-60M recommended |
 
-# Library complexity
-unique=$(samtools view -F 260 $sample | cut -f1-4 | sort -u | wc -l)
-nrf=$(echo "scale=4; $unique / $total_reads" | bc)
-echo "NRF: $nrf" >> qc_report.txt
+Most QC thresholds are stable across ENCODE versions; blacklist update is the main practical change.
 
-# Fingerprint
-plotFingerprint -b $sample $input -o fingerprint.pdf --outQualityMetrics fingerprint_qc.txt
+## Per-Tool Failure Modes
 
-cat qc_report.txt
-```
+### phantompeakqualtools / SPP -- R version incompatibility
 
-## QC Summary Table
+**Trigger:** Running with R ≥ 4.0.
 
-| Metric | Tool | Ideal Value |
-|--------|------|-------------|
-| FRiP | bedtools/featureCounts | > 0.05 (TF), > 0.1 (histone) |
-| NSC | phantompeakqualtools | > 1.1 |
-| RSC | phantompeakqualtools | > 1.0 |
-| NRF | samtools/bedtools | > 0.8 |
-| PBC1 | bedtools | > 0.8 |
-| IDR (replicates) | idr | > 70% concordance |
+**Mechanism:** spp R package has unmaintained Boost / Rcpp dependencies; some shifts produce NaN cross-correlation values.
+
+**Symptom:** NSC = NaN, RSC = NaN, or fragment length = 0 in output.
+
+**Fix:** Pin to R 3.6 + spp 1.16 via conda env; OR use the kundajelab/phantompeakqualtools fork (current); OR substitute deepTools plotFingerprint for enrichment QC and `macs3 predictd` for fragment length.
+
+### deepTools plotFingerprint -- Wrong baseline assumption for broad marks
+
+**Trigger:** Interpreting JS distance with TF threshold (> 0.3) on broad histone mark.
+
+**Mechanism:** Broad marks have less concentrated signal; JS distance is naturally lower (0.05-0.15 for H3K27me3) without indicating bad ChIP.
+
+**Symptom:** Reports "failed JS distance" for high-quality broad-mark ChIP.
+
+**Fix:** Use mark-specific thresholds: > 0.3 for TFs and sharp histones; > 0.05 for broad histones; check AUC instead (0.6-0.9 for broad; < 0.6 for TF/sharp).
+
+### FRiP -- Computed before vs after blacklist filtering
+
+**Trigger:** Calling FRiP from peak file pre- vs post-blacklist.
+
+**Mechanism:** Hyper-ChIPable regions inflate "reads in peaks" because most reads at those loci are artifacts.
+
+**Symptom:** FRiP looks great (>15%) but most of it is rRNA / mtDNA reads.
+
+**Fix:** Apply blacklist + custom hyper-ChIPable filter BEFORE computing FRiP; or report both raw and filtered FRiP.
+
+### NRF / PBC -- Computed after deduplication
+
+**Trigger:** Running NRF on a MarkDuplicates-filtered BAM.
+
+**Mechanism:** Library complexity metrics measure PCR redundancy; if duplicates are already removed, NRF = 1.0 by construction (uninformative).
+
+**Symptom:** NRF reports 0.99-1.0; metric is meaningless.
+
+**Fix:** Compute NRF / PBC1 / PBC2 on the PRE-deduplication BAM. ENCODE-compliant pipeline: filter → MarkDuplicates (don't remove) → compute NRF → filter out duplicates → call peaks.
+
+### IDR -- Wrong rank column
+
+**Trigger:** Sorting narrowPeak by signalValue (column 7) for IDR.
+
+**Mechanism:** MACS signalValue scales with pile-up intensity which differs between libraries of different depth; rank correlation breaks.
+
+**Symptom:** IDR returns 0 reproducible peaks despite good replicate Spearman correlation.
+
+**Fix:** Sort by p-value (`-k8,8nr`), pass `--rank p.value` to IDR. ENCODE convention.
+
+### ChIPQC -- Default annotation mismatch
+
+**Trigger:** Using `annotation = 'hg19'` on hg38-aligned data.
+
+**Mechanism:** ChIPQC computes feature-context enrichment from the specified annotation; mismatch silently corrupts enrichment metrics.
+
+**Symptom:** Promoter / 5'UTR / 3'UTR enrichments look wrong; replicate report metrics drift.
+
+**Fix:** Match `annotation` to the genome the BAMs were aligned to; for custom genomes pass a TxDb object explicitly.
+
+## Reconciliation: When Metrics Disagree
+
+| Pattern | Likely cause | Action |
+|---------|--------------|--------|
+| Good FRiP, bad NSC | High background but real enrichment | Acceptable for broad marks; for TFs, check phantompeakqualtools fragment length is reasonable |
+| Good NSC, bad FRiP | Strong cross-correlation signal but few peaks pass q-value | Library shallow OR peak caller threshold too strict; try `-p 1e-2` |
+| Good FRiP and NSC, bad replicate correlation | Real biology + replicate-specific batch effect | Check sample swap; check sequencing batch; consider PCA |
+| Good Rep1, bad Rep2 | One replicate failed | Drop Rep2 + repeat; do NOT average metrics |
+| All metrics fail | Antibody or fragmentation failure | Re-validate antibody (KO/KD); inspect fragment-size distribution; do not proceed |
+| FRiP excellent at rRNA/mtDNA | Hyper-ChIPable artifact dominance | Build custom blacklist; recompute |
+
+**Operational rule for proceeding with downstream analysis:** Require (1) antibody validated, (2) fragment-size distribution sane, (3) FRiP, NSC, RSC pass ENCODE thresholds, (4) Nself/Nt rule satisfied for TFs OR naive overlap concordance for histones, (5) hyper-ChIPable artifacts identified and either filtered or flagged.
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `Sequence chrM not found` (multi-tool) | chrM removed from BAM but kept in genome FASTA | Match chromosome naming convention; consistently include or exclude chrM |
+| phantompeakqualtools hangs / OOM | Default tag chunking on deep libraries | Subsample to 15-25M reads (`samtools view -s`) before running |
+| plotFingerprint blank or near-diagonal | Input control mislabeled as ChIP | Verify sample labels; AUC ~ 0.5 = Input-like signal |
+| IDR runs but Nself ratio always > 2 | One pseudoreplicate dominates due to seed | Use sufficiently different seeds (`-s 1.5` and `-s 2.5`) |
+| ChIPQC report missing peaks | samples.csv path columns wrong | Verify bamReads / Peaks paths; ChIPQC fails silently on missing files |
+| Replicate Spearman > 0.95 | Technical (not biological) replicates | Treat as one sample; do not report as biological replicates |
+
+## References
+
+- Landt SG et al 2012 Genome Res 22:1813 (ENCODE/modENCODE QC guidelines, IDR Nself rule)
+- Kharchenko PV et al 2008 Nat Biotechnol 26:1351 (SPP, NSC/RSC framework)
+- Li Q et al 2011 Ann Appl Stat 5:1752 (IDR)
+- Marinov GK et al 2014 G3 4:209 (large-scale ChIP-seq QC comparison)
+- Teytelman L et al 2013 PNAS 110:18602 (hyper-ChIPable regions)
+- Amemiya HM et al 2019 Sci Rep 9:9354 (ENCODE blacklist v2)
+- Ramírez F et al 2016 Nucleic Acids Res 44:W160 (deepTools)
+- Carroll TS et al 2014 Front Genet 5:75 (ChIPQC framework)
+- Diaz A et al 2012 Stat Appl Genet Mol Biol 11:Article 9 (CHANCE; fingerprint-style QC)
+- Park PJ 2009 Nat Rev Genet 10:669 (foundational review)
+- Rothbart SB et al 2015 Sci Rep 5:8489 (peptide-array antibody specificity)
 
 ## Related Skills
 
-- peak-calling - Call peaks before QC analysis
-- alignment-files - BAM statistics and filtering
-- differential-binding - Compare conditions after QC
-- atac-seq/atac-qc - Similar QC for ATAC-seq
+- chip-seq/peak-calling - Use QC metrics to decide whether to proceed with peak calling
+- chip-seq/cut-and-run-tag - CUT&RUN/CUT&Tag QC differs (spike-in % aligned, fragment-size signatures)
+- chip-seq/spike-in-normalization - QC for spike-in carryover and Drosophila read depth
+- chip-seq/differential-binding - Replicate concordance required before differential testing
+- atac-seq/atac-qc - Parallel QC for ATAC-seq (no input control, different thresholds)
+- alignment-files/bam-statistics - General BAM-level QC
+- alignment-files/duplicate-handling - MarkDuplicates before NRF computation

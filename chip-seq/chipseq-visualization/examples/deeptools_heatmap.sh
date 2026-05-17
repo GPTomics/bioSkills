@@ -1,9 +1,12 @@
 #!/bin/bash
-# Reference: GenomicRanges 1.54+, deepTools 3.5+ | Verify API if version differs
+# Reference: deepTools 3.5+, samtools 1.19+ | Verify API if version differs
+# deepTools heatmap pipeline: bamCoverage CPM-normalized bigWig -> TSS-centered
+# matrix -> heatmap + average profile. Usage: edit BAM_FILE/GENES_BED below.
+set -euo pipefail
 
-BAM_FILE="sample.bam"
-OUTPUT_DIR="visualization"
-GENES_BED="genes.bed"
+BAM_FILE="${1:-sample.bam}"
+OUTPUT_DIR="${2:-visualization}"
+GENES_BED="${3:-genes.bed}"
 
 mkdir -p $OUTPUT_DIR
 

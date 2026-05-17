@@ -49,6 +49,10 @@ Methodology evolves; verify against the current Bentsen 2020, Calviello 2019, an
 
 **Fix:** Apply ATACorrect (TOBIAS), seqOutBias (Martins 2018), or HINT's dinucleotide model. Bias correction subtracts the Tn5-expected per-base profile from observed cleavage. After correction, V-shape is preserved only at TF-bound sites.
 
+**Goal:** Subtract Tn5 sequence-bias from the per-base cleavage signal so residual footprints reflect TF binding rather than enzyme preference.
+
+**Approach:** Run TOBIAS ATACorrect over the deduplicated BAM with the reference genome, consensus peaks, and ENCODE blacklist; it emits per-condition uncorrected, bias, expected, and corrected bigWigs for downstream scoring.
+
 ```bash
 # TOBIAS ATACorrect: produces uncorrected, bias, expected, and corrected bigWigs
 TOBIAS ATACorrect \
@@ -167,6 +171,10 @@ Different TF families produce different footprint signatures. The same tool can 
 
 ## TOBIAS Three-Step Pipeline
 
+**Goal:** Call bound/unbound TF motif sites per condition and detect differential occupancy across two conditions.
+
+**Approach:** Run ATACorrect to subtract Tn5 bias from cleavage counts, ScoreBigwig to compute a continuous per-base footprint score, then BINDetect to anchor footprints to motif positions and produce per-TF differential bound calls with p-values.
+
 ```bash
 # Step 1: Bias correction
 TOBIAS ATACorrect \
@@ -216,6 +224,10 @@ The differential score is the difference in mean footprint score across motif si
 **Operational rule:** For high-confidence reporting, require two-tool concordance (TOBIAS + HINT-ATAC OR TOBIAS + ChIP-seq overlap > 50%). Single-tool calls should be reported as exploratory.
 
 ## NFR-Filtering Before Footprinting
+
+**Goal:** Restrict footprinting input to nucleosome-free (sub-100 bp) fragments where TF binding signal lives.
+
+**Approach:** Stream the BAM through awk, keep header lines and fragments whose insert size is between -100 and 100 bp, then re-index.
 
 ```bash
 # Filter to fragments < 100 bp (NFR) -- TF binding lives here, not on nucleosomes

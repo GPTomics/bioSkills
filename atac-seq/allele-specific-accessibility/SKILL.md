@@ -52,6 +52,10 @@ When aligning reads to the reference genome, reads carrying the reference allele
 
 **Fix:** WASP. Pseudo-alleles every read at heterozygous sites; re-aligns swapped reads; keeps only reads that map identically to both haplotypes. Mandatory for any ASE/ASB analysis.
 
+**Goal:** Remove reference-allele mapping bias before counting allele-specific ATAC reads.
+
+**Approach:** Identify reads overlapping heterozygous SNPs, re-align allele-swapped versions, keep only reads consistent across both haplotypes, then count REF/ALT with GATK ASEReadCounter.
+
 ```bash
 # WASP read-correction pipeline (Geijn 2015)
 WASP_DIR=/path/to/WASP
@@ -161,6 +165,10 @@ gatk ASEReadCounter \
 
 ## Cohort caQTL Pipeline
 
+**Goal:** Build cohort-level chromatin QTLs by combining WASP-corrected per-sample counts with cis-genotype association.
+
+**Approach:** WASP-correct each BAM, build consensus peakset, count reads in peaks per sample, then test cis-genotype association via MatrixEQTL (cohort) or RASQUAL (joint total + allelic).
+
 ```bash
 # 1. WASP-correct each individual's BAM
 for sample in $(cat samples.txt); do
@@ -179,6 +187,10 @@ featureCounts -F SAF -a consensus.saf -o counts.tsv -p --countReadPairs *.wasp.b
 ```
 
 ## Within-Peak ASE Aggregation
+
+**Goal:** Boost per-SNP ASE power by pooling allele counts across heterozygous SNPs in the same peak.
+
+**Approach:** Map each het SNP to its containing peak, sum REF and ALT counts per peak, run pooled binomial test against 50:50, apply BH FDR, and threshold on effect size.
 
 ```python
 import pandas as pd, numpy as np
@@ -210,6 +222,10 @@ sig_ase = peak_ase_df[(peak_ase_df['adj_p'] < 0.05) & (abs(peak_ase_df['ref_frac
 ## RASQUAL Joint Modeling
 
 RASQUAL uses a non-standard CLI: it reads the VCF from stdin via tabix and uses single-letter flags. The canonical invocation pattern is:
+
+**Goal:** Combine total accessibility counts and allele-specific counts into one joint cis-caQTL test per peak.
+
+**Approach:** Pre-build binary count and offset files via rasqualTools, then iterate per-feature, streaming the cis-window VCF through tabix into RASQUAL with feature coordinates and SNP counts.
 
 ```bash
 # 1. Pre-compute genotype offsets and binary count files (rasqualTools R package)

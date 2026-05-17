@@ -131,6 +131,10 @@ Per-cell thresholds are looser than bulk because individual cells have orders of
 
 ## Standard Signac Workflow
 
+**Goal:** Process 10X scATAC output into a clustered, annotated Seurat object with per-cell QC, embedding, and gene-activity scores.
+
+**Approach:** Load fragments and peak counts into a ChromatinAssay, compute per-cell QC (TSS enrichment, nucleosome signal, FRiP, blacklist), subset to passing cells, run TF-IDF + SVD + UMAP skipping LSI component 1, then derive a gene-activity assay for marker-based annotation.
+
 ```r
 library(Signac); library(Seurat); library(EnsDb.Hsapiens.v86)
 library(BSgenome.Hsapiens.UCSC.hg38)
@@ -188,6 +192,10 @@ peaks <- CallPeaks(obj, group.by='seurat_clusters',
 
 ## ArchR Workflow
 
+**Goal:** Build an ArchR project from fragment files, filter doublets, cluster, and call per-cluster reproducible peaks.
+
+**Approach:** Create Arrow files with minimum TSS and fragment thresholds, score doublets and filter, run iterative LSI + UMAP + clustering on the TileMatrix, then build per-cluster group coverages and a reproducible peakset via MACS3.
+
 ```r
 library(ArchR)
 addArchRGenome('hg38')
@@ -218,6 +226,10 @@ proj <- addPeakMatrix(proj)
 ```
 
 ## SnapATAC2 Workflow (Python)
+
+**Goal:** Run a Python-native scATAC pipeline from fragments through clusters, per-cluster peaks, and gene activity.
+
+**Approach:** Import fragments to a backed AnnData, compute per-cell TSS enrichment and fragment-size metrics, filter cells, build a tile matrix, run spectral embedding + UMAP + Leiden, call per-cluster peaks via MACS3, and derive a gene-activity matrix.
 
 ```python
 import snapatac2 as snap
@@ -325,6 +337,10 @@ For most studies, this is reserved for top 5-10 priority clusters; running chrom
 AMULET is most reliable at >= 5,000 fragments per cell. Below 5,000 fragments, the collision-based detection has insufficient power: the expected number of collisions per cell is too small for the binomial test to distinguish doublet from singleton. For < 5,000 fragment libraries, use synthetic-doublet methods (ArchR addDoubletScores, scDblFinder) instead.
 
 ## Multiome WNN Integration (Signac)
+
+**Goal:** Build a joint RNA + ATAC embedding from a 10X Multiome dataset using Weighted Nearest Neighbors.
+
+**Approach:** Run per-modality embeddings (PCA on RNA, TF-IDF + SVD on ATAC skipping LSI-1), then use FindMultiModalNeighbors to learn per-cell modality weights and project a joint UMAP.
 
 ```r
 # Assume `obj` has both 'RNA' and 'ATAC' assays from same Multiome experiment

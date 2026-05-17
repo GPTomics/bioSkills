@@ -86,6 +86,11 @@ The +1 nucleosome (first nucleosome downstream of TSS, immediately bordering the
 **Canonical +1 position:** +50 to +60 bp from TSS in metazoa; -100 to -120 bp from TATA in yeast; varies by gene type (Pol II vs Pol III, housekeeping vs developmental).
 
 **Calling strategy:**
+
+**Goal:** Identify each gene's +1 nucleosome, the first nucleosome downstream of the TSS that flanks the NFR.
+
+**Approach:** Build gene-body intervals slopped around TSSs, run NucleoATAC over them to call per-base nucleosome positions, then pick the most-downstream-of-TSS nucleosome per gene.
+
 ```bash
 # 1. Define gene-body intervals
 bedtools slop -i genes.bed -g chrom.sizes -l 200 -r 1000 > gene_bodies.bed
@@ -162,6 +167,10 @@ A failure to detect a clear +1 peak in aggregate V-plot suggests TSS annotation 
 
 ## Estimating NRL from Fragment-Size Distribution
 
+**Goal:** Estimate the nucleosome repeat length from ATAC fragment-size periodicity.
+
+**Approach:** Collect proper-pair fragment lengths from the BAM, build a histogram, find density peaks via scipy find_peaks, and read off the mono-nucleosome peak position within the 150-250 bp window.
+
 ```python
 import numpy as np, pysam
 from scipy.signal import find_peaks
@@ -180,6 +189,10 @@ print(f'Estimated NRL: {mono:.0f} bp')
 NRL inferred this way is approximate; for precision use autocorrelation on cumulative cleavage coverage instead.
 
 ## V-Plot in Python
+
+**Goal:** Build a fragment-size-by-position density plot to diagnose nucleosome positioning around a feature.
+
+**Approach:** Iterate proper-pair fragments in a flank window around each feature center, accumulate counts into a (fragment_size x position) grid, and render the 2D density.
 
 ```python
 import numpy as np, pysam, matplotlib.pyplot as plt

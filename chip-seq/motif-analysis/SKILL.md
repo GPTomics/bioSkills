@@ -1,387 +1,269 @@
 ---
 name: bio-chipseq-motif-analysis
-description: De novo motif discovery and known motif enrichment analysis using HOMER and MEME-ChIP. Identify transcription factor binding motifs in ChIP-seq, ATAC-seq, or other genomic peak data. Use when finding enriched DNA motifs in peak sequences.
+description: Discovers de novo motifs and tests known motif enrichment in ChIP-seq, ATAC-seq, or other peak sequences using HOMER, MEME-ChIP (STREME, CentriMo, TOMTOM, FIMO), monaLisa, and AME. Handles background selection (GC-matched, dinucleotide-shuffled, Markov order-2, peak-flanks), motif databases (JASPAR 2024 CORE PWMs, JASPAR 2026 deep-learning collection, HOCOMOCO v12, HOMER built-in), centrally-enriched motif testing, and differential motif analysis. Use when identifying TF binding motifs in peaks, testing for known TF enrichment, scanning for motif instances, comparing motif content between conditions, or interpreting motifs from deep learning models.
 tool_type: cli
 primary_tool: HOMER
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, bedtools 2.31+, matplotlib 3.8+, pandas 2.2+
+Reference examples tested with: HOMER 4.11+, MEME suite 5.5+ (STREME replaces DREME from 5.4+), monaLisa 1.10+, JASPAR 2024 CORE, HOCOMOCO v12, BioPython 1.83+, bedtools 2.31+.
 
-Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+DREME was removed from MEME suite 5.4+; use STREME instead. Some tutorials still reference DREME — verify the installed version via `meme --version`. JASPAR 2026 (released late 2025) integrates 1259 BPNet ChIP models in a Deep Learning collection; the CORE collection remains the standard PWM source.
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+# Motif Analysis on ChIP-seq Peaks
 
-# Motif Analysis
+**"Find enriched DNA binding motifs in my ChIP-seq peaks"** -> Discover de novo motif patterns and test for known TF motif enrichment in peak sequences, with appropriate background to control for compositional and positional biases.
 
-**"Find enriched motifs in my ChIP-seq peaks"** → Discover de novo DNA-binding motifs and test for known TF motif enrichment in peak sequences.
-- CLI: `findMotifsGenome.pl peaks.bed hg38 output/` (HOMER), `meme-chip -db JASPAR peaks.fa` (MEME)
+- CLI (HOMER, fast): `findMotifsGenome.pl peaks.bed hg38 outdir/ -size 200 -p 8`
+- CLI (MEME-ChIP, comprehensive): `meme-chip -db JASPAR.meme peaks.fa`
+- R (regression-based, selective enrichment): `monaLisa::calcBinnedMotifEnrR(seqs, bins, pwms)`
+- CLI (deep-learning-derived motifs): TF-MoDISco on BPNet attribution scores (see chip-deep-learning)
 
-Identify DNA sequence motifs enriched in ChIP-seq or ATAC-seq peaks to discover transcription factor binding sites.
+Motif discovery is sensitive to background choice and peak quality. Hyper-ChIPable artifacts at rRNA / housekeeping loci often produce false-positive motifs (GC-rich or A-T-rich biases of those regions). Filter peaks against blacklists and inspect peak distribution before running motif discovery.
 
-## Tool Comparison
+## Tool Taxonomy
 
-| Tool | Strengths | Use Case |
-|------|-----------|----------|
-| HOMER | Fast, comprehensive, built-in databases | General motif analysis |
-| MEME-ChIP | Multiple algorithms, web interface | Publication-quality |
-| MEME | De novo discovery only | Simple discovery |
-| FIMO | Known motif scanning | Genome-wide scanning |
+| Tool | Discovery type | Background handling | Strength | Fails when |
+|------|----------------|---------------------|----------|------------|
+| **HOMER findMotifsGenome.pl** | De novo + known | GC-matched genomic regions (auto) | Fast (multi-core); integrated vertebrate/insect/plant DBs; one-command full report | Background can include unmasked repeats producing motif artifacts; `-size given` slow; auto background may include peaks themselves |
+| **MEME-ChIP** | De novo (STREME, MEME) + central enrichment (CentriMo) + DB comparison (TOMTOM) + scanning (FIMO) | Markov order-2 from input; shuffled (preserves dinucleotide) | Comprehensive single command; rigorous statistics; HTML report | Slower; sequences must be 100-500 bp; central enrichment requires summit-centered peaks |
+| **STREME** (MEME 5.4+) | De novo (replaced DREME) | Markov order-2 | Bailey 2021 benchmark: more accurate than DREME/HOMER/MEME/Peak-motifs; handles 3-30 bp; scales to 100k+ sequences | Memory-hungry for very long sequences (>1 kb) |
+| **MEME** (classical) | De novo (long, gapped) | Markov | Long motifs; gapped motifs | Slow (no parallel); replaced by STREME for short motifs |
+| **DREME** | De novo (short) | Shuffled | Historical; small fast | Removed from MEME 5.4+; use STREME |
+| **monaLisa** (Stadler lab) | Binned enrichment regression | Native (binned scoring) | Modern; regression-based; selectivity (TF-specific in differential peaks) | R-only; less integrated with browsers |
+| **AME** (MEME suite) | Known motif differential | Matched background set required | Designed for two-set comparison (e.g., peaks vs. control regions) | Requires user-provided background set |
+| **CentriMo** | Known motif central enrichment | Auto from input | Tests positional enrichment relative to peak center | Requires summit-centered peaks (200-500 bp) |
+| **FIMO** | Motif scanning | Markov model | Genome-wide scanning at user-set p-value | Many false positives at p ≤ 1e-4; tighten to 1e-5 for whole-genome |
+| **HOMER scanMotifGenomeWide.pl** | Motif scanning | None | Genome-wide scanning at fixed score threshold | Less calibrated than FIMO; HOMER's PWM format |
+| **RSAT peak-motifs** | De novo + known | k-mer comparison | Web-server; multi-tool ensemble | Web limits; less reproducible from CLI |
+| **TF-MoDISco** | DL attribution-based | Implicit in model | Motifs from BPNet/chromBPNet attribution scores; captures soft motif syntax | Requires trained DL model; see chip-deep-learning |
 
-## HOMER
+## Background Selection — The Biggest Source of Error
 
-### Installation
+Motif enrichment p-values are conditional on the background distribution. Wrong background produces wrong motifs.
 
-```bash
-conda install -c bioconda homer
+| Background | What it preserves | Use case | Limitation |
+|------------|-------------------|----------|------------|
+| **GC-matched genomic regions** | Mononucleotide composition; chromatin context | TF motifs; avoid GC-bias artifacts | Doesn't preserve dinucleotide (CpG, TpA) |
+| **Dinucleotide-shuffled** | CpG and TpA frequencies | Short motifs; avoiding repeat-derived artifacts | Doesn't capture genomic position context |
+| **Markov order-2 (trinucleotide)** | Trinucleotide context | Compositional control; STREME/MEME default | Doesn't capture chromatin context |
+| **Peak-flanking sequences** (±500 bp upstream/downstream of peak) | Local genomic context | When peak GC differs from genome | May contain shared regulatory motifs if peaks cluster |
+| **Repeat-masked input** | Sequence with repeats replaced by N | Avoid TE-derived motif artifacts | Loses motifs in evolved-from-repeat regulatory elements |
+| **Input control peaks** | Open-chromatin / artifact regions | TF discrimination from generic chromatin | Hard to obtain; controversial |
+| **Differential set** (AME) | Treatment-condition-specific peaks vs ctrl peaks | Differential motif enrichment | Requires a control peak set |
 
-# Configure genome (required once)
-perl /path/to/homer/configureHomer.pl -install hg38
-perl /path/to/homer/configureHomer.pl -install mm10
-```
+**Practical default:** STREME / MEME-ChIP with Markov order-2 (built-in default); HOMER with `-mask` flag (mask repeats); always inspect for repeat-derived motifs (e.g., Alu-derived AluY consensus, LINE motifs).
 
-### De Novo Motif Discovery
+## Window Around Summit Matters
 
-**Goal:** Discover enriched DNA-binding motifs directly from ChIP-seq peak sequences.
+Motif enrichment improves dramatically when sequences are summit-centered:
 
-**Approach:** Run findMotifsGenome.pl on a peak BED file with a specified fragment size, optionally providing background regions and target motif lengths.
+| Window | When |
+|--------|------|
+| ±100 bp (200 bp total) | Sharp TFs (CTCF, p53); summit reliably reflects motif position |
+| ±150-250 bp (300-500 bp) | Most TFs and sharp histones; balance of motif coverage and noise |
+| Full peak width (`-size given`) | Variable-width broad marks; computationally expensive |
+| Whole gene body (>1 kb) | Almost always wrong; dilutes motif signal |
 
-```bash
-# Basic motif finding
-findMotifsGenome.pl peaks.bed hg38 output_dir/ -size 200
+**For ChIP-seq broad histone marks (H3K27me3, H3K9me3) motif analysis is generally NOT informative** — these marks reflect Polycomb / heterochromatin domains without sequence-specific binding. Motif analysis applies to TFs and to histone marks deposited by sequence-specific cofactors (H3K27ac partial, since BRD4 reads acetyl).
 
-# With background regions
-findMotifsGenome.pl peaks.bed hg38 output_dir/ -size 200 -bg background.bed
-
-# Specify motif lengths to search
-findMotifsGenome.pl peaks.bed hg38 output_dir/ -size 200 -len 8,10,12
-```
-
-### Key Options
-
-| Option | Description |
-|--------|-------------|
-| `-size <#>` | Fragment size for analysis (default 200) |
-| `-size given` | Use actual peak sizes |
-| `-bg <file>` | Background regions (BED) |
-| `-len <#,#,...>` | Motif lengths to search |
-| `-mask` | Mask repeats |
-| `-p <#>` | Number of CPUs |
-| `-S <#>` | Number of motifs to find (default 25) |
-| `-mis <#>` | Mismatches allowed (default 2) |
-| `-noweight` | Don't adjust for GC content |
-
-### Output Files
-
-```
-output_dir/
-├── homerResults.html      # Main results page
-├── knownResults.html      # Known motif enrichment
-├── homerMotifs.all.motifs # All discovered motifs
-├── knownResults.txt       # Known motif statistics
-└── motif1.motif           # Individual motif files
-```
-
-### Known Motif Enrichment Only
+## HOMER Workflow
 
 ```bash
-# Skip de novo, only check known motifs
-findMotifsGenome.pl peaks.bed hg38 output_dir/ -size 200 -nomotif
+# De novo + known motif discovery, repeat-masked, GC-matched background
+findMotifsGenome.pl peaks.narrowPeak hg38 homer_out/ \
+    -size 200 \
+    -mask \
+    -p 8
+
+# With user-supplied background (e.g., control peaks or random genomic)
+findMotifsGenome.pl peaks.narrowPeak hg38 homer_out/ \
+    -size 200 -mask -p 8 \
+    -bg background_peaks.bed
+
+# Known motifs only (skip de novo; faster)
+findMotifsGenome.pl peaks.narrowPeak hg38 homer_known_only/ \
+    -size 200 -mask -nomotif
+
+# Differential motif analysis: peaks gained in condition A vs condition B
+findMotifsGenome.pl gained_in_A.bed hg38 differential_motifs/ \
+    -size 200 -mask -bg gained_in_B.bed
 ```
 
-### Scan for Specific Motifs
+HOMER output files:
+- `homerResults.html` — de novo motifs ranked by significance
+- `knownResults.html` — known motif enrichment
+- `homerMotifs.all.motifs` — all de novo motifs (PWM format)
+- `knownResults.txt` — tab-separated known motif stats
+
+## MEME-ChIP Workflow
 
 ```bash
-# Find instances of motif in peaks
-annotatePeaks.pl peaks.bed hg38 -m motif.motif > annotated.txt
+# Center peaks to ±100 bp around summit (column 10 in narrowPeak)
+awk 'BEGIN{OFS="\t"} {summit = $2 + $10; print $1, summit - 100, summit + 100, $4, $5, $6}' \
+    peaks.narrowPeak > peaks_centered.bed
+bedtools getfasta -fi hg38.fa -bed peaks_centered.bed -fo peaks_centered.fa
 
-# Scan genome for motif occurrences
-scanMotifGenomeWide.pl motif.motif hg38 > motif_sites.bed
+# Full MEME-ChIP analysis
+meme-chip \
+    -oc meme_chip_out/ \
+    -db JASPAR2024_CORE_vertebrates_non-redundant_pfms_meme.txt \
+    -meme-nmotifs 5 \
+    -streme-nmotifs 10 \
+    -minw 6 -maxw 20 \
+    peaks_centered.fa
+
+# MEME-ChIP runs: STREME (replaces DREME) + MEME + CentriMo + TOMTOM + FIMO
+# CentriMo tests known motifs for central enrichment — strongest signal of
+# direct binding vs. tethered/indirect binding
 ```
 
-### Motif Comparison
+## monaLisa Workflow (R, Regression-Based)
 
-```bash
-# Compare discovered motifs to known database
-compareMotifs.pl motifs.motif output_dir/ -known
+**Goal:** Test which TF motifs are enriched in specific bins of peaks (e.g., bins of differential log2FC, or bins of accessibility).
+
+**Approach:** monaLisa builds a per-motif regression of peak signal on motif occurrence, controlling for GC content. Selective for TFs that discriminate between bins.
+
+```r
+library(monaLisa)
+library(JASPAR2024)
+library(Biostrings)
+
+# Load peaks and split into bins (e.g., quintiles of log2FC)
+peaks <- rtracklayer::import('peaks.bed')
+peaks$log2FC <- ...  # from differential analysis
+bins <- bin(peaks$log2FC, binmode = 'equalN', nElement = 200)
+
+# Get sequences around peak centers
+seqs <- getSeq(BSgenome.Hsapiens.UCSC.hg38, resize(peaks, width = 500, fix = 'center'))
+
+# Load JASPAR PWMs
+pwms <- getMatrixSet(JASPAR2024, list(species = 9606, collection = 'CORE'))
+
+# Compute binned motif enrichment with GC control
+res <- calcBinnedMotifEnrR(seqs = seqs, bins = bins, pwmL = pwms, BPPARAM = MulticoreParam(8))
+
+# Plot heatmap of motif enrichment vs bins
+plotMotifHeatmaps(x = res, which.plots = c('log2enr', 'negLog10P'),
+                   width = 1.8, maxEnr = 2, maxSig = 10)
 ```
 
-### Create Custom Motif
+## Per-Tool Failure Modes
 
-```bash
-# From consensus sequence
-seq2profile.pl CACGTG 4 > MYC.motif
+### HOMER -- Background includes peaks themselves
 
-# From aligned sequences
-cat aligned_seqs.txt | alignAndConvert.pl - > custom.motif
-```
+**Trigger:** Running `findMotifsGenome.pl` without `-bg` on a large peak set covering >5% of genome.
 
-## MEME Suite
+**Mechanism:** HOMER auto-samples GC-matched genomic regions for background, which can overlap the peak set itself.
 
-### Installation
+**Symptom:** Even known TF motif p-values are weak (>1e-3); de novo motifs less enriched than expected.
 
-```bash
-conda install -c bioconda meme
-```
+**Fix:** Supply explicit `-bg` background (e.g., random genomic intervals matching peak count and width) OR use MEME-ChIP with internal shuffled background.
 
-### Extract Sequences from Peaks
+### HOMER / MEME -- Repeat-derived false-positive motifs
 
-```bash
-# Get FASTA sequences under peaks
-bedtools getfasta -fi genome.fa -bed peaks.bed -fo peaks.fa
+**Trigger:** Running on unmasked peaks; peaks cover transposable elements (Alu, LINE, LTR).
 
-# Center peaks and resize
-bedtools slop -i peaks.bed -g genome.sizes -b 100 | \
-    bedtools getfasta -fi genome.fa -bed - -fo peaks_centered.fa
-```
+**Mechanism:** TEs contain over-represented k-mers that motif algorithms mistake for biology.
 
-### MEME (De Novo Discovery)
+**Symptom:** Top de novo motif matches AluY consensus (~280 bp), LINE/L1, or LTR families.
 
-```bash
-# Basic de novo discovery
-meme peaks.fa -dna -oc meme_output -mod zoops -nmotifs 10 -minw 6 -maxw 20
+**Fix:** Use `-mask` (HOMER) or pre-mask peak sequences with RepeatMasker; verify TOMTOM matches against legitimate TF databases.
 
-# With Markov background
-fasta-get-markov peaks.fa > background.model
-meme peaks.fa -dna -oc meme_output -bfile background.model -mod zoops -nmotifs 10
-```
+### STREME -- Memory failure on long sequences
 
-### MEME Options
+**Trigger:** Running STREME on full-peak sequences (>1 kb each) with > 50k peaks.
 
-| Option | Description |
-|--------|-------------|
-| `-mod zoops` | Zero or one per sequence (default for ChIP) |
-| `-mod oops` | Exactly one per sequence |
-| `-mod anr` | Any number of repeats |
-| `-nmotifs <#>` | Number of motifs to find |
-| `-minw <#>` | Minimum motif width |
-| `-maxw <#>` | Maximum motif width |
-| `-revcomp` | Search both strands |
-| `-bfile <file>` | Background model file |
+**Mechanism:** STREME holds suffix structures in memory; long sequences explode RAM.
 
-### MEME-ChIP (Comprehensive Pipeline)
+**Fix:** Resize peaks to ±100-250 bp summit-centered before STREME; or downsample peak count.
 
-**Goal:** Run a comprehensive motif analysis pipeline combining de novo discovery, central enrichment testing, and database comparison.
+### CentriMo -- No central enrichment due to wrong centering
 
-**Approach:** Provide peak FASTA sequences and a motif database to MEME-ChIP, which runs MEME, DREME, CentriMo, TOMTOM, and FIMO in a single invocation.
+**Trigger:** Using full peak coordinates (BED `start, end`) without recentering on summit.
 
-```bash
-# All-in-one ChIP-seq motif analysis
-meme-chip -oc meme_chip_output -db motif_database.meme peaks.fa
-```
+**Mechanism:** Peak start coordinate is the left edge, not the summit; motif may be enriched near the summit but appears unenriched relative to the start.
 
-MEME-ChIP runs:
-1. MEME - De novo discovery (central enrichment)
-2. DREME - Short motif discovery
-3. CentriMo - Central enrichment analysis
-4. TOMTOM - Compare to known motifs
-5. FIMO - Find motif instances
+**Symptom:** Known TF motifs show no central enrichment despite being clearly enriched overall.
 
-### DREME (Short Motifs)
+**Fix:** Recenter sequences on summit: `summit = start + summit_offset` (narrowPeak column 10) before extracting FASTA.
 
-```bash
-# Find short enriched motifs
-dreme -oc dreme_output -p peaks.fa -n background.fa
-```
+### FIMO -- Massive false positives at default p ≤ 1e-4
 
-### CentriMo (Central Enrichment)
+**Trigger:** Genome-wide scanning at FIMO default p-value threshold.
 
-```bash
-# Test for central enrichment of known motifs
-centrimo -oc centrimo_output peaks.fa motif_database.meme
-```
+**Mechanism:** At p ≤ 1e-4, expect ~3M random matches in a 3 Gb genome; most are false positives.
 
-### TOMTOM (Motif Comparison)
+**Symptom:** FIMO output has millions of motif "hits"; can't distinguish real binding.
 
-```bash
-# Compare discovered motifs to database
-tomtom -oc tomtom_output discovered.meme database.meme
-```
+**Fix:** Tighten to `--thresh 1e-5` or stricter for genome-wide scans; or restrict scan to peaks: `fimo --bgfile motif_bg motif.meme peaks.fa`.
 
-### FIMO (Motif Scanning)
+### monaLisa -- GC bins not respected
 
-```bash
-# Scan sequences for motif matches
-fimo --oc fimo_output motif.meme sequences.fa
+**Trigger:** Running `calcBinnedMotifEnrR` without GC binning when peaks have systematic GC differences (e.g., promoters vs distal enhancers).
 
-# Scan genome
-fimo --oc fimo_output --max-stored-scores 1000000 motif.meme genome.fa
-```
+**Mechanism:** GC-rich motifs are over-enriched in GC-rich bins simply by chance.
 
-## Motif Databases
+**Symptom:** Top motifs are CpG-rich families (e.g., E2F, NRF1) regardless of biology.
 
-### HOMER Built-in
+**Fix:** Use `background = 'genome'` with GC-matched genomic background; or `background = 'otherBins'` with stratified GC.
 
-```bash
-# List available motif sets
-ls /path/to/homer/data/knownTFs/
+### Motif analysis on hyper-ChIPable regions
 
-# Vertebrate, known motifs (default)
-findMotifsGenome.pl peaks.bed hg38 output/ -mknown vertebrates/known.motifs
-```
+**Trigger:** Running motifs on peaks dominated by hyper-ChIPable artifacts (rRNA, tRNA, housekeeping).
 
-### JASPAR
+**Mechanism:** These regions have systematic compositional biases (GC-rich, A-T-rich, repeat-derived); motifs from artifact peaks reflect compositional biology, not TF binding.
 
-```bash
-# Download JASPAR motifs
-wget https://jaspar.genereg.net/download/data/2024/CORE/JASPAR2024_CORE_vertebrates_non-redundant_pfms_meme.txt
+**Symptom:** Top de novo motif matches no known TF; high-GC or low-complexity consensus.
 
-# Use with MEME suite
-meme-chip -db JASPAR2024_CORE_vertebrates_non-redundant_pfms_meme.txt peaks.fa
-```
+**Fix:** Apply blacklist + custom hyper-ChIPable filter (top-1% input signal) before motif analysis. See chipseq-qc.
 
-### HOCOMOCO
+## Reconciliation: When Motif Methods Disagree
 
-```bash
-# Download HOCOMOCO
-wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_HUMAN_mono_meme_format.meme
+| Pattern | Likely cause | Action |
+|---------|--------------|--------|
+| HOMER finds motif X; MEME-ChIP misses | Different background; HOMER may have permissive background | Run MEME-ChIP with explicit GC-matched background; check |
+| MEME finds long gapped motif; STREME doesn't | MEME captures variable-length structure; STREME limited to 30 bp | Both are correct; report MEME for long motifs |
+| Top de novo motif doesn't match TOMTOM databases | Novel motif OR repeat artifact OR compositional artifact | Inspect peaks for repeats; check input control; could be genuine novel TF |
+| Known motif enriched but no de novo recovery | Insufficient enrichment for de novo; or motif is degenerate | Trust known motif enrichment; de novo needs strong signal |
+| Differential motif gained in treatment but TF expression unchanged | TF post-translational regulation (binding mode change without expression change) | Check ChIP signal at known TF target genes; not a contradiction |
 
-# Use with MEME suite
-tomtom discovered.meme HOCOMOCOv11_core_HUMAN_mono_meme_format.meme
-```
+## Common Errors
 
-## Python: Parse HOMER Results
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| HOMER "configureHomer.pl genome not installed" | Genome not configured | `perl configureHomer.pl -install hg38` (one-time) |
+| MEME "sequence too short" | Peaks < motif min width | Resize peaks to ≥ 200 bp |
+| MEME-ChIP "out of memory" | Too many long sequences | Resize peaks to ±100-250 bp; downsample |
+| No enriched motifs | Peak quality / hyper-ChIPable / wrong background | Check FRiP, filter blacklist, supply explicit background |
+| Top motif is GC-rich consensus | GC-bias in peaks not matched by background | GC-matched background (HOMER `-bg` or MEME shuffled with order-2) |
+| FIMO produces millions of hits | p-value threshold too loose | `--thresh 1e-5` for whole-genome; restrict to peaks for finer p |
+| TOMTOM matches always say "no match" | Motif database species mismatch | Use vertebrates / insects / plants DB matching organism |
 
-```python
-import pandas as pd
+## References
 
-def parse_homer_known(results_file):
-    '''Parse HOMER knownResults.txt.'''
-    df = pd.read_csv(results_file, sep='\t')
-    df.columns = ['Motif', 'Consensus', 'P-value', 'Log P-value',
-                  'q-value', 'Targets', 'Target%', 'Background', 'Background%']
-    df['P-value'] = df['P-value'].astype(float)
-    return df.sort_values('P-value')
-
-known = parse_homer_known('output_dir/knownResults.txt')
-print(known[['Motif', 'P-value', 'Target%']].head(20))
-```
-
-## Python: Parse MEME Results
-
-```python
-from Bio import motifs
-
-def parse_meme_file(meme_file):
-    '''Parse MEME output file.'''
-    with open(meme_file) as f:
-        record = motifs.parse(f, 'meme')
-    return record
-
-record = parse_meme_file('meme_output/meme.txt')
-for m in record:
-    print(f'{m.name}: {m.consensus}')
-    print(m.counts)
-```
-
-## Complete Workflows
-
-### ChIP-seq Motif Analysis
-
-**Goal:** Run a complete motif analysis workflow combining HOMER and MEME-ChIP on ChIP-seq peaks.
-
-**Approach:** Run HOMER findMotifsGenome.pl for fast de novo and known motif discovery, then extract centered peak sequences and run MEME-ChIP for a complementary analysis.
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-PEAKS=$1  # narrowPeak or BED file
-GENOME=$2  # hg38, mm10, etc.
-OUTDIR=$3
-
-mkdir -p $OUTDIR
-
-# HOMER analysis
-echo "Running HOMER..."
-findMotifsGenome.pl $PEAKS $GENOME ${OUTDIR}/homer \
-    -size 200 -p 8 -mask
-
-# Extract sequences for MEME
-echo "Extracting sequences..."
-bedtools slop -i $PEAKS -g ${GENOME}.chrom.sizes -b 0 | \
-    awk 'BEGIN{OFS="\t"} {center=int(($2+$3)/2); print $1,center-100,center+100}' | \
-    bedtools getfasta -fi ${GENOME}.fa -bed - -fo ${OUTDIR}/peaks.fa
-
-# MEME-ChIP analysis
-echo "Running MEME-ChIP..."
-meme-chip -oc ${OUTDIR}/meme_chip \
-    -db /path/to/JASPAR.meme \
-    ${OUTDIR}/peaks.fa
-
-echo "Done. Results in ${OUTDIR}/"
-```
-
-### ATAC-seq Footprint Motifs
-
-```bash
-# Analyze motifs in footprint regions
-findMotifsGenome.pl footprints.bed hg38 footprint_motifs/ \
-    -size given -mask -p 8
-
-# Compare to accessible regions background
-findMotifsGenome.pl footprints.bed hg38 footprint_motifs/ \
-    -size given -bg accessible_peaks.bed -mask -p 8
-```
-
-## Visualization
-
-### HOMER Logo
-
-```bash
-# Generate sequence logo
-motif2Logo.pl motif.motif > logo.eps
-```
-
-### Plot with Python
-
-```python
-import logomaker
-import pandas as pd
-import matplotlib.pyplot as plt
-
-def plot_motif(pwm_file):
-    '''Plot sequence logo from HOMER PWM.'''
-    pwm = pd.read_csv(pwm_file, sep='\t', skiprows=1, header=None)
-    pwm.columns = ['A', 'C', 'G', 'T']
-    logo = logomaker.Logo(pwm, shade_below=0.5, fade_below=0.5)
-    plt.show()
-```
-
-## Quality Metrics
-
-| Metric | Good | Concerning |
-|--------|------|------------|
-| P-value | < 1e-10 | > 1e-5 |
-| Target % | > 20% | < 5% |
-| Background % | < Target/2 | Similar to Target |
-| Bit score | > 10 | < 5 |
-
-## Common Issues
-
-### No Significant Motifs
-- Check peak quality (too few peaks?)
-- Try different peak sizes (`-size`)
-- Ensure genome build matches
-- Check for repeat masking issues
-
-### Too Many Motifs
-- Increase significance threshold
-- Use `-S` to limit number of motifs
-- Filter by target percentage
-
-### Wrong Background
-- Use matched GC content background
-- Consider using input/control peaks
-- Try shuffled sequences
+- Heinz S et al 2010 Mol Cell 38:576 (HOMER)
+- Bailey TL & Elkan C 1994 Proc ISMB (MEME)
+- Bailey TL 2021 Bioinformatics 37:2834 (STREME)
+- Machanick P & Bailey TL 2011 Bioinformatics 27:1696 (MEME-ChIP)
+- Bailey TL et al 2015 Nucleic Acids Res 43:W39 (MEME suite update)
+- Grant CE et al 2011 Bioinformatics 27:1017 (FIMO)
+- Bailey TL & Machanick P 2012 Nucleic Acids Res 40:e128 (CentriMo)
+- McLeay RC & Bailey TL 2010 BMC Bioinformatics 11:165 (AME)
+- Machlab D et al 2022 Nucleic Acids Res 50:e49 (monaLisa)
+- Castro-Mondragon JA et al 2022 Nucleic Acids Res 50:D165 (JASPAR 2022; CORE collection)
+- Avsec Ž et al 2021 Nat Genet 53:354 (BPNet; soft motif syntax)
+- Shrikumar A et al 2020 bioRxiv (TF-MoDISco)
+- Rabouille C 2017 Curr Biol 27:R1063 (background-selection theory review)
 
 ## Related Skills
 
-- peak-calling - Generate input peaks
-- peak-annotation - Annotate peaks with genes
-- atac-seq/footprinting - TF footprint analysis
-- genome-intervals - BED file operations
+- chip-seq/peak-calling - Upstream peak calling; recenter on summit for motif input
+- chip-seq/chipseq-qc - Filter hyper-ChIPable artifacts before motif discovery
+- chip-seq/chip-deep-learning - BPNet/chromBPNet for sequence-attribution motif discovery (TF-MoDISco)
+- chip-seq/peak-annotation - Annotate peaks before motif discovery to filter promoters vs enhancers
+- atac-seq/motif-deviation - chromVAR per-cell motif activity (ATAC-specific)
+- atac-seq/footprinting - TOBIAS footprint analysis (ATAC; complementary to motif enrichment)
+- sequence-manipulation/motif-search - General sequence motif scanning
+- genome-intervals/proximity-operations - bedtools getfasta to extract peak sequences

@@ -134,6 +134,10 @@ chromVAR is fundamentally a *summary statistic* over many motif sites. Footprint
 
 ## chromVAR Workflow (Bulk)
 
+**Goal:** Compute per-sample TF-motif accessibility z-scores corrected for GC bias and total signal.
+
+**Approach:** Build a SummarizedExperiment from peak counts, add GC bias, filter sparse samples and peaks, match JASPAR motifs to peaks, sample matched background peaks, then compute deviations and per-motif variability.
+
 ```r
 library(chromVAR); library(motifmatchr); library(BSgenome.Hsapiens.UCSC.hg38)
 library(JASPAR2024); library(TFBSTools); library(SummarizedExperiment)
@@ -168,6 +172,10 @@ variability <- computeVariability(dev) # per-motif variability ranking
 
 ## Differential Motif Activity (limma on z-scores)
 
+**Goal:** Identify TF motifs whose chromVAR z-scores differ significantly between conditions.
+
+**Approach:** Build a contrast design matrix, fit limma's linear model on the motif-x-sample z-score matrix with empirical Bayes moderation, and pull motifs at adjusted p < 0.05.
+
 ```r
 library(limma)
 groups <- factor(colData(se)$condition, levels=c('control', 'treated'))
@@ -179,6 +187,10 @@ diff_motifs <- topTable(fit, coef=2, number=Inf, p.value=0.05)   # adj.P.Val col
 Use `adj.P.Val` (limma's BH FDR), not `FDR` (which limma does not return). `logFC` is the difference in z-scores between groups; magnitudes 0.5-2 typical.
 
 ## chromVAR for Single-Cell ATAC (Signac)
+
+**Goal:** Compute per-cell TF-motif z-scores in a Seurat scATAC workflow and call cluster-marker motifs.
+
+**Approach:** Open the JASPAR2024 SQLite handle, attach motifs to the Seurat object via AddMotifs, run RunChromVAR to build the chromvar assay, then call FindAllMarkers with mean.fxn=rowMeans for z-score-appropriate differential.
 
 ```r
 library(Signac); library(Seurat); library(JASPAR2024); library(TFBSTools)
@@ -202,6 +214,10 @@ markers <- FindAllMarkers(seurat_obj, only.pos=TRUE, mean.fxn=rowMeans, fc.name=
 `mean.fxn=rowMeans` is required for z-score-style data; the default (`fc.name='avg_log2FC'`) makes no sense here.
 
 ## chromVAR for Single-Cell ATAC (ArchR)
+
+**Goal:** Compute per-cell TF-motif deviations and per-cluster marker motifs within the ArchR ecosystem.
+
+**Approach:** Build the reproducible peakset, attach motif annotations from CIS-BP, sample matched background peaks, run addDeviationsMatrix to score motif z-scores, and call getMarkerFeatures on the MotifMatrix per cluster.
 
 ```r
 library(ArchR)

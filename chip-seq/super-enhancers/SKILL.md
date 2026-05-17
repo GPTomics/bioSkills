@@ -1,288 +1,263 @@
 ---
 name: bio-chipseq-super-enhancers
-description: Identifies super-enhancers from H3K27ac ChIP-seq data using ROSE and related tools. Use when studying cell identity genes, cancer-associated regulatory elements, or master transcription factor binding regions that cluster into large enhancer domains.
-tool_type: cli
+description: Identifies super-enhancers from H3K27ac, MED1, or BRD4 ChIP-seq using ROSE, ROSE2, LILY, HOMER -style super, and ENCODE dELS cross-referencing. Handles peak stitching parameters, ranking choices, hockey-stick inflection, marker choice (H3K27ac vs MED1/BRD4), and cross-condition comparison with spike-in normalization. Constructs core regulatory circuitry (Saint-Andre 2016) from SE-encoded TFs. Use when identifying cell-identity / cancer-associated regulatory domains, comparing super-enhancers between conditions, identifying master transcription factor networks, or predicting BET-inhibitor responsiveness.
+tool_type: mixed
 primary_tool: ROSE
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: GenomicRanges 1.54+, bedtools 2.31+, ggplot2 3.5+, samtools 1.19+
+Reference examples tested with: ROSE (stjude/ROSE, 2018+), ROSE2 (linlabbcm/rose2, 2021+), LILY (BoevaLab/LILY, 2020+), HOMER 4.11+, samtools 1.19+, bedtools 2.31+, GenomicRanges 1.54+.
 
-Before using code patterns, verify installed versions match. If versions differ:
-- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
-
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+ROSE is unmaintained Python 2; ROSE2 is the Python 3 port with the same algorithm. LILY (Boeva 2017) is a refactored implementation with input-control background subtraction for low-quality H3K27ac data.
 
 # Super-Enhancer Calling
 
-**"Identify super-enhancers from H3K27ac ChIP-seq"** → Stitch nearby enhancer peaks and rank by signal to find large regulatory domains controlling cell identity genes.
-- CLI: `ROSE_main.py -g hg38 -i peaks.gff -r chip.bam -c input.bam`
+**"Identify super-enhancers driving cell identity / cancer biology"** -> Stitch nearby active enhancer peaks (H3K27ac, MED1, or BRD4) within a stitching window, exclude proximal-promoter signal, rank by total signal, find the hockey-stick inflection point where signal sharply increases, and classify all stitched regions above the inflection as super-enhancers.
 
-Identify super-enhancers (SEs) - large clusters of enhancers that control cell identity genes.
+- CLI (ROSE / ROSE2): `python ROSE_main.py -g HG38 -i peaks.gff -r h3k27ac.bam -c input.bam -s 12500 -t 2500`
+- CLI (HOMER): `findPeaks tag_dir/ -style super -i input_tag_dir/`
+- CLI (LILY): variant with input-control background subtraction
+- R (custom hockey-stick): rank enhancers by signal, find tangent-line inflection
 
-## Background
+The SE concept (Whyte 2013) is a thresholding heuristic on a continuous signal distribution (Pott & Lieb 2015 *Nat Genet*), not a categorical biological category. Functional CRISPR-tiling at SE loci (Hnisz 2017; Dukler 2017) shows only 1-3 constituent elements per SE are essential; the "SE" label is a useful operational definition for BET-inhibitor responsiveness and cell-identity gene regulation, not an absolute biological property.
 
-Super-enhancers are:
-- Large clusters of enhancer regions
-- Marked by H3K27ac, Med1, BRD4
-- Control cell identity genes
-- Often altered in disease/cancer
+## Marker Choice: H3K27ac vs MED1 vs BRD4
 
-## ROSE (Rank Ordering of Super-Enhancers)
+| Marker | Captures | When to prefer |
+|--------|----------|----------------|
+| **H3K27ac** | Active regulatory elements broadly | Most widely available; standard for SE definition since Whyte 2013 |
+| **MED1** | Mediator complex accumulation (the defining biology) | Direct readout of SE; less common antibody; lower signal-to-noise |
+| **BRD4** | BET cofactor accumulation | Most predictive of BET-inhibitor responsiveness; clinical relevance |
+| **H3K27ac + MED1 intersection** | High-confidence SE | Gold standard if both available |
+| **dELS from ENCODE cCREs** | Cell-type-agnostic distal enhancer registry | Cross-reference; not SE-specific by itself |
 
-### Installation
+**Operational rule:** H3K27ac for discovery; MED1 or BRD4 ChIP for functional / therapeutic claims. SE called on H3K27ac alone may not respond to BET inhibitors; SE called on BRD4 will.
+
+## Algorithmic Taxonomy
+
+| Tool | Method | Strength | Fails when |
+|------|--------|----------|------------|
+| **ROSE** (Whyte 2013) | Stitch within 12.5 kb, exclude ±2.5 kb of TSS, rank by signal, hockey-stick inflection | Original; widely cited; canonical reference | Python 2 only; unmaintained; ROSE_main.py crashes on Python 3 |
+| **ROSE2** (Lin 2016; linlabbcm) | Same algorithm, Python 3 port | Maintained; identical output to ROSE | None vs ROSE |
+| **LILY** (Boeva 2017) | ROSE-like with input-control background subtraction | Works on lower-quality H3K27ac data; subtracts input | Adds complexity; less validated; specific to neuroblastoma/glioma in original paper |
+| **HOMER `-style super`** | Native ROSE-like in HOMER framework; stitching without TSS exclusion | Integrated with HOMER workflow | Different stitching defaults; not directly comparable to ROSE counts |
+| **Custom hockey-stick (R)** | Generic rank-by-signal + tangent inflection | Flexible; works on any signal definition | Reinvents algorithm; verify against ROSE on known dataset |
+
+**Most papers use ROSE/ROSE2 with default stitching (12.5 kb) and TSS exclusion (2.5 kb).** This is the de facto standard for cross-paper comparison. HOMER's `-style super` produces different counts and is not directly comparable.
+
+## Decision Tree: SE Calling Workflow
+
+| Scenario | Recommended pipeline |
+|----------|----------------------|
+| Standard SE discovery, H3K27ac available | ROSE2 with default `-s 12500 -t 2500`; input control for subtraction |
+| Predict BET-inhibitor response | BRD4 ChIP -> ROSE2 (or H3K27ac SE intersected with BRD4 peaks) |
+| Compare SE between conditions (drug treatment) | ROSE2 per condition + spike-in normalization (HDACi/BETi/EZH2i need ChIP-Rx) |
+| Build core regulatory circuitry | ROSE2 + Saint-Andre 2016 algorithm: identify TFs encoded by SE that bind own SE + cross-bind other SE-encoded TFs |
+| Low-quality H3K27ac (low FRiP) | LILY with input subtraction |
+| Compare with ENCODE dELS atlas | ROSE2 + intersect with ENCODE cCRE dELS BED |
+| Differential SE between conditions | ROSE2 per condition + signal-quantitative differential (DiffBind on SE regions) |
+
+## ROSE / ROSE2 Workflow
+
+**Goal:** Identify super-enhancers by stitching nearby active enhancer peaks within a stitching distance and ranking by total signal.
+
+**Approach:** Convert peaks to GFF, exclude promoter-proximal peaks via `-t` (TSS exclusion window), stitch enhancers within `-s` (default 12.5 kb), rank by total H3K27ac (or MED1/BRD4) signal, find the hockey-stick inflection point, classify regions above as super-enhancers.
 
 ```bash
-git clone https://github.com/stjude/ROSE.git
-cd ROSE
-# Requires samtools, R, bedtools
-```
+# Install ROSE2 (Python 3 port; unmaintained ROSE Py2 not recommended)
+git clone https://github.com/linlabbcm/rose2.git
+pip install ./rose2
 
-### Input Requirements
+# Convert peaks BED to GFF (ROSE requires GFF input)
+awk 'BEGIN{OFS="\t"} {print $1,"peaks","enhancer",$2,$3,".",$6,".","ID="NR}' \
+    peaks.narrowPeak > peaks.gff
 
-1. **BAM file** - H3K27ac ChIP-seq aligned reads
-2. **Peak file** - Called peaks (BED or GFF)
-3. **Genome annotation** - TSS annotations
+# Filter promoter peaks before SE calling (within 2.5 kb of TSS)
+# ROSE handles this via -t flag; preferable to pre-filter for clarity
+bedtools intersect -a peaks.narrowPeak -b promoters_2kb.bed -v > enhancer_peaks.bed
 
-### Run ROSE
-
-**Goal:** Identify super-enhancers by stitching nearby enhancer peaks and ranking by H3K27ac signal.
-
-**Approach:** Run ROSE_main.py with a GFF peak file, ChIP-seq BAM, and optional input control to stitch enhancers within 12.5 kb, rank by signal, and identify the inflection point separating super-enhancers from typical enhancers.
-
-```bash
-# Basic usage
-python ROSE_main.py \
-    -g HG38 \
-    -i peaks.gff \
-    -r h3k27ac.bam \
-    -o output_dir \
+# Run ROSE2 with input control
+rose2 -g HG38 -i peaks.gff \
+    -r h3k27ac.bam -c input.bam \
+    -o rose_output/ \
     -s 12500 \
     -t 2500
-
-# With control/input
-python ROSE_main.py \
-    -g HG38 \
-    -i peaks.gff \
-    -r h3k27ac.bam \
-    -c input.bam \
-    -o output_dir
 ```
 
-### Key Parameters
+ROSE2 outputs:
+- `*_AllEnhancers.table.txt` — all stitched enhancer regions ranked by signal
+- `*_SuperEnhancers.table.txt` — SE only (above hockey-stick inflection)
+- `*_Enhancers_withSuper.bed` — BED with SE / TE classification
+- `*_Plot_points.png` — hockey-stick plot
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `-s` | Stitching distance | 12500 bp |
-| `-t` | TSS exclusion | 2500 bp |
-| `-c` | Control BAM | None |
+## Cross-Condition SE Comparison
 
-### Output Files
+This is the analysis most often done wrong. SE calling thresholds depend on absolute signal, so any global shift (HDACi, BETi, EZH2i) confounds direct SE-count comparison.
 
-```
-output_dir/
-├── *_AllEnhancers.table.txt        # All enhancer regions
-├── *_SuperEnhancers.table.txt      # Super-enhancers only
-├── *_Enhancers_withSuper.bed       # BED with SE annotation
-└── *_Plot_points.png               # Hockey stick plot
-```
+**Wrong approach:** Call ROSE2 on condition A and condition B separately, intersect SE BEDs, report "gained/lost SE."
 
-## Prepare Input Files
-
-### Convert BED to GFF
-
-```bash
-# ROSE requires GFF format for peaks
-awk 'BEGIN{OFS="\t"} {print $1,"peaks","enhancer",$2,$3,".",$6,".","ID="NR}' \
-    peaks.bed > peaks.gff
-```
-
-### Filter Peaks for Enhancers
-
-```bash
-# Remove promoter peaks (within 2.5kb of TSS)
-bedtools intersect -a peaks.bed -b promoters.bed -v > enhancer_peaks.bed
-```
-
-## Alternative: HOMER Super-Enhancers
-
-```bash
-# Call super-enhancers with HOMER
-findPeaks tag_dir/ -style super -o auto
-
-# Or from existing peaks
-findPeaks tag_dir/ -style super -i input_tag_dir/ \
-    -typical typical_enhancers.txt \
-    -superSlope -1000 \
-    > super_enhancers.txt
-```
-
-## Alternative: SEanalysis
-
-```bash
-# R-based analysis
-Rscript << 'EOF'
-library(SEanalysis)
-
-# Load H3K27ac signal at enhancers
-signal <- read.table('enhancer_signal.txt', header=TRUE)
-
-# Rank and identify super-enhancers
-se_result <- identifySE(signal$signal, method='ROSE')
-
-# Get super-enhancer IDs
-super_enhancers <- signal$id[se_result$is_super]
-write.table(super_enhancers, 'super_enhancers.txt', quote=FALSE, row.names=FALSE)
-EOF
-```
-
-## Custom Hockey Stick Analysis (R)
-
-**Goal:** Classify enhancers as super-enhancers vs typical using a custom hockey stick plot and inflection-point detection.
-
-**Approach:** Rank enhancers by normalized signal, compute the slope at each point, find where the tangent exceeds 1 (inflection point), and classify all enhancers above the inflection as super-enhancers.
+**Right approach:**
+1. Spike-in normalize signal between conditions (see chip-seq/spike-in-normalization)
+2. Build a union SE set from both conditions
+3. Quantify signal at union SE regions per condition (DiffBind on the union)
+4. Apply differential testing with appropriate normalization (background-bin TMM or spike-in)
 
 ```r
-library(ggplot2)
-
-# Load enhancer signal data
-enhancers <- read.table('enhancer_signal.txt', header=TRUE)
-
-# Rank by signal
-enhancers <- enhancers[order(enhancers$signal), ]
-enhancers$rank <- 1:nrow(enhancers)
-
-# Find inflection point (tangent = 1)
-# Normalize ranks and signal to 0-1
-enhancers$rank_norm <- enhancers$rank / max(enhancers$rank)
-enhancers$signal_norm <- enhancers$signal / max(enhancers$signal)
-
-# Calculate slope at each point
-n <- nrow(enhancers)
-slopes <- diff(enhancers$signal_norm) / diff(enhancers$rank_norm)
-inflection <- which(slopes > 1)[1]
-
-# Classify
-enhancers$type <- ifelse(enhancers$rank >= inflection, 'Super-Enhancer', 'Typical')
-
-# Plot
-ggplot(enhancers, aes(rank, signal, color = type)) +
-    geom_point(size = 0.5) +
-    scale_color_manual(values = c('Super-Enhancer' = 'red', 'Typical' = 'grey60')) +
-    geom_vline(xintercept = inflection, linetype = 'dashed') +
-    labs(x = 'Enhancer Rank', y = 'H3K27ac Signal', title = 'Super-Enhancer Identification') +
-    theme_bw()
-
-ggsave('hockey_stick_plot.pdf', width = 8, height = 6)
-
-# Output super-enhancers
-super_enhancers <- enhancers[enhancers$type == 'Super-Enhancer', ]
-write.table(super_enhancers, 'super_enhancers.txt', sep = '\t', quote = FALSE, row.names = FALSE)
+library(DiffBind)
+# Union of SE BED files from condition A and B
+union_se <- rtracklayer::import('union_SE.bed')
+# Run DiffBind quantification on this region set with spike-in normalization
 ```
 
-## Calculate Enhancer Signal
+For BET-inhibitor experiments: the biology IS that all SE decrease globally; spike-in is mandatory.
+
+## Core Regulatory Circuitry (Saint-André 2016)
+
+The CRC algorithm identifies master TF networks from SE annotations:
+
+1. List all TFs encoded by SE-associated genes
+2. For each such TF, check if its motif appears in its own SE (auto-regulation)
+3. Build a graph where TFs encoded by SE-A bind to motifs in SE-B
+4. Identify highly-interconnected sub-networks (CRC)
 
 ```bash
-# Get H3K27ac signal at peak regions
-bedtools multicov -bams h3k27ac.bam -bed enhancer_peaks.bed > enhancer_counts.txt
+# Install CRC pipeline (linlabbcm CRC)
+git clone https://github.com/linlabbcm/CRC2.git
 
-# Normalize by peak size
-awk 'BEGIN{OFS="\t"} {
-    size = $3 - $2
-    rpm = ($NF / TOTAL_READS) * 1e6
-    rpkm = rpm / (size / 1000)
-    print $0, rpkm
-}' enhancer_counts.txt > enhancer_signal.txt
+# Requires: SE BED, TF motif annotations, gene-SE mapping
+python CRC2/crc.py -e SE_table.txt -g genes.gtf -b h3k27ac.bam
 ```
 
-## Downstream Analysis
+CRC outputs the connected components of the regulatory network. Master TFs typically appear in the largest component with high out-degree.
 
-### Gene Assignment
+## ENCODE dELS Cross-Reference
+
+ENCODE distal Enhancer-Like Signatures (dELS) are the cell-type-agnostic regulatory atlas (see chip-seq/peak-annotation). Cross-referencing SE against dELS:
+
+- Validates SE constituents are at canonical regulatory elements
+- Identifies SE constituents NOT in the dELS registry (potentially cell-type-specific)
+- Provides chromatin-state context (DNase + H3K27ac signatures)
 
 ```bash
-# Assign super-enhancers to nearest genes
-bedtools closest -a super_enhancers.bed -b genes.bed -d > se_gene_assignment.txt
+wget https://api.wenglab.org/screen_v13/screen_human_ccres_simple.bed.gz
+gunzip screen_human_ccres_simple.bed.gz
+awk -F'\t' '$NF == "dELS"' screen_human_ccres_simple.bed > dels.bed
+
+# Fraction of SE constituents overlapping dELS
+bedtools intersect -a SuperEnhancers.bed -b dels.bed -u | wc -l
+bedtools intersect -a SuperEnhancers.bed -b dels.bed -wa -wb > se_with_dels.tsv
 ```
 
-### Compare Conditions
+## Per-Tool Failure Modes
 
-**Goal:** Find super-enhancers gained or lost between two experimental conditions.
+### ROSE -- Python 2 dependency
 
-**Approach:** Convert super-enhancer tables to GRanges objects and use subsetByOverlaps with invert to identify condition-specific super-enhancers.
+**Trigger:** Running `ROSE_main.py` on a modern system (Python 3 only).
 
-```r
-# Load SE from two conditions
-se1 <- read.table('condition1_SE.txt', header=TRUE)
-se2 <- read.table('condition2_SE.txt', header=TRUE)
+**Mechanism:** ROSE is Python 2 code; `print` statements without parens, `dict.iteritems()`, etc.
 
-# Find differential super-enhancers
-library(GenomicRanges)
-gr1 <- makeGRangesFromDataFrame(se1)
-gr2 <- makeGRangesFromDataFrame(se2)
+**Symptom:** SyntaxError on first import.
 
-# Gained in condition 2
-gained <- subsetByOverlaps(gr2, gr1, invert=TRUE)
+**Fix:** Use ROSE2 (linlabbcm Python 3 port); identical algorithm and output format.
 
-# Lost in condition 2
-lost <- subsetByOverlaps(gr1, gr2, invert=TRUE)
-```
+### ROSE / ROSE2 -- Stitching distance default not appropriate for all biology
 
-### Enrichment of Disease Variants
+**Trigger:** Using default `-s 12500` (12.5 kb) on small genomes or compact gene structures.
 
-```bash
-# Check if GWAS SNPs enriched in super-enhancers
-bedtools intersect -a gwas_snps.bed -b super_enhancers.bed -wa -wb > snps_in_SE.txt
+**Mechanism:** Default was set on human/mouse vertebrate genomes; Drosophila / yeast / plants have different regulatory architecture.
 
-# Calculate enrichment
-total_snps=$(wc -l < gwas_snps.bed)
-snps_in_se=$(wc -l < snps_in_SE.txt)
-se_coverage=$(awk '{sum += $3-$2} END {print sum}' super_enhancers.bed)
-genome_size=3000000000
+**Fix:** For non-vertebrate genomes, reduce stitching distance proportionally (e.g., -s 2500 for Drosophila, -s 500 for yeast).
 
-expected=$(echo "$total_snps * $se_coverage / $genome_size" | bc -l)
-enrichment=$(echo "$snps_in_se / $expected" | bc -l)
-echo "Enrichment: $enrichment"
-```
+### ROSE / ROSE2 -- TSS exclusion can remove promoter-associated enhancers
 
-## Complete Workflow
+**Trigger:** Default `-t 2500` (exclude peaks within 2.5 kb of TSS) on promoter-proximal enhancers (e.g., pELS class).
 
-```bash
-#!/bin/bash
-set -euo pipefail
+**Mechanism:** TSS-proximal enhancers are filtered out; SE definition becomes distal-only.
 
-H3K27AC_BAM=$1
-PEAKS_BED=$2
-OUTPUT_DIR=$3
+**Symptom:** Lower SE counts than expected for cell types with promoter-enhancer architecture (e.g., human ES cells).
 
-mkdir -p $OUTPUT_DIR
+**Fix:** Reduce TSS exclusion to `-t 500` or `-t 0` if including promoter-proximal regulatory regions; document the decision.
 
-echo "=== Convert peaks to GFF ==="
-awk 'BEGIN{OFS="\t"} {print $1,"peaks","enhancer",$2,$3,".",$6,".","ID="NR}' \
-    $PEAKS_BED > $OUTPUT_DIR/peaks.gff
+### H3K27ac SE vs BRD4 SE -- BET-inhibitor mismatch
 
-echo "=== Run ROSE ==="
-python ROSE_main.py \
-    -g HG38 \
-    -i $OUTPUT_DIR/peaks.gff \
-    -r $H3K27AC_BAM \
-    -o $OUTPUT_DIR \
-    -s 12500 \
-    -t 2500
+**Trigger:** Calling SE on H3K27ac and claiming BET-inhibitor responsiveness.
 
-echo "=== Summary ==="
-n_typical=$(grep -c "Typical" $OUTPUT_DIR/*_AllEnhancers.table.txt || echo 0)
-n_super=$(wc -l < $OUTPUT_DIR/*_SuperEnhancers.table.txt)
+**Mechanism:** H3K27ac marks active enhancers broadly; not all H3K27ac-positive SE have BRD4 accumulation.
 
-echo "Typical enhancers: $n_typical"
-echo "Super-enhancers: $n_super"
-```
+**Symptom:** Predicted BET-sensitive genes don't respond to BET inhibitors in cell-based assays.
+
+**Fix:** For BET-inhibitor claims, use BRD4 ChIP for SE calling, or intersect H3K27ac SE with BRD4 peaks.
+
+### Cross-condition SE counting -- Wrong normalization
+
+**Trigger:** Comparing SE counts in HDACi-treated vs DMSO without spike-in normalization.
+
+**Mechanism:** SE calling thresholds depend on absolute signal; HDACi globally increases H3K27ac, raising every region's signal and shifting the hockey-stick inflection.
+
+**Symptom:** Reports "1000 SE in HDACi vs 500 in DMSO" when biology is just global H3K27ac increase.
+
+**Fix:** Spike-in normalize BAMs (ChIP-Rx with Drosophila chromatin), call SE on scaled signal; OR quantify signal at a union peak set rather than calling SE per condition.
+
+### LILY -- Input subtraction artifacts
+
+**Trigger:** Running LILY without high-quality matched input control.
+
+**Mechanism:** LILY subtracts background based on input signal; mismatched input introduces artifactual negative signal.
+
+**Fix:** Use LILY only when input quality is good (same library prep, same depth, same fragmentation); otherwise use ROSE2 with standard input handling.
+
+### Hockey-stick inflection -- Sensitive to peak count
+
+**Trigger:** Calling SE on a small peak set (< 5000 enhancers).
+
+**Mechanism:** Hockey-stick inflection depends on having a long "tail" of typical enhancers; few peaks distort the inflection.
+
+**Symptom:** SE count is unreasonably high (50%+ of all peaks called SE) or unreasonably low (< 50 SE).
+
+**Fix:** Require ≥ 5000 enhancer peaks input to ROSE2; if fewer, use absolute signal cutoff (e.g., top 5% by signal density) rather than hockey-stick.
+
+## Reconciliation: When SE Calls Disagree
+
+| Pattern | Likely cause | Action |
+|---------|--------------|--------|
+| ROSE2 vs HOMER -style super differ | Different stitching distance / TSS handling | Use ROSE2 standard for cross-paper comparison; HOMER for HOMER-integrated workflows |
+| H3K27ac SE ≠ MED1 SE at same locus | H3K27ac is broad; MED1 marks subset of active SE | MED1 SE is the more functional definition; H3K27ac includes inactive-but-acetylated regions |
+| SE called in DMSO but not in BETi (or vice versa) | Global signal shift confounds threshold | Spike-in normalize; compare quantitatively at union SE set |
+| SE shifts location between replicates | Marginal calls below inflection; hockey-stick inflection noisy | Use top N SE by rank for robustness; or require SE in ≥ 2/3 replicates |
+| LILY and ROSE2 disagree on SE count | LILY's input subtraction differs | Trust ROSE2 unless input quality is poor (low FRiP) |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `SyntaxError: invalid syntax` in ROSE | Python 2 codebase | Use ROSE2 (linlabbcm) Python 3 port |
+| GFF format error | Wrong column ordering | Use awk template: `chr<TAB>peaks<TAB>enhancer<TAB>start<TAB>end<TAB>.<TAB>strand<TAB>.<TAB>ID=N` |
+| ROSE2 reports 0 SE | Hockey-stick inflection failed; too few enhancers | Inspect `_Plot_points.png`; ≥ 5000 peaks input recommended |
+| Genome flag error in ROSE2 | Genome not pre-configured | Genome flag must be one of HG18, HG19, HG38, MM8, MM9, MM10 |
+| All SE at promoters | TSS exclusion too narrow OR data dominated by promoter signal | Verify `-t 2500`; check input is H3K27ac at enhancers not full chromatin |
+| Cross-condition SE gain/loss not reproducible | No spike-in normalization | Spike-in (ChIP-Rx) or quantitative differential on union SE |
+
+## References
+
+- Whyte WA et al 2013 Cell 153:307 (super-enhancers, ROSE)
+- Lovén J et al 2013 Cell 153:320 (SE characterization, BET sensitivity)
+- Hnisz D et al 2013 Cell 155:934 (SE in cell identity)
+- Pott S & Lieb JD 2015 Nat Genet 47:8 (SE as continuum critique)
+- Lin CY et al 2016 Cell 167:1188 (ROSE2; pediatric cancer SE)
+- Saint-André V et al 2016 Genome Res 26:385 (core regulatory circuitry)
+- Boeva V et al 2017 Cell Rep 21:1357 (LILY; neuroblastoma SE)
+- Hnisz D et al 2017 Cell 169:13 (CRISPR-tiling SE function)
+- Dukler N et al 2017 Genome Res 27:1869 (SE constituent function)
+- Sengupta S & George RE 2017 Trends Cancer 3:269 (SE function review)
 
 ## Related Skills
 
-- chip-seq/peak-calling - Call H3K27ac peaks first
-- chip-seq/peak-annotation - Annotate SE to genes
-- chip-seq/differential-binding - Compare SE between conditions
-- data-visualization/genome-tracks - Visualize SE regions
+- chip-seq/peak-calling - Generate H3K27ac / MED1 / BRD4 peaks for SE input
+- chip-seq/chipseq-qc - Filter hyper-ChIPable peaks before SE calling
+- chip-seq/spike-in-normalization - Mandatory for cross-condition SE comparison
+- chip-seq/differential-binding - Quantitative differential testing on union SE set
+- chip-seq/peak-annotation - Annotate SE-associated genes; cross-reference dELS
+- chip-seq/cut-and-run-tag - SE calling on CUT&RUN/CUT&Tag H3K27ac (different spike-in)
+- atac-seq/enhancer-gene-linking - ENCODE-rE2G for SE-target gene assignment
+- data-visualization/genome-tracks - SE region visualization
