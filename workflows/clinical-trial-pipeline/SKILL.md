@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-clinical-trial-pipeline
-description: End-to-end clinical trial analysis workflow from CDISC data loading through statistical testing to regulatory-compliant reporting. Covers data preparation, logistic regression, categorical tests, subgroup analysis, and Table 1 generation. Use when performing a complete analysis of clinical trial data.
+description: End-to-end clinical trial analysis workflow from CDISC SDTM/ADaM loading through ICH E9(R1) estimand-driven primary analysis to CONSORT 2025 regulatory-compliant reporting. Covers data preparation, FDA 2023 marginal vs conditional logistic regression, categorical tests with Boschloo, modern HTE/subgroup methods, missing-data sensitivity (MMRM, reference-based MI, Permutt tipping point), graphical multiplicity (Bretz-Maurer), survival analysis (Cox/RMST/competing risks) when applicable, and Table 1. Use when performing a complete analysis of clinical trial data.
 tool_type: python
 primary_tool: statsmodels
 workflow: true
@@ -11,11 +11,17 @@ depends_on:
   - clinical-biostatistics/effect-measures
   - clinical-biostatistics/subgroup-analysis
   - clinical-biostatistics/trial-reporting
+  - clinical-biostatistics/missing-data-sensitivity
+  - clinical-biostatistics/multiplicity-graphical
+  - clinical-biostatistics/survival-analysis
+  - clinical-biostatistics/power-and-sample-size
 qc_checkpoints:
-  - after_data_prep: "One row per USUBJID, no duplicate subjects, treatment arms balanced"
-  - after_primary_analysis: "Model converged, no separation warnings, pseudo-R2 reported"
-  - after_subgroup: "Interaction tests run, multiplicity adjusted, forest plot generated"
-  - after_reporting: "Table 1 complete, missing data documented, CONSORT items addressed"
+  - after_estimand_definition: "ICH E9(R1) 5 attributes pre-specified in SAP: treatment, population, endpoint, summary measure, ICE handling strategy"
+  - after_data_prep: "One row per USUBJID, no duplicate subjects, treatment arms balanced, DS domain tabulated for dropout patterns by arm"
+  - after_primary_analysis: "Model converged, no separation warnings, marginal RD via g-computation reported as primary per FDA 2023; conditional OR as supportive"
+  - after_subgroup: "Interaction tests run via single model (not per-subgroup p-comparisons), graphical multiplicity adjustment via gMCP, forest plot generated"
+  - after_missing_data: "Per ICH E9(R1) ICE strategy: MMRM/MAR or reference-based MI (J2R/CR/CIR); Permutt tipping-point delta reported in residual SD units"
+  - after_reporting: "Table 1 with SMD, missing data per CONSORT 2025 item 21c, harms per item 15, estimand statement per ICH E9(R1)"
 ---
 
 ## Version Compatibility
@@ -215,11 +221,11 @@ plt.savefig('forest_plot.png', dpi=150)
 
 **QC Checkpoint:** Interaction p-value reported. Multiplicity correction applied if testing multiple subgroups. Forest plot shows overall estimate for context.
 
-## Step 6: Missing Data Sensitivity Analysis
+## Step 6: Missing Data Sensitivity Analysis (per ICH E9(R1) and clinical-biostatistics/missing-data-sensitivity)
 
-**Goal:** Assess robustness of the primary result under multiple imputation.
+**Goal:** Assess robustness of the primary result under the pre-specified ICE strategy with both MAR primary and MNAR sensitivity analyses.
 
-**Approach:** Impute missing covariates only (never treatment or outcome in an RCT), fit the primary model on each imputed dataset, and pool via Rubin's rules.
+**Approach:** First examine DS (Disposition) domain for differential dropout patterns; if dropout differs by arm, MAR is suspect and reference-based MI is required as primary. Otherwise, fit MMRM under MAR with Rubin's-rules pooling for continuous endpoints, or g-computation with bootstrap for binary. Always run Permutt 2016 tipping-point sensitivity in residual SD units.
 
 ```python
 from sklearn.experimental import enable_iterative_imputer
@@ -251,22 +257,42 @@ print(f'Pooled OR: {pooled_or:.3f} ({pooled_ci[0]:.3f}-{pooled_ci[1]:.3f})')
 
 **QC Checkpoint:** Compare pooled OR and CI with the complete-case primary analysis. Large discrepancies suggest missing data may not be MCAR. Document the comparison.
 
-## Result Reporting Checklist
+## Result Reporting Checklist (CONSORT 2025 + ICH E9(R1) aligned)
 
-- [ ] Table 1 with baseline characteristics by arm (SMD > 0.1 flagged)
-- [ ] Primary analysis OR with 95% CI and p-value
-- [ ] Analysis population defined (ITT/PP/Safety)
-- [ ] Missing data rate reported per variable
-- [ ] Sensitivity analysis under multiple imputation
-- [ ] Subgroup forest plot with interaction p-values
-- [ ] Multiplicity adjustment method stated
+- [ ] ICH E9(R1) estimand statement with 5 attributes pre-specified in SAP
+- [ ] Table 1 with baseline characteristics by arm (SMD > 0.1 flagged; NOT p-values)
+- [ ] Primary analysis: marginal RD via g-computation per FDA 2023 (binary) OR MMRM-MAR with Kenward-Roger (continuous longitudinal)
+- [ ] Conditional OR/HR as supportive (different parameter than marginal due to non-collapsibility)
+- [ ] Analysis populations defined: ITT (primary), FAS (with explicit exclusion criteria), PP (sensitivity), Safety (AE)
+- [ ] Missing data per CONSORT 2025 item 21c: mechanism assumption, primary method, MNAR sensitivity (J2R/CR/CIR per Carpenter-Roger 2013)
+- [ ] Permutt tipping-point delta reported in residual SD units
+- [ ] Subgroup forest plot with INTERACTION p-values (not per-subgroup p-comparison); graphical multiplicity via gMCP
+- [ ] Multiplicity adjustment method stated (CONSORT 2025 item 20; FDA Multiple Endpoints Final Oct 2022)
 - [ ] CONSORT flow diagram numbers available
+- [ ] Harms per CONSORT 2025 item 15 (absorbs CONSORT-Harms 2022)
+
+## When to Add Specialized Skills
+
+This pipeline covers the typical binary-endpoint RCT workflow. For specific designs, add the corresponding specialized skill:
+
+- **Time-to-event primary endpoint** (OS, PFS, DOR): add clinical-biostatistics/survival-analysis for Cox PH diagnostics, RMST under non-PH, competing risks via Fine-Gray vs cause-specific Cox, MaxCombo for delayed effects, informative censoring handling
+- **Continuous longitudinal endpoint** (HbA1c at 24 weeks): clinical-biostatistics/missing-data-sensitivity for MMRM with Kenward-Roger via R mmrm; reference-based MI via R rbmi for MNAR sensitivity
+- **Multiple primary or key secondary endpoints**: clinical-biostatistics/multiplicity-graphical for Bretz-Maurer graphical procedures via gMCP
+- **Trial design / sample-size justification**: clinical-biostatistics/power-and-sample-size for Schoenfeld events, Lakatos under non-PH, FDA 2016 NI double discount, TOST equivalence
+- **Adaptive trial** (group-sequential, SSR, platform): clinical-biostatistics/adaptive-designs for rpact/gsDesign, Mehta-Pocock promising zone, ICH E20 considerations
+- **Bayesian primary inference or RWE comparator**: clinical-biostatistics/bayesian-trials for BOIN dose-finding, robust MAP priors via RBesT, EXNEX basket trials, psborrow2 for external controls
 
 ## Related Skills
 
-- clinical-biostatistics/cdisc-data-handling - Detailed CDISC domain handling and SUPPQUAL pivoting
-- clinical-biostatistics/logistic-regression - Advanced regression options (ordinal, Firth's)
-- clinical-biostatistics/categorical-tests - CMH stratified tests and McNemar's
-- clinical-biostatistics/effect-measures - NNT/NNH and non-collapsibility
-- clinical-biostatistics/subgroup-analysis - Breslow-Day homogeneity and RERI
-- clinical-biostatistics/trial-reporting - Estimands framework and ICH E9 compliance
+- clinical-biostatistics/cdisc-data-handling - CDISC SDTM/ADaM, Pinnacle 21, Dataset-JSON, ADTTE CNSR conventions
+- clinical-biostatistics/logistic-regression - FDA 2023 marginal vs conditional, g-computation, Brant test, Firth, Hauck-Donner
+- clinical-biostatistics/categorical-tests - Boschloo, mid-p McNemar, Wilson/Newcombe/Miettinen-Nurminen CIs
+- clinical-biostatistics/effect-measures - NNT Bender 2002 convention, profile likelihood, modified Poisson for RR
+- clinical-biostatistics/subgroup-analysis - Causal forests, STEPP, SIDES, EXNEX, Yadlowsky RATE, EMA 2019 subgroup guideline
+- clinical-biostatistics/trial-reporting - ICH E9(R1) 5 estimand strategies, Cro/Bartlett variance debate, CONSORT 2025
+- clinical-biostatistics/missing-data-sensitivity - MMRM/Kenward-Roger, reference-based MI, Permutt tipping point
+- clinical-biostatistics/multiplicity-graphical - Bretz-Maurer graphs, Goeman closed-testing admissibility
+- clinical-biostatistics/survival-analysis - Cox/RMST/Fine-Gray/MaxCombo/recurrent events/interval censoring
+- clinical-biostatistics/power-and-sample-size - Schoenfeld/Lakatos, NI double discount, crossover, MCID
+- clinical-biostatistics/adaptive-designs - Group-sequential, SSR, RAR consensus, BOIN, platform trials
+- clinical-biostatistics/bayesian-trials - MAP/EXNEX/RWE, FDA Bayesian Jan 2026 draft, psborrow2

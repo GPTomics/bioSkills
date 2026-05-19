@@ -3,7 +3,7 @@
 
 import numpy as np
 import pandas as pd
-from scipy.stats import chi2_contingency, fisher_exact
+from scipy.stats import chi2_contingency, fisher_exact, boschloo_exact
 from statsmodels.stats.multitest import multipletests
 from itertools import combinations
 
@@ -37,8 +37,12 @@ print(f'\n2x2 Table (Responder vs Non-Responder):')
 print(binary_table)
 chi2_2x2, p_2x2, _, expected_2x2 = chi2_contingency(binary_table, correction=False)
 if expected_2x2.min() < 5:
+    # Boschloo's exact: uniformly more powerful than Fisher's at same Type-I
+    # (Mehta-Senchaudhuri 2003; Lydersen-Fagerland-Laake 2009)
+    boschloo_result = boschloo_exact(binary_table.values, alternative='two-sided', n=64)
     odds_ratio, p_fisher = fisher_exact(binary_table.values, alternative='two-sided')
-    print(f'Fisher\'s exact: OR={odds_ratio:.4f}, p={p_fisher:.4f}')
+    print(f'Boschloo exact (preferred): p={boschloo_result.pvalue:.4f}')
+    print(f'Fisher exact (for comparison): OR={odds_ratio:.4f}, p={p_fisher:.4f}')
 else:
     print(f'Chi-square (2x2): chi2={chi2_2x2:.4f}, p={p_2x2:.4f}')
 

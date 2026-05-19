@@ -1,131 +1,96 @@
 #!/bin/bash
-# Reference: OptiType 1.3+, STAR 2.7.11+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
-# OptiType HLA Class I typing from WES/WGS
+# Reference: OptiType 1.3.5+, samtools 1.19+, bwa-mem 0.7.17+ | Verify CLI flags if version differs
 #
-# Prerequisites:
-#   conda install -c bioconda optitype razers3 samtools
-#
-# OptiType types HLA-A, HLA-B, HLA-C at 4-field resolution
-# For Class II (HLA-DR, DQ, DP), use HLA-HD or arcasHLA
+# OptiType class I HLA typing from WES/WGS (Szolek 2014 Bioinformatics).
+# OptiType is the TCGA convention and the class-I 4-digit benchmark anchor.
+# For class II + KIR use T1K (t1k_workflow.sh) or HLA-LA.
 
-set -e
+set -euo pipefail
 
-# Input BAM (WES or WGS)
 INPUT_BAM="${1:-input.bam}"
 SAMPLE_NAME="${2:-sample}"
 OUTPUT_DIR="${3:-optitype_output}"
-THREADS=4
+THREADS="${THREADS:-4}"
 
-# HLA region on chromosome 6
 HLA_REGION="chr6:28000000-34000000"
+HLA_ALT_CONTIGS=(
+    chr6_GL000250v2_alt chr6_GL000251v2_alt chr6_GL000252v2_alt chr6_GL000253v2_alt
+    chr6_GL000254v2_alt chr6_GL000255v2_alt chr6_GL000256v2_alt
+)
 
-echo "=== OptiType HLA Typing ==="
-echo "Input: $INPUT_BAM"
-echo "Sample: $SAMPLE_NAME"
-echo "Output: $OUTPUT_DIR"
-echo ""
-
-# Check input exists
-if [ ! -f "$INPUT_BAM" ]; then
-    echo "Error: Input BAM not found: $INPUT_BAM"
-    echo ""
-    echo "Usage: $0 input.bam sample_name output_dir"
-    exit 1
-fi
-
+echo "=== OptiType class I HLA typing ==="
 mkdir -p "$OUTPUT_DIR"
 
-# Step 1: Extract HLA region reads
-# This reduces input size significantly and speeds up typing
-echo "Extracting HLA region reads..."
-samtools view -h "$INPUT_BAM" "$HLA_REGION" | \
-    samtools fastq -@ "$THREADS" \
-    -1 "${OUTPUT_DIR}/${SAMPLE_NAME}_hla_R1.fq.gz" \
-    -2 "${OUTPUT_DIR}/${SAMPLE_NAME}_hla_R2.fq.gz" \
-    -
+# Alt-aware extraction (critical for GRCh38 accuracy)
+echo "Extracting MHC reads (region + alt contigs)..."
+samtools view -bh -@ "$THREADS" "$INPUT_BAM" "$HLA_REGION" "${HLA_ALT_CONTIGS[@]}" \
+    > "$OUTPUT_DIR/hla_region.bam"
+samtools sort -n -@ "$THREADS" "$OUTPUT_DIR/hla_region.bam" -o "$OUTPUT_DIR/hla_sorted.bam"
+samtools fastq -@ "$THREADS" \
+    -1 "$OUTPUT_DIR/${SAMPLE_NAME}_hla_R1.fq.gz" \
+    -2 "$OUTPUT_DIR/${SAMPLE_NAME}_hla_R2.fq.gz" \
+    -0 /dev/null -s "$OUTPUT_DIR/${SAMPLE_NAME}_singletons.fq.gz" \
+    "$OUTPUT_DIR/hla_sorted.bam"
 
-echo "Extracted reads: ${OUTPUT_DIR}/${SAMPLE_NAME}_hla_R*.fq.gz"
-
-# Step 2: Create OptiType config if not exists
-CONFIG_FILE="${OUTPUT_DIR}/config.ini"
-if [ ! -f "$CONFIG_FILE" ]; then
-    cat > "$CONFIG_FILE" << 'EOF'
+# Config -- ILP solver = GLPK (open-source); use CPLEX for production speedup
+CONFIG="$OUTPUT_DIR/config.ini"
+cat > "$CONFIG" << EOF
 [mapping]
 razers3=razers3
-threads=4
+threads=$THREADS
 
 [ilp]
 solver=glpk
-threads=4
+threads=$THREADS
 
 [behavior]
 deletebam=true
 unpaired_weight=0
 use_discordant=false
 EOF
-fi
 
-# Step 3: Run OptiType
-# -d for DNA mode (use -r for RNA-seq)
-echo ""
-echo "Running OptiType (DNA mode)..."
+# DNA mode (-d). Use -r for RNA-seq.
+echo "Running OptiType..."
 OptiTypePipeline.py \
-    -i "${OUTPUT_DIR}/${SAMPLE_NAME}_hla_R1.fq.gz" \
-       "${OUTPUT_DIR}/${SAMPLE_NAME}_hla_R2.fq.gz" \
-    -d \
-    -o "${OUTPUT_DIR}/${SAMPLE_NAME}" \
-    -c "$CONFIG_FILE"
+    -i "$OUTPUT_DIR/${SAMPLE_NAME}_hla_R1.fq.gz" \
+       "$OUTPUT_DIR/${SAMPLE_NAME}_hla_R2.fq.gz" \
+    -d -o "$OUTPUT_DIR/${SAMPLE_NAME}" -c "$CONFIG"
 
-# Step 4: Parse and display results
-RESULT_FILE=$(find "${OUTPUT_DIR}/${SAMPLE_NAME}" -name "*_result.tsv" | head -1)
-
-if [ -f "$RESULT_FILE" ]; then
-    echo ""
-    echo "=== HLA Typing Results ==="
-    cat "$RESULT_FILE"
-    echo ""
-    echo "Results saved to: $RESULT_FILE"
-
-    # Parse for clinical report format
-    echo ""
-    echo "=== Clinical Report Format ==="
-    awk -F'\t' 'NR==2 {
-        printf "HLA-A: %s / %s\n", $2, $3
-        printf "HLA-B: %s / %s\n", $4, $5
-        printf "HLA-C: %s / %s\n", $6, $7
-    }' "$RESULT_FILE"
-else
-    echo "Error: Results file not found"
+RESULT_FILE=$(find "$OUTPUT_DIR/${SAMPLE_NAME}" -name "*_result.tsv" | head -1)
+if [ ! -f "$RESULT_FILE" ]; then
+    echo "Error: result.tsv not found"
     exit 1
 fi
 
-# Step 5: Check pharmacogenomic alleles
-echo ""
-echo "=== Pharmacogenomic Screening ==="
+echo
+echo "=== OptiType Class I Result ==="
+cat "$RESULT_FILE"
 
-# Extract alleles for checking
+# Format for clinical report
+echo
+echo "=== Clinical Report Format ==="
+awk -F'\t' 'NR==2 {
+    printf "HLA-A: %s / %s\n", $2, $3
+    printf "HLA-B: %s / %s\n", $4, $5
+    printf "HLA-C: %s / %s\n", $6, $7
+}' "$RESULT_FILE"
+
+# PGx screen -- 4-field specificity required
+echo
+echo "=== Pharmacogenomic Screen (4-field) ==="
 ALLELES=$(awk -F'\t' 'NR==2 {print $2, $3, $4, $5, $6, $7}' "$RESULT_FILE")
 
-# Check for high-risk alleles
-# B*57:01: Abacavir hypersensitivity
-if echo "$ALLELES" | grep -q "B\*57:01"; then
-    echo "WARNING: HLA-B*57:01 detected - Abacavir contraindicated"
-fi
+echo "$ALLELES" | grep -q "B\*57:01" && \
+    echo "WARNING: HLA-B*57:01 detected -- Abacavir contraindicated (Mallal 2008 NEJM; OR ~100)"
+echo "$ALLELES" | grep -q "B\*15:02" && \
+    echo "WARNING: HLA-B*15:02 detected -- Carbamazepine SJS/TEN risk (Chung 2004 Nature; OR ~2500)"
+echo "$ALLELES" | grep -q "B\*58:01" && \
+    echo "WARNING: HLA-B*58:01 detected -- Allopurinol SJS/TEN risk (Hung 2005 PNAS; OR ~580)"
+echo "$ALLELES" | grep -q "A\*31:01" && \
+    echo "WARNING: HLA-A*31:01 detected -- Carbamazepine DRESS risk (McCormack 2011 NEJM)"
+echo "$ALLELES" | grep -q "B\*13:01" && \
+    echo "WARNING: HLA-B*13:01 detected -- Dapsone hypersensitivity (Zhang 2013 NEJM)"
 
-# B*15:02: Carbamazepine SJS/TEN (high risk in Asian populations)
-if echo "$ALLELES" | grep -q "B\*15:02"; then
-    echo "WARNING: HLA-B*15:02 detected - Carbamazepine SJS/TEN risk"
-fi
-
-# B*58:01: Allopurinol SJS/TEN
-if echo "$ALLELES" | grep -q "B\*58:01"; then
-    echo "WARNING: HLA-B*58:01 detected - Allopurinol SJS/TEN risk"
-fi
-
-# A*31:01: Carbamazepine DRESS
-if echo "$ALLELES" | grep -q "A\*31:01"; then
-    echo "WARNING: HLA-A*31:01 detected - Carbamazepine DRESS risk"
-fi
-
-echo ""
-echo "HLA typing complete."
+echo
+echo "Note: OptiType covers class I only. For class II (B*15:02 + DPB1/DRB1 transplant matching),"
+echo "      run t1k_workflow.sh or HLA-LA."

@@ -1,158 +1,191 @@
-'''Query PharmGKB for pharmacogenomic annotations and interpret star alleles'''
-# Reference: pandas 2.2+ | Verify API if version differs
+'''Pharmacogenomic workflow: PharmGKB + CYP2D6 activity score (Caudle 2020) + DPYD AS 2024.
 
+Reference: requests 2.31+, pandas 2.2+ | Verify CPIC guideline versions if differs.
+Activity values follow Caudle 2020 *Clin Transl Sci* (CYP2D6 *10 reset to 0.25).
+DPYD follows CPIC 2024 (Lam et al. *Clin Pharmacol Ther*) activity-score framework.
+'''
 import requests
 import time
+import pandas as pd
 
-# --- PharmGKB API ---
-# Free access, no API key required
-# Rate limit: Be respectful, add delays for batch queries
+PHARMGKB = 'https://api.pharmgkb.org/v1'
 
-def get_pharmgkb_annotations(gene_symbol):
-    '''Get PharmGKB clinical annotations for a gene'''
-    url = 'https://api.pharmgkb.org/v1/data/clinicalAnnotation'
-    params = {'view': 'base', 'location.genes.symbol': gene_symbol}
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        return response.json().get('data', [])
-    return []
-
-def get_cpic_guidelines(gene_symbol):
-    '''Get CPIC dosing guidelines for a gene'''
-    url = 'https://api.pharmgkb.org/v1/data/guideline'
-    params = {'view': 'base', 'relatedGenes.symbol': gene_symbol, 'source': 'CPIC'}
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        return response.json().get('data', [])
-    return []
-
-# --- Star Allele Activity Scores ---
-# Based on CPIC Clinical Pharmacogenetics Implementation Consortium guidelines
-# https://cpicpgx.org/
-
-# CYP2D6 activity values
-# Score 0 = no function, 0.5 = decreased, 1.0 = normal
+# Caudle 2020 activity values; *10 reset from 0.5 (pre-2020) to 0.25 (2020+).
+# East-Asian populations carrying *10 were reclassified from NM to IM.
 CYP2D6_ACTIVITY = {
-    '*1': 1.0,   # Normal (reference)
-    '*2': 1.0,   # Normal
-    '*3': 0.0,   # No function - frameshift
-    '*4': 0.0,   # No function - splicing defect (most common loss-of-function in Europeans)
-    '*5': 0.0,   # Gene deletion
-    '*6': 0.0,   # No function - frameshift
-    '*7': 0.0,   # No function
-    '*8': 0.0,   # No function
-    '*9': 0.5,   # Decreased function
-    '*10': 0.25, # Decreased function (most common in East Asians)
-    '*14': 0.0,  # No function
-    '*17': 0.5,  # Decreased function
-    '*29': 0.5,  # Decreased function
-    '*41': 0.5,  # Decreased function
+    '*1': 1.0, '*2': 1.0, '*35': 1.0,
+    '*3': 0.0, '*4': 0.0, '*5': 0.0, '*6': 0.0, '*7': 0.0, '*8': 0.0,
+    '*11': 0.0, '*12': 0.0, '*14': 0.0, '*15': 0.0, '*19': 0.0, '*20': 0.0,
+    '*36': 0.0, '*40': 0.0, '*42': 0.0, '*68': 0.0, '*13': 0.0,
+    '*9': 0.5, '*41': 0.5, '*17': 0.5, '*29': 0.5,
+    '*10': 0.25,
 }
 
-# CYP2C19 activity values
+# CYP2C19
 CYP2C19_ACTIVITY = {
-    '*1': 1.0,   # Normal (reference)
-    '*2': 0.0,   # No function (c.681G>A, most common loss-of-function)
-    '*3': 0.0,   # No function
-    '*4': 0.0,   # No function
-    '*17': 1.5,  # Increased function
+    '*1': 1.0, '*17': 1.5,
+    '*2': 0.0, '*3': 0.0, '*4': 0.0, '*5': 0.0, '*6': 0.0, '*7': 0.0, '*8': 0.0
 }
 
-# CYP2C9 activity values
+# CYP2C9 (Daneshjou 2014 emphasizes including *5/*6/*8/*11 for African-ancestry warfarin)
 CYP2C9_ACTIVITY = {
-    '*1': 1.0,   # Normal (reference)
-    '*2': 0.5,   # Decreased function
-    '*3': 0.0,   # No function (or very reduced)
+    '*1': 1.0,
+    '*2': 0.5, '*3': 0.0,
+    '*5': 0.0, '*6': 0.0, '*8': 0.5, '*11': 0.5  # AFR-common; the COAG failure variants
+}
+
+# DPYD CPIC 2024 activity values (Lam et al. Clin Pharmacol Ther)
+DPYD_2024_ACTIVITY = {
+    'c.1905+1G>A': 0.0,  # DPYD*2A; splice donor
+    'c.1679T>G': 0.0,    # DPYD*13; p.I560S
+    'c.2846A>T': 0.5,    # p.D949V
+    'HapB3': 0.5,        # c.1129-5923C>G + c.1236G>A linked
+    # c.85T>C (DPYD*9A) is NOT in CPIC 2024 actionable set; evidence does not support clinical decrement
 }
 
 
-def calculate_activity_score(allele1, allele2, gene='CYP2D6'):
-    '''Calculate activity score from diplotype
+def _allele_activity(allele_str, table):
+    '''Look up per-allele activity. Handle xN copy-number suffix correctly.
 
-    Args:
-        allele1, allele2: Star alleles (e.g., '*1', '*4')
-        gene: Gene name for activity table lookup
+    Key footgun: *4xN is clinically silent. *4 has activity 0; 0 * N = 0.
+    Only functional alleles (*1, *2, *35) become UM when amplified.
     '''
-    activity_tables = {
-        'CYP2D6': CYP2D6_ACTIVITY,
-        'CYP2C19': CYP2C19_ACTIVITY,
-        'CYP2C9': CYP2C9_ACTIVITY,
+    if 'x' in allele_str:
+        base, n = allele_str.split('x')
+        copies = int(n) if n.isdigit() else 2  # 'N' usually >=2; assume 2 unless quantified
+        return table.get(base, 1.0) * copies
+    return table.get(allele_str, 1.0)
+
+
+def cyp2d6_phenotype(diplotype):
+    '''CYP2D6 diplotype -> activity score + Caudle 2020 phenotype bin.
+
+    Diplotype string format: '*1/*4' or '*4xN/*10' or '*2xN/*17'
+    '''
+    left, right = diplotype.split('/')
+    left_score = _allele_activity(left, CYP2D6_ACTIVITY)
+    right_score = _allele_activity(right, CYP2D6_ACTIVITY)
+    total = left_score + right_score
+    if total == 0:
+        phenotype = 'Poor Metabolizer'
+    elif total < 1.25:
+        phenotype = 'Intermediate Metabolizer'
+    elif total <= 2.25:
+        phenotype = 'Normal Metabolizer'
+    else:
+        phenotype = 'Ultrarapid Metabolizer'
+    return {'diplotype': diplotype, 'left_activity': left_score,
+            'right_activity': right_score, 'activity_score': total, 'phenotype': phenotype}
+
+
+def cyp2c19_phenotype(diplotype):
+    '''CYP2C19 diplotype -> phenotype. Note RM phenotype bin between NM and UM.'''
+    left, right = diplotype.split('/')
+    total = CYP2C19_ACTIVITY.get(left, 1.0) + CYP2C19_ACTIVITY.get(right, 1.0)
+    if total == 0:
+        phenotype = 'Poor Metabolizer'
+    elif total < 1.5:
+        phenotype = 'Intermediate Metabolizer'
+    elif total <= 2.0:
+        phenotype = 'Normal Metabolizer'
+    elif total <= 2.5:
+        phenotype = 'Rapid Metabolizer'
+    else:
+        phenotype = 'Ultrarapid Metabolizer'
+    return {'diplotype': diplotype, 'activity_score': total, 'phenotype': phenotype}
+
+
+def dpyd_activity(variants):
+    '''CPIC 2024 DPYD gene activity score.
+
+    Sum the two lowest activities across the two alleles.
+    AS 2.0: full dose; AS 1.5: 50% start + TDM; AS 1.0: 50% start + TDM; AS 0: avoid.
+    '''
+    activities = sorted([DPYD_2024_ACTIVITY.get(v, 1.0) for v in variants])
+    gene_as = sum(activities[:2])
+    if gene_as >= 1.99:
+        dose = 'Full dose'
+    elif gene_as >= 1.0:
+        dose = '50% starting dose + therapeutic drug monitoring'
+    else:
+        dose = 'Avoid fluoropyrimidines'
+    return {'variants': variants, 'gene_activity_score': gene_as, 'dosing': dose}
+
+
+def pharmgkb_clinical_annotations(gene_symbol):
+    '''PharmGKB clinical annotations for a gene; PharmGKB level 1A/1B/2A/2B/3/4.'''
+    r = requests.get(f'{PHARMGKB}/data/clinicalAnnotation',
+                     params={'view': 'base', 'location.genes.symbol': gene_symbol},
+                     timeout=30)
+    r.raise_for_status()
+    return r.json().get('data', [])
+
+
+def cpic_guidelines(gene_symbol):
+    '''CPIC guidelines for a gene via PharmGKB API.'''
+    r = requests.get(f'{PHARMGKB}/data/guideline',
+                     params={'view': 'base', 'relatedGenes.symbol': gene_symbol, 'source': 'CPIC'},
+                     timeout=30)
+    r.raise_for_status()
+    return r.json().get('data', [])
+
+
+def hla_pgx_screen(hla_alleles_4field):
+    '''Screen 4-field HLA alleles against established PGx contraindication table.
+
+    Critical: requires 4-field resolution. B*57:01 (abacavir risk) vs B*57:03 (no risk).
+    HLA-B*35:02 (minocycline DILI) vs B*35:01 (TMP-SMX DILI) -- different drugs.
+    '''
+    pgx_alleles = {
+        'B*57:01': {'drug': 'Abacavir', 'reaction': 'HSS', 'population': 'All (5-8% NFE)',
+                    'or': 100, 'cite': 'Mallal 2008 NEJM (PREDICT-1)'},
+        'B*15:02': {'drug': 'Carbamazepine/oxcarbazepine', 'reaction': 'SJS/TEN',
+                    'population': 'Han Chinese, Thai, Malay, Indian', 'or': 2500,
+                    'cite': 'Chung 2004 Nature; FDA black-box 2007'},
+        'A*31:01': {'drug': 'Carbamazepine', 'reaction': 'DRESS/SJS', 'population': 'EUR, Japanese',
+                    'or': 12, 'cite': 'McCormack 2011 NEJM'},
+        'B*58:01': {'drug': 'Allopurinol', 'reaction': 'SJS/TEN', 'population': 'Han Chinese, Korean, Thai',
+                    'or': 580, 'cite': 'Hung 2005 PNAS'},
+        'B*13:01': {'drug': 'Dapsone', 'reaction': 'DDS', 'population': 'Han Chinese, SE Asian',
+                    'cite': 'Zhang 2013 NEJM'},
+        'B*35:02': {'drug': 'Minocycline', 'reaction': 'DILI', 'population': 'All',
+                    'cite': 'Urban 2017; NOT *35:01'},
+        'B*35:01': {'drug': 'TMP-SMX', 'reaction': 'DILI', 'population': 'Mixed',
+                    'cite': 'Li 2021 Hepatology'},
+        'B*14:01': {'drug': 'TMP-SMX', 'reaction': 'DILI', 'population': 'African',
+                    'cite': 'Li 2021'},
+        'B*15:13': {'drug': 'Phenytoin', 'reaction': 'SJS', 'population': 'Malaysian',
+                    'cite': 'Chang 2017'},
     }
-
-    table = activity_tables.get(gene, {})
-    # Default to normal function if allele not in table
-    score1 = table.get(allele1, 1.0)
-    score2 = table.get(allele2, 1.0)
-    return score1 + score2
-
-
-def get_metabolizer_phenotype(activity_score, gene='CYP2D6'):
-    '''Convert activity score to metabolizer phenotype
-
-    Thresholds based on CPIC guidelines for CYP2D6:
-    - PM (Poor Metabolizer): 0
-    - IM (Intermediate Metabolizer): >0 to <=1.25
-    - NM (Normal Metabolizer): >1.25 to <=2.25
-    - UM (Ultrarapid Metabolizer): >2.25 (requires gene duplication)
-    '''
-    if gene == 'CYP2D6':
-        if activity_score == 0:
-            return 'Poor Metabolizer (PM)'
-        elif activity_score <= 1.25:
-            return 'Intermediate Metabolizer (IM)'
-        elif activity_score <= 2.25:
-            return 'Normal Metabolizer (NM)'
-        else:
-            return 'Ultrarapid Metabolizer (UM)'
-
-    elif gene == 'CYP2C19':
-        if activity_score == 0:
-            return 'Poor Metabolizer (PM)'
-        elif activity_score < 1.5:
-            return 'Intermediate Metabolizer (IM)'
-        elif activity_score <= 2.0:
-            return 'Normal Metabolizer (NM)'
-        elif activity_score <= 2.5:
-            return 'Rapid Metabolizer (RM)'
-        else:
-            return 'Ultrarapid Metabolizer (UM)'
-
-    return 'Unknown'
+    matches = []
+    for allele in hla_alleles_4field:
+        normalized = allele.replace('HLA-', '')
+        if normalized in pgx_alleles:
+            matches.append({'allele': allele, **pgx_alleles[normalized]})
+    return matches
 
 
-# Example: Interpret CYP2D6 diplotype
-print('=== CYP2D6 Metabolizer Status ===')
-diplotypes = [
-    ('*1', '*1'),   # Normal/Normal
-    ('*1', '*4'),   # Normal/No function
-    ('*4', '*4'),   # No function/No function (PM)
-    ('*1', '*10'),  # Normal/Decreased
-    ('*1', '*41'),  # Normal/Decreased
-]
+if __name__ == '__main__':
+    print('=== CYP2D6 phenotype examples (Caudle 2020) ===')
+    examples = ['*1/*1', '*1/*4', '*4/*4', '*1/*10', '*4xN/*10', '*1xN/*4', '*2xN/*2']
+    for dip in examples:
+        result = cyp2d6_phenotype(dip)
+        print(f"  {dip:20s} AS={result['activity_score']:.2f}  {result['phenotype']}")
 
-for a1, a2 in diplotypes:
-    score = calculate_activity_score(a1, a2, 'CYP2D6')
-    phenotype = get_metabolizer_phenotype(score, 'CYP2D6')
-    print(f'  {a1}/{a2}: Score={score:.2f} -> {phenotype}')
+    print('\n=== DPYD CPIC 2024 ===')
+    case1 = dpyd_activity(['c.1905+1G>A'])  # Heterozygous *2A
+    case2 = dpyd_activity(['c.2846A>T', 'c.2846A>T'])  # Homozygous p.D949V
+    print(f"  Het *2A: AS={case1['gene_activity_score']}, dosing: {case1['dosing']}")
+    print(f"  Hom D949V: AS={case2['gene_activity_score']}, dosing: {case2['dosing']}")
 
-print()
+    print('\n=== HLA PGx screen example ===')
+    hits = hla_pgx_screen(['HLA-B*57:01', 'HLA-A*02:01', 'HLA-B*15:02'])
+    for h in hits:
+        print(f"  {h['allele']}: {h['drug']} -- {h['reaction']} ({h.get('or', '?')}x OR; {h['cite']})")
 
-# Query PharmGKB for CYP2D6 drug interactions
-print('=== CYP2D6 Drug Annotations (top 5) ===')
-annotations = get_pharmgkb_annotations('CYP2D6')
-for ann in annotations[:5]:
-    gene = ann['location']['genes'][0]['symbol'] if ann.get('location', {}).get('genes') else 'N/A'
-    drug = ann['chemicals'][0]['name'] if ann.get('chemicals') else 'N/A'
-    level = ann.get('levelOfEvidence', 'N/A')
-    print(f'  {gene} + {drug}: Level {level}')
-
-time.sleep(0.5)  # Rate limit courtesy
-
-# Get CPIC guidelines
-print()
-print('=== CPIC Guidelines for CYP2D6 ===')
-guidelines = get_cpic_guidelines('CYP2D6')
-for g in guidelines[:5]:
-    name = g.get('name', 'N/A')
-    drug = g['chemicals'][0]['name'] if g.get('chemicals') else 'N/A'
-    print(f'  {name}')
+    print('\n=== PharmGKB clinical annotations for CYP2D6 (first 5) ===')
+    annotations = pharmgkb_clinical_annotations('CYP2D6')
+    for ann in annotations[:5]:
+        drug = ann['chemicals'][0]['name'] if ann.get('chemicals') else '?'
+        level = ann.get('levelOfEvidence', '?')
+        print(f"  CYP2D6 + {drug}: Level {level}")

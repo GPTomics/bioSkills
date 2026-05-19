@@ -37,7 +37,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | smrna-pipeline | Small RNA-seq from FASTQ to differential miRNAs |
 | riboseq-pipeline | Ribo-seq from FASTQ to translation efficiency |
 | merip-pipeline | MeRIP-seq from FASTQ to m6A peaks |
-| clip-pipeline | CLIP-seq from FASTQ to binding sites and motifs |
+| clip-pipeline | CLIP-seq (eCLIP/iCLIP/iCLIP2/iCLIP3/irCLIP/PAR-CLIP) from FASTQ to ENCODE-stringent binding sites (log2 FC >= 3 AND -log10 p >= 3), single-nt crosslink maps, ChIPseeker annotation, motif registration (HOMER + mCross), with optional DEWSeq differential binding |
 | neoantigen-pipeline | Somatic variants to ranked vaccine candidates |
 | outbreak-pipeline | Pathogen isolates to transmission networks |
 | crispr-editing-pipeline | Target to CRISPR constructs with branching strategies |
@@ -50,7 +50,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | causal-genomics-pipeline | GWAS summary statistics to triangulated causal inference via MR (with CHP-aware sensitivity), colocalization, fine-mapping, mediation, TWAS, cis-pQTL drug-target MR, effector-gene prioritization, heritability partitioning, genetic correlation, and GenomicSEM common-factor GWAS |
 | timecourse-pipeline | Expression matrix to temporal patterns via Mfuzz clustering, rhythm detection, and GAM fitting |
 | edna-pipeline | eDNA amplicons to community ecology via OBITools3/DADA2, iNEXT, and vegan |
-| clinical-trial-pipeline | CDISC data to statistical analysis with logistic regression, subgroup tests, and Table 1 |
+| clinical-trial-pipeline | CDISC data to ICH E9(R1) estimand-driven analysis: FDA 2023 marginal-vs-conditional logistic, MMRM/reference-based MI, modern HTE subgroup methods, graphical multiplicity, survival, CONSORT 2025 reporting |
 
 ## Example Prompts
 

@@ -81,5 +81,17 @@ Tell your AI agent what you want to do:
 - **Expression data improves ranking**: Include tumor RNA-seq TPM when available
 - **Use multiple algorithms**: MHCflurry + NetMHCpan gives more robust predictions
 - **Consider Class II**: CD4+ T cell help improves vaccine efficacy
-- **Clonal mutations first**: Prioritize high-VAF variants for broader tumor coverage
-- **Validate HLA typing**: Clinical-grade HLA typing is more reliable than computational
+- **Clonal mutations first**: Prioritize high-VAF variants for broader tumor coverage; clonal neoantigen burden (McGranahan 2016) predicts ICI response better than total
+- **Validate HLA typing**: Clinical-grade HLA typing is more reliable than computational; T1K (Song 2023 *Genome Res*) is the 2024-2026 all-rounder for class I + II + KIR from short read
+- **Check HLA-LOH**: LOHHLA (Marty 2017) or DASH (Montesion 2021); somatic loss of HLA abolishes neoantigen presentation in ~17% of pan-cancer (>30% HNSCC / NSCLC / cervical); flag and exclude lost-allele predictions
+- **Pair with TMB / MSI**: TMB-H pan-tumor (Vega 2021 panel-calibrated) and MSI-H / dMMR (KEYNOTE-016/164/158) are co-biomarkers; MSI-H supersedes TMB-H per Sha 2020
+
+## Related Skills
+
+- immunoinformatics/mhc-binding-prediction - MHCflurry parameters
+- immunoinformatics/neoantigen-prediction - pVACtools details
+- immunoinformatics/immunogenicity-scoring - Ranking algorithms
+- clinical-databases/hla-typing - HLA typing + HLA-LOH detection
+- clinical-databases/tumor-mutational-burden - TMB-H ICI biomarker
+- clinical-databases/msi-detection - MSI-H / dMMR ICI biomarker
+- clinical-databases/somatic-signatures - Mutational mechanism context

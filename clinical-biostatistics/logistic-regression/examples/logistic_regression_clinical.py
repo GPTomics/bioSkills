@@ -70,3 +70,42 @@ max_se = model.bse.max()
 if max_coef > 10 or max_se > 100:
     print(f'\nWARNING: Large coefficient ({max_coef:.1f}) or SE ({max_se:.1f}) detected.')
     print('Possible separation -- consider Firth penalized regression.')
+
+# === Marginal RD via g-computation (FDA 2023 primary estimand for binary) ===
+# The conditional OR above is from the model; for FDA 2023 primary reporting,
+# compute the marginal RD by standardising over the observed covariate distribution.
+df_active = df.assign(ARM='Active')
+df_placebo = df.assign(ARM='Placebo')
+p_active = model.predict(df_active).mean()
+p_placebo = model.predict(df_placebo).mean()
+marginal_rd = p_active - p_placebo
+marginal_rr = p_active / p_placebo
+marginal_or = (p_active / (1 - p_active)) / (p_placebo / (1 - p_placebo))
+
+print(f'\n=== Marginal Effects via G-Computation (FDA 2023 primary) ===')
+print(f'Marginal P(outcome | Active)  = {p_active:.4f}')
+print(f'Marginal P(outcome | Placebo) = {p_placebo:.4f}')
+print(f'Marginal Risk Difference (RD): {marginal_rd:.4f}')
+print(f'Marginal Risk Ratio (RR): {marginal_rr:.3f}')
+print(f'Marginal Odds Ratio (OR): {marginal_or:.3f}')
+print('(Marginal RD is the FDA 2023 primary estimand; conditional OR above is supportive.')
+print(' For SE: use bootstrap or marginaleffects::avg_comparisons in R with HC3.)')
+
+# Bootstrap SE for marginal RD
+n_boot = 500
+boot_rds = np.zeros(n_boot)
+rng = np.random.default_rng(42)
+for b in range(n_boot):
+    idx = rng.choice(len(df), size=len(df), replace=True)
+    df_b = df.iloc[idx]
+    fit_b = smf.logit(
+        'outcome ~ C(ARM, Treatment(reference="Placebo")) + age + C(sex)',
+        data=df_b
+    ).fit(disp=0)
+    p1 = fit_b.predict(df_b.assign(ARM='Active')).mean()
+    p0 = fit_b.predict(df_b.assign(ARM='Placebo')).mean()
+    boot_rds[b] = p1 - p0
+se_marg_rd = boot_rds.std(ddof=1)
+ci_marg_rd = (marginal_rd - 1.96*se_marg_rd, marginal_rd + 1.96*se_marg_rd)
+print(f'\nBootstrap SE for marginal RD: {se_marg_rd:.4f}')
+print(f'95% CI for marginal RD: ({ci_marg_rd[0]:.4f}, {ci_marg_rd[1]:.4f})')

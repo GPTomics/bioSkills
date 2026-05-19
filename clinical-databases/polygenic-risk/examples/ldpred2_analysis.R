@@ -1,129 +1,114 @@
-# Reference: LDpred2 1.14+, PRSice-2 2.3+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
+# Reference: bigsnpr 1.12+, R 4.3+ | Verify snp_ldpred2_auto signature if version differs
+# LDpred2-auto PRS construction with sample-overlap detection, LD-mismatch QC,
+# and ancestry-conditional Z normalization.
+# Pin allow_jump_sign=FALSE and shrink_corr=0.95 per Prive 2022 misspecification paper.
+
 library(bigsnpr)
 library(data.table)
 
-# --- LDpred2 PRS Calculation ---
-# LDpred2 uses Bayesian shrinkage for more accurate PRS
-# Recommended: LDpred2-auto for automatic hyperparameter tuning
+run_ldpred2_auto <- function(target_rds, sumstats_path, ld_ref_path, n_cores = 8,
+                              hapmap3_only = TRUE) {
+    # 1. Load target genotypes (bigSNP object from snp_readBed)
+    obj <- snp_attach(target_rds)
+    G <- obj$genotypes
+    map <- obj$map
+    setnames(map, c("chr", "rsid", "genetic.dist", "pos", "a1", "a0"))
 
-# --- ALTERNATIVE: Use real data ---
-# Download example genotypes from UK Biobank or 1000 Genomes
-# Download GWAS from GWAS Catalog
+    # 2. Load GWAS summary statistics
+    sumstats <- fread(sumstats_path)
+    # Required columns: chr, pos, a0 (ref/non-effect), a1 (effect), beta, beta_se, n_eff, p
 
-# Step 1: Convert plink to bigSNP format (one-time)
-# snp_readBed('genotypes.bed')
-# obj.bigsnp <- snp_attach('genotypes.rds')
+    # 3. Restrict to HapMap3 if using PRS-CS/LDpred2 default reference (recommended for stability)
+    if (hapmap3_only) {
+        hm3 <- fread("https://github.com/privefl/bigsnpr/raw/master/data-raw/hm3.csv")
+        sumstats <- sumstats[rsid %in% hm3$rsid]
+    }
 
-# For demonstration, simulate data
-set.seed(42)
-n <- 1000   # samples
-m <- 10000  # SNPs
+    # 4. Match variants strand-aware (handles A/T C/G ambiguity by allele frequency)
+    df_beta <- snp_match(sumstats, map, strand_flip = TRUE, join_by_pos = FALSE)
+    message("Matched ", nrow(df_beta), " variants from ", nrow(sumstats), " sumstats")
 
-message('Simulating genotype data for demonstration...')
-G_sim <- matrix(sample(0:2, n * m, replace = TRUE, prob = c(0.25, 0.5, 0.25)), n, m)
-map_sim <- data.frame(
-    chr = rep(1:22, length.out = m),
-    pos = cumsum(sample(1000:5000, m, replace = TRUE)),
-    rsid = paste0('rs', 1:m),
-    a0 = sample(c('A', 'C', 'G', 'T'), m, replace = TRUE),
-    a1 = sample(c('A', 'C', 'G', 'T'), m, replace = TRUE)
-)
+    # 5. Load LD correlation matrix
+    # Prefer UKB-LD (~40k samples) over 1KG-EUR (~489); larger ref reduces s misspecification
+    corr_full <- readRDS(ld_ref_path)  # output of snp_cor or precomputed UKB LD
+    corr <- corr_full[df_beta$`_NUM_ID_`, df_beta$`_NUM_ID_`]
 
-# Simulate GWAS summary stats
-# True betas for 1% of SNPs (causal)
-true_beta <- rep(0, m)
-causal <- sample(m, m * 0.01)
-true_beta[causal] <- rnorm(length(causal), 0, 0.1)
+    # 6. LDSC heritability + LD-mismatch diagnostic
+    ldsc_res <- snp_ldsc2(corr, df_beta)
+    h2_est <- ldsc_res[["h2"]]
+    s_est <- ldsc_res[["int"]]  # LD-mismatch / intercept; large => sample overlap
+    message(sprintf("LDSC h2 = %.3f; intercept (s) = %.3f", h2_est, s_est))
+    if (s_est > 0.05) {
+        warning("LDSC intercept > 0.05 -- possible sample overlap or LD mismatch. ",
+                "Run EraSOR or bivariate LDSC for confirmation.")
+    }
 
-# Simulated phenotype (h2 ~ 0.5)
-pheno <- G_sim %*% true_beta + rnorm(n, 0, sqrt(0.5))
-pheno_binary <- ifelse(pheno > median(pheno), 1, 0)
+    # 7. LDpred2-auto with multiple chains
+    # CRITICAL: allow_jump_sign = FALSE and shrink_corr = 0.95 per Prive 2022
+    multi_auto <- snp_ldpred2_auto(
+        corr, df_beta,
+        h2_init = h2_est,
+        vec_p_init = seq_log(1e-4, 0.2, 30),
+        burn_in = 500, num_iter = 200,
+        allow_jump_sign = FALSE,   # required
+        shrink_corr = 0.95,        # required
+        ncores = n_cores
+    )
 
-# GWAS (simplified)
-gwas_beta <- sapply(1:m, function(j) {
-    coef(lm(pheno ~ G_sim[, j]))[2]
-})
-gwas_se <- sapply(1:m, function(j) {
-    summary(lm(pheno ~ G_sim[, j]))$coef[2, 2]
-})
-gwas_p <- 2 * pnorm(-abs(gwas_beta / gwas_se))
+    # 8. Filter divergent chains (Prive 2022 quality filter)
+    range_auto <- sapply(multi_auto, function(x) diff(range(x$corr_est)))
+    keep <- range_auto > (0.95 * quantile(range_auto, 0.95, na.rm = TRUE))
+    message("Keeping ", sum(keep), " / ", length(keep), " chains after convergence filter")
 
-sumstats <- data.frame(
-    rsid = map_sim$rsid,
-    chr = map_sim$chr,
-    pos = map_sim$pos,
-    a0 = map_sim$a0,
-    a1 = map_sim$a1,
-    beta = gwas_beta,
-    beta_se = gwas_se,
-    p = gwas_p,
-    n_eff = n
-)
+    beta_auto <- sapply(multi_auto[keep], function(x) x$beta_est)
+    beta_final <- rowMeans(beta_auto)
 
-message('Simulated GWAS with ', sum(gwas_p < 5e-8), ' genome-wide significant SNPs')
+    # 9. Score
+    prs <- big_prodMat(G, beta_final, ind.col = df_beta$`_NUM_ID_`)
 
-# --- LDpred2-auto (Recommended) ---
-# In practice, use real genotype data and compute LD from reference panel
-message('\nFor real data, LDpred2 workflow:')
-cat('
-# 1. Load genotypes
-obj.bigsnp <- snp_attach("genotypes.rds")
-G <- obj.bigsnp$genotypes
-map <- obj.bigsnp$map
+    list(prs = prs, beta = beta_final, h2 = h2_est, s = s_est, n_chains = sum(keep))
+}
 
-# 2. Match GWAS to genotypes
-df_beta <- snp_match(sumstats, map, strand_flip = TRUE)
 
-# 3. Compute LD correlation matrix
-corr <- snp_cor(G, ind.col = df_beta$`_NUM_ID_`)
+ancestry_conditional_z <- function(prs, pcs, n_pcs = 10) {
+    # Recalibrate PRS by removing ancestry effects (Sun 2021; Ding 2023 continuous-ancestry)
+    # IMPORTANT: PCs must be computed in the TEST cohort, NOT discovery cohort
+    pc_design <- cbind(intercept = 1, pcs[, 1:n_pcs])
+    mean_fit <- lm.fit(pc_design, prs)
+    residuals <- prs - mean_fit$fitted.values
 
-# 4. Estimate heritability with LDSC
-ldsc <- snp_ldsc2(corr, df_beta)
-h2_est <- ldsc[["h2"]]
+    # Variance also varies by PC (Sun 2021)
+    log_var_fit <- lm.fit(pc_design, log(residuals^2 + 1e-12))
+    sd_est <- sqrt(exp(log_var_fit$fitted.values))
 
-# 5. Run LDpred2-auto
-multi_auto <- snp_ldpred2_auto(
-    corr,
-    df_beta,
-    h2_init = h2_est,
-    vec_p_init = seq_log(1e-4, 0.2, 30),
-    ncores = 4
-)
+    z <- residuals / sd_est
+    list(z = z, percentile = pnorm(z) * 100)
+}
 
-# 6. Get posterior betas
-beta_auto <- sapply(multi_auto, function(x) x$beta_est)
 
-# 7. Compute PRS
-prs <- big_prodMat(G, beta_auto)
+sample_overlap_check_command <- function() {
+    # EraSOR / bivariate LDSC intercept for sample-overlap detection
+    cat("# Bivariate LDSC intercept (required before any PRS evaluation):\n")
+    cat("ldsc.py \\\n")
+    cat("    --rg target_sumstats.sumstats.gz,discovery_sumstats.sumstats.gz \\\n")
+    cat("    --ref-ld-chr eur_w_ld_chr/ \\\n")
+    cat("    --w-ld-chr eur_w_ld_chr/ \\\n")
+    cat("    --out overlap_check\n\n")
+    cat("# In the *.log, inspect 'gcov_int' (genetic-covariance intercept).\n")
+    cat("# |gcov_int| > 0.05 with target n >= 1000 indicates substantial overlap.\n")
+    cat("# Reject PRS evaluation if confirmed; use disjoint test set.\n")
+}
 
-# 8. Evaluate (if phenotype available)
-library(pROC)
-auc(pheno_binary ~ prs[, 1])
-')
 
-# Simple PRS for demonstration
-message('\nSimple PRS (weighted sum):')
-
-# Clump by selecting top SNPs with low p-value
-# In practice use proper LD clumping
-sig_idx <- which(sumstats$p < 0.01)
-message('Using ', length(sig_idx), ' SNPs with p < 0.01')
-
-# Calculate PRS as weighted sum
-prs_simple <- G_sim[, sig_idx] %*% sumstats$beta[sig_idx]
-
-# Normalize to Z-scores
-prs_z <- scale(prs_simple)[, 1]
-
-# Correlation with true phenotype
-cor_with_pheno <- cor(prs_z, pheno)
-message('Correlation with phenotype: ', round(cor_with_pheno, 3))
-
-# Risk stratification
-# Standard thresholds: 16th percentile (low), 84th percentile (high)
-risk_category <- cut(prs_z,
-                     breaks = c(-Inf, -1, 1, 2, Inf),
-                     labels = c('Low', 'Average', 'High', 'Very High'))
-table(risk_category)
-
-message('\nPRS analysis complete')
+if (sys.nframe() == 0) {
+    message("LDpred2-auto workflow (production version requires real genotype + sumstats):")
+    message("  result <- run_ldpred2_auto(")
+    message("      target_rds = 'target.rds',")
+    message("      sumstats_path = 'gwas.sumstats',")
+    message("      ld_ref_path = 'ukb_ld_eur.rds',")
+    message("      n_cores = 8)")
+    message("  # Apply ancestry-conditional Z normalization on result$prs using test-cohort PCs")
+    message("  # Report HR per SD + absolute-risk integration; cite Hingorani 2023 BMJ Med caveats")
+    cat("\n--- Sample overlap detection (run BEFORE evaluation) ---\n")
+    sample_overlap_check_command()
+}

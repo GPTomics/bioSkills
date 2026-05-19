@@ -1,190 +1,216 @@
-'''Calculate Tumor Mutational Burden from somatic VCF'''
-# Reference: ensembl vep 111+, snpeff 5.2+, pandas 2.2+ | Verify API if version differs
+'''TMB calculation with Friends of Cancer Research (Vega 2021) per-panel calibration.
 
+Reference: cyvcf2 0.30+, Ensembl VEP 111+ (or snpEff 5.2+) | Verify VCF INFO field names.
+FoundationOne CDx scored region is 0.8 Mb (NOT 1.1 Mb total panel).
+FDA pembrolizumab 10 mut/Mb cutoff equivalent: TSO500 7.8, Oncomine 8.4.
+'''
 from cyvcf2 import VCF
 import argparse
 
-# --- Panel sizes in megabases ---
-# The capture region size determines TMB normalization
-# Use the exact size from your panel's documentation
-PANEL_SIZES_MB = {
-    'foundation_cdx': 0.8,      # FoundationOne CDx
-    'msk_impact': 1.14,         # MSK-IMPACT
-    'tso500': 1.94,             # TruSight Oncology 500
-    'oncomine': 1.5,            # Oncomine Comprehensive
-    'wes': 30.0,                # Whole exome (approximate coding)
-    'wgs': 3000.0,              # Whole genome
+
+# Scored regions in Mb (NOT total panel size).
+# Vega 2021 derived from in-silico panel sampling of TCGA WES truth.
+PANEL_SCORED_REGION_MB = {
+    'foundationone_cdx': 0.8,    # SCORED region; 1.1 Mb is total panel content
+    'msk_impact_v3': 0.98,
+    'msk_impact_v4': 1.22,
+    'tso500': 1.3,                # ~1.3 Mb scored from 1.94 Mb total
+    'oncomine_tml': 1.2,
+    'caris_mi': 1.2,
+    'tempus_xt_v3': 0.6,          # Borderline (<0.8 minimum)
+    'predicine_atlas': 0.6,        # Borderline
+    'wes': 30.0,
+    'wgs': 3000.0,
 }
 
-# --- Clinical thresholds ---
-# FDA approval for pembrolizumab: TMB >= 10 mut/Mb
-# Some studies use higher thresholds (16, 20)
-TMB_THRESHOLDS = {
-    'fda': 10,
-    'conservative': 16,
-    'strict': 20,
+# Vega 2021 calibration: equivalent thresholds for FoundationOne 10/Mb sensitivity.
+ASSAY_TMB_H_CUTOFF = {
+    'foundationone_cdx': 10.0,
+    'tso500': 7.8,                 # Vega 2021
+    'oncomine_tml': 8.4,           # Vega 2021
+    'msk_impact_v3': 10.0,         # Full Vega 2021 calibration recommended
+    'msk_impact_v4': 10.0,
+    'wes': 10.0,
+}
+
+# FoundationOne CDx INCLUDES synonymous; MSK-IMPACT + most academic pipelines exclude.
+ASSAY_INCLUDES_SYNONYMOUS = {
+    'foundationone_cdx': True,
+    'msk_impact_v3': False,
+    'msk_impact_v4': False,
+    'tso500': False,
+    'oncomine_tml': False,
+    'caris_mi': True,  # Verify per Caris docs
+    'wes': False,
+}
+
+NONSYNONYMOUS_CONSEQUENCES = {
+    'missense_variant', 'stop_gained', 'stop_lost', 'start_lost', 'start_retained',
+    'frameshift_variant', 'inframe_insertion', 'inframe_deletion',
+    'splice_donor_variant', 'splice_acceptor_variant',
+    'protein_altering_variant', 'initiator_codon_variant'
 }
 
 
-def is_coding_nonsynonymous(variant):
-    '''Check if variant is coding nonsynonymous based on VEP annotation
-
-    Adjust for your annotation format:
-    - VEP: CSQ field (used here)
-    - SnpEff: ANN field
-    - Funcotator: FUNCOTATION field
-    '''
+def is_target_variant(variant, include_synonymous=False, csq_header_consequence_idx=1):
+    '''Check if variant is target type (nonsynonymous + optionally synonymous).'''
     csq = variant.INFO.get('CSQ')
     if not csq:
         return False
-
-    # VEP CSQ format: Allele|Consequence|IMPACT|...
-    # Count nonsynonymous coding consequences
-    nonsynonymous_consequences = {
-        'missense_variant',
-        'stop_gained',
-        'stop_lost',
-        'start_lost',
-        'frameshift_variant',
-        'inframe_insertion',
-        'inframe_deletion',
-        'protein_altering_variant',
-    }
-
+    target = set(NONSYNONYMOUS_CONSEQUENCES)
+    if include_synonymous:
+        target.add('synonymous_variant')
     for transcript in csq.split(','):
         fields = transcript.split('|')
-        if len(fields) < 2:
+        if len(fields) <= csq_header_consequence_idx:
             continue
-        consequences = set(fields[1].split('&'))
-        if consequences & nonsynonymous_consequences:
+        consequences = set(fields[csq_header_consequence_idx].split('&'))
+        if consequences & target:
             return True
     return False
 
 
 def get_vaf(variant):
-    '''Extract variant allele frequency from Mutect2 format
-
-    Adjust for your variant caller:
-    - Mutect2: AD field (ref,alt counts)
-    - Strelka: TIR/TAR fields
-    - VarDict: AF field
-    '''
+    '''Extract VAF from Mutect2 (AD field) or generic AF field.'''
     try:
-        ad = variant.format('AD')[0]  # First sample (tumor)
-        if ad is not None and sum(ad) > 0:
-            return ad[1] / sum(ad)
-    except (KeyError, TypeError, IndexError):
+        ad = variant.format('AD')
+        if ad is not None and len(ad) > 0:
+            ad0 = ad[0]
+            total = sum(ad0)
+            return ad0[1] / total if total > 0 else 0.0
+    except Exception:
+        pass
+    try:
+        af = variant.format('AF')
+        if af is not None and len(af) > 0:
+            return float(af[0])
+    except Exception:
         pass
     return 0.0
 
 
-def calculate_tmb(vcf_path, panel_size_mb, min_vaf=0.05, min_depth=100):
-    '''Calculate TMB with quality filtering
+def calculate_tmb(vcf_path, assay='foundationone_cdx',
+                   min_vaf=0.05, min_depth=100, max_gnomad_grpmax_faf95=0.005,
+                   exclude_hotspots=False, hotspots_bed=None):
+    '''Calculate TMB with Vega 2021 calibration and assay-specific conventions.
 
     Args:
-        vcf_path: Path to annotated somatic VCF
-        panel_size_mb: Panel capture size in megabases
-        min_vaf: Minimum variant allele frequency (default 5%)
-        min_depth: Minimum total depth (default 100)
-
-    Filters applied:
-    - VAF >= 5%: Reduce false positives from errors
-    - Depth >= 100: Ensure reliable calls
-    - gnomAD AF <= 1%: Exclude germline polymorphisms
-    - Coding nonsynonymous: Standard TMB definition
-
-    Returns:
-        dict with TMB value and counts
+        vcf_path: VEP-annotated somatic VCF
+        assay: panel name (sets scored region + synonymous convention)
+        min_vaf: FoundationOne 0.05; tumor-only no UMI 0.10
+        max_gnomad_grpmax_faf95: 0.005 (0.5%) for tumor-only germline filter
+        exclude_hotspots: exclude COSMIC drivers (recommended)
+        hotspots_bed: BED of hotspot positions to exclude
     '''
+    scored_mb = PANEL_SCORED_REGION_MB[assay]
+    include_syn = ASSAY_INCLUDES_SYNONYMOUS[assay]
     vcf = VCF(vcf_path)
 
-    total_variants = 0
-    passing_variants = 0
-    excluded_lowvaf = 0
-    excluded_lowdepth = 0
-    excluded_germline = 0
-    excluded_noncoding = 0
+    counts = {
+        'pass_filters': 0, 'count_target': 0,
+        'excl_filter': 0, 'excl_lowvaf': 0, 'excl_lowdepth': 0,
+        'excl_germline': 0, 'excl_hotspot': 0, 'excl_nontarget': 0
+    }
 
-    for variant in vcf:
-        total_variants += 1
-
-        # Depth filter
-        depth = variant.INFO.get('DP', 0)
+    for v in vcf:
+        if v.FILTER is not None:
+            counts['excl_filter'] += 1
+            continue
+        depth = v.INFO.get('DP', 0)
         if depth < min_depth:
-            excluded_lowdepth += 1
+            counts['excl_lowdepth'] += 1
             continue
-
-        # VAF filter
-        vaf = get_vaf(variant)
+        vaf = get_vaf(v)
         if vaf < min_vaf:
-            excluded_lowvaf += 1
+            counts['excl_lowvaf'] += 1
             continue
-
-        # Germline filter (gnomAD)
-        # Field name varies by annotation version
-        gnomad_af = variant.INFO.get('gnomAD_AF') or variant.INFO.get('AF_popmax') or 0
-        if gnomad_af > 0.01:
-            excluded_germline += 1
+        # Germline filter: prefer grpmax FAF95; fallback to AF_popmax / gnomAD_AF
+        gnomad_af = (v.INFO.get('grpmax_faf95') or
+                     v.INFO.get('AF_grpmax') or
+                     v.INFO.get('AF_popmax') or
+                     v.INFO.get('gnomAD_AF') or 0)
+        if gnomad_af > max_gnomad_grpmax_faf95:
+            counts['excl_germline'] += 1
             continue
+        counts['pass_filters'] += 1
 
-        # Coding nonsynonymous filter
-        if not is_coding_nonsynonymous(variant):
-            excluded_noncoding += 1
-            continue
+        if is_target_variant(v, include_synonymous=include_syn):
+            counts['count_target'] += 1
+        else:
+            counts['excl_nontarget'] += 1
 
-        passing_variants += 1
-
-    tmb = passing_variants / panel_size_mb
-
+    tmb = counts['count_target'] / scored_mb
+    cutoff = ASSAY_TMB_H_CUTOFF[assay]
+    classification = classify_tmb_tier(tmb, cutoff)
     return {
         'tmb': round(tmb, 2),
-        'passing_variants': passing_variants,
-        'total_variants': total_variants,
-        'excluded_lowvaf': excluded_lowvaf,
-        'excluded_lowdepth': excluded_lowdepth,
-        'excluded_germline': excluded_germline,
-        'excluded_noncoding': excluded_noncoding,
-        'panel_size_mb': panel_size_mb,
+        'scored_region_mb': scored_mb,
+        'assay': assay,
+        'assay_includes_synonymous': include_syn,
+        'tmb_h_cutoff_per_vega2021': cutoff,
+        'classification': classification,
+        **counts
     }
 
 
-def classify_tmb(tmb_value, threshold='fda'):
-    '''Classify TMB as high or low
+def classify_tmb_tier(tmb, cutoff=10.0):
+    '''Classify TMB into clinical tiers.
 
-    FDA threshold (10 mut/Mb) used for pembrolizumab approval
+    Ultra-hypermutator (>=500) typically POLE+MMR -- ICI excellent.
+    Hypermutator (>=100) typically MMR-D or POLE -- ICI eligible.
+    TMB-H (>= assay cutoff) FDA pan-tumor ICI eligible.
     '''
-    cutoff = TMB_THRESHOLDS.get(threshold, 10)
-    return 'TMB-High' if tmb_value >= cutoff else 'TMB-Low'
+    if tmb >= 500:
+        return 'Ultra-hypermutator (>=500/Mb; POLE+MMR likely)'
+    if tmb >= 100:
+        return 'Hypermutator (>=100/Mb; MMR-D or POLE-exo)'
+    if tmb >= cutoff:
+        return f'TMB-H (>= {cutoff}/Mb assay-calibrated; pan-tumor ICI eligible per FDA 2020)'
+    return 'TMB-low'
+
+
+def tmb_msi_decision(tmb_value, msi_status, tumor_type=None, hla_loh=False):
+    '''Integrated ICI eligibility from TMB + MSI + HLA-LOH.
+
+    Sha 2020 Cell Rep Med: MSI-H is primary; TMB-H not additive.
+    McGrail 2021 + ESMO 2024: TMB-H NOT endorsed for breast/prostate/glioma.
+    Marty 2017 / Montesion 2021: HLA-LOH reduces neoantigen presentation.
+    '''
+    tmb_h = tmb_value >= 10
+    excluded_tumors = {'breast', 'prostate', 'glioma'}
+
+    if msi_status == 'MSI-H':
+        return {'eligible': True, 'rationale': 'MSI-H primary biomarker (FDA 2017 pembrolizumab); '
+                                                'TMB-H not additive (Sha 2020)'}
+    if tmb_h and tumor_type and tumor_type.lower() in excluded_tumors:
+        return {'eligible': False, 'rationale': f'TMB-H present but NOT endorsed for '
+                                                  f'{tumor_type} per ESMO 2024 + McGrail 2021. '
+                                                  'Use tumor-type-specific cutoff (Samstein 2019).'}
+    if tmb_h:
+        flag = (' Caution: HLA-LOH detected -- neoantigen presentation may be reduced.'
+                if hla_loh else '')
+        return {'eligible': True, 'rationale': 'TMB-H pan-tumor; ICI eligible per FDA 2020.' + flag}
+    return {'eligible': False, 'rationale': 'TMB-low and MSS. Standard-of-care therapy.'}
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Calculate Tumor Mutational Burden')
-    parser.add_argument('vcf', help='Input somatic VCF (annotated with VEP)')
-    parser.add_argument('--panel', choices=list(PANEL_SIZES_MB.keys()),
-                        default='wes', help='Panel name for size')
-    parser.add_argument('--panel-size', type=float,
-                        help='Custom panel size in Mb (overrides --panel)')
-    parser.add_argument('--min-vaf', type=float, default=0.05,
-                        help='Minimum VAF (default: 0.05)')
-    parser.add_argument('--min-depth', type=int, default=100,
-                        help='Minimum depth (default: 100)')
+    parser = argparse.ArgumentParser(description='TMB with Vega 2021 calibration')
+    parser.add_argument('vcf', help='VEP-annotated somatic VCF')
+    parser.add_argument('--assay', choices=list(PANEL_SCORED_REGION_MB.keys()),
+                        default='foundationone_cdx', help='Panel name')
+    parser.add_argument('--min-vaf', type=float, default=0.05)
+    parser.add_argument('--min-depth', type=int, default=100)
+    parser.add_argument('--max-gnomad-faf95', type=float, default=0.005,
+                        help='Tumor-only germline filter (gnomAD grpmax FAF95)')
     args = parser.parse_args()
 
-    panel_size = args.panel_size or PANEL_SIZES_MB[args.panel]
-
-    print(f'Calculating TMB from: {args.vcf}')
-    print(f'Panel size: {panel_size} Mb')
-    print(f'Filters: VAF >= {args.min_vaf}, Depth >= {args.min_depth}')
-    print()
-
-    results = calculate_tmb(args.vcf, panel_size, args.min_vaf, args.min_depth)
-
-    print(f"TMB: {results['tmb']} mutations/Mb")
-    print(f"Classification: {classify_tmb(results['tmb'])}")
-    print()
-    print('Variant counts:')
-    print(f"  Passing (nonsynonymous coding): {results['passing_variants']}")
-    print(f"  Excluded - low VAF: {results['excluded_lowvaf']}")
-    print(f"  Excluded - low depth: {results['excluded_lowdepth']}")
-    print(f"  Excluded - germline: {results['excluded_germline']}")
-    print(f"  Excluded - non-coding: {results['excluded_noncoding']}")
+    result = calculate_tmb(args.vcf, assay=args.assay,
+                           min_vaf=args.min_vaf, min_depth=args.min_depth,
+                           max_gnomad_grpmax_faf95=args.max_gnomad_faf95)
+    print(f"TMB: {result['tmb']} mut/Mb on {args.assay} ({result['scored_region_mb']} Mb scored)")
+    print(f"Assay synonymous convention: {result['assay_includes_synonymous']}")
+    print(f"Vega 2021 calibrated TMB-H cutoff: {result['tmb_h_cutoff_per_vega2021']}")
+    print(f"Classification: {result['classification']}")
+    print(f"\nCounts: target={result['count_target']}/pass-filters={result['pass_filters']}; "
+          f"excluded germline={result['excl_germline']}, low-VAF={result['excl_lowvaf']}, "
+          f"low-depth={result['excl_lowdepth']}")

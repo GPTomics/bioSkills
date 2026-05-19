@@ -2,71 +2,106 @@
 
 ## Overview
 
-Performs stratified and subgroup analyses for clinical trial data. Covers Mantel-Haenszel pooling across strata, Breslow-Day homogeneity testing, interaction terms in logistic regression, multiple comparisons correction, and forest plot visualization of subgroup effects.
+Performs subgroup and heterogeneous treatment effect (HTE) analyses for clinical trials with explicit distinction between confirmatory ("assessment") subgroups eligible for label claims (EMA 2019) and discovery/exploratory subgroups. Covers Mantel-Haenszel pooling with Simpson's-paradox detection, interaction tests, RERI for additive interaction, Gail-Simon qualitative interaction test, modern data-adaptive HTE methods (STEPP, SIDES, causal forests, X/R-learners), Bayesian shrinkage (Dixon-Simon, EXNEX), and graphical multiplicity (Bretz-Maurer via gMCP).
 
 ## Prerequisites
 
 ```bash
-pip install statsmodels scipy numpy pandas matplotlib
+pip install statsmodels scipy numpy pandas matplotlib scikit-learn
+```
+
+R is recommended for modern HTE methods (most are R-only):
+
+```r
+install.packages(c('grf', 'policytree', 'causalToolbox', 'personalized',
+                   'SIDES', 'stepp', 'quint', 'partykit', 'gMCP', 'RBesT', 'brms'))
+```
+
+Python alternatives for HTE:
+
+```bash
+pip install econml causalml dowhy
 ```
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Test whether the treatment effect differs by age group using an interaction term"
-- "Run a Mantel-Haenszel stratified analysis across study sites"
-- "Create a forest plot showing treatment effects in each subgroup"
-- "Apply multiplicity correction to my subgroup p-values"
+- "Single model with treatment-by-subgroup interaction (NOT comparing per-subgroup p-values)"
+- "Mantel-Haenszel pooled OR + Breslow-Day + forest plot to detect Simpson's paradox"
+- "Causal forest in grf with honest splitting + RATE/AUTOC test (Yadlowsky 2025)"
+- "STEPP sliding-window analysis for continuous biomarker subgroups"
+- "Bayesian shrinkage via Dixon-Simon for adjusted subgroup estimates"
+- "Graphical multiplicity in gMCP allocating alpha across primary + key secondary + pre-specified subgroup"
 
 ## Example Prompts
 
-### Stratified Analysis
+### Interaction tests (the correct way)
 
-> "I have a clinical trial dataset with treatment arm, outcome, and study site. Run a Mantel-Haenszel analysis to get the pooled odds ratio across sites and test whether the OR is consistent across strata with Breslow-Day."
+> "Fit a single logistic regression with treatment * age_group interaction. Test interaction p-value as the formal evidence for HTE. Do NOT compare per-subgroup p-values (statistically invalid)."
 
-> "Compute the Mantel-Haenszel pooled odds ratio for treatment vs placebo, stratified by disease severity. Include 95% confidence intervals."
+> "Compute RERI for additive interaction on the treatment-by-sex effect. Delta-method or bootstrap CI for RERI."
 
-### Interaction Testing
+### Stratified analysis
 
-> "Fit a logistic regression with treatment, age group, and their interaction to test whether the treatment effect is modified by age. Extract subgroup-specific odds ratios."
+> "Run MH pooled OR + Breslow-Day across study sites. Forest plot stratum-specific ORs to detect Simpson's paradox."
 
-> "Test for both multiplicative and additive interaction between treatment and sex. Report RERI for the additive interaction."
+### Modern HTE
 
-### Forest Plots
+> "Causal forest in grf for HTE on response with patient features X. Use honesty=TRUE; report calibration test result and RATE/AUTOC omnibus p (Yadlowsky 2025). Bias-correct estimates via grf's variable_importance + cross-fitting."
 
-> "Create a forest plot showing the treatment odds ratio and 95% CI for each pre-specified subgroup: age (<65, 65+), sex, race, baseline severity, and region."
+> "STEPP sliding-window analysis for continuous biomarker (HbA1c). Use permutation supremum test for pattern flatness -- not naive pointwise CIs."
 
-> "Generate a subgroup forest plot with the overall pooled estimate shown as a reference line."
+> "SIDES recursive partitioning with permutation-adjusted base-vs-complement p (Lipkovich 2011) for subgroup discovery."
 
-### Regulatory Considerations
+### Bayesian shrinkage
 
-> "I have 8 pre-specified subgroups. Apply Holm correction to the subgroup-specific p-values and flag which remain significant after adjustment."
+> "Apply Dixon-Simon Bayesian shrinkage to my forest of subgroup effects. Centre tau prior at HalfNormal(0, 0.25). Report posterior shrunken estimates."
 
-> "Assess whether my subgroup findings meet EMA credibility criteria: pre-specified, significant interaction, consistent across endpoints."
+> "EXNEX basket trial with 5 strata; 0.5 EX / 0.5 NEX mixture per Neuenschwander 2016. Sensitivity over weights 0.1-0.9."
+
+### Multiplicity
+
+> "Pre-specified 6 subgroups in confirmatory trial. Allocate 20% of primary alpha to subgroup family (Dane et al 2019 EFSPI recommendation). Implement as gMCP graph with weighted alpha propagation."
+
+### Forest plot
+
+> "Generate forest plot of subgroup ORs (sex, age, race, severity, region) with overall pooled estimate as reference. Log scale; CI shown."
 
 ## What the Agent Will Do
 
-1. Load and inspect the clinical dataset for treatment, outcome, and subgroup variables
-2. Construct per-stratum 2x2 contingency tables for stratified analysis
-3. Compute the Mantel-Haenszel pooled odds ratio with confidence intervals
-4. Run the Breslow-Day test for homogeneity of odds ratios across strata
-5. Fit a logistic model with interaction terms to formally test effect modification
-6. Apply multiplicity correction (Holm or Benjamini-Hochberg) to subgroup p-values
-7. Generate a forest plot visualizing subgroup-specific effects with the overall estimate
+1. Distinguish pre-specified ("assessment") vs discovery ("exploratory") subgroups per EMA 2019
+2. Fit single model with interaction term (NOT separate per-subgroup models with p-value comparison)
+3. For stratified designs, include strata in CMH or logistic regression
+4. For continuous biomarkers, use STEPP (sliding-window) with permutation supremum test
+5. For data-adaptive HTE, use causal forests with honest splitting + RATE/AUTOC + bias-correction
+6. For basket trials or borrowing, EXNEX or robust MAP with sensitivity over mixture weights
+7. Apply graphical multiplicity per Bretz-Maurer 2009 with pre-specified alpha allocation
+8. Forest plot stratum/subgroup-specific ORs as the primary visual
 
 ## Tips
 
-- Always use an interaction term in a single model to test for subgroup effects. Comparing p-values from separate per-subgroup models is statistically invalid because the models have different power.
-- Pre-specify subgroups in your statistical analysis plan before unblinding. Post-hoc subgroup analyses are hypothesis-generating only and carry minimal regulatory weight.
-- The Breslow-Day test has low power with few strata. A non-significant result does not prove homogeneity. Always supplement with a forest plot for visual assessment.
-- For regulatory submissions, apply FWER correction (Holm) to confirmatory subgroup analyses. FDR correction (Benjamini-Hochberg) is appropriate for exploratory screening.
-- Report subgroup-specific odds ratios with confidence intervals, not just p-values. The CI width conveys the precision of the estimate in each subgroup.
-- When reporting RERI for additive interaction, note that null multiplicative interaction does not imply null additive interaction. The choice depends on whether the research question concerns relative or absolute risk.
+- **Senn's foundational point** (Senn 2018 *Nature* 563:619): observed between-patient response variation is NOT evidence of patient-level HTE. Don't conflate noise with heterogeneity.
+- **Brookes 2004 4x penalty:** detecting a treatment-by-subgroup interaction requires ~4x the n for the main effect of similar magnitude. Most non-significant interaction tests are underpowered, not null.
+- **Comparing per-subgroup p-values is statistically invalid.** Separate models have different power; p differences confound effect size with sample size. ALWAYS use a single model with interaction term.
+- **Breslow-Day with k=3 strata has ~40% power.** Non-significance does NOT prove homogeneity. Supplement with forest plot AND LR interaction test from logistic regression.
+- **CMH pooled OR can mask Simpson's paradox.** Always plot stratum-specific ORs.
+- **EMA 2019 guideline** distinguishes "assessment subgroups" (pre-specified, regulatory weight) from "discovery subgroups" (hypothesis-generating only). Interaction tests are "neither necessary nor sufficient" for credibility.
+- **Causal forests:** honest splitting (`honesty=TRUE`) is mandatory for valid CIs. Run `test_calibration()` AND `rate_omnibus()` for diagnostics. Rehill 2025 audit found ~70% of applied papers skip these.
+- **STEPP with naive pointwise CIs is wrong** -- overlapping windows give correlated estimates. Use permutation supremum test.
+- **Bayesian shrinkage (Hemmings-Koch 2019):** appropriate for replication PLANNING, not signal GENERATION. Shrinkage pre-emptively damps the heterogeneity being searched for.
+- **EXNEX default 0.5/0.5 weights** allows substantial borrowing; sensitivity over weights essential.
+- **Yadlowsky RATE/AUTOC 2025** single-p test: whether CATE ranking has predictive (not just prognostic) value. Should replace `test_calibration` as primary HTE omnibus check.
+- **Sun et al 2012 BMJ 11 credibility criteria** is the canonical academic framework: pre-specified + significant interaction + biological plausibility + consistency across endpoints + replication.
+- **Winner's curse (Sun 2010):** median observed effect in significant subgroups is ~2.4x trial-overall effect. Bayesian shrinkage or honest cross-validation corrects.
+- **Stratified randomisation factors MUST appear in subgroup analyses** (Kahan-Morris 2012). Ignoring inflates Type-I.
 
 ## Related Skills
 
-- clinical-biostatistics/categorical-tests - Chi-square and CMH tests used within strata
-- clinical-biostatistics/effect-measures - OR computation and forest plots
-- clinical-biostatistics/logistic-regression - Interaction terms in regression models
-- clinical-biostatistics/trial-reporting - CONSORT-compliant subgroup reporting
-- experimental-design/multiple-testing - General multiplicity correction methods
+- clinical-biostatistics/categorical-tests - CMH, Breslow-Day
+- clinical-biostatistics/effect-measures - Forest plots and effect estimation
+- clinical-biostatistics/logistic-regression - Interaction terms in regression
+- clinical-biostatistics/multiplicity-graphical - Bretz-Maurer graphs in depth
+- clinical-biostatistics/bayesian-trials - MAP/EXNEX/Berry hierarchical in depth
+- clinical-biostatistics/trial-reporting - CONSORT 2025 + EMA 2019 reporting
+- experimental-design/multiple-testing - General methods
+- machine-learning/biomarker-discovery - HTE for biomarker subgroups

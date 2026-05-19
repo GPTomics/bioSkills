@@ -172,8 +172,8 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **small-rna-seq** | 5 | miRDeep2, miRge3, cutadapt, DESeq2 | miRNA/piRNA analysis, differential expression, target prediction |
 | **ribo-seq** | 5 | Plastid, RiboCode, ORFik, riborex | Ribosome profiling, translation efficiency, ORF detection |
 | **epitranscriptomics** | 5 | exomePeak2, MACS3, m6Anet, Guitar | RNA modifications (m6A), MeRIP-seq, ONT direct RNA |
-| **clip-seq** | 5 | CLIPper, PureCLIP, umi_tools, HOMER | Protein-RNA interactions, crosslink detection, binding site motifs |
-| **clinical-databases** | 10 | myvariant, requests, pandas, SigProfiler | Clinical variant queries, ClinVar/gnomAD, pharmacogenomics, TMB, HLA, PRS, signatures |
+| **clip-seq** | 12 | CLIPper, PureCLIP, Skipper, STAR, umi_tools, HOMER, mCross, PEKA, RBNS, ChIPseeker, RBP-Maps, DEWSeq, miCLIP2 + m6Aboost, GLORI, DART-seq, m6Anet, STAMP, Bullseye, Hyb, chimeric eCLIP / miR-eCLIP, HEAP, RBPNet, RNAProt, GraphProt2, CLAM | Protocol-specific preprocessing (eCLIP 10nt UMI / iCLIP NNNXXXXNN / PAR-CLIP T->C-aware), ENCODE STAR alignment block with CLAM multi-mapper rescue for repeat-binding RBPs, peak calling spanning CLIPper / Skipper (210-320% more sites; beta-binomial GC-stratified) / PureCLIP HMM / Piranha / omniCLIP / CTK CIMS-CITS with ENCODE log2 FC >= 3 + -log10 p >= 3, single-nt crosslink detection (truncation vs deletion vs T->C chemistry), motif analysis with CL-position-registered mCross / PEKA / RBNS Kd validation, ChIPseeker + RBP-Maps splicing regulatory metagene + RepeatMasker axis, comprehensive QC five-gate (preprocessing -> alignment -> complexity -> FRiP -> IDR) per ENCODE, DEWSeq window-level differential with `~ type + condition + type:condition` interaction, m6A profiling (miCLIP2 + m6Aboost / GLORI antibody-free stoichiometric / DART-seq / m6Anet nanopore), STAMP/scSTAMP/TRIBE antibody-free editing-based profiling, AGO-CLIP miRNA targets via chimeric eCLIP / miR-eCLIP / CLEAR-CLIP / HEAP with seed and 3' compensatory pairing, deep learning (RBPNet sequence-to-signal at single-nt / RNAProt / GraphProt2 / DeepCLIP) for variant-effect prediction |
+| **clinical-databases** | 12 | myvariant, requests, cyvcf2, PharmCAT, Cyrius, T1K, OptiType, HLA-LA, SigProfilerAssignment, MSIsensor-pro, LDpred2, PRS-CSx, pgsc_calc, InterVar, GeneBe | ClinVar (VCV/SCV/RCV + ClinGen VCEPs + 2024 XML), dbSNP Build 156 + SPDI, gnomAD v4 grpmax FAF95 + LOEUF, ACMG/AMP with Tavtigian point system + Pejaver 2022 calibration, variant prioritization (DeNovoGear, Exomiser, ACMG SF v3.2), pharmacogenomics (CPIC + DPWG + Caudle 2020 + Cyrius for CYP2D6 SVs), PRS (LDpred2/SBayesRC/PROSPER/MUSSEL + Ding 2023 continuous ancestry + Hingorani 2023 critique), somatic signatures (COSMIC v3.4 + MuSiCal + HRDetect), TMB (Vega 2021 calibration), MSI (MSIsensor-pro + Lynch workflow), HLA typing (T1K class I+II+KIR + StarPhase long-read) |
 | **genome-engineering** | 5 | crisprscan, Cas-OFFinder, PrimeDesign | CRISPR guide design, off-target prediction, prime/base editing, HDR templates |
 | **systems-biology** | 5 | cobrapy, CarveMe, memote | Flux balance analysis, metabolic reconstruction, model curation, gene essentiality |
 | **epidemiological-genomics** | 5 | mlst, TreeTime, TransPhylo, AMRFinderPlus | Pathogen typing, phylodynamics, transmission networks, AMR surveillance |
@@ -186,13 +186,13 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **temporal-genomics** | 5 | CosinorPy, Mfuzz, mgcv, statsmodels, scipy | Circadian rhythms, temporal clustering, trajectory modeling, dynamic GRN inference, periodicity detection |
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
-| **clinical-biostatistics** | 6 | statsmodels, scipy, tableone, pyreadstat | CDISC data handling, logistic regression, categorical tests, effect measures, subgroup analysis, trial reporting |
+| **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 474 skills across 63 categories**
+**Total: 489 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows -- the full collection covers 474 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 489 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

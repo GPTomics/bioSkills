@@ -314,5 +314,8 @@ plt.savefig('neoantigen_summary.pdf')
 - immunoinformatics/neoantigen-prediction - pVACtools details
 - immunoinformatics/immunogenicity-scoring - Ranking algorithms
 - immunoinformatics/epitope-prediction - B-cell epitopes
-- clinical-databases/hla-typing - HLA determination methods
+- clinical-databases/hla-typing - HLA typing (T1K is the 2024-2026 all-rounder; OptiType for class I; arcasHLA for RNA-seq); check HLA-LOH via LOHHLA / DASH which abolishes neoantigen presentation in ~17% pan-cancer (~30%+ HNSCC / NSCLC / cervical)
+- clinical-databases/tumor-mutational-burden - TMB-H pan-tumor ICI biomarker; check before neoantigen-vaccine candidate selection
+- clinical-databases/msi-detection - MSI-H / dMMR pan-tumor ICI biomarker; MSI-H supersedes TMB-H per Sha 2020
+- clinical-databases/somatic-signatures - Clonal neoantigen burden (McGranahan 2016 Science) predicts ICI response better than total TMB
 - workflows/somatic-variant-pipeline - Upstream somatic calling
