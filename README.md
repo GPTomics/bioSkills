@@ -178,7 +178,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **systems-biology** | 5 | cobrapy, CarveMe, memote | Flux balance analysis, metabolic reconstruction, model curation, gene essentiality |
 | **epidemiological-genomics** | 5 | mlst, TreeTime, TransPhylo, AMRFinderPlus | Pathogen typing, phylodynamics, transmission networks, AMR surveillance |
 | **immunoinformatics** | 5 | mhcflurry, pVACtools, BepiPred | MHC binding prediction, neoantigen identification, epitope prediction |
-| **comparative-genomics** | 5 | MCScanX, PAML, OrthoFinder, HyPhy | Synteny analysis, positive selection, ancestral reconstruction, ortholog inference, HGT detection |
+| **comparative-genomics** | 13 | OrthoFinder3, PAML, HyPhy, MCScanX, JCVI, GENESPACE, SyRI, Progressive Cactus, Minigraph-Cactus, PGGB, PGR-TK, wgd v2, KsRates, ALE, GeneRax, AleRax, Dsuite, TreeMix, qpAdm, AdmixTools v2, HGTector v2, AvP, TOGA, CESAR 2.0, LiftOff, CAFE5, Count, Panaroo, PPanGGOLiN, PEPPAN, skani, FastANI, GTDB-Tk | Ancestral state reconstruction (sequence/discrete/continuous, GRASP indel-aware), ortholog inference (OrthoFinder3 HOGs, Quest-for-Orthologs 2025), positive selection (PAML + HyPhy BUSTED-MH/MEME/aBSREL/RELAX, GARD pre-screen, gBGC-aware), synteny (MCScanX/JCVI/GENESPACE/SyRI, WGD-aware), gene-tree-species-tree reconciliation (ALE/GeneRax/AleRax, ALE-rooting), whole-genome alignment (Progressive Cactus/Minigraph-Cactus/LASTZ/AnchorWave), whole-genome duplication dating (wgd v2 + KsRates), pangenome (Panaroo/PPanGGOLiN/PEPPAN bacterial, Minigraph-Cactus/PGGB/PGR-TK eukaryotic), ANI/species delineation (skani + GTDB-Tk r220, 95% ANI + AF >= 0.5), introgression (Dsuite/AdmixTools/TreeMix/QuIBL/HyDe, ILS-aware), gene family evolution (CAFE5/Count/BadiRate), HGT (ALE/GeneRax + HGTector v2/AvP), comparative annotation projection (TOGA + CESAR 2.0, LiftOff) |
 | **genome-annotation** | 6 | Bakta, BRAKER3, eggNOG-mapper, RepeatMasker | Prokaryotic/eukaryotic annotation, functional assignment, repeats, ncRNA, annotation transfer |
 | **gene-regulatory-networks** | 5 | pySCENIC, SCENIC+, WGCNA, CellOracle | Co-expression networks, regulon inference, multiomics GRN, perturbation simulation |
 | **causal-genomics** | 11 | TwoSampleMR, MendelianRandomization, coloc, susieR, CAUSE, LHC-MR, LDSC, LDAK, HDL, LAVA, FUSION, MetaXcan, FOCUS, MAGMA, PoPS, GenomicSEM, MTAG | Mendelian randomization (incl. MVMR, cis-MR drug-target, CHP-aware CAUSE/LHC-MR/LCV), colocalization (coloc.abf/susie, SMR/HEIDI, eCAVIAR, PWCoCo, moloc, HyPrColoc), fine-mapping (SuSiE/SuSiE-inf, FINEMAP, PolyFun, SuSiEx), mediation (CMAverse 4-way, HIMA2 high-D EWAS, MR-mediation), pleiotropy (UHP vs CHP), TWAS with triangulation, heritability partitioning (LDSC/LDAK, baseline-LD, Finucane 2018 cell-type), proteome MR for drug targets (UKB-PPP/deCODE), effector-gene prioritization (L2G/MAGMA/PoPS/cS2G), genetic correlation (LDSC/HDL/LAVA), GenomicSEM common-factor GWAS |
@@ -188,11 +188,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 489 skills across 63 categories**
+**Total: 497 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 489 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 497 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -333,6 +333,20 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 # Phylogenetics & Evolution
 "Build a phylogenetic tree and visualize evolutionary relationships"
 "Find orthologs of my human gene across vertebrate species"
+
+# Comparative Genomics
+"Build a Progressive Cactus alignment of 30 mammal genomes and project annotations across all species with TOGA + CESAR 2.0"
+"Detect introgression between Heliconius species using Dsuite Dtrios + Fbranch and confirm window-level signals with Twisst"
+"Identify whole-genome duplication events in the soybean lineage with wgd v2 + KsRates using multiple outgroups"
+"Test for positive selection on primate immune genes with GARD recombination pre-screen, then BUSTED-MH and MEME with PAML M8 vs M8a cross-validation"
+"Run ALE undated reconciliation across 100 bacterial gene trees and rank species-tree roots; report per-branch HGT counts"
+"Classify 200 MAGs to GTDB-r220 taxonomy with GTDB-Tk + skani, applying the 95% ANI + AF >= 0.5 species threshold"
+"Build a bacterial pangenome of 200 E. coli genomes with Panaroo strict mode and PPanGGOLiN partition, then run Scoary pan-GWAS for antibiotic resistance"
+"Apply PGR-TK to the MHC class II locus across HPRC haplotypes; flag that PANGEA (DGI / Diploid Genomics) is the successor"
+"Find lineage-specific gene-family expansions in cetaceans with CAFE5 and triangulate convergent rate shifts via RERconverge"
+"Reconstruct an ancestral cytochrome c with GRASP for protein resurrection and propose 8 alternative constructs at ambiguous sites"
+"Project gene annotations from GRCh38 to a new primate assembly with TOGA + CESAR 2.0 and report intactness codes"
+"Build a pairwise minimap2 -x asm5 alignment of two Arabidopsis genomes and call structural variants with SyRI + plotsr"
 ```
 
 The agent will select appropriate tools based on context. See the Skill Categories table above for the complete list of available skills.
