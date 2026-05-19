@@ -76,16 +76,18 @@ cd bioSkills
 ./install-codex.sh --uninstall                   # Remove all bio-* skills
 ```
 
-### Gemini CLI
+### Antigravity CLI
+
+Antigravity CLI replaces Gemini CLI (sunset 2026-06-18) and uses the open Agent Skills standard. Global installs land at `~/.gemini/antigravity/skills/`; project installs land at `.agents/skills/`.
 
 ```bash
-./install-gemini.sh                              # Install globally
-./install-gemini.sh --project /path/to/project   # Or install to specific project
-./install-gemini.sh --categories "single-cell,variant-calling"  # Install specific categories
-./install-gemini.sh --list                       # List available skills
-./install-gemini.sh --validate                   # Validate all skills
-./install-gemini.sh --update                     # Only update changed skills
-./install-gemini.sh --uninstall                  # Remove all bio-* skills
+./install-antigravity.sh                              # Install globally
+./install-antigravity.sh --project /path/to/project   # Or install to specific project
+./install-antigravity.sh --categories "single-cell,variant-calling"  # Install specific categories
+./install-antigravity.sh --list                       # List available skills
+./install-antigravity.sh --validate                   # Validate all skills
+./install-antigravity.sh --update                     # Only update changed skills
+./install-antigravity.sh --uninstall                  # Remove all bio-* skills
 ```
 
 ### OpenCode

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Shared functions for bioSkills install scripts
-# Sourced by install-claude.sh, install-codex.sh, install-gemini.sh, install-openclaw.sh
+# Sourced by install-claude.sh, install-codex.sh, install-antigravity.sh, install-openclaw.sh
 #
 # Each installer must define before calling run_installer:
 #   TOOL_NAME           - Display name (e.g., "Claude Code")
