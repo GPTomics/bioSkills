@@ -314,3 +314,6 @@ echo "Pipeline complete. Results in ${OUTDIR}/"
 - copy-number/cnv-visualization - Plotting options
 - copy-number/cnv-annotation - Gene annotations
 - copy-number/gatk-cnv - GATK alternative
+- copy-number/copy-ratio-segmentation - Segmentation algorithm and depth-bias correction
+- copy-number/allele-specific-copy-number - Tumor purity, ploidy, and integer allele-specific CN
+- copy-number/recurrent-cnv - Cohort-level recurrent and driver CNV with GISTIC2

@@ -1,50 +1,71 @@
-#!/bin/bash
-# Reference: GATK 4.5+, bedtools 2.31+ | Verify API if version differs
-# CNV calling with CNVkit
+#!/usr/bin/env bash
+# Reference: CNVkit 0.9.10+, samtools 1.19+ | Verify API if version differs
+#
+# CNVkit tumor-normal CNV calling with a pooled panel of normals.
+# Demonstrates the decision-grade defaults: pooled reference over flat reference,
+# accessible-genome restriction, low-coverage dropout handling, and purity-aware
+# integer calling. Edit the variables below for the local dataset.
 
 set -euo pipefail
 
-TUMOR_BAM=${1:-tumor.bam}
-NORMAL_BAM=${2:-normal.bam}
-TARGETS=${3:-targets.bed}
-REFERENCE=${4:-reference.fa}
-OUTPUT_DIR=${5:-cnvkit_output}
+PANEL_BED=panel.bed                 # capture / target regions
+FASTA=reference.fa                  # same reference used for alignment
+REFFLAT=refFlat.txt                 # gene annotation (optional but recommended)
+NORMAL_GLOB="normals/*.bam"         # process-matched normals for the PoN (>= 5)
+TUMOR_BAM=tumor.bam
+TUMOR_PURITY=0.65                   # from pathology or an allele-specific caller
+OUTDIR=cnvkit_results
+THREADS=8
 
-mkdir -p $OUTPUT_DIR
+mkdir -p "$OUTDIR"
 
-echo "=== CNVkit Analysis ==="
+# Step 1: define the accessible genome once (mappable, non-gap regions).
+# Antitarget bins are drawn only from accessible regions; skipping this inflates noise.
+cnvkit.py access "$FASTA" -o "$OUTDIR/access.bed"
 
-# Build reference from normal
-echo "Building reference..."
-cnvkit.py batch $TUMOR_BAM \
-    --normal $NORMAL_BAM \
-    --targets $TARGETS \
-    --fasta $REFERENCE \
-    --output-reference ${OUTPUT_DIR}/reference.cnn \
-    --output-dir $OUTPUT_DIR
+# Step 2: build a pooled reference from process-matched normals.
+# A pooled PoN averages out per-normal capture noise. A flat reference (no --normal)
+# corrects only GC content and leaves capture bias as recurrent false focal calls.
+cnvkit.py batch --normal $NORMAL_GLOB \
+    --targets "$PANEL_BED" \
+    --annotate "$REFFLAT" \
+    --fasta "$FASTA" \
+    --access "$OUTDIR/access.bed" \
+    --output-reference "$OUTDIR/pooled_reference.cnn" \
+    -p "$THREADS"
 
-# Call CNVs
-echo "Calling CNVs..."
-cnvkit.py call ${OUTPUT_DIR}/*.cns \
-    -o ${OUTPUT_DIR}/calls.cns
+# Step 3: call CNVs on the tumor against the pooled reference.
+# --drop-low-coverage prevents FFPE/low-input zero-coverage bins from being read as
+# homozygous deletions.
+cnvkit.py batch "$TUMOR_BAM" \
+    --reference "$OUTDIR/pooled_reference.cnn" \
+    --output-dir "$OUTDIR" \
+    --drop-low-coverage \
+    --scatter --diagram \
+    -p "$THREADS"
 
-# Generate plots
-echo "Generating plots..."
-cnvkit.py scatter ${OUTPUT_DIR}/*.cnr \
-    -s ${OUTPUT_DIR}/*.cns \
-    -o ${OUTPUT_DIR}/scatter.pdf
+SAMPLE=$(basename "$TUMOR_BAM" .bam)
 
-cnvkit.py diagram ${OUTPUT_DIR}/*.cnr \
-    -s ${OUTPUT_DIR}/*.cns \
-    -o ${OUTPUT_DIR}/diagram.pdf
+# Step 4: re-segment with an explicit method. `batch` already produced a default-CBS
+# .cns; this step overrides it for explicit method control. CBS is precise on focal
+# events; switch to hmm-tumor for impure or heterogeneous tumors where CBS over-fragments.
+cnvkit.py segment "$OUTDIR/${SAMPLE}.cnr" -m cbs --drop-low-coverage \
+    -o "$OUTDIR/${SAMPLE}.cns"
 
-echo "Running quality metrics..."
-SAMPLE=$(basename $TUMOR_BAM .bam)
-cnvkit.py metrics ${OUTPUT_DIR}/${SAMPLE}.cnr -s ${OUTPUT_DIR}/${SAMPLE}.cns
+# Step 5: purity-aware integer calling. The clonal method rescales by purity before
+# rounding; without it an impure tumor's true CN=4 rounds down to CN=2 or 3.
+cnvkit.py call "$OUTDIR/${SAMPLE}.cns" \
+    -m clonal --purity "$TUMOR_PURITY" --ploidy 2 \
+    -o "$OUTDIR/${SAMPLE}.call.cns"
 
-echo "Gene-level report..."
-# 0.2: CNVkit default gain/loss log2 threshold (2^0.2 ~ 15% copy number change)
-cnvkit.py genemetrics ${OUTPUT_DIR}/${SAMPLE}.cnr -s ${OUTPUT_DIR}/${SAMPLE}.cns \
-    --threshold 0.2 -o ${OUTPUT_DIR}/${SAMPLE}.genemetrics.tsv
+# Step 6: QC. MAD < 0.5 is the minimum bar for confident focal calls; > 0.5 is unreliable.
+cnvkit.py metrics "$OUTDIR/${SAMPLE}.cnr" -s "$OUTDIR/${SAMPLE}.cns"
+cnvkit.py sex "$OUTDIR/${SAMPLE}.cnr"
 
-echo "Results in: $OUTPUT_DIR"
+# Step 7: gene-level report with bootstrap confidence intervals.
+cnvkit.py genemetrics "$OUTDIR/${SAMPLE}.cnr" -s "$OUTDIR/${SAMPLE}.cns" \
+    -t 0.2 --ci --bootstrap 100 -o "$OUTDIR/${SAMPLE}.genemetrics.tsv"
+
+echo "Done. Purity-corrected calls: $OUTDIR/${SAMPLE}.call.cns"
+echo "If absolute CN, LOH, or whole-genome-doubling status is needed, escalate to an"
+echo "allele-specific caller (see copy-number/allele-specific-copy-number)."

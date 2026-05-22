@@ -2,268 +2,88 @@
 
 ## Overview
 
-CNV annotation adds biological context to copy number calls by identifying affected genes, pathways, and clinical significance. This is essential for interpreting CNV findings in research and clinical contexts.
+CNV annotation adds biological and clinical context to copy number calls: which genes a
+segment overlaps, whether those genes are dosage-sensitive, whether the CNV is common in
+the population, and whether it carries known cancer drivers. The central principle is
+that overlap is not consequence: a CNV spanning a gene matters only if the gene is
+dosage-sensitive, the affected portion is functionally important, and (for focal events)
+the gene is a driver rather than a passenger. Annotated CNVs feed clinical classification
+(germline-cnv-interpretation) and driver analysis (recurrent-cnv).
 
 ## Prerequisites
 
 ```bash
-conda install -c bioconda annotsv pybedtools
-pip install pandas
+conda install -c bioconda bedtools annotsv
+pip install pybedtools pandas pysam
+# R route: BiocManager::install(c('clusterProfiler', 'org.Hs.eg.db'))
 ```
+
+Inputs: CNV segments (CNVkit `.cns`, a BED, or a VCF); a gene model (GENCODE/RefSeq);
+optionally the ClinGen dosage map, COSMIC Cancer Gene Census, gnomAD-SV/DGV catalogs, and
+a ClinVar VCF. AnnotSV bundles most reference databases on first download.
 
 ## Quick Start
 
-Tell your AI agent what you want to do:
-- "Annotate my CNV segments with overlapping genes and cancer gene flags"
-- "Filter out common CNVs using population frequency data from DGV"
-- "Run AnnotSV on my structural variant VCF for comprehensive annotation"
-- "Add ClinVar pathogenicity annotations to my CNV calls"
-
-## Annotation Resources
-
-| Resource | Content | Format |
-|----------|---------|--------|
-| RefSeq/Ensembl | Gene coordinates | GTF/GFF |
-| COSMIC CGC | Cancer genes | TSV |
-| ClinVar | Clinical variants | VCF |
-| DGV | Common CNVs | BED |
-| gnomAD-SV | Population frequencies | VCF |
-| OMIM | Disease associations | TSV |
-
-## Complete Annotation Workflow
-
-```python
-import pandas as pd
-import pybedtools
-from pathlib import Path
-
-class CNVAnnotator:
-    def __init__(self, gene_gtf, cgc_file=None, clinvar_vcf=None):
-        self.genes = self.load_genes(gene_gtf)
-        self.cancer_genes = self.load_cgc(cgc_file) if cgc_file else set()
-        self.clinvar = clinvar_vcf
-
-    def load_genes(self, gtf_file):
-        '''Load gene annotations from GTF.'''
-        genes = []
-        with open(gtf_file) as f:
-            for line in f:
-                if line.startswith('#'):
-                    continue
-                fields = line.strip().split('\t')
-                if fields[2] == 'gene':
-                    attrs = dict(x.strip().split(' ', 1) for x in fields[8].split(';') if x.strip())
-                    gene_name = attrs.get('gene_name', '').strip('"')
-                    genes.append({
-                        'chrom': fields[0],
-                        'start': int(fields[3]),
-                        'end': int(fields[4]),
-                        'gene_name': gene_name
-                    })
-        return pd.DataFrame(genes)
-
-    def load_cgc(self, cgc_file):
-        '''Load COSMIC Cancer Gene Census.'''
-        cgc = pd.read_csv(cgc_file, sep='\t')
-        return set(cgc['Gene Symbol'].dropna().tolist())
-
-    def annotate(self, cns_file):
-        '''Annotate CNV segments.'''
-        cns = pd.read_csv(cns_file, sep='\t')
-
-        # BedTools intersection
-        cns_bed = pybedtools.BedTool.from_dataframe(
-            cns[['chromosome', 'start', 'end', 'log2']])
-        genes_bed = pybedtools.BedTool.from_dataframe(
-            self.genes[['chrom', 'start', 'end', 'gene_name']])
-
-        intersect = cns_bed.intersect(genes_bed, wa=True, wb=True)
-
-        # Parse results
-        results = []
-        for interval in intersect:
-            results.append({
-                'chrom': interval[0],
-                'start': int(interval[1]),
-                'end': int(interval[2]),
-                'log2': float(interval[3]),
-                'gene_name': interval[7]
-            })
-
-        df = pd.DataFrame(results)
-
-        # Aggregate
-        annotated = df.groupby(['chrom', 'start', 'end', 'log2']).agg({
-            'gene_name': lambda x: ','.join(sorted(set(x)))
-        }).reset_index()
-
-        # Add cancer gene flags
-        annotated['is_cancer_gene'] = annotated['gene_name'].apply(
-            lambda x: any(g in self.cancer_genes for g in x.split(',')))
-
-        annotated['cancer_genes'] = annotated['gene_name'].apply(
-            lambda x: ','.join(g for g in x.split(',') if g in self.cancer_genes))
-
-        # Add CNV type
-        annotated['cnv_type'] = annotated['log2'].apply(self.classify_cnv)
-
-        return annotated
-
-    @staticmethod
-    def classify_cnv(log2):
-        if log2 < -1.0:
-            return 'deep_deletion'
-        elif log2 < -0.3:
-            return 'deletion'
-        elif log2 > 0.8:
-            return 'high_amplification'
-        elif log2 > 0.3:
-            return 'amplification'
-        return 'neutral'
-
-# Usage
-annotator = CNVAnnotator(
-    gene_gtf='genes.gtf',
-    cgc_file='cancer_gene_census.tsv'
-)
-annotated = annotator.annotate('sample.cns')
-annotated.to_csv('sample_annotated.tsv', sep='\t', index=False)
-```
-
-## Using AnnotSV
-
-AnnotSV provides comprehensive annotation with a single command:
-
-```bash
-# Install
-conda install -c bioconda annotsv
-
-# Download annotations (first time)
-AnnotSV -SVinputFile dummy.vcf -genomeBuild GRCh38
-
-# Annotate CNVs
-AnnotSV \
-    -SVinputFile sample.cnv.vcf \
-    -genomeBuild GRCh38 \
-    -outputFile sample_annotsv \
-    -SVminSize 1000 \
-    -annotationMode full
-
-# Key output columns:
-# - Gene_name: overlapping genes
-# - DGV_GAIN/LOSS_Freq: population frequency
-# - ClinVar_clndn: disease associations
-# - ACMG_class: pathogenicity classification
-```
-
-## Cancer-Specific Annotation
-
-```python
-def annotate_for_cancer(cnv_annotated, cancer_type='breast'):
-    '''Add cancer-specific annotations.'''
-    # Known driver genes by cancer type
-    cancer_drivers = {
-        'breast': ['BRCA1', 'BRCA2', 'TP53', 'ERBB2', 'PIK3CA', 'MYC'],
-        'lung': ['EGFR', 'KRAS', 'ALK', 'MET', 'ROS1', 'TP53'],
-        'colon': ['APC', 'KRAS', 'TP53', 'SMAD4', 'PIK3CA'],
-    }
-
-    drivers = set(cancer_drivers.get(cancer_type, []))
-
-    cnv_annotated['driver_genes'] = cnv_annotated['gene_name'].apply(
-        lambda x: ','.join(g for g in x.split(',') if g in drivers))
-
-    cnv_annotated['has_driver'] = cnv_annotated['driver_genes'].str.len() > 0
-
-    # Prioritize
-    cnv_annotated['priority'] = cnv_annotated.apply(
-        lambda x: 'high' if x['has_driver'] or abs(x['log2']) > 1
-            else ('medium' if x['is_cancer_gene'] else 'low'), axis=1)
-
-    return cnv_annotated
-```
-
-## Population Frequency Filtering
-
-```python
-def filter_by_frequency(cnv_annotated, dgv_file, max_freq=0.01):
-    '''Filter common CNVs using DGV data.'''
-    dgv = pybedtools.BedTool(dgv_file)
-
-    cnv_bed = pybedtools.BedTool.from_dataframe(
-        cnv_annotated[['chrom', 'start', 'end']])
-
-    # Find CNVs overlapping common variants (50% reciprocal overlap)
-    common = cnv_bed.intersect(dgv, f=0.5, r=True, u=True)
-    common_coords = set([(str(i[0]), int(i[1]), int(i[2])) for i in common])
-
-    cnv_annotated['is_common'] = cnv_annotated.apply(
-        lambda x: (x['chrom'], x['start'], x['end']) in common_coords, axis=1)
-
-    # Filter
-    rare_cnvs = cnv_annotated[~cnv_annotated['is_common']]
-
-    return rare_cnvs
-```
-
-## Generate Summary Report
-
-```python
-def generate_report(annotated, output_prefix):
-    '''Generate annotation summary report.'''
-    # Statistics
-    stats = {
-        'Total CNVs': len(annotated),
-        'Amplifications': (annotated['cnv_type'].str.contains('amplification')).sum(),
-        'Deletions': (annotated['cnv_type'].str.contains('deletion')).sum(),
-        'Affecting cancer genes': annotated['is_cancer_gene'].sum(),
-        'Total genes affected': annotated['gene_name'].str.split(',').explode().nunique(),
-    }
-
-    with open(f'{output_prefix}_summary.txt', 'w') as f:
-        for k, v in stats.items():
-            f.write(f'{k}: {v}\n')
-
-    # High-priority CNVs
-    high_priority = annotated[annotated['priority'] == 'high']
-    high_priority.to_csv(f'{output_prefix}_high_priority.tsv', sep='\t', index=False)
-
-    # Gene list for pathway analysis
-    genes = annotated['gene_name'].str.split(',').explode().unique()
-    with open(f'{output_prefix}_genes.txt', 'w') as f:
-        f.write('\n'.join(sorted(genes)))
-
-    return stats
-```
+Tell the AI agent what to do:
+- "Annotate my CNV segments with overlapping genes and dosage-sensitivity scores"
+- "Run AnnotSV on my CNV VCF for comprehensive annotation and ranking"
+- "Filter out common population CNVs using gnomAD-SV with reciprocal overlap"
+- "Identify the likely driver gene of this focal amplification, not all 30 it spans"
+- "Flag whether each gene is wholly or only partially deleted"
 
 ## Example Prompts
 
-> "Annotate my CNV segments with overlapping genes and cancer gene census flags"
+### Gene and dosage annotation
 
-> "Filter out common CNVs from my callset using DGV population data"
+> "Annotate these CNV segments with overlapping genes, record what fraction of each gene
+> is covered, and tag genes with ClinGen haploinsufficiency and triplosensitivity scores."
 
-> "Add ClinVar annotations to my CNV calls and prioritize pathogenic variants"
+> "Run AnnotSV on this CNV VCF in GRCh38 and explain how to read the ACMG rank."
 
-> "Run AnnotSV on my structural variant VCF to get comprehensive annotations"
+### Driver vs passenger
 
-## Integration with Pathway Analysis
+> "This focal amplification spans 30 genes. Identify the likely driver using the COSMIC
+> Cancer Gene Census and explain why the passengers should not all be reported."
 
-```r
-library(clusterProfiler)
+### Filtering and context
 
-# Load annotated CNV genes
-amp_genes <- read.delim('cnv_annotated.tsv')
-amp_genes <- amp_genes[amp_genes$log2 > 0.5, ]
-genes <- unique(unlist(strsplit(amp_genes$gene_name, ',')))
+> "Filter my CNV callset against gnomAD-SV using 50% reciprocal overlap and explain why
+> reciprocal overlap matters for benign filtering."
 
-# Convert to Entrez
-entrez <- bitr(genes, fromType='SYMBOL', toType='ENTREZID', OrgDb='org.Hs.eg.db')
+> "My CNVs are on GRCh37 and my gene model is GRCh38. Diagnose the build mismatch and
+> recommend a safe liftOver approach."
 
-# Pathway enrichment
-kegg <- enrichKEGG(gene=entrez$ENTREZID, organism='hsa')
-go <- enrichGO(gene=entrez$ENTREZID, OrgDb='org.Hs.eg.db', ont='BP')
+## What the Agent Will Do
 
-# Visualize
-dotplot(kegg, showCategory=15)
-dotplot(go, showCategory=15)
-```
+1. Verify CNV and annotation genome builds match
+2. Intersect CNV segments with gene models, recording overlap extent and exon hits
+3. Tag genes with ClinGen dosage scores; flag whole-gene vs partial overlap
+4. Annotate cancer driver role (CGC/OncoKB) and flag direction-consistent driver hits
+5. Filter against population SV catalogs with reciprocal overlap
+6. Run AnnotSV for comprehensive one-pass annotation and triage ranking
+7. Hand off to germline-cnv-interpretation or recurrent-cnv as appropriate
+
+## Tips
+
+- Overlap is not consequence: require dosage evidence (ClinGen HI/TS) and record
+  whole-gene-vs-partial status before calling a gene affected.
+- For focal amplifications, report the driver (recurrence peak + known oncogene), not
+  every gene the amplicon spans.
+- Always confirm CNVs and the gene model are on the same genome build; a mismatch
+  silently returns wrong genes.
+- Use reciprocal overlap (`-f 0.5 -r`) for population-frequency filtering so a tiny CNV
+  is not matched to a huge population CNV.
+- Parse ClinVar `CLNSIG` against its controlled vocabulary; SNV/indel pathogenicity does
+  not transfer to a CNV.
+- CNV-gene pathway enrichment is biased by gene-dense CNV-prone loci; treat it as
+  hypothesis-generating.
+
+## Related Skills
+
+- copy-number/germline-cnv-interpretation - ACMG/ClinGen points-based CNV classification
+- copy-number/recurrent-cnv - GISTIC2 recurrence peaks and driver identification
+- copy-number/cnvkit-analysis - Generates the CNV segments to annotate
+- copy-number/cnv-visualization - Visualizing annotated CNVs
+- pathway-analysis/go-enrichment - GO/KEGG enrichment methodology
+- genome-intervals/bed-file-basics - BED interval operations
+- clinical-databases/clinvar-lookup - Querying ClinVar for variant pathogenicity
