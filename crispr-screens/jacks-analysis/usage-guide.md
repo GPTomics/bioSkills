@@ -1,69 +1,113 @@
-# JACKS CRISPR Screen Analysis
+# JACKS Analysis - Usage Guide
 
 ## Overview
 
-JACKS (Joint Analysis of CRISPR/Cas9 Knockout Screens) models both gene essentiality and sgRNA efficacy simultaneously. It's particularly powerful for multi-experiment analyses where sgRNA performance can be learned across screens.
+Run JACKS (Allen et al 2019 Genome Research) for joint Bayesian decomposition of CRISPR-screen log-fold-changes into per-sgRNA guide-efficacy and per-condition per-gene effect. Designed for multi-screen joint analysis where guide efficacy is shared (same library, same chemistry, cross-cell-line or cross-condition), enabling 2.5x smaller screens and 12-21% lower gene-effect error vs MAGeCK on the same data. Outputs per-gene posterior effect + posterior std and per-sgRNA efficacy + std.
 
 ## Prerequisites
 
 ```bash
 pip install jacks
-# or from source:
-git clone https://github.com/felicityallen/JACKS.git
-cd JACKS && pip install -e .
+# or latest from GitHub (run_JACKS.py is at the repo root)
+git clone https://github.com/felicityallen/JACKS && cd JACKS && pip install .
+# Optional: pre-computed reference efficacy priors
+# Download DepMap Brunello / Sanger Score efficacy posteriors for transfer learning
 ```
+
+Required inputs:
+- Count matrix (tab-separated, rows=sgRNA, columns=samples; first columns `sgRNA`, `Gene`)
+- Replicate map (Sample, Experiment, Condition) -- tab-separated, no header
+- Guide-to-gene map (sgRNA, Gene) -- tab-separated, no header
+- Optional: reference efficacy prior file from a matched library
 
 ## Quick Start
 
-Tell your AI agent what you want to do:
-- "Run JACKS on my CRISPR screen count data"
-- "Analyze multiple screens jointly with JACKS"
-- "Identify essential genes and estimate sgRNA efficacy"
-- "Compare JACKS results with MAGeCK"
+Tell the AI agent what to do:
+- "Run JACKS jointly on my 4 screens (same Brunello library, different cell lines) and output per-line gene effects + shared sgRNA efficacy"
+- "Build a guide-efficacy prior from DepMap CRISPR screens and reuse it for my small custom-library screen to reduce sample-size needs"
+- "Compare JACKS gene effects vs MAGeCK RRA on the same data; identify where they disagree and why"
+- "Identify the low-efficacy sgRNAs (X1 <0.3) in my library for re-design in v2"
+- "Decide whether JACKS or Chronos is right for my 10-cell-line cancer dependency screen"
 
 ## Example Prompts
 
-### Basic Analysis
-> "Run JACKS analysis on my CRISPR screen counts"
+### Multi-Screen Joint Analysis
 
-> "Identify essential genes from my dropout screen using JACKS"
+> "I have 4 Brunello screens across HCT116, HEK293T, A375, and MCF7 cell lines, each with 3 replicate Day 0 and Day 14 samples. Run JACKS jointly with `--apply_w_hp` on. Output per-line gene effects, shared efficacy, and gene-level fdr_log10."
 
-> "Estimate sgRNA efficacy across my experiments"
+> "My screens were done across 6 weeks in two batches. Set up a per-batch JACKS run and compare to a single joint run; quantify whether batch sharing improves or degrades signal."
 
-### Multi-Screen Analysis
-> "Jointly analyze my three CRISPR screens with JACKS"
+### Reference Efficacy Transfer
 
-> "Learn shared sgRNA efficacy across experiments"
+> "Extract the per-sgRNA efficacy posterior from a JACKS run on the DepMap Brunello panel (50 cell lines, ~10,000 screen days). Save as `brunello_efficacy_prior.tsv`. Then run JACKS on my single Brunello screen using this as `--ref_grna_efficacy_file`; verify the 2.5x sample-size reduction matches Allen 2019."
 
-> "Compare gene essentiality between different cell lines"
+### Library Calibration / Re-design
 
-### Interpretation
-> "Which genes are significantly essential in my JACKS results?"
+> "Output the per-sgRNA efficacy from JACKS analysis of my custom screen. Flag sgRNAs with X1 <0.3 as low-efficacy. Group by gene; flag any gene where all guides are low-efficacy for library re-design."
 
-> "Identify poor-performing sgRNAs from the efficacy scores"
+> "I want to design a v2 of my custom library. Use the JACKS efficacy output to drop the bottom 25% of guides and replace with new candidates from CRISPOR."
 
-> "Create a volcano plot of JACKS gene scores"
+### Comparison and Diagnostics
 
-### Comparison
-> "Compare JACKS and MAGeCK results for my screen"
+> "Compute Spearman ρ between JACKS X1 and MAGeCK neg|lfc on the same dataset. Investigate any rank disagreement >100 positions in the top-1000 hit list."
 
-> "Correlate gene rankings between the two methods"
+> "Diagnose why JACKS shows median efficacy 0.18 across my whole library. Is this a chemistry mismatch (CRISPRi screen run with Cas9 defaults), an over-shrinkage from `--apply_w_hp`, or a real library quality issue?"
+
+> "My JACKS run varies between repeated runs (different gene rankings in top 100). Investigate convergence: ELBO trajectory, iteration count, seed."
 
 ## What the Agent Will Do
 
-1. Prepare input files (counts, replicate map, guide-gene map)
-2. Run JACKS inference with appropriate parameters
-3. Extract gene-level essentiality scores with significance
-4. Analyze sgRNA efficacy distributions
-5. Generate visualizations (volcano plot, efficacy histogram)
-6. Identify significant hits and poor-performing guides
+1. Verify input file formats: sgRNA names consistent between counts, guide_map, replicate_map
+2. Decide whether joint analysis is appropriate: same library, same chemistry, ≥3 screens
+3. If applicable, build the reference efficacy prior from a matched public dataset
+4. Run JACKS via CLI `python -m jacks.run_JACKS` or programmatically via `infer_JACKS`
+5. Set `--apply_w_hp` based on chemistry (on for Cas9 KO; off if CRISPRi/a requires custom prior)
+6. Verify ELBO convergence; if iterations <5000, raise; if still noisy, set seed and increase further
+7. Generate gene-level results (X1, X2, fdr_log10) and sgRNA efficacy results (X1, X2)
+8. Apply hit thresholds: fdr_log10 <-1 (FDR<0.1); fdr_log10 <-2 (FDR<0.01)
+9. Flag low-efficacy guides (X1 <0.3) and genes where all guides are weak (re-design candidates)
+10. Cross-validate with MAGeCK / BAGEL2: identify high-confidence hits in agreement, single-tool hits flagged for orthogonal validation
+11. Decide if Chronos is preferred (cancer-line multi-cell-line screens with CN bias)
+12. Output gene_results.txt, sgrna_efficacy.txt, library_redesign_candidates.txt, comparison_with_mageck.txt
 
 ## Tips
 
-- JACKS is best when analyzing multiple screens simultaneously
-- Use 50,000+ iterations for publication-quality results; 10,000 for exploration
-- sgRNA efficacy scores help identify guides to exclude from future libraries
-- Negative JACKS scores indicate essential genes (dropout phenotype)
-- FDR log10 < -1 corresponds to FDR < 0.1; use -2 for FDR < 0.01
-- Compare with MAGeCK for validation; high correlation expected for robust hits
-- JACKS is slower than MAGeCK but provides additional sgRNA-level insights
+- JACKS' core advantage is multi-screen joint analysis with shared efficacy. For a single screen with no public reference, JACKS does not outperform MAGeCK or BAGEL2.
+- Always match chemistry: do not share Cas9-KO efficacy with CRISPRi/a guides; efficacy is chemistry-specific. Build separate priors for each.
+- The 2.5x sample-size reduction is real but conditional on the reference being from the same library and similar cell context. Reduction is not free.
+- For multi-cell-line cancer-line panels, prefer Chronos -- it models CN bias and per-screen quality jointly, which JACKS does not.
+- The `X1/X2` ratio (gene-effect divided by its std) is a Bayesian z-equivalent. Use this for ranking rather than X1 alone -- a strong but uncertain effect should rank lower than a moderate but confident one.
+- If running on a multi-cell-line panel, fit per-cell-line gene effects but shared efficacy. Pooling effects across cell lines is meta-analysis and should be done downstream after per-cell-line JACKS estimates are obtained.
+- Library re-design: drop the bottom 25% efficacy guides; in the v2 library, every gene should have all guides at efficacy >0.4 (Brunello v2 / Avana v2 convention).
+- Convergence is the silent failure mode. Always check ELBO trajectory and set seed; never trust a single non-converged run.
+
+## Key Thresholds
+
+| Threshold | Value | Rationale |
+|-----------|-------|-----------|
+| Hit fdr_log10 | <-1 (FDR <0.1); <-2 (FDR <0.01) | Allen 2019 convention |
+| Effective gene signal | X1 <0 AND abs(X1/X2) >2 | Bayesian z-equivalent ≈ 95% credible |
+| Low-efficacy guide flag | X1 <0.3 | Allen 2019; below this, guide non-functional |
+| Joint analysis screen count | ≥3 | Below this, equivalent to MAGeCK/BAGEL2 |
+| Iterations for publication | 5000+ | Verify ELBO plateau |
+| Reference for prior reuse | DepMap or Sanger Score panel | ~50 cell lines, ~10k screen days |
+
+## Decision Comparison
+
+| Scenario | JACKS | MAGeCK | BAGEL2 | Chronos |
+|----------|-------|--------|--------|---------|
+| Single 2-condition screen | OK | Best | OK | N/A |
+| Multi-screen joint (same library) | Best | Limited | Per-screen only | N/A |
+| Multi-cell-line cancer panel | OK | OK | OK | Best (CN+quality) |
+| Library re-design (efficacy info) | Best | No | No | Limited |
+| Chemogenomic / drug screen | Suboptimal | OK | Suboptimal | N/A; use drugZ |
+| Heavy selection (>40% guides change) | OK | RRA fails; use MLE | Robust | OK |
+
+## Related Skills
+
+- crispr-screens/mageck-analysis - MAGeCK MLE for joint multi-condition design (alternative)
+- crispr-screens/bagel-essentiality - BAGEL2 for essentiality classification without efficacy
+- crispr-screens/copy-number-correction - Chronos for cancer-line multi-screen + CN bias
+- crispr-screens/screen-qc - Replicate Pearson + plasmid Gini gate JACKS use
+- crispr-screens/library-design - Use JACKS efficacy output to refine library v2
+- crispr-screens/hit-calling - Cross-method decision tree and reconciliation

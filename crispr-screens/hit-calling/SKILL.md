@@ -1,264 +1,292 @@
 ---
 name: bio-crispr-screens-hit-calling
-description: Statistical methods for calling hits in CRISPR screens. Covers MAGeCK, BAGEL2, drugZ, and custom approaches for identifying essential and resistance genes. Use when identifying significant genes from screen count data after QC passes.
+description: Cross-method decision tree for calling hits in pooled CRISPR screens. Catalogs statistical models (MAGeCK RRA, MAGeCK MLE, BAGEL2, drugZ, JACKS, Chronos, CERES), experimental designs each is built for, failure modes outside design domain, reconciliation when methods disagree, multiple-testing and effect-size thresholds, the order of operations (count -> QC -> CN-correct -> hit-call -> validate), the second-best-sgRNA conservative rule, and consensus-hit strategy. Use when choosing among MAGeCK / BAGEL2 / drugZ / JACKS / Chronos for a given design, reconciling disagreement across two or three methods on the same screen, deciding whether to require consensus, gating downstream validation by hit-confidence tier, or interpreting unstable hit lists across reruns.
 tool_type: mixed
-primary_tool: bagel2
+primary_tool: MAGeCK
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+
+Reference examples tested with: MAGeCK 0.5.9+, BAGEL2 1.0+, drugZ Aug 2019+, JACKS 0.2.0+, Chronos 2.0+ (DepMap), CERES 1.0+, pandas 2.2+, numpy 1.26+, scipy 1.12+, statsmodels 0.14+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- CLI: `mageck --version`, `BAGEL.py --version`, `drugz --help`
+- Python: `pip show jacks chronos-cn`
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt the example to match the actual API rather than retrying.
 
-# CRISPR Screen Hit Calling
+## Hit Calling Decision Tree
 
-**"Identify essential genes from my CRISPR screen"** → Call significant gene hits from sgRNA count data using statistical methods that account for guide-level variability and multiple testing.
-- CLI: `BAGEL.py bf` for Bayes factor essentiality scoring
-- Python: `drugZ` for fold-change based analysis
+**"Identify significant hits in my CRISPR screen"** -> Choose the analysis method that matches the experimental design, statistical assumptions, and quality grade of the screen. Reconcile across methods when high-stakes hits must be validated.
 
-## BAGEL2 Analysis
+The five primary hit-calling methods cover non-overlapping niches; the decision is not "which is best" but "which matches the design."
 
-**Goal:** Identify essential genes using Bayesian classification against reference gene sets.
+| Design / question | Primary method | Why | Secondary check |
+|--------------------|----------------|-----|------------------|
+| Two-condition essentiality, one cell line, no CN concerns | MAGeCK RRA | Robust, fast, gold-standard for ranked analysis | BAGEL2 (Bayes factor on same data) |
+| Time course (3+ timepoints) | MAGeCK MLE | RRA cannot model multi-condition | JACKS (efficacy-aware) |
+| Multi-cell-line panel (cancer dependency) | Chronos | Models CN bias + screen quality jointly | MAGeCK MLE per line + meta-analysis |
+| Drug screen (vehicle vs drug) | drugZ | Bidirectional Z; vehicle-anchored | MAGeCK MLE with dose covariate |
+| Multi-screen joint, same library | JACKS | Joint efficacy + 2.5x sample-size reduction | MAGeCK MLE; results should converge |
+| Essentiality classification with reference sets | BAGEL2 | Bayes factor with CEGv2/NEGv1 calibration | MAGeCK RRA |
+| Combinatorial / paired guide | MAGeCK MLE with GI scoring | Models interaction term; see [[combinatorial-screens]] | Custom GI scoring |
+| Single-cell perturbation (Perturb-seq) | SCEPTRE | NB GLM + permutation; see [[perturb-seq-analysis]] | Mixscape pre-filter |
+| Cancer-line copy-number screen | Chronos (preferred) or CERES | Joint CN-bias + gene-effect modeling; see [[copy-number-correction]] | CRISPRcleanR pre-hoc + MAGeCK |
 
-**Approach:** Calculate sgRNA fold changes, compute Bayes Factors using known essential and non-essential gene sets as training data, and assess precision-recall at different thresholds.
+## Statistical Models Compared
 
-```bash
-# BAGEL2 for Bayesian gene essentiality
-# Uses reference essential/non-essential genes
+| Method | Year | Statistical model | Tests | Best for | Fails when |
+|--------|------|-------------------|-------|----------|------------|
+| MAGeCK RRA | 2014 | NB per-sgRNA -> alpha-RRA per gene | Two-sided | General two-condition | >40% guides change (median norm breaks); time course; cancer-line CN |
+| MAGeCK MLE | 2015 | NB GLM with design matrix; per-gene beta | Wald per condition | Multi-condition / time course | Cell-line specific essentiality; CN bias |
+| BAGEL2 | 2021 | Bayes factor from log-likelihood ratio | Essential vs non-essential | Essentiality classification | Non-essentiality screens; drug screens |
+| drugZ | 2019 | Bidirectional Z-score on guide-level LFC | Sensitizer vs suppressor | Drug-modifier / chemogenomic | Essentiality (no biological prior); time-course |
+| JACKS | 2019 | Variational Bayes: LFC = gene * efficacy | Per-gene posterior | Multi-screen joint, library calibration | Single screen; cross-chemistry |
+| Chronos | 2021 | Cell-population dynamics ODE + NB | Gene effect adjusted for screen quality | Cancer-line panels, longitudinal | Single screen; non-cancer applications |
+| CERES | 2017 | Nonlinear model decoupling CN-bias from gene effect | Per-gene effect | Cancer-line panel with CN profile | Superseded by Chronos at DepMap |
 
-# Calculate fold changes
-bagel2 fc \
-    -i counts.txt \
-    -o foldchange.txt \
-    -c Control1,Control2 \
-    -t Treatment1,Treatment2
+## RRA vs MLE Within MAGeCK
 
-# Calculate Bayes Factor
-bagel2 bf \
-    -i foldchange.txt \
-    -o bayes_factor.txt \
-    -e essential_genes.txt \
-    -n nonessential_genes.txt \
-    -c 1  # Number of bootstrap iterations
+| Property | RRA (`mageck test`) | MLE (`mageck mle`) |
+|----------|----------------------|---------------------|
+| Conditions supported | 2 | Multiple (design matrix) |
+| Statistical test | Robust rank aggregation | Wald on beta from NB GLM |
+| Output | neg/pos score, FDR per direction | beta per condition |
+| sgRNA efficiency | Not modeled (optional fixed input) | Modeled via `--sgrna-efficiency` |
+| Outlier robustness | High (rank-based) | Lower (likelihood-based) |
+| Best for | Standard 2-condition screen | Time course, drug screen, multi-cell-line, paired |
+| Speed | Fast | Slow (per-gene optimization) |
 
-# Precision-recall analysis
-bagel2 pr \
-    -i bayes_factor.txt \
-    -o precision_recall.txt \
-    -e essential_genes.txt \
-    -n nonessential_genes.txt
+## Algorithmic Taxonomy: Why Each Was Built
+
+| Method | Designed to solve |
+|--------|--------------------|
+| MAGeCK RRA | First robust statistical framework for CRISPR-screen ranking; alpha-RRA borrowed from RRA in microarray meta-analysis |
+| MAGeCK MLE | Extend MAGeCK to multi-condition; explicit beta scores allow direct LFC interpretation |
+| BAGEL2 | Reference-set-anchored Bayesian classification; precision-recall calibrated; tumor-suppressor sensitivity (BAGEL1 was uni-directional) |
+| drugZ | Drug-modifier screens have low effect sizes and need bidirectional sensitivity; STARS/MAGeCK miss synthetic-lethal hits |
+| JACKS | Sample-size reduction via library-shared efficacy; library calibration as side product |
+| Chronos | DepMap-scale (1000+ cell lines, billions of cell-divisions) needs population-dynamics model; CN bias + screen quality first-class |
+| CERES | First to formally decouple CN from gene effect at DepMap scale; superseded but historically important |
+
+## Run All Five on the Same Data (Consensus Strategy)
+
+**Goal:** For high-stakes hits (drug-target nomination, paper-level claims), require agreement across 2-3 orthogonal methods.
+
+**Approach:** Run MAGeCK + BAGEL2 + (drugZ or JACKS) on the same count matrix; rank by each; classify hits as called by 1, 2, or 3 methods.
+
+```python
+import pandas as pd
+
+def consensus_hits(mageck_path, bagel_path, drugz_path,
+                   mageck_fdr_thresh=0.05, bagel_bf_thresh=5, drugz_fdr_thresh=0.05):
+    '''Build consensus across MAGeCK / BAGEL2 / drugZ on the same screen.
+    Each hit gets a count of supporting methods.'''
+    mageck = pd.read_csv(mageck_path, sep='\t')[['id', 'neg|fdr']].rename(columns={'id': 'gene', 'neg|fdr': 'mageck_neg_fdr'})
+    bagel = pd.read_csv(bagel_path, sep='\t')[['GENE', 'BF']].rename(columns={'GENE': 'gene', 'BF': 'bagel_bf'})
+    drugz = pd.read_csv(drugz_path, sep='\t')[['GENE', 'fdr_synth']].rename(columns={'GENE': 'gene', 'fdr_synth': 'drugz_synth_fdr'})
+    merged = mageck.merge(bagel, on='gene', how='outer').merge(drugz, on='gene', how='outer')
+    merged['mageck_hit'] = merged['mageck_neg_fdr'] < mageck_fdr_thresh
+    merged['bagel_hit'] = merged['bagel_bf'] > bagel_bf_thresh
+    merged['drugz_hit'] = merged['drugz_synth_fdr'] < drugz_fdr_thresh
+    merged['consensus_count'] = (merged[['mageck_hit', 'bagel_hit', 'drugz_hit']].astype(int)).sum(axis=1)
+    return merged.sort_values('consensus_count', ascending=False)
 ```
 
-## DrugZ Analysis
+**Confidence tiers:**
 
-```bash
-# DrugZ for drug screens (synergy/resistance)
-drugz.py \
-    -i counts.txt \
-    -o drugz_output.txt \
-    -c Control1,Control2 \
-    -x Treatment1,Treatment2 \
-    --remove-genes Control_genes.txt
+| Tier | Definition | Validation requirement |
+|------|------------|-------------------------|
+| Tier 1 (high) | Called by 3/3 methods | Arrayed validation; orthogonal modality (CRISPRi if originally Cas9) |
+| Tier 2 (medium) | Called by 2/3 methods | Arrayed validation in matched line |
+| Tier 3 (exploratory) | Called by 1/3 methods | Treat as hypothesis; further screens before publication |
 
-# Output columns:
-# Gene, sumZ (combined z-score), normZ, pval_synth (synthetic lethal), pval_supp (suppressor)
+## Reconciliation: When Two Methods Disagree
+
+| Pattern | Likely cause | Action |
+|---------|--------------|--------|
+| MAGeCK significant, BAGEL2 not | BAGEL2 trained on CEGv2/NEGv1; gene is essential but not in reference | Trust MAGeCK; flag for follow-up |
+| BAGEL2 significant, MAGeCK not | BAGEL2 has tumor-suppressor sensitivity MAGeCK lacks | Investigate sgrna_summary for one weak guide |
+| MAGeCK significant, JACKS not | JACKS down-weighted one outlier guide | Trust JACKS if guides agree; outlier may be off-target |
+| Chronos and MAGeCK disagree on cancer line | Chronos accounts for CN; MAGeCK does not | Trust Chronos; apply [[copy-number-correction]] |
+| drugZ significant, MAGeCK not on drug screen | drugZ bidirectional Z is more sensitive | Trust drugZ for chemogenomic; MAGeCK may miss small effects |
+| MAGeCK MLE significant, MAGeCK RRA not in 2-condition | Beta-score effect size is significant but rank-based not | Trust MLE if guides consistent; RRA may be over-conservative |
+| All methods disagree | Either no real biology or all methods are mis-applied | Stop. Re-audit QC; check chemistry / library / design matrix |
+
+## Second-Best sgRNA Conservative Rule
+
+**Goal:** Reduce false positives from single outlier sgRNAs by requiring the second-most-extreme guide per gene to also be a hit.
+
+**Approach:** For each gene, sort sgRNAs by LFC; require the second-best LFC to exceed a threshold. Rejects genes that depend on one extreme guide.
+
+```python
+def second_best_lfc(sgrna_lfc_df, genes_series, direction='neg'):
+    '''Return per-gene LFC of the second-best sgRNA in the direction of interest.
+    For dropout (direction="neg"), second-most-negative LFC.'''
+    results = []
+    for gene in genes_series.unique():
+        gene_lfc = sgrna_lfc_df[genes_series == gene].sort_values()
+        if direction == 'neg':
+            second = gene_lfc.iloc[1] if len(gene_lfc) >= 2 else gene_lfc.iloc[0]
+        else:
+            second = gene_lfc.iloc[-2] if len(gene_lfc) >= 2 else gene_lfc.iloc[-1]
+        results.append({'gene': gene, 'second_best_lfc': second})
+    return pd.DataFrame(results)
 ```
 
-## Custom Hit Calling in Python
+**Rule:** A high-confidence hit has second-best LFC also passing the threshold. A guide-of-one hit has only one extreme guide and should be flagged for orthogonal validation. This rule predates JACKS and is implicit in MAGeCK RRA but explicit elsewhere.
 
-**Goal:** Call screen hits using a z-score approach without external tools.
+## Multiple-Testing Correction Conventions
 
-**Approach:** RPM-normalize counts, compute per-sgRNA log2 fold changes, aggregate to gene level, derive z-scores from the null distribution, and apply FDR correction.
+| Method | Native correction | Cross-method comparison |
+|--------|---------------------|---------------------------|
+| MAGeCK RRA | BH per direction | `neg|fdr`, `pos|fdr` |
+| MAGeCK MLE | BH per condition | `<cond>|fdr` |
+| BAGEL2 | Bootstrap BF; reports BF threshold | BF > 6 ≈ FDR 0.05 (Hart 2017 calibration) |
+| drugZ | BH per direction | `fdr_synth`, `fdr_supp` |
+| JACKS | Posterior probability + BH | `fdr_log10` (log10 FDR) |
+| Chronos | DepMap gene-effect probability | `effect_probability` |
+
+**Reconciliation:** BF >6 in BAGEL2 corresponds roughly to FDR 0.05 in MAGeCK; this calibration was confirmed in Hart 2017 G3 by overlap with CEGv2. drugZ FDR is per-direction; the `fdr_synth` and `fdr_supp` columns are independent BH corrections.
+
+## Order of Operations
+
+```
+1. Library design (see library-design)         <- design quality dictates hit calling
+2. Plasmid pool sequencing                     <- baseline; non-negotiable
+3. Run screen at MOI 0.3, 500x coverage
+4. Sequence endpoint
+5. Run mageck count                            <- generates raw + normalized counts
+6. Screen QC (see screen-qc)                   <- gates downstream method choice
+7. Copy-number correction if cancer line       <- CRISPRcleanR or Chronos; see copy-number-correction
+8. Batch correction if multi-batch             <- see batch-correction
+9. Hit calling (this skill)                    <- choose method by design
+10. Consensus across 2-3 methods               <- for high-stakes hits
+11. Orthogonal validation                      <- arrayed; different chemistry
+12. Pathway analysis                           <- see pathway-analysis/gsea
+```
+
+## Custom z-score Hit Calling (when standard tools don't fit)
+
+**Goal:** Compute gene-level z-scores when neither MAGeCK nor BAGEL2 fits the experimental design.
+
+**Approach:** RPM-normalize, compute per-sgRNA log2 fold-changes, aggregate to gene level, derive z-score from the null distribution of non-targeting controls (cleanest) or all genes (assumes <40% changing), apply BH correction.
 
 ```python
 import pandas as pd
 import numpy as np
 from scipy import stats
-
-# Load counts
-counts = pd.read_csv('counts.txt', sep='\t', index_col=0)
-genes = counts['Gene']
-ctrl_cols = ['Control1', 'Control2']
-treat_cols = ['Treatment1', 'Treatment2']
-
-# Normalize (reads per million)
-def rpm_normalize(df):
-    return df / df.sum() * 1e6
-
-ctrl_rpm = rpm_normalize(counts[ctrl_cols])
-treat_rpm = rpm_normalize(counts[treat_cols])
-
-# Log2 fold change per sgRNA
-lfc = np.log2((treat_rpm.mean(axis=1) + 1) / (ctrl_rpm.mean(axis=1) + 1))
-
-# Aggregate to gene level
-gene_lfc = pd.DataFrame({'Gene': genes, 'LFC': lfc}).groupby('Gene')['LFC'].agg(['mean', 'std', 'count'])
-gene_lfc.columns = ['mean_lfc', 'std_lfc', 'n_sgrnas']
-
-# Z-score based on null distribution (non-targeting controls or all genes)
-null_mean = gene_lfc['mean_lfc'].median()
-null_std = gene_lfc['mean_lfc'].std()
-gene_lfc['z_score'] = (gene_lfc['mean_lfc'] - null_mean) / null_std
-gene_lfc['pvalue'] = 2 * stats.norm.sf(abs(gene_lfc['z_score']))
 from statsmodels.stats.multitest import multipletests
-_, gene_lfc['fdr'], _, _ = multipletests(gene_lfc['pvalue'], method='fdr_bh')
 
-# Call hits
-essential = gene_lfc[(gene_lfc['z_score'] < -2) & (gene_lfc['fdr'] < 0.1)]
-resistance = gene_lfc[(gene_lfc['z_score'] > 2) & (gene_lfc['fdr'] < 0.1)]
-
-print(f'Essential genes: {len(essential)}')
-print(f'Resistance genes: {len(resistance)}')
+def custom_zscore_hit_calling(counts_df, ctrl_cols, treat_cols, genes_series, ntc_genes=None):
+    '''Z-score gene-level hit calling. If ntc_genes provided, null derived from NTCs only;
+    otherwise from all genes (assumes <40% changing).'''
+    def rpm(df):
+        return df.div(df.sum(axis=0), axis=1) * 1e6
+    ctrl_rpm = rpm(counts_df[ctrl_cols])
+    treat_rpm = rpm(counts_df[treat_cols])
+    lfc_per_sgrna = np.log2((treat_rpm.mean(axis=1) + 1) / (ctrl_rpm.mean(axis=1) + 1))
+    gene_lfc = pd.DataFrame({'gene': genes_series, 'lfc': lfc_per_sgrna}).groupby('gene')['lfc'].agg(['mean', 'std', 'count'])
+    gene_lfc.columns = ['mean_lfc', 'std_lfc', 'n_sgrnas']
+    if ntc_genes is not None:
+        null = gene_lfc.loc[gene_lfc.index.isin(ntc_genes), 'mean_lfc']
+        null_mean, null_std = null.median(), null.std()
+    else:
+        null_mean = gene_lfc['mean_lfc'].median()
+        null_std = gene_lfc['mean_lfc'].std()
+    gene_lfc['z'] = (gene_lfc['mean_lfc'] - null_mean) / null_std
+    gene_lfc['p'] = 2 * stats.norm.sf(np.abs(gene_lfc['z']))
+    gene_lfc['fdr'] = multipletests(gene_lfc['p'], method='fdr_bh')[1]
+    return gene_lfc.sort_values('z')
 ```
 
-## Robust Rank Aggregation (MAGeCK-style)
+## Failure Modes
 
-**Goal:** Rank genes by combining evidence across multiple sgRNAs using the RRA algorithm.
+### MAGeCK and BAGEL2 disagree by 200+ hits at FDR 0.05
 
-**Approach:** Rank sgRNA-level p-values, compute per-gene RRA scores using beta-distribution modeling of rank uniformity, and select genes with significantly non-uniform guide rankings.
+**Trigger:** Heavy-selection screen (>40% guides change) or cancer-line CN bias.
+**Mechanism:** MAGeCK median normalization breaks; BAGEL2 is robust due to reference-set anchoring.
+**Symptom:** MAGeCK hit list inflated; BAGEL2 list closer to expected size.
+**Fix:** Run MAGeCK with `--norm-method control`; apply CN correction; trust BAGEL2 for essentiality.
 
-```python
-from scipy.stats import rankdata, norm
-import numpy as np
+### Chronos and MAGeCK disagree at the top 10 in a cancer line
 
-def rra_score(ranks, n_total):
-    '''Calculate RRA score for a set of ranks'''
-    k = len(ranks)
-    sorted_ranks = np.sort(ranks)
-    rho = sorted_ranks / n_total
+**Trigger:** Top hits are at amplified loci.
+**Mechanism:** Chronos models CN bias; MAGeCK does not.
+**Symptom:** ERBB2 in HER2+, MYC in MYC-amplified, etc. are top hits in MAGeCK but not Chronos.
+**Fix:** Apply [[copy-number-correction]] before MAGeCK or switch to Chronos.
 
-    # Beta distribution p-values
-    from scipy.stats import beta
-    pvals = [beta.cdf(rho[i], i + 1, k - i) for i in range(k)]
+### drugZ and MAGeCK disagree on small-effect drug-modifier screen
 
-    # Return minimum p-value (most significant)
-    return min(pvals)
+**Trigger:** Effect size is small; MAGeCK rank-based test is less sensitive than drugZ bidirectional Z.
+**Mechanism:** drugZ specifically optimized for small effects in drug screens (Li & Hart 2019); MAGeCK RRA loses sensitivity at small effects.
+**Symptom:** drugZ has ~2x more hits at the same FDR threshold; MAGeCK misses real chemogenomic interactions.
+**Fix:** Use drugZ as primary for chemogenomic; MAGeCK as confirmatory. See [[drugz-chemogenomic]].
 
-# Apply to each gene
-def calculate_gene_rra(sgrna_pvals, genes, n_total):
-    results = []
-    for gene in genes.unique():
-        gene_pvals = sgrna_pvals[genes == gene]
-        gene_ranks = rankdata(gene_pvals)
-        rra = rra_score(gene_ranks, len(gene_pvals))
-        results.append({'gene': gene, 'rra_score': rra, 'n_sgrnas': len(gene_pvals)})
-    return pd.DataFrame(results)
-```
+### JACKS down-weights efficiency, MAGeCK doesn't, disagreement
 
-## Second-Best sgRNA Method
+**Trigger:** A gene has one or two strong sgRNAs and 2-3 weak ones; MAGeCK averages them, JACKS down-weights the weak.
+**Mechanism:** JACKS variational Bayes correctly identifies low-efficacy guides; MAGeCK aggregates without this prior.
+**Symptom:** Gene is JACKS hit but not MAGeCK.
+**Fix:** Inspect per-sgRNA LFC; if strong guides are consistent, JACKS is correct. Validate gene orthogonally.
 
-```python
-# Conservative approach: use second-best sgRNA per gene
-# Reduces false positives from single outlier sgRNAs
+### Consensus across 3 methods is empty (no hits)
 
-def second_best_lfc(lfc_series, genes):
-    '''Return second-most extreme LFC per gene'''
-    results = []
-    for gene in genes.unique():
-        gene_lfc = lfc_series[genes == gene].sort_values()
-        if len(gene_lfc) >= 2:
-            # For dropout, use second smallest (second most negative)
-            results.append({'gene': gene, 'second_best_lfc': gene_lfc.iloc[1]})
-        else:
-            results.append({'gene': gene, 'second_best_lfc': gene_lfc.iloc[0]})
-    return pd.DataFrame(results)
+**Trigger:** Either no real biology, or each method has different failure mode being triggered.
+**Mechanism:** Screen quality is low; signal-to-noise across all methods is poor.
+**Symptom:** Tier 1 consensus list is empty.
+**Fix:** Re-audit QC. Check Cas9 selection, MOI, timepoint, library positioning. Re-run screen if QC fails.
 
-second_best = second_best_lfc(lfc, genes)
-```
+## Quantitative Thresholds
 
-## Compare Methods
+| Threshold | Value | Source / Rationale |
+|-----------|-------|--------------------|
+| MAGeCK RRA FDR (gene-level) | <0.05 | Li 2014; standard publication |
+| MAGeCK RRA LFC | abs(LFC) >1 | 2-fold; biological |
+| BAGEL2 Bayes Factor | >6 (≈ FDR 0.05); >12 (≈ FDR 0.005) | Kim & Hart 2021; calibrated against CEGv2 |
+| drugZ FDR | <0.05 per direction | Li & Hart 2019 |
+| JACKS fdr_log10 | <-1 (FDR <0.1); <-2 (FDR <0.01) | Allen 2019 |
+| Chronos gene-effect probability | >0.7 | DepMap convention |
+| Tier 1 consensus (3 methods) | 100% agreement | High confidence; minimal validation needed |
+| Tier 2 consensus (2 of 3) | 67% agreement | Arrayed validation required |
+| Tier 3 (1 method only) | Hypothesis; flag for follow-up | Multiple screens or arrayed required |
+| Second-best sgRNA rule | Second-best LFC also passes threshold | Reduces single-guide outliers |
 
-**Goal:** Identify high-confidence hits by requiring agreement across multiple analysis methods.
+## Common Errors
 
-**Approach:** Load gene-level results from MAGeCK, BAGEL2, and DrugZ, merge on gene name, and flag consensus hits called by two or more methods.
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| All genes significant in MAGeCK RRA | Heavy selection breaks median norm | `--norm-method control`; or use BAGEL2 |
+| BAGEL2 returns no hits despite known essentials | Wrong reference gene set | Verify CEGv2/NEGv1 files match library |
+| drugZ output empty | Used Day 0 as control instead of vehicle | Re-run with vehicle as control |
+| Chronos errors out | Missing CN profile for cell line | Use CRISPRcleanR (unsupervised) instead |
+| Methods disagree by orders of magnitude | Quality issue or design mismatch | Re-audit QC; reconcile via tier consensus |
+| Empty tier 1 consensus | No real biology OR QC failure | Re-audit QC |
+| Single-guide-driven hits | Outlier sgRNA | Apply second-best rule; orthogonal validate |
 
-```python
-# Load results from different methods
-mageck = pd.read_csv('mageck.gene_summary.txt', sep='\t')
-bagel = pd.read_csv('bagel_bf.txt', sep='\t')
-drugz = pd.read_csv('drugz_output.txt', sep='\t')
+## References
 
-# Merge on gene
-merged = mageck[['id', 'neg|fdr']].rename(columns={'id': 'gene', 'neg|fdr': 'mageck_fdr'})
-merged = merged.merge(bagel[['Gene', 'BF']].rename(columns={'Gene': 'gene', 'BF': 'bagel_bf'}), on='gene')
-merged = merged.merge(drugz[['GENE', 'fdr_synth']].rename(columns={'GENE': 'gene', 'fdr_synth': 'drugz_fdr'}), on='gene')
-
-# Consensus hits
-merged['mageck_hit'] = merged['mageck_fdr'] < 0.1
-merged['bagel_hit'] = merged['bagel_bf'] > 5  # BF > 5 suggests essential
-merged['drugz_hit'] = merged['drugz_fdr'] < 0.1
-
-merged['consensus'] = merged['mageck_hit'].astype(int) + merged['bagel_hit'].astype(int) + merged['drugz_hit'].astype(int)
-
-# High confidence hits called by 2+ methods
-high_conf = merged[merged['consensus'] >= 2]
-print(f'High confidence hits (2+ methods): {len(high_conf)}')
-```
-
-## Time-Course Analysis
-
-```python
-# For screens with multiple timepoints
-def time_course_hits(counts, timepoints, genes):
-    '''Identify genes with consistent depletion over time'''
-    lfc_by_time = {}
-
-    for t in timepoints:
-        t0_cols = [c for c in counts.columns if 'T0' in c]
-        t_cols = [c for c in counts.columns if f'T{t}' in c]
-
-        t0_mean = counts[t0_cols].mean(axis=1)
-        t_mean = counts[t_cols].mean(axis=1)
-
-        lfc_by_time[t] = np.log2((t_mean + 1) / (t0_mean + 1))
-
-    # Aggregate and check for consistent direction
-    lfc_df = pd.DataFrame(lfc_by_time)
-    lfc_df['Gene'] = genes
-
-    gene_summary = lfc_df.groupby('Gene').mean()
-    gene_summary['all_negative'] = (gene_summary < 0).all(axis=1)
-    gene_summary['trend'] = gene_summary.apply(lambda x: np.polyfit(range(len(timepoints)), x[:-1], 1)[0], axis=1)
-
-    return gene_summary[gene_summary['all_negative']].sort_values('trend')
-```
-
-## Visualize Results
-
-```python
-import matplotlib.pyplot as plt
-
-# Rank plot
-fig, ax = plt.subplots(figsize=(10, 6))
-
-results = pd.read_csv('mageck.gene_summary.txt', sep='\t')
-results = results.sort_values('neg|score')
-results['rank'] = range(1, len(results) + 1)
-
-ax.scatter(results['rank'], -np.log10(results['neg|fdr']),
-           c=['red' if fdr < 0.05 else 'gray' for fdr in results['neg|fdr']],
-           alpha=0.5, s=10)
-
-# Label top hits
-top = results[results['neg|fdr'] < 0.01].head(10)
-for _, row in top.iterrows():
-    ax.annotate(row['id'], (row['rank'], -np.log10(row['neg|fdr'])))
-
-ax.axhline(-np.log10(0.05), linestyle='--', color='black')
-ax.set_xlabel('Gene Rank')
-ax.set_ylabel('-log10(FDR)')
-ax.set_title('CRISPR Screen Hits')
-plt.savefig('hit_ranking.png', dpi=150)
-```
+- Li W et al. 2014. *Genome Biol* 15:554. MAGeCK alpha-RRA.
+- Li W et al. 2015. *Genome Biol* 16:281. MAGeCK MLE.
+- Kim E & Hart T. 2021. *Genome Med* 13:2. BAGEL2.
+- Li G et al. 2019. *Genome Med* 11:52. drugZ.
+- Allen F et al. 2019. *Genome Res* 29:464. JACKS.
+- Dempster J et al. 2021. *Genome Biol* 22:343. Chronos.
+- Meyers R et al. 2017. *Nat Genet* 49:1779. CERES.
+- Hart T & Moffat J. 2016. *BMC Bioinformatics* 17:164. BAGEL Bayes factor framework.
+- Hart T et al. 2017. *G3* 7:2719. CEGv2/NEGv1 calibration.
 
 ## Related Skills
 
-- mageck-analysis - MAGeCK workflow
-- screen-qc - QC before hit calling
-- pathway-analysis/go-enrichment - Functional analysis of hits
+- crispr-screens/mageck-analysis - Full MAGeCK RRA + MLE detail
+- crispr-screens/bagel-essentiality - Full BAGEL2 detail
+- crispr-screens/drugz-chemogenomic - Full drugZ detail for drug screens
+- crispr-screens/jacks-analysis - Full JACKS detail and library calibration
+- crispr-screens/copy-number-correction - Chronos, CERES, CRISPRcleanR
+- crispr-screens/screen-qc - Quality gates that drive method choice
+- crispr-screens/library-design - Library type dictates analysis method
+- crispr-screens/combinatorial-screens - GI scoring (synthetic lethality)
+- crispr-screens/perturb-seq-analysis - SCEPTRE for single-cell screens
+- crispr-screens/batch-correction - Multi-batch normalization upstream of hit calling
+- pathway-analysis/gsea - Downstream pathway enrichment
+- pathway-analysis/go-enrichment - GO enrichment of hit lists

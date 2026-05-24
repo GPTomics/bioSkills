@@ -1,316 +1,281 @@
 ---
 name: bio-crispr-screens-batch-correction
-description: Batch effect correction for CRISPR screens. Covers normalization across batches, technical replicate handling, and batch-aware analysis. Use when combining screens from multiple batches or correcting systematic technical variation.
-tool_type: python
-primary_tool: scipy
+description: Batch effect correction for CRISPR screens covering ComBat empirical-Bayes, RUV, SVA, control-sgRNA normalization, and the model-based alternative of including batch as a covariate in MAGeCK MLE or Chronos. Covers screen-specific batch sources (passage cohort, library lot, infection day, sequencing run, Cas9 lot, FBS lot), PCA + variance-decomposition diagnostic to decide if correction is needed, when correction harms biology by over-correcting condition into batch, limma removeBatchEffect for visualization-only correction, and relationship to multi-condition design matrices. Use when combining screens for joint analysis, when passage cohort confounds biology, when DepMap-style panels need Chronos with batch covariates, when picking ComBat vs RUV, or when correction harms biology and should be replaced with explicit covariate modeling.
+tool_type: mixed
+primary_tool: pyComBat
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: DESeq2 1.42+, MAGeCK 0.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+
+Reference examples tested with: pyComBat 0.3.3+ (epigenelabs/pyComBat), MAGeCK 0.5.9+, R/limma 3.58+, sva 3.50+, RUVSeq 1.36+, pandas 2.2+, numpy 1.26+, scikit-learn 1.4+, scipy 1.12+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
+- Python: `pip show pycombat`; `from combat.pycombat import pycombat`
+- R: `packageVersion('sva')`; `?ComBat`; `packageVersion('RUVSeq')`; `?RUVg`
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt the example to match the actual API rather than retrying.
 
-# Batch Correction
+## Batch Correction for CRISPR Screens
 
-**"Correct batch effects in my CRISPR screens"** → Normalize and harmonize sgRNA count data across screen batches to remove systematic technical variation while preserving biological signal.
-- Python: `scipy`/`sklearn` for median normalization and batch correction
-- CLI: `mageck test` with batch-aware design
+**"Correct batch effects in my CRISPR screens"** -> Diagnose the batch source, decide whether to remove via empirical-Bayes (ComBat), explicit covariate modeling (MAGeCK MLE / Chronos design matrix), control-guide-anchored normalization, or unwanted-variation decomposition (RUV, SVA), then apply only the correction that preserves biological condition signal.
 
-## Median Normalization
+- Python: `pyComBat.pycombat` for empirical-Bayes correction
+- Python: explicit batch covariates in `mageck mle --design-matrix`
+- R: `sva::ComBat`, `RUVSeq::RUVg`, `limma::removeBatchEffect`
+- CLI: `chronos-cn` natively handles screen-batch covariates
 
-**Goal:** Remove systematic library-size differences between batches.
+## Batch Sources in CRISPR Screens
 
-**Approach:** Scale each sample within a batch so that sample medians match a global median, correcting for sequencing depth variation.
+| Source | Mechanism | Detectable by |
+|--------|-----------|---------------|
+| Library lot | Different aliquots or PCR amplifications | Gini shift; plasmid-pool sequencing |
+| Cell passage cohort | Cells passaged through different periods | PCA Day-0 samples clustering by passage |
+| Infection day | Lentivirus titer drifts; FBS lot changes | PCA Day-0 samples cluster by day |
+| Cas9 enzyme lot | Cas9 expression heterogeneity | PR-AUC drift across screens |
+| Sequencing run | Lane bias, flowcell variant, machine | Per-sample read-count distribution |
+| FBS / culture lot | Fetal bovine serum lot variations confound proliferation | Day-0 vs endpoint differential not present in vehicle |
+| Tissue-prep batch | In-vivo: animal cohort, surgical day, organ-prep tech | In-vivo screens (see [[in-vivo-screens]]) |
+
+**Critical:** Batch effects in CRISPR screens often correlate with biology (e.g., the drug arm was processed in batch 2 because that's when the drug arrived). This confounds correction. Always check for confounding before applying ComBat.
+
+## Batch Effect Decision Tree
+
+| Diagnostic finding | Recommended correction |
+|--------------------|------------------------|
+| PCA shows samples cluster by condition, not batch | No correction needed; biology dominates |
+| PCA PC1 separates batches, PC2 separates conditions | Apply ComBat with condition as biological_covariate |
+| Batch fully confounded with condition (e.g. all drug in batch 2, all vehicle in batch 1) | Correction will destroy biology; instead redesign next screen with cross-batch balance OR re-analyze with batch in MAGeCK MLE design matrix |
+| Day-0 (pre-perturbation) samples cluster by batch | Strong batch effect; ComBat needed |
+| Endpoint samples cluster by batch but not Day-0 | Selection-driven artifact (FBS lot etc); correct or include batch as covariate |
+| Replicates within a batch are tight; across-batch much wider | Classic batch effect; ComBat |
+| Each replicate scatters randomly across PCs | Sample-level noise; no batch correction will help |
+| Cancer-line panel with multiple batches | Use Chronos (built-in batch modeling) |
+
+## Diagnose: PCA + Variance Decomposition
+
+**Goal:** Quantify what fraction of variance is batch vs condition before correcting.
+
+**Approach:** Run PCA on log10(counts+1); fit ANOVA decomposing variance into batch and condition components; report variance explained.
+
+```python
+import pandas as pd
+import numpy as np
+from sklearn.decomposition import PCA
+from scipy import stats
+
+def batch_diagnostic(counts_df, metadata_df, batch_col='batch', condition_col='condition'):
+    '''Variance decomposition: report fraction of PC1/PC2 variance attributable to batch vs condition.'''
+    log_counts = np.log10(counts_df + 1).T  # samples as rows
+    pca = PCA(n_components=5)
+    pcs = pca.fit_transform(log_counts)
+    out = pd.DataFrame({
+        'PC': range(1, 6),
+        'var_explained': pca.explained_variance_ratio_,
+    })
+    pc_df = pd.DataFrame(pcs, columns=[f'PC{i+1}' for i in range(5)], index=counts_df.columns).join(metadata_df)
+    for i in range(5):
+        pc = pc_df[f'PC{i+1}']
+        f_b, p_b = stats.f_oneway(*[pc[pc_df[batch_col] == b] for b in pc_df[batch_col].unique()])
+        f_c, p_c = stats.f_oneway(*[pc[pc_df[condition_col] == c] for c in pc_df[condition_col].unique()])
+        out.loc[i, 'batch_F'] = f_b
+        out.loc[i, 'batch_p'] = p_b
+        out.loc[i, 'cond_F'] = f_c
+        out.loc[i, 'cond_p'] = p_c
+    return out
+```
+
+**Interpretation:** If PC1 has batch F-stat > condition F-stat by 10x, batch is dominating and correction is warranted. If condition dominates PC1, no correction needed.
+
+## ComBat Empirical-Bayes Correction
+
+**Goal:** Remove batch-specific location and scale shifts while preserving biological condition signal.
+
+**Approach:** Log-transform counts, fit ComBat with explicit `biological_covariate` indicating condition (so the model knows which signal to preserve), back-transform.
 
 ```python
 import numpy as np
-import pandas as pd
-from scipy import stats
+from combat.pycombat import pycombat
 
-def median_normalize(counts_df, batch_column='batch'):
-    '''Normalize counts to median within each batch.'''
-    normalized = counts_df.copy()
-
-    guide_columns = [c for c in counts_df.columns if c not in [batch_column, 'gene', 'guide']]
-
-    for batch in counts_df[batch_column].unique():
-        batch_mask = counts_df[batch_column] == batch
-        batch_data = counts_df.loc[batch_mask, guide_columns]
-
-        sample_medians = batch_data.median(axis=0)
-        global_median = sample_medians.median()
-
-        scale_factors = global_median / sample_medians
-        normalized.loc[batch_mask, guide_columns] = batch_data * scale_factors
-
-    return normalized
-
-counts_df = pd.read_csv('screen_counts.csv')
-normalized = median_normalize(counts_df, 'batch')
-```
-
-## Size Factor Normalization
-
-```python
-def size_factor_normalize(counts_df, reference='geometric_mean'):
-    '''DESeq2-style size factor normalization.'''
-    guide_cols = [c for c in counts_df.columns if c.startswith('sample_')]
-    counts = counts_df[guide_cols].values
-
-    counts_nonzero = np.where(counts == 0, np.nan, counts)
-
-    if reference == 'geometric_mean':
-        log_counts = np.log(counts_nonzero)
-        geometric_mean = np.exp(np.nanmean(log_counts, axis=1))
+def combat_correct(counts_df, batch_vector, condition_vector=None):
+    '''ComBat on log-counts with optional biological covariate (condition).
+    Preserves condition signal while removing batch shifts.'''
+    data = np.log2(counts_df.values + 1)
+    if condition_vector is not None:
+        mod = pd.get_dummies(condition_vector).values.astype(float)
+        corrected = pycombat(data, np.array(batch_vector), mod=mod)
     else:
-        geometric_mean = counts_nonzero.mean(axis=1)
-
-    ratios = counts_nonzero / geometric_mean[:, np.newaxis]
-    size_factors = np.nanmedian(ratios, axis=0)
-
-    normalized_counts = counts / size_factors
-    normalized_df = counts_df.copy()
-    normalized_df[guide_cols] = normalized_counts
-
-    return normalized_df, size_factors
-
-normalized, size_factors = size_factor_normalize(counts_df)
-print('Size factors:', size_factors)
+        corrected = pycombat(data, np.array(batch_vector))
+    return pd.DataFrame(np.power(2, corrected) - 1,
+                         index=counts_df.index, columns=counts_df.columns).clip(lower=0)
 ```
 
-## Quantile Normalization
+**Critical caveat:** ComBat assumes batch effects are linear shifts of mean and variance in log space. Non-linear effects (e.g., gene-specific batch sensitivity) remain. Always re-check PCA after correction to confirm batches now overlap.
+
+## RUV (Remove Unwanted Variation)
+
+**Goal:** Identify hidden batch sources via control sgRNAs whose true signal is known.
+
+**Approach:** Designate non-targeting controls as "negative controls" (assumed unchanged); RUV decomposes their variance into unwanted factors, then subtracts these from all data.
+
+```r
+library(RUVSeq)
+# counts_df: rows = sgRNAs, columns = samples
+ntc_indices <- which(rownames(counts_df) %in% ntc_sgrna_names)
+seqset <- newSeqExpressionSet(counts = as.matrix(counts_df))
+ruv_corrected <- RUVg(seqset, cIdx = ntc_indices, k = 2)  # k = 2 unwanted factors
+# Access corrected data
+corrected_counts <- normCounts(ruv_corrected)
+```
+
+**When to use:** RUV preferred over ComBat when batches are not annotated (e.g., unknown technical confounders). Worse than ComBat when batch is known and well-annotated; ComBat is more direct.
+
+## SVA (Surrogate Variable Analysis)
+
+**Goal:** Estimate unknown latent factors that may confound the screen.
+
+**Approach:** SVA computes surrogate variables that capture variance not explained by known biological factors; these can then be added to the MAGeCK MLE design matrix as covariates.
+
+```r
+library(sva)
+# counts_df: rows = sgRNAs, columns = samples
+mod <- model.matrix(~ condition, data = metadata)
+mod0 <- model.matrix(~ 1, data = metadata)
+sv_obj <- sva(as.matrix(counts_df), mod, mod0)
+n_sv <- sv_obj$n.sv  # number of surrogate variables
+# Add to design matrix for MAGeCK MLE
+design_mat <- cbind(mod, sv_obj$sv)
+```
+
+**Use case:** When the screen has clear biological signal (e.g. essentiality recovery passes) but small effect sizes are hidden by noise; SVA-discovered latent factors as covariates can recover them.
+
+## Batch as Explicit Covariate (Preferred for MAGeCK MLE / Chronos)
+
+**Goal:** Model batch and biology in the same regression instead of pre-correcting.
+
+**Approach:** Add batch indicator columns to the MLE design matrix. The fitted beta for condition is the effect after accounting for batch; no pre-correction needed.
+
+```bash
+# Design matrix for a screen with 2 batches and 2 conditions
+cat > design.txt <<EOF
+Samples         baseline    batch2    treatment
+Veh_b1_r1       1           0         0
+Veh_b1_r2       1           0         0
+Drug_b1_r1      1           0         1
+Drug_b1_r2      1           0         1
+Veh_b2_r1       1           1         0
+Veh_b2_r2       1           1         0
+Drug_b2_r1      1           1         1
+Drug_b2_r2      1           1         1
+EOF
+
+mageck mle \
+    --count-table counts.txt \
+    --design-matrix design.txt \
+    --output-prefix batch_aware_mle
+```
+
+**Why this is preferred:** ComBat shifts counts before testing; the MLE-with-covariates approach correctly propagates uncertainty from the batch term into the condition beta's standard error. ComBat-then-test pretends the corrected counts are noise-free, biasing FDR.
+
+## Control-Sgrna Anchored Normalization
+
+**Goal:** Use non-targeting controls as the per-sample reference so batch shifts cancel.
+
+**Approach:** Scale each sample so its NTC sgRNAs have a constant median. Subsequent fold changes are relative to NTCs in each sample, automatically batch-controlling.
 
 ```python
-def quantile_normalize(counts_df, guide_cols=None):
-    '''Quantile normalization across samples.'''
-    if guide_cols is None:
-        guide_cols = [c for c in counts_df.columns if c.startswith('sample_')]
-
-    data = counts_df[guide_cols].values.copy()
-
-    sorted_data = np.sort(data, axis=0)
-    mean_values = sorted_data.mean(axis=1)
-
-    ranks = np.argsort(np.argsort(data, axis=0), axis=0)
-    normalized = mean_values[ranks]
-
-    result = counts_df.copy()
-    result[guide_cols] = normalized
-
-    return result
-
-qn_counts = quantile_normalize(counts_df)
+def ntc_anchored_normalize(counts_df, ntc_sgrna_names, target_median=1000):
+    '''Scale each sample so its NTC median is target_median. Subsequent LFC is NTC-anchored.'''
+    is_ntc = counts_df.index.isin(ntc_sgrna_names)
+    ntc_medians = counts_df.loc[is_ntc].median(axis=0)
+    scale_factors = target_median / ntc_medians.replace(0, np.nan)
+    return counts_df * scale_factors, scale_factors
 ```
 
-## Control-Based Normalization
+**Critical:** Requires ≥500 NTCs in the library (see [[library-design]]). With fewer, the NTC median is unstable and amplifies noise rather than removing batch.
 
-```python
-def normalize_to_controls(counts_df, control_genes, method='median'):
-    '''Normalize using non-targeting or negative control guides.'''
-    guide_cols = [c for c in counts_df.columns if c.startswith('sample_')]
+## When NOT to Correct
 
-    is_control = counts_df['gene'].isin(control_genes)
-    control_data = counts_df.loc[is_control, guide_cols]
+| Situation | Why correction hurts |
+|-----------|----------------------|
+| Batch is fully confounded with condition | Correction destroys biology along with batch; redesign or accept |
+| Batch effect is smaller than between-replicate noise | Correction adds noise without removing meaningful variance |
+| Replicates already correlate >0.95 within and across batches | No batch effect to correct |
+| Single-screen analysis | No "batch" to correct; only replicate noise |
+| Per-batch sample size <3 | Cannot estimate batch shift reliably; correction is harmful |
 
-    if method == 'median':
-        control_values = control_data.median(axis=0)
-    elif method == 'mean':
-        control_values = control_data.mean(axis=0)
-    elif method == 'sum':
-        control_values = control_data.sum(axis=0)
+## Failure Modes
 
-    reference = control_values.median()
-    scale_factors = reference / control_values
+### ComBat eliminates biological signal
 
-    normalized = counts_df.copy()
-    normalized[guide_cols] = counts_df[guide_cols] * scale_factors
+**Trigger:** Batch is correlated with condition (e.g., all drug-arm samples were processed week 2; all vehicle-arm samples week 1).
+**Mechanism:** ComBat without a `mod` covariate treats condition variance as batch variance; corrects it away.
+**Symptom:** PR-AUC against CEGv2 drops after ComBat correction.
+**Fix:** Always supply `mod` covariate matrix indicating condition; verify by comparing PR-AUC before and after.
 
-    return normalized, scale_factors
+### RUV adds noise instead of removing it
 
-nontargeting = counts_df[counts_df['gene'].str.startswith('NonTargeting')]['gene'].unique()
-normalized, factors = normalize_to_controls(counts_df, nontargeting)
-```
+**Trigger:** k (number of unwanted factors) set too high.
+**Mechanism:** RUV's least-squares decomposition over-fits; "removed" variance includes biology.
+**Symptom:** Hits decrease and replicate Pearson drops after correction.
+**Fix:** Choose k via cross-validation; default k=1 or 2 for most screens.
 
-## Batch Effect Removal with ComBat
+### Batch-aware MLE collinear design matrix
 
-**Goal:** Remove batch effects using empirical Bayes adjustment while preserving biological signal.
+**Trigger:** Adding a batch indicator that is fully collinear with another design column (e.g., all of batch 2 is also Day 21).
+**Mechanism:** MLE design matrix is singular; betas not estimable.
+**Symptom:** MAGeCK MLE errors out or produces NaN betas.
+**Fix:** Drop the collinear column; re-design experiment with cross-batch balance.
 
-**Approach:** Log-transform counts, apply pyCombat with a batch vector, and back-transform to count space.
+### ComBat after RUV double-corrects
 
-```python
-def combat_correction(counts_df, batch_vector, guide_cols=None):
-    '''ComBat batch correction for count data.'''
-    from combat.pycombat import pycombat
+**Trigger:** Applying multiple corrections sequentially.
+**Mechanism:** Both methods remove variance; sequential application removes biology twice.
+**Symptom:** All signal gone; counts look uniformly noisy.
+**Fix:** Pick one method based on diagnostic; never combine.
 
-    if guide_cols is None:
-        guide_cols = [c for c in counts_df.columns if c.startswith('sample_')]
+### Per-batch sample size too small
 
-    data = counts_df[guide_cols].values.T
+**Trigger:** 2 replicates per batch with 3 batches; ComBat estimates batch shift from 2 samples.
+**Mechanism:** Insufficient data to estimate batch parameters; high-variance estimates.
+**Symptom:** Correction makes some batches worse than uncorrected.
+**Fix:** Need ≥3 (preferably 4-6) samples per batch; below this, use covariate modeling instead.
 
-    log_data = np.log2(data + 1)
-    corrected = pycombat(log_data, batch_vector)
-    corrected_counts = np.power(2, corrected) - 1
-    corrected_counts = np.maximum(corrected_counts, 0)
+## Quantitative Thresholds
 
-    result = counts_df.copy()
-    result[guide_cols] = corrected_counts.T
+| Threshold | Value | Source / Rationale |
+|-----------|-------|--------------------|
+| PC1 batch F vs condition F | F_batch > 10x F_cond -> apply correction | Standard variance-decomposition diagnostic |
+| ComBat min samples per batch | ≥3, ideally 4-6 | Empirical Bayes prior estimation |
+| RUV `k` (unwanted factors) | k=1 default; k=2 if multiple known batch sources | Risso 2014; cross-validate |
+| NTCs needed for NTC-anchored norm | ≥500 in library | Stable median |
+| Post-correction PCA check | Batches must overlap in PC1/PC2 plot | Visual sanity check |
+| Post-correction PR-AUC | Should be same or higher than pre | If lower, correction destroyed biology |
 
-    return result
+## Common Errors
 
-batches = [1, 1, 1, 2, 2, 2]
-corrected = combat_correction(counts_df, batches)
-```
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| PR-AUC drops after ComBat | Batch confounded with condition | Add `mod` covariate; or redesign |
+| MAGeCK MLE NaN beta after adding batch column | Collinear design matrix | Drop collinear column |
+| Replicates still cluster by batch after RUV | k too low | Increase k; cross-validate |
+| Replicates lose internal cohesion after correction | Over-correction | Reduce k or revert |
+| NTC-anchored norm worse than median | Too few NTCs | Use median; add NTCs to next library |
+| Sequencing-run-level batch survives ComBat | Non-linear sequencing effect | Pre-normalize with `mageck count --norm-method control` first |
 
-## Batch-Aware Log-Fold Change
+## References
 
-```python
-def batch_aware_lfc(counts_df, treatment_cols, control_cols, batch_vector):
-    '''Calculate LFC accounting for batch structure.'''
-    batches = np.unique(batch_vector)
-
-    lfc_by_batch = []
-    for batch in batches:
-        batch_treat = [c for c, b in zip(treatment_cols, batch_vector) if b == batch and c in treatment_cols]
-        batch_ctrl = [c for c, b in zip(control_cols, batch_vector) if b == batch and c in control_cols]
-
-        if len(batch_treat) == 0 or len(batch_ctrl) == 0:
-            continue
-
-        treat_mean = counts_df[batch_treat].mean(axis=1)
-        ctrl_mean = counts_df[batch_ctrl].mean(axis=1)
-
-        batch_lfc = np.log2((treat_mean + 1) / (ctrl_mean + 1))
-        lfc_by_batch.append(batch_lfc)
-
-    combined_lfc = pd.concat(lfc_by_batch, axis=1).mean(axis=1)
-    lfc_var = pd.concat(lfc_by_batch, axis=1).var(axis=1)
-
-    return combined_lfc, lfc_var
-```
-
-## Replicate Correlation Check
-
-```python
-def check_replicate_correlation(counts_df, sample_cols, replicate_groups):
-    '''Check correlation between replicates.'''
-    correlations = []
-
-    for group, replicates in replicate_groups.items():
-        if len(replicates) < 2:
-            continue
-
-        for i in range(len(replicates)):
-            for j in range(i+1, len(replicates)):
-                r1, r2 = replicates[i], replicates[j]
-                if r1 in sample_cols and r2 in sample_cols:
-                    log_r1 = np.log2(counts_df[r1] + 1)
-                    log_r2 = np.log2(counts_df[r2] + 1)
-
-                    corr, pval = stats.pearsonr(log_r1, log_r2)
-                    correlations.append({
-                        'group': group,
-                        'rep1': r1,
-                        'rep2': r2,
-                        'pearson_r': corr,
-                        'pvalue': pval
-                    })
-
-    return pd.DataFrame(correlations)
-
-replicate_groups = {
-    'treatment_batch1': ['sample_1', 'sample_2'],
-    'treatment_batch2': ['sample_4', 'sample_5'],
-    'control_batch1': ['sample_3'],
-    'control_batch2': ['sample_6']
-}
-
-corr_df = check_replicate_correlation(counts_df, counts_df.columns[3:], replicate_groups)
-print(corr_df)
-```
-
-## Batch QC Metrics
-
-**Goal:** Quantify batch effect magnitude to determine whether correction is needed.
-
-**Approach:** Run PCA on log-transformed counts, compute between-batch vs within-batch variance ratio, and assess whether batch structure dominates the first principal components.
-
-```python
-def batch_qc_metrics(counts_df, batch_vector, sample_cols):
-    '''Calculate batch-related QC metrics.'''
-    from sklearn.decomposition import PCA
-    from scipy.spatial.distance import pdist
-
-    log_counts = np.log2(counts_df[sample_cols].values.T + 1)
-
-    pca = PCA(n_components=min(5, len(sample_cols)))
-    pcs = pca.fit_transform(log_counts)
-
-    batch_labels = np.array(batch_vector)
-    unique_batches = np.unique(batch_labels)
-
-    if len(unique_batches) > 1:
-        batch_means = [pcs[batch_labels == b].mean(axis=0) for b in unique_batches]
-        batch_separation = np.mean(pdist(batch_means))
-
-        within_batch_var = np.mean([pcs[batch_labels == b].var() for b in unique_batches])
-        between_batch_var = np.var(batch_means, axis=0).sum()
-
-        batch_effect_ratio = between_batch_var / (within_batch_var + 1e-10)
-    else:
-        batch_separation = 0
-        batch_effect_ratio = 0
-
-    return {
-        'batch_separation': batch_separation,
-        'batch_effect_ratio': batch_effect_ratio,
-        'pca_variance_explained': pca.explained_variance_ratio_,
-        'n_batches': len(unique_batches)
-    }
-
-qc = batch_qc_metrics(counts_df, [1,1,1,2,2,2], sample_cols)
-print(f"Batch effect ratio: {qc['batch_effect_ratio']:.2f}")
-```
-
-## Visualization
-
-```python
-import matplotlib.pyplot as plt
-
-def plot_batch_effect(counts_df, batch_vector, sample_cols, output_file):
-    '''Visualize batch effects with PCA.'''
-    from sklearn.decomposition import PCA
-
-    log_counts = np.log2(counts_df[sample_cols].values.T + 1)
-
-    pca = PCA(n_components=2)
-    pcs = pca.fit_transform(log_counts)
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-
-    for batch in np.unique(batch_vector):
-        mask = np.array(batch_vector) == batch
-        ax.scatter(pcs[mask, 0], pcs[mask, 1], label=f'Batch {batch}', s=100)
-
-    ax.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%})')
-    ax.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%})')
-    ax.legend()
-    ax.set_title('PCA - Batch Effects')
-
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=150)
-    plt.close()
-
-plot_batch_effect(counts_df, [1,1,1,2,2,2], sample_cols, 'batch_pca.png')
-```
+- Johnson WE et al. 2007. *Biostatistics* 8:118. Original ComBat algorithm.
+- Leek JT et al. 2012. *Bioinformatics* 28:882. SVA package.
+- Risso D et al. 2014. *Nat Biotechnol* 32:896. RUVSeq.
+- Pacini C et al. 2021. *Cell Syst* 12:1132. CRISPR-screen batch effects analysis.
+- Hayer KE et al. 2023. *Genome Biol* 24:1. Benchmark of normalization methods for CRISPR screens.
 
 ## Related Skills
 
-- mageck-analysis - Batch-aware MAGeCK analysis
-- screen-qc - Quality control before correction
-- hit-calling - Analysis after batch correction
-- library-design - Control guide design
+- crispr-screens/mageck-analysis - MAGeCK MLE with explicit batch covariates
+- crispr-screens/screen-qc - Pre-correction PCA diagnostic
+- crispr-screens/copy-number-correction - Chronos handles batch + CN jointly
+- crispr-screens/library-design - NTC composition for NTC-anchored normalization
+- crispr-screens/jacks-analysis - Joint analysis across batches with shared efficacy
+- crispr-screens/hit-calling - Post-correction hit calling
+- crispr-screens/in-vivo-screens - In-vivo-specific batch sources (animal cohort, tissue prep)
