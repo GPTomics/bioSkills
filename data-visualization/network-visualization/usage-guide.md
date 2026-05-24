@@ -2,90 +2,91 @@
 
 ## Overview
 
-This skill enables AI agents to create static, interactive, and publication-quality visualizations of biological networks. Supports protein interaction networks, gene regulatory networks, co-expression modules, and pathway graphs using NetworkX, PyVis, and Cytoscape automation.
+Network visualizations render protein-interaction, gene-regulatory, co-expression, and pathway graphs. Layout choice dominates the result: force-directed (Fruchterman-Reingold, ForceAtlas2) is general-purpose but layout positions are NOT biologically meaningful; hive plots (Krzywinski 2012) and circular layouts preserve categorical structure; hierarchical edge bundling (Holten 2006) reduces hairball clutter for many-to-many. NetworkX + matplotlib for static publication; PyVis for interactive HTML; Cytoscape for journal-grade composition.
 
 ## Prerequisites
 
 ```bash
-# Core
-pip install networkx matplotlib numpy
+pip install networkx pyvis py4cytoscape matplotlib numpy
+# Large networks:
+pip install datashader
+```
 
-# Interactive HTML networks
-pip install pyvis
-
-# Cytoscape automation (requires Cytoscape desktop running)
-pip install py4cytoscape
+```r
+install.packages(c('igraph', 'ggraph', 'tidygraph'))
 ```
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-
-- "Visualize my protein interaction network from STRING"
-- "Create an interactive HTML network from my gene interactions"
-- "Color network nodes by community membership"
-- "Draw my gene regulatory network with activation and repression edges"
-- "Send my NetworkX graph to Cytoscape for styling"
+- "Plot PPI network with degree-sized nodes and community-colored modules using NetworkX"
+- "ForceAtlas2 layout for a 5000-node scale-free network"
+- "Interactive PyVis HTML with hover tooltips"
+- "Send the network to Cytoscape with degree-based styling via py4cytoscape"
+- "Hive plot anchored by module assignment"
 
 ## Example Prompts
 
-### Static Network Plots
+### Standard PPI
 
-> "Draw a network from my interaction DataFrame with node sizes proportional to degree"
+> "PPI network of 200 proteins from STRING. Spring layout with fixed seed. Color nodes by community via greedy_modularity_communities. Size by degree. Label only hubs (degree >= 5)."
 
-> "Create a PPI network plot with edge colors based on confidence scores"
+### Large network
 
-> "Make a side-by-side comparison of treated vs control co-expression networks"
+> "5000-node co-expression network. Use ForceAtlas2 layout. Bundle edges with hierarchical edge bundling. Rasterize for PDF."
 
-### Community and Clustering
+### Comparing conditions
 
-> "Detect communities in my network and color the nodes by group"
+> "Two PPI networks (control vs treatment). Compute layout on the UNION graph; render both with the same `pos` so visual changes reflect biology not layout."
 
-> "Highlight my differentially expressed genes on the PPI network"
+### Interactive supplement
 
-> "Show the top 10 hub genes in a different color"
+> "PyVis HTML with degree-based node size and module-based color; force-atlas physics; export standalone HTML."
 
-### Interactive Networks
+### Cytoscape pipeline
 
-> "Create an interactive HTML network I can share with collaborators"
-
-> "Build a PyVis network with hover tooltips showing gene annotations"
-
-### Gene Regulatory Networks
-
-> "Draw my GRN with arrows showing activation in green and repression in red"
-
-> "Visualize the SCENIC regulon network with TFs as diamond nodes"
-
-### Cytoscape
-
-> "Send my NetworkX graph to Cytoscape and apply degree-based styling"
-
-> "Export a publication-quality PDF from Cytoscape"
+> "Send NetworkX graph to Cytoscape via py4cytoscape; apply degree-mapping style; export PDF."
 
 ## What the Agent Will Do
 
-1. Load or construct a NetworkX graph from interaction data
-2. Select an appropriate layout algorithm based on network size and topology
-3. Apply node sizing (degree), coloring (community or attribute), and edge styling (weight or type)
-4. Render the network as a static figure, interactive HTML, or Cytoscape session
-5. Export in the requested format (PNG, PDF, SVG, HTML, GraphML)
+1. Load network from edge list / GraphML / SIF / interaction-database query.
+2. Compute basic stats (degree distribution, density, modularity).
+3. Choose layout: force-directed for general; hive for comparative; circular for small dense; edge bundling for many-to-many.
+4. Set random seed (always); reuse `pos` when comparing conditions.
+5. Compute node attributes (degree, betweenness, community assignment).
+6. Render with NetworkX layered drawing (`draw_networkx_edges`, `nodes`, `labels`) for fine control.
+7. Label hubs only (cap at degree threshold or ~30 labels).
+8. Encode edge weights via line width when meaningful.
+9. Export PDF for static (with raster for >2000 nodes) or HTML for interactive.
 
 ## Tips
 
-- **Layout seed** - Always set `seed=42` in spring_layout for reproducible figures
-- **Spring k parameter** - Increase `k` (default ~1/sqrt(n)) for sparser layouts with better label readability
-- **Kamada-Kawai** - Use for small-medium networks (under 200 nodes) where spring layout is too tangled
-- **Label top nodes only** - For large networks, label only hub nodes (degree >= threshold) to avoid clutter
-- **PyVis for exploration** - Use interactive HTML networks for initial exploration, then switch to matplotlib for publication
-- **Cytoscape for publication** - py4cytoscape provides the finest control over styling and exports; requires Cytoscape desktop running
-- **Edge bundling** - For dense networks, reduce edge alpha (0.1-0.2) and width to prevent visual clutter
-- **Community detection** - greedy_modularity_communities works well for undirected networks; use Louvain (community.best_partition) for larger graphs
-- **Color palette** - Use colorblind-friendly palettes; the Nature palette (#E64B35, #4DBBD5, #00A087, #3C5488) works well for up to 8 communities
-- **Export resolution** - Use dpi=300 for publication PNGs; use PDF/SVG for scalable vector output
+- **Layout positions are NOT biology.** Frame conclusions on edge existence and node degree, not inter-node distance.
+
+- **Always set seed.** `seed=42` in NetworkX, `set.seed(42)` for R igraph. Without it, layout varies across runs.
+
+- **Comparing conditions requires shared layout.** Compute on union network; reuse `pos`.
+
+- **ForceAtlas2 for scale-free** (>500 nodes, hub-spoke topology). Spring for general; Kamada-Kawai for small dense.
+
+- **Hive plots (Krzywinski 2012)** anchor nodes to axes by categorical attribute - biology-faithful alternative to force-directed.
+
+- **Hierarchical edge bundling (Holten 2006)** dramatically reduces clutter for many-to-many networks within a hierarchy.
+
+- **Cap labels at hubs only** (degree > 5 or genes of interest). Labeling all nodes destroys readability.
+
+- **Encode edge weight via line width** when interaction confidence varies - uniform widths hide information.
+
+- **PyVis max ~2000 nodes** for browser HTML. Above this use Cytoscape.js or Datashader.
+
+- **Datashader for >50000 nodes** - raster aggregation; only honest display at that scale.
+
+- **Cytoscape (desktop) for publication-grade biological networks.** py4cytoscape exposes script control from Python/R.
 
 ## Related Skills
 
-- data-visualization/multipanel-figures - Combine network panels with other plots
-- gene-regulatory-networks/coexpression-networks - Build co-expression networks to visualize
-- database-access/interaction-databases - Fetch PPI data for network construction
+- gene-regulatory-networks/coexpression-networks - Build the network
+- database-access/interaction-databases - Fetch PPI data
+- data-visualization/multipanel-figures - Combine with other plots
+- data-visualization/color-palettes - Community palette
+- single-cell/cell-communication - Cell-cell interaction networks

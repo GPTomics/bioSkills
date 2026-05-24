@@ -1,4 +1,4 @@
-# Reference: matplotlib 3.8+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
+# Reference: UpSetR 1.4+, ComplexUpset 1.3+, ggplot2 3.5+ | Verify API if version differs
 library(UpSetR)
 
 # --- ALTERNATIVE: Use real gene sets ---

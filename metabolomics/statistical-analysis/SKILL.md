@@ -407,4 +407,5 @@ pheatmap(t(data_top), annotation_col = annotation_row,
 - pathway-mapping - Functional interpretation of differential metabolites
 - multi-omics-integration/mixomics-analysis - Advanced multivariate methods
 - proteomics/differential-abundance - Analogous empirical Bayes concepts for proteomics
-- data-visualization/specialized-omics-plots - Volcano plots, MA plots, heatmaps
+- data-visualization/volcano-and-ma-plots - Volcano and MA plots with LFC shrinkage
+- data-visualization/heatmaps-clustering - Clustered heatmaps with annotation tracks

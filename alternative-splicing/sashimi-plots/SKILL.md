@@ -373,10 +373,11 @@ pyGenomeTracks --tracks tracks.ini --region chr17:43094000-43125000 -o figure.pd
 
 - differential-splicing - Identify events to plot; sashimi plots are validation
 - splicing-quantification - Context for PSI values; sashimi provides visual confirmation
-- data-visualization/genome-browser-tracks - Multi-track figure design (pyGenomeTracks)
+- data-visualization/genome-tracks - Multi-track figure design (pyGenomeTracks, Gviz)
 - data-visualization/ggplot2-fundamentals - ggsashimi customization (extends ggplot2)
 - data-visualization/color-palettes - Accessible color choices
-- data-visualization/specialized-omics-plots - Volcano, heatmap complement to sashimi
+- data-visualization/volcano-and-ma-plots - Volcano complement to sashimi
+- data-visualization/heatmaps-clustering - Heatmap complement to sashimi
 
 ## References
 

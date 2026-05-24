@@ -339,6 +339,5 @@ igv.sh -b igv.batch
 - chip-seq/spike-in-normalization - Spike-in-scaled bigWig generation
 - chip-seq/differential-binding - Visualize differential peak signal
 - chip-seq/super-enhancers - SE region visualization in tracks
-- data-visualization/genome-tracks - General genome track patterns
+- data-visualization/genome-tracks - General genome track patterns + IGV batch + pyGenomeTracks
 - data-visualization/heatmaps-clustering - General heatmap conventions
-- data-visualization/genome-browser-tracks - IGV / UCSC track configuration

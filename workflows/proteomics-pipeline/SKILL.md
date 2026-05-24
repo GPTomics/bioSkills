@@ -215,4 +215,4 @@ protein_matrix <- diann %>%
 - proteomics/quantification - Normalization methods
 - proteomics/differential-abundance - Statistical testing details
 - proteomics/ptm-analysis - Phosphoproteomics and other PTMs
-- data-visualization/specialized-omics-plots - Volcano plots
+- data-visualization/volcano-and-ma-plots - Volcano plots with LFC shrinkage

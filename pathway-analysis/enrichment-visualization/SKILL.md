@@ -28,7 +28,7 @@ This skill covers **enrichplot package functions** designed for clusterProfiler 
 - `gseaplot2()`, `ridgeplot()` - GSEA-specific
 - `goplot()`, `heatplot()`, `upsetplot()` - Specialized views
 
-**For custom ggplot2 enrichment dotplots** (manual implementation), see `data-visualization/specialized-omics-plots`.
+**For custom ggplot2 dotplots and statistical annotation**, see `data-visualization/distribution-plots` and `data-visualization/ggplot2-fundamentals`.
 
 ## Setup
 

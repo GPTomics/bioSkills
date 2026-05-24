@@ -1,59 +1,90 @@
 # Interactive Visualization - Usage Guide
 
 ## Overview
-Interactive plots enable exploration of large datasets through zooming, panning, and hover tooltips. Export as standalone HTML files for sharing.
+
+Interactive HTML/web plots support exploration via zoom, pan, hover, and brushing. plotly is the modern Python and R default (ggplotly converts ggplot2 directly); bokeh suits server-side dashboards; gganimate / plotly frames cover animation. The static-export pipeline changed materially in 2025 - orca is EOL; Kaleido v1+ is the standard but no longer bundles Chrome and dropped EPS. Always produce static alongside interactive for journal submission.
 
 ## Prerequisites
-```bash
-# Python
-pip install plotly bokeh
 
-# R
-install.packages('plotly')
+```bash
+pip install plotly bokeh kaleido altair
+# Static export requires installed Chrome/Chromium
+```
+
+```r
+install.packages(c('plotly', 'gganimate', 'htmlwidgets', 'DT', 'leaflet'))
 ```
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Create an interactive volcano plot with gene hover labels"
-- "Make a zoomable PCA plot colored by condition"
-- "Convert my ggplot to interactive plotly"
+- "Make this scatter interactive with plotly - hover shows sample ID"
+- "Convert this ggplot to plotly via ggplotly"
+- "WebGL acceleration for 20000-point scatter"
+- "Static PDF export via Kaleido v1; verify Chrome is installed"
+- "Animate time-course UMAP with plotly frames"
 
 ## Example Prompts
-### Interactive Exploration
-> "Create an interactive scatter plot where I can hover to see sample names"
 
-> "Make a zoomable plot of my expression data"
+### Interactive volcano
 
-### Conversion from Static
-> "Convert my ggplot volcano plot to interactive"
+> "Build interactive volcano with plotly Express; hover_data = ['gene', 'baseMean', 'padj']. Reference lines at fdr=0.05 and lfc=1. WebGL for >5000 points."
 
-> "Add hover tooltips to my PCA plot"
+### ggplotly conversion
 
-### Sharing
-> "Export my interactive plot as a standalone HTML file"
+> "Take this ggplot and pass to ggplotly with tooltip = c('text', 'x', 'y'). Save as self-contained HTML via htmlwidgets."
 
-> "Create an interactive heatmap I can share with collaborators"
+### Static export
+
+> "Export the plotly figure as a 300 DPI PDF for the paper. Use Kaleido v1; verify Chrome is installed; produce a fallback PNG if PDF fails."
+
+### Animated UMAP time-course
+
+> "Animate UMAP across 5 timepoints using plotly animation_frame='timepoint'. Constant axis range across frames."
+
+### Dashboard
+
+> "Build a Bokeh server dashboard with linked-brushing scatter + bar chart for cohort exploration."
 
 ## What the Agent Will Do
-1. Prepare data with appropriate hover text columns
-2. Create interactive plot with plotly or bokeh
-3. Configure hover tooltips with relevant metadata
-4. Enable zoom, pan, and selection tools
-5. Export as standalone HTML for sharing
 
-## Tool Selection
-
-| Tool | Language | Best For |
-|------|----------|----------|
-| plotly | Python/R | General interactive plots, ggplot2 conversion |
-| bokeh | Python | Web apps, linked brushing, widgets |
+1. Decide interactive vs static: notebook exploration / supplement / dashboard → interactive; journal figure → static (alongside).
+2. For Python: plotly Express for fast onboarding; graph_objects for fine control; Scattergl for >5000 points.
+3. For R: prefer ggplotly for ggplot conversion; htmlwidgets ecosystem for tables/maps/networks.
+4. Configure hover_data, tooltips, color/size aesthetics.
+5. For static export: confirm Kaleido v1 + Chrome installed; use `fig.write_image()` with no `engine=`.
+6. For animation: limit to ≤100 frames; pre-aggregate per-frame data; constant axis range.
+7. Save HTML as self-contained (`htmlwidgets::saveWidget(..., selfcontained = TRUE)`) for portability.
+8. Always produce static PDF alongside HTML for journal submission.
 
 ## Tips
-- Include gene names and metadata in hover tooltips
-- Use `ggplotly()` to convert existing ggplot2 plots
-- Export as HTML for easy sharing (no server needed)
-- Consider file size for large datasets (downsample if needed)
+
+- **Always produce static alongside interactive.** Interactive HTML cannot be cited as a paper figure.
+
+- **Kaleido v1 is the current static-export engine.** No `engine=` argument needed; orca is EOL.
+
+- **Kaleido v1 requires installed Chrome/Chromium.** No longer bundled. Verify with `which chrome` or equivalent.
+
+- **EPS export dropped in Kaleido v1.** Export PDF then convert via `pdf2ps` (ghostscript). For pure-vector EPS, may need a separate path.
+
+- **WebGL (Scattergl) for >5000 points.** Default Scatter is slow at scale.
+
+- **HTML > 10 MB is a warning sign.** Pre-aggregate (Datashader) or filter before exporting.
+
+- **ggplotly is the lowest-friction R interactive path** - write ggplot, get plotly.
+
+- **Self-contained HTML** for portability (`selfcontained = TRUE` in saveWidget). Default CDN-linked breaks offline.
+
+- **For animation, cap at ~100 frames.** File size and viewer attention both degrade.
+
+- **bokeh for dashboards / streaming;** plotly for static-figure-equivalent interactivity.
+
+- **Don't cite interactive in figure captions.** Treat as supplement; static for the paper.
 
 ## Related Skills
-- **data-visualization/ggplot2-fundamentals** - Static versions
-- **reporting/quarto-reports** - Embed in documents
+
+- reporting/quarto-reports - Embed in scientific reports
+- reporting/rmarkdown-reports - htmlwidgets in Rmd
+- data-visualization/ggplot2-fundamentals - ggplot for ggplotly conversion
+- data-visualization/dimensionality-reduction-plots - Interactive UMAP/PCA
+- data-visualization/network-visualization - PyVis interactive networks
