@@ -127,7 +127,10 @@ dds <- DESeqDataSetFromSlidingWindows(
 )
 
 dds <- DESeq(dds)
-res <- results(dds, name='condition_treated_vs_untreated')
+# In a model with `~ type + condition`, the IP-vs-input contrast is the simple condition
+# main effect; to test the differential CLIP signal between conditions use the interaction
+# term name from the design matrix (matches the skill's interaction-term guidance below):
+res <- results(dds, name='typeip.conditiontreated')
 
 # Window-level FDR adjustment
 res_filtered <- res[!is.na(res$padj) & res$padj < 0.05 & abs(res$log2FoldChange) > 1, ]

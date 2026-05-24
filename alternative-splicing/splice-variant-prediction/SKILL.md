@@ -61,7 +61,7 @@ Methodology evolves; verify benchmarks (Strawn 2025 *bioRxiv*; You et al 2024 *N
 
 ## ClinGen SVI 2023 Framework
 
-The ClinGen Sequence Variant Interpretation (SVI) splicing subgroup (Walker 2023 *Am J Hum Genet*; Riepe 2024 *Genet Med*) extended the ACMG/AMP 2015 framework with explicit splice-prediction rules.
+The ClinGen Sequence Variant Interpretation (SVI) splicing subgroup (Walker 2023 *Am J Hum Genet*) extended the ACMG/AMP 2015 framework with explicit splice-prediction rules.
 
 | Evidence code | Threshold | Notes |
 |----------------|-----------|-------|
@@ -237,7 +237,7 @@ spliceai -I input.vcf -O output_2kb.vcf -R genome.fa -A grch38 -D 2000
 | -D 500 | Captures most pseudoexon-creating deep-intronic variants |
 | -D 2000 | Maximum sensitivity; some false positives at large distances |
 
-Pseudoexon creation in deep introns explains ~5-15% of unsolved Mendelian disease alleles in current cohorts (Smith 2024 *Nat Commun*). Disease examples: CFTR 3849+10kbC>T, USH2A c.7595-2144A>G, CEP290 c.2991+1655A>G (LCA10).
+Pseudoexon creation in deep introns explains a substantial fraction of unsolved Mendelian disease alleles in current cohorts (estimates 5-15% across studies; specific quantitative range will vary by cohort and panel — verify against current literature). Disease examples: CFTR 3849+10kbC>T, USH2A c.7595-2144A>G, CEP290 c.2991+1655A>G (LCA10).
 
 ## Concordance Across Predictors
 
@@ -433,17 +433,17 @@ Always check ClinVar first for existing classifications; cross-reference with gn
 - Zeng & Li 2022 *Genome Biol* - Pangolin
 - Cheng et al 2019 *Genome Biol* - MMSplice
 - Cheng et al 2021 *Genome Biol* - MTSplice (tissue MMSplice)
-- Liu et al 2024 *Nat Commun* - SpliceTransformer
+- You et al 2024 *Nat Commun* - SpliceTransformer
 - Strauch et al 2022 *Bioinformatics* - CI-SpliceAI extended window
 - Rentzsch et al 2021 *Genome Med* - CADD-Splice
 - Dawes et al 2023 *Nat Genet* - SpliceVault
 - Walker et al 2023 *Am J Hum Genet* - ClinGen SVI splicing recommendations
-- Riepe et al 2024 *Genet Med* - SpliceAI in clinical pipelines
+- Riepe et al 2021 *Hum Mutat* 42:799 - SpliceAI in clinical pipelines (Riepe TV et al)
 - Abou Tayoun et al 2018 *Hum Mutat* - PVS1 decision tree
 - Richards et al 2015 *Genet Med* - ACMG/AMP framework
 - den Dunnen et al 2016 *Hum Mutat* - HGVS standard
 - Zhang et al 2022 *PNAS* (PMID 36306325) - BPHunter for branchpoints
 - Hua et al 2008 *AJHG* - ISS-N1 / nusinersen mechanism
 - Aartsma-Rus 2023 *Nat Rev Drug Discov* - DMD exon-skipping ASOs
-- Smith et al 2024 *Nat Commun* - extended-window SpliceAI in unsolved Mendelian
+- (Extended-window SpliceAI in unsolved Mendelian: consult current literature for citation — earlier draft attribution to "Smith 2024 Nat Commun" could not be verified.)
 - Findlay et al 2018 *Nature* - BRCA1 saturation genome editing (MAVE)

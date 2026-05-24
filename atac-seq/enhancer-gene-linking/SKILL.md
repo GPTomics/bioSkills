@@ -180,7 +180,7 @@ python /path/ABC-Enhancer-Gene-Prediction/workflow/scripts/predict.py \
 # Output: EnhancerPredictionsAllPutative.txt with per-pair ABC scores
 ```
 
-ABC.Score >= 0.02 is the standard threshold; >= 0.04 for stringent reporting.
+ABC.Score >= 0.02 is the standard threshold validated in Fulco 2019 against CRISPRi-FlowFISH; >= 0.04 is a stricter cut sometimes used in the ABC pipeline documentation for higher precision (no separate primary-paper calibration).
 
 ## ENCODE-rE2G
 
@@ -270,7 +270,7 @@ high_conf['hichip_support'] = high_conf['enhancer_id'].isin(hichip_anchors)
 - Nasser J et al 2021 Nature 593:238 (ABC genome-wide application)
 - ENCODE Project Consortium 2024 (ENCODE-rE2G)
 - Mumbach MR et al 2017 Nat Genet 49:1602 (HiChIP H3K27ac)
-- Bhattacharyya S et al 2019 Bioinformatics 35:5012 (FitHiChIP)
+- Bhattacharyya S et al 2019 Nature Communications 10:4221 (FitHiChIP)
 - Boix CA et al 2021 Nature 590:300 (EpiMap reference)
 - Gasperini M et al 2019 Cell 176:377 (CRISPRi at scale)
 - Schraivogel D et al 2020 Nat Methods 17:629 (multi-cell-type CRISPRi)

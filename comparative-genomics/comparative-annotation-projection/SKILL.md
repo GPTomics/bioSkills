@@ -7,7 +7,7 @@ primary_tool: TOGA
 
 ## Version Compatibility
 
-Reference examples tested with: TOGA 1.1.7+ (hillerlab/TOGA; Kirilenko 2023 Science 380:eabn3107), CESAR 2.0 (Sharma & Hiller 2017 NAR 45:8369), LiftOff 1.6.3+ (Shumate & Salzberg 2020 Bioinformatics 36:5310), Comparative Annotation Toolkit (CAT) 2.4+, GeMoMa 1.9+ (Keilwagen 2019 Methods Mol Biol 1962:161), UCSC liftOver 2024+, Cactus 2.9.1+ (for HAL input), HAL toolkit 2.3+, NextFlow 24+ for TOGA pipeline, BUSCO 5.7+ / Compleasm 0.2.7+ for QC, Snakemake 8.0+ for CAT, R 4.4+. The current TOGA expects HAL from Cactus 2.5+; older HAL formats may fail.
+Reference examples tested with: TOGA 1.1.7+ (hillerlab/TOGA; Kirilenko 2023 Science 380:eabn3107), CESAR 2.0 (Sharma & Hiller 2017 NAR 45:8369), LiftOff 1.6.3+ (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643), Comparative Annotation Toolkit (CAT) 2.4+, GeMoMa 1.9+ (Keilwagen 2019 Methods Mol Biol 1962:161), UCSC liftOver 2024+, Cactus 2.9.1+ (for HAL input), HAL toolkit 2.3+, NextFlow 24+ for TOGA pipeline, BUSCO 5.7+ / Compleasm 0.2.7+ for QC, Snakemake 8.0+ for CAT, R 4.4+. The current TOGA expects HAL from Cactus 2.5+; older HAL formats may fail.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `toga.py --help`; `cesar --help`; `liftoff --version`
@@ -18,7 +18,7 @@ If code throws `TOGA chain file missing`, `CESAR fragment not found`, `LiftOff a
 
 # Comparative Annotation Projection
 
-**"Annotate this new genome using my well-annotated reference"** -> Annotation projection from a reference is the modern alternative to de novo gene prediction; it produces high-quality, comparable annotations across genomes by leveraging evolutionary conservation. The 2023-era standard is **TOGA + CESAR 2.0** (Kirilenko 2023 Science 380:eabn3107), which uses whole-genome alignment chains + ML classification + codon-aware exon projection to scale to hundreds of genomes (Zoonomia: 488 mammals; Bird10000 Genomes: 501 birds). For ortholog-based projection (no WGA needed), **LiftOff** (Shumate & Salzberg 2020) is the standard. The critical decision is **WGA-anchored (TOGA) vs ortholog-anchored (LiftOff)**: TOGA explicitly classifies gene intactness vs loss using the alignment chains, LiftOff relies on reciprocal-best-hit equivalents.
+**"Annotate this new genome using my well-annotated reference"** -> Annotation projection from a reference is the modern alternative to de novo gene prediction; it produces high-quality, comparable annotations across genomes by leveraging evolutionary conservation. The 2023-era standard is **TOGA + CESAR 2.0** (Kirilenko 2023 Science 380:eabn3107), which uses whole-genome alignment chains + ML classification + codon-aware exon projection to scale to hundreds of genomes (Zoonomia: 488 mammals; Bird10000 Genomes: 501 birds). For ortholog-based projection (no WGA needed), **LiftOff** (Shumate & Salzberg 2021 Bioinformatics 37(12):1639) is the standard. The critical decision is **WGA-anchored (TOGA) vs ortholog-anchored (LiftOff)**: TOGA explicitly classifies gene intactness vs loss using the alignment chains, LiftOff relies on reciprocal-best-hit equivalents.
 
 - CLI: `toga.py --chain chain.bb --bed ref.bed --tDB target.2bit --qDB query.2bit --pn project_name` -- WGA-based projection
 - CLI: `cesar -i exons.fa -d 4 -o output.aln` -- codon-aware exon alignment (used internally by TOGA)
@@ -32,7 +32,7 @@ If code throws `TOGA chain file missing`, `CESAR fragment not found`, `LiftOff a
 |------|----------|--------|----------|------------|
 | TOGA (Kirilenko 2023 Science 380:eabn3107) | Cactus HAL or LASTZ chains -> ML projection + intactness classifier | Per-gene I/PI/UL/L/M/PM codes; orthology classification; coding annotation via CESAR 2.0 | Modern paradigm; explicit gene-loss detection at scale; Zoonomia / Bird10000 standard | Requires Cactus WGA; not for prokaryotes |
 | CESAR 2.0 (Sharma & Hiller 2017 NAR 45:8369) | HMM-based codon-aware exon projection | Aligned exons + frame preservation | Most accurate exon projection from WGA; preserves frame across indels | Used internally by TOGA; standalone use more rare |
-| LiftOff (Shumate & Salzberg 2020 Bioinformatics 36:5310) | Read-mapping-style ortholog detection + GFF transfer | Lifted GFF | Fast; no WGA required; standard for query-vs-reference pairs | Tandem duplicates ambiguous; not for gene loss detection |
+| LiftOff (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643) | Read-mapping-style ortholog detection + GFF transfer | Lifted GFF | Fast; no WGA required; standard for query-vs-reference pairs | Tandem duplicates ambiguous; not for gene loss detection |
 | UCSC liftOver | Coordinate-based lift using chain files | Coordinate-lifted regions | Standard for coordinate transfers; not for gene annotations | Doesn't handle gene structure changes |
 | Comparative Annotation Toolkit (CAT) | Snakemake workflow integrating Augustus + LiftOff + TransMap | Per-species comparative annotation | Integrates de novo + projection | Snakemake setup complex |
 | GeMoMa (Keilwagen 2019 Methods Mol Biol 1962:161) | Reference protein homology + evidence integration | Comparative gene annotation | Combines multiple reference species evidence | Slower; less popular than TOGA / LiftOff |
@@ -211,17 +211,19 @@ halSynteny output.hal reference query --queryGenome query > query.synteny.psl
 
 # 2. Convert PSL to UCSC chain format
 axtChain -psl -linearGap=loose query.synteny.psl reference.2bit query.2bit chains/query.chain.gz
+# Note: `-psl` is correct here only if the input is PSL. When the input comes from
+# `lastz --format=axt`, drop the `-psl` flag (or emit PSL from LASTZ first).
 
-# 3. Run TOGA Nextflow pipeline
-nextflow run hillerlab/TOGA \
-    --chain chains/query.chain.gz \
-    --bed reference_annotation.bed \
-    --tDB reference.2bit \
-    --qDB query.2bit \
-    --nextflow_dir nf_run_dir \
+# 3. Run TOGA. The canonical invocation is `python toga.py` from the TOGA checkout;
+# the Nextflow-style command shown below mirrors the same arguments but may not be
+# the standard entry point in your release -- verify against the hillerlab/TOGA README.
+python toga.py \
+    chains/query.chain.gz \
+    reference_annotation.bed \
+    reference.2bit \
+    query.2bit \
     --pn project_name \
-    --cpu 32 \
-    --quiet
+    --cpus 32
 
 # Output:
 #   project_name/loss_summ_data.tsv           Per-gene intactness call
@@ -389,7 +391,7 @@ For TOGA pipeline at vertebrate-scale, use Nextflow with proper HPC config (Slur
 
 - Kirilenko BM et al 2023 Science 380:eabn3107 (TOGA; Zoonomia + Bird10000 standard)
 - Sharma V & Hiller M 2017 NAR 45:8369 (CESAR 2.0)
-- Shumate A & Salzberg SL 2020 Bioinformatics 36:5310 (LiftOff)
+- Shumate A & Salzberg SL 2021 Bioinformatics 37(12):1639-1643 (LiftOff)
 - Hickey G et al 2013 Bioinformatics 29:1341 (HAL toolkit)
 - Keilwagen J et al 2019 Methods Mol Biol 1962:161 (GeMoMa)
 - Brůna T et al 2024 NAR Genom Bioinform 6:lqae068 (BRAKER3)

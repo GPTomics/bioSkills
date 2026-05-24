@@ -43,7 +43,7 @@ TWAS, cis-eQTL MR, and coloc operate on overlapping evidence: TWAS asks "is the 
 | EpiXcan (Zhang 2019 Nat Commun 10:3300) | Adds epigenome-derived per-SNP prior to weight training | eQTL + epigenome + GWAS sumstats | Per-gene Z, p (epigenome-informed) | Higher prediction R^2 in epigenome-rich tissues | Requires matched epigenome data for the prediction tissue |
 | TIGAR-V2 (Tang 2021 NAR 49:e64) | Dirichlet process regression (non-parametric Bayes) for SNP -> expression | Reference eQTL + GWAS sumstats | Per-gene Z, p | Captures non-elastic-net effect structures; more flexible weight learning | Slower training; benefits depend on locus genetics |
 | FOCUS (Mancuso 2019 Nat Genet 51:675) | Probabilistic gene-level fine-mapping over TWAS Z-scores using gene-by-gene predicted-expression correlation as analog of LD | FUSION/S-PrediXcan TWAS Z + ancestry-matched LD reference | Per-gene PIP + credible gene set | Resolves co-regulated gene clusters into a probabilistic causal gene; standard add-on after TWAS | Requires the same prediction-weight panel that produced TWAS Z; PIPs depend on prior |
-| MA-FOCUS (Lu 2022 Nat Genet 54:1411) | Multi-ancestry FOCUS; joint gene fine-mapping across ancestries with shared causal-gene assumption | Per-ancestry TWAS sumstats + per-ancestry weights + per-ancestry LD | Cross-ancestry PIP | Smaller credible gene sets when AFR/EAS contribute non-EUR LD information | Trans-ethnic gene-effect heterogeneity violated; weights must be ancestry-matched |
+| MA-FOCUS (Lu 2022 AJHG 109:1388-1404) | Multi-ancestry FOCUS; joint gene fine-mapping across ancestries with shared causal-gene assumption | Per-ancestry TWAS sumstats + per-ancestry weights + per-ancestry LD | Cross-ancestry PIP | Smaller credible gene sets when AFR/EAS contribute non-EUR LD information | Trans-ethnic gene-effect heterogeneity violated; weights must be ancestry-matched |
 | JEPEG / JEPEG-Mix (Lee 2015 / 2016) | Gene-based test combining eQTL and functional weights | GWAS sumstats + JEPEG annotation database | Per-gene p | Lightweight gene-burden alternative to TWAS | Less granular than full PrediXcan/FUSION machinery; minimally updated |
 
 Methodology evolves; the FUSION-vs-PrediXcan landscape has been stable but probabilistic fine-mapping (FOCUS, MA-FOCUS) and integrative methods (MOSTWAS, EpiXcan, OmicsXcan) continue to advance. Verify against the current PredictDB release notes (predictdb.org) and the latest FUSION weight panels (gusevlab.org/projects/fusion) before locking on a tissue or model.
@@ -433,7 +433,7 @@ A defensible TWAS report includes every item below in methods or supplement:
 - Barbeira AN, Pividori M, Zheng J, Wheeler HE, Nicolae DL et al 2019 PLoS Genet 15:e1007889 (S-MultiXcan)
 - Hu Y, Li M, Lu Q, Weng H, Wang J et al 2019 Nat Genet 51:568 (UTMOST cross-tissue)
 - Mancuso N, Freund MK, Johnson R, Shi H, Kichaev G et al 2019 Nat Genet 51:675 (FOCUS gene-level fine-mapping)
-- Lu Z, Wang X, Carr M, Kim A, Gazal S et al 2022 Nat Genet 54:1411 (MA-FOCUS multi-ancestry)
+- Lu Z, Wang X, Carr M, Kim A, Gazal S et al 2022 AJHG 109:1388-1404 (MA-FOCUS multi-ancestry)
 - Wainberg M, Sinnott-Armstrong N, Mancuso N, Barbeira AN, Knowles DA et al 2019 Nat Genet 51:592 (TWAS limitations and LD-induced false positives)
 - Bhattacharya A, Li Y, Love MI 2021 PLoS Genet 17:e1009398 (MOSTWAS distal mediation)
 - Cao C, Kwok D, Edie S, Li Q, Ding B et al 2021 Brief Bioinform 22:bbaa270 (kTWAS)

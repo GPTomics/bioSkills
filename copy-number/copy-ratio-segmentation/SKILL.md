@@ -53,13 +53,13 @@ normalization exists.
 | Fused lasso (flasso) | L1-penalized piecewise-constant fit | Smooth; tunable sparsity | Penalty hard to set; can over-smooth focal events |
 | ASPCF | Allele-specific piecewise-constant fit | Joint logR+BAF segmentation (ASCAT) | Needs BAF; see allele-specific-copy-number |
 
-**Quantitative benchmark (Zhang et al 2024, Brief Bioinform):** at 15x depth CBS and HMM
-both exceed ~97% precision/recall; at 3x depth CBS recall drops sharply (to ~42% under a
-Poisson model, and far lower under an over-dispersed negative-binomial model) while HMM
-retains ~81% recall. Inversely, on 5 kb focal segments CBS reaches ~96% precision versus
-HMM's ~76% (both Poisson model; under an over-dispersed negative-binomial model both
-algorithms degrade sharply). The trade-off is real and depth/event-size dependent —
-there is no universally correct choice.
+**Quantitative benchmark (Zhang et al 2024, Brief Bioinform):** the cited precision/recall
+numbers (CBS ~42% recall at 3x; HMM ~81% recall at 3x; CBS ~96% precision vs HMM ~76% on
+5 kb focal segments under a Poisson model) summarise that paper's reported direction of
+the trade-off. Verify the exact figures against the published tables before quoting them
+in print; the qualitative trade-off (depth-vs-event-size, CBS-vs-HMM) is robust across
+recent benchmarks but the precise percentages depend on the simulation model
+(Poisson vs over-dispersed negative-binomial). There is no universally correct choice.
 
 ## Decision Tree
 

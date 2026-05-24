@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-spike-in-normalization
-description: Normalizes ChIP-seq data using exogenous spike-in (ChIP-Rx with Drosophila chromatin per Orlando 2014 / Egan 2016; E. coli carryover for CUT&RUN/CUT&Tag). Distinguishes RRPM from Rx-Input scaling, integrates with DiffBind / DESeq2 / edgeR / csaw via sizeFactors and library.factors, and applies the Hammond Norris 2024 review's failure-mode framework to validate that normalization is correctly applied at the read level (not peak counts). Use when global signal shifts are expected (HDACi, BETi, EZH2i, dosage, target knockdown), when ChIPseqSpikeInFree detects post-hoc shifts, or when validating internal-control regions before publication.
+description: Normalizes ChIP-seq data using exogenous spike-in (ChIP-Rx with Drosophila chromatin per Orlando 2014 / Egan 2016; E. coli carryover for CUT&RUN/CUT&Tag). Distinguishes RRPM from Rx-Input scaling, integrates with DiffBind / DESeq2 / edgeR / csaw via sizeFactors and DiffBind library-size vectors, and applies the Patel et al 2024 *Nat Biotechnol* review's failure-mode framework to validate that normalization is correctly applied at the read level (not peak counts). Use when global signal shifts are expected (HDACi, BETi, EZH2i, dosage, target knockdown), when ChIPseqSpikeInFree detects post-hoc shifts, or when validating internal-control regions before publication.
 tool_type: mixed
 primary_tool: DiffBind
 ---
@@ -20,7 +20,7 @@ Reference examples tested with: DiffBind 3.20+, DESeq2 1.42+, edgeR 4.0+, csaw 1
 - Wrapper: SpikeFlow (Snakemake; 2024) automates end-to-end
 - Post-hoc detection: ChIPseqSpikeInFree (when no spike-in was added)
 
-The fundamental rule: spike-in scaling is applied at the READ level (via size factors or `--scaleFactor`), never multiplied into peak counts. ~25% of published spike-in ChIP papers violate this (Hammond Norris 2024).
+The fundamental rule: spike-in scaling is applied at the READ level (via size factors or `--scaleFactor`), never multiplied into peak counts. ~25% of published spike-in ChIP papers violate this (Patel L et al 2024 *Nat Biotechnol* 42:1343).
 
 ## When Spike-In Is Required
 
@@ -225,7 +225,7 @@ bedtools multicov -bams ctrl_1.bam ctrl_2.bam treat_1.bam treat_2.bam \
 # Apply scaling factors to per-sample counts; verify no shift across conditions
 ```
 
-If internal controls shift after scaling, the normalization is broken. Common causes (Hammond Norris 2024):
+If internal controls shift after scaling, the normalization is broken. Common causes (Patel L et al 2024 *Nat Biotechnol* 42:1343):
 1. Scaling applied to peak counts instead of read counts
 2. Spike-in reads not deduplicated before scaling
 3. Spike-in genome not mapq-filtered (low-quality alignments inflated counts)
@@ -241,7 +241,7 @@ If internal controls shift after scaling, the normalization is broken. Common ca
 
 **Symptom:** Effect sizes 2-10× larger than expected biology; internal control regions also "shift" artifactually.
 
-**Fix:** Apply via `sizeFactors(dds)` (DESeq2), `normFactors` (edgeR), `library.factors` (DiffBind), OR `--scaleFactor` (bamCoverage for tracks). Never multiply peak-level counts.
+**Fix:** Apply via `sizeFactors(dds)` (DESeq2), `normFactors` (edgeR), or DiffBind's `dba.normalize(..., library=<numeric vector>, normalize=DBA_NORM_LIB)` to supply spike-in-derived library sizes, OR `--scaleFactor` (bamCoverage for tracks). Never multiply peak-level counts.
 
 ### Spike-in reads not deduplicated before scaling
 
@@ -323,7 +323,7 @@ If internal controls shift after scaling, the normalization is broken. Common ca
 | Drosophila reads on chromosome X include host chrX | Combined genome chromosome naming collision | Prefix Drosophila chroms with `dm_` before combining |
 | Scaling factors all close to 1 | Spike-in not added at fixed amount | Verify Egan 2016 protocol; titrate per cell count |
 | Cross-condition results sign-flipped after scaling | Inverse convention bug | `sizeFactors(dds) <- 1 / scale_factors` |
-| Blacklist signal shifts post-scaling | Normalization broken | Investigate per Hammond Norris 2024 failure modes |
+| Blacklist signal shifts post-scaling | Normalization broken | Investigate per Patel L 2024 *Nat Biotechnol* 42:1343 failure modes |
 
 ## References
 
@@ -335,7 +335,7 @@ If internal controls shift after scaling, the normalization is broken. Common ca
 - Jin H et al 2020 Bioinformatics 36:1270 (ChIPseqSpikeInFree)
 - Blanco E et al 2021 NAR Genom Bioinform 3:lqab064 (SpikChIP)
 - 2024 NAR Genom Bioinform 6:lqae118 (SpikeFlow)
-- Hammond Norris et al 2024 (spike-in normalization review; common failure modes)
+- Patel L, Cao Y, Mendenhall EM, Benner C, Goren A 2024 Nat Biotechnol 42:1343 (spike-in normalization review; common failure modes; PMC12266361)
 - Stark R & Brown G 2011 Bioconductor (DiffBind with spikein parameter)
 
 ## Related Skills

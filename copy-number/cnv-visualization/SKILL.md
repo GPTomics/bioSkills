@@ -230,7 +230,7 @@ purity-corrected caller, not raw log2. Label log2 axes "log2 copy ratio".
 | Choice | Value | Rationale |
 |--------|-------|-----------|
 | log2 y-axis range | -2 to 2 | Covers homozygous loss to ~8-copy gain; clip extreme amplicons separately |
-| Gain/loss plot coloring | log2 > 0.3 / < -0.3 | Visual cut only; not a calling threshold (see cnvkit-analysis) |
+| Gain/loss plot coloring | log2 > 0.3 / < -0.3 | Visual convention (no single primary citation); not a calling threshold (see cnvkit-analysis) |
 | Cohort heatmap bin (arm-level) | ~1 Mb | Balances resolution and matrix size |
 | Cohort heatmap colormap center | 0 | Diverging map must be zero-centered or gains/losses are not comparable |
 | Rasterize scatter points | yes, for > ~50k bins | Keeps vector PDFs openable; segments stay vector |

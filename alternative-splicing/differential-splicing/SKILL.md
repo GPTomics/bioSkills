@@ -166,7 +166,7 @@ majiq heterogen \
 voila view -p 5000 -j 8 build_output/splicegraph.zarr deltapsi_output/control_treatment.deltapsi.voila -o voila_html
 ```
 
-MAJIQ V3 (Slaff et al *bioRxiv* 2024; public release 2025) uses Zarr storage (`splicegraph.zarr`); V2's SQLite splicegraph is deprecated. MAJIQ reports posterior probability `P(|ΔPSI| > 0.2)`; thresholds are interpreted differently from FDR. Use HET for n>=10 vs n>=10 cohort designs (clinical, GTEx-style); deltapsi for tightly controlled n=3 vs n=3.
+MAJIQ V3 (Aicher, Slaff, Jewell, Barash *bioRxiv* 2024; public release 2025) uses Zarr storage (`splicegraph.zarr`); V2's SQLite splicegraph is deprecated. MAJIQ reports posterior probability `P(|ΔPSI| > 0.2)`; thresholds are interpreted differently from FDR. Use HET for n>=10 vs n>=10 cohort designs (clinical, GTEx-style); deltapsi for tightly controlled n=3 vs n=3.
 
 ## SUPPA2 Differential Analysis
 
@@ -410,7 +410,7 @@ Cross-reference top hits with:
 - Quan et al 2025 *bioRxiv* - LeafCutter2 (NMD-aware unproductive splicing)
 - Vaquero-Garcia et al 2016 *eLife* - MAJIQ LSV framework
 - Norton et al 2023 *Nat Commun* - MAJIQ-HET heterogeneity module
-- Slaff et al 2024 *bioRxiv* - MAJIQ V3
+- Aicher, Slaff, Jewell, Barash 2024 *bioRxiv* - MAJIQ V3
 - Trincado et al 2018 *Genome Biol* - SUPPA2
 - Kubota et al 2025 *NAR* - Shiba (junction-imbalance correction)
 - Olofsson et al 2023 *Brief Bioinform* - benchmark across tools

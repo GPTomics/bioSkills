@@ -38,7 +38,7 @@ These four authorities are routinely conflated. They differ in scope, scale, and
 | **FDA Table of Pharmacogenomic Biomarkers** | Drug label info | ~300 drugs (informational) | NOT an actionability list; many entries are dosing-suggestion-only |
 | **FDA Table of Pharmacogenetic Associations** | Actionable subset | Closer to CPIC | Compare head-to-head with CPIC |
 
-**Bank 2018** *Clin Pharmacol Ther* (DOI 10.1002/cpt.762) is the canonical CPIC-vs-DPWG comparison. Notable disagreements:
+**Bank et al 2019** *Clin Pharmacol Ther* 105:951 (DOI 10.1002/cpt.762; first online 2018, print 2019) is the canonical CPIC-vs-DPWG comparison. Notable disagreements:
 - CYP2D6 IM + multiple antidepressants: DPWG actionable; CPIC says insufficient evidence.
 - HLA-B*15:11 carbamazepine: DPWG actionable; CPIC silent.
 - CYP2C19 IM + voriconazole: dosing magnitudes differ 25-50%.
@@ -178,7 +178,7 @@ NUDT15 *3 is the **dominant thiopurine determinant in East Asians**; TPMT-alone 
 
 - **Pare 2010** *NEJM*: no benefit of clopidogrel in \*2 carriers in CURE/ACTIVE-A.
 - **TAILOR-PCI** (Pereira 2020 *JAMA*): 5,302 patients post-PCI; primary endpoint MACE @12mo HR 0.66, **p=0.06 (negative by pre-specified alpha)** but positive in sensitivity analyses.
-- **Pereira 2021 meta-analysis** (7 RCTs, 6,409 patients): ~30% MACE reduction.
+- **Pereira NL et al 2021 meta-analysis** (7 RCTs, 6,409 patients): ~30% MACE reduction. Likely venue *JAMA Cardiology* 6:e215028 — verify exact citation in current literature.
 - **Consensus 2024 (ACC/AHA/ESC):** genotype-guided therapy reasonable; strongest in post-PCI ACS.
 
 ### Warfarin (CYP2C9 + VKORC1 + CYP4F2)
@@ -435,7 +435,7 @@ def cpic_guideline(gene_symbol):
 | PREPARE ADR reduction | OR 0.70 (95% CI 0.54-0.91) for actionable interactions | Swen 2023 *Lancet* |
 | PREPARE actionable variant rate | 93.5% of patients had >=1 actionable variant | Swen 2023 |
 | TAILOR-PCI primary endpoint | HR 0.66 (95% CI 0.43-1.02), p=0.06 (negative) | Pereira 2020 *JAMA* |
-| Pereira 2021 meta-analysis | ~30% MACE reduction with genotype-guided clopidogrel | Pereira 2021 *Lancet* |
+| Pereira 2021 meta-analysis | ~30% MACE reduction with genotype-guided clopidogrel | Pereira NL et al 2021 (cardiology meta-analysis; verify exact venue against current literature — likely *JAMA Cardiology*) |
 | Henricks 2018 DPYD outcome | 70% reduction in grade >=3 fluoropyrimidine toxicity | Henricks 2018 *Lancet Oncol* |
 | NUDT15 *3 frequency | 9.8% Han Chinese vs <1% EUR | Yang 2014 *Nat Genet* |
 | HLA-B*57:01 OR for abacavir HSS | ~100 (NNT 13) | Mallal 2008 *NEJM* (PREDICT-1) |

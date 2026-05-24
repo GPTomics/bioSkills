@@ -75,7 +75,7 @@ No alignment QC is complete without these in production:
 # Cross-sample contamination
 verifybamid2 --SVDPrefix /resources/1000g.b38.vcf.gz.SVD \
     --Reference ref.fa --BamFile sample.bam --Output sample.contam
-# FREEMIX < 0.01 = clean; > 0.03 = problematic; > 0.05 breaks germline calling
+# VerifyBamID2 README flags FREEMIX > 0.03 as concerning; values escalate from there.
 
 # Relatedness, sex check, sample swap detection
 somalier extract -d extracted/ -s /resources/sites.GRCh38.vcf.gz \
@@ -228,7 +228,7 @@ computeGCBias \
 
 ## Strand Balance
 
-A balanced 0.48-0.52 forward/reverse ratio applies to WGS / WES / generic DNA-seq on autosomes. Expected to deviate for: stranded RNA-seq (deliberately strand-asymmetric -- verify with RSeQC `infer_experiment.py`), bisulfite (CT vs GA), small-RNA / strand-specific RNA-seq, and chrY/chrM regions. Per-chromosome strand imbalance > 5% on autosomes suggests aligner artifacts; on chrX/chrY suggests sex-mismatch.
+A balanced 0.48-0.52 forward/reverse ratio applies to WGS / WES / generic DNA-seq on autosomes. Expected to deviate for: stranded RNA-seq (deliberately strand-asymmetric -- verify with RSeQC `infer_experiment.py`), bisulfite (CT vs GA), small-RNA / strand-specific RNA-seq, and chrY/chrM regions. Per-chromosome strand imbalance >5% on autosomes is a field-convention rule of thumb (no single primary citation) — it picks up aligner artifacts; on chrX/chrY it suggests sex-mismatch.
 
 ### Calculate Strand Ratio
 
@@ -386,7 +386,7 @@ The first-N-reads sampling pattern is biased toward chr1 (different GC content a
 | Duplicate rate (assay-specific) | see bam-statistics decision table | -- | -- |
 | Strand balance | 0.48-0.52 | 0.45-0.55 | Outside |
 | Mean MAPQ | > 40 | 30-40 | < 30 |
-| GC bias | < 1.2x | 1.2-1.5x | > 1.5x |
+| GC bias | < 1.2x | 1.2-1.5x | > 1.5x (field-convention bands; Picard CollectGcBiasMetrics does not prescribe specific cutoffs) |
 
 ## Related Skills
 

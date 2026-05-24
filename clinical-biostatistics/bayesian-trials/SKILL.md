@@ -83,7 +83,7 @@ If code throws an error, introspect the installed package and adapt the example 
 | Phase 1b/2 dose-optimisation (Project Optimus) | BOIN-12 or gBOIN-ET; randomised 2-dose comparison | Aug 2024 FDA dose-optimisation guidance |
 | Phase 3 with historical control arms available | Robust MAP via RBesT; gMAP() + robustify() | Industry standard borrowing with prior-data conflict protection |
 | Basket trial across rare-disease strata | EXNEX (0.5 EX / 0.5 NEX mixture) via OncoBayes2 | Avoids HM catastrophic borrowing |
-| Pediatric extrapolation from adult data | Power prior with discount gamma 0.3-0.6 | FDA Bayesian Jan 2026 draft endorses |
+| Pediatric extrapolation from adult data | Power prior with discount gamma 0.3-0.6 | working convention; the FDA Bayesian Jan 2026 draft does not prescribe a specific gamma range -- check the draft for the current language before quoting |
 | Phase 3 trial with single arm + RWE comparator | Propensity-score-integrated power prior via psborrow2 | FDA-supported package for external controls |
 | Adaptive trial wanting posterior-probability stopping | Custom Stan model + simulation-calibrated threshold | Bayesian likelihood-principle compatible; no penalty for repeated looks |
 | End-of-Phase-2 go/no-go | Predictive probability of success in Phase 3 | Integrates posterior over Phase 3 design |
@@ -397,7 +397,7 @@ mcmc_result <- mcmc_sample(result, n_chains = 4, n_iter = 4000)
 - **Trigger:** Full pooling of historical and current data.
 - **Mechanism:** Ignores between-study heterogeneity; biases estimate.
 - **Symptom:** Overconfident posterior; cross-validation reveals poor fit.
-- **Fix:** Discount gamma 0.3-0.6 (FDA Bayesian Jan 2026 draft); sensitivity over gamma.
+- **Fix:** Working-convention discount gamma 0.3-0.6 (the FDA Bayesian Jan 2026 draft does not prescribe a specific range); sensitivity over gamma.
 
 ### WinBUGS reproducibility
 
@@ -416,7 +416,7 @@ mcmc_result <- mcmc_sample(result, n_chains = 4, n_iter = 4000)
 | Robust MAP mixture weight 0.1-0.3 | Schmidli 2014 | Guards against prior-data conflict |
 | EXNEX default 0.5 EX / 0.5 NEX | Neuenschwander 2016 | Standard starting weight; sensitivity required |
 | I-SPY 2 graduation PP >= 0.85 | Barker 2009 | Bayesian platform standard |
-| Power prior gamma 0.3-0.6 for pediatric extrapolation | FDA Bayesian Jan 2026 draft | Partial borrowing default |
+| Power prior gamma 0.3-0.6 for pediatric extrapolation | working convention; the FDA Bayesian Jan 2026 draft does not prescribe a specific range | Partial borrowing default |
 | Stan R-hat <1.01, ESS >1000 per chain | Vehtari 2021 *Bayesian Analysis* | Posterior convergence criteria |
 | EWOC overdose constraint P(dose > MTD) <= 0.25 | Babb-Rogatko-Zacks 1998 | Safety floor |
 
@@ -447,7 +447,7 @@ mcmc_result <- mcmc_sample(result, n_chains = 4, n_iter = 4000)
 | "Posterior probability threshold?" | Calibrated via simulation to frequentist Type-I 0.025 one-sided; cite Berry 2010 |
 | "Stan reproducibility?" | Docker container + renv-pinned R + Stan version; seeds provided; R-hat <1.01, ESS >2000 per parameter |
 | "Bias correction on platform graduation?" | Conditional MLE applied to estimate Phase 3 effect; cite Robertson 2023 |
-| "Why not frequentist instead?" | Bayesian framework permits borrowing (rare disease, pediatric); FDA Bayesian Jan 2026 draft endorses primary inference with simulation calibration |
+| "Why not frequentist instead?" | Bayesian framework permits borrowing (rare disease, pediatric); working convention; the FDA Bayesian Jan 2026 draft does not prescribe a specific gamma range -- check the draft for the current language before quoting primary inference with simulation calibration |
 
 ## References
 

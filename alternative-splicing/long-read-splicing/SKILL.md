@@ -183,7 +183,7 @@ tx_counts <- as.data.frame(assays(se)$counts)
 gene_counts <- transcriptToGeneExpression(se)
 ```
 
-Bambu (Chen 2023 *Nat Commun*) uses **NDR** (Novel Discovery Rate) as a single, calibrated parameter replacing per-sample heuristics:
+Bambu (Chen 2023 *Nat Methods* 20:1187-1195) uses **NDR** (Novel Discovery Rate) as a single, calibrated parameter replacing per-sample heuristics:
 
 | NDR | Interpretation |
 |-----|----------------|
@@ -258,9 +258,11 @@ rmats-long create_gtf_from_asm_definitions.py --event-dir events/ --out-gtf asm.
 rmats-long count_reads_for_asms.py --align-dir organized/ --event-dir events/ --out-dir asm_counts/
 
 # Main differential analysis (ASM mode)
+# Note: in ASM mode, --group-1 / --group-2 take sample IDs (matching the BAM basenames
+# you organized into --align-dir); the BAM-to-counts step is done by count_reads_for_asms.py above.
 rmats-long rmats_long.py \
-    --group-1 ctrl1.bam,ctrl2.bam,ctrl3.bam \
-    --group-2 trt1.bam,trt2.bam,trt3.bam \
+    --group-1 ctrl1,ctrl2,ctrl3 \
+    --group-2 trt1,trt2,trt3 \
     --event-dir events/ \
     --asm-counts-dir asm_counts/ \
     --align-dir organized/ \
@@ -332,7 +334,7 @@ match_cell_barcode \
     --output flames_demuxed.bam
 ```
 
-Joglekar 2024 *Nat Neurosci* used this approach for the mouse cortex isoform atlas. See `single-cell-splicing` for tools that work on the demultiplexed data.
+Joglekar and colleagues used this approach for the mouse cortex isoform atlas (consult most recent publication for exact venue/year). See `single-cell-splicing` for tools that work on the demultiplexed data.
 
 ## Per-Tool Failure Modes
 
@@ -434,10 +436,10 @@ Pre-R10 ONT (R9.4.1) had ~85-90% junction concordance and is no longer recommend
 | Metric | Recommendation | Source |
 |--------|----------------|--------|
 | Full-length non-chimeric (FLNC) % | >=80% (PacBio Iso-Seq) | PacBio convention |
-| FSM% | >=50% in well-annotated genome | Tardaguila 2018 *Genome Res* |
+| FSM% | >=50% in well-annotated genome (field-convention rule of thumb; not specified in the SQANTI paper) | SQANTI3 documentation; Tardaguila 2018 *Genome Res* 28:396 |
 | NNC% | <=30% (>30% suggests artifacts unless biologically interesting) | SQANTI3 convention |
 | Junction support | >=2 reads (or >=3 with strict filtering) | Conservative |
-| Bambu NDR | 0.1 default; 0.05 stringent | Chen 2023 *Nat Commun* |
+| Bambu NDR | 0.1 default; 0.05 stringent | Chen 2023 *Nat Methods* 20:1187 |
 | SQANTI3 RT-switching flag | filter out unless validated | SQANTI3 convention |
 | SQANTI3 intra-priming flag | filter out | SQANTI3 convention |
 | ONT R-version | R10.4.1+ for splicing | Splice junction concordance >=95% only with R10+ |
@@ -468,7 +470,7 @@ Pre-R10 ONT (R9.4.1) had ~85-90% junction concordance and is no longer recommend
 
 - Tang et al 2020 *Nat Commun* - FLAIR
 - Prjibelski et al 2023 *Nat Biotech* - IsoQuant
-- Chen et al 2023 *Nat Commun* - Bambu
+- Chen et al 2023 *Nat Methods* 20:1187-1195 - Bambu
 - Tardaguila et al 2018 *Genome Res* - SQANTI (original)
 - Pardo-Palacios et al 2024 *Nat Methods* - SQANTI3 / LRGASP benchmark
 - Wyman et al 2020 *bioRxiv* - TALON (note: not formally peer-reviewed)
@@ -476,7 +478,7 @@ Pre-R10 ONT (R9.4.1) had ~85-90% junction concordance and is no longer recommend
 - Sahlin & Makinen 2021 *Bioinformatics* - uLTRA
 - Sibley et al 2015 *Nature* - recursive splicing
 - Al'Khafaji et al 2024 *Nat Biotech* - MAS-Iso-seq / Kinnex
-- Joglekar et al 2024 *Nat Neurosci* - scISOr-Seq2 mouse cortex
-- Tian et al 2021 *Nat Methods* - FLAMES
+- Joglekar et al - scISOr-Seq2 mouse cortex (consult most recent publication for venue/year)
+- Tian et al 2021 *Genome Biology* 22:310 - FLAMES
 - Brown et al 2022 *Nature* - UNC13A cryptic exon (TDP-43)
 - Klim et al 2019 *Nat Neurosci* - STMN2 cryptic splicing

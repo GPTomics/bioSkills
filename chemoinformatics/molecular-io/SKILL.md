@@ -249,7 +249,7 @@ def draw_grid(mols, fname, mols_per_row=5, sub_img_size=(250, 200)):
 - Heller et al., *J. Cheminformatics* 7:23 (2015) -- InChI v1.05 specification.
 - O'Boyle, *J. Cheminformatics* 4:22 (2012) -- canonical SMILES algorithms across toolkits.
 - Bento et al., *J. Cheminformatics* 12:51 (2020) -- ChEMBL structure pipeline.
-- Hawkins et al., *J. Chem. Inf. Model.* 50:572 (2010) -- ETKDG conformer embedding.
+- Riniker & Landrum, *J. Chem. Inf. Model.* 55:2562-2574 (2015) -- ETKDG conformer embedding (RDKit knowledge-distance-geometry).
 
 ## Related Skills
 

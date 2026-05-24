@@ -244,7 +244,7 @@ bedtools intersect -a SuperEnhancers.bed -b dels.bed -wa -wb > se_with_dels.tsv
 - Lovén J et al 2013 Cell 153:320 (SE characterization, BET sensitivity)
 - Hnisz D et al 2013 Cell 155:934 (SE in cell identity)
 - Pott S & Lieb JD 2015 Nat Genet 47:8 (SE as continuum critique)
-- Lin CY et al 2016 Cell 167:1188 (ROSE2; pediatric cancer SE)
+- Lin CY et al 2016 Nature 530:57-62 (MYC enhancers; ROSE2-era analyses)
 - Saint-André V et al 2016 Genome Res 26:385 (core regulatory circuitry)
 - Boeva V et al 2017 Cell Rep 21:1357 (LILY; neuroblastoma SE)
 - Hnisz D et al 2017 Cell 169:13 (CRISPR-tiling SE function)

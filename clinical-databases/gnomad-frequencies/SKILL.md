@@ -44,7 +44,7 @@ This is the most consequential decision in any gnomAD query. The releases are **
 
 v4 ancestry groups: **AFR, AMR, ASJ, EAS, FIN, MID, NFE, SAS, AMI, REMAINING**. The **MID (Middle Eastern) group was new in v4**; previously absorbed into "OTH". The **REMAINING** group (31,256 v4 samples) is individuals who did not cluster with any reference; they contribute to overall AF but not to grpmax.
 
-**Terminology shift:** v4 uses **grpmax** (genetic ancestry group max) replacing v2's **popmax** ("population max"), to disambiguate genetic ancestry from self-reported race/ethnicity.
+**Terminology shift:** gnomAD documentation and ACMG-facing narrative uses **grpmax** (genetic ancestry group max) -- replacing the older **popmax** ("population max") term -- to disambiguate genetic ancestry from self-reported race/ethnicity. The public GraphQL schema still exposes legacy field names containing `popmax` (e.g. `faf95.popmax`, `faf95.popmax_population`); these are the grpmax values under the modern terminology. Always check the schema version when writing queries; new browsers may rename these fields.
 
 `grpmax_faf95` is the operational ACMG field. It computes the maximum 95% lower-CI allele frequency, **excluding bottleneck groups** (AMI, ASJ, FIN, REMAINING) because pathogenic founder variants in those groups would otherwise falsely trigger BS1/BA1. MID is included in grpmax but is the smallest non-bottleneck group with highest per-allele variance.
 

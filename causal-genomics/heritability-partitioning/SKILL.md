@@ -37,13 +37,13 @@ LDSC's official repository (bulik/ldsc) is Python 2.7 only and unmaintained sinc
 | Baseline-LD model (Gazal 2017 Nat Genet 49:1421) | Adds LD-related and MAF-dependent annotations to baseline | Sumstats + `baselineLD_v2.2.` | Enrichment robust to LD-MAF confounding | Modern S-LDSC default; calibrates LD/MAF dependence | EUR-only baseline-LD v2.2 must NOT be used on non-EUR GWAS; use baseline-LD-X (Atkinson 2021 Nat Genet 53:1432) or per-ancestry baseline-LD (Atkinson/Price 2022) instead |
 | Cell-type S-LDSC (Finucane 2018 Nat Genet 50:621) | Per-cell-type annotation marginal to baseline | Sumstats + cell-type chromatin annotations (.ldcts) | Per-cell-type p-value | Tissue / cell-type prioritization; published per-tissue ldcts files | Sample size small (mean chi-square < 1.02); annotation overlaps strongly with baseline |
 | HDL (Ning 2020 Nat Genet 52:859) | Genome-wide eigen-decomposition likelihood | Sumstats + HDL reference panel (UKB N=336k) | h2 and rg with ~60% lower variance than LDSC | Equivalent to ~2.5x sample size for h2 / rg | Sample overlap > 5% biases the likelihood; only EUR HDL reference panel publicly available; no non-EUR HDL eigen-reference exists as of 2026 -- for non-EUR fall back to ancestry-matched cross-trait LDSC (intercept absorbs overlap; rg unbiased) |
-| LDAK SumHer (Speed 2019 Nat Genet 51:277) | LDAK-Thin model: per-SNP h2 reweighted by MAF + LD | Sumstats + LDAK-Thin tagging file | h2 + enrichment | Alternative to LDSC; often better-fitting per cross-validation per Speed 2017 | Tagging file must match build / ancestry; non-EUR support limited |
+| LDAK SumHer (Speed 2019 Nat Genet 51:277) | LDAK-Thin model: per-SNP h2 reweighted by MAF + LD | Sumstats + LDAK-Thin tagging file | h2 + enrichment | Alternative to LDSC; often better-fitting per cross-validation per Speed 2017 Nat Genet 49:986 | Tagging file must match build / ancestry; non-EUR support limited |
 | HESS (Shi 2016 AJHG 99:139; Shi 2017 AJHG 101:737) | Per-locus h2 via quadratic form on LD-projected effect estimates | Sumstats + LD reference + locus partition (LDetect) | Per-locus h2 + bivariate local rg | Locus-level resolution; identifies high-h2 loci for follow-up | Locus has < 1000 SNPs; LD reference must be in-sample or matched |
 | BOLT-REML (Loh 2015 Nat Genet 47:1385) | Bayesian REML; multi-component variance | Individual-level genotypes (PLINK BED) + phenotype | h2 + per-component partition | Biobank-scale (N=500k feasible); more precise than LDSC at high N | Needs individual-level data; assumes Gaussian residual; not for case-control < 5% prevalence without LMM-BOLT |
 | GCTA-GREML (Yang 2011 AJHG 88:76) | GRM-based REML on individual genotypes | GRM (PLINK BED) + phenotype + covariates | h2 + SE | Gold standard for individual-level data; PCGC for case-control | N <= 5000 has wide SE; case-control needs PCGC-S correction; population stratification leaks into h2 |
 | graphREML (Wang 2024 bioRxiv) | Sumstat REML using LDGM graph | Sumstats + LDGM reference | h2 + functional partition | Use when an LDGM reference exists for the ancestry AND runtime matters at biobank N (> 200k); pre-built LDGM panels currently cover EUR + EAS | Newer (2024); reference panel availability evolving; non-EUR/EAS ancestries lack pre-built LDGM |
 | Popcorn / Popcorn-2 (Brown 2016 AJHG 99:76; Brown 2022 ext.) | Trans-ancestry genetic correlation under MAF-LD model | Sumstats + cross-population LD scores | rg trans-ancestry + h2 per population | Distinguishes shared-causal vs ancestry-specific signal | Effective N per population must be > 5000; small non-EUR cohorts unstable |
-| GREMLIN (Hou 2019 Nat Genet 51:1244) | Joint LDSC + LDAK reconciliation framework | Both LDSC and LDAK outputs | Model-averaged enrichment | Quantifies model-dependent component of enrichment | Methodological / reporting tool, not primary estimation |
+| Cross-model reconciliation (Gazal 2019 Nat Genet 51:1202; Hou 2019 Nat Genet 51:1244) | Joint LDSC + LDAK comparison framework | Both LDSC and LDAK outputs | Model-averaged enrichment | Quantifies model-dependent component of enrichment | Methodological / reporting practice, not a separate primary estimator |
 
 Methodology evolves; benchmark consensus shifts. Verify against current Yengo 2022 *Nat Methods*, Speed 2020 *Nat Methods* (model comparison), and the alkesgroup/Price Lab tutorial (LDSC) before locking method as primary. Per-SNP-h2 model choice is an open debate; report both LDSC and LDAK SumHer when a claim depends on model assumption.
 
@@ -60,7 +60,7 @@ Methodology evolves; benchmark consensus shifts. Verify against current Yengo 20
 | Smaller individual-level cohort, N 5-50k | GCTA-GREML | Gold-standard REML; PCGC if case-control < 20% prevalence |
 | Local heritability and bivariate local rg | HESS | Per-locus resolution; identifies hotspots for follow-up |
 | Trans-ancestry rg / cross-population h2 | Popcorn / Popcorn-2 | Designed for trans-ethnic; LD scores per population |
-| Functional enrichment claim depends on model | Report BOTH LDSC and LDAK SumHer | Per Hou 2019; model-dependence is real |
+| Functional enrichment claim depends on model | Report BOTH LDSC and LDAK SumHer | Per Gazal 2019 / Hou 2019; model-dependence is real |
 | Case-control GWAS with low prevalence | LDSC on liability scale (--samp-prev --pop-prev) | Observed-scale h2 understates liability-scale truth |
 | Single-cell ATAC cell-type prioritization | S-LDSC with per-cluster ATAC peaks as annotations | Cross-reference atac-seq/single-cell-atac for peak generation |
 
@@ -82,9 +82,9 @@ The LDSC intercept is widely misinterpreted as a "confounding score". The correc
 LDSC (GCTA model) and LDAK SumHer (LDAK-Thin model) make different assumptions about how per-SNP heritability scales with LD and MAF:
 
 - **GCTA model (LDSC default):** per-SNP h2 inversely proportional to local LD score; high-LD SNPs tag many causal variants
-- **LDAK-Thin (Speed 2017 AJHG 100:413):** per-SNP h2 weighted by MAF and inversely by LD with empirical exponents; less weight on common high-LD SNPs
+- **LDAK-Thin (Speed 2017 Nat Genet 49:986-992):** per-SNP h2 weighted by MAF and inversely by LD with empirical exponents; less weight on common high-LD SNPs
 
-These give systematically different functional enrichment estimates. Speed 2019 reported that LDAK-Thin often gives **lower** conserved-region enrichment than baseline LDSC; conversely LDSC can over-attribute h2 to coding/conserved regions because the GCTA prior couples LD to causality. Hou 2019 Nat Genet 51:1244 reconciles by showing the true enrichment lies between the two.
+These give systematically different functional enrichment estimates. Speed 2019 reported that LDAK-Thin often gives **lower** conserved-region enrichment than baseline LDSC; conversely LDSC can over-attribute h2 to coding/conserved regions because the GCTA prior couples LD to causality. Gazal 2019 Nat Genet 51:1202-1204 and Hou 2019 Nat Genet 51:1244 reconcile the two by showing the true enrichment lies between the model-specific point estimates.
 
 **Operational rule:** Whenever functional enrichment is the primary claim (e.g. "h2 is enriched in tissue T by N-fold"), report enrichment from BOTH LDSC and LDAK. Flag the model assumption. If LDSC and LDAK disagree by > 2x, treat the claim as model-dependent and cite Hou 2019. For non-enrichment claims (total h2, rg between two traits), the model dependence is smaller and LDSC alone is acceptable.
 
@@ -206,7 +206,7 @@ Non-zero `gcov_int` under known sample overlap is the **correct** behavior, NOT 
 
 **Symptom:** LDSC reports conserved-region enrichment of 25x; LDAK reports 10x; both are model-internally consistent.
 
-**Fix:** Cite Hou 2019 Nat Genet 51:1244; report BOTH models; treat 2x or larger discordance as model-dependent. For enrichment-driven hypotheses (e.g. tissue prioritization), reconcile by reporting LDSC primary + LDAK confirmatory and emphasize directional agreement over magnitude. Do not pick the model that gives the desired answer.
+**Fix:** Cite Gazal 2019 Nat Genet 51:1202 and Hou 2019 Nat Genet 51:1244 as the LDSC-vs-LDAK reconciliation references; report BOTH models; treat 2x or larger discordance as model-dependent. For enrichment-driven hypotheses (e.g. tissue prioritization), reconcile by reporting LDSC primary + LDAK confirmatory and emphasize directional agreement over magnitude. Do not pick the model that gives the desired answer.
 
 ### HDL bias with sample overlap
 
@@ -345,7 +345,7 @@ HDL UKB reference (`UKB_array_SVD_eigen90_extraction`) requires non-overlapping 
 | `munge_sumstats.py` drops > 50% of SNPs | Allele mismatch with HapMap3 SNPlist; or A1/A2 swapped | Inspect drop reasons; pre-harmonize alleles; check rsID format |
 | LDSC intercept > 1.5 | Population stratification, cryptic relatedness, or extensive sample overlap | Report jointly with ratio; investigate per-cohort PC adjustment |
 | Stratified LDSC enrichment > 100x | Tiny annotation (<0.1% genome) underpowered | Set annotation size floor >= 0.5%; report joint enrichment of larger composite category |
-| LDAK h2 markedly different from LDSC h2 | Model assumption divergence (GCTA vs LDAK-Thin) | Per Hou 2019; report both and flag model-dependence |
+| LDAK h2 markedly different from LDSC h2 | Model assumption divergence (GCTA vs LDAK-Thin) | Per Gazal 2019 / Hou 2019; report both and flag model-dependence |
 | HDL rg = NA or numerical error | Sumstat format wrong; or eigen.cut too aggressive | Use eigen.cut='automatic'; check column names exactly |
 | HESS locus h2 negative | < 1000 SNPs in locus; LD ref-stat mismatch | Drop locus or merge with neighbor; ensure LD ref matches GWAS ancestry |
 | `--samp-prev/--pop-prev` not supplied for case-control | LDSC defaults to observed scale | Always supply both for case-control; report liability-scale h2 |
@@ -415,9 +415,10 @@ pip install popcorn-stats   # OR git clone https://github.com/brielin/Popcorn
 - Finucane HK et al 2015 Nat Genet 47:1228 (stratified LDSC baseline)
 - Gazal S et al 2017 Nat Genet 49:1421 (baseline-LD model)
 - Finucane HK et al 2018 Nat Genet 50:621 (cell-type S-LDSC)
-- Speed D et al 2017 AJHG 100:413 (LDAK-Thin model)
+- Speed D et al 2017 Nat Genet 49:986-992 (LDAK-Thin model)
 - Speed D et al 2019 Nat Genet 51:277 (SumHer)
-- Hou K et al 2019 Nat Genet 51:1244 (LDSC vs LDAK reconciliation)
+- Gazal S et al 2019 Nat Genet 51:1202-1204 (LDSC vs LDAK reconciliation, model-dependence)
+- Hou K et al 2019 Nat Genet 51:1244 (heritability accuracy and h2 model comparison)
 - Ning Z et al 2020 Nat Genet 52:859 (HDL)
 - Shi H et al 2016 AJHG 99:139 (HESS univariate)
 - Shi H et al 2017 AJHG 101:737 (HESS bivariate local rg)

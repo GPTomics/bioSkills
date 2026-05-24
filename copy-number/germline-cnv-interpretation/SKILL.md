@@ -200,7 +200,7 @@ ClinGen web calculator is the reference tally.
 - Riggs ER et al 2020. Technical standards for the interpretation and reporting of constitutional copy-number variants: a joint consensus recommendation of ACMG and ClinGen. Genet Med 22:245
 - Gurbich TA, Ilinsky VV 2020. ClassifyCNV: a tool for clinical annotation of copy-number variants. Sci Rep 10:20375
 - Geoffroy V et al 2018. AnnotSV: an integrated tool for structural variations annotation. Bioinformatics 34:3572
-- Rehm HL et al 2015 / ClinGen Dosage Sensitivity Map. ClinGen resource, clinicalgenome.org
+- Rehm HL et al 2015 NEJM 372:2235 (ClinGen launch / framework). Dosage-sensitivity curation methodology is in Riggs ER et al 2012 Genet Med 14:680 (original ClinGen dosage-sensitivity workflow). Current ClinGen Dosage Sensitivity Map: clinicalgenome.org.
 
 ## Related Skills
 

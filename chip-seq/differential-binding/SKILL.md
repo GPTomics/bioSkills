@@ -75,7 +75,7 @@ ChIP-Rx (Orlando 2014) uses Drosophila chromatin spike-in added at fixed concent
 scale_factor_i = min(N_spike_sample) / N_spike_sample_i
 ```
 
-Apply to read counts pre-test, OR pass as `sizeFactors()` to DESeq2 / `normFactors()` to edgeR / `library.factors` to DiffBind:
+Apply to read counts pre-test, OR pass as `sizeFactors()` to DESeq2 / `normFactors()` to edgeR / a numeric library-size vector to DiffBind's `dba.normalize(..., library=...)`:
 
 ```r
 spike_in_reads <- c(120000, 145000, 110000, 95000)  # per-sample Drosophila read count
@@ -94,13 +94,13 @@ dba_obj <- dba.normalize(dba_obj, spikein = TRUE,
 
 **Rx-Input variant** (Fursova 2019): additionally scale by input spike-in to correct IP efficiency variation.
 
-**Internal-control sanity check (Hammond Norris 2024 review):** After spike-in normalization, blacklist regions and constitutive housekeeping sites (U6 promoter, rRNA processing factors that are stable) should show no signal change. If they do, the normalization is broken — common causes:
+**Internal-control sanity check (Patel L, Cao Y, Mendenhall EM, Benner C, Goren A 2024 *Nat Biotechnol* 42:1343):** After spike-in normalization, blacklist regions and constitutive housekeeping sites (U6 promoter, rRNA processing factors that are stable) should show no signal change. If they do, the normalization is broken — common causes:
 - Spike-in scaling applied to peak counts instead of read counts
 - Spike-in reads not deduplicated before scaling
 - Spike-in genome not filtered for high-mapq before scaling
 - Spike-in saturated (always 100k+ reads); check titration linearity
 
-Per Hammond Norris 2024, ~25% of published spike-in ChIP papers have one of these errors.
+Per the Patel et al 2024 *Nat Biotechnol* review, ~25% of published spike-in ChIP papers have one of these errors.
 
 ## DiffBind Workflow (BAMs + Peaks)
 
@@ -308,7 +308,7 @@ For spike-in normalization, set `sizeFactors(dds)` from scaling factors before `
 - Fursova NA et al 2019 Mol Cell 74:1020 (Rx-Input scaling)
 - Jin H et al 2020 Bioinformatics 36:1270 (ChIPseqSpikeInFree)
 - Blanco E et al 2021 NAR Genom Bioinform 3:lqab064 (SpikChIP)
-- Hammond Norris and Norris 2024 (review of spike-in normalization failure modes; published as a PMC-indexed open-access methodology review at PMC12266361)
+- Patel L, Cao Y, Mendenhall EM, Benner C, Goren A 2024 Nat Biotechnol 42:1343 (review of spike-in normalization failure modes; PMC12266361)
 - Gregoricchio S et al 2024 NAR Genom Bioinform 6:lqae118 (SpikeFlow Snakemake pipeline)
 
 ## Related Skills

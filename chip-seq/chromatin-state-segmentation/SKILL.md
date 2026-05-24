@@ -27,7 +27,7 @@ Chromatin state segmentation requires a panel of histone marks; minimum 4-5 mark
 |------|--------|----------|------------|
 | **ChromHMM** (Ernst & Kellis 2012; v1.27 current) | Multivariate HMM on binarized 200 bp bins | Canonical; widely used; integrated with Roadmap Epigenomics 15-state model; mature toolchain | Binarization throws away signal quantitation; default 200 bp bins may be too coarse for sharp boundaries |
 | **Segway** (Hoffman 2012) | Dynamic Bayesian Network on continuous signal | Higher resolution; uses signal magnitudes not binarized | More complex setup; slower; less standardized output |
-| **EpiSegMix** (Sczyrba 2024) | HMM with flexible read-count distributions + duration modeling | Modern; handles both narrow and broad mark distributions in one model | Newer; smaller user base |
+| **EpiSegMix** (Schmitz, Aggarwal, Laufer, Walter, Salhab, Rahmann 2024 Bioinformatics 40:btae178) | HMM with flexible read-count distributions + duration modeling | Modern; handles both narrow and broad mark distributions in one model | Newer; smaller user base |
 | **EpiLogos** (Meuleman lab) | Multi-biosample visualization tool | Built on top of ChromHMM/Segway segmentations; compare ChromHMM states across 100s of biosamples | Visualization tool, not a segmentation method itself |
 | **IDEAS** (Zhang 2016) | Cell-type-aware joint inference | Across-cell-type segmentation respecting cell-type identity | Slower; complex parameter tuning |
 | **EpiCSeg** (Mammana 2015) | Negative binomial mixture | Read-count-based; doesn't need binarization | Less standardized output |
@@ -262,7 +262,7 @@ Useful for: applying a comprehensive cross-tissue annotation to a new sample; co
 - Ernst J & Kellis M 2012 Nat Methods 9:215 (ChromHMM v1)
 - Ernst J & Kellis M 2017 Nat Protoc 12:2478 (ChromHMM protocol)
 - Hoffman MM et al 2012 Nat Methods 9:473 (Segway)
-- Sczyrba A et al 2024 Bioinformatics (EpiSegMix)
+- Schmitz JE, Aggarwal N, Laufer L, Walter J, Salhab A, Rahmann S 2024 Bioinformatics 40:btae178 (EpiSegMix)
 - Meuleman W et al 2020 Nature 583:744 (EpiLogos / DHS index)
 - Zhang Y & Hardison 2016 Nucleic Acids Res 44:6721 (IDEAS)
 - Mammana A & Chung HR 2015 Genome Biol 16:151 (EpiCSeg)

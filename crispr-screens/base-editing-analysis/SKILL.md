@@ -223,11 +223,11 @@ def aggregate_variant_scores(mageck_sgrna_summary, variant_annotation_df):
 
 **Quantified result:** Identified novel loss-of-function variants in BRCA1 RING and BRCT domains, MCL1 and BCL2L1, and PARP1 resistance variants. The approach validated for clinical variant interpretation.
 
-## Cuella-Martin 2021 BRCA1/2 Variant Screening
+## Cuella-Martin 2021 DDR-Gene Variant Screening
 
-**Cuella-Martin et al 2021 *Mol Cell* 81:1107** corroborated Hanna's findings:
+**Cuella-Martin et al 2021 *Cell* 184:1081-1097** screened ~86 DNA-damage-response (DDR) genes (including BRCA1/2) with CBE saturation mutagenesis:
 
-- Independent CBE design targeting BRCA1/2
+- Saturation CBE design across 86 DDR genes (not BRCA1/2 alone)
 - Identified pathogenic/likely-pathogenic variants in critical protein domains
 - Combined with proteomic validation
 - Demonstrated saturation mutagenesis is feasible at protein-domain scale
@@ -341,7 +341,7 @@ The pipeline handles editing-efficiency filtering, bystander attribution, and va
 - Richter MF et al. 2020. *Nat Biotechnol* 38:883. ABE8.20.
 - Sanson KR et al. 2020. *Nat Commun* 11:5165. GRACE library for BE screens.
 - Hanna RE et al. 2021. *Cell* 184:1066. Massively parallel BRCA1/2 variant function via CBE.
-- Cuella-Martin R et al. 2021. *Mol Cell* 81:1107. BE saturation of BRCA1/2 variants.
+- Cuella-Martin R et al. 2021. *Cell* 184:1081-1097. CBE saturation across 86 DDR genes (BRCA1/2 plus others).
 - Arbab M et al. 2020. *Cell* 182:463. BE-Hive prediction of editing outcomes.
 - Anzalone AV et al. 2019. *Nature* 576:149. Prime editing (PE2/PE3).
 - Clement K et al. 2019. *Nat Biotechnol* 37:224. CRISPResso2.

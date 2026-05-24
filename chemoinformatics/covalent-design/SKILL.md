@@ -114,12 +114,12 @@ The "**GSH-stable**" warhead (t1/2 > 4 hours) is the modern target for druglike 
 
 | Tool | Approach | Strength | Fails when |
 |------|----------|----------|------------|
-| DOCKovalent (Wu 2014) | Constraint-based DOCK | Free, well-validated | Browser-based; small library |
+| DOCKovalent (London et al 2014 Nat Chem Biol 10:1066) | Constraint-based DOCK | Free, well-validated | Browser-based; small library |
 | GOLD covalent (CCDC) | GOLD with covalent constraint | Commercial; selectivity | License cost |
 | AutoDock 4 covalent | AD4 with covalent bond | Open source | Slower than Vina |
 | CovDock (Schrödinger) | Glide-based + covalent | Commercial best | License cost |
 | MOE covalent | Triposite Discovery | Commercial | License cost |
-| HCovDock (Wang 2023) | Hierarchical fragment + covalent | Open; supports many residues | Newer, less validated |
+| HCovDock (Wu Q, Huang S-Y 2023 Briefings Bioinform 24:bbac559) | Hierarchical fragment + covalent | Open; supports many residues | Newer, less validated |
 | ICM-Pro covalent | Active site grid + covalent | Commercial; metal centers | License cost |
 
 For open-source covalent docking, **HCovDock** (2023) is the modern alternative; **DOCKovalent** is the longstanding standard.
@@ -270,8 +270,8 @@ For real reactivity prediction, DFT calculations (LUMO energy, HOMO-LUMO gap) ar
 
 - Lonsdale & Ward, *Chem. Soc. Rev.* 47:3816 (2018) -- covalent revolution review.
 - Singh et al., *Nat. Rev. Drug Discov.* 10:307 (2011) -- TCI design principles.
-- Wu et al., *Bioinformatics* 30:i108 (2014) -- DOCKovalent.
-- Wang et al., *Briefings Bioinform.* 24:bbac559 (2023) -- HCovDock.
+- London et al., *Nat Chem Biol* 10:1066-1072 (2014) -- DOCKovalent.
+- Wu Q, Huang S-Y et al., *Briefings Bioinform.* 24:bbac559 (2023) -- HCovDock.
 - Cai et al., *J. Cheminformatics* 14:39 (2022) -- GOLD covalent toolkit.
 - Backus et al., *Nat. Chem.* 8:530 (2016) -- proteome-wide covalent ABPP.
 - Pettinger et al., *Angew. Chem. Int. Ed.* 56:15200 (2017) -- reactive warhead reactivity quantification.

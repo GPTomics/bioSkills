@@ -282,7 +282,7 @@ RASQUAL output includes joint p-values, total-only and ASE-only sub-tests; the j
 - Kumasaka N et al 2016 Nat Genet 48:206 (RASQUAL; joint total + ASE caQTL)
 - Harvey CT et al 2015 Bioinformatics 31:1235 (QuASAR)
 - Buchkovich ML et al 2015 Genome Biol 16:185 (mapping bias review)
-- Anderson JT et al 2024 (modern caQTL workflows; cite specific paper at submission)
+- (Modern caQTL workflow citations: consult current literature; earlier placeholder removed pending verified citation)
 - Browning SR & Browning BL 2007 Am J Hum Genet 81:1084 (BEAGLE phasing)
 - Patterson M et al 2015 J Comput Biol 22:498 (whatshap; read-based phasing)
 

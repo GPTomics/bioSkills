@@ -282,7 +282,7 @@ When ADMETlab, ProTox, and chemprop disagree on hERG:
 ## References
 
 - Fu et al., *Nucleic Acids Res.* 52:W422 (2024) -- ADMETlab 3.0.
-- Liu et al., *J. Chem. Inf. Model.* 64:1234 (2024) -- chemprop + MOE for hERG (AUC 0.956).
+- Shan W, Jiang Y, Chen J, Qin H, Qin H, Cheng F. 2022. RSC Adv 12(7):3935-3942 -- hERG ML benchmarks (DOI 10.1039/D1RA07956E).
 - Heid et al., *J. Chem. Inf. Model.* 64:9 (2024) -- chemprop 2.0 redesign.
 - OECD, "OECD Principles for the Validation of QSAR Models" (2007).
 - OECD, "(Q)SAR Assessment Framework" (2023).

@@ -59,29 +59,29 @@ REINVENT 4 uses a TOML configuration file specifying generator, algorithm, prior
 
 **Goal:** Configure a reinforcement-learning REINVENT 4 run with a prior, agent, sampling parameters, and a QED scoring component.
 
-**Approach:** Set `[run]` type to RL, point `[parameters]` at the prior/agent checkpoints with batch size and sigma, and define one or more `[scoring_function.scoring_components.*]` blocks weighted toward target properties.
+**Approach:** Build a REINVENT 4 TOML config with `[parameters]` for the prior/agent checkpoints, a `[stage]` block describing the run mode, and one or more `[[stage.scoring.component]]` blocks weighted toward target properties. The TOML schema below is illustrative — verify the exact section names against the installed REINVENT 4 release (the schema evolves between minor versions).
 
 ```toml
-# config.toml
-[run]
-type = "reinforcement_learning"
-device = "cuda:0"
-
+# config.toml -- conceptual REINVENT 4 staged-RL skeleton
 [parameters]
 prior_file = "priors/reinvent.prior"
 agent_file = "priors/reinvent.prior"
 batch_size = 64
 unique_sequences = true
+
+[[stage]]
+type = "reinforcement_learning"
 sigma = 128.0
 n_steps = 500
 
-[scoring_function.scoring_components.QED]
+[[stage.scoring.component]]
 type = "qed_score"
 weight = 1.0
 ```
 
 ```bash
-reinvent4 -l logfile.log config.toml
+# The REINVENT 4 CLI binary is `reinvent` (not `reinvent4`).
+reinvent -l logfile.log config.toml
 ```
 
 Output: `agent_<step>.ckpt` model checkpoints; `<step>.smi` generated molecules at each RL iteration.

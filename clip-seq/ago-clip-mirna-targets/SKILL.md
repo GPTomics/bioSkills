@@ -37,7 +37,7 @@ The Yeo lab miR-eCLIP / chimeric eCLIP (Manakov 2022) is the modern depth-improv
 | CLASH (Helwak 2013) | 2013 | Direct (chimera) | None | First general chimera method; pan-Argonaute | Lower chimera rate than CLEAR-CLIP |
 | HEAP (Li 2020) | 2020 | Indirect (with chimeric step) | None | HaloTag-Ago2 in vivo mouse strain | Mouse only; requires transgenic model |
 | chimeric eCLIP / miR-eCLIP (Manakov 2022) | 2022 | Direct (chimera) | 30-175x enriched | Deepest miRNA-target chimera profiling | Specialized library prep |
-| AGO HITS-CLIP + targeted chimeric (Bracken 2016) | 2016 | Direct | Yes | Per-miRNA enrichment via probe capture | Older; superseded by miR-eCLIP |
+| AGO HITS-CLIP + targeted chimeric (Bracken et al; verify exact venue/year) | -- | Direct | Yes | Per-miRNA enrichment via probe capture | Older; superseded by miR-eCLIP |
 | AGO-IP-RNA-seq (Karginov 2007) | 2007 | Indirect | None | Earliest; predecessor of CLIP for AGO | No crosslinking; misses transient targets |
 
 Methodology evolves; verify the Manakov 2022 / Bracken 2024 papers for current chimeric eCLIP best practice. As of 2024, miR-eCLIP is the canonical approach for deep miRNA-target profiling.
@@ -294,13 +294,13 @@ bedtools intersect -wa -wb \
 - Helwak A et al 2013 Cell 153:654 (CLASH; chimera method)
 - Travis AJ et al 2014 Methods 65:263 (Hyb pipeline)
 - Moore MJ et al 2015 Nat Commun 6:8864 (CLEAR-CLIP, 130k chimeras mouse brain)
-- Bracken CP et al 2016 Nat Methods 13:739 (chimeric AGO-CLIP, targeted)
+- Bracken CP et al -- chimeric AGO-CLIP, targeted (consult current literature for verified venue/year; earlier "2016 Nat Methods 13:739" attribution could not be confirmed).
 - Li K et al 2020 Mol Cell 80:1100 (HEAP, Halo-Ago2 in vivo mouse)
 - Manakov SA et al 2022 bioRxiv 2022.02.13.480296 (chimeric eCLIP / miR-eCLIP, 30-175x enrichment)
 - Agarwal V et al 2015 eLife 4:e05005 (TargetScan 7.0)
 - Lewis BP et al 2003 Cell 115:787 (original 7mer/8mer seed rules)
 - Bartel DP 2018 Cell 173:20 (miRNA target principles)
-- Vejnar CE et al 2022 (TargetScan 8.0 update)
+- McGeary SE et al 2019 Science 366:eaav1741 (TargetScan 8.0 / quantitative target prediction).
 
 ## Related Skills
 

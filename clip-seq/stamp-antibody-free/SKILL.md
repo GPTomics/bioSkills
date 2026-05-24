@@ -1,6 +1,6 @@
 ---
 name: bio-clip-seq-stamp-antibody-free
-description: Profile RNA-binding protein targets without antibody or UV crosslinking using STAMP (APOBEC1-RBP fusion, C-to-U editing), scSTAMP (single-cell), TRIBE/HyperTRIBE (ADAR-RBP, A-to-I editing), DART-seq (APOBEC1-YTH for m6A), or Bullseye/SAILOR edit-site detection pipelines. Use when antibody is unavailable or specificity is doubtful, when single-cell RBP profiling is needed (scSTAMP), or when in vivo RBP profiling without UV is preferred.
+description: Profiles RNA-binding protein targets without antibody or UV crosslinking using STAMP (APOBEC1-RBP fusion, C-to-U editing), scSTAMP (single-cell), TRIBE/HyperTRIBE (ADAR-RBP, A-to-I editing), DART-seq (APOBEC1-YTH for m6A), or Bullseye/SAILOR edit-site detection pipelines. Use when antibody is unavailable or specificity is doubtful, when single-cell RBP profiling is needed (scSTAMP), or when in vivo RBP profiling without UV is preferred.
 tool_type: mixed
 primary_tool: STAMP
 ---
@@ -40,7 +40,7 @@ STAMP (Brannan 2021) is the canonical antibody-free RBP profiling method. TRIBE 
 | Bullseye | NA (analysis tool) | NA | Any | Yes | STAMP / DART analysis | Just an analysis pipeline |
 | SAILOR | NA (analysis tool) | NA | Any | Yes | RNA editing analysis | Just an analysis pipeline |
 | REDItools2 | NA (analysis tool) | NA | Any | NA | Generic RNA editing | Generic; not RBP-specific |
-| JACUSA2 (Piechotta 2017) | NA (analysis tool) | NA | Any | NA | Multi-sample edit-site detection | Generic; not RBP-specific |
+| JACUSA2 (Piechotta 2022 BMC Bioinformatics 23:139) | NA (analysis tool) | NA | Any | NA | Multi-sample edit-site detection | Generic; not RBP-specific |
 | ADAR-CLIP | NA - this is regular ADAR CLIP | NA | NA | NA | CLIP for ADAR | Not an antibody-free method; just a different CLIP target |
 
 Methodology evolves; the Brannan lab and Yeo lab papers (2021, 2024) are canonical. Verify deaminase fusion expression level (low expression for specificity; saturation degrades specificity).
@@ -100,42 +100,40 @@ Per-cell edit-rate matrix can be integrated with standard scRNA-seq clustering. 
 
 **Approach:** Process fusion-sample BAM and deaminase-only-control BAM in parallel; use Bullseye (STAMP/DART), SAILOR (Yeo), or JACUSA2 (general) to call C-to-U (STAMP/DART) or A-to-I (TRIBE/HyperTRIBE) edit sites at edit rate >= 0.1 and coverage >= 10, requiring fusion-vs-control edit ratio > 3 as the specificity threshold.
 
-**Bullseye** (Meyer 2019) is the canonical DART-seq/STAMP analysis pipeline. It subtracts deaminase-only control and applies edit-rate thresholds.
+**Bullseye** (Meyer lab DART-seq pipeline) is a multi-script Perl pipeline (`parseBAM.pl`,
+`summarize_sites.pl`, `find_edit_site.pl`) rather than a single binary -- the conceptual
+flow is shown below; consult the Bullseye repo for the exact per-script invocations.
 
 ```bash
-# Bullseye for STAMP
-bullseye \
-    --ip stamp_sample.bam \
-    --control apobec1_only.bam \
-    --reference genome.fa \
-    --edit_type c2t \
-    --threshold 0.1 \
-    --min_coverage 10 \
-    --output stamp_edits.bed
+# Bullseye -- conceptual STAMP workflow (multi-step Perl scripts; verify against repo)
+perl parseBAM.pl --input stamp_sample.bam --output stamp.parsed.tsv
+perl parseBAM.pl --input apobec1_only.bam --output control.parsed.tsv
+perl summarize_sites.pl --in stamp.parsed.tsv > stamp.summary.tsv
+perl summarize_sites.pl --in control.parsed.tsv > control.summary.tsv
+perl find_edit_site.pl --ip stamp.summary.tsv --ctrl control.summary.tsv \
+    --edit_type c2t --threshold 0.1 --min_coverage 10 --out stamp_edits.bed
 ```
 
-**SAILOR** (Yeo lab 2017) is the Yeo lab pipeline for in vivo editing.
+**SAILOR** (Yeo lab) is a Snakemake-based pipeline, not a single CLI binary -- launch
+via the SAILOR Snakefile after editing the config (`config.yaml`) for input BAMs,
+background BAM, and reference FASTA.
 
 ```bash
-# SAILOR with paired-end RNA-seq
-sailor \
-    --bam stamp_sample.bam \
-    --bg apobec1_only.bam \
-    --ref genome.fa \
-    --output sailor_out/
+# SAILOR -- conceptual; SAILOR ships as a Snakemake workflow.
+# Configure inputs in the SAILOR Snakemake config.yaml, then run:
+snakemake -s SAILOR.smk --configfile config.yaml --cores 8
 ```
 
-**JACUSA2** is a general-purpose RNA editing pipeline.
+**JACUSA2** is a general-purpose RNA editing pipeline, distributed as a Java jar.
 
 ```bash
-# JACUSA2 multi-sample edit-site detection
-jacusa2 call-2 \
-    -r genome.fa \
+# JACUSA2 multi-sample edit-site detection (BAM inputs are POSITIONAL; -r is output, -R is reference)
+java -jar JACUSA2.jar call-2 \
+    -R genome.fa \
     -p 8 \
     -F 1024 \
-    -A stamp1.bam,stamp2.bam \
-    -B control1.bam,control2.bam \
-    -o jacusa_edits.tsv
+    -r jacusa_edits.tsv \
+    stamp1.bam,stamp2.bam control1.bam,control2.bam
 
 # Post-filter for C->U (STAMP) at edit rate >= 0.1
 awk '$5 == "C" && $9 ~ /U/ && $11 >= 0.1' jacusa_edits.tsv > stamp_edits_filtered.tsv
@@ -262,14 +260,15 @@ awk '$5 == "C" && $9 ~ /U/ && $11 >= 0.1' jacusa_edits.tsv > stamp_edits_filtere
 
 ## References
 
-- Brannan KW et al 2021 Nat Methods 18:507 (STAMP, APOBEC1-RBP fusion)
+- Brannan KW et al 2021 Mol Cell 81:2890 (STAMP, APOBEC1-RBP fusion)
 - Brannan KW et al 2024 Cell Genomics (scSTAMP single-cell extension)
 - McMahon AC et al 2016 Cell 165:742 (TRIBE original, Drosophila)
 - Xu W et al 2018 Cell 174:1567 (HyperTRIBE)
 - Erickson AW et al 2024 (TRIBE-DiCo)
 - Meyer KD 2019 Nat Methods 16:1275 (DART-seq, APOBEC1-YTH)
-- Rahman R et al 2018 Bioinformatics 34:1457 (SAILOR)
-- Piechotta M et al 2017 BMC Bioinformatics 18:7 (JACUSA)
+- (SAILOR: pipeline by Yeo lab; documented at github.com/YeoLab/SAILOR -- specific peer-reviewed citation has not been confirmed; consult current literature.)
+- Piechotta M et al 2017 BMC Bioinformatics 18:7 (JACUSA1).
+- Piechotta M et al 2022 BMC Bioinformatics 23:139 (JACUSA2 -- the multi-sample call-2 mode used above).
 - Picardi E & Pesole G 2013 Bioinformatics 29:1813 (REDItools)
 - Tegowski M et al 2022 Mol Cell 82:868 (scDART single-cell DART-seq)
 - Hayashi Y et al 2023 (DART-seq benchmarking)

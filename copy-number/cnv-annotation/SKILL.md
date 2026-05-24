@@ -212,7 +212,7 @@ go_bp <- enrichGO(gene = entrez, OrgDb = org.Hs.eg.db, ont = 'BP',
 
 | Threshold | Value | Source / Rationale |
 |-----------|-------|--------------------|
-| Population-CNV reciprocal overlap | >= 50% (`-f 0.5 -r`) | Standard reciprocal-overlap match for benign filtering |
+| Population-CNV reciprocal overlap | >= 50% (`-f 0.5 -r`) | Standard reciprocal-overlap match for benign filtering (convention traces to gnomAD-SV / DGV workflows; Collins SR et al 2020 *Nature* 581:444 uses comparable reciprocal-overlap thresholds for benign-population matching) |
 | Common-CNV benign frequency | > 1% population frequency | ACMG/ClinGen: high frequency supports benign |
 | ClinGen HI/TS dosage-sensitive | score = 3 | ClinGen: sufficient evidence for dosage sensitivity |
 | Whole-gene overlap | >= 99% gene length covered | Distinguishes clean haploinsufficiency from partial/truncating |

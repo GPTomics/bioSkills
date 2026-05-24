@@ -1,6 +1,6 @@
 ---
 name: bio-clinical-databases-polygenic-risk
-description: Constructs and validates polygenic risk scores using LDpred2-auto, SBayesRC, MegaPRS, PRS-CS, PROSPER, MUSSEL, BridgePRS, JointPRS, PRSmix, or PGS Catalog Calculator with ancestry-aware reference panels (HapMap3, UKB-LD), Pejaver-style calibration, and PRS-RS reporting standards. Use when computing PRS for cohorts, applying Whiffin-style absolute-risk transformation, assessing cross-ancestry portability (Martin 2017 / Ding 2023 continuous ancestry), or auditing PRS manuscripts against the 11-item reviewer checklist.
+description: Constructs and validates polygenic risk scores using LDpred2-auto, SBayesRC, MegaPRS, PRS-CS, PROSPER, MUSSEL, BridgePRS, JointPRS, PRSmix, or PGS Catalog Calculator with ancestry-aware reference panels (HapMap3, UKB-LD), Pejaver-style calibration, and PRS-RS reporting standards. Use when computing PRS for cohorts, applying Whiffin-style absolute-risk transformation, assessing cross-ancestry portability (Martin 2017 / Ding 2023 continuous ancestry), or auditing PRS manuscripts against the 22-item PRS-RS reviewer checklist.
 tool_type: mixed
 primary_tool: PGS Catalog Calculator
 ---
@@ -38,7 +38,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **C+T** (PRSice-2; Choi 2019) | Clumping + thresholding | Legacy clinical scores (PRS313) | Highly polygenic; Bayesian methods dominate |
 | **PROSPER** (Zhang 2024 *Nat Commun*) | Ensemble penalized regression | Multi-ancestry, AFR + others | Single-ancestry; tuning set < 1000 |
 | **MUSSEL** (Jin 2024 *Cell Genomics*) | Spike-slab + super-learner | Multi-ancestry; admixed AFR | Single-ancestry; lacks tuning data |
-| **JointPRS** (Hu 2025 *Nat Commun*) | Data-adaptive Bayesian | Multi-ancestry; sumstats only | Single-ancestry; very small target |
+| **JointPRS** (Hu S et al 2025 *Nat Commun*) | Data-adaptive Bayesian | Multi-ancestry; sumstats only | Single-ancestry; very small target. (Verify exact volume/page reference in the latest Nat Commun citation; the earlier "16:59243" attribution appears implausible.) |
 | **PRS-CSx** (Ruan 2022 *Nat Genet*) | PRS-CS multi-ancestry extension | Multi-ancestry with EUR + non-EUR sumstats | Low causal-variant overlap across ancestries |
 | **BridgePRS** (Hoggart 2024 *Nat Genet*) | Ridge-bridge sharing | Low-h^2 AFR / low causal overlap | Standard scenarios (PROSPER/MUSSEL win) |
 | **PolyPred / PolyPred+** (Weissbrod 2022) | BOLT-LMM + PolyFun-SuSIE | Multi-ancestry; biobank-scale | Small individual-level data; expensive |
@@ -122,9 +122,12 @@ sumstats <- fread('gwas_sumstats.txt')
 # Match variants strand-aware (snp_match handles A/T C/G ambiguity)
 df_beta <- snp_match(sumstats, map, strand_flip = TRUE)
 
-# Compute LD correlation matrix (in-sample) OR use prebuilt UKB LD
+# Compute LD correlation matrix (in-sample) OR use prebuilt UKB LD.
+# For a 3 cM window, pass the cM positions via `infos.pos = CHR_POS_CM` and set
+# `size = 3`. Writing `size = 3/1000` is silently broken because 0.003 rounds to 0.
 corr <- snp_cor(G, ind.col = df_beta[['_NUM_ID_']],
-                size = 3 / 1000,  # 3 cM window
+                infos.pos = df_beta[['cM']],
+                size = 3,  # 3 cM window when infos.pos is in cM
                 ncores = 8)
 
 # LDSC heritability estimate + LD mismatch (s) diagnostic
@@ -412,7 +415,7 @@ ldsc.py \
 - Zhang Q et al. 2021. Improved genetic prediction of complex traits from individual-level data or summary statistics. *Nat Commun* 12:4192. (MegaPRS)
 - Zhang H et al. 2024. PROSPER: enhanced polygenic risk score with summary statistics. *Nat Commun* 15:3413.
 - Jin Y et al. 2024. MUSSEL: enhanced Bayesian polygenic risk prediction in admixed populations. *Cell Genomics* 4:100539.
-- Hu S et al. 2025. JointPRS: a data-adaptive framework for joint polygenic risk score modeling. *Nat Commun* 16:59243.
+- Hu S et al. 2025. JointPRS: a data-adaptive framework for joint polygenic risk score modeling. *Nat Commun* (verify exact volume/article number in the published record before citing).
 - Hoggart CJ et al. 2024. BridgePRS leverages shared genetic effects across ancestries. *Nat Genet* 56:180.
 - Weissbrod O et al. 2022. Leveraging fine-mapping and multipopulation training data to improve cross-population polygenic risk scores. *Nat Genet* 54:450. (PolyPred)
 - Zhao Z et al. 2022. PUMAS: fine-tuning polygenic risk scores with GWAS summary statistics. *Am J Hum Genet* 109:2253. (TL-PRS-adjacent transfer learning)

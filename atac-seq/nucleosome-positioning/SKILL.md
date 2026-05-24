@@ -262,7 +262,7 @@ Adapted from DANPOS3 docs for ATAC; `--smooth_width 80` widens the smoothing ker
 
 **Trigger:** Suspected H2A.Z- or H3.3-containing nucleosomes; differential nucleosome composition between conditions.
 
-**Mechanism:** H2A.Z replacement of H2A produces nucleosomes with weaker DNA-histone interaction (lower thermal stability); fragment-size shifts ~10-15 bp shorter than canonical H2A nucleosomes (Voong 2017 supplementary). H3.3 replacement is more subtle but H3.3-H2A.Z double-variant nucleosomes are particularly destabilized at active promoters.
+**Mechanism:** H2A.Z replacement of H2A produces nucleosomes with weaker DNA-histone interaction (lower thermal stability); fragment-size shifts ~10-15 bp shorter than canonical H2A nucleosomes (Voong 2016 *Cell* 167:1555-1570 supplementary). H3.3 replacement is more subtle but H3.3-H2A.Z double-variant nucleosomes are particularly destabilized at active promoters.
 
 **Detection:** Aggregate fragment-size distribution at H2A.Z ChIP-seq peaks vs H3K4me3-only peaks; the H2A.Z population shows mean fragment size ~10 bp shorter. ATAC alone CANNOT definitively call H2A.Z; H2A.Z ChIP-seq is needed for ground truth. ATAC fragment-size analysis is a hypothesis generator.
 
@@ -283,7 +283,7 @@ def region_frag_size(bam, region):
 | Method | Tech | Resolution | Strength |
 |--------|------|-----------|----------|
 | Fiber-seq (Stergachis 2020) | PacBio HiFi + DNA methylation footprinting | Per-molecule single-bp | Reads continuous chromatin fiber up to 20 kb; resolves haplotype-specific positioning |
-| NanoNOMe (Lee 2020) | Nanopore + GpC methyltransferase | Per-molecule single-bp | Same single-molecule but cheaper than PacBio |
+| NanoNOMe (Lee 2020 *Nat Methods* 17:1191-1199) | Nanopore + GpC methyltransferase | Per-molecule single-bp | Same single-molecule but cheaper than PacBio |
 | MOSE (Dong 2024) | Nanopore + methylation | Improved Nanopore | Newer; benchmarks emerging |
 
 Fiber-seq can detect nucleosome occupancy directly per single chromatin molecule (no aggregation needed). Resolves cell-cycle-dependent and stochastic positioning that bulk ATAC averages out. Preferred for fine-structure analysis of regulatory elements.
@@ -300,6 +300,8 @@ Fuzziness measures how sharply positioned a nucleosome is across cells. Defined 
 | 20-50 bp | Standard well-positioned |
 | 50-100 bp | Fuzzy; constitutive but non-stable |
 | > 100 bp | Effectively unpositioned |
+
+These ranges are field-convention bands (drawn from NucleoATAC / DANPOS practice); no single primary paper prescribes them — verify against tool-specific documentation when reporting.
 
 NucleoATAC reports per-nucleosome fuzziness as `nuc_size`; values around the NRL are expected.
 
@@ -324,7 +326,7 @@ NucleoATAC reports per-nucleosome fuzziness as `nuc_size`; values around the NRL
 - Ou J et al 2018 BMC Genomics 19:169 (ATACseqQC)
 - Bao Y et al 2024 bioRxiv (scprinter)
 - Mavrich TN et al 2008 Nature 453:358 (+1 nucleosome positioning)
-- Voong LN et al 2017 Cell 169:1422 (high-resolution nucleosome mapping)
+- Voong LN et al 2016 Cell 167:1555-1570 (high-resolution nucleosome mapping)
 - Teif VB et al 2012 Nat Struct Mol Biol 19:1185 (NRL variation across cell types)
 
 ## Related Skills

@@ -65,7 +65,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **SBS11** | Temozolomide | Glioma post-TMZ | C>T at unmethylated CpC/CpT |
 | **SBS88 + ID18** | Colibactin (pks+ E. coli) | CRC etiology; NTHL1-syndrome backgrounds | Pleguezuelos-Manzano 2020 *Nature* |
 | **SBS30** | NTHL1 BER deficiency | Lynch-like; cancer predisposition | High cosine to FFPE artifact |
-| **SBS-FFPE-artifact** | Formalin-induced C>T (NOT SBS33 as commonly cited) | Sequencing artifact | ~0.90 cosine to SBS30; Guyard 2022 *Nat Commun* |
+| **SBS-FFPE-artifact** | Formalin-induced C>T (NOT SBS33 as commonly cited) | Sequencing artifact | ~0.90 cosine to SBS30 (formalin-induced C>T characterization in mutational-signatures literature; specific paper attribution removed pending verification) |
 
 **CRITICAL CORRECTION:** The widely-cited "SBS33 = FFPE artifact" is wrong. Modern literature attributes FFPE artifact to a signature resembling SBS30 (NTHL1-BER-deficiency profile); after enzymatic uracil repair the artifact instead resembles SBS1.
 
@@ -116,7 +116,7 @@ Manuscripts reporting extraction without these stability values are unreviewable
 | Cohort >= 50 WGS, novel etiology suspected | SigProfilerExtractor de novo + cross-validate | Capture potentially novel signatures |
 | Cohort >= 50 WGS, established cancer type | SigProfilerAssignment refit | Field consensus; fast |
 | Mid-size cohort with novel signatures | MuSiCal mvNMF | Handles NMF non-uniqueness |
-| Low mutation count (<100/sample) | SigNet (Serrano 2023) | Best low-count performance per Pancotti 2024 benchmark |
+| Low mutation count (<100/sample) | SigNet (Serrano 2023) | Best low-count performance per Pancotti et al 2025 *Brief Bioinform* benchmark |
 | BRCA1/2 deficiency screen | HRDetect (Davies 2017) | 6-feature lasso classifier; 98.7% sensitivity |
 | Tumor evolution / mutation timing | MutationTimer (Gerstung 2020) | Requires Battenberg CN; PCAWG-validated |
 | FFPE samples | SigProfilerAssignment with explicit FFPE-artifact handling | SBS30-like artifact; matched fresh-frozen controls ideal |
@@ -181,7 +181,8 @@ Analyze.cosmic_fit(
     input_type='matrix',
     genome_build='GRCh38',
     cosmic_version=3.4,
-    signature_database='SBS_GRCh38_GRCh38',
+    signature_database='SBS_GRCh38_GRCh38',  # Verify against the SigProfilerAssignment release; the bundled
+                                              # COSMIC signature-database identifiers change between versions.
     nnls_add_penalty=0.05,         # Forward-add gate
     nnls_remove_penalty=0.01,      # Backward-remove gate
     initial_remove_penalty=0.05,
@@ -321,7 +322,7 @@ hrdetect <- HRDetect_pipeline(
 | nmf_replicates | 100 (default; do not reduce) | SigProfilerExtractor |
 | Stability gate | minimum stability >= 0.2; average >= 0.8 | SigProfilerExtractor defaults |
 | Cosine similarity for "same signature" | > 0.85 (some use 0.90) | Convention |
-| SBS-FFPE-artifact cosine to SBS30 | ~0.90 | Guyard 2022 *Nat Commun* |
+| SBS-FFPE-artifact cosine to SBS30 | ~0.90 | formalin-induced C>T characterization (mutational-signatures literature; specific primary citation pending verification) |
 | HRDetect threshold | BRCA_prob >= 0.7 = HRD-positive | Davies 2017 |
 | POLE-exo + MMR mutation count | >500 mut/Mb (ultra-hypermutator) | Alexandrov 2020 |
 | Pure POLE-exo mutation count | 100-300 mut/Mb | Alexandrov 2020 |
@@ -376,8 +377,8 @@ hrdetect <- HRDetect_pipeline(
 - Pleguezuelos-Manzano C et al. 2020. Mutational signature in colorectal cancer caused by genotoxic pks+ E. coli. *Nature* 580:269. (Colibactin SBS88)
 - Gerstung M et al. 2020. The evolutionary history of 2,658 cancers. *Nature* 578:122. (MutationTimer)
 - Mertz TM et al. 2020. POLE mutation spectra are shaped by the mutant allele identity. *Mol Cell* 78:1116.
-- Guyard A et al. 2022. FFPE-derived DNA is more stable than fresh-frozen for somatic mutation detection. *Nat Commun* 13:4632. (FFPE-as-SBS30)
-- Pancotti C et al. 2024. Deep learning methods for the recovery of mutational signatures. *Brief Bioinform* 26:bbaf545.
+- (FFPE-induced C>T mutational artifact: the earlier "Guyard 2022 Nat Commun" attribution could not be verified -- consult current FFPE-artifact literature for a confirmed primary citation.)
+- Pancotti C et al. 2025. Deep learning methods for the recovery of mutational signatures. *Brief Bioinform* 26:bbaf545.
 - COSMIC Signatures: `https://cancer.sanger.ac.uk/signatures/`
 
 ## Related Skills

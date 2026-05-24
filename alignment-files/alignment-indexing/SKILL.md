@@ -132,7 +132,9 @@ pysam.index('input.bam')
 
 ### Create CSI Index
 ```python
-pysam.index('input.bam', 'input.bam.csi', csi=True)
+# pysam.index passes through to samtools index; pass the -c flag for CSI.
+pysam.index('-c', 'input.bam')
+# Produces input.bam.csi.
 ```
 
 ### Fetch with Index

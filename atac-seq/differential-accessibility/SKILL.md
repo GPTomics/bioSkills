@@ -28,8 +28,8 @@ DiffBind is a wrapper around DESeq2 / edgeR with ATAC-aware defaults. csaw is th
 
 | Tool | Model | Input | Min reps | Strength | Fails when |
 |------|-------|-------|----------|----------|------------|
-| DiffBind 3.x (default DESeq2) | NB GLM via DESeq2 on consensus peaks | BAM + peak files | 2-3 per group | ATAC-aware defaults; native normalization (RiP); built-in QC; blocking factors | Peaks differ dramatically between conditions (closed -> open shifts width); fewer than 2 reps per group |
-| DiffBind with edgeR backend | NB GLM via edgeR-QL on consensus peaks | Same | 2-3 per group | Robust at low replicates (n=2 OK); QL test calibrates dispersion better than DESeq2 at small n | Default normalization can be off for ATAC; specify `normalize=DBA_NORM_NATIVE` |
+| DiffBind 3.x (default DESeq2) | NB GLM via DESeq2 on consensus peaks | BAM + peak files | 2-3 per group | ATAC-aware defaults; built-in QC; blocking factors. Default in 3.x is `normalize=DBA_NORM_LIB` with `library=DBA_LIBSIZE_FULL` (full library size, background-included) | Peaks differ dramatically between conditions (closed -> open shifts width); fewer than 2 reps per group |
+| DiffBind with edgeR backend | NB GLM via edgeR-QL on consensus peaks | Same | 2-3 per group | Robust at low replicates (n=2 OK); QL test calibrates dispersion better than DESeq2 at small n | When global accessibility shifts dominate, switch to spike-in or library=DBA_LIBSIZE_PEAKREADS (RiP) |
 | DESeq2 directly on peak counts | NB GLM with shrinkage | featureCounts SAF | 3+ | Maximum control; integrates with apeglm shrinkage; modern interface | Need to manually build consensus peakset; per-region pre-filter required (low counts inflate dispersion) |
 | edgeR QL F-test on peak counts | NB QL (quasi-likelihood) | featureCounts | 2 | Calibrated FDR at low n (n=2 viable); robust to outlier reps | Manual consensus peakset; small library bias unless normalization explicit |
 | csaw (windows) | edgeR-QL on sliding windows | BAM only | 2 | No peak set required; detects diffuse changes peaks miss; merges adjacent windows | Computationally heavy; window size choice biases results; harder to annotate downstream |
@@ -68,33 +68,37 @@ Refer to atac-seq/consensus-peakset for full coverage of fixed-width re-centerin
 
 ## Normalization: The ATAC-Specific Choice
 
-| Normalization | DiffBind flag | What it normalizes to | When to use |
-|---------------|---------------|------------------------|-------------|
-| DiffBind native (RiP) | `DBA_NORM_NATIVE` | Reads in consensus peaks | Default for ATAC; protects against background drift |
-| Full library size | `DBA_NORM_LIB` | Total mapped reads | When global accessibility shifts must remain visible (e.g., chromatin compaction) |
-| TMM (edgeR) | `DBA_NORM_TMM` | Trimmed mean of M-values | Robust to a few highly-DA peaks dominating |
-| RLE (DESeq2) | `DBA_NORM_RLE` | DESeq2 size factors | DESeq2 default; geometric-mean reference |
-| Spike-in / external | none built-in; pre-scale counts | Exogenous reference (e.g., human spike in mouse) | Required when global scaling is biological |
+DiffBind 3.x conflates two orthogonal choices: the normalization method (`normalize=`) and the library-size definition (`library=`). The defaults are `normalize=DBA_NORM_LIB` with `library=DBA_LIBSIZE_FULL` (full mapped-read total).
+
+| Choice | DiffBind argument | What it does | When to use |
+|--------|-------------------|--------------|-------------|
+| Normalize by library size only | `normalize=DBA_NORM_LIB` (default) | Scale counts by the chosen library size | Standard; pairs with full or RiP library |
+| Reads-in-peaks library size | `library=DBA_LIBSIZE_PEAKREADS` | Library size = reads in consensus peaks (RiP) | When background varies independently of biology (protects against background drift) |
+| Full mapped library size | `library=DBA_LIBSIZE_FULL` (default) | Library size = total mapped reads | When global accessibility shifts must remain visible (e.g., chromatin compaction) |
+| Native per-tool default | `normalize=DBA_NORM_NATIVE` | DESeq2 RLE or edgeR TMM, depending on backend | Use DESeq2/edgeR conventions directly |
+| TMM (edgeR) | `normalize=DBA_NORM_TMM` | Trimmed mean of M-values | Robust to a few highly-DA peaks dominating |
+| RLE (DESeq2) | `normalize=DBA_NORM_RLE` | DESeq2 geometric-mean size factors | DESeq2-conventional analysis |
+| Spike-in / external | not built-in; pre-scale counts | Exogenous reference (e.g., spike-in chromatin) | Required when global scaling is biological |
 
 **Trigger:** Treatment causes global chromatin compaction (e.g., HDAC inhibitor, DNMT inhibitor).
 
-**Mechanism:** RiP normalization assumes ratio of in-peak to total reads is stable. When a treatment globally opens or closes chromatin, RiP normalizes that biology away, producing a near-null differential set.
+**Mechanism:** Full library-size normalization is robust to background but the default still scales background reads in; under uniform global compaction the magnitudes can collapse. RiP scaling (`library=DBA_LIBSIZE_PEAKREADS`) makes the opposite assumption (peak signal is stable, background absorbs the shift) and so erases the very biology you want to detect.
 
 **Symptom:** Volcano plot is symmetric about zero; PCA shows treatment effect that vanishes after normalization.
 
-**Fix:** Use library-size normalization (`DBA_NORM_LIB`) OR use spike-in normalization (add exogenous chromatin pre-Tn5; scale by spike-in reads). Reske 2020 documented this with HDAC inhibitor.
+**Fix:** Use spike-in normalization (add exogenous chromatin pre-Tn5; scale by spike-in reads), or keep the default `library=DBA_LIBSIZE_FULL` but interpret with the global shift in mind. Reske 2020 documented this with HDAC inhibitor.
 
 ## Per-Tool Failure Modes
 
-### DiffBind -- Default normalization confounds global change
+### DiffBind -- Library-size choice confounds global change
 
 **Trigger:** Treatment causes whole-genome accessibility shift; cell-cycle synchronized samples; differentiation timecourse.
 
-**Mechanism:** DiffBind default uses RiP-based normalization (`DBA_NORM_NATIVE`), which assumes total reads-in-peaks is comparable across samples. Global shift breaks this.
+**Mechanism:** Setting `library=DBA_LIBSIZE_PEAKREADS` (RiP-based) assumes total reads-in-peaks is comparable across samples. Global accessibility shifts break this assumption.
 
 **Symptom:** Conditions clearly differ in PCA before normalization; after normalization PC1 is nearly noise.
 
-**Fix:** Set `normalize=DBA_NORM_LIB` and re-run `dba.contrast` and `dba.analyze`. Re-inspect PCA; if treatment now drives PC1, the global-shift biology is preserved.
+**Fix:** Keep the default `library=DBA_LIBSIZE_FULL` (or use spike-in scaling) and re-run `dba.contrast` and `dba.analyze`. Re-inspect PCA; if treatment now drives PC1, the global-shift biology is preserved.
 
 ### DiffBind summits parameter -- Width-driven differential
 
@@ -310,7 +314,7 @@ genes <- as.data.frame(peakAnno)$geneId          # for GO enrichment via pathway
 |-----------------|-------|----------|
 | DiffBind very slow | Counting all peaks across all BAMs sequentially | `dba.count(..., bParallel=TRUE)` and provide `BPPARAM` |
 | `unable to use the provided design matrix` (DESeq2) | Confounded design (e.g., batch perfectly aligns with condition) | Replicate in a way that breaks the confound, or drop the batch term |
-| FDR list empty despite obvious differences | Library-size normalization removed global biology | Use spike-in or `DBA_NORM_LIB`; verify with browser tracks |
+| FDR list empty despite obvious differences | RiP scaling (`library=DBA_LIBSIZE_PEAKREADS`) removed global biology | Use spike-in or keep default `library=DBA_LIBSIZE_FULL`; verify with browser tracks |
 | Top peaks all on chrM | chrM not removed from BAM before counting | Always strip chrM upstream |
 | dispersion estimate failure (DESeq2) | Too few peaks pass filter; too few reps | `filterByExpr` less aggressively; check rep count |
 | `Error in if (any(out))`(csaw) | Window count below threshold | Reduce `bin.size`; check BAM is paired-end |

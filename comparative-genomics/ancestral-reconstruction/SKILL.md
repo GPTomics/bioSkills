@@ -134,7 +134,7 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes and Boyko
 
 **Symptom:** Ambiguous regions of the alignment correspond to low-confidence ASR sites; gappy columns dominate the low-confidence set; alignment scoring (TCS, Guidance2) marks the same regions as poorly aligned.
 
-**Fix:** Filter alignment with HmmCleaner (Di Franco 2019 BMC Eco Evo 19:21) or PREQUAL (Whelan 2018 MBE 35:2624) before ASR. Segment-level filtering outperforms block-level filtering (Gblocks, trimAl) for downstream evolutionary inference. For ASR specifically, mask ambiguous columns (treat as missing) rather than removing them, to preserve coordinates.
+**Fix:** Filter alignment with HmmCleaner (Di Franco 2019 BMC Eco Evo 19:21) or PREQUAL (Whelan et al 2018 Bioinformatics 34:3929) before ASR. Segment-level filtering outperforms block-level filtering (Gblocks, trimAl) for downstream evolutionary inference. For ASR specifically, mask ambiguous columns (treat as missing) rather than removing them, to preserve coordinates.
 
 ## Quantitative Thresholds
 

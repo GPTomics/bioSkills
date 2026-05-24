@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-chip-deep-learning
-description: Trains and applies base-resolution deep learning models on ChIP-seq / ChIP-nexus / CUT&RUN data. Uses BPNet (Avsec 2021; soft motif syntax from ChIP-nexus), chromBPNet (Pampari Avsec 2024/2025; bias-factorized base-resolution profiles), EnFormer (Avsec 2021; 200 kb receptive field), DeepSEA (Zhou 2015; multi-task CNN), and JASPAR 2026 deep-learning collection (1259 BPNet ChIP models). Performs in silico mutagenesis for variant-effect prediction, DeepLIFT/Grad attribution, and TF-MoDISco motif discovery from attribution scores. Use when predicting variant effects on TF binding, discovering soft motif syntax / cooperativity, integrating ChIP-seq with sequence-only predictions, or applying precomputed JASPAR Deep Learning models to new variants.
+description: Trains and applies base-resolution deep learning models on ChIP-seq / ChIP-nexus / CUT&RUN data. Uses BPNet (Avsec 2021 Nat Genet 53:354; soft motif syntax from ChIP-nexus), chromBPNet (Pampari A et al 2025 Nat Genet; bias-factorized base-resolution profiles), EnFormer (Avsec 2021 Nat Methods 18:1196; 196 kb input, ~100 kb effective receptive field), DeepSEA (Zhou 2015; multi-task CNN), and JASPAR 2026 deep-learning collection (1259 BPNet ChIP models). Performs in silico mutagenesis for variant-effect prediction, DeepLIFT/Grad attribution, and TF-MoDISco motif discovery from attribution scores. Use when predicting variant effects on TF binding, discovering soft motif syntax / cooperativity, integrating ChIP-seq with sequence-only predictions, or applying precomputed JASPAR Deep Learning models to new variants.
 tool_type: python
 primary_tool: chrombpnet
 ---
@@ -15,7 +15,7 @@ Reference examples tested with: chrombpnet 0.1.7+, BPNet 0.0.23+, TF-MoDISco-lit
 
 - Python (modern): chrombpnet (bias-factorized; ATAC/DNase/ChIP)
 - Python (canonical TF ChIP): BPNet (originally for ChIP-nexus; soft motif syntax)
-- Python (long-range): EnFormer (Avsec 2021; 200 kb input; tissue-aggregated training)
+- Python (long-range): EnFormer (Avsec 2021 Nat Methods 18:1196; 196 kb input window, ~100 kb effective receptive field; tissue-aggregated training)
 - Python (multi-task): DeepSEA (Zhou 2015; older but still used)
 - Precomputed: JASPAR 2026 Deep Learning collection (1259 BPNet ChIP models from ENCODE; 240 TFs)
 
@@ -25,9 +25,9 @@ Deep-learning ChIP-seq models predict signal from sequence; their power is in co
 
 | Model | Year | Architecture | Receptive field | Best for |
 |-------|------|--------------|------------------|----------|
-| **BPNet** (Avsec 2021) | 2021 | CNN with dilated convolutions | ~1 kb | TF ChIP-nexus / ChIP-exo; base-resolution profile prediction; soft motif syntax |
-| **chromBPNet** (Pampari Avsec 2024/2025) | 2025 | Bias-factorized CNN | ~1-2 kb | ATAC/DNase + ChIP base-resolution; bias-corrected variant effects |
-| **EnFormer** (Avsec 2021) | 2021 | Transformer | 200 kb | Long-range regulatory predictions; cross-tissue; variant effects spanning enhancer-gene |
+| **BPNet** (Avsec 2021 Nat Genet 53:354) | 2021 | CNN with dilated convolutions | ~1 kb | TF ChIP-nexus / ChIP-exo; base-resolution profile prediction; soft motif syntax |
+| **chromBPNet** (Pampari A et al 2025 Nat Genet) | 2025 | Bias-factorized CNN | ~1-2 kb | ATAC/DNase + ChIP base-resolution; bias-corrected variant effects |
+| **EnFormer** (Avsec 2021 Nat Methods 18:1196) | 2021 | Transformer | ~100 kb effective receptive field (input window 196 kb) | Long-range regulatory predictions; cross-tissue; variant effects spanning enhancer-gene |
 | **DeepSEA** (Zhou 2015) | 2015 | CNN multi-task | 1 kb | Predicts presence/absence across many chromatin features simultaneously |
 | **DeepBind** (Alipanahi 2015) | 2015 | CNN binary classifier | ~50-200 bp | TF binding presence (older, less precise than BPNet) |
 | **Basset** (Kelley 2016) | 2016 | CNN | ~600 bp | DNase / ATAC accessibility prediction |
@@ -144,7 +144,7 @@ from enformer_pytorch import Enformer
 
 model = Enformer.from_hparams(dim_factor=32).from_pretrained('EleutherAI/enformer-official-rough')
 
-# 200 kb input
+# 196 kb input window
 seq = torch.tensor(one_hot_encode(reference_seq))[None, ...]
 predictions = model(seq)
 # Predictions: per-bin signal across 5,313 ENCODE tracks
@@ -156,7 +156,7 @@ alt_pred = model(encode(alt_seq))[..., :, target_track_idx]
 variant_effect = (alt_pred - ref_pred).mean()
 ```
 
-EnFormer's 200 kb receptive field captures distal regulatory effects; useful when variant is far from TSS.
+EnFormer's 196 kb input (~100 kb effective receptive field) captures distal regulatory effects; useful when variant is far from TSS.
 
 ## Using JASPAR 2026 Deep Learning Models (Precomputed)
 
@@ -257,8 +257,8 @@ This is the lowest-effort path for variant-effect prediction on canonical TFs (n
 ## References
 
 - Avsec Ž et al 2021 Nat Genet 53:354 (BPNet; ChIP-nexus base-resolution model)
-- Pampari A et al 2024/2025 (chromBPNet; bias-factorized base-resolution for ATAC and ChIP)
-- Avsec Ž et al 2021 Nat Methods 18:1196 (EnFormer; 200 kb transformer)
+- Pampari A et al 2025 Nat Genet (chromBPNet; bias-factorized base-resolution for ATAC and ChIP; consult current publication for exact volume/pages)
+- Avsec Ž et al 2021 Nat Methods 18:1196-1203 (EnFormer; ~100 kb effective receptive field, 196 kb input window)
 - Zhou J & Troyanskaya OG 2015 Nat Methods 12:931 (DeepSEA)
 - Alipanahi B et al 2015 Nat Biotechnol 33:831 (DeepBind)
 - Kelley DR et al 2016 Genome Res 26:990 (Basset)

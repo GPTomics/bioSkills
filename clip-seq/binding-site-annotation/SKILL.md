@@ -312,7 +312,7 @@ plotHeatmap -m matrix.gz -o metagene_heatmap.png
 - Van Nostrand EL et al 2020 Nature 583:711 (ENCODE 150 RBP eCLIP, region distribution analysis)
 - Quinlan AR & Hall IM 2010 Bioinformatics 26:841 (bedtools)
 - Hentze MW et al 2018 Nat Rev Mol Cell Biol 19:327 (RBP function review)
-- Reuter JS et al 2022 Bioinformatics 38:1139 (Peakhood transcript-context)
+- Uhl M et al 2022 NAR Genom Bioinform 4:lqac020 (Peakhood transcript-context)
 - ENCODE eCLIP standards (encodeproject.org/eclip) - region distribution conventions
 
 ## Related Skills

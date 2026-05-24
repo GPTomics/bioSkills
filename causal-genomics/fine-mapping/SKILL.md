@@ -41,7 +41,7 @@ Fine-mapping is a Bayesian model selection problem; LD is not noise but structur
 | PAINTOR (Kichaev 2014 PLoS Genet 10:e1004722) | EM with binary functional annotations | (z, R, A) per locus | Locus-level functional priors; multi-trait variant | Single-trait mode often matched by PolyFun + SuSiE; slower than SuSiE |
 | PolyFun + SuSiE/FINEMAP (Weissbrod 2020 Nat Genet 52:1355) | Stratified LDSC genome-wide -> per-SNP prior_weights | GWAS sumstats + pre-baked baseline-LF | Most powerful single-trait functional prior; PIPs sharpen 1.5-3x | Requires matched-ancestry baseline-LF; runs in two stages |
 | SuSiEx (Yuan 2024 Nat Genet 56:1841) | Joint cross-ancestry SuSiE; shared causal, population-specific LD | Per-pop sumstats + per-pop LD reference | Smaller credible sets than per-ancestry meta or marginal fine-mapping; principled when causal variants are shared | Trans-ethnic heterogeneity violated (population-specific causals); ancestry must be cleanly assigned |
-| MultiSuSiE (Tashman 2024 medRxiv) | Cross-ancestry SuSiE variant; flexible heterogeneity | Per-pop sumstats + per-pop LD | Similar to SuSiEx; alternative implementation | Same as SuSiEx; newer, less battle-tested |
+| MultiSuSiE (Tashman 2024 medRxiv / 2025 Nat Genet) | Cross-ancestry SuSiE variant; flexible heterogeneity | Per-pop sumstats + per-pop LD | Similar to SuSiEx; alternative implementation | Same as SuSiEx; newer, less battle-tested |
 | FOCUS / MA-FOCUS (Mancuso 2019 Nat Genet 51:675) | Probabilistic TWAS fine-mapping over gene models | TWAS Z-scores + gene LD (predicted expression) | Identifies likely causal gene among co-regulated TWAS hits; cross-ancestry MA-FOCUS variant | Requires pre-computed expression weights (e.g., FUSION/PrediXcan); gene-level rather than variant-level inference |
 
 Methodology evolves; verify the latest susieR vignette and the SuSiE-inf paper before locking on a single method. Wang Lab maintains susieR; the IBSS algorithm is stable but argument semantics (e.g., `prior_weights` vs `prior_variance`) have changed across versions.
@@ -414,7 +414,7 @@ Every locus reported should carry these columns; missing fields are the most com
 - Kichaev G, Yang WY, Lindstrom S, Hormozdiari F, Eskin E et al 2014 PLoS Genet 10:e1004722 (PAINTOR)
 - Weissbrod O, Hormozdiari F, Benner C, Cui R, Ulirsch J et al 2020 Nat Genet 52:1355 (PolyFun + functional priors)
 - Yuan K, Longchamps RJ, Pardinas AF, Yu M, Chen TT et al 2024 Nat Genet 56:1841 (SuSiEx cross-ancestry)
-- Tashman KC, Cui R, O'Connor LJ, Pasaniuc B, Price AL 2024 medRxiv (MultiSuSiE)
+- Tashman KC, Cui R, O'Connor LJ, Pasaniuc B, Price AL 2024 medRxiv / 2025 Nat Genet (MultiSuSiE; published in Nat Genet 2025, doi:10.1038/s41588-025-02450-5)
 - Mancuso N, Freund MK, Johnson R, Shi H, Kichaev G et al 2019 Nat Genet 51:675 (FOCUS for TWAS fine-mapping)
 - Wallace C 2021 PLoS Genet 17:e1009440 (coloc.susie integration)
 - Schaid DJ, Chen W, Larson NB 2018 Nat Rev Genet 19:491 (fine-mapping review)

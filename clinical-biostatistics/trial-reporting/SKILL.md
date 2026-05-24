@@ -111,7 +111,7 @@ Each step down imposes more structure and the structure can be wrong — biasing
 - **Copy-increments-in-reference (CIR):** "the patient retains the on-treatment increment but trends with the placebo arm thereafter, anchored at last observed value"
 - **Last-mean-carried-forward (LMCF):** "patient stays at last on-treatment mean"
 
-**rbmi R package (Wolbers et al 2022 *Pharm Stat* 21:1262; CRAN; insightsengineering):**
+**rbmi R package (Wolbers et al 2022 *Pharm Stat* 21(6):1246-1257; CRAN; insightsengineering):**
 
 ```r
 library(rbmi)
@@ -452,7 +452,7 @@ CONSORT 2025 templates on consort-spirit.org now explicitly accommodate non-1:1 
 - Permutt T. 2016. Sensitivity analysis for missing data in regulatory submissions. *Stat Med* 35:2876-2879.
 - Permutt T. 2020. Do covariates change the estimand? *Stat Biopharm Res* 12:45-53.
 - von Hippel PT. 2020. How many imputations are needed (a two-stage calculation using a quadratic rule). *Sociol Methods Res* 49:699-718.
-- Wolbers M, Noci A, Delmar P, Gower-Page C, Yiu S, Bartlett JW. 2022. Standard and reference-based conditional mean imputation. *Pharm Stat* 21:1262-1281.
+- Wolbers M, Noci A, Delmar P, Gower-Page C, Yiu S, Bartlett JW. 2022. Standard and reference-based conditional mean imputation. *Pharm Stat* 21(6):1246-1257.
 
 ## Related Skills
 

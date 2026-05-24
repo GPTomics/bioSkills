@@ -41,7 +41,7 @@ Sequential ignorability (no unmeasured confounder of treatment-mediator, mediato
 | HILAMA (Zhang 2025) | High-D mediation with latent confounders | No | Yes (>= 100k) | ~500 | Newer; benchmarks evolving; requires latent-factor specification |
 | BAMA (Song 2020 Biostatistics) | Bayesian high-D continuous shrinkage | No | Yes (~5k) | ~200 | Slow MCMC; prior sensitivity for very weak mediators |
 | Two-step MR / network MR (Burgess 2017 Eur J Epidemiol 32:377) | IV-based at each step with INDEPENDENT instruments | Implicit (no interaction modeling) | One mediator at a time | Large summary-stat samples | Same SNP used for E and M (violates exclusion); horizontal pleiotropy; Steiger reversal of M->E direction |
-| MVMR-mediation (Sanderson 2021 IJE 50:1651) | Total minus direct via MVMR | Implicit | Single mediator | Large GWAS samples for both E and M | Conditional F < 10 for either exposure; correlated instruments |
+| MVMR-mediation (Carter & Sanderson 2021 Eur J Epidemiol 36:465-478) | Total minus direct via MVMR | Implicit | Single mediator | Large GWAS samples for both E and M | Conditional F < 10 for either exposure; correlated instruments |
 | medDML (Farbmacher 2022 Econometrics J 25:277) | Double-debiased ML, doubly-robust | Limited (depends on learner) | Moderate (sparsity-friendly) | ~500 | Severe overlap violations; cross-fitting variance with small n |
 
 Methodology evolves; verify against the current CMAverse vignette and the Steen / Vansteelandt natural-effects-model literature before locking analytic choices. Difference-in-coefficients and product-of-coefficients give identical estimates in fully linear-Gaussian models but DIVERGE for any non-linear outcome model (logistic, Cox, Poisson); the counterfactual ACME from `mediation::mediate()` is the correct quantity for non-linear outcomes.
@@ -223,7 +223,7 @@ Reference: AGReMA-Mediation guideline (Lee 2021 BMJ 372:n122) and MacKinnon 2008
 | Proportion mediated -- "most of the effect" | > 0.5-0.8 | Convention |
 | Imai rho_crit -- robust | > 0.3 | Imai 2010 Psychol Methods 15:309 |
 | Imai rho_crit -- sensitive | < 0.1 | Same |
-| Mediational E-value -- robust | > 2.0 | Smith & VanderWeele 2019 Epidemiology 30:835 |
+| Mediational E-value -- robust | > 2.0 (working convention; the original Smith & VanderWeele 2019 E-value framework does not prescribe a specific cutoff -- magnitude is context-dependent) | Smith & VanderWeele 2019 Epidemiology 30:835 |
 | HIMA FDR cutoff | BH FDR < 0.05 | Default; report q-values not raw p |
 | MVMR conditional F per exposure | > 10 each | Sanderson 2019 IJE 48:713 |
 | Two-step MR -- F for both stages | > 10 each | Burgess weak-instrument convention |
@@ -328,7 +328,7 @@ Choose based on the experimental structure:
 
 Decision tree:
 - Independent instrument sets available for E and M -> two-step MR (Burgess 2017 Eur J Epidemiol 32:377)
-- E and M share instruments (common in cis-eQTL / cis-pQTL mediator cases) -> MVMR-mediation (Sanderson 2021 IJE 50:1651)
+- E and M share instruments (common in cis-eQTL / cis-pQTL mediator cases) -> MVMR-mediation (Carter & Sanderson 2021 Eur J Epidemiol 36:465)
 - Both feasible -> report both (triangulation)
 
 Two-step code sketch:

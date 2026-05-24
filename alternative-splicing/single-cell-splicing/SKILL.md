@@ -213,7 +213,7 @@ psix_obj.run_psix()
 regulated = psix_obj.psix_results.query('psix_score > 1.5 and pvalue < 0.05')
 ```
 
-Psix (Buen Abad Najar 2022 *Cell Syst*) is the principled alternative to imputing PSI: do not impute (it obliterates heterogeneity); test for graph smoothness instead.
+Psix (Buen Abad Najar 2022 *Genome Res* 32:1385) is the principled alternative to imputing PSI: do not impute (it obliterates heterogeneity); test for graph smoothness instead.
 
 ## Sierra for APA (Not Splicing)
 
@@ -267,9 +267,9 @@ Use pseudobulk for differential splicing **between** well-defined cell types; us
 In 2024-2026, full-length single-cell long-read sequencing has become practical and is the recommended chemistry for splicing-focused single-cell experiments:
 
 - **MAS-Iso-seq / PacBio Kinnex**: concatenated full-length cDNA arrays, ~16x throughput vs plain Iso-Seq, compatible with 10X 5' libraries (Al'Khafaji 2024 *Nat Biotech*)
-- **scISOr-Seq2**: hybrid 10X + PacBio for cell typing + isoform structure (Joglekar 2024 *Nat Neurosci* mouse cortex atlas)
+- **scISOr-Seq2**: hybrid 10X + PacBio for cell typing + isoform structure (Joglekar et al, scISOr-Seq2 mouse cortex atlas; consult most recent publication for exact citation)
 - **ONT direct cDNA + 10X**: lower cost, similar information content
-- **FLAMES**: barcode demultiplexing + isoform quantification + SNV calling for ONT scRNA (Tian 2021 *Nat Methods*)
+- **FLAMES**: barcode demultiplexing + isoform quantification + SNV calling for ONT scRNA (Tian 2021 *Genome Biol* 22:310)
 
 For splicing-specific full-length single-cell analysis, see `long-read-splicing` skill.
 
@@ -413,10 +413,10 @@ For splicing-specific full-length single-cell analysis, see `long-read-splicing`
 ## References
 
 - Huang & Sanguinetti 2021 *Genome Biol* - BRIE2
-- Wen et al 2023 *NAR Genomics Bioinform* - MARVEL
+- Wen et al 2023 *Nucleic Acids Research* 51:e29 - MARVEL
 - Benegas, Fischer & Song 2022 *eLife* - scQuint (annotation-free single-cell splicing analysis, validated on Smart-seq2)
 - Olivieri et al 2022 *Nat Methods* - SpliZ
-- Buen Abad Najar et al 2022 *Cell Syst* - Psix
+- Buen Abad Najar et al 2022 *Genome Research* 32:1385 - Psix
 - Patrick et al 2020 *Genome Biol* - Sierra
 - Song et al 2017 *Mol Cell* - splicing modality classification
 - Picelli et al 2014 *Nat Protoc* - Smart-seq2
@@ -426,8 +426,8 @@ For splicing-specific full-length single-cell analysis, see `long-read-splicing`
 - Salmen et al 2022 *Nat Biotech* - VASA-seq
 - Johnson et al 2023 *Nat Commun* - STORM-seq
 - Al'Khafaji et al 2024 *Nat Biotech* - MAS-Iso-seq / Kinnex
-- Tian et al 2021 *Nat Methods* - FLAMES
-- Joglekar et al 2024 *Nat Neurosci* - scISOr-Seq2 mouse cortex atlas
+- Tian et al 2021 *Genome Biology* 22:310 - FLAMES
+- Joglekar et al - scISOr-Seq2 mouse cortex atlas (consult most recent publication for venue/year)
 - Irimia et al 2014 *Cell* - neural microexons / SRRM4
 - Boutz et al 2007 *Genes Dev* - PTBP1/PTBP2 neural switch
 - Tian & Manley 2017 *Nat Rev Mol Cell Biol* - alternative polyadenylation and 3' UTR isoforms

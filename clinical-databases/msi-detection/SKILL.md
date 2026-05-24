@@ -46,7 +46,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **TMB-H** | >= 10 mut/Mb | NGS panel / WES | Statistical correlate of MSI-H |
 | **POLE-exo hypermutator** | POLE proofreading defect | Sequencing / signatures | Hypermutator WITHOUT MMR-D; MSI-stable typically |
 
-**MSI-H + TMB-H overlap** (Salem 2018 *Cancer Discov*):
+**MSI-H + TMB-H overlap** (Salem ME et al 2018 *Mol Cancer Res* 16(5):805-812):
 - ~80% of MSI-H tumors in CRC and endometrial are TMB-H.
 - ~16% of TMB-H solid tumors are MSI-H.
 - Sha 2020 *Cell Rep Med*: MSI-H supersedes TMB-H for ICI biomarker decision; TMB-H not additive.
@@ -116,11 +116,12 @@ msisensor-pro scan -d /reference/GRCh38.fa -o microsatellites.list -p 1 -m 5
 # Generate baseline from N normal control samples (one-time per panel)
 msisensor-pro baseline -d microsatellites.list -i normal_samples.list -o baseline.list -b 16
 
-# Score tumor sample
+# Score tumor sample. The `-i sample_id` flag is uncommon: in typical msisensor-pro
+# usage the sample identifier is derived from the BAM file -- verify the flag set
+# against `msisensor-pro pro --help` for the installed release.
 msisensor-pro pro \
     -d microsatellites.list \
     -t tumor.bam \
-    -i sample_id \
     -o msi_output \
     -b 16 \
     --baseline baseline.list

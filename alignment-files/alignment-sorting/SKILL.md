@@ -194,9 +194,9 @@ for f in *.bam; do samtools view -H "$f" | head -1; done | sort -u
 # Should print exactly ONE line, e.g. "@HD VN:1.6 SO:coordinate"
 ```
 
-### Safe Merge (dedup @PG/@CO and @RG)
+### Safe Merge (dedup @RG and @PG)
 ```bash
-# -c dedups @PG and @CO; -p dedups @RG ID collisions
+# -c deduplicates @RG records; -p deduplicates @PG records (samtools-merge(1))
 samtools merge -c -p -@ 8 merged.bam sample1.bam sample2.bam sample3.bam
 ```
 

@@ -11,7 +11,7 @@ Reference examples tested with: BAGEL2 1.0.5+ (hart-lab/bagel), pandas 2.2+, num
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `BAGEL.py fc --help`; `BAGEL.py bf --help`; `BAGEL.py pr --help`
-- Python: `pip show bagel-cas9`
+- Python: BAGEL2 is distributed via `git clone` (no canonical PyPI release); confirm `python BAGEL.py --version` after checkout.
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt the example to match the actual API rather than retrying.
 
@@ -57,10 +57,10 @@ Reference set integrity:
 **Approach:** Take normalized counts, compute log-fold-change vs a control (Day 0 or plasmid baseline) per sgRNA.
 
 ```bash
-# bagel-cas9 installation:
+# BAGEL2 installation: distributed via git clone (no canonical PyPI release).
 git clone https://github.com/hart-lab/bagel
 cd bagel
-# or pip install bagel-cas9
+# Some forks publish to PyPI (e.g. `bagel-cas9`) but the official distribution is the GitHub repo.
 
 # Inputs:
 # counts.txt: tab-separated with columns: sgRNA, GENE, Sample1, Sample2, ...

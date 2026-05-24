@@ -27,7 +27,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | RR | Log-risk ratio | YES | Miettinen-Nurminen score; MOVER-R | Cohort, RCT with common outcomes | Sparse strata; one or both p near 0 (Wald log-RR breaks) |
 | RD (absolute risk difference) | Linear probability | YES | Newcombe-Wilson hybrid; Miettinen-Nurminen | Clinically interpretable absolute scale; FDA-preferred for binary | Predictions outside [0,1] from linear models |
 | HR (hazard ratio) | Log-hazard ratio | NO | Wald with profile likelihood for small n | Time-to-event with PH | PH violation (see clinical-biostatistics/survival-analysis) |
-| NNT/NNH | 1/RD | n/a (derived from RD) | Bender 2002 (Altman 1998 base) | Communicating absolute benefit to clinicians | RD CI crosses zero (NNT becomes NNTB-infinity-NNTH) |
+| NNT/NNH | 1/RD | n/a (derived from RD) | Bender 2001 *CCT* 22:102 (Altman 1998 base) | Communicating absolute benefit to clinicians | RD CI crosses zero (NNT becomes NNTB-infinity-NNTH) |
 | Difference in RMST | Time scale | YES | Wald with delta method; pseudo-observation regression | Time-to-event with PH violation | Different max follow-up across arms (truncation tau ambiguous) |
 
 **Postdoc reading:** Permutt 2020 *Stat Biopharm Res* 12:45 ("Do covariates change the estimand?") established that the conditional OR from a multivariable logistic regression is a *different parameter* than the marginal OR -- and the FDA May 2023 Final Guidance "Adjusting for Covariates in RCTs" requires the **marginal** estimand for primary reporting (see clinical-biostatistics/logistic-regression for g-computation/standardisation machinery).
@@ -43,7 +43,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | Noninferiority on absolute scale | Miettinen-Nurminen score CI for RD | Regulatory standard for RD CIs; consistent with Pearson chi-square |
 | Noninferiority on relative scale | Miettinen-Nurminen score CI for RR; Koopman 1984 acceptable | Wald log-RR has poor coverage near boundary; MN is the regulatory expectation |
 | Stratified design with site/region strata | MH pooled OR with stratified MN CI (R `ratesci::scoreci(..., stratified=TRUE)`) | Preserves stratification; cite Kahan-Morris 2012 |
-| Reporting NNT for clinicians | Bender 2002 method; report as NNTB(lower)..infinity..NNTH(upper) when CI crosses zero | Standard in BMJ/Lancet/Cochrane |
+| Reporting NNT for clinicians | Bender 2001 *CCT* 22:102 method; report as NNTB(lower)..infinity..NNTH(upper) when CI crosses zero | Standard in BMJ/Lancet/Cochrane |
 | Time-to-event with PH violation | RMST difference; cite Royston-Parmar 2013, Uno 2014 | HR is a misleading single-number summary under non-PH (see survival-analysis) |
 
 ## Crude Effect Measures from 2x2 Tables
@@ -124,7 +124,7 @@ ci = proportion_confint(45, 60, alpha=0.05, method='wilson')
 
 **Hauck-Donner effect (1977 *JASA* 72:851; revived by Yee 2022 *JASA* 117:1763):** the Wald test statistic is *non-monotonic* in the parameter estimate near the boundary -- a large OR can produce a tiny Wald chi-square so the test fails to reject when it should. Use LR or profile-likelihood inference. `VGAM::hdeff()` detects this in fitted models.
 
-## Number Needed to Treat (NNT) -- the Bender 2002 Way
+## Number Needed to Treat (NNT) -- the Bender 2001 *CCT* 22:102 Way
 
 **Goal:** Convert RD to clinically intuitive NNT with a CI that handles the singularity at RD = 0.
 
@@ -134,7 +134,7 @@ ci = proportion_confint(45, 60, alpha=0.05, method='wilson')
 import numpy as np
 
 def nnt_with_ci(treated_events, treated_n, control_events, control_n, alpha=0.05):
-    """Bender 2002 method; transforms RD CI to NNT CI handling singularity."""
+    """Bender 2001 *CCT* 22:102 method; transforms RD CI to NNT CI handling singularity."""
     p_t = treated_events / treated_n
     p_c = control_events / control_n
     rd = p_c - p_t   # positive = treatment helps
@@ -154,7 +154,7 @@ def nnt_with_ci(treated_events, treated_n, control_events, control_n, alpha=0.05
         return f'NNTH {-nnt:.0f} (similar split)'
 ```
 
-**Bender 2002 *Stat Med* 21:1771** resolves the discontinuity at RD = 0: NNT has a singularity there, so a CI that crosses zero produces a disjoint NNT CI ("NNTB(some) -> infinity -> NNTH(some)"). The Cochrane/BMJ convention is to report exactly this -- the infinity in the middle signals non-significance and is more honest than truncating to one side.
+**Bender 2001 *Controlled Clinical Trials* 22:102-110** resolves the discontinuity at RD = 0: NNT has a singularity there, so a CI that crosses zero produces a disjoint NNT CI ("NNTB(some) -> infinity -> NNTH(some)"). The Cochrane/BMJ convention is to report exactly this -- the infinity in the middle signals non-significance and is more honest than truncating to one side.
 
 **NNT from OR + baseline risk** (when only the OR is published):
 
@@ -266,7 +266,7 @@ A conditional (adjusted) OR typically differs from the marginal (unadjusted) OR 
 | Wald CI excludes null but Wilson/Newcombe-Wilson CI overlaps null | Wald has poor coverage near 0 and 1 (Brown-Cai-DasGupta 2001) | Wilson for single proportion; Newcombe-Wilson hybrid or Miettinen-Nurminen for differences; cite as regulatory standard |
 | Crude OR vs stratified MH-OR differ substantially | Confounding by stratification factor OR non-collapsibility OR effect modification | If RCT with stratified randomisation, use stratified analysis (Kahan-Morris 2012); if observational, investigate confounding via stratum-specific OR forest plot |
 | OR vs RR direction agree but magnitudes differ greatly | Outcome prevalence > 10% (OR overstates RR at high baseline risk) | Use modified Poisson (Zou 2004) for direct RR estimation; report both for transparency |
-| NNT from one trial vs another differs despite similar OR | Baseline risk differs across trials (NNT = 1/ARR depends on baseline) | Always report NNT alongside baseline risk; cite Bender 2002 for NNTB-inf-NNTH convention |
+| NNT from one trial vs another differs despite similar OR | Baseline risk differs across trials (NNT = 1/ARR depends on baseline) | Always report NNT alongside baseline risk; cite Bender 2001 *CCT* 22:102 for NNTB-inf-NNTH convention |
 | Profile-likelihood CI differs from Wald CI in small-cell scenario | Hauck-Donner effect (Wald non-monotone near boundary; Yee 2022) | Use profile likelihood (R `MASS::confint.glm`); detect via `VGAM::hdeff()` |
 | RMST difference and HR give different conclusions on treatment benefit | HR is time-averaged log-HR under PH violation; RMST captures cumulative benefit | Under PH violation, RMST is the more interpretable summary; see clinical-biostatistics/survival-analysis |
 
@@ -321,14 +321,14 @@ Log scale ensures reciprocal effects (OR 0.5 and OR 2.0) appear equidistant from
 | HC1 (Stata default) vs HC3 (R default) for small n | Long-Ervin 2000 *Am Stat* 54:217 | HC3 (jackknife approximation) recommended for n <=250; difference can flip NI p-values |
 | Marginal estimand for primary regulatory report | FDA 2023 Final Guidance | Marginal RD/RR/OR via g-computation; conditional OR is a different parameter (Permutt 2020) |
 | Miettinen-Nurminen CI for RR/RD | Miettinen-Nurminen 1985; FDA/EMA NI margin practice | Regulatory standard; consistent with Pearson chi-square |
-| Bender NNT convention | Bender 2002 *Stat Med* 21:1771; Cochrane/BMJ style | When RD CI crosses zero, NNT CI is disjoint; report NNTB(lower) -> inf -> NNTH(upper) |
+| Bender NNT convention | Bender 2001 *Controlled Clinical Trials* 22:102-110; Cochrane/BMJ style | When RD CI crosses zero, NNT CI is disjoint; report NNTB(lower) -> inf -> NNTH(upper) |
 
 ## Common Errors
 
 | Error / symptom | Cause | Solution |
 |-----------------|-------|----------|
 | Adjusted OR much larger than unadjusted | Non-collapsibility, not confounding | Cite Permutt 2020; report both with explicit estimand labels (conditional vs marginal) |
-| NNT reported as "NNT=25, CI 12 to -200" | Sign-confused output when RD CI crosses zero | Use Bender 2002 convention: "NNTB 25 (NNTB 12 to inf to NNTH 200)" |
+| NNT reported as "NNT=25, CI 12 to -200" | Sign-confused output when RD CI crosses zero | Use Bender 2001 *CCT* 22:102 convention: "NNTB 25 (NNTB 12 to inf to NNTH 200)" |
 | OR reported without baseline risk for clinical translation | Common in published papers | Always report event rates per arm alongside OR; provide NNT at observed baseline |
 | `Table2x2` returns reciprocal OR | Column ordering puts outcome=0 first | Reorder: `crosstab[[1, 0]]` |
 | Poisson SE much smaller than expected | Forgot `cov_type='HC1'` or 'HC3' | Always specify sandwich SE for modified Poisson; without it, SEs are wrong |
@@ -345,7 +345,7 @@ Log scale ensures reciprocal effects (OR 0.5 and OR 2.0) appear equidistant from
 | "Hauck-Donner pathology check?" | For small cell counts: switch to profile likelihood CI (R `MASS::confint.glm`); cite Yee 2022 *JASA* 117:1763. |
 | "Why HC3 over HC1?" | n <=250 favours HC3 per Long-Ervin 2000; HC1 (Stata) and HC3 (R sandwich) can disagree at small n. |
 | "Where is the marginal effect?" | Per FDA 2023, marginal RD/RR via g-computation is the primary estimand for binary outcomes; conditional is supportive. |
-| "Why NNT in 'NNTB-infinity-NNTH' notation?" | Bender 2002 convention; standard in BMJ/Lancet/Cochrane. Disjoint CI honestly conveys non-significance. |
+| "Why NNT in 'NNTB-infinity-NNTH' notation?" | Bender 2001 *CCT* 22:102 convention; standard in BMJ/Lancet/Cochrane. Disjoint CI honestly conveys non-significance. |
 | "Adjustment for stratification factors?" | Strata included in modified Poisson or in MN stratified CI via `ratesci::scoreci(stratified=TRUE)`; ignoring inflates Type-I (Kahan-Morris 2012). |
 | "What about effect modification across subgroups?" | Pooled estimate reported as primary; stratum-specific ORs in forest plot; Breslow-Day test for homogeneity; if heterogeneous, do not pool -- see clinical-biostatistics/subgroup-analysis. |
 | "Post-hoc subgroup OR was significant -- can a claim be made?" | Not credible without pre-specification per EMA 2019 / CONSORT 2025; frame as hypothesis-generating; replicate in independent cohort before claiming. |
@@ -354,7 +354,7 @@ Log scale ensures reciprocal effects (OR 0.5 and OR 2.0) appear equidistant from
 
 - Agresti A, Caffo B. 2000. Simple and effective confidence intervals for proportions and differences of proportions. *Am Stat* 54:280-288.
 - Altman DG. 1998. Confidence intervals for the number needed to treat. *BMJ* 317:1309.
-- Bender R. 2002. Calculating confidence intervals for the number needed to treat. *Stat Med* 21:1771-1785.
+- Bender R. 2001. Calculating confidence intervals for the number needed to treat. *Controlled Clinical Trials* 22:102-110.
 - Brown LD, Cai TT, DasGupta A. 2001. Interval estimation for a binomial proportion. *Stat Sci* 16:101-117.
 - Chan ISF, Zhang Z. 1999. Test-based exact confidence intervals for the difference of two binomial proportions. *Biometrics* 55:1202-1209.
 - Cornfield J. 1956. A statistical problem arising from retrospective studies. *3rd Berkeley Symp* 4:135-148.

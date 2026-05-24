@@ -150,7 +150,9 @@ genome_df <- data.frame(chr=seqnames(seqinfo(BSgenome.Hsapiens.UCSC.hg38)),
 conns <- run_cicero(cicero_cds, genomic_coords=genome_df,
                     window=500000, sample_num=100)
 
-# Filter to high-confidence connections
+# Filter to high-confidence connections.
+# Threshold 0.25 is a Cicero-documentation working default; the optimal cutoff
+# is dataset-dependent and is best calibrated against orthogonal Hi-C / HiChIP.
 strong <- conns[conns$coaccess > 0.25, ]
 cat(sprintf('Total conns: %d; strong (>0.25): %d\n', nrow(conns), nrow(strong)))
 ```
@@ -163,7 +165,7 @@ proj <- loadArchRProject('ArchR_out')
 proj <- addCoAccessibility(proj, reducedDims='IterativeLSI',
                           k=100, knnIteration=500,
                           maxDist=250000)               # 250 kb cis (tighter than default)
-co_acc <- getCoAccessibility(proj, corCutOff=0.5,       # Default 0.5; lower for more
+co_acc <- getCoAccessibility(proj, corCutOff=0.5,       # Default 0.5 in ArchR; lower for more (calibrate against Hi-C/HiChIP)
                              returnLoops=FALSE)
 ```
 

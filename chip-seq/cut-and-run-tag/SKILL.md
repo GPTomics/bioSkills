@@ -74,12 +74,13 @@ bedtools genomecov -bg -i aln.fragments.bed -g hg38.chrom.sizes > aln.bedgraph
 # 4. Same for IgG control
 # (... produce igg.bedgraph similarly ...)
 
-# 5. SEACR with stringent + norm + IgG control (recommended default)
-bash SEACR_1.4.sh aln.bedgraph igg.bedgraph norm stringent target_peaks.bed
-# Output: target_peaks.bed (BED of peak regions)
+# 5. SEACR with stringent + norm + IgG control (recommended default).
+# Final argument is the OUTPUT PREFIX; SEACR appends ".stringent.bed" / ".relaxed.bed".
+bash SEACR_1.4.sh aln.bedgraph igg.bedgraph norm stringent target_peaks
+# Output file: target_peaks.stringent.bed
 
 # Alternative: no IgG control, use top 1% of peaks
-# bash SEACR_1.4.sh aln.bedgraph 0.01 non stringent target_peaks.bed
+# bash SEACR_1.4.sh aln.bedgraph 0.01 non stringent target_peaks
 ```
 
 **SEACR mode selection:**
@@ -87,8 +88,8 @@ bash SEACR_1.4.sh aln.bedgraph igg.bedgraph norm stringent target_peaks.bed
 - `non`: use ONLY if upstream spike-in normalization was applied; otherwise use `norm`
 - `stringent`: top-half of signal blocks (recommended default)
 - `relaxed`: full distribution (use only for very sparse signal)
-- IgG control: `bash SEACR_1.4.sh target.bg igg.bg norm stringent out.bed`
-- Top-X% without IgG: `bash SEACR_1.4.sh target.bg 0.01 non stringent out.bed`
+- IgG control: `bash SEACR_1.4.sh target.bg igg.bg norm stringent out_prefix` -> writes `out_prefix.stringent.bed`
+- Top-X% without IgG: `bash SEACR_1.4.sh target.bg 0.01 non stringent out_prefix` -> writes `out_prefix.stringent.bed`
 
 ## E. coli Spike-In Carryover (Automatic Spike-In)
 

@@ -106,12 +106,23 @@ def refsnp(rsid):
     return r.json()
 
 def summarize_refsnp(payload):
-    '''Extract minimal fields. Handles multi-allelic cluster correctly.'''
+    '''Extract minimal fields. Handles multi-allelic cluster correctly.
+
+    The placement JSON nests assembly metadata; the precise path varies by
+    Build / API version. Common variants seen in the wild:
+        placement['seq_id_traits_by_assembly'][0]['assembly_name']
+        placement['placement_annot']['seq_id_traits_by_assembly'][0]['assembly_name']
+    Inspect the actual JSON returned for the current dbSNP Build before
+    relying on either path in production.
+    '''
     if payload is None or payload.get('is_withdrawn'):
         return None
     primary = payload.get('primary_snapshot_data', {})
     placements = primary.get('placements_with_allele', [])
-    grch38 = next((p for p in placements if 'GRCh38' in p.get('seq_id_traits_by_assembly', [{}])[0].get('assembly_name', '')), None)
+    def assembly_name(p):
+        traits = (p.get('placement_annot') or p).get('seq_id_traits_by_assembly') or []
+        return traits[0].get('assembly_name') if traits else ''
+    grch38 = next((p for p in placements if 'GRCh38' in (assembly_name(p) or '')), None)
     if grch38 is None:
         return None
     alleles = []

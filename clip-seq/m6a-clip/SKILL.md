@@ -145,12 +145,14 @@ awk '$5 >= 0.5' m6Aboost_predictions.bed > m6a_high_confidence.bed
 GLORI (Liu 2023) is the new (2023) gold-standard for stoichiometric m6A. Chemistry: glyoxal + nitrite converts unmodified A; m6A is protected.
 
 ```bash
-# GLORI-tools pipeline (Liu lab, github)
+# GLORI-tools pipeline (Liu lab, github). GLORI-tools is a multi-step Python pipeline
+# (`run_GLORI.py` is the typical orchestrator); the conceptual flow below is illustrative --
+# verify the exact CLI against the GLORI-tools repo before scripting.
 # 1. Pre-conversion sequencing (control)
 # 2. Post-conversion sequencing (treated)
 # 3. GLORI-tools computes per-A m6A fraction
 
-GLORI-tools \
+python run_GLORI.py \
     --input pre_conversion.bam \
     --treated post_conversion.bam \
     --reference genome.fa \

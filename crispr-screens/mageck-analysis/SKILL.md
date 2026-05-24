@@ -124,7 +124,7 @@ mageck test \
     --norm-method median \
     --output-prefix drug_vs_veh \
     --gene-lfc-method median \                     # alternative: mean (less robust)
-    --sort-criteria pos                            # rank for positive selection
+    --sort-criterion pos                           # rank for positive selection (note: `--sort-criterion` singular, not `--sort-criteria`)
 # Outputs: drug_vs_veh.gene_summary.txt (gene-level), drug_vs_veh.sgrna_summary.txt
 ```
 
@@ -199,7 +199,9 @@ mageck test \
     --norm-method control \                         # NTCs as normalization reference
     --control-sgrna ntcs.txt \                      # one NTC sgRNA per line
     --gene-lfc-method median \
-    --variance-estimation-samples Plasmid,Day0 \    # estimate NB dispersion from early samples
+    # `--variance-estimation-samples` is NOT a standard `mageck test` flag in current MAGeCK releases;
+    # remove this line and let `mageck test` estimate the negative-binomial dispersion from the count
+    # table normally, or use `mageck mle` with explicit design-matrix samples for variance modelling.
     --sgrna-efficiency efficiency.txt \
     --sgrna-eff-name-column 1 \
     --sgrna-eff-score-column 2 \

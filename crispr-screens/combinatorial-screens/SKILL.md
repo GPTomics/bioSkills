@@ -1,6 +1,6 @@
 ---
 name: bio-crispr-screens-combinatorial-screens
-description: Designs and analyzes combinatorial CRISPR screens covering paired-Cas9 (Big Papi, Najm 2018), enhanced AsCas12a multiplex (enCas12a, DeWeirdt 2021), in4mer 4-guide-array Cas12a (Bayle 2024 Nat Commun) and the Inzolia paralog-pair library, paralog-buffering detection (Dede 2020 Genome Biol; Thompson 2021), genetic-interaction (GI) scoring as observed_double_LFC minus expected_additive_double_LFC, synthetic-lethal and synthetic-rescue interaction interpretation, the half-of-essentiality buffered by paralogs phenomenon, multiplex screen statistical analysis with MAGeCK MLE interaction terms, and the relationship to single-cell combinatorial Perturb-seq. Use when designing a paralog or pathway-pair screen, choosing between paired-Cas9 (Big Papi) and Cas12a multiplex (Inzolia), interpreting genetic interaction scores, identifying synthetic-lethal targets for drug development, or scaling beyond single-gene CRISPR screens.
+description: Designs and analyzes combinatorial CRISPR screens covering paired-Cas9 (Big Papi, Najm 2018), enhanced AsCas12a multiplex (enCas12a, DeWeirdt 2021), in4mer 4-guide-array Cas12a (Esmaeili Anvar N et al 2024 Nat Commun 15:3577) and the Inzolia paralog-pair library, paralog-buffering detection (Dede 2020 Genome Biol; Thompson 2021 Cell Reports 36:109597), genetic-interaction (GI) scoring as observed_double_LFC minus expected_additive_double_LFC, synthetic-lethal and synthetic-rescue interaction interpretation, the half-of-essentiality buffered by paralogs phenomenon, multiplex screen statistical analysis with MAGeCK MLE interaction terms, and the relationship to single-cell combinatorial Perturb-seq. Use when designing a paralog or pathway-pair screen, choosing between paired-Cas9 (Big Papi) and Cas12a multiplex (Inzolia), interpreting genetic interaction scores, identifying synthetic-lethal targets for drug development, or scaling beyond single-gene CRISPR screens.
 tool_type: mixed
 primary_tool: enCas12a
 ---
@@ -245,12 +245,11 @@ For high-stakes synthetic-lethal hits (drug-target nomination), validate by:
 
 - Najm FJ et al. 2018. *Nat Biotechnol* 36:179. Big Papi paired-Cas9 platform.
 - DeWeirdt PC et al. 2021. *Nat Biotechnol* 39:94. enAsCas12a multiplex.
-- Bayle JH et al. 2024. *Nat Commun* 15:3375. in4mer / Inzolia paralog library.
+- Esmaeili Anvar N et al. 2024. *Nat Commun* 15:3577. in4mer / Inzolia paralog library.
 - Dede M et al. 2020. *Genome Biol* 21:262. Paralog buffering in Cas9 screens.
-- Thompson NA et al. 2021. *Cell Syst* 12:1132. Paralog synthetic lethals validated.
+- Thompson NA et al. 2021. *Cell Reports* 36:109597. Paralog synthetic lethals validated. (Earlier "Cell Syst 12:1132" attribution conflated with Pacini 2021.)
 - Boettcher M et al. 2018. *Nat Biotechnol* 36:170. Original paired-Cas9 combinatorial screen.
-- Diehl V et al. 2021. *Nat Methods* 18:1216. SLI-CRISPR; combinatorial Perturb-seq.
-- Horlbeck MA et al. 2018. *Cell* 174:953. Original paralog buffering observation.
+- Horlbeck MA et al. 2018. *Cell* 174:953-967. CRISPRi/a / combinatorial work; paralog buffering as a co-essentiality pattern was characterized more directly in Dede 2020 *Genome Biol* 21:262 and Gonatopoulos-Pournatzis 2020 *Nat Biotechnol* 38:638.
 
 ## Related Skills
 

@@ -78,7 +78,7 @@ Picard `UmiAwareMarkDuplicatesWithMateCigar` is BETA and has known bugs on trans
 | HiSeq 2000/2500 (random) | 100 | Picard historic default |
 | HiSeq 3000/4000/X (patterned) | 2500 | Patterned tile size larger |
 | NovaSeq 6000 (patterned) | 2500 | Same as HiSeq X |
-| NovaSeq X (10B) | 2500 (or up to 12000) | Larger tiles |
+| NovaSeq X (10B) | 2500 (some Illumina field guidance suggests up to 12000) | Larger tiles |
 | NextSeq 1000/2000 (patterned) | 2500 | ExAmp duplicates span larger pixel distances |
 | MiSeq, NextSeq 500/550 | 100 | Smaller / unpatterned |
 | Element AVITI, MGI / DNBseq | Custom regex | Different read-name format -- supply via `--read-coords` |
@@ -139,7 +139,7 @@ samtools index marked.bam
 
 This is ~30% faster than `sort -n | fixmate | sort | markdup` on typical 30x WGS.
 
-**Critical pitfall:** `samtools markdup` requires `MS` and `MC` tags from `fixmate -m`. A re-sort that loses aux tags via Python round-trip silently produces a markdup output that marks almost nothing. If duplicate counts look implausibly low, verify `MC:Z:` is present in the input to markdup.
+**Critical pitfall:** `samtools markdup` requires `ms` (mate score, lowercase) and `MC` (mate CIGAR) tags from `fixmate -m`. A re-sort that loses aux tags via Python round-trip silently produces a markdup output that marks almost nothing. If duplicate counts look implausibly low, verify `MC:Z:` is present in the input to markdup.
 
 ## samtools fixmate
 

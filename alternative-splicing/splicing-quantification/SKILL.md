@@ -167,7 +167,7 @@ majiq psi build_output/sample1.majiq build_output/sample2.majiq -j 4 -o psi_outp
 voila view -p 5000 -j 8 build_output/splicegraph.zarr psi_output/condition_psi.psi.voila -o voila_output
 ```
 
-MAJIQ V3 (Slaff et al *bioRxiv* 2024; public release 2025) replaced V2's SQLite splicegraph (`splicegraph.sql`) with **Zarr storage** (`splicegraph.zarr`); the `.sql` is deprecated. V3 is ~3.2x faster than V2 via xarray/zarr/Dask parallelization. LSV output includes posterior mean PSI plus the full posterior distribution; this enables threshold-based testing (e.g. P(|ΔPSI| > 0.2)) rather than frequentist p-values.
+MAJIQ V3 (Aicher, Slaff, Jewell, Barash *bioRxiv* 2024; public release 2025) replaced V2's SQLite splicegraph (`splicegraph.sql`) with **Zarr storage** (`splicegraph.zarr`); the `.sql` is deprecated. V3 is ~3.2x faster than V2 via xarray/zarr/Dask parallelization. LSV output includes posterior mean PSI plus the full posterior distribution; this enables threshold-based testing (e.g. P(|ΔPSI| > 0.2)) rather than frequentist p-values.
 
 ## leafcutter Junction Quantification
 
@@ -362,7 +362,7 @@ PSI ranges 0 to 1: 1 = always included, 0 = always skipped, 0.5 = balanced. Sign
 - Li et al 2018 *Nat Genet* - leafcutter
 - Tapial et al 2017 *Genome Res* - VAST-TOOLS / VastDB
 - Wang et al 2024 *Nat Protoc* - rMATS-turbo
-- Slaff et al 2024 *bioRxiv* - MAJIQ V3
+- Aicher, Slaff, Jewell, Barash 2024 *bioRxiv* - MAJIQ V3
 - Kubota et al 2025 *NAR* - Shiba
 - Lorenzi et al 2021 *Genome Biol* - IRFinder-S
 - Boutz et al 2015 *Genes Dev* - detained introns

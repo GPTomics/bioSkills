@@ -1,13 +1,13 @@
 ---
 name: bio-comparative-genomics-gene-family-evolution
-description: Model gene-family birth-death dynamics across a species tree using CAFE5 (Mendes 2021 gamma-distributed rate categories), CAFE5-error (annotation-error-aware), Count (Csurös 2010 ancestral state reconstruction), BadiRate (Librado 2012 likelihood + parsimony), DupliPHY-Family, and ALE/AleRax (for per-family DTL; see [[gene-tree-species-tree-reconciliation]]). Test lineage-specific gene-family expansions and contractions, distinguish biological dynamics from annotation artifacts, account for assembly fragmentation, identify functional enrichment in expanded / contracted families. Use when correlating gene-family changes with phenotype evolution, ranking lineages by adaptive gene-family-rate shifts, post-WGD dosage-balance analysis, or building Birth-death models from OrthoFinder presence/absence matrices.
+description: Model gene-family birth-death dynamics across a species tree using CAFE5 (Mendes et al 2020 Bioinformatics 36:5516 gamma-distributed rate categories), CAFE5-error (annotation-error-aware), Count (Csurös 2010 ancestral state reconstruction), BadiRate (Librado 2012 likelihood + parsimony), DupliPHY-Family, and ALE/AleRax (for per-family DTL; see [[gene-tree-species-tree-reconciliation]]). Test lineage-specific gene-family expansions and contractions, distinguish biological dynamics from annotation artifacts, account for assembly fragmentation, identify functional enrichment in expanded / contracted families. Use when correlating gene-family changes with phenotype evolution, ranking lineages by adaptive gene-family-rate shifts, post-WGD dosage-balance analysis, or building Birth-death models from OrthoFinder presence/absence matrices.
 tool_type: cli
 primary_tool: CAFE5
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: CAFE5 5.1.0+ (Mendes 2021 Bioinformatics 36:5516), Count 11.0319+ (Csurös 2010 Bioinformatics 26:1910), BadiRate 1.35+ (Librado 2012 Bioinformatics 28:279), DupliPHY-Family (Liu 2016), CAFExp (legacy CAFE 4.2 -- DEPRECATED; use CAFE5), OrthoFinder 3.0+ for HOG input, R 4.4+, mclust 6.1+, phytools 2.3+, ETE4 4.1.0+ for tree manipulation. ALE/GeneRax/AleRax in companion skill [[gene-tree-species-tree-reconciliation]].
+Reference examples tested with: CAFE5 5.1.0+ (Mendes et al 2020 Bioinformatics 36(22-23):5516-5518), Count 11.0319+ (Csurös 2010 Bioinformatics 26:1910), BadiRate 1.35+ (Librado 2012 Bioinformatics 28:279), DupliPHY-Family (Liu 2016), CAFExp (legacy CAFE 4.2 -- DEPRECATED; use CAFE5), OrthoFinder 3.0+ for HOG input, R 4.4+, mclust 6.1+, phytools 2.3+, ETE4 4.1.0+ for tree manipulation. ALE/GeneRax/AleRax in companion skill [[gene-tree-species-tree-reconciliation]].
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `cafe5 --help`; `Count.exe` (Java); `badirate --help`
@@ -18,7 +18,7 @@ If code throws `CAFE5: lambda did not converge`, `Count negative branch length`,
 
 # Gene Family Evolution
 
-**"Which gene families expanded or contracted in which lineages?"** -> Birth-death models on phylogeny (Hahn 2007; Csurös 2010) treat each orthogroup's per-species count as evolving under a stochastic birth-death process; lineage-specific rate shifts are detected as departures from a global rate. **Annotation heterogeneity is the single largest confounder**: different annotation pipelines predict different numbers of genes per family, producing apparent lineage-specific expansions that are artifacts of annotation choice (Tonkin-Hill 2020 demonstrated this for bacterial pangenomes). Consistent annotation + BUSCO/Compleasm completeness filtering are mandatory before any birth-death model interpretation. CAFE5 (Mendes 2021) replaces older CAFE versions with gamma-distributed rate categories for more biologically realistic modeling.
+**"Which gene families expanded or contracted in which lineages?"** -> Birth-death models on phylogeny (Hahn 2007; Csurös 2010) treat each orthogroup's per-species count as evolving under a stochastic birth-death process; lineage-specific rate shifts are detected as departures from a global rate. **Annotation heterogeneity is the single largest confounder**: different annotation pipelines predict different numbers of genes per family, producing apparent lineage-specific expansions that are artifacts of annotation choice (Tonkin-Hill 2020 demonstrated this for bacterial pangenomes). Consistent annotation + BUSCO/Compleasm completeness filtering are mandatory before any birth-death model interpretation. CAFE5 (Mendes et al 2020 Bioinformatics 36:5516) replaces older CAFE versions with gamma-distributed rate categories for more biologically realistic modeling.
 
 - CLI: `cafe5 -i orthogroup_counts.tsv -t species_tree.nwk -p` -- main CAFE5 workflow
 - CLI: `cafe5 -e` -- error-aware mode for annotation uncertainty
@@ -29,7 +29,7 @@ If code throws `CAFE5: lambda did not converge`, `Count negative branch length`,
 
 | Tool | Approach | Output | Strength | Fails when |
 |------|----------|--------|----------|------------|
-| CAFE5 (Mendes 2021 Bioinformatics 36:5516) | Birth-death with gamma rate categories | Global / per-family lambda + significant rate shifts | Modern standard; handles rate heterogeneity; explicit Type-I control | Annotation heterogeneity confounds; needs > 100 families |
+| CAFE5 (Mendes et al 2020 Bioinformatics 36(22-23):5516-5518) | Birth-death with gamma rate categories | Global / per-family lambda + significant rate shifts | Modern standard; handles rate heterogeneity; explicit Type-I control | Annotation heterogeneity confounds; needs > 100 families |
 | CAFE5-error | Annotation-error-aware extension | Same plus error estimates | Critical for noisy annotations | Manual error-rate specification or estimation |
 | Count (Csurös 2010 Bioinformatics 26:1910) | Both ML and parsimony ASR | Branch event counts (D, L) per family | Comprehensive output; GUI | Slower than CAFE5; less modern UX |
 | BadiRate (Librado 2012 Bioinformatics 28:279) | Likelihood birth-death + branch parsimony | Lineage-specific rate shifts | Combines stochastic + parsimony | Less commonly used; older |
@@ -166,7 +166,7 @@ Methodology evolves; CAFE5 is the modern standard; verify the current CAFE5 manu
 
 | Quantity | Threshold | Source / Rationale |
 |----------|-----------|-------------------|
-| Minimum orthogroups for CAFE5 | >= 100; preferably > 1000 | Mendes 2021 |
+| Minimum orthogroups for CAFE5 | >= 100; preferably > 1000 | Mendes et al 2020 Bioinformatics 36:5516 |
 | Maximum gene-family count | depends on tree depth; typical < 1000 per family | Practical |
 | BUSCO/Compleasm completeness | >= 90% for inclusion | Standard |
 | FDR for expansions / contractions | q < 0.05 (Benjamini-Hochberg) | Standard |
@@ -424,7 +424,6 @@ conda install -c bioconda funannotate braker3
 - Force A et al 1999 Genetics 151:1531 (subfunctionalization)
 - De Bie T et al 2006 Bioinformatics 22:1269 (CAFE 2)
 - Han MV et al 2013 MBE 30:1987 (CAFE 3)
-- Schubert M et al 2016 Bioinformatics 32:1786 (StarSpace, related birth-death)
 - Sela I et al 2018 MBE 35:2620 (gene-family neutral drift)
 - Otto SP & Whitton J 2000 Annu Rev Genet 34:401 (polyploidy mechanisms)
 - TimeTree (database, http://www.timetree.org)

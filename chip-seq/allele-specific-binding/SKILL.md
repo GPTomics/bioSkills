@@ -107,6 +107,8 @@ res <- QCfilter(res, RegionsToFilter = c('blacklist_v2.bed'))
 res <- mergePerGroup(res)
 res <- filter1allele(res)
 res <- getASB(res, Iter = 5000, conf_level = 0.95)
+# Verify parameter names against the installed BaalChIP version (`?getASB`); some releases
+# use `nIter` instead of `Iter`.
 
 # Results
 asb_table <- BaalChIP.report(res)
@@ -296,7 +298,6 @@ In cancer cells, copy-number gain of one allele alters effective allele dose; ra
 - de Santiago I et al 2017 Genome Biol 18:39 (BaalChIP)
 - Mayba O et al 2014 Genome Biol 15:405 (MBASED)
 - Chen J et al 2016 Nat Commun 7:11101 (1000 Genomes ASB / ASE survey)
-- Yang H & Wei CL 2015 Nat Rev Genet 16:642 (review of allele-specific analyses)
 
 ## Related Skills
 

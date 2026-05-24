@@ -123,7 +123,7 @@ MAPQ scales differ by aligner; the same `-q 30` filter does different things. Se
 | Aligner | "Drop ambiguous" | "High confidence" |
 |---------|------------------|-------------------|
 | BWA-MEM / BWA-MEM2 | `-q 1` | `-q 30` (or `-q 60` for unique only) |
-| Bowtie2 | `-q 1` | `-q 23` (~99% accurate per Heng Li) |
+| Bowtie2 | `-q 1` | `-q 23` (Bowtie2 MAPQ saturates at 42; 23 is the conventional "uniquely mapped" cutoff in the Langmead lab Bowtie2 manual) |
 | **STAR** | `-q 255` | `-q 255` (255 is the unique-mapped sentinel; -q 60 drops everything) |
 | HISAT2 | `-q 1` | `-q 60` |
 | minimap2 (DNA, long-read) | `-q 1` | `-q 60` |

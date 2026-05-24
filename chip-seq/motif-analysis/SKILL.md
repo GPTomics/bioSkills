@@ -255,7 +255,6 @@ plotMotifHeatmaps(x = res, which.plots = c('log2enr', 'negLog10P'),
 - Castro-Mondragon JA et al 2022 Nucleic Acids Res 50:D165 (JASPAR 2022; CORE collection)
 - Avsec Ž et al 2021 Nat Genet 53:354 (BPNet; soft motif syntax)
 - Shrikumar A et al 2020 bioRxiv (TF-MoDISco)
-- Rabouille C 2017 Curr Biol 27:R1063 (background-selection theory review)
 
 ## Related Skills
 

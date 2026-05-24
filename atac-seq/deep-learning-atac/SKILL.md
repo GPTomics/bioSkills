@@ -30,11 +30,11 @@ Sequence models are NOT a replacement for MACS+TOBIAS at every step. They excel 
 
 | Tool | Architecture | Training | Output | Strength | Fails when |
 |------|-------------|----------|--------|----------|------------|
-| chromBPNet (Pampari 2024) | Two-track CNN: bias model + accessibility model; bias trained on naked-DNA control or k-mer baseline, accessibility trained on chromatin signal | Per-cell-type, paired bias track | Bias-corrected per-base profile + total counts | Best-in-class bias correction; established in Kundaje lab pipelines | Requires GPU, ~24h training per cell type; needs >= 50M reads |
-| BPNet (Avsec 2021) | Original counts + profile dual-head CNN | TF ChIP-seq or ATAC | Per-base profile prediction | Foundational; widely cited; bpnet-lite reimpl maintained | Less polished than chromBPNet for ATAC; bias correction needs separate model |
+| chromBPNet (Pampari 2025 Nat Genet) | Two-track CNN: bias model + accessibility model; bias trained on naked-DNA control or k-mer baseline, accessibility trained on chromatin signal | Per-cell-type, paired bias track | Bias-corrected per-base profile + total counts | Best-in-class bias correction; established in Kundaje lab pipelines | Requires GPU, ~24h training per cell type; needs >= 50M reads |
+| BPNet (Avsec 2021 Nat Genet 53:354) | Original counts + profile dual-head CNN | TF ChIP-seq or ATAC | Per-base profile prediction | Foundational; widely cited; bpnet-lite reimpl maintained | Less polished than chromBPNet for ATAC; bias correction needs separate model |
 | scBasset (Yuan & Kelley 2022) | Basenji2-derived CNN, per-cell projection layer | Single-cell ATAC | Per-cell sequence-derived peak score | First sequence model that predicts per-cell accessibility; outperforms chromVAR for cluster discrimination | Fixed architecture, hard to extend; benchmarks evolving |
-| EnFormer (Avsec 2021 Nat Methods) | Long-context Transformer (196 kb input) | Reference epigenome (DNase + histones + CAGE) | Per-bin epigenome prediction | Best for distal regulation modeling; pre-trained available | Pre-trained models cell-line specific; finetuning on custom data is expensive |
-| Borzoi (Linder 2025) | EnFormer extension trained on RNA + ATAC | Multi-tissue paired data | Sequence -> RNA + chromatin | Recent SOTA for variant effect on RNA via ATAC linkage | Newer; benchmarks still emerging |
+| EnFormer (Avsec 2021 Nat Methods 18:1196) | Long-context Transformer (196 kb input) | Reference epigenome (DNase + histones + CAGE) | Per-bin epigenome prediction | Best for distal regulation modeling; pre-trained available | Pre-trained models cell-line specific; finetuning on custom data is expensive |
+| Borzoi (Linder 2025 Nat Genet) | EnFormer extension trained on RNA + ATAC | Multi-tissue paired data | Sequence -> RNA + chromatin | Recent SOTA for variant effect on RNA via ATAC linkage | Newer; benchmarks still emerging |
 | DeepATAC / Basset (legacy) | Earlier CNN architectures | -- | Binary peak prediction | Historical context; cited in older literature | Superseded by chromBPNet + EnFormer; do not use for new work |
 | tangermeme | Inference-only fast wrapper | Use any saved model | Marginal scoring of variants | Speeds up variant effect prediction 100x; works with chromBPNet/BPNet outputs | Inference only; cannot train |
 
@@ -271,10 +271,10 @@ For most labs without sustained GPU access: use pre-trained chromBPNet/EnFormer 
 
 ## References
 
-- Pampari A et al 2024 bioRxiv (chromBPNet; Tn5 bias correction with deep learning)
-- Avsec Z et al 2021 Nat Methods 18:1196 (BPNet; foundational sequence-to-profile)
-- Avsec Z et al 2021 Nat Methods 18:1224 (EnFormer; long-context Transformer)
-- Linder J et al 2025 (Borzoi; multi-tissue sequence-to-RNA+chromatin)
+- Pampari A et al 2025 Nat Genet (chromBPNet; Tn5 bias correction with deep learning; consult current publication for exact volume/pages)
+- Avsec Z et al 2021 Nat Genet 53:354-366 (BPNet; foundational sequence-to-profile)
+- Avsec Z et al 2021 Nat Methods 18:1196-1203 (EnFormer; long-context Transformer)
+- Linder J et al 2025 Nat Genet (Borzoi; multi-tissue sequence-to-RNA+chromatin; consult current publication for exact volume/pages)
 - Yuan H & Kelley DR 2022 Nat Methods 19:1088 (scBasset)
 - Shrikumar A et al 2017 ICML (DeepLIFT)
 - Schreiber J et al 2024 (tangermeme; fast inference utilities)

@@ -89,7 +89,14 @@ import requests
 EUTILS = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils'
 
 def clinvar_summary(variation_id):
-    '''Retrieve VCV-level summary by ClinVar VariationID (do not confuse with CA ID).'''
+    '''Retrieve VCV-level summary by ClinVar VariationID (do not confuse with CA ID).
+
+    The germline / somatic / oncogenicity classification nesting shown below
+    follows the ClinVar 2024 eSummary v2 schema described in the data-access
+    documentation. Field names have changed between API versions -- inspect
+    the actual JSON returned by eSummary for the live ClinVar version before
+    pinning these key paths in production.
+    '''
     r = requests.get(f'{EUTILS}/esummary.fcgi',
                      params={'db': 'clinvar', 'id': variation_id, 'retmode': 'json'},
                      timeout=30)
@@ -280,7 +287,7 @@ A single VCV can carry all three with distinct evaluations; the legacy "Pathogen
 
 ## References
 
-- Landrum MJ et al. 2024. ClinVar: improvements to accessing data. *Nucleic Acids Res* 53:D1313. (2024 NAR update)
+- Landrum MJ et al. 2025. ClinVar: improvements to accessing data. *Nucleic Acids Res* 53(D1):D1313 (2025 NAR DB issue).
 - Harrison SM et al. 2017. Clinical laboratories collaborate to resolve differences in variant interpretations submitted to ClinVar. *Genet Med* 19:1096.
 - Yauy K et al. 2022. Genome Alert! a standardized procedure for genomic variant reinterpretation and automated genotype-phenotype reassessment. *Genet Med* 24:S1098.
 - Tavtigian SV et al. 2018. Modeling the ACMG/AMP variant classification guidelines as a Bayesian classification framework. *Genet Med* 20:1054.

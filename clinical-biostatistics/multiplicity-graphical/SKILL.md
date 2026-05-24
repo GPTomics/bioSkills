@@ -106,7 +106,10 @@ transitions <- matrix(c(
     0,    1,    0
 ), nrow = 3, byrow = TRUE, dimnames = list(hypotheses, hypotheses))
 
-graph <- matrix2graph(transitions, weights)
+graph <- graphMCP(m = transitions, weights = weights, hnames = hypotheses)
+# Note: in current gMCP, the graph constructor is `graphMCP(m=, weights=, hnames=)`;
+# `matrix2graph()` appeared in older tutorials and is not the canonical exported API
+# -- verify with `?graphMCP` / `?gMCP` in the installed gMCP release before scripting.
 # Set p-values from the trial
 p_vals <- c(Primary = 0.018, Sec1 = 0.042, Sec2 = 0.038)
 
@@ -158,7 +161,7 @@ hyp <- c('H1', 'H2', 'H3', 'H4')
 weights <- c(1, 0, 0, 0)
 trans <- matrix(c(0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0),
                  nrow=4, dimnames=list(hyp, hyp))
-graph <- matrix2graph(trans, weights)
+graph <- graphMCP(m = trans, weights = weights, hnames = hyp)
 ```
 
 **Pre-specification of order is critical** — based on clinical importance, NOT expected effect size. Ordering by expected effect is data-driven and inflates Type-I.

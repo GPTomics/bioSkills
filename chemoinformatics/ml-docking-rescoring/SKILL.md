@@ -77,10 +77,12 @@ PoseBusters benchmark (Buttenschoen 2024) showed:
 **Goal:** Use DiffDock-L for fast diverse pose sampling; GNINA CNN to rescore; PoseBusters to filter.
 
 ```bash
-# Step 1: DiffDock-L pose sampling
-diffdock_inference \
+# Step 1: DiffDock-L pose sampling (DiffDock has no `diffdock_inference` binary;
+# the canonical entrypoint is `python -m inference` from the DiffDock checkout
+# with either `--protein_ligand_csv` or `--complex_name --protein_path --ligand_description`)
+python -m inference \
     --protein_path receptor.pdb \
-    --ligand smiles.smi \
+    --ligand_description smiles.smi \
     --out_dir diffdock_out/ \
     --samples_per_complex 40 \
     --inference_steps 20
@@ -268,9 +270,9 @@ Chai-1 advantages:
 - Chai Discovery (2024) -- Chai-1 foundation model.
 - Abramson et al., *Nature* 630:493 (2024) -- AlphaFold3 paper.
 - McNutt et al., *J. Cheminformatics* 13:43 (2021) -- GNINA 1.0.
-- Stärk et al., *NeurIPS* (2022) -- EquiBind.
-- Lu et al., *Nat. Methods* (2024) -- TANKBind.
-- Yang et al., *ACS J. Chem. Inf. Model.* (2024) -- DL hybrid VS performance.
+- Stärk H, Ganea OE, Pattanaik L, Barzilay R, Jaakkola T 2022 *ICML* -- EquiBind.
+- Lu W et al 2022 *NeurIPS* -- TANKBind.
+- (DL hybrid virtual-screening benchmark: consult current literature; the earlier "Yang 2024 J Chem Inf Model" citation could not be verified and has been removed.)
 
 ## Related Skills
 

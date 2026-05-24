@@ -261,10 +261,11 @@ for chr in $(cut -f1 reference.fa.fai); do
         > pairwise/${chr}.axt
 done
 
-# 2. Build chains
+# 2. Build chains. `axtChain` reads PSL when given `-psl`; for AXT input from lastz
+# (`--format=axt`) drop the `-psl` flag, or emit PSL from LASTZ with `--format=psl` upstream.
 for axt in pairwise/*.axt; do
     chr=$(basename $axt .axt)
-    axtChain -psl -linearGap=loose $axt reference.2bit query.2bit chains/${chr}.chain
+    axtChain -linearGap=loose $axt reference.2bit query.2bit chains/${chr}.chain
 done
 
 # 3. Merge chains
@@ -427,7 +428,7 @@ For Cactus on HPC, set up Toil with the appropriate batch system (`--batchSystem
 - Blanchette M et al 2004 Genome Res 14:708 (Multiz)
 - Brudno M et al 2003 GR 13:721 (LAGAN)
 - Liao W-W et al 2023 Nature 617:312 (HPRC draft pangenome)
-- Sirén J et al 2023 Bioinformatics 39:btac605 (vg pangenome)
+- Sirén J et al 2024 NAR Genom Bioinform 6:lqae001 (vg pangenome update; the older "2023 Bioinformatics 39:btac605" attribution was a separate vg-Giraffe paper).
 - Garrison E et al 2024 Nat Methods (PGGB)
 - Paten B et al 2011 Genome Res 21:1512 (Cactus algorithm)
 - ComparativeGenomicsToolkit Cactus + HAL toolkit documentation (https://github.com/ComparativeGenomicsToolkit)

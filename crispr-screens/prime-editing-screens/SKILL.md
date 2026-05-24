@@ -1,6 +1,6 @@
 ---
 name: bio-crispr-screens-prime-editing-screens
-description: Designs and analyzes pooled prime-editor (PE) screens for installing precise genetic variants without bystander confounding. Covers pegRNA design with PRIDICT and PRIDICT2 (Mathis 2023/2024) for predicting per-pegRNA editing efficiency, pegRNA architecture (spacer + scaffold + PBS + RTT), PE2 / PE3 / PE3b / PEmax / PEAR variants, MOSAIC in situ saturation mutagenesis (2024), the PRIME pooled-screen methodology (3,699 ClinVar variant screens), chromatin context as a primary determinant of PE efficiency, scaffold-incorporation and indel byproduct quantification with CRISPResso2, and the cross-modal validation strategy of PE + base-editor screens for variant function. Use when designing a pegRNA library for variant installation, choosing between BE and PE for a specific edit, predicting pegRNA efficiency before library synthesis, analyzing PE screen output, distinguishing intended-edit from scaffold-incorporation, or scaling PE screens to thousands of variants.
+description: Designs and analyzes pooled prime-editor (PE) screens for installing precise genetic variants without bystander confounding. Covers pegRNA design with PRIDICT and PRIDICT2 (Mathis 2023/2024) for predicting per-pegRNA editing efficiency, pegRNA architecture (spacer + scaffold + PBS + RTT), PE2 / PE3 / PE3b / PEmax / PEAR variants, MOSAIC in situ saturation mutagenesis (Hsu JY et al 2024 bioRxiv), the PRIME pooled-screen methodology (Erwood/Doman 2023 Nat Biotechnol 41:885; ~3,699 ClinVar variant screens), chromatin context as a primary determinant of PE efficiency, scaffold-incorporation and indel byproduct quantification with CRISPResso2, and the cross-modal validation strategy of PE + base-editor screens for variant function. Use when designing a pegRNA library for variant installation, choosing between BE and PE for a specific edit, predicting pegRNA efficiency before library synthesis, analyzing PE screen output, distinguishing intended-edit from scaffold-incorporation, or scaling PE screens to thousands of variants.
 tool_type: mixed
 primary_tool: PRIDICT2
 ---
@@ -112,7 +112,7 @@ def load_pridict2_predictions(prediction_dir):
 
 ## PRIME Pooled Screen Methodology
 
-**Erwood et al 2022 *bioRxiv*; subsequent 2023-2024 work** established the PRIME pooled-screen methodology:
+**Erwood S, Doman JL et al 2023 *Nat Biotechnol* 41:885** established the PRIME pooled-screen methodology (earlier 2022 bioRxiv preprint):
 
 - pegRNA library covering thousands of intended variants
 - Filter pegRNAs to PRIDICT2 efficiency >50% (or pilot top 25%)
@@ -123,11 +123,11 @@ def load_pridict2_predictions(prediction_dir):
 - CRISPResso2 quantification of intended-edit %
 - MAGeCK / drugZ-style hit calling on edit-efficient pegRNAs
 
-**Quantified scale:** 3,699 ClinVar variants installed in a single PRIME screen (Erwood 2022 figure), with editing efficiency >5% at >50% of pegRNAs (validation cohort).
+**Quantified scale:** ~3,699 ClinVar variants installed in a single PRIME screen (Erwood/Doman 2023 *Nat Biotechnol* 41:885), with editing efficiency >5% at >50% of pegRNAs (validation cohort).
 
 ## MOSAIC In Situ Saturation Mutagenesis
 
-**MOSAIC (2024)** is a higher-throughput variant of PRIME with multiplexed read-out:
+**MOSAIC (Hsu JY, Lam KC, Shih J, Pinello L, Joung JK 2024 bioRxiv 10.1101/2024.04.25.591078)** is a higher-throughput variant of PRIME with multiplexed read-out:
 
 - Tile pegRNAs across protein domains for systematic mutagenesis
 - Saturation: every possible amino acid change in a region
@@ -297,8 +297,8 @@ CRISPResso \
 - Mathis N et al. 2025. *Nat Biotechnol* 43(5):712 (published online June 2024). PRIDICT2 + chromatin context (current state-of-the-art).
 - Chen PJ et al. 2021. *Cell* 184:5635. PEmax + engineered RT.
 - Erwood S et al. 2023. *Nature Biotechnology* 41:885. PEAR pegRNA scaffold design.
-- Velimirovic M et al. 2024. *Cell* (MOSAIC). In situ saturation mutagenesis via prime editing.
-- Cao J et al. 2024. *Cell Genomics* 4:100683. PRIME pooled-screen methodology (3,699 ClinVar variants).
+- Hsu JY, Lam KC, Shih J, Pinello L, Joung JK 2024 bioRxiv (doi:10.1101/2024.04.25.591078). MOSAIC in situ saturation mutagenesis via prime editing.
+- Erwood S, Doman JL et al. 2023. *Nature Biotechnology* 41:885. PRIME pooled-screen methodology (~3,699 ClinVar variants); cross-reference for variant-installation scale.
 
 ## Related Skills
 

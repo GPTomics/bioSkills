@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Retrosynthesis
 
-Plan synthetic routes from a target molecule back to commercially-available building blocks. AiZynthFinder 4.0 (Genheden 2024, AstraZeneca) is the open-source production-grade tool: Monte Carlo Tree Search (MCTS) + template-based expansion + multi-objective scoring (MO-MCTS). Chemformer (Irwin 2022) is template-free transformer alternative. ASKCOS (MIT) is the academic reference. Modern best practice combines retrosynthesis with **forward validation** (the predicted route should also predict the target from starting materials via Molecular Transformer) and building-block availability (eMolecules, Enamine, Mcule, ZINC catalog).
+Plan synthetic routes from a target molecule back to commercially-available building blocks. AiZynthFinder 4.0 (Saigiridharan, Hassen, Lai, Torren-Peraire, Engkvist, Genheden 2024 *J Cheminform* 16:57, AstraZeneca) is the open-source production-grade tool: Monte Carlo Tree Search (MCTS) + template-based expansion + multi-objective scoring (MO-MCTS). Chemformer (Irwin 2022) is template-free transformer alternative. ASKCOS (MIT) is the academic reference. Modern best practice combines retrosynthesis with **forward validation** (the predicted route should also predict the target from starting materials via Molecular Transformer) and building-block availability (eMolecules, Enamine, Mcule, ZINC catalog).
 
 For generative design pipelines that need synthetic feasibility, see `chemoinformatics/generative-design`. For reaction enumeration (forward direction), see `chemoinformatics/reaction-enumeration`.
 
@@ -102,7 +102,7 @@ Critical metrics:
 
 ## Route Scoring (MO-MCTS)
 
-AiZynthFinder 4.0 supports multi-objective scoring (Saigiridharan 2024):
+AiZynthFinder 4.0 supports multi-objective scoring (Saigiridharan et al 2024 *J Cheminform* 16:57):
 
 ```python
 config_dict['finder']['algorithm'] = 'mo_mcts'
@@ -146,7 +146,7 @@ match = (Chem.CanonSmiles(predicted_product) ==
          Chem.CanonSmiles(finder.target_smiles))
 ```
 
-Routes where the forward prediction reproduces the target are highest confidence. ~30-50% of AiZynthFinder routes pass forward validation (Genheden 2024).
+Routes where the forward prediction reproduces the target are highest confidence. ~30-50% of AiZynthFinder routes pass forward validation (Saigiridharan, Genheden et al 2024 *J Cheminform* 16:57).
 
 ## Template-Free with Chemformer
 
@@ -287,8 +287,7 @@ For comprehensive coverage, run both and merge unique routes.
 
 ## References
 
-- Genheden et al., *J. Cheminformatics* 16:75 (2024) -- AiZynthFinder 4.0.
-- Saigiridharan et al., *J. Cheminformatics* 16:48 (2024) -- multi-objective MCTS retrosynthesis.
+- Saigiridharan L, Hassen AK, Lai J, Torren-Peraire P, Engkvist O, Genheden S 2024 *J Cheminform* 16:57 -- AiZynthFinder 4.0 (multi-objective MCTS retrosynthesis).
 - Irwin et al., *Mach. Learn.: Sci. Technol.* 3:015022 (2022) -- Chemformer.
 - Schwaller et al., *ACS Cent. Sci.* 5:1572 (2019) -- Molecular Transformer.
 - Coley et al., *ACS Cent. Sci.* 3:434 (2017) -- ASKCOS template extraction.

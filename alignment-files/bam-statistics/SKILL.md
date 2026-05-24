@@ -174,13 +174,13 @@ samtools depth -a input.bam > depth_with_zeros.txt
 
 ### Maximum Depth Cap (Critical Trap)
 ```bash
-# samtools <1.13: silently caps at 8000 -- pipelines pinned to old versions are silently wrong
-# samtools 1.13+: no cap by default
-# Always set explicitly to be portable:
-samtools depth -d 0 input.bam
+# samtools mpileup historically capped depth at 8000 per position -- the cap was in mpileup, not depth.
+# samtools depth -d/--max-depth is deprecated in 1.13+ (silently ignored).
+# For mpileup, raise the cap explicitly when working with deep targeted/amplicon data:
+samtools mpileup -d 1000000 -f ref.fa input.bam
 ```
 
-Pipelines that routinely break the 8000 cap: targeted oncology hotspots (5000-50000x), mitochondrial DNA (small genome, large read share), amplicon viral (ARTIC: 1000-100000x per amplicon), UMI-deduped capture (14000-17000x post-collapse), highly expressed transcripts (rRNA, mt-RNA).
+Pipelines that historically break the 8000 mpileup cap: targeted oncology hotspots (5000-50000x), mitochondrial DNA (small genome, large read share), amplicon viral (ARTIC: 1000-100000x per amplicon), UMI-deduped capture (14000-17000x post-collapse), highly expressed transcripts (rRNA, mt-RNA).
 
 ### Overlapping Pair Correction
 ```bash
@@ -188,7 +188,7 @@ Pipelines that routinely break the 8000 cap: targeted oncology hotspots (5000-50
 # Default samtools depth double-counts overlap; -s deducts:
 samtools depth -s input.bam
 ```
-Without `-s`, doubled support inflates somatic VAFs at sites covered by overlapping pairs (especially in fragmented samples: FFPE, cfDNA). `mosdepth` does not double-count overlap; `bcftools mpileup` corrects by default; `samtools mpileup` does not.
+Without `-s`, doubled support inflates somatic VAFs at sites covered by overlapping pairs (especially in fragmented samples: FFPE, cfDNA). `mosdepth` does not double-count overlap. `samtools mpileup` and `bcftools mpileup` both enable overlap detection by default; pass `-x`/`--ignore-overlaps` to disable.
 
 ### mosdepth (Modern Default)
 ```bash
@@ -381,7 +381,7 @@ A single "mapping rate > 95%" rule rejects valid ATAC, ChIP, RNA-seq, metagenomi
 | Duplicate rate | <5% | 5-15% | 20-50% | 20-50% | 50-90% pre-consensus | (skip) | (use UMI) | 10-30% | 5-30% | n/a | 20-60% |
 | Proper pair rate | >95% | >95% | >85% | >80% | >80% | >70% | n/a | >50% | >70% | n/a | >60% |
 | Mean MAPQ | bimodal at 0/60 | bimodal | bimodal | bimodal | bimodal | bimodal incl 255 (STAR) | 0/3/255 | 30-55 | 30-55 | 30-50 | 20-40 |
-| Mt fraction | 0.1-2% | 0.1-2% | <1% | <0.1% | <0.1% | varies | varies | **<10% target** | <2% | n/a | varies |
+| Mt fraction | 0.1-2% | 0.1-2% | <1% | <0.1% | <0.1% | varies | varies | **<10% target (ENCODE ATAC-seq pipeline standards, Buenrostro 2013-style libraries) ** | <2% | n/a | varies |
 
 Mean MAPQ is misleading; the distribution is bimodal (0 and aligner-max). The fraction at MAPQ >= 30 is more informative:
 ```bash

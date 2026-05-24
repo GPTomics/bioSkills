@@ -19,12 +19,12 @@ If code throws unexpected errors, introspect the installed binary and adapt the 
 
 **"Call protein-RNA binding sites from my deduplicated CLIP BAM"** -> Identify regions where read pile-up (and, for iCLIP/eCLIP, single-nucleotide truncations) exceed background from a size-matched input (SMInput) control. The choice of peak caller depends on (a) the CLIP variant (HITS-CLIP, iCLIP, eCLIP, PAR-CLIP), (b) whether SMInput is available, (c) the RBP binding mode (narrow motif vs broad zones vs repeat-binding), and (d) the goal (publication-comparable ENCODE peaks vs single-nucleotide crosslink sites vs high-recall site lists).
 
-- CLI (ENCODE eCLIP canonical): `clipper -b dedup.bam -s hg38 -o peaks.bed --save-pickle --FDR 0.05 --superlocal` then `eclip-norm peaks.bed -i sminput.bam` for log2 fold-change against SMInput
+- CLI (ENCODE eCLIP canonical): `clipper -b dedup.bam -s hg38 -o peaks.bed --save-pickle --FDR-alpha 0.05 --superlocal` then `eclip-norm peaks.bed -i sminput.bam` for log2 fold-change against SMInput (`--FDR-alpha` is the CLIPper flag for the FDR cutoff; older docs sometimes shorten to `--FDR`)
 - CLI (single-nucleotide crosslink sites, iCLIP/eCLIP): `pureclip -i dedup.bam -bai dedup.bam.bai -g genome.fa -ibam sminput.bam -ibai sminput.bam.bai -o sites.bed -or regions.bed -nt 8 -dm 8`
 - CLI (high-recall, beta-binomial windowed; needs SMInput): `Skipper` Snakemake workflow with config matching cell type and SMInput BAM
-- CLI (no SMInput, no truncation): `Piranha -b 50 -p 0.01 -d ZeroTruncatedNegativeBinomial -s dedup.bam -o peaks.bed`
+- CLI (no SMInput, no truncation): `Piranha -b 50 -p 0.01 -d ZeroTruncatedNegativeBinomial -s -o peaks.bed dedup.bam` (Piranha takes the BAM as a positional argument, not via `-s`)
 - CLI (CIMS/CITS single-nt from CTK): `tag2cluster.pl dedup.bed cluster.bed --multi-tag-method coverage`; then `bedExtractCIMS.pl cluster.bed cims.bed`
-- CLI (multi-mapper rescue for repeat-binding RBPs): `CLAM peakcaller -i unique.bam multimap.bam -o clam_peaks.bed --gtf gencode.gtf`
+- CLI (multi-mapper rescue for repeat-binding RBPs): `CLAM peakcaller -i unique.bam multimap.bam -o clam_out_dir/ --gtf gencode.gtf` (CLAM peakcaller writes peaks into an OUTPUT DIRECTORY, not a single file)
 
 The ENCODE eCLIP gold standard for "stringent" peaks is: log2(IP / SMInput) >= 3 AND -log10(p-value) >= 3. "Lenient" peaks use log2 >= 1 AND -log10 >= 2. Both filters operate on CLIPper peak output normalized against SMInput. Without SMInput, neither stringency level can be reproduced - the algorithm has no background term.
 
@@ -86,7 +86,7 @@ Both thresholds are applied to the IDR-passing reproducible peak set. ENCODE req
 
 ```bash
 # CLIPper -> SMInput normalization -> ENCODE thresholds
-clipper -b dedup.bam -s hg38 -o peaks.bed --save-pickle --FDR 0.05 --superlocal
+clipper -b dedup.bam -s hg38 -o peaks.bed --save-pickle --FDR-alpha 0.05 --superlocal
 
 # Normalize against SMInput; eclip-norm is the Yeo lab tool
 python overlap_peakfi_with_bam_PE.py peaks.bed dedup.bam sminput.bam dedup.bam.readnum.txt sminput.bam.readnum.txt peaks.normed.bed
@@ -339,7 +339,7 @@ def peak_qc(peaks_bed):
 - Drewe-Boss P et al 2018 Genome Biol 19:183 (omniCLIP)
 - Shah A et al 2017 Bioinformatics 33:566 (CTK / CIMS / CITS)
 - Zhang Z & Xing Y 2017 Nucleic Acids Res 45:9260 (CLAM multi-mapper)
-- Kawaji H et al 2017 Genome Res 27:407 (paraclu generalized)
+- Frith MC et al 2008 Genome Res 18:1-12 (paraclu)
 - Li Q et al 2011 Ann Appl Stat 5:1752 (IDR framework)
 - Van Nostrand EL et al 2020 Nature 583:711 (Principles of RNA processing from 150 eCLIP maps)
 - ENCODE eCLIP Standards (encodeproject.org/eclip) - canonical thresholds

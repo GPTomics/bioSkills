@@ -59,7 +59,7 @@ Horizontal pleiotropy comes in two regimes, and most "standard" MR sensitivity m
 | GSMR + HEIDI-outlier | Outlier removal via single-instrument estimate heterogeneity | Yes | No | >=10 | CHP (HEIDI-outlier is heterogeneity-driven) | Zhu 2018 Nat Commun 9:224 |
 | MR-RAPS | Profile likelihood with overdispersion + Huber/Tukey loss | Yes; weak-IV robust | Partial via overdispersion | >=10 | Strong CHP | Zhao 2020 Ann Stat 48:1742 |
 | MR-Mix | Mixture-of-distributions over valid + invalid | Yes | Partial | >=20 | Few SNPs; very heterogeneous CHP | Qi & Chatterjee 2019 Nat Commun 10:1941 |
-| Contamination mixture | Profile likelihood over contamination fraction | Yes | Partial | >=20 | Few SNPs | Burgess 2020 Stat Med 39:711 |
+| Contamination mixture | Profile likelihood over contamination fraction | Yes | Partial | >=20 | Few SNPs | Burgess 2020 Nat Commun 11:376 |
 | MR-Clust | k-means over Wald estimates with NULL cluster | Yes | Diagnostic for CHP via clusters | >=20 | Single-mechanism exposure (no clustering signal) | Foley 2020 Bioinformatics 37:531 |
 | CAUSE | Bayesian mixture: shared causal + shared-factor (CHP) components | Yes | Yes (explicit) | >=100 sig SNPs at p<5e-8 | <100 sig SNPs; non-overlapping GWAS samples | Morrison 2020 Nat Genet 52:740 |
 | LHC-MR | Latent heritable confounder + bidirectional + heritability | Yes | Yes | Genome-wide GWAS sumstats | Heritability mis-estimated; severe sample overlap | Darrous 2021 Nat Commun 12:7274 |
@@ -411,7 +411,7 @@ Sub-items (30 total) detail per-method reporting. The full statement (JAMA 326:1
 - Bowden J et al 2015 Int J Epidemiol 44:512 (MR-Egger; InSIDE)
 - Bowden J et al 2016 Int J Epidemiol 45:1961 (NOME, I^2_GX, SIMEX)
 - Cook JR & Stefanski LA 1994 JASA 89:1314 (SIMEX framework)
-- Burgess S 2020 Stat Med 39:711 (contamination mixture)
+- Burgess S 2020 Nat Commun 11:376 (contamination mixture)
 - Burgess S & Thompson SG 2021 (Mendelian Randomization 2nd ed)
 - Darrous L et al 2021 Nat Commun 12:7274 (LHC-MR)
 - Foley CN et al 2020 Bioinformatics 37:531 (MR-Clust)

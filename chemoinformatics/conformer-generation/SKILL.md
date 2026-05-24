@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Conformer Generation
 
-Generate 3D conformer ensembles for molecules from 2D structures. The choice of method depends on molecule size, flexibility, and downstream use: ETKDGv3 (Hawkins 2010, knowledge-enhanced distance geometry) is the modern default for drug-like molecules, MMFF94/UFF for fast energy minimization, CREST + GFN2-xTB for high-accuracy semi-empirical sampling of macrocycles and peptides. A single conformer is rarely sufficient: descriptor variance across the ensemble can exceed the descriptor signal, and docking pose accuracy degrades if the starting conformer is non-bioactive.
+Generate 3D conformer ensembles for molecules from 2D structures. The choice of method depends on molecule size, flexibility, and downstream use: ETKDG / ETKDGv3 (Riniker & Landrum 2015 J Chem Inf Model 55:2562-2574; knowledge-enhanced distance geometry) is the modern default for drug-like molecules, MMFF94/UFF for fast energy minimization, CREST + GFN2-xTB for high-accuracy semi-empirical sampling of macrocycles and peptides. A single conformer is rarely sufficient: descriptor variance across the ensemble can exceed the descriptor signal, and docking pose accuracy degrades if the starting conformer is non-bioactive.
 
 For docking pose validation, see `chemoinformatics/pose-validation`. For free-energy methods (which require ensemble sampling), see `chemoinformatics/free-energy-calculations`.
 
@@ -344,11 +344,11 @@ For ETKDGv3 ensembles, run CREST on a subset for benchmarking; if RMSD < 1A acro
 
 ## References
 
-- Hawkins et al., *J. Chem. Inf. Model.* 50:572 (2010) -- ETKDG conformer embedding.
-- Riniker & Landrum, *J. Chem. Inf. Model.* 55:2562 (2015) -- ETKDGv3 with torsion preferences.
+- Hawkins et al., *J. Chem. Inf. Model.* 50:572 (2010) -- OMEGA conformer sampling (commercial OpenEye tool; predecessor to ETKDG).
+- Riniker & Landrum, *J. Chem. Inf. Model.* 55:2562-2574 (2015) -- ETKDG / ETKDGv3 with torsion preferences (the standard RDKit knowledge-distance-geometry embedder).
 - Halgren, *J. Comput. Chem.* 17:490 (1996) -- MMFF94 force field.
 - Rappe et al., *J. Am. Chem. Soc.* 114:10024 (1992) -- UFF.
-- Grimme, *J. Chem. Phys.* 160:114110 (2024) -- CREST 3.0.
+- Pracht, Bohle, Grimme, *J. Chem. Phys.* 160:114110 (2024) -- CREST 3.0.
 - Bannwarth et al., *J. Chem. Theory Comput.* 15:1652 (2019) -- GFN2-xTB.
 - Ganea et al., *NeurIPS* (2021) -- GeoMol ML conformer generation.
 - Hawkins, *J. Chem. Inf. Model.* 57:1747 (2017) -- conformer count heuristics.

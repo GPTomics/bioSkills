@@ -207,11 +207,14 @@ seurat_obj <- RunChromVAR(seurat_obj,
                           new.assay.name='chromvar')
 DefaultAssay(seurat_obj) <- 'chromvar'
 
-# Per-cluster differential motifs
+# Per-cluster differential motifs.
+# `mean.fxn` is the standard FindAllMarkers/FindMarkers control for the per-feature summary.
+# `fc.name` controls the output column name and is accepted by Seurat 4.x/5.x; if it errors,
+# fall back to renaming the output column post-hoc.
 markers <- FindAllMarkers(seurat_obj, only.pos=TRUE, mean.fxn=rowMeans, fc.name='avg_diff')
 ```
 
-`mean.fxn=rowMeans` is required for z-score-style data; the default (`fc.name='avg_log2FC'`) makes no sense here.
+`mean.fxn=rowMeans` is required for z-score-style data; the default fold-change function (designed for log-counts) makes no sense on chromVAR z-scores.
 
 ## chromVAR for Single-Cell ATAC (ArchR)
 

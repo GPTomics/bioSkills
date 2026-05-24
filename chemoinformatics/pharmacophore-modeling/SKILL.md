@@ -1,6 +1,6 @@
 ---
 name: bio-pharmacophore-modeling
-description: Builds and applies 3D pharmacophore models using RDKit Pharm3D, apo2ph4 (receptor-based), Pharmer / Pharmit (search), and PharmacoForge (diffusion-based generation), covering ligand-based pharmacophore (from active set alignment) and receptor-based pharmacophore (from binding pocket geometry). Explicit handling of feature types, geometric tolerances, partial matching, and pharmacophore-based virtual screening. Use when identifying scaffold-hopping candidates, building shape-and-feature search queries, or transferring SAR across chemotypes.
+description: Builds and applies 3D pharmacophore models using RDKit Pharm3D, the apo2ph4 receptor-based workflow (Heider et al 2022/2023 J Chem Inf Model 63:147-158), Pharmer / Pharmit (search), and PharmacoForge (diffusion-based generation, Flynn et al 2025 Front Bioinform), covering ligand-based pharmacophore (from active set alignment) and receptor-based pharmacophore (from binding pocket geometry). Explicit handling of feature types, geometric tolerances, partial matching, and pharmacophore-based virtual screening. Use when identifying scaffold-hopping candidates, building shape-and-feature search queries, or transferring SAR across chemotypes.
 tool_type: python
 primary_tool: RDKit
 ---
@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Pharmacophore Modeling
 
-Build 3D pharmacophore queries that capture the essential interaction features of a ligand-target binding event. A pharmacophore is the *spatial arrangement of pharmacophore features* (donor, acceptor, hydrophobe, aromatic, charged) sufficient for activity, abstracted from any specific chemotype. Used for scaffold-hopping (find compounds with different scaffold but matching pharmacophore), virtual screening (faster than docking), and cross-target SAR transfer. Modern best practice: derive pharmacophore from co-crystal structure if available (receptor-based with apo2ph4) or align actives if no crystal (ligand-based). Diffusion-based generation (PharmacoForge, Karki 2025) lets pharmacophore drive de novo design.
+Build 3D pharmacophore queries that capture the essential interaction features of a ligand-target binding event. A pharmacophore is the *spatial arrangement of pharmacophore features* (donor, acceptor, hydrophobe, aromatic, charged) sufficient for activity, abstracted from any specific chemotype. Used for scaffold-hopping (find compounds with different scaffold but matching pharmacophore), virtual screening (faster than docking), and cross-target SAR transfer. Modern best practice: derive pharmacophore from co-crystal structure if available (receptor-based; apo2ph4 workflow of Heider et al 2022/2023 *J Chem Inf Model* 63:147-158) or align actives if no crystal (ligand-based). Diffusion-based generation (PharmacoForge, Flynn et al 2025 *Front Bioinform*) lets pharmacophore drive de novo design.
 
 For 2D scaffold-based searches, see `chemoinformatics/scaffold-analysis`. For 3D shape similarity, see `chemoinformatics/shape-similarity`. For protein-ligand interaction analysis, see `chemoinformatics/virtual-screening`.
 
@@ -43,7 +43,7 @@ Tolerances are pharmacophore-feature distance windows in the search. Tighter tol
 | Ligand-based (LBP) | Catalyst, MOE, RDKit Pharm3D | Multiple actives, no crystal | <3 actives; flexible actives |
 | Receptor-based (RBP) | apo2ph4, LigandScout | Co-crystal available | Apo structure (use AlphaFold3 or Boltz) |
 | Common pharmacophore | Pharm3D `EmbedPharmacophore` | Consensus from active set | Diverse actives confound alignment |
-| Diffusion-based (PharmacoForge) | Karki 2025 | De novo generation with pharmacophore prior | Pretrained model required |
+| Diffusion-based (PharmacoForge) | Flynn et al 2025 Front Bioinform | De novo generation with pharmacophore prior | Pretrained model required |
 | Active learning pharmacophore | Catalyst variant | Iterative refinement | Custom; not standard |
 
 ## Decision Tree by Scenario
@@ -100,18 +100,19 @@ pharmacophore.setUpperBound(0, 1, 5.0)
 
 `BaseFeatures.fdef` (RDKit-shipped) defines feature SMARTS. For drug-like pharmacophores, this is the standard starting point.
 
-## Receptor-Based Pharmacophore (apo2ph4)
+## Receptor-Based Pharmacophore (apo2ph4 workflow)
 
 **Goal:** Derive a pharmacophore from a protein binding-pocket structure without requiring a bound ligand.
 
-**Approach:** Identify hot-spots (donor / acceptor / hydrophobe regions) from protein geometry; assemble into a pharmacophore.
+**Approach:** Identify hot-spots (donor / acceptor / hydrophobe regions) from protein geometry; assemble into a pharmacophore. The apo2ph4 workflow of Heider J, Kilian J, Garifulina A, Hering S, Langer T, Seidel T (2022/2023 *J Chem Inf Model* 63:147-158) describes the conceptual pipeline; the example below is illustrative — verify the exact CLI invocation against the published code/release before running.
 
 ```bash
+# Conceptual apo2ph4-style workflow; flags shown are illustrative.
 apo2ph4 -pdb receptor.pdb -site_residues 'A:100,A:101,A:104,A:108' \
         -output pharmacophore.ph4
 ```
 
-apo2ph4 outputs a `.ph4` format compatible with Phase, MOE, and Pharmer.
+apo2ph4 outputs a `.ph4`-style pharmacophore compatible with Phase, MOE, and Pharmer.
 
 When a co-crystal ligand is available, **derive pharmacophore directly from the ligand binding pose**: each ligand feature in contact with a complementary protein residue is part of the pharmacophore.
 
@@ -174,7 +175,7 @@ A good pharmacophore: enrichment >= 5x relative to random.
 
 ## Diffusion-Based Pharmacophore Design (PharmacoForge)
 
-PharmacoForge (Karki 2025) generates molecules conditioned on a pharmacophore query using a diffusion model:
+PharmacoForge (Flynn, Shah, Dunn et al 2025 *Front Bioinform*) generates molecules conditioned on a pharmacophore query using a diffusion model:
 
 ```python
 # Pseudo-code; depends on PharmacoForge installation
@@ -286,9 +287,9 @@ For prospective scaffold-hopping, receptor-based is preferred. For ranking analo
 ## References
 
 - Wolber & Langer, *J. Chem. Inf. Model.* 45:160 (2005) -- LigandScout pharmacophore.
-- Sander et al., *J. Chem. Inf. Model.* (2024) -- apo2ph4 for receptor-based.
-- Karki et al., *Front. Bioinform.* (2025) -- PharmacoForge diffusion pharmacophore.
-- Stiefl et al., *J. Chem. Inf. Model.* (2021) -- RDKit pharmacophore framework.
+- Heider J, Kilian J, Garifulina A, Hering S, Langer T, Seidel T 2022/2023 *J Chem Inf Model* 63(1):147-158 -- apo2ph4 receptor-based pharmacophore workflow (DOI 10.1021/acs.jcim.2c00814).
+- Flynn JR, Shah RH, Dunn SD et al 2025 *Front Bioinform* -- PharmacoForge diffusion pharmacophore.
+- RDKit `Chem.Pharm3D` framework -- documentation at rdkit.org (the unconfirmed "Stiefl 2021" citation has been removed pending verification).
 - Adasme et al., *Nucleic Acids Res.* 49:W530 (2021) -- PLIP interaction profiler.
 - Koes et al., *Nucleic Acids Res.* 44:W436 (2016) -- Pharmit interactive search.
 

@@ -45,7 +45,7 @@ from Bio import SeqIO
 | `Bio.Align.PairwiseAligner` (BioPython) | 1x baseline | DNA / RNA / protein | Matrix + affine | C-backed Gotoh | Default, <10 kb pairs, interactive use |
 | `parasail` (Daily 2016 BMC Bioinf) | 10-100x | DNA / protein | Matrix + affine | SSE / AVX SIMD | High-throughput SW or NW; benchmark loops |
 | `edlib` (Sosic & Sikic 2017 Bioinf) | 100-1000x | DNA only | Edit distance only | Bit-parallel Myers | Read mapping, k-mer search, primer placement |
-| `pywfa` / WFA2 (Marco-Sola 2021 Bioinf; BiWFA: Marco-Sola 2023 Nat Comp Sci) | Best for low-divergence | DNA | Matrix + affine | Wavefront, O(s) memory | Long, near-identical sequences (>10 kb, <5% diverged) |
+| `pywfa` / WFA2 (Marco-Sola 2021 Bioinformatics 37:456; BiWFA: Marco-Sola 2023 Bioinformatics 39:btad074) | Best for low-divergence | DNA | Matrix + affine | Wavefront, O(s) memory | Long, near-identical sequences (>10 kb, <5% diverged) |
 | `mappy` / minimap2 (Li 2018 Bioinf) | Production reads-to-genome | DNA | Chain + base-level | k-mer chain | Long-read mapping, splice-aware DNA |
 | `Bio.pairwise2` | DEPRECATED | -- | -- | -- | Migrate to `PairwiseAligner` (deprecated in BioPython 1.80; not yet removed; migrate proactively) |
 | EMBOSS `needle` / `water` | ~Bio.Align | DNA / protein | Matrix + affine | None | Reproducibility, audit trails (1996 published defaults) |
@@ -367,7 +367,7 @@ Length amplifies the signal: 30% identity over 200 residues is far more reliable
 **When pairwise becomes the wrong tool.** A single DP pairwise alignment is correct for two sequences. For one query against thousands to millions of targets (genome-scale homology search) or for many-vs-many all-by-all (clustering, ortholog detection), the right tool is profile- or k-mer-indexed search, not iterated DP:
 - BLASTP / DIAMOND -- standard query-vs-database baseline
 - MMseqs2 (Steinegger & Soding 2017 Nat Biotech) -- ~400x faster than PSI-BLAST at higher sensitivity; iterative profile mode `--num-iterations 3` matches PSI-BLAST and approaches `jackhmmer`
-- MMseqs2-GPU (Mirdita et al 2025 Nat Methods) -- GPU-accelerated; ~177x faster than `jackhmmer` for single queries on one NVIDIA L40S; use when GPU is available and the dataset is sensitivity-bound
+- MMseqs2-GPU (Kallenborn et al 2025 Nat Methods 22:2024; Mirdita co-author) -- GPU-accelerated; ~177x faster than `jackhmmer` for single queries on one NVIDIA L40S; use when GPU is available and the dataset is sensitivity-bound
 - jackhmmer (HMMER) -- gold standard for distant homology when run to convergence; slow but the most sensitive non-structural method
 - Foldseek -- escape to structural search when both query and database have predicted structures (see `alignment/structural-alignment`)
 
@@ -392,10 +392,10 @@ Other failure modes:
 - Schaffer AA et al. 2001. Improving the accuracy of PSI-BLAST protein database searches with composition-based statistics. NAR 29:2994-3005.
 - Rost B. 1999. Twilight zone of protein sequence alignments. Prot Eng 12:85-94.
 - Steinegger M, Soding J. 2017. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nat Biotech 35:1026-1028.
-- Mirdita M, Steinegger M et al. 2025. GPU-accelerated homology search with MMseqs2. Nat Methods (in press; bioRxiv 2024.11.13.623350).
+- Kallenborn F, Chacon A, Hundt C, Sirelkhatim H, Didi K, Cha S, Dallago C, Mirdita M, Schmidt B, Steinegger M. 2025. GPU-accelerated homology search with MMseqs2. Nat Methods 22(10):2024-2027.
 - Sosic M, Sikic M. 2017. Edlib: a C/C++ library for fast, exact sequence alignment. Bioinf 33:1394-1395.
 - Daily J. 2016. Parasail: SIMD C library for global, semi-global, and local pairwise sequence alignments. BMC Bioinf 17:81.
 - Marco-Sola S et al. 2021. Fast gap-affine pairwise alignment using the wavefront algorithm. Bioinf 37:456-463.
-- Marco-Sola S et al. 2023. Optimal gap-affine alignment in O(s) space. Nat Comp Sci.
+- Marco-Sola S et al. 2023. Optimal gap-affine alignment in O(s) space. Bioinformatics 39(2):btad074.
 - Yu YK, Altschul SF. 2005. The construction of amino acid substitution matrices for the comparison of proteins with non-standard compositions. Bioinf 21:902-911.
 - Altschul SF, Erickson BW. 1985. Significance of nucleotide sequence alignments: a method for random sequence permutation that preserves dinucleotide and codon usage. MBE 2:526-538.

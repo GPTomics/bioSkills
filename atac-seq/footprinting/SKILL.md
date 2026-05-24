@@ -210,7 +210,7 @@ BINDetect output columns: `output_prefix`, motif info, condition counts (`cond1_
 | Both `cond1_bound` and `cond2_bound` near 0 | Motif present but no footprint either condition; TF likely not active |
 | `cond1_bound` >> `cond2_bound` but change small | High dynamic range; differential per-site rather than aggregate |
 
-The differential score is the difference in mean footprint score across motif sites, not a fold-change. Magnitudes 0.1-0.5 are typical for biologically relevant changes.
+The differential score is the difference in mean footprint score across motif sites, not a fold-change. Magnitudes around 0.1-0.5 are typical for biologically relevant changes (TOBIAS BINDetect tutorials / Bentsen 2020 examples; no formally published cutoff — calibrate against positive controls in the current dataset).
 
 ## Reconciling TOBIAS vs HINT-ATAC
 
@@ -268,7 +268,7 @@ JASPAR motifs are conservatively curated; HOCOMOCO is comprehensive for human/mo
 
 - Buenrostro JD et al 2013 Nat Methods 10:1213 (ATAC-seq protocol)
 - Lazarovici A et al 2013 PNAS 110:6376 (Tn5 insertion bias in ATAC)
-- Calviello AK et al 2019 BMC Genomics 20:642 (Tn5 bias detailed PWM)
+- Calviello AK et al 2019 BMC Genomics (Tn5 bias PWM characterization; verify exact volume/pages in current literature search)
 - Bentsen M et al 2020 Nat Commun 11:4267 (TOBIAS framework, benchmark)
 - Li Z et al 2019 Genome Biol 20:45 (HINT-ATAC)
 - Piper J et al 2013 NAR 41:e201 (Wellington / pyDNase)

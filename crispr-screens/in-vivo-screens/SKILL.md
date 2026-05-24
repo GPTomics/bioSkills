@@ -225,7 +225,7 @@ def meta_analyze_animals(per_animal_results):
 
 - Manguso RT et al. 2017. *Nature* 547:413. In vivo CRISPR screen for immune evasion; canonical focused-library design.
 - Chen S et al. 2015. *Cell* 160:1246. Original in vivo Cas9 screening methodology.
-- Aoki Y et al. 2023. *Sci Adv* 9:eadg2451. Clonal dynamics limit selection detection.
+- Aoki Y et al. 2023. *Cancer Gene Therapy* (doi 10.1038/s41417-023-00664-5). Clonal dynamics limit selection detection in in-vivo CRISPR screens. (Earlier "Sci Adv 9:eadg2451" attribution could not be verified.)
 - Uijttewaal ECH et al. 2025. *Nat Biotechnol* 43:1848 (online Dec 2024). CRISPR-StAR intrinsic-control screening for in vivo models.
 - Pacini C et al. 2024. *Nat Commun* 15:1230. DepMap screening benchmark including in vivo.
 

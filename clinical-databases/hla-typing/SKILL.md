@@ -148,7 +148,9 @@ samtools view -b -h input.bam chr6:28000000-34000000 chr6_GL000250v2_alt chr6_GL
 samtools sort -n hla_region.bam -o hla_sorted.bam
 samtools fastq -1 hla_R1.fq -2 hla_R2.fq -s singletons.fq -0 /dev/null hla_sorted.bam
 
-# Run T1K (preset hla; includes class I + II)
+# Run T1K (preset hla; includes class I + II).
+# Some releases ship the entry point as `run-t1k` (a wrapper script) rather than `t1k`;
+# verify with `which run-t1k` / `which t1k` before scripting.
 t1k --preset hla \
     -1 hla_R1.fq -2 hla_R2.fq \
     -f hla_idx/hlaidx_rna_seq.fa \
@@ -309,7 +311,7 @@ hla_DRB1 <- predict(model.list[['DRB1']], gen, type='response+prob')
 | Threshold | Convention | Source |
 |-----------|-----------|--------|
 | IPD-IMGT/HLA quarterly release | Updates Jan/Apr/Jul/Oct | IPD-IMGT/HLA database |
-| Current allele count | ~43,000+ at Jul 2025 | Robinson 2026 *NAR* update |
+| Current allele count | ~43,000+ at Jul 2025 | IPD-IMGT/HLA database release notes (Robinson J et al, *NAR* DB issue) |
 | HLA region coordinates | chr6:28000000-34000000 (GRCh38) | Standard |
 | HLA-LA RAM requirement | ~30-100 GB scratch | HLA-LA documentation |
 | OptiType class I 4-digit accuracy | ~98% (1000G benchmark) | Claeys 2023 |

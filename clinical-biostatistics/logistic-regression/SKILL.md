@@ -185,13 +185,15 @@ firth = FirthLogisticRegression()
 firth.fit(X, y)
 or_firth = np.exp(firth.coef_)
 
-# IMPORTANT: firth.pvalues_ is Wald, which is LIBERAL with Firth.
-# Prefer penalised LRT:
-# - firth.pvalues_lrt_ if available (firthmodels >=0.3)
-# - Otherwise compute manually by comparing penalised log-likelihoods of nested models
+# IMPORTANT: Wald p-values from Firth are LIBERAL (anti-conservative).
+# Prefer the penalised likelihood-ratio test (PLRT).
+# Some Python `firthlogist` releases expose a PLRT attribute (e.g. `pvalues_lrt_`)
+# but its presence and name vary by release -- check `dir(firth)` against the
+# installed version, otherwise compute the PLRT manually from the penalised
+# log-likelihoods of nested models.
 ```
 
-**Heinze-Schemper 2002 *Stat Med* 21:2409** showed Wald inference from Firth is **liberal** (anti-conservative); the penalised likelihood ratio test (PLRT) is the recommended inference. The `firthmodels` package added `pvalues_lrt_` in version 0.3; in older versions, compute manually:
+**Heinze-Schemper 2002 *Stat Med* 21:2409** showed Wald inference from Firth is **liberal** (anti-conservative); the penalised likelihood-ratio test (PLRT) is the recommended inference. PLRT attributes (e.g. `pvalues_lrt_`) appear in some Python Firth packages but the exact attribute name varies by release -- introspect the installed package; compute the PLRT manually if no attribute is exposed:
 
 ```python
 def penalised_lrt(firth_full, firth_reduced):
@@ -322,7 +324,7 @@ def hosmer_lemeshow(y_true, y_pred, n_groups=10):
 | H-L p > 0.5 with obvious miscalibration | Low power at n<200 | Use calibration plot as primary; H-L supplementary |
 | H-L p < 0.001 with great-looking plot | Oversensitive at n>2000 | Use calibration plot; cite Steyerberg 2019 for cautions |
 | `OrderedModel` fails to converge with intercept | Threshold parameters replace intercept | Drop the explicit constant |
-| `firth.pvalues_` looks too low | Wald p from Firth is liberal | Use `firth.pvalues_lrt_` (>=0.3) or compute PLRT manually |
+| `firth.pvalues_` looks too low | Wald p from Firth is liberal | Inspect the installed Firth package for a PLRT attribute (e.g. `pvalues_lrt_`); compute PLRT manually if none is exposed |
 | GLM(family=Binomial) and Logit give same point but different output | `sm.Logit` provides `pred_table()`, `prsquared`; `sm.GLM` does not | Use Logit unless changing link functions |
 | Robust SE not reported for modified Poisson | Missing `cov_type='HC1'` or 'HC3' | Always specify sandwich SE for modified Poisson |
 

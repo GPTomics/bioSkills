@@ -304,7 +304,7 @@ def find_alphamissense_pathogenic(gene, min_score=0.564):
 - Pejaver V et al. 2022. Calibration of computational tools for missense variant pathogenicity classification. *Am J Hum Genet* 109:2163.
 - Pagel KA et al. 2020. Integrated informatics analysis of cancer-related variants. *Cancer Res* 80:e29. (OpenCRAVAT)
 - Kopanos C et al. 2019. VarSome: the human genomic variant search engine. *Bioinformatics* 35:1978.
-- Stawinski PM et al. 2024. GeneBe; a tool for automated ACMG/AMP variant interpretation. *Clin Genet*.
+- Stawinski PM et al. 2024. GeneBe; a tool for automated ACMG/AMP variant interpretation. *Clin Genet* (verify exact volume/pages in the published record before citing).
 - myvariant.info docs: `https://docs.myvariant.info/en/latest/`
 - BioThings field metadata: `https://myvariant.info/v1/metadata/fields`
 

@@ -450,10 +450,10 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 - Whiffin N et al. 2017. Using high-resolution variant frequencies to empower clinical genome interpretation. *Genet Med* 19:1151.
 - Li MM et al. 2017. Standards and guidelines for the interpretation and reporting of sequence variants in cancer. *J Mol Diagn* 19:4. (AMP/ASCO/CAP)
 - Miller DT et al. 2023. ACMG SF v3.2 list. *Genet Med* 25:100866.
-- Stawinski PM et al. 2024. GeneBe; automated ACMG/AMP variant interpretation. *Clin Genet*.
+- Stawinski PM et al. 2024. GeneBe; automated ACMG/AMP variant interpretation. *Clin Genet* (verify exact volume/pages in the published record before citing).
 - Kopanos C et al. 2019. VarSome: the human genomic variant search engine. *Bioinformatics* 35:1978.
 - Li Q, Wang K. 2017. InterVar: clinical interpretation of genetic variants. *Am J Hum Genet* 100:267.
-- Xiang J et al. 2020. AutoPVS1. (PVS1 decision tree implementation)
+- Xiang J et al. 2020. AutoPVS1 -- automated PVS1 decision-tree implementation (verify exact venue/year against the published code/release).
 - ClinGen CSpec Registry: `https://cspec.genome.network/cspec/ui/svi/all`
 - ClinGen VCI (Variant Curation Interface): `https://curation.clinicalgenome.org/`
 

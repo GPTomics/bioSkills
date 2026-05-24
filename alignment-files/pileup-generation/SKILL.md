@@ -192,7 +192,7 @@ For somatic / low-VAF, prefer Mutect2 / Strelka2 / DeepVariant -- materially bet
 
 ### Overlap Detection Defaults
 
-When fragment length < 2 * read_length, R1 and R2 overlap. `bcftools mpileup` detects overlap and counts once by default; `samtools mpileup` does not. Doubled support inflates somatic VAFs at sites covered by overlapping pairs (especially in cfDNA / FFPE). Prefer `bcftools mpileup` or use `samtools mpileup --ignore-overlaps`.
+When fragment length < 2 * read_length, R1 and R2 overlap. Both `samtools mpileup` and `bcftools mpileup` enable overlap detection by default (per samtools-mpileup(1)) and count overlapping bases once; pass `-x`/`--ignore-overlaps` to disable. Disabling overlap correction can inflate somatic VAFs at sites covered by overlapping pairs (especially in cfDNA / FFPE).
 
 ## pysam Python Alternative
 

@@ -247,7 +247,7 @@ plotEncDimSearch(fds, type='jaccard')
 
 The encoding dimension `q` should be where the loss curve plateaus. Too low: confounders not removed; too high: real signal absorbed.
 
-For typical 50-100 sample cohorts, q=8-15 is the usual range. For very small cohorts (n=20-30), q=5-8.
+For typical 50-100 sample cohorts, q=8-15 is the usual operating range (DROP / FRASER workflow convention; no single primary citation — verify with `plotEncDimSearch` on the actual cohort). For very small cohorts (n=20-30), q=5-8 is typical.
 
 ## Per-Tool Failure Modes
 

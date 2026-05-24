@@ -286,9 +286,9 @@ For new groups, OpenFE 1.7+ is the recommended starting point; FEP+ is the gold 
 
 - Mey et al., *Living J. Comput. Mol. Sci.* 2:18378 (2020) -- alchemical free energy best practices.
 - Wang et al., *J. Am. Chem. Soc.* 137:2695 (2015) -- FEP+ method.
-- Henderson et al., *Comput. Phys. Commun.* 286:108672 (2023) -- OpenFE framework.
+- Open Free Energy (OpenFE) consortium 2023+ -- OpenFE framework. Cite the current release via the OpenFE Zenodo DOI (https://github.com/OpenFreeEnergy/openfe); the earlier "Henderson 2023 Comput Phys Commun" attribution could not be verified.
 - Cournia et al., *J. Chem. Inf. Model.* 60:4153 (2020) -- RBFE for lead optimization.
-- Aldeghi et al., *J. Cheminformatics* 10:43 (2018) -- ABFE protocols.
+- Aldeghi M et al -- ABFE protocols (consult current literature; the earlier "Aldeghi 2018 J Cheminform 10:43" citation could not be verified — Aldeghi's 2018 ABFE work appeared as a *Methods in Molecular Biology* book chapter).
 - Wohlwend et al. (2025) -- Boltz-2 affinity prediction.
 - Shirts & Chodera, *J. Chem. Phys.* 129:124105 (2008) -- MBAR.
 - Bennett, *J. Comput. Phys.* 22:245 (1976) -- BAR.

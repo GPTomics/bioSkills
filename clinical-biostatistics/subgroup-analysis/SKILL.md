@@ -213,7 +213,7 @@ cate = xl.effect(X)
 
 **The Dane vs Hemmings argument:**
 
-- Dane et al 2019 *Pharm Stat* 18:126 (EFSPI white paper): propose 0.5σ standardised-effect benchmark for "noteworthy heterogeneity"; tiered structure (key/important/exploratory); signal-vs-noise diagnostics.
+- Dane et al 2019 *Pharm Stat* 18:126 (EFSPI white paper): propose a standardised-effect benchmark in the neighbourhood of ~0.5σ for "noteworthy heterogeneity" (verify the exact figure against the white paper before quoting); tiered structure (key/important/exploratory); signal-vs-noise diagnostics.
 - Hemmings & Koch 2019 *Pharm Stat* 18:140 commentary: **explicitly REJECT Bayesian shrinkage for signal generation** because "Bayesian shrinkage assumes treatment effects are consistent" and pre-emptively damps the very heterogeneity one is searching for. Shrinkage is endorsed only for *post-signal replication planning*.
 
 **What postdocs argue about:** whether shrinkage is appropriate at the signal-generation stage; the prior on tau drives everything (Senn-style: tau ~ HalfNormal(0, 0.1); regulatory-tolerant: tau ~ HalfNormal(0, 0.5)).
@@ -392,7 +392,7 @@ Sun et al 2012 *BMJ* systematic review documented that the median observed effec
 - Bonetti M, Gelber RD. 2000. A graphical method to assess treatment-covariate interactions using the Cox model on subsets. *Biostatistics* 1:227-240.
 - Bonetti M, Gelber RD. 2004. Patterns of treatment effects in subsets of patients in clinical trials. *Biostatistics* 5:465-481.
 - Bretz F, Maurer W, Brannath W, Posch M. 2009. A graphical approach to sequentially rejective multiple test procedures. *Stat Med* 28:586-604.
-- Brookes ST, Whitley E, Peters TJ, Mulheran PA, Egger M, Davey Smith G. 2004. Subgroup analyses in randomised controlled trials. *J Clin Epidemiol* 57:229-236.
+- Brookes ST, Whitely E, Egger M, Davey Smith G, Mulheran PA, Peters TJ. 2004. Subgroup analyses in randomised controlled trials: quantifying the risks of false-positives and false-negatives. *J Clin Epidemiol* 57:229-236. (Author surname is "Whitely", not "Whitley".)
 - Dane A, Spencer A, Rosenkranz G, Lipkovich I, Parke T. 2019. Subgroup analysis and interpretation for phase 3 confirmatory trials: white paper of the EFSPI/PSI working group. *Pharm Stat* 18:126-139.
 - Dixon DO, Simon R. 1991. Bayesian subset analysis. *Biometrics* 47:871-881.
 - Dusseldorp E, Van Mechelen I. 2014. Qualitative interaction trees: a tool to identify qualitative treatment-subgroup interactions. *Stat Med* 33:219-237.

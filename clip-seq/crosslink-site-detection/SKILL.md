@@ -241,7 +241,7 @@ bedtools intersect -wa -wb -s -a sample.crosslinks.bed -b het_snps.vcf > cl_at_h
 - Comoglio F et al 2015 BMC Bioinformatics 16:32 (wavClusteR)
 - Shah A et al 2017 Bioinformatics 33:566 (CTK / CIMS / CITS)
 - Krakau S et al 2017 Genome Biol 18:240 (PureCLIP HMM)
-- Sugimoto Y et al 2017 Nature 519:491 (iCLIP U-crosslink bias)
+- Sugimoto Y et al 2015 Nature 519:491 (iCLIP U-crosslink bias)
 - Feng H et al 2019 Mol Cell 74:1189 (mCross requires CL sites)
 - Wu B et al 2018 Nat Commun 9:5117 (BEAPR allele-specific binding)
 - Van Nostrand EL et al 2020 Nature 583:711 (ENCODE eCLIP single-nt analyses)

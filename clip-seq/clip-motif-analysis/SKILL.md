@@ -22,7 +22,7 @@ If code throws unexpected errors, introspect the installed tool and adapt the ex
 - CLI (de novo, peak-based, HOMER RNA mode): `findMotifs.pl peaks.fa fasta motif_out -rna -len 5,6,7,8 -p 4`
 - CLI (de novo, peak-based, MEME-ChIP / STREME): `streme --rna --oc streme_out -p peaks.fa -n background.fa --minw 5 --maxw 10`
 - CLI (positional, single-nt CL-registered, mCross): `mCross -i crosslinks.bed -g genome.fa -k 7 -o mcross_out` (jointly models motif + CL position)
-- CLI (positional k-mer, no input control needed, PEKA): `peka -i peaks.bed -x crosslinks.bed -g genome.fa -r regions.bed -k 5 -p 30 -o peka_out` (internal normalization vs low-count CL sites)
+- CLI (positional k-mer, no input control needed, PEKA): `peka --peak_file_name peaks.bed --crosslinks_file_name crosslinks.bed --genome_file_name genome.fa --regions_file_name regions.bed --kmer_length 5 --percentile 30 --outpath peka_out` (the short flags `-i/-x/-g/-r/-k/-p` shown in earlier docs are not all stable; use the long forms or check `peka --help`)
 - CLI (affinity-weighted, RBPamp): `rbpamp run -i peaks.fa -k 7 -o rbpamp_out` (joint affinity + motif model)
 - CLI (positional logo, kpLogo): `kpLogo crosslinks_with_kmer_scores.txt -o kplogo_out` (position-specific significance)
 
@@ -200,7 +200,7 @@ mCross \
     -i crosslinks.bed -g genome.fa -k 7 -n 5 -o mcross_out
 
 # Step 6: PEKA orthogonal positional k-mer
-peka -i peaks.stringent.bed -x crosslinks.bed -g genome.fa -r regions.bed -k 5 -p 30 -o peka_out
+peka --peak_file_name peaks.stringent.bed --crosslinks_file_name crosslinks.bed --genome_file_name genome.fa --regions_file_name regions.bed --kmer_length 5 --percentile 30 --outpath peka_out
 
 # Step 7: Compare to RBNS in vitro Kd (Dominguez 2018 supplementary)
 # Manual cross-reference to RBNS Kd-ranked top-5 motifs for the target RBP
@@ -269,11 +269,11 @@ def parse_homer_motif(motif_file):
 - Bailey TL et al 2021 Bioinformatics 37:2834 (STREME, MEME's fast successor)
 - Wu X & Bartel DP 2017 Nucleic Acids Res 45:7331 (kpLogo positional logo)
 - Feng H et al 2019 Mol Cell 74:1189 (mCross, jointly modeling motif + CL position)
-- Mihai HE et al 2022 Genome Biol 23:198 (PEKA, positional k-mer no input)
+- Kuret K, Amalietti AG, Jones DM, Capitanchik C, Ule J 2022 Genome Biol 23:160 (PEKA, positional k-mer no input)
 - Jens M et al 2018 Cell Reports 24:2940 (RBPamp, affinity-weighted motif)
 - Lambert N et al 2014 Mol Cell 54:887 (RNA Bind-n-Seq)
 - Dominguez D et al 2018 Mol Cell 70:854 (78-RBP RBNS atlas)
-- Sugimoto Y et al 2017 Nature 519:491 (iCLIP U-crosslink bias)
+- Sugimoto Y et al 2015 Nature 519:491 (iCLIP U-crosslink bias)
 - Van Nostrand EL et al 2020 Nature 583:711 (ENCODE 150 RBP eCLIP + motifs)
 - Konig J et al 2010 Nat Struct Mol Biol 17:909 (iCLIP, U bias origin)
 

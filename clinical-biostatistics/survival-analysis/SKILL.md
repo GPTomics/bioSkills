@@ -21,7 +21,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 ## The Single Most Important Modern Insight -- PH Almost Never Holds
 
-In modern oncology with checkpoint inhibitors, targeted therapies, crossover, and depleted high-risk subjects over follow-up, **proportional hazards (PH) violations are the rule, not the exception**. The Cross-Pharma NPH Working Group (Lin et al 2020 *Stat Biopharm Res*; Magirr-Burman 2021 *Stat Med*) documented systematic PH violations across phase III oncology trials, particularly delayed-effect patterns from checkpoint inhibitors.
+In modern oncology with checkpoint inhibitors, targeted therapies, crossover, and depleted high-risk subjects over follow-up, **proportional hazards (PH) violations are the rule, not the exception**. The Cross-Pharma NPH Working Group (Lin et al 2020 *Stat Biopharm Res*; Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293) documented systematic PH violations across phase III oncology trials, particularly delayed-effect patterns from checkpoint inhibitors.
 
 The Cox HR is a *time-averaged log-hazard ratio* under PH violation (Xu-O'Quigley 2000), which may or may not be the estimand of interest. RMST (Royston-Parmar 2013) provides a clinically interpretable, hazard-free alternative.
 
@@ -52,8 +52,8 @@ The Cox HR is a *time-averaged log-hazard ratio* under PH violation (Xu-O'Quigle
 - Andersen-Keiding 2012 *Stat Med* 31:1074 (Fine-Gray semantic critique)
 - Putter-Schumacher-van Houwelingen 2020 *Biom J* 62:790 (Fine-Gray revisited; reduction factor)
 - Putter-Fiocco-Geskus 2007 *Stat Med* 26:2389 (competing risks tutorial)
-- Magirr-Burman 2021 *Stat Med* (MaxCombo critique)
-- Therneau-Grambsch 1994 *Biometrika* 81:515 (scaled Schoenfeld residuals)
+- Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293 (MaxCombo critique)
+- Grambsch-Therneau 1994 *Biometrika* 81:515 (scaled Schoenfeld residuals)
 - Buyse-Molenberghs 1998 *Biometrics* 54:1014 (PFS-OS surrogacy framework)
 - Lewis et al 2023 (ICH E9(R1) censoring rules and estimand)
 - Sun 2006 *The Statistical Analysis of Interval-Censored Failure Time Data* (Springer)
@@ -78,7 +78,7 @@ The Cox HR is a *time-averaged log-hazard ratio* under PH violation (Xu-O'Quigle
 
 **Goal:** Detect violations of the proportional hazards assumption that would invalidate the Cox HR as a meaningful summary statistic.
 
-**Approach:** Compute scaled Schoenfeld residuals (Therneau-Grambsch 1994); regress against a time-transform g(t) under H0 of zero slope; supplement the asymptotic p-value with a graphical residual plot since the test is sensitive to g(t) choice and sample-size dependent.
+**Approach:** Compute scaled Schoenfeld residuals (Grambsch-Therneau 1994); regress against a time-transform g(t) under H0 of zero slope; supplement the asymptotic p-value with a graphical residual plot since the test is sensitive to g(t) choice and sample-size dependent.
 
 ```python
 from lifelines import CoxPHFitter
@@ -203,7 +203,7 @@ results = multivariate_logrank_test(
 
 ### The MaxCombo controversy
 
-**Magirr-Burman 2021 *Stat Med***: MaxCombo can reject the null in **opposite directions** on the same dataset. Formally, it rejects the strong null H_0: S_A(t) = S_B(t) for all t, but the rejection direction is determined by the dominant weight, which can flip across portions of the curve. **KEYNOTE-042 demonstration**: MaxCombo simultaneously favouring pembrolizumab AND chemo depending on weight choice.
+**Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293**: MaxCombo can reject the null in **opposite directions** on the same dataset. Formally, it rejects the strong null H_0: S_A(t) = S_B(t) for all t, but the rejection direction is determined by the dominant weight, which can flip across portions of the curve. **KEYNOTE-042 demonstration**: MaxCombo simultaneously favouring pembrolizumab AND chemo depending on weight choice.
 
 **Cross-Pharma NPH Working Group recommendation:** MaxCombo with directionality constraints — require positive z-statistic at the late-emphasis weight before declaring superiority; report the dominant weight and its direction.
 
@@ -334,7 +334,7 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 - **Trigger:** Significant treatment HR reported without cox.zph diagnostic
 - **Mechanism:** Cox HR is a time-averaged log-HR under PH violation; the "the HR" interpretation breaks
 - **Symptom:** Hazard plots show crossing; cox.zph rejects PH; KM curves diverge then converge
-- **Fix:** Report cox.zph result; switch to RMST or time-varying Cox; cite Therneau-Grambsch 1994
+- **Fix:** Report cox.zph result; switch to RMST or time-varying Cox; cite Grambsch-Therneau 1994
 
 ### Fine-Gray reported as causal effect
 
@@ -395,9 +395,9 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 
 | Threshold | Source | Rationale |
 |-----------|--------|-----------|
-| cox.zph p > 0.05 is NOT proof of PH | Therneau-Grambsch 1994; Park-Hendry 2015 | Failure detector, not validator |
+| cox.zph p > 0.05 is NOT proof of PH | Grambsch-Therneau 1994; Park-Hendry 2015 | Failure detector, not validator |
 | RMST tau <= min(largest follow-up per arm) | Tian 2020 *Biostatistics* | Avoid extrapolation; tau pre-specified in SAP |
-| MaxCombo with directional constraint | Magirr-Burman 2021 *Stat Med* | Prevents opposite-direction rejections |
+| MaxCombo with directional constraint | Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293 | Prevents opposite-direction rejections |
 | Cause-specific Cox for etiology; FG for CIF prediction | Putter-Fiocco-Geskus 2007 | Andersen-Keiding 2012 critique |
 | Scan intervals > 4 weeks -> interval-censored analysis | Sun 2006 | Midpoint right-censoring is biased |
 | 10 events per covariate for Cox | Peduzzi 1995 *J Clin Epidemiol* | Below this, bias and overfitting |
@@ -443,7 +443,7 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 - Karrison TG. 2016. Versatile tests for comparing survival curves based on weighted log-rank statistics. *Stat J* 16:678-690.
 - Lakatos E. 1988. Sample sizes based on the log-rank statistic in complex clinical trials. *Biometrics* 44:229-241.
 - Lewis EF et al. 2023. Time-to-event endpoints in oncology under the ICH E9(R1) estimand framework. *Pharm Stat* (specific cite varies; see oncology estimand working-group publications).
-- Magirr D, Burman CF. 2021. Cherry-picking in survival analysis. *Stat Med* 40(5934):5951.
+- Magirr D, Burman CF. 2021. The strong null hypothesis and the MaxCombo test. *Stat Biopharm Res* 15(2):293-298. (Earlier "Cherry-picking in survival analysis" attribution was a blog post, Oct 2022.)
 - Mantel N. 1966. Evaluation of survival data and two new rank order statistics arising in its consideration. *Cancer Chemotherapy Reports* 50:163-170.
 - Peduzzi P et al. 1995. Importance of events per independent variable in proportional hazards analysis. *J Clin Epidemiol* 48:1503-1510.
 - Putter H, Fiocco M, Geskus RB. 2007. Tutorial in biostatistics: competing risks and multi-state models. *Stat Med* 26:2389-2430.
@@ -451,7 +451,7 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 - Royston P, Parmar MKB. 2013. Restricted mean survival time: an alternative to the hazard ratio. *BMC Med Res Methodol* 13:152.
 - Schoenfeld DA. 1981. The asymptotic properties of nonparametric tests for comparing survival distributions. *Biometrika* 68:316-319.
 - Sun J. 2006. *The Statistical Analysis of Interval-Censored Failure Time Data*. Springer.
-- Therneau TM, Grambsch PM. 1994. Proportional hazards tests and diagnostics based on weighted residuals. *Biometrika* 81:515-526.
+- Grambsch PM, Therneau TM. 1994. Proportional hazards tests and diagnostics based on weighted residuals. *Biometrika* 81:515-526.
 - Tian L et al. 2020. Empirical comparison of the restricted mean survival time. *Biostatistics*.
 - Uno H et al. 2014. Moving beyond the hazard ratio in quantifying the between-group difference in survival analysis. *JCO* 32:2380-2385.
 - Xu R, O'Quigley J. 2000. Estimating average regression effect under non-proportional hazards. *Biostatistics* 1:423-439.

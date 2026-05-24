@@ -277,9 +277,9 @@ For PROTAC design, **PRosettaC + ITC/SPR experimental validation** is the curren
 ## References
 
 - Békés et al., *Nat. Rev. Drug Discov.* 21:181 (2022) -- PROTAC clinical review.
-- Drummond & Williams, *J. Med. Chem.* 62:5285 (2019) -- PROTAC design principles.
+- Drummond ML, Williams CI 2019 *J Chem Inf Model* 59(4):1634-1644 -- PROTAC ternary-complex modeling principles.
 - Schapira et al., *Nat. Rev. Drug Discov.* 18:949 (2019) -- targeted protein degradation overview.
-- Drummond et al. (PRosettaC), *J. Chem. Inf. Model.* 60:5234 (2020) -- PRosettaC for ternary modeling.
+- Zaidman D, Prilusky J, Kessler N, Hadar D, Zarivach R, London N 2020 *J Chem Inf Model* 60(10):4894-4903 -- PRosettaC for ternary modeling (DOI 10.1021/acs.jcim.0c00589).
 - Liu et al., *Nat. Commun.* (2025) -- DeepTernary deep learning.
 - Saunders et al., *Sci. Rep.* (2025) -- PRosettaC vs AlphaFold3 comparison.
 - Bondeson et al., *Nat. Chem. Biol.* 11:611 (2015) -- early PROTAC clinical readout.

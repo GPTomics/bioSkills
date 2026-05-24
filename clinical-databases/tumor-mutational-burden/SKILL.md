@@ -77,7 +77,7 @@ These choices alter TMB by 5-20%:
 | **Hypermutator (research)** | >= 100 mut/Mb | MMR-D, POLE-exo |
 | **Ultra-hypermutator** | >= 500 mut/Mb | POLE+MMR concurrent |
 
-MSI-H typically 30-50 mut/Mb; pure POLE-exo P286R 100-300 mut/Mb; POLE-exo + MMR-D exceeds 500. MSI-H and TMB-H overlap substantially in CRC and endometrial (~80% of MSI-H are TMB-H) but only ~16% of TMB-H solid tumors are MSI-H (Salem 2018 *Cancer Discov*).
+MSI-H typically 30-50 mut/Mb; pure POLE-exo P286R 100-300 mut/Mb; POLE-exo + MMR-D exceeds 500. MSI-H and TMB-H overlap substantially in CRC and endometrial (~80% of MSI-H are TMB-H) but only ~16% of TMB-H solid tumors are MSI-H (Salem ME et al 2018 *Mol Cancer Res* 16:805-812).
 
 ## The Tumor-Type-Specific Cutoff Debate
 
@@ -369,8 +369,8 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 | Oncomine TML equivalent cutoff | 8.4 mut/Mb | Vega 2021 |
 | Hypermutator | >= 100 mut/Mb | Research convention |
 | Ultra-hypermutator | >= 500 mut/Mb | POLE+MMR; ICI excellent |
-| MSI-H typical TMB | 30-50 mut/Mb | Salem 2018 |
-| MSI-H + TMB-H overlap | ~80% MSI-H are TMB-H in CRC/endometrial; ~16% TMB-H are MSI-H | Salem 2018 |
+| MSI-H typical TMB | 30-50 mut/Mb | Salem 2018 *Mol Cancer Res* 16:805 |
+| MSI-H + TMB-H overlap | ~80% MSI-H are TMB-H in CRC/endometrial; ~16% TMB-H are MSI-H | Salem 2018 *Mol Cancer Res* 16:805 |
 | Tumor purity floor | FoundationOne >=20%; MSK-IMPACT >=30% | Vendor documentation |
 | Min VAF | FoundationOne 5%; tumor-only no UMI 10% | Vendor documentation |
 | Tumor-only germline filter | gnomAD AF <=0.5% (sometimes 1%) | Convention |

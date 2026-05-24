@@ -114,7 +114,7 @@ Clipping invalidates several tags and CIGAR-derived fields:
 | MD:Z | Mismatch positions now wrong | `samtools calmd -b in.bam ref.fa` |
 | NM:i | Edit distance recomputed | `samtools calmd` |
 | TLEN | Template length changes when both mates clipped | `samtools fixmate -m` |
-| MS, MC | Mate score / CIGAR | `samtools fixmate -m` |
+| ms, MC:Z | Mate score (lowercase per SAMtags) / mate CIGAR | `samtools fixmate -m` |
 
 A clipped BAM that bypasses fixmate + calmd causes silent failures in `bcftools mpileup` BAQ (which depends on MD), IGV mismatch coloring, and any tool using NM for filtering.
 

@@ -288,6 +288,7 @@ reject, adjusted_p, _, _ = multipletests(pvalues, method='holm')
 - Brown LD, Cai TT, DasGupta A. 2001. Interval estimation for a binomial proportion. *Stat Sci* 16:101-117.
 - Cochran WG. 1954. Some methods for strengthening the common chi-squared tests. *Biometrics* 10:417-451.
 - D'Agostino RB, Chase W, Belanger A. 1988. The appropriateness of some common procedures for testing the equality of two independent binomial populations. *Am Stat* 42:198-202.
+- D'Agostino RB, Casagrande JT, Pike MC. 1988. Critique of Yates' continuity correction for sparse 2x2 tables. *Stat Med* 7:347 (cited in body as the Yates'-discouragement source; both 1988 D'Agostino papers exist and address different aspects).
 - Fagerland MW, Lydersen S, Laake P. 2013. The McNemar test: asymptotic and mid-p are better than exact conditional. *BMC Med Res Methodol* 13:91.
 - FDA. 2022. Multiple Endpoints in Clinical Trials -- Guidance for Industry. Federal Register Oct 2022.
 - Kahan BC, Morris TP. 2012. Improper analysis of trials randomised using stratified blocks or minimisation. *Stat Med* 31:328-340.

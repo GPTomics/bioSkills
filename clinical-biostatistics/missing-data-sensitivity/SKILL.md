@@ -71,7 +71,7 @@ Key recommendations:
 - Carpenter JR, Roger JH, Kenward MG 2013 *J Biopharm Stat* 23:1352 (reference-based MI)
 - Cro S, Carpenter JR, Kenward MG 2019 *JRSS-A* 182:623 (information-anchored variance)
 - Bartlett JW 2021 *Stat Biopharm Res* 15(1):178 (frequentist variance counter)
-- Wolbers M, Noci A, Delmar P et al 2022 *Pharm Stat* 21:1262 (CMI+jackknife)
+- Wolbers M, Noci A, Delmar P et al 2022 *Pharm Stat* 21(6):1246-1257 (CMI+jackknife)
 - Permutt T 2016 *Stat Med* 35:2876 (analyst as adversary; tipping point)
 - Diggle PJ, Kenward MG 1994 *JRSS-C* 43:49 (selection model + canonical critique)
 - Molenberghs G, Michiels B, Kenward MG, Diggle PJ 1998 *Stat Neerl* 52:153 (pattern-mixture identifying restrictions; ACMV = MAR under monotone)

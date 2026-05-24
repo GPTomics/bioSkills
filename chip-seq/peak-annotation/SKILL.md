@@ -323,7 +323,7 @@ awk -F'\t' 'NR>1 { dist = ($10 < 0) ? -$10 : $10; \
 - McLean CY et al 2010 Nat Biotechnol 28:495 (GREAT)
 - Gu Z 2023 Bioinformatics 39:btac745 (rGREAT)
 - Welch RP et al 2014 Nucleic Acids Res 42:e105 (ChIP-Enrich)
-- Welch RP et al 2014 Bioinformatics 30:i393 (Broad-Enrich)
+- Cavalcante RG, Lee C, Welch RP, ... Sartor MA 2014 Bioinformatics 30:i393-i400 (Broad-Enrich)
 - ENCODE Project Consortium 2020 Nature 583:699 (cCRE registry v1)
 - ENCODE Project Consortium 2025 Nature (expanded cCRE registry, 2.35M elements)
 - Fulco CP et al 2019 Nat Genet 51:1664 (ABC model precursor to ENCODE-rE2G)

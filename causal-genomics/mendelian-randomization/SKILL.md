@@ -40,7 +40,7 @@ If code throws an error referencing a function that has moved (e.g. `ieugwasr::l
 | MR-PRESSO | Outlier-driven horizontal pleiotropy | 4+ | Global / outlier / distortion three-step (Verbanck 2018 Nat Genet 50:693) | Blind to CHP; computationally heavy at large NbDistribution |
 | MVMR (IVW) | Conditional independence after measured pleiotropy | 1+ per exposure | Accounts for measured horizontal pleiotropy via multivariable regression (Sanderson 2019 IJE 48:713) | Conditional F < 10 on any exposure |
 | MR-Clust | Heterogeneous causal effects (multiple mechanisms) | 30+ | Clusters SNPs by their causal-effect estimate (Foley 2020 Bioinformatics 37:531) | Single causal mechanism; small instrument sets |
-| Contamination mixture | Mixture of valid + invalid IVs | 10+ | Profile-likelihood mixture (Burgess 2020 Stat Med 39:1212) | Sparse signal |
+| Contamination mixture | Mixture of valid + invalid IVs | 10+ | Profile-likelihood mixture (Burgess 2020 Nat Commun 11:376) | Sparse signal |
 | LCV | Genome-wide; distinguishes causation vs genetic correlation | All SNPs | Tests `gcp` parameter using LDSC-style block jackknife (O'Connor & Price 2018 Nat Genet 50:1728) | Two-trait covariance dominated by a third confounder |
 | LHC-MR | Bidirectional + heritable confounder | All SNPs | Joint likelihood over genome-wide markers; estimates both directions + confounder (Darrous 2021 Nat Commun 12:7274) | Computationally heavy; rare-variant trait |
 | MRlap | Sample overlap + winner's curse + weak-IV jointly | Genome-wide sumstats | LDSC-scaffolded joint correction (Mounier & Kutalik 2023 Genet Epidemiol 47:314) | LDSC intercept poorly estimated (h^2 < 0.05); non-EUR without matched LD scores |
@@ -385,7 +385,7 @@ STROBE-MR (Skrivankova 2021 JAMA 326:1614; BMJ 375:n2233): 20-item checklist req
 - Verbanck M et al 2018 Nat Genet 50:693 (MR-PRESSO)
 - Sanderson E et al 2019 IJE 48:713 (MVMR conditional F)
 - Foley CN et al 2020 Bioinformatics 37:531 (MR-Clust)
-- Burgess S et al 2020 Stat Med 39:1212 (contamination mixture)
+- Burgess S et al 2020 Nat Commun 11:376 (contamination mixture)
 - O'Connor LJ & Price AL 2018 Nat Genet 50:1728 (LCV)
 - Darrous L et al 2021 Nat Commun 12:7274 (LHC-MR)
 - Tian H et al 2023 PLoS Genet 19:e1010823 (DRMR)
