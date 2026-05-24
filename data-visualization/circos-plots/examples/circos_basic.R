@@ -1,11 +1,13 @@
 #!/usr/bin/env Rscript
-# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
-# Basic circos plot with circlize
+# Reference: circlize 0.4.16+ | Verify API if version differs
+# Basic circos plot with circlize -- matches SKILL.md R portion (chromosome.index for hg38)
 
 library(circlize)
 
-# Initialize with human genome
-circos.initializeWithIdeogram(species = 'hg38', plotType = c('axis', 'labels'))
+# Initialize with human genome -- hg38 needs chromosome.index to skip unmapped contigs (jokergoo/circlize#46)
+circos.initializeWithIdeogram(species = 'hg38',
+                               chromosome.index = paste0('chr', c(1:22, 'X', 'Y')),
+                               plotType = c('axis', 'labels'))
 
 # Create example data
 set.seed(42)
@@ -47,7 +49,9 @@ circos.clear()
 
 # Save to PDF
 pdf('circos_output.pdf', width = 10, height = 10)
-circos.initializeWithIdeogram(species = 'hg38', plotType = c('axis', 'labels'))
+circos.initializeWithIdeogram(species = 'hg38',
+                               chromosome.index = paste0('chr', c(1:22, 'X', 'Y')),
+                               plotType = c('axis', 'labels'))
 circos.genomicTrack(bed, panel.fun = function(region, value, ...) {
     circos.genomicPoints(region, value, pch = 16, cex = 0.5, col = 'steelblue')
 }, track.height = 0.1)

@@ -104,4 +104,5 @@ Typical thresholds for proteomics:
 - quantification - Protein-level abundance estimation and normalization before testing
 - proteomics-qc - Quality control and batch effect assessment
 - differential-expression/deseq2-basics - Analogous empirical Bayes concepts for RNA-seq
-- data-visualization/specialized-omics-plots - Volcano plots, MA plots, heatmaps
+- data-visualization/volcano-and-ma-plots - Volcano and MA plots with LFC shrinkage
+- data-visualization/heatmaps-clustering - Clustered heatmaps with annotation tracks

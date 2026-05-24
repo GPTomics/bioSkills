@@ -1,78 +1,87 @@
 # Multi-Panel Figures - Usage Guide
 
 ## Overview
-Combine individual ggplot2 plots into publication-ready multi-panel figures with consistent styling, shared legends, and proper annotations.
+
+Multi-panel figures combine 2+ subplots into a single composed figure with shared elements (legends, axes) and panel labels (a, b, c) in journal convention. patchwork is the modern R default - version 1.2.0+ added `axes='collect'` for shared-axis collection. matplotlib subfigures (3.4+) is the modern Python approach. cowplot remains useful for edge cases where patchwork's alignment struggles.
 
 ## Prerequisites
+
 ```r
 install.packages(c('patchwork', 'cowplot', 'gridExtra'))
+# patchwork >= 1.2.0 required for axes='collect'
 ```
 
 ```bash
-pip install matplotlib numpy
+pip install matplotlib
+# subfigures stable since matplotlib 3.4
 ```
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Combine my volcano plot and PCA into one figure"
-- "Create a 2x2 panel figure with labels A, B, C, D"
-- "Share the legend across all panels"
+- "Combine 4 ggplot objects in a 2x2 grid with shared legend, collected axes, lowercase panel labels"
+- "matplotlib GridSpec layout: top row 2 panels, bottom row 1 spanning panel"
+- "Sized at Nature single-column (89mm) with cairo_pdf TrueType embedding"
+- "Inset a small plot in the upper-right corner of a larger plot"
+- "Custom layout via patchwork design string"
 
 ## Example Prompts
-### Basic Assembly
-> "Combine these three plots into a horizontal layout"
 
-> "Stack my plots vertically with panel labels"
+### 2x2 grid with shared legend (patchwork)
 
-### Complex Layouts
-> "Create a figure with a large plot on left and two small plots stacked on right"
+> "Combine p1-p4 into a 2x2 grid using patchwork. Collect guides and axes; lowercase bold panel labels in upper-left. Save as 180mm double-column cairo_pdf."
 
-> "Make a 2x2 grid where the top row spans both columns"
+### Top-2, bottom-1 layout
 
-### Shared Elements
-> "Share the legend across all panels"
+> "Use patchwork `(p1 | p2) / p3` for a top row of two panels and a single bottom panel spanning the full width."
 
-> "Add an inset plot to my main figure"
+### matplotlib GridSpec
+
+> "matplotlib GridSpec with 2 rows, 3 columns. ax1 in [0,0], ax2 spans [0, 1:], ax3 spans [1, :]. constrained_layout for axis alignment."
+
+### Inset
+
+> "Add a small PCA plot as inset in the upper-right corner of the main scatter using patchwork::inset_element."
+
+### Subfigures with colorbar
+
+> "matplotlib subfigures: left subfigure has 2 stacked scatter panels, right subfigure has one heatmap with colorbar. constrained_layout for each subfigure independently."
 
 ## What the Agent Will Do
-1. Arrange individual plots using patchwork operators
-2. Apply panel labels (A, B, C, D)
-3. Adjust relative widths/heights as needed
-4. Collect and position shared legends
-5. Export at publication resolution
 
-## Tool Comparison
-
-| Package | Language | Strengths |
-|---------|----------|-----------|
-| patchwork | R | Intuitive operators, ggplot2 native |
-| cowplot | R | Simple API, good for basic layouts |
-| gridExtra | R | Fine control, complex arrangements |
-| matplotlib GridSpec | Python | Full control, Python workflows |
-
-## Common Layouts
-```r
-# 1x3 horizontal
-p1 + p2 + p3
-
-# 3x1 vertical
-p1 / p2 / p3
-
-# 2x2 grid
-(p1 + p2) / (p3 + p4)
-
-# Wide left, narrow right
-p1 + p2 + plot_layout(widths = c(2, 1))
-```
+1. Identify subplot composition (rows, columns, spans, ratios).
+2. For R: use patchwork operators (`+`, `/`, `|`) for simple grids; `plot_layout(design=...)` for complex.
+3. For Python: GridSpec for fine control; subfigures for nested layouts.
+4. Add panel labels in Nature (lowercase bold) or Cell (uppercase bold) convention.
+5. Collect shared legends with `guides='collect'`; share axes with `axes='collect'` (patchwork ≥ 1.2.0).
+6. Set sizing at journal specs (89 mm single col, 183 mm double; mm units explicit).
+7. Save with `device = cairo_pdf` (R) or `pdf.fonttype=42` (Python) for TrueType.
 
 ## Tips
-- Use patchwork for most R layouts (simplest syntax)
-- Add panel labels with `plot_annotation(tag_levels = 'A')` in R
-- Control relative sizes with `plot_layout(widths = ..., heights = ...)` in R
-- Collect legends with `plot_layout(guides = 'collect')` in R
-- Use GridSpec for Python workflows with full layout control
-- Standard sizes: 7" single column, 14" double column for journals
+
+- **patchwork ≥ 1.2.0 for `axes='collect'`.** Verify with `packageVersion('patchwork')`. Older versions silently ignore.
+
+- **`device = cairo_pdf` on ggsave** for TrueType font embedding. Default device can produce non-portable PDF.
+
+- **`units = 'mm'` explicit on ggsave.** Nature single col = 89; double = 183; max height = 247.
+
+- **Lowercase bold for Nature, uppercase bold for Cell** panel labels. `plot_annotation(tag_levels = 'a')` for lowercase; `'A'` for uppercase.
+
+- **Panel label position consistency** requires standardized y-axis label widths across subplots. If they differ, either pad with whitespace or position tags inside the plotting area.
+
+- **Shared legend requires identical scales** across subplots. Different `scale_color_manual` calls produce duplicate (not merged) legends.
+
+- **For complex layouts**, patchwork's design string (`"AAB\nAAB\nCCC"`) is more readable than nested operators.
+
+- **matplotlib `constrained_layout=True`** is the modern default (3.6+); handles colorbars correctly. `tight_layout()` does not.
+
+- **subfigures (matplotlib 3.4+)** are stronger than nested GridSpec for complex composition because each subfigure has its own layout engine.
+
+- **Inset with `patchwork::inset_element(p_inset, left, bottom, right, top)`** in normalized [0, 1] coordinates of the parent plot.
 
 ## Related Skills
-- **data-visualization/ggplot2-fundamentals** - Create individual plots
-- **reporting/rmarkdown-reports** - Embed figures
+
+- data-visualization/ggplot2-fundamentals - Individual ggplot subpanels
+- data-visualization/matplotlib-fundamentals - Python equivalent
+- reporting/figure-export - DPI / format / journal-spec
+- data-visualization/color-palettes - Consistent palette across panels

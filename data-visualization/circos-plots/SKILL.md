@@ -1,405 +1,278 @@
 ---
 name: bio-data-visualization-circos-plots
-description: Create circular genome visualizations with Circos and pyCircos. Display multi-track data including ideograms, genes, variants, CNVs, and interaction arcs. Use when creating circular genome visualizations.
+description: Build circular genome visualizations using circlize (R), pyCirclize (Python), or Circos (Perl CLI) with ideogram tracks, multi-data tracks (scatter, histogram, heatmap), chord/link arcs for interactions, and explicit circos.clear() between plots. Covers when circular is appropriate vs when Cartesian wins (Cleveland-McGill 1984), karyograms, and chromosome adjacency in chord diagrams. Use when adjacency on the circle conveys meaning — chromosome-level overview, structural variants, Hi-C interactions, cross-genome comparisons.
 tool_type: mixed
-primary_tool: Circos
+primary_tool: circlize
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+
+Reference examples tested with: circlize 0.4.16+ (R), pyCirclize 1.4+ (Python), Circos 0.69-9 (Perl CLI), ComplexHeatmap 2.18+ (uses circlize for color mapping).
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- R: `packageVersion('<pkg>')` then `?function_name`
+- Python: `pip show <package>` then `help(module.function)`
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt the example to match the actual API rather than retrying.
 
-# Circos Plots
+# Circular Genome Plots (Circos)
 
-**"Create a circos plot"** → Visualize genomic data in a circular layout showing chromosomes, links, and data tracks.
-- Python: `pycircos`, `pyCirclize` (Python circular layout)
-- R: `circlize::chordDiagram()`, `circlize::circos.genomicTrack()`
+**"Make a circos plot"** -> Render genome chromosomes around a circle with stacked tracks (histogram, scatter, heatmap) and arcs/chords showing interactions. Krzywinski 2009 *Genome Res* 19:1639 introduced the genre for genome-scale comparative views. The single decision that matters: **does the circular layout convey meaning that Cartesian cannot?**
 
-Circular genome visualizations for displaying multiple data tracks around chromosome ideograms.
+- R: `circlize::circos.initializeWithIdeogram` + `circos.genomicTrack*` (Gu 2014)
+- Python: `pyCirclize.Gcircle`
+- CLI: Circos (Perl); config-driven; most flexible but steepest learning
 
-## Tool Options
+## The Single Most Important Modern Insight -- Circular Plots Often Hide What Cartesian Reveals
 
-| Tool | Language | Best For |
-|------|----------|----------|
-| Circos | Perl/CLI | Publication-quality, complex layouts |
-| pyCircos | Python | Programmatic generation, integration |
-| circlize | R | Quick plots, Bioconductor integration |
+Cleveland-McGill 1984 *J Am Stat Assoc* 79:531 effectiveness rankings establish that **position-on-common-scale (Cartesian) is the most accurate visual channel**; circular position requires mental "unwrapping" and impairs precise value comparison. Heer-Bostock 2010 *CHI* replicated the ranking in modern crowd studies. Use circular only when adjacency on the circle conveys meaning that linear cannot.
 
-## Circos (Original)
+Use circular ONLY when:
+- **Chromosome adjacency matters** (whole-genome SVs, Hi-C contacts where genome circularity is the geometry)
+- **Pairwise interactions between many entities** (chord diagrams; chromosome translocations)
+- **Aesthetic / overview** infographic for cover figure
 
-### Installation
+Do NOT use circular for:
+- Comparing values across categories (Cartesian bar/dot wins)
+- Time series (linear axis wins)
+- Anything where precise value reading matters
 
-```bash
-conda install -c bioconda circos
-# Or download from http://circos.ca
+The circos plot is a beautiful but dangerous default. The most-cited published critique is the genre being applied where it adds no information.
+
+## circlize (R) — Modern Default
+
+**Goal:** Render a multi-track circos plot with ideograms, gene-density histogram, variant-density heatmap, and inter-chromosomal SV links.
+
+**Approach:** Initialize with chromosome ideograms via `circos.initializeWithIdeogram`; add tracks with `circos.genomicTrack` + appropriate panel function; add links with `circos.link`; **always call `circos.clear()` after the plot completes.**
+
+```r
+library(circlize)
+
+# 1. Initialize with hg38 ideograms
+pdf('circos.pdf', width = 8, height = 8)
+circos.par(start.degree = 90,             # 12 o'clock start
+           gap.degree = c(rep(1, 23), 5)) # bigger gap before chr1 for visual break
+# hg38 specifically benefits from explicit chromosome.index to skip unmapped contigs
+circos.initializeWithIdeogram(species = 'hg38',
+                               chromosome.index = paste0('chr', c(1:22, 'X', 'Y')),
+                               plotType = c('axis', 'labels', 'ideogram'))
+
+# 2. Gene-density histogram (outermost data track)
+circos.genomicDensity(gene_bed, col = '#0072B2', track.height = 0.08)
+
+# 3. Variant-density heatmap
+circos.genomicHeatmap(variant_bed,
+                       col = colorRamp2(c(0, 100), c('white', '#D55E00')),
+                       heatmap_height = 0.08, side = 'inside')
+
+# 4. CNV scatter
+circos.genomicTrack(cnv_bed, ylim = c(-2, 2),
+                     panel.fun = function(region, value, ...) {
+                         circos.genomicPoints(region, value,
+                                              col = ifelse(value > 0.3, '#D55E00',
+                                                           ifelse(value < -0.3, '#0072B2', 'grey60')),
+                                              pch = 16, cex = 0.4)
+                     },
+                     track.height = 0.1)
+
+# 5. Inter-chromosomal SV links
+for (i in seq_len(nrow(sv_df))) {
+    circos.link(sv_df$chr1[i], c(sv_df$start1[i], sv_df$end1[i]),
+                sv_df$chr2[i], c(sv_df$start2[i], sv_df$end2[i]),
+                col = '#888888', lwd = 0.4)
+}
+
+# 6. CRITICAL -- clear global state
+circos.clear()
+dev.off()
 ```
 
-### Basic Configuration
+## The `circos.clear()` Trap
 
-Circos requires configuration files defining the plot structure.
+`circos.par()` settings (start.degree, gap.degree, canvas.xlim, canvas.ylim, clock.wise, circle.margin) are GLOBAL state. After a plot completes, those settings persist into the next plot.
 
-#### circos.conf (main config)
+Forgetting `circos.clear()` produces:
+- Next `circos.par()` calls silently fail to take effect (warning, easily missed in loops)
+- Re-initialization may error or render at wrong angles
+- Loop-rendered figures inherit state from the previous iteration
 
-```
-# Chromosome definitions
-karyotype = data/karyotype.human.hg38.txt
+**Always call `circos.clear()` after every plot.** Make it the last line of the plotting block alongside `dev.off()`.
 
-<ideogram>
-<spacing>
-default = 0.005r
-</spacing>
-radius = 0.90r
-thickness = 20p
-fill = yes
-</ideogram>
-
-<image>
-dir = output
-file = circos.png
-png = yes
-svg = yes
-radius = 1500p
-</image>
-
-<<include etc/colors_fonts_patterns.conf>>
-<<include etc/housekeeping.conf>>
-```
-
-### Data Tracks
-
-#### Scatter Plot Track
-
-```
-<plots>
-<plot>
-type = scatter
-file = data/scatter.txt
-r0 = 0.75r
-r1 = 0.85r
-min = 0
-max = 1
-glyph = circle
-glyph_size = 8p
-color = red
-</plot>
-</plots>
-```
-
-#### Histogram Track
-
-```
-<plot>
-type = histogram
-file = data/histogram.txt
-r0 = 0.60r
-r1 = 0.74r
-min = 0
-max = 100
-fill_color = blue
-</plot>
-```
-
-#### Heatmap Track
-
-```
-<plot>
-type = heatmap
-file = data/heatmap.txt
-r0 = 0.50r
-r1 = 0.59r
-color = spectral-9-div
-</plot>
-```
-
-### Link/Arc Data (Interactions)
-
-```
-<links>
-<link>
-file = data/links.txt
-radius = 0.45r
-bezier_radius = 0.1r
-color = grey_a5
-thickness = 2p
-
-<rules>
-<rule>
-condition = var(intrachr)
-color = red
-</rule>
-</rules>
-</link>
-</links>
-```
-
-### Data File Formats
-
-```
-# Scatter/histogram: chr start end value
-hs1 1000000 1500000 0.75
-hs1 2000000 2500000 0.45
-
-# Links: chr1 start1 end1 chr2 start2 end2
-hs1 1000000 1500000 hs5 5000000 5500000
-```
-
-### Run Circos
-
-```bash
-circos -conf circos.conf
-```
-
-## pyCircos (Python)
-
-### Installation
-
-```bash
-pip install pyCircos
-```
-
-### Basic Genome Plot
+## pyCirclize (Python)
 
 ```python
-from pycircos import Gcircle
+from pycirclize import Circos
 import matplotlib.pyplot as plt
 
-# Initialize with genome size
-circle = Gcircle()
+sectors = {'chr1': 248956422, 'chr2': 242193529, ...}
+circos = Circos(sectors, space=2)                       # space = degree gap between sectors
 
-# Add chromosome data (name, length)
-chromosomes = [
-    ('chr1', 248956422), ('chr2', 242193529), ('chr3', 198295559),
-    ('chr4', 190214555), ('chr5', 181538259), ('chr6', 170805979),
-    ('chr7', 159345973), ('chr8', 145138636), ('chr9', 138394717),
-    ('chr10', 133797422), ('chr11', 135086622), ('chr12', 133275309)
-]
+for sector in circos.sectors:
+    sector.text(sector.name, r=110, size=8)
+    # outer ideogram
+    sector.axis(r_lim=(95, 100), fc='lightgrey')
+    # data track
+    track = sector.add_track((75, 90))
+    track.bar(positions, heights, width=bin_size, color='#0072B2')
 
-for name, length in chromosomes:
-    circle.add_garc(Garc(arc_id=name, size=length, interspace=2,
-                         raxis_range=(900, 950), labelposition=80,
-                         label_visible=True))
+# Inter-sector links (chord diagram)
+circos.link(('chr1', 1e8, 1.1e8), ('chr5', 2e8, 2.1e8),
+            color='#888888', alpha=0.5)
 
-circle.set_garcs()
-
-# Save
-fig = circle.figure
-fig.savefig('genome_circle.png', dpi=300)
+fig = circos.plotfig()
+fig.savefig('circos_py.pdf', bbox_inches='tight')
 ```
 
-### Add Data Tracks
+pyCirclize is a younger package than circlize but actively developed (Shimoyama 2024+). API more Pythonic than circlize-via-rpy2.
 
-```python
-from pycircos import Gcircle, Garc
-import numpy as np
+## Circos CLI (Perl) — Most Powerful, Steepest Curve
 
-circle = Gcircle()
-
-# Add chromosomes
-for name, length in chromosomes:
-    arc = Garc(arc_id=name, size=length, interspace=3,
-               raxis_range=(800, 850), labelposition=60)
-    circle.add_garc(arc)
-
-circle.set_garcs()
-
-# Add scatter track
-for name, length in chromosomes:
-    positions = np.random.randint(0, length, 50)
-    values = np.random.random(50)
-    circle.scatterplot(name, data=values, positions=positions,
-                       raxis_range=(700, 780), facecolor='red',
-                       markersize=5)
-
-# Add bar track
-for name, length in chromosomes:
-    positions = np.linspace(0, length, 100)
-    values = np.random.random(100) * 100
-    circle.barplot(name, data=values, positions=positions,
-                   raxis_range=(600, 680), facecolor='blue')
-
-# Add links
-circle.chord_plot(('chr1', 10000000, 20000000),
-                  ('chr5', 50000000, 60000000),
-                  raxis_range=(0, 550), facecolor='purple', alpha=0.5)
-
-fig = circle.figure
-fig.savefig('circos_with_data.png', dpi=300)
+```bash
+# config: circos.conf with karyotype, ideogram, plots, links sections
+circos -conf circos.conf -outputfile output.png
 ```
 
-## circlize (R)
+Circos (Krzywinski 2009) is the original; supports unlimited tracks and arbitrary geometries via configuration. For publication-grade complex figures the Perl tool remains the most powerful. For Python/R workflows, circlize/pyCirclize are more accessible.
 
-### Installation
+## Decision Tree by Use Case
+
+| Use case | Recommended | Why |
+|----------|-------------|-----|
+| Whole-genome CNV summary | circlize/pyCirclize | Standard genre |
+| SV link diagram | Chord arcs in circos | Inter-chromosomal adjacency |
+| Hi-C contact summary at chromosome level | circos heatmap track | Adjacency matters |
+| Per-sample mutation overview | Circular karyogram | Aesthetic; comparable to OncoPrint |
+| Cohort-wide gene expression comparison | NOT circular | Use heatmap (Cartesian wins) |
+| Time-series of any kind | NOT circular | Use line plot |
+| Pathway diagram | NOT circular | Use Cytoscape |
+
+## Ideogram + Karyogram Without Circos
+
+For per-chromosome data display where circularity is not required, `karyoploteR` (Gel 2017 *Bioinformatics* 33:3088) renders linear ideograms with stacked data tracks — often the better choice for CNV per-chromosome views.
 
 ```r
-install.packages('circlize')
+library(karyoploteR)
+kp <- plotKaryotype(genome = 'hg38', chromosomes = c('chr1', 'chr7', 'chr17'))
+kpAddBaseNumbers(kp)
+kpLines(kp, data = cnv_gr, y = cnv_gr$log2)
+kpAddCytobandLabels(kp)
 ```
 
-### Basic Plot
+See `copy-number/cnv-visualization` for karyoploteR in depth.
 
-```r
-library(circlize)
+## Per-Method Failure Modes
 
-# Initialize with genome
-circos.initializeWithIdeogram(species = 'hg38')
+### circos.clear() forgotten in a loop
 
-# Add track with data
-bed <- data.frame(
-    chr = paste0('chr', sample(1:22, 100, replace=TRUE)),
-    start = sample(1:1e8, 100),
-    end = sample(1:1e8, 100),
-    value = runif(100)
-)
-bed$end <- bed$start + 1e6
+**Trigger:** Plotting multiple circos figures in a `for` loop without `circos.clear()` between.
 
-circos.genomicTrack(bed, panel.fun = function(region, value, ...) {
-    circos.genomicPoints(region, value, pch=16, cex=0.5, col='red')
-})
+**Mechanism:** circos.par settings (gap.degree, start.degree, clock.wise) persist across plots.
 
-# Add links
-link_data <- data.frame(
-    chr1 = c('chr1', 'chr3'), start1 = c(1e7, 5e7), end1 = c(2e7, 6e7),
-    chr2 = c('chr5', 'chr10'), start2 = c(3e7, 8e7), end2 = c(4e7, 9e7)
-)
-for (i in 1:nrow(link_data)) {
-    circos.link(link_data$chr1[i], c(link_data$start1[i], link_data$end1[i]),
-                link_data$chr2[i], c(link_data$start2[i], link_data$end2[i]),
-                col = 'grey')
-}
+**Symptom:** Plots 2..N inherit state from plot 1; gap sizes, rotation differ unexpectedly.
 
-circos.clear()
-```
+**Fix:** End every plot block with `circos.clear()`. Make it a hygiene rule.
 
-### Genomic Density Plot
+### Using circular when Cartesian would be better
 
-```r
-library(circlize)
+**Trigger:** "Circos plot of gene expression across 20 conditions."
 
-circos.initializeWithIdeogram(species = 'hg38', plotType = c('axis', 'labels'))
+**Mechanism:** Circular impairs value comparison (Cleveland-McGill 1984; Heer-Bostock 2010).
 
-# Gene density track
-circos.genomicDensity(gene_bed, col = 'blue', track.height = 0.1)
+**Symptom:** Reviewer or coauthor says "I can't tell which condition is highest."
 
-# Variant density track
-circos.genomicDensity(variant_bed, col = 'red', track.height = 0.1)
+**Fix:** Use clustered heatmap. Reserve circos for genome-adjacency or chord-diagram use cases.
 
-# Heatmap track
-circos.genomicHeatmap(expression_bed, col = colorRamp2(c(-2, 0, 2), c('blue', 'white', 'red')))
+### Too many links produce a black blob
 
-circos.clear()
-```
+**Trigger:** Plotting 10000+ chord links between chromosomes.
 
-## Common Use Cases
+**Mechanism:** Overlap saturates the center; no individual link visible.
 
-### CNV Visualization
+**Symptom:** Center of circos is uniformly dark.
 
-```python
-# pyCircos CNV plot
-cnv_data = [
-    ('chr1', 10000000, 20000000, 2.5),   # Gain
-    ('chr3', 50000000, 80000000, 0.5),   # Loss
-    ('chr7', 100000000, 120000000, 3.0), # Amplification
-]
+**Fix:** Filter to top-confidence links; OR color-bin by interaction strength with alpha; OR aggregate to chromosome-level summary then link.
 
-for chrom, start, end, log2 in cnv_data:
-    color = 'red' if log2 > 1.5 else 'blue' if log2 < 0.7 else 'grey'
-    circle.barplot(chrom, data=[log2], positions=[(start+end)//2],
-                   width=end-start, raxis_range=(600, 700), facecolor=color)
-```
+### Sector ordering arbitrary
 
-### Fusion Genes
+**Trigger:** Default sector order is input order.
 
-```python
-# Visualize gene fusions as arcs
-fusions = [
-    ('chr9', 133600000, 133700000, 'chr22', 23200000, 23300000),  # BCR-ABL
-    ('chr2', 42300000, 42500000, 'chr2', 29400000, 29600000),     # EML4-ALK
-]
+**Mechanism:** circlize / pyCirclize do not auto-order chromosomes 1..22, X, Y.
 
-for chr1, s1, e1, chr2, s2, e2 in fusions:
-    circle.chord_plot((chr1, s1, e1), (chr2, s2, e2),
-                      raxis_range=(0, 500), facecolor='purple', alpha=0.7)
-```
+**Symptom:** Chromosomes appear in genome-build-file order.
 
-### Hi-C Contact Map
+**Fix:** Explicit `chromosome.index = c(paste0('chr', 1:22), 'chrX', 'chrY')`.
 
-```r
-library(circlize)
+### Wrong species ideogram
 
-circos.initializeWithIdeogram(chromosome.index = paste0('chr', 1:22))
+**Trigger:** `species = 'hg19'` when data is hg38-coordinate.
 
-# Add Hi-C links with color by contact frequency
-for (i in 1:nrow(hic_contacts)) {
-    col = colorRamp2(c(0, 100), c('grey90', 'red'))(hic_contacts$count[i])
-    circos.link(hic_contacts$chr1[i], c(hic_contacts$start1[i], hic_contacts$end1[i]),
-                hic_contacts$chr2[i], c(hic_contacts$start2[i], hic_contacts$end2[i]),
-                col = col)
-}
+**Mechanism:** circlize fetches cytoband data per species; mismatch renders correct ideogram but wrong banding for the data.
 
-circos.clear()
-```
+**Symptom:** Cytoband boundaries don't match published references.
 
-## Complete Workflow: Variant Summary
+**Fix:** Match `species` to data coordinate system. For non-standard genomes, supply custom cytoband file. For `species = 'hg38'` specifically, always pass `chromosome.index = paste0('chr', c(1:22, 'X', 'Y'))` to skip unmapped contigs (jokergoo/circlize issue #46).
 
-**Goal:** Create a multi-track circos plot summarizing genomic variant and CNV data across all chromosomes.
+### Ideogram covers data track
 
-**Approach:** Initialize a pyCircos circle with chromosome ideograms, add a variant density bar track from binned counts, overlay a CNV gain/loss fill track, and export the composite figure.
+**Trigger:** Default ideogram track height too large; data track squeezed.
 
-```python
-from pycircos import Gcircle, Garc
-import pandas as pd
+**Mechanism:** circos.initializeWithIdeogram uses ~5% of radius; left-over for data.
 
-# Load data
-variants = pd.read_csv('variants.bed', sep='\t', names=['chr', 'start', 'end', 'type'])
-cnv = pd.read_csv('cnv.bed', sep='\t', names=['chr', 'start', 'end', 'log2'])
+**Symptom:** Data values invisible because track is too narrow.
 
-# Initialize
-circle = Gcircle()
+**Fix:** Reduce `cytoband.height` in initialization; OR use `plotType = c('axis', 'labels')` to omit ideogram entirely.
 
-chromosomes = [('chr' + str(i), size) for i, size in enumerate([
-    248956422, 242193529, 198295559, 190214555, 181538259,
-    170805979, 159345973, 145138636, 138394717, 133797422,
-    135086622, 133275309, 114364328, 107043718, 101991189,
-    90338345, 83257441, 80373285, 58617616, 64444167,
-    46709983, 50818468
-], start=1)]
+### Chromosome label collisions for small chromosomes
 
-for name, length in chromosomes:
-    arc = Garc(arc_id=name, size=length, interspace=2, raxis_range=(850, 900))
-    circle.add_garc(arc)
-circle.set_garcs()
+**Trigger:** Default label position; small chromosomes (chr21, chr22, chrY) have overlapping labels.
 
-# Variant density track
-for chrom, length in chromosomes:
-    chrom_vars = variants[variants['chr'] == chrom]
-    if len(chrom_vars) > 0:
-        hist, bins = np.histogram(chrom_vars['start'], bins=50, range=(0, length))
-        circle.barplot(chrom, data=hist, positions=bins[:-1],
-                       raxis_range=(750, 840), facecolor='steelblue')
+**Mechanism:** Labels drawn at sector midpoints regardless of sector width.
 
-# CNV track
-for chrom, length in chromosomes:
-    chrom_cnv = cnv[cnv['chr'] == chrom]
-    for _, row in chrom_cnv.iterrows():
-        color = 'red' if row['log2'] > 0.3 else 'blue' if row['log2'] < -0.3 else 'grey'
-        circle.fillplot(chrom, data=[abs(row['log2'])],
-                        positions=[(row['start'] + row['end']) // 2],
-                        raxis_range=(650, 740), facecolor=color)
+**Symptom:** Labels overlap.
 
-fig = circle.figure
-fig.savefig('genome_summary.png', dpi=300, bbox_inches='tight')
-```
+**Fix:** `circos.par(gap.degree = c(rep(1, 22), 10, 10, 10))` for larger gaps before small chromosomes; OR reduce label font size.
+
+## Reconciliation
+
+| Pattern | Cause | Action |
+|---------|-------|--------|
+| circlize and pyCirclize differ in default rotation | Different start-angle convention | Set `start.degree=90` (R) / equivalent (Python) explicitly |
+| Cytoband colors don't match UCSC | Different species cytoband source | Verify species; for custom genomes supply band file |
+| Inter-sector links arc the "long way around" | Default arc direction | Some chord packages support `direction = 'short'` |
+
+## Quantitative Thresholds
+
+| Threshold | Value | Source |
+|-----------|-------|--------|
+| Max sectors readable | ~30 | Visualization practical |
+| Max links before blob | ~5000 | Practical; depends on alpha |
+| Cytoband.height default | 0.05 of radius | circlize default |
+| When circular adds value | Adjacency-meaningful only | Cleveland-McGill 1984 |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Subsequent plots use wrong rotation | `circos.clear()` forgotten | Always end with `circos.clear()` |
+| Chromosomes out of order | Default = input order | Explicit chromosome.index |
+| Cytoband mismatch | Wrong species | Match species to data coords |
+| Center of circos black | Too many links | Filter or aggregate |
+| Reviewer asks "why circular?" | Cartesian would have been clearer | Migrate to heatmap unless adjacency matters |
+| Small-chromosome label overlap | Default label position | Larger gap.degree before small sectors |
+
+## References
+
+- Cleveland WS, McGill R. 1984. Graphical perception: theory, experimentation, and application to the development of graphical methods. *J Am Stat Assoc* 79(387):531-554.
+- Gel B, Serra E. 2017. karyoploteR: an R/Bioconductor package to plot customizable genomes. *Bioinformatics* 33(19):3088-3090.
+- Gu Z, Gu L, Eils R, Schlesner M, Brors B. 2014. circlize implements and enhances circular visualization in R. *Bioinformatics* 30(19):2811-2812.
+- Heer J, Bostock M. 2010. Crowdsourcing graphical perception: using Mechanical Turk to assess visualization design. *Proc CHI* 203-212.
+- Krzywinski M, Schein J, Birol I, et al. 2009. Circos: an information aesthetic for comparative genomics. *Genome Res* 19(9):1639-1645.
+- Shimoyama Y. 2024. pyCirclize: Circular visualization in Python. *GitHub* https://github.com/moshi4/pyCirclize
 
 ## Related Skills
 
-- data-visualization/genome-tracks - Linear genome visualization
-- hi-c-analysis/hic-visualization - Hi-C-specific circos
-- copy-number/cnv-visualization - CNV visualization
-- variant-calling/structural-variant-calling - SV data for circos
+- copy-number/cnv-visualization - karyoploteR linear alternative for CNV
+- variant-calling/structural-variant-calling - SV data for circos links
+- hi-c-analysis/hic-visualization - Hi-C contact data circular display
+- data-visualization/genome-tracks - Linear track alternative
+- data-visualization/color-palettes - Sector and link palettes

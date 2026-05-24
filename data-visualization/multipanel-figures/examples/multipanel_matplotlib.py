@@ -1,5 +1,5 @@
 '''Create multi-panel publication figures with matplotlib'''
-# Reference: matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
+# Reference: matplotlib 3.8+, numpy 1.26+, pdf.fonttype=42 for journal compliance | Verify API if version differs
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec

@@ -78,5 +78,6 @@ Tell your AI agent what you want to do:
 - deseq2-basics - Generate DESeq2 results for visualization
 - edger-basics - Generate edgeR results for visualization
 - de-results - Filter genes before visualization
-- data-visualization/specialized-omics-plots - Custom ggplot2 volcano/MA/PCA
+- data-visualization/volcano-and-ma-plots - Custom ggplot2/matplotlib volcano + MA with LFC shrinkage
+- data-visualization/dimensionality-reduction-plots - PCA / UMAP / t-SNE / PHATE
 - data-visualization/heatmaps-clustering - Advanced heatmap customization

@@ -26,7 +26,7 @@ This skill covers **DE-specific built-in functions**:
 - edgeR: `plotMD()`, `plotBCV()`, `plotMDS()`
 - Sample distance heatmaps and p-value distributions
 
-**For custom ggplot2/matplotlib implementations** of volcano, MA, and PCA plots, see `data-visualization/specialized-omics-plots`.
+**For custom ggplot2/matplotlib implementations** of volcano and MA plots, see `data-visualization/volcano-and-ma-plots`; for PCA / UMAP / t-SNE / PHATE, see `data-visualization/dimensionality-reduction-plots`.
 
 ## Required Libraries
 
@@ -448,5 +448,6 @@ Use shrunken LFCs (apeglm/ashr) on the x-axis and un-shrunken p-values on the y-
 - deseq2-basics - Generate DESeq2 results for visualization
 - edger-basics - Generate edgeR results for visualization
 - de-results - Filter genes before visualization
-- data-visualization/specialized-omics-plots - Custom ggplot2 volcano/MA/PCA functions
+- data-visualization/volcano-and-ma-plots - Custom ggplot2/matplotlib volcano + MA with LFC shrinkage
+- data-visualization/dimensionality-reduction-plots - PCA / UMAP / t-SNE / PHATE
 - data-visualization/heatmaps-clustering - Advanced heatmap customization

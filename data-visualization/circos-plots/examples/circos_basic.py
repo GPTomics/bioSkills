@@ -1,44 +1,33 @@
 #!/usr/bin/env python3
-'''Basic circos plot with pyCircos'''
-# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
+'''Basic genome circos with pyCirclize (Shimoyama 2024). Matches SKILL.md pyCirclize API.'''
+# Reference: pyCirclize 1.4+, matplotlib 3.8+ | Verify API if version differs
 
-from pycircos import Gcircle, Garc
-import numpy as np
+from pycirclize import Circos
+import matplotlib.pyplot as plt
 
-chromosomes = [
-    ('chr1', 248956422), ('chr2', 242193529), ('chr3', 198295559),
-    ('chr4', 190214555), ('chr5', 181538259), ('chr6', 170805979),
-    ('chr7', 159345973), ('chr8', 145138636), ('chr9', 138394717),
-    ('chr10', 133797422), ('chr11', 135086622), ('chr12', 133275309)
-]
+# Sector sizes = chromosome lengths (hg38, autosomes only for clarity)
+sectors = {
+    'chr1': 248956422, 'chr2': 242193529, 'chr3': 198295559,
+    'chr4': 190214555, 'chr5': 181538259, 'chr6': 170805979,
+    'chr7': 159345973, 'chr8': 145138636, 'chr9': 138394717,
+    'chr10': 133797422, 'chr11': 135086622, 'chr12': 133275309,
+    'chr13': 114364328, 'chr14': 107043718, 'chr15': 101991189,
+    'chr16': 90338345, 'chr17': 83257441, 'chr18': 80373285,
+    'chr19': 58617616, 'chr20': 64444167, 'chr21': 46709983, 'chr22': 50818468,
+}
 
-circle = Gcircle()
+circos = Circos(sectors, space=2)                       # 2 degrees gap between sectors
 
-for name, length in chromosomes:
-    arc = Garc(arc_id=name, size=length, interspace=3, raxis_range=(850, 900),
-               labelposition=60, label_visible=True)
-    circle.add_garc(arc)
+# Outer ring: ideogram + labels
+for sector in circos.sectors:
+    sector.text(sector.name, r=110, size=8)
+    sector.axis(r_lim=(95, 100), fc='lightgrey')
 
-circle.set_garcs()
+# Inter-sector chord (e.g., BCR-ABL1 t(9;22) translocation)
+circos.link(('chr9', 133600000, 133700000),
+            ('chr22', 23200000, 23300000),
+            color='#D55E00', alpha=0.5)
 
-# Add scatter track
-for name, length in chromosomes:
-    positions = np.random.randint(0, length, 30)
-    values = np.random.random(30)
-    circle.scatterplot(name, data=values, positions=positions,
-                       raxis_range=(700, 800), facecolor='steelblue', markersize=4)
-
-# Add bar track
-for name, length in chromosomes:
-    positions = np.linspace(0, length, 50, dtype=int)
-    values = np.random.random(50) * 100
-    circle.barplot(name, data=values, positions=positions,
-                   raxis_range=(550, 680), facecolor='coral')
-
-# Add a link between regions
-circle.chord_plot(('chr1', 50000000, 60000000), ('chr5', 100000000, 110000000),
-                  raxis_range=(0, 500), facecolor='purple', alpha=0.5)
-
-fig = circle.figure
-fig.savefig('circos_output.png', dpi=300, bbox_inches='tight')
-print('Saved circos_output.png')
+fig = circos.plotfig()
+fig.savefig('circos_basic.pdf', bbox_inches='tight', dpi=300)
+plt.close(fig)

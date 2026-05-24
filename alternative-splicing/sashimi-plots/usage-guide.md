@@ -67,5 +67,5 @@ Tell your AI agent what you want to do:
 
 - differential-splicing - Identify events to plot
 - splicing-quantification - Context for PSI values
-- data-visualization/genome-browser-tracks - Multi-track figure design
+- data-visualization/genome-tracks - Multi-track figure design
 - data-visualization/ggplot2-fundamentals - ggsashimi customization

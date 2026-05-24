@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+, matplotlib 3.8+ | Verify API if version differs
+# Reference: ggplot2 3.5+, patchwork 1.2+, dplyr 1.1+ | Verify API if version differs
 library(ggplot2)
 library(patchwork)
 library(dplyr)

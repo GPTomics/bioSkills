@@ -1,5 +1,5 @@
 '''Cytoscape automation via py4cytoscape for publication-quality network figures'''
-# Reference: matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
+# Reference: py4cytoscape 1.9+, networkx 3.2+, matplotlib 3.8+ | Verify API if version differs
 
 import networkx as nx
 import numpy as np

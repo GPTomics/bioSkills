@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+, matplotlib 3.8+, seaborn 0.13+ | Verify API if version differs
+# Reference: ggplot2 3.5+, RColorBrewer 1.1+, viridis 0.6+, patchwork 1.2+ | Verify API if version differs
 library(ggplot2)
 library(RColorBrewer)
 library(viridis)
