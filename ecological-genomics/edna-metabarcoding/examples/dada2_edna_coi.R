@@ -1,8 +1,19 @@
-# Reference: DADA2 1.30+, cutadapt 4.4+ | Verify API if version differs
+# Reference: DADA2 1.30+, cutadapt 4.7+, decontam 1.20+ | Verify API if version differs
+# DADA2 ASV pipeline for COI eDNA.
+# CRITICAL prerequisite: primers MUST be removed with cutadapt BEFORE filterAndTrim.
+# The DADA2 error model assumes primer-free input; primer-bearing reads corrupt it.
+# Example cutadapt invocation (run separately and place output in 'cutadapt_trimmed/'):
+#   cutadapt -g 'GGWACWGGWTGAACWGTWTAYCCYCC;min_overlap=20' \
+#            -G 'TAIACYTCIGGRTGICCRAARAAYCA;min_overlap=20' \
+#            --discard-untrimmed --pair-filter=any \
+#            -o cutadapt_trimmed/sample_R1.fastq.gz \
+#            -p cutadapt_trimmed/sample_R2.fastq.gz \
+#            raw_R1.fastq.gz raw_R2.fastq.gz
 library(dada2)
 library(decontam)
 
 # --- Input setup ---
+# Assumes primers already removed via cutadapt; see header comment for invocation
 input_dir <- 'cutadapt_trimmed'
 fwd_files <- sort(list.files(input_dir, pattern = '_R1.fastq.gz', full.names = TRUE))
 rev_files <- sort(list.files(input_dir, pattern = '_R2.fastq.gz', full.names = TRUE))
@@ -18,10 +29,13 @@ plotQualityProfile(rev_files[1:4])
 
 # --- Filter and trim ---
 # maxEE=c(2,2): max expected errors per read; balances sensitivity and error removal
-# truncLen: set based on quality profiles; COI mlCOIintF/jgHCO2198 produces ~313bp
+# truncLen: data-dependent; set from plotQualityProfile() inspection above
+#   Typical values for 2x250 COI: c(220, 180); for 2x300: c(240, 200)
+#   DO NOT guess; inspect quality profile first
 # minLen=200: removes truncated fragments below useful COI barcode length
 out <- filterAndTrim(fwd_files, filt_fwd, rev_files, filt_rev,
                      maxN = 0, maxEE = c(2, 2), truncQ = 2,
+                     truncLen = c(220, 180),     # set from plotQualityProfile() inspection
                      minLen = 200, rm.phix = TRUE, multithread = TRUE)
 
 exists_filter <- file.exists(filt_fwd) & file.exists(filt_rev)
@@ -71,11 +85,23 @@ track
 is_negative <- grepl('blank|negative|NTC', sample_names, ignore.case = TRUE)
 
 if (sum(is_negative) > 0) {
-    # prevalence method: ASVs more prevalent in negatives are contaminants
-    # threshold=0.5: balanced false positive/negative rate
-    contam <- isContaminant(seqtab_nochim, neg = is_negative,
-                            method = 'prevalence', threshold = 0.5)
-    cat('Contaminant ASVs identified:', sum(contam$contaminant), '\n')
+    # Combined method (Davis 2018): uses BOTH negative controls AND DNA concentration
+    # Falls back to prevalence-only if conc is NULL
+    # threshold=0.1: decontam default; for low-biomass samples, reduce to 0.05
+    # CRITICAL: decontam output is SCREENING, not classification.
+    # Inspect each flagged ASV for biological plausibility before deletion
+    # (common reagent contaminants: Delftia, Sphingomonas, Burkholderia)
+    if (exists('dna_concentration')) {
+        contam <- isContaminant(seqtab_nochim, neg = is_negative,
+                                conc = dna_concentration,
+                                method = 'combined', threshold = 0.1)
+    } else {
+        # Fall back to prevalence-only if no qPCR/Qubit concentration data
+        contam <- isContaminant(seqtab_nochim, neg = is_negative,
+                                method = 'prevalence', threshold = 0.1)
+    }
+    cat('Flagged candidate contaminant ASVs:', sum(contam$contaminant), '\n')
+    cat('Manual review required before deletion (decontam is screening, not ground truth)\n')
     seqtab_clean <- seqtab_nochim[!is_negative, !contam$contaminant]
 } else {
     cat('No negative controls found; skipping decontam.\n')

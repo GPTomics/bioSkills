@@ -1,4 +1,6 @@
-# Reference: vegan 2.6+ | Verify API if version differs
+# Reference: LEA 3.14+, qvalue 2.34+, vegan 2.6+ | Verify API if version differs
+# LFMM2 GEA with MANDATORY K selection via sNMF cross-entropy elbow (Caye 2019).
+# Wrong K silently invalidates results; sensitivity-check at K-1, K+1.
 library(LEA)
 library(qvalue)
 
@@ -20,9 +22,16 @@ plot(snmf_result, col = 'blue', pch = 19, cex = 1.2,
      ylab = 'Cross-entropy criterion')
 dev.off()
 
-# Select best K (example: K=3)
+# Select best K from cross-entropy elbow
+# Replace 3 with the cross-entropy-elbow value read from snmf_cross_entropy.pdf
 best_K <- 3
-cat('Selected K:', best_K, '\n')
+cat('Selected K (cross-entropy elbow):', best_K, '\n')
+
+# --- Step 2b: Sensitivity-check at K-1, K, K+1 ---
+# Wrong K silently invalidates results; report which loci appear at all three K
+# Loci detected at only one K are sensitive to latent-factor choice; flag as lower-confidence
+sensitivity_K <- c(max(1, best_K - 1), best_K, best_K + 1)
+cat('Sensitivity-check K values:', sensitivity_K, '\n')
 
 # --- Step 3: Prepare environmental data ---
 # env_vars: matrix with rows = individuals, columns = environmental variables
@@ -68,6 +77,32 @@ for (i in 1:ncol(env_vars)) {
 all_candidates <- do.call(rbind, results_list)
 cat('\nTotal candidate associations:', nrow(all_candidates), '\n')
 cat('Unique candidate loci:', length(unique(all_candidates$locus)), '\n')
+
+# --- Step 6b: Sensitivity-check candidates across K-1, K, K+1 ---
+# Re-run LFMM2 at each sensitivity K and intersect candidate sets
+# Loci appearing in ALL three K values are high-confidence; single-K detections are lower
+get_candidates_at_K <- function(K_val) {
+    res_k <- lfmm2(input = genotypes, env = env_vars, K = K_val)
+    p_k <- lfmm2.test(res_k, input = genotypes, env = env_vars,
+                       full = TRUE, genomic.control = TRUE)
+    cand_k <- list()
+    for (i in 1:ncol(env_vars)) {
+        pv <- p_k$pvalues[, i]
+        pv[is.na(pv)] <- 1
+        qv <- qvalue(pv)$qvalues
+        cand_k[[i]] <- which(qv < 0.05)
+    }
+    cand_k
+}
+sens_candidates <- lapply(sensitivity_K, get_candidates_at_K)
+
+# Per environment variable: count loci detected in all three K runs
+for (i in seq_len(ncol(env_vars))) {
+    sets <- lapply(sens_candidates, `[[`, i)
+    consensus <- Reduce(intersect, sets)
+    cat(sprintf('Var %d: high-confidence loci (all 3 K values): %d\n',
+                i, length(consensus)))
+}
 
 # --- Step 7: Manhattan plot ---
 pdf('lfmm_manhattan.pdf', width = 12, height = 5)

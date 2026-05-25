@@ -1,4 +1,6 @@
-# Reference: vegan 2.6+ | Verify API if version differs
+# Reference: pcadapt 4.3+, qvalue 2.34+, OutFLANK 0.2+ | Verify API if version differs
+# PC-based outlier detection (pcadapt) for selection scans without environmental data.
+# Complement with OutFLANK and/or LFMM2 for multi-method consensus.
 library(pcadapt)
 library(qvalue)
 

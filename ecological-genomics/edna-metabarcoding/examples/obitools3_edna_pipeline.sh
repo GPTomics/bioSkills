@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Reference: DADA2 1.30+, cutadapt 4.4+ | Verify API if version differs
-# OBITools3 eDNA metabarcoding pipeline: paired-end FASTQ to taxonomy table
+# Reference: OBITools3 (Python 3), cutadapt 4.7+ | Verify API if version differs
+# OBITools3 v3 eDNA metabarcoding pipeline: paired-end FASTQ to taxonomy table.
+# v3 uses 'obi <subcommand>' syntax (e.g., 'obi stats' plural, with space),
+# DMS-based ingestion, and .tar.gz taxonomy archive (NOT a directory).
+# Cite Boyer et al. 2016 Mol Ecol Resour 16:176-182.
 # Marker: COI with mlCOIintF/jgHCO2198 primers
 # Adjust length filters and reference database for other markers
 
@@ -48,6 +51,10 @@ fi
 
 # --- Step 6: Dereplicate ---
 obi uniq "${NEXT}" "${DMS}/derep"
+
+# Inspect statistics with `obi stats` (v3 PLURAL command; v1 was `obistat`)
+# This is the central v1 -> v3 command-name break to remember
+obi stats -c COUNT "${DMS}/derep"
 
 # count >= 2: removes singletons (likely sequencing errors)
 obi grep -p 'sequence["count"] >= 2' "${DMS}/derep" "${DMS}/no_singletons"
