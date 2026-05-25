@@ -197,9 +197,13 @@ def validate_mapping(original_ids, mapping, expected_mapped_pct=0.8):
 - Remove version numbers from Ensembl IDs before mapping (ENSG00000141510.15 -> ENSG00000141510), but keep versions when reproducibility with a specific Ensembl release is needed
 - Validate mapping rates -- low rates often indicate wrong species or ID type
 - Use stable IDs (Ensembl or Entrez) as computational keys; symbols change frequently and should only be used as display labels
+- HGNC renamed many symbols in 2020 (Bruford 2020 Nat Genet 52:754): SEPT* -> SEPTIN*, MARCH* -> MARCHF*, MARC* -> MTARC*, DEC1 -> DELEC1. Hard-coded old-symbol lists silently drop these genes on join; use mygene `scopes='symbol,alias,prev_symbol'` to handle both old and new names
+- Detect Excel-corrupted gene lists by checking for date-formatted strings (`1-Mar`, `2-Sep`) or floating-point values in the gene column (Ziemann 2016)
 - Check for PAR gene duplicates after mapping -- genes in pseudo-autosomal regions may have entries on both X and Y chromosomes
+- When stripping Ensembl version suffixes, preserve the GENCODE `_PAR_Y` tag: use `sub('\\.[0-9]+(_PAR_Y)?$', '\\1', x)` not `sub('\\..*', '', x)`. The naive regex collapses chrY PAR duplicates onto chrX
 - For cross-species work, use only one-to-one orthologs from Ensembl Compara for scRNA-seq integration
-- Pin mappings to a specific database release and archive the cross-reference table for reproducibility
+- Pin mappings to a specific Ensembl release (`useEnsembl(version=N)`) and archive the cross-reference table for reproducibility -- biomaRt floats to current release without version pinning
+- For clinical reporting with HGVS notation (`NM_000546.6:c.215C>G`), use the MANE Select transcript (cross-database consensus from RefSeq and Ensembl)
 - org.db packages update every 6 months; for current mappings, query mygene.info or NCBI gene_info
 
 ## Related Skills

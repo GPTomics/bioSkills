@@ -1,13 +1,13 @@
 ---
-name: bio-de-visualization
-description: Visualize differential expression results using DESeq2/edgeR built-in functions. Covers plotMA, plotDispEsts, plotCounts, plotBCV, sample distance heatmaps, and p-value histograms. Use when visualizing differential expression results.
+name: bio-differential-expression-de-visualization
+description: Creates DE-specific diagnostic and result visualizations using DESeq2/edgeR built-in functions and lightweight ggplot2 wrappers. Covers MA plot (with the shrunken-LFC compression effect), volcano (with the apeglm caveat that p-values are unchanged), PCA on VST/rlog (never raw counts), sample distance heatmaps, top-DE-gene heatmaps with the row-scaling trap, dispersion / BCV plot interpretation, p-value histogram diagnostics, plotCounts for individual genes, blind=TRUE vs FALSE rationale, and the n=3 visualization stake. Use when generating DE diagnostic plots, choosing VST vs rlog for visualization, troubleshooting suspicious plot patterns (shifted MA cloud, batch-dominated PCA, anti-conservative p-value histogram), or building a standard QC figure panel.
 tool_type: r
 primary_tool: DESeq2
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, limma 3.58+, matplotlib 3.8+
+Reference examples tested with: DESeq2 1.42+, edgeR 4.0+, limma 3.58+, ggplot2 3.5+, pheatmap 1.0+, RColorBrewer 1.1+, ggrepel 0.9+, EnhancedVolcano 1.20+, matrixStats 1.2+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -17,437 +17,339 @@ package and adapt the example to match the actual API rather than retrying.
 
 # DE Visualization
 
-Create visualizations for differential expression analysis using DESeq2 and edgeR built-in plotting functions.
+**"Make the standard DE figure panel"** -> Use built-in functions or thin wrappers to produce diagnostic plots (dispersion, p-value histogram, PCA, sample distance) and result plots (MA, volcano, heatmap of top DE genes, per-gene counts), interpreted as diagnostics of the underlying model.
 
 ## Scope
 
-This skill covers **DE-specific built-in functions**:
-- DESeq2: `plotMA()`, `plotPCA()`, `plotDispEsts()`, `plotCounts()`
-- edgeR: `plotMD()`, `plotBCV()`, `plotMDS()`
-- Sample distance heatmaps and p-value distributions
+This skill covers DE-specific built-in plots and immediate wrappers. For richer customization:
+- Custom volcano/MA with apeglm-shrunken LFC and ggrepel labelling -> `data-visualization/volcano-and-ma-plots`
+- PCA / UMAP / t-SNE customization -> `data-visualization/dimensionality-reduction-plots`
+- Heatmap customization and ComplexHeatmap recipes -> `data-visualization/heatmaps-clustering`
 
-**For custom ggplot2/matplotlib implementations** of volcano and MA plots, see `data-visualization/volcano-and-ma-plots`; for PCA / UMAP / t-SNE / PHATE, see `data-visualization/dimensionality-reduction-plots`.
+## The Single Most Important Modern Insight -- A volcano with shrunken LFC compresses the cloud, but the p-values are unchanged
 
-## Required Libraries
+`lfcShrink()` pulls noisy estimates toward zero. On the volcano, that pulls genes horizontally toward the center. But the y-axis (`-log10(pvalue)`) is the **unshrunken Wald p-value** -- shrinkage does NOT recompute p-values (Zhu, Ibrahim, Love 2019 *Bioinformatics* 35:2084). A naive reader sees fewer extreme dots and concludes "fewer genes are significant". Wrong: the same genes are significant; the effect sizes are smaller and more honest.
+
+Always label the volcano x-axis "shrunken log2 fold change (apeglm)" and note the y-axis comes from the unshrunken Wald test. The whole point of the apeglm volcano is the honest effect-size axis; if a publication shows an unshrunken volcano, it is showing inflated effects from low-count noise.
+
+The MA plot has its own version of this: shrinkage flattens the left side (low-mean, formerly extreme LFC) and barely touches the right (high-mean, well-estimated LFC). That asymmetry is the visual signature of working shrinkage.
+
+## Plot Taxonomy
+
+| Plot | Diagnostic OR result | Built-in function | What it tests |
+|------|---------------------|-------------------|---------------|
+| Dispersion plot | Diagnostic | `plotDispEsts(dds)` (DESeq2), `plotBCV(y)` (edgeR) | Mean-dispersion trend fit quality |
+| p-value histogram | Diagnostic | None; use ggplot2 | Null calibration, hidden batch, over-correction |
+| PCA on VST/rlog | Diagnostic + result | `plotPCA(vsd, intgroup=...)` (DESeq2), `plotMDS()` (edgeR via limma) | Sample clustering, batch effects, outliers |
+| Sample distance heatmap | Diagnostic | `pheatmap` on `dist(t(assay(vsd)))` | Within-group consistency, sample swaps |
+| MA plot | Diagnostic + result | `plotMA(res)` (DESeq2), `plotMD(qlf)` (edgeR) | Normalization sanity, LFC vs mean |
+| Volcano | Result | ggplot2 wrapper; `EnhancedVolcano` | Top-effect, top-significance gene story |
+| Top-DE heatmap | Result | `pheatmap` on `assay(vsd)[sig_genes,]` | Per-gene pattern across conditions |
+| `plotCounts` per gene | Result | `plotCounts(dds, gene, intgroup)` | Per-gene biology |
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended approach |
+|----------|---------------------|
+| PCA for unbiased QC | `vst(dds, blind = TRUE)`; ask "do samples group as expected without design influence?" |
+| PCA for results figure | `vst(dds, blind = FALSE)`; design is settled, accept its influence on dispersion |
+| n < 30, library sizes vary >4x | `rlog(dds, blind = FALSE)` instead of vst |
+| n > 30 | `vst()`; rlog impractical |
+| Volcano | Plot shrunken LFC on x, unshrunken p-value on y; label both axes |
+| Sample distance heatmap | `vst(blind = TRUE)`; tells if a sample is the wrong group regardless of design |
+| Top-DE heatmap, want to see PATTERN | `scale = 'row'` (z-score per gene) |
+| Top-DE heatmap, want to see ABSOLUTE LEVEL | `scale = 'none'` on `assay(vsd)`; otherwise weak signal looks strong |
+| Top-variable-gene selection | `matrixStats::rowMads(assay(vsd))` instead of `rowVars` -- MAD is outlier-robust |
+| n = 3, top genes in volcano | Note Schurch 2016 finding: 20-40% of true positives missed; treat as exploratory |
+| Many groups, comparing DE sets | UpSet plot (Lex 2014); Venn drowns above 3 sets |
+
+## Dispersion Diagnostic (Run This First)
+
+**Goal:** Verify the dispersion-mean trend was fit acceptably before trusting any results.
+
+**Approach:** `plotDispEsts(dds)` (DESeq2) or `plotBCV(y)` (edgeR) shows gene-wise (black/blue), fitted trend (red), and final shrunken (blue) dispersions vs mean.
 
 ```r
-library(DESeq2)
+plotDispEsts(dds)
+
+plotBCV(y)
+```
+
+| Pattern | Meaning | Action |
+|---------|---------|--------|
+| Cloud follows trend; final shrunken estimates pulled toward red curve | Healthy fit | Proceed |
+| Red trend nowhere near the gene-wise cloud | Parametric trend failed | `DESeq(dds, fitType = 'local')` or `fitType = 'mean'` |
+| Many gene-wise dispersions FAR ABOVE the trend | Outlier or unmodeled batch genes | Inspect rather than trust QL F-test alone |
+| Final estimates much lower than gene-wise everywhere | Excessive shrinkage; sample too small or trend too flat | Check `useEM`, robust hyperparameter setting |
+| BCV decreases monotonically with mean | Correct in edgeR | Default trend |
+
+A plot inspected before trusting results is worth a hundred lines of statistical safeguards.
+
+## P-value Histogram (Run This Second)
+
+**Goal:** Detect model misspecification or hidden batch before reporting any gene list.
+
+**Approach:** Histogram of raw p-values; under a correctly specified null, uniform with a spike near zero.
+
+```r
 library(ggplot2)
-library(pheatmap)
-library(RColorBrewer)
-library(ggrepel)  # For labeled points
-```
-
-## Installation
-
-```r
-install.packages(c('ggplot2', 'pheatmap', 'RColorBrewer', 'ggrepel'))
-# Optional: Enhanced volcano plots
-BiocManager::install('EnhancedVolcano')
-```
-
-## MA Plot
-
-**Goal:** Visualize the relationship between mean expression and log fold change to assess DE results.
-
-**Approach:** Plot log fold change against mean normalized counts, highlighting significant genes.
-
-**"Make an MA plot of my DE results"** → Plot mean expression vs. fold change with significant genes colored, using plotMA or ggplot2.
-
-### DESeq2 MA Plot
-
-```r
-# Built-in MA plot
-plotMA(res, ylim = c(-5, 5), main = 'MA Plot')
-
-# With custom alpha
-plotMA(res, alpha = 0.05, ylim = c(-5, 5))
-
-# Highlight specific genes
-plotMA(res, ylim = c(-5, 5))
-with(subset(res, padj < 0.01 & abs(log2FoldChange) > 2),
-     points(baseMean, log2FoldChange, col = 'red', pch = 20))
-```
-
-### Custom ggplot2 MA Plot
-
-```r
-res_df <- as.data.frame(res)
-res_df$significant <- res_df$padj < 0.05 & !is.na(res_df$padj)
-
-ggplot(res_df, aes(x = log10(baseMean), y = log2FoldChange, color = significant)) +
-    geom_point(alpha = 0.5, size = 1) +
-    scale_color_manual(values = c('grey60', 'red')) +
-    geom_hline(yintercept = 0, linetype = 'dashed') +
-    labs(x = 'log10(Mean Expression)', y = 'log2 Fold Change', title = 'MA Plot') +
-    theme_bw() +
-    theme(legend.position = 'bottom')
-```
-
-### edgeR MA Plot
-
-```r
-# Using plotMD (mean-difference plot)
-plotMD(qlf, main = 'MD Plot')
-abline(h = c(-1, 1), col = 'blue', lty = 2)
-```
-
-## Volcano Plot
-
-**Goal:** Display statistical significance against fold change magnitude to identify the most important DE genes.
-
-**Approach:** Plot -log10(p-value) vs. log2 fold change with threshold lines and optional gene labels.
-
-**"Create a volcano plot of differentially expressed genes"** → Scatter plot of fold change vs. significance with colored significance regions and labeled top hits.
-
-### Basic Volcano Plot
-
-```r
-res_df <- as.data.frame(res)
-res_df$significant <- res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 1
-
-ggplot(res_df, aes(x = log2FoldChange, y = -log10(pvalue), color = significant)) +
-    geom_point(alpha = 0.5, size = 1) +
-    scale_color_manual(values = c('grey60', 'red')) +
-    geom_vline(xintercept = c(-1, 1), linetype = 'dashed', color = 'blue') +
-    geom_hline(yintercept = -log10(0.05), linetype = 'dashed', color = 'blue') +
-    labs(x = 'log2 Fold Change', y = '-log10(p-value)', title = 'Volcano Plot') +
-    theme_bw()
-```
-
-### Volcano with Gene Labels
-
-```r
-res_df <- as.data.frame(res)
-res_df$gene <- rownames(res_df)
-res_df$significant <- res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 1
-
-# Label top genes
-top_genes <- head(res_df[order(res_df$padj), ], 10)
-
-ggplot(res_df, aes(x = log2FoldChange, y = -log10(pvalue))) +
-    geom_point(aes(color = significant), alpha = 0.5, size = 1) +
-    scale_color_manual(values = c('grey60', 'red')) +
-    geom_text_repel(data = top_genes, aes(label = gene),
-                    size = 3, max.overlaps = 20) +
-    geom_vline(xintercept = c(-1, 1), linetype = 'dashed') +
-    geom_hline(yintercept = -log10(0.05), linetype = 'dashed') +
-    labs(x = 'log2 Fold Change', y = '-log10(p-value)') +
-    theme_bw()
-```
-
-### EnhancedVolcano
-
-```r
-library(EnhancedVolcano)
-
-EnhancedVolcano(res,
-    lab = rownames(res),
-    x = 'log2FoldChange',
-    y = 'pvalue',
-    pCutoff = 0.05,
-    FCcutoff = 1,
-    title = 'Differential Expression',
-    subtitle = 'Treatment vs Control')
-```
-
-## PCA Plot
-
-**Goal:** Assess sample clustering and identify batch effects or outliers via dimensionality reduction.
-
-**Approach:** Apply variance-stabilizing transformation then project samples onto principal components, coloring by experimental variables.
-
-**"Show me a PCA plot of my samples"** → Perform PCA on transformed expression data and visualize sample separation by condition and batch.
-
-### DESeq2 PCA
-
-```r
-# Variance stabilizing transformation first
-vsd <- vst(dds, blind = FALSE)
-
-# Basic PCA
-plotPCA(vsd, intgroup = 'condition')
-
-# With more options
-plotPCA(vsd, intgroup = c('condition', 'batch'), ntop = 500)
-```
-
-### Custom PCA with ggplot2
-
-```r
-vsd <- vst(dds, blind = FALSE)
-pca_data <- plotPCA(vsd, intgroup = c('condition', 'batch'), returnData = TRUE)
-percentVar <- round(100 * attr(pca_data, 'percentVar'))
-
-ggplot(pca_data, aes(x = PC1, y = PC2, color = condition, shape = batch)) +
-    geom_point(size = 4) +
-    xlab(paste0('PC1: ', percentVar[1], '% variance')) +
-    ylab(paste0('PC2: ', percentVar[2], '% variance')) +
-    ggtitle('PCA Plot') +
-    theme_bw() +
-    theme(legend.position = 'right')
-```
-
-### edgeR PCA (via limma)
-
-```r
-library(limma)
-log_cpm <- cpm(y, log = TRUE)
-plotMDS(log_cpm, col = as.numeric(group), pch = 16)
-legend('topright', legend = levels(group), col = 1:nlevels(group), pch = 16)
-```
-
-## Heatmaps
-
-**Goal:** Visualize expression patterns of significant genes across samples to reveal clusters and condition effects.
-
-**Approach:** Z-score normalize VST-transformed counts for significant genes and cluster with pheatmap, annotating by condition.
-
-**"Make a heatmap of the top differentially expressed genes"** → Extract significant genes, z-score normalize, and create a clustered heatmap with sample annotations.
-
-### Top DE Genes Heatmap
-
-```r
-library(pheatmap)
-
-# Get top significant genes
-sig_genes <- rownames(subset(res, padj < 0.01))
-
-# Get normalized counts
-vsd <- vst(dds, blind = FALSE)
-mat <- assay(vsd)[sig_genes, ]
-
-# Scale by row (z-score)
-mat_scaled <- t(scale(t(mat)))
-
-# Create annotation
-annotation_col <- data.frame(
-    condition = colData(dds)$condition,
-    row.names = colnames(mat)
-)
-
-pheatmap(mat_scaled,
-         annotation_col = annotation_col,
-         show_rownames = FALSE,
-         clustering_distance_rows = 'correlation',
-         clustering_distance_cols = 'correlation',
-         color = colorRampPalette(c('blue', 'white', 'red'))(100),
-         main = 'Top DE Genes')
-```
-
-### Sample Distance Heatmap
-
-```r
-vsd <- vst(dds, blind = FALSE)
-
-# Calculate sample distances
-sampleDists <- dist(t(assay(vsd)))
-sampleDistMatrix <- as.matrix(sampleDists)
-
-# Annotation
-annotation <- data.frame(
-    condition = colData(dds)$condition,
-    row.names = colnames(dds)
-)
-
-pheatmap(sampleDistMatrix,
-         annotation_col = annotation,
-         annotation_row = annotation,
-         clustering_distance_rows = sampleDists,
-         clustering_distance_cols = sampleDists,
-         color = colorRampPalette(c('white', 'steelblue'))(100),
-         main = 'Sample Distance Matrix')
-```
-
-### Gene Expression Heatmap
-
-```r
-# Select genes of interest
-genes_of_interest <- c('gene1', 'gene2', 'gene3', 'gene4', 'gene5')
-mat <- assay(vsd)[genes_of_interest, ]
-
-pheatmap(mat,
-         scale = 'row',
-         annotation_col = annotation_col,
-         show_rownames = TRUE,
-         cluster_cols = TRUE,
-         cluster_rows = TRUE,
-         main = 'Genes of Interest')
-```
-
-## Dispersion Plot
-
-**Goal:** Assess the fit of the dispersion model to verify DE analysis assumptions.
-
-**Approach:** Plot gene-wise, fitted, and final dispersion estimates against mean expression.
-
-### DESeq2
-
-```r
-plotDispEsts(dds, main = 'Dispersion Estimates')
-```
-
-### edgeR
-
-```r
-plotBCV(y, main = 'Biological Coefficient of Variation')
-```
-
-## Counts Plot for Individual Genes
-
-**Goal:** Visualize expression of a specific gene across samples and conditions.
-
-**Approach:** Extract per-sample counts for a gene and plot by condition using plotCounts or ggplot2.
-
-### DESeq2
-
-```r
-# Plot counts for a specific gene
-plotCounts(dds, gene = 'GENE_NAME', intgroup = 'condition')
-
-# With ggplot2
-d <- plotCounts(dds, gene = 'GENE_NAME', intgroup = 'condition', returnData = TRUE)
-ggplot(d, aes(x = condition, y = count, color = condition)) +
-    geom_point(position = position_jitter(width = 0.1), size = 3) +
-    scale_y_log10() +
-    ggtitle('GENE_NAME Expression') +
-    theme_bw()
-```
-
-### edgeR
-
-```r
-# Get CPM for a gene
-gene_idx <- which(rownames(y) == 'GENE_NAME')
-cpm_gene <- cpm(y)[gene_idx, ]
-
-# Plot
-df <- data.frame(cpm = cpm_gene, group = group)
-ggplot(df, aes(x = group, y = cpm, color = group)) +
-    geom_point(position = position_jitter(width = 0.1), size = 3) +
-    scale_y_log10() +
-    labs(y = 'CPM', title = 'GENE_NAME Expression') +
-    theme_bw()
-```
-
-## P-value Histogram
-
-**Goal:** Diagnose the quality of the DE analysis by examining the raw p-value distribution.
-
-**Approach:** Histogram of raw p-values; a uniform distribution with a peak near zero indicates a well-calibrated test.
-
-```r
-# Check p-value distribution (should be uniform under null with peak near 0)
-res_df <- as.data.frame(res)
 ggplot(res_df, aes(x = pvalue)) +
     geom_histogram(bins = 50, fill = 'steelblue', color = 'white') +
-    labs(x = 'P-value', y = 'Frequency', title = 'P-value Distribution') +
+    labs(x = 'P-value', y = 'Frequency', title = 'P-value distribution') +
     theme_bw()
 ```
-
-## Saving Plots
-
-**Goal:** Export publication-quality plots in vector or raster formats.
-
-**Approach:** Use pdf/png devices or ggsave with appropriate resolution and dimensions.
-
-```r
-# Save as PDF (vector)
-pdf('volcano_plot.pdf', width = 8, height = 6)
-# ... plot code ...
-dev.off()
-
-# Save as PNG (raster)
-png('volcano_plot.png', width = 800, height = 600, res = 150)
-# ... plot code ...
-dev.off()
-
-# Using ggsave for ggplot objects
-p <- ggplot(...) + ...
-ggsave('plot.pdf', p, width = 8, height = 6)
-ggsave('plot.png', p, width = 8, height = 6, dpi = 300)
-```
-
-## Color Palettes
-
-**Goal:** Select appropriate color schemes for heatmaps and categorical data.
-
-**Approach:** Use RColorBrewer palettes -- diverging for expression, sequential for distances, qualitative for groups.
-
-```r
-# For heatmaps
-library(RColorBrewer)
-
-# Diverging (for expression: blue-white-red)
-colorRampPalette(rev(brewer.pal(n = 7, name = 'RdBu')))(100)
-
-# Sequential (for distances)
-colorRampPalette(brewer.pal(n = 9, name = 'Blues'))(100)
-
-# For categorical groups
-brewer.pal(n = 8, name = 'Set1')
-```
-
-## Quick Reference: Common Plots
-
-| Plot | Purpose | Function |
-|------|---------|----------|
-| MA plot | LFC vs mean expression | `plotMA()`, `plotMD()` |
-| Volcano | LFC vs significance | ggplot2, EnhancedVolcano |
-| PCA | Sample clustering | `plotPCA()`, `plotMDS()` |
-| Heatmap | Gene patterns | `pheatmap()` |
-| Dispersion | Model fit | `plotDispEsts()`, `plotBCV()` |
-| Counts | Individual genes | `plotCounts()` |
-
-## Diagnostic Interpretation
-
-### P-value Histogram
-
-Check raw p-value distribution before trusting DE results:
 
 | Shape | Meaning | Action |
 |-------|---------|--------|
-| Uniform + spike near 0 | Correct: null genes uniform, true DE near 0 | Proceed normally |
-| Anti-conservative (U-shape, spikes at 0 and 1) | Inflated significance; unmodeled batch or violated assumptions | Check for batch effects, verify model specification |
-| Conservative (depleted near 0, spike near 1) | Over-correction; too many covariates or wrong dispersion | Simplify model, check dispersion plot |
-| Spike at p = 1 only | Discrete artifact from low-count genes | Pre-filter more aggressively |
+| Uniform + spike at 0 | Correctly specified | Proceed |
+| U-shape (spikes at 0 AND 1) | Anti-conservative; hidden batch or unmodeled covariate | Add the missing covariate; re-fit |
+| Depleted near 0, spike near 1 | Conservative; over-modeled or wrong dispersion | Simplify model; check dispersion plot |
+| Spike only at p = 1 | Discrete artifact from very-low-count genes | Pre-filter more aggressively |
 
-### MA Plot Diagnostics
+## MA Plot (LFC vs Mean)
+
+**Goal:** Inspect the relationship between LFC and mean expression for normalization correctness and shrinkage effect.
+
+**Approach:** `plotMA` (DESeq2) or `plotMD` (edgeR). Always pick `ylim` deliberately; default can flatten the signal.
+
+```r
+plotMA(res, ylim = c(-5, 5), main = 'MA plot (unshrunken)')
+
+res_apeglm <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')
+plotMA(res_apeglm, ylim = c(-5, 5), main = 'MA plot (apeglm-shrunken)')
+
+plotMD(qlf, main = 'edgeR MD plot')
+abline(h = c(-1, 1), col = 'blue', lty = 2)
+```
 
 | Pattern | Meaning |
 |---------|---------|
 | Symmetric cloud centered at LFC = 0 | Correct normalization |
-| Cloud shifted up or down | Normalization failure; majority-DE experiment may violate assumptions |
-| Funnel shape widening at low expression | Expected — low-count genes have noisier fold changes |
-| Discrete horizontal bands | Low-count artifacts; consider stronger pre-filtering |
+| Cloud median clearly above or below 0 | Normalization failed (TMM/RLE assumption violated) -- see normalization skill |
+| Funnel widening at low mean | Expected (low counts noisier) |
+| Dramatic up/down asymmetry | Possibly real (large biological perturbation), possibly normalization failure -- cross-check |
+| Discrete horizontal bands at low mean | Low-count artifacts; pre-filter more aggressively |
 
-### Volcano Plot: Shrunken LFCs
+The apeglm-shrunken MA visually flattens the left side; the post-shrinkage cloud should be tighter at low means.
 
-Use shrunken LFCs (apeglm/ashr) on the x-axis and un-shrunken p-values on the y-axis. This combination gives stable fold change estimates while preserving the original significance assessment. Without shrinkage, low-count genes with extreme but unreliable fold changes dominate the plot edges.
+## Volcano with Shrunken LFC
 
-### Dispersion Plot Diagnostics
+**Goal:** Show effect size vs significance with honest fold changes.
 
-| Pattern | Meaning |
-|---------|---------|
-| Gene-wise points scattered around fitted line | Good model fit |
-| Gene-wise points far above fitted line | Possible outlier genes or unmodeled batch effects |
-| Fitted line flat (no trend) | Unusual — check if data is over-filtered or has unusual structure |
-| Final estimates much lower than gene-wise | Expected — shrinkage toward the fitted trend |
+**Approach:** Use a built-in renderer (EnhancedVolcano for quick publication-quality output) on shrunken LFCs. Always plot shrunken LFC; always set `max.overlaps = Inf` when labeling >10 genes -- the ggrepel default (10) silently drops labels. EnhancedVolcano accepts `max.overlaps` directly in 1.12+; version 1.10-1.11 has the older `maxoverlapsConnectors` argument (default 15); for either, falling back to `options(ggrepel.max.overlaps = Inf)` at the top of the script also works. For full ggplot2 customization (color schemes, faceting, label-set engineering), see `data-visualization/volcano-and-ma-plots`.
 
-### PCA Diagnostics
+```r
+library(EnhancedVolcano)
 
-| Pattern | Meaning | Action |
-|---------|---------|--------|
-| Clear separation by condition on PC1/PC2 | Strong biological signal | Proceed |
-| Separation by batch, not condition | Batch effect dominates | Include batch in model; do NOT use corrected counts for DE |
-| One sample far from its group | Potential outlier or sample swap | Check library QC metrics; consider removing |
-| No separation on PC1/PC2 but present on PC3+ | Subtle effects | May still find DE genes; check dispersion estimates |
+res_apeglm <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')
+
+EnhancedVolcano(res_apeglm,
+    lab = rownames(res_apeglm),
+    x = 'log2FoldChange', y = 'pvalue',
+    pCutoff = 0.05, FCcutoff = 1,
+    title = 'Treatment vs Control',
+    subtitle = 'Shrunken LFC (apeglm); unshrunken Wald p',
+    max.overlaps = Inf)
+```
+
+## PCA on VST/rlog (Never on Raw Counts)
+
+**Goal:** Show sample clustering by condition; detect batch effects, swaps, outliers.
+
+**Approach:** Variance-stabilize first (VST or rlog), THEN PCA. Raw counts make PC1 = library size; log(counts+1) makes PC1 = mean expression. Neither carries biological signal until variance is stabilized.
+
+```r
+vsd <- vst(dds, blind = FALSE)
+plotPCA(vsd, intgroup = c('condition', 'batch'))
+
+pca_df <- plotPCA(vsd, intgroup = c('condition', 'batch'), returnData = TRUE)
+percentVar <- round(100 * attr(pca_df, 'percentVar'))
+
+library(ggplot2)
+ggplot(pca_df, aes(PC1, PC2, color = condition, shape = batch)) +
+    geom_point(size = 4) +
+    xlab(paste0('PC1: ', percentVar[1], '% variance')) +
+    ylab(paste0('PC2: ', percentVar[2], '% variance')) +
+    theme_bw()
+
+library(limma)
+plotMDS(cpm(y, log = TRUE), col = as.numeric(group), pch = 16)
+```
+
+`blind=TRUE` (default for `vst()`) re-estimates dispersions ignoring the design -- appropriate for unbiased QC ("are samples consistent independent of design?"). `blind=FALSE` uses the fitted dispersions -- appropriate for downstream visualization where the design is settled. Modern DESeq2 vignette recommends `blind=FALSE` for any plot after the model is fit.
+
+| PCA pattern | Interpretation | Action |
+|-------------|----------------|--------|
+| Clear separation by condition on PC1 or PC2 | Strong biological signal | Proceed |
+| Separation by batch, not condition | Batch effect dominates | Include batch in design; DO NOT subtract before DE (see batch-correction Nygaard 2016) |
+| One sample far from its group | Outlier or swap | Check library QC; sex check; somalier |
+| Condition signal on PC3+, not PC1-PC2 | Subtle effect | May still find DE; review dispersion plot |
+| Two distinct sample clusters not explained by metadata | Hidden covariate | Investigate processing date, lane, machine |
+
+## Sample Distance Heatmap (for QC)
+
+```r
+library(pheatmap)
+vsd <- vst(dds, blind = TRUE)
+sd <- dist(t(assay(vsd)))
+mat <- as.matrix(sd)
+ann <- data.frame(condition = colData(dds)$condition,
+                  row.names = colnames(dds))
+pheatmap(mat, annotation_col = ann, annotation_row = ann,
+         clustering_distance_rows = sd, clustering_distance_cols = sd,
+         color = colorRampPalette(c('white', 'steelblue'))(100),
+         main = 'Sample distance (vst blind)')
+```
+
+The diagonal should be dark; within-group samples should cluster. A within-group sample distant from its peers is a candidate for sample swap.
+
+## Top-DE Heatmap and the Row-Scaling Trap
+
+**Goal:** Show expression patterns of significant genes across samples for results figure.
+
+**Approach:** Use `vst(blind=FALSE)`, select top genes (by adjusted p-value or MAD-robust variance), choose scaling deliberately.
+
+```r
+library(pheatmap)
+
+sig <- rownames(subset(res, padj < 0.01))[1:50]
+vsd <- vst(dds, blind = FALSE)
+mat <- assay(vsd)[sig, ]
+
+mat_scaled <- t(scale(t(mat)))
+
+ann_col <- data.frame(condition = colData(dds)$condition,
+                      batch     = colData(dds)$batch,
+                      row.names = colnames(mat))
+
+pheatmap(mat_scaled, annotation_col = ann_col,
+         show_rownames = FALSE,
+         clustering_distance_rows = 'correlation',
+         clustering_distance_cols = 'correlation',
+         color = colorRampPalette(c('blue', 'white', 'red'))(100),
+         main = 'Top 50 DE genes (z-scored per gene)')
+```
+
+`scale='row'` (z-score per gene) is the conventional choice for "show me patterns". It DESTROYS absolute expression level information -- a gene at 5-7 with mean 6 looks identical to a gene at 10-1000. For pattern detection: correct. For QC heatmaps showing batch shifts: WRONG -- use `scale='none'` on `assay(vsd)`.
+
+Top-variable-gene selection robustness:
+
+```r
+library(matrixStats)
+vars_mad <- rowMads(assay(vsd))
+top500 <- order(vars_mad, decreasing = TRUE)[1:500]
+```
+
+`rowMads` (median absolute deviation) is outlier-robust; `rowVars` is dominated by single-outlier-sample genes. For exploratory PCA of "top variable genes", MAD selection avoids artifacts.
+
+## Per-gene Plot
+
+```r
+plotCounts(dds, gene = 'GENE_NAME', intgroup = 'condition')
+
+d <- plotCounts(dds, gene = 'GENE_NAME', intgroup = c('condition','batch'),
+                returnData = TRUE)
+library(ggplot2)
+ggplot(d, aes(x = condition, y = count, color = batch)) +
+    geom_jitter(width = 0.1, size = 3) +
+    scale_y_log10() +
+    ggtitle('GENE_NAME') +
+    theme_bw()
+```
+
+With n=3, the boxplot is misleading (3 points per box). Prefer `geom_jitter` over `geom_boxplot` at small n.
+
+## UpSet for Multi-set Comparisons
+
+For >3 DE gene sets (e.g., contrasts treated_drugA, treated_drugB, treated_drugC each vs control), Venn diagrams become unreadable. UpSet (Lex et al. 2014 *IEEE Trans Vis Comput Graph* 20:1983) scales:
+
+```r
+library(UpSetR)
+upset(fromList(list(drugA = sig_drugA, drugB = sig_drugB, drugC = sig_drugC)))
+```
+
+## Per-Method Failure Modes
+
+### Volcano with unshrunken LFC -- inflated story
+
+**Trigger:** `ggplot(res_df, aes(x=log2FoldChange, ...))` without `lfcShrink()`; extreme dots at the corners are low-count genes.
+
+**Mechanism:** Unshrunken MLE LFCs are dominated by very-low-count genes whose log ratios are noisy. The visual top-left and top-right corners look impressive but are artifacts.
+
+**Symptom:** Top genes by abs(LFC) are obscure low-count genes; reviewer asks "why are these the top hits?"
+
+**Fix:** `res_apeglm <- lfcShrink(dds, coef=..., type='apeglm')`; plot from `res_apeglm`. Label axis "shrunken log2 fold change (apeglm)".
+
+### ggrepel `max.overlaps` silently drops labels
+
+**Trigger:** `geom_text_repel(data = top30, aes(label = gene))`; only 10 labels render.
+
+**Mechanism:** Default `max.overlaps = 10`; warning printed but easily missed in a knitr/Quarto render.
+
+**Symptom:** Reviewer asks "where is gene X?"; it was in `top30` but did not render.
+
+**Fix:** `geom_text_repel(..., max.overlaps = Inf)` or `options(ggrepel.max.overlaps = Inf)` at top of script.
+
+### PCA shows batch, not condition
+
+**Trigger:** `plotPCA(vsd, intgroup='batch')` cleanly separates batches; `intgroup='condition'` does not separate.
+
+**Mechanism:** Batch variance exceeds condition variance.
+
+**Symptom:** Treatment effect looks weak; DE p-values inflated if batch not in design.
+
+**Fix:** Include batch in design (`design = ~ batch + condition`). DO NOT use `removeBatchEffect` then re-do DE on corrected counts (Nygaard 2016 cardinal sin -- see `batch-correction`). For VISUALIZATION only, `removeBatchEffect` is OK.
+
+### Heatmap row-scaling hid a sample-level shift
+
+**Trigger:** QC heatmap with `scale='row'` looks consistent within group; downstream PCA shows clear sample outlier.
+
+**Mechanism:** z-score per gene removes per-sample additive shifts. A sample that's globally inflated 1.5x looks identical to peers after row scaling.
+
+**Symptom:** "The heatmap looked fine but PCA shows a problem."
+
+**Fix:** For QC heatmaps, use `scale = 'none'` on `assay(vsd)` directly. For result heatmaps after QC is clean, `scale = 'row'` is the appropriate choice for pattern emphasis.
+
+### Top-N-by-rowVars dominated by single-outlier-sample genes
+
+**Trigger:** "Top 500 variable genes" PCA shows a striped pattern, one or two samples driving the spread.
+
+**Mechanism:** `rowVars` is squared-deviation; one outlier sample of one gene inflates that gene's "variance" massively.
+
+**Symptom:** Top variable gene list includes many genes where N-1 samples are flat and one sample is extreme.
+
+**Fix:** `matrixStats::rowMads()` for MAD-based selection; or `genefilter::rowQ()`.
+
+## Common errors
+
+| Error / symptom | Cause | Fix |
+|-----------------|-------|-----|
+| `plotPCA` reports only 2 PCs | DESeq2 `plotPCA` is hard-coded to PC1/PC2 | Use `prcomp(t(assay(vsd)))` and plot any pair |
+| PCA cloud collapses to one point | Forgot to log-transform; raw counts plotted | `vst(dds)` first |
+| All MA-plot points red | `alpha` set too high or sig-flag bug | Verify `alpha`; check `padj` vs `pvalue` in flag |
+| `pheatmap` complains "infinite values" | NA / Inf in scaled matrix; gene with zero variance | Remove zero-variance rows before scaling |
+| Volcano axis labels obscured | Default ggplot theme too compact | `theme_bw(base_size = 14)` |
+| `plotCounts` says gene not found | Wrong ID type (symbol vs Ensembl) | Match `rownames(dds)` exactly |
+| `vst()` errors with very low gene count post-filter | Default `nsub=1000` exceeds available genes | Lower `nsub` (e.g., `vst(dds, nsub=500)`) |
+
+## References
+
+- Anders S, Huber W. 2010. Differential expression analysis for sequence count data. *Genome Biol* 11(10):R106. doi:10.1186/gb-2010-11-10-r106
+- Love MI, Huber W, Anders S. 2014. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. *Genome Biol* 15(12):550. doi:10.1186/s13059-014-0550-8
+- Zhu A, Ibrahim JG, Love MI. 2019. Heavy-tailed prior distributions for sequence count data: removing the noise and preserving large differences. *Bioinformatics* 35(12):2084-2092. doi:10.1093/bioinformatics/bty895
+- Robinson MD, McCarthy DJ, Smyth GK. 2010. edgeR: a Bioconductor package for differential expression analysis of digital gene expression data. *Bioinformatics* 26(1):139-140. doi:10.1093/bioinformatics/btp616
+- Lex A, Gehlenborg N, Strobelt H, Vuillemot R, Pfister H. 2014. UpSet: Visualization of Intersecting Sets. *IEEE Trans Vis Comput Graph* 20(12):1983-1992. doi:10.1109/TVCG.2014.2346248
+- Schurch NJ et al. 2016. How many biological replicates are needed in an RNA-seq experiment and which differential expression tool should you use? *RNA* 22(6):839-851. doi:10.1261/rna.053959.115
+- Nygaard V, Rødland EA, Hovig E. 2016. Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* 17(1):29-39. doi:10.1093/biostatistics/kxv027
 
 ## Related Skills
 
-- deseq2-basics - Generate DESeq2 results for visualization
-- edger-basics - Generate edgeR results for visualization
-- de-results - Filter genes before visualization
-- data-visualization/volcano-and-ma-plots - Custom ggplot2/matplotlib volcano + MA with LFC shrinkage
-- data-visualization/dimensionality-reduction-plots - PCA / UMAP / t-SNE / PHATE
-- data-visualization/heatmaps-clustering - Advanced heatmap customization
+- deseq2-basics - Generates the `dds` / `res` objects plotted here; `vst`/`rlog` choice
+- edger-basics - Generates `y` / `qlf` for plotMD, plotBCV, plotMDS
+- de-results - p-value histogram, padj=NA diagnosis informs what to plot
+- batch-correction - removeBatchEffect for visualization only (never as DE input)
+- expression-matrix/normalization - VST vs rlog vs log-CPM mechanics
+- data-visualization/volcano-and-ma-plots - Full custom volcano/MA with apeglm + ggrepel
+- data-visualization/dimensionality-reduction-plots - PCA, UMAP, t-SNE customization
+- data-visualization/heatmaps-clustering - pheatmap and ComplexHeatmap recipes
+- data-visualization/upset-plots - UpSet plot customization

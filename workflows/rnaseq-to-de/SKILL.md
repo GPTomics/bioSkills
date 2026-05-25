@@ -90,14 +90,14 @@ done
 # Build index (once per transcriptome)
 salmon index -t transcriptome.fa -i salmon_index -k 31
 
-# Quantify each sample
+# Quantify each sample (selective alignment is the default since Salmon 1.0.0;
+# the historical --validateMappings flag is now a no-op)
 for sample in sample1 sample2 sample3; do
     salmon quant -i salmon_index \
         -l A \
         -1 trimmed/${sample}_R1.fq.gz \
         -2 trimmed/${sample}_R2.fq.gz \
         -o quants/${sample} \
-        --validateMappings \
         --gcBias \
         --seqBias \
         -p 8
@@ -287,7 +287,7 @@ for sample in $SAMPLES; do
         -1 ${OUTDIR}/trimmed/${sample}_R1.fq.gz \
         -2 ${OUTDIR}/trimmed/${sample}_R2.fq.gz \
         -o ${OUTDIR}/quants/${sample} \
-        --validateMappings --gcBias -p ${THREADS}
+        --gcBias --seqBias -p ${THREADS}
 done
 
 echo "Quantification complete. Run R script for DE analysis."

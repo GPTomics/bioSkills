@@ -63,11 +63,14 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Choose spline degrees based on number of timepoints (more timepoints = higher df possible)
+- Choose spline degrees based on number of timepoints (rule of thumb: df <= unique time points / 2)
 - Include biological replicates at each timepoint for statistical power
 - Test for group:time interaction to find condition-specific temporal dynamics
 - Use ns() for natural splines or bs() for B-splines in design formulas
-- maSigPro works well for experiments with multiple conditions and many timepoints
+- maSigPro works well for experiments with multiple conditions and many timepoints; cite Nueda 2014 (RNA-seq update), NOT the 2006 Conesa paper (microarray original)
+- For short series (<8 time points), naive pairwise DESeq2 + LRT typically OUTPERFORMS dedicated time-course tools per the Spies 2019 benchmark; reserve ImpulseDE2 for longer series with monotonic-then-saturating biology
+- For repeated measures (same subject sampled over time), use DREAM (linear mixed model with `(1|subject)`) -- treating repeated observations as independent is pseudoreplication and inflates type-I error
+- ImpulseDE2 was removed from Bioconductor at the 3.13 release (May 2021); install from BiocArchive or the YosefLab GitHub mirror
 
 ## Related Skills
 

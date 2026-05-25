@@ -62,10 +62,13 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - Always use biological replicates (minimum 3 per condition)
-- Pre-filter genes with very low counts before analysis
-- Use `lfcShrink()` with type='apeglm' for better fold change estimates
+- Pre-filter genes with very low counts before analysis (speed only; independent filtering handles statistics at `results()`)
+- Use `lfcShrink()` with type='apeglm' for better fold change estimates -- but note `apeglm` requires `coef=` and cannot use `contrast=`; rebuild design as `~ 0 + group` for interaction contrasts, or use `type='ashr'`
 - Use `vst()` instead of `rlog()` for large datasets (>100 samples)
-- Check `resultsNames(dds)` to see available coefficients for results()
+- Set the reference level BEFORE calling `DESeq()` -- alphabetical default silently inverts fold-change direction
+- Check `resultsNames(dds)` to see available coefficients and ALWAYS pass `name=` or `contrast=` explicitly; `results(dds)` with no argument returns the last coefficient and depends on design order
+- With LRT (`test='LRT'`), use padj only as an omnibus screen -- the reported LFC is for the last coefficient, NOT an omnibus summary
+- The shrunken LFC and the Wald p-value come from different models -- shrinking does not recompute p-values
 - For prokaryotic data, verify normalization assumptions (majority-DE experiments violate median-of-ratios)
 - Use PyDESeq2 for Python-only environments; results closely match R DESeq2
 

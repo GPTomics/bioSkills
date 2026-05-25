@@ -63,12 +63,15 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Use `filterByExpr()` for automatic low-count filtering
-- The quasi-likelihood framework (glmQLFit) is recommended over exact test
+- Use `filterByExpr()` for automatic low-count filtering -- skipping it inflates the multiple-testing burden; edgeR has no automatic independent filtering like DESeq2
+- The quasi-likelihood framework (glmQLFit) is recommended over exact test; QL F-test is the modern default with proper finite-sample FPR control
+- Set BOTH `estimateDisp(robust=TRUE)` AND `glmQLFit(robust=TRUE)` -- they propagate Phipson 2016 robust hyperparameter estimation through separate EB steps
 - For complex designs, use design matrices without intercept (~ 0 + group)
 - `glmTreat()` tests for log fold changes above a threshold (H0: |LFC| <= threshold), preferred over post-hoc LFC filtering
-- edgeR v4+ makes `estimateDisp()` optional before `glmQLFit()`
-- For prokaryotic data, TMM normalization assumes most genes are not DE — verify this holds
+- edgeR v4 introduced bias-corrected APL with `glmQLFit(legacy=FALSE)` as the default -- pre-2025 results are reproducible with `legacy=TRUE`, but the v4 defaults are improved
+- `normLibSizes()` is the v4 canonical name (replaces `calcNormFactors()`); `method='TMM'` remains the documented default, with `method='TMMwsp'` as the preferred alternative for sparse / single-cell-pseudobulk data
+- For transcript-level DE, use `catchSalmon()` / `catchKallisto()` (Baldoni 2024) instead of standard tximport
+- For prokaryotic data, TMM normalization assumes most genes are not DE -- verify this holds
 
 ## Related Skills
 

@@ -82,13 +82,15 @@ class CountMatrixLoader:
 
     @staticmethod
     def from_star_genecounts(filepaths, strandedness='reverse'):
-        col_map = {'unstranded': 1, 'forward': 2, 'reverse': 3}
+        # File cols (1-indexed): 1=gene_id, 2=unstranded, 3=forward, 4=reverse
+        # After index_col=0, remaining cols are 0=unstranded, 1=forward, 2=reverse
+        col_map = {'unstranded': 0, 'forward': 1, 'reverse': 2}
         col_idx = col_map[strandedness]
         dfs = {}
         for fp in filepaths:
             sample = Path(fp).name.replace('_ReadsPerGene.out.tab', '')
             df = pd.read_csv(fp, sep='\t', header=None, index_col=0)
-            dfs[sample] = df.iloc[4:, col_idx - 1]
+            dfs[sample] = df.iloc[4:, col_idx]
         return pd.DataFrame(dfs)
 
 counts = CountMatrixLoader.from_featurecounts('counts.txt')
@@ -164,6 +166,9 @@ with open('counts.txt', 'r') as f:
 - Use sparse matrices for single-cell data or bulk RNA-seq with >90% zeros
 - For DE analysis, always provide raw integer counts; DE tools normalize internally
 - featureCounts and HTSeq discard multi-mapped reads by default, which systematically undercounts genes with overlapping isoforms or paralogs
+- featureCounts paired-end runs need `-p --countReadPairs` since Subread v2.0.2; the `-p` flag alone counts each mate separately and inflates counts ~2x
+- tximport `countsFromAbundance='lengthScaledTPM'` returns count-scale values for limma-voom; despite the name, the output is NOT TPM and should not be reported as such
+- For 3'-tagged libraries (10x bulk, QuantSeq), use `countsFromAbundance='no'` WITHOUT length offset -- length bias is negligible
 
 ## Related Skills
 
