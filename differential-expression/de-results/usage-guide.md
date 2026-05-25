@@ -63,7 +63,7 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - Always use adjusted p-values (padj/FDR), not raw p-values
-- Check for NA values in padj — three distinct causes: zero counts, Cook's distance outliers, independent filtering threshold
+- Check for NA values in padj -- three distinct causes: zero counts, Cook's distance outliers, independent filtering threshold
 - Use lfcShrink() results for ranking genes and GSEA input
 - Export both all results and filtered significant genes
 - For GSEA: rank ALL genes (no cutoff); for ORA: use significant genes + background

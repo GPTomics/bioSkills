@@ -63,7 +63,7 @@ Tell your AI agent what you want to do:
 - For differential expression: always include batch in the design formula, never use corrected counts
 - For visualization/clustering: Use corrected values (ComBat-Seq for counts, removeBatchEffect for normalized)
 - Known vs unknown batches: Use SVA when batch sources are unknown
-- Confounding: Batch perfectly correlated with condition is unfixable — no statistical method can separate them
+- Confounding: Batch perfectly correlated with condition is unfixable -- no statistical method can separate them
 - Over-correction: Can remove biological signal; compare results with and without correction
 - Balanced design: Best results when conditions are evenly spread across batches
 

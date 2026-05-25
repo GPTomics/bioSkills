@@ -1,400 +1,495 @@
 ---
 name: bio-expression-matrix-metadata-joins
-description: Merge sample metadata with count matrices and add gene annotations. Use when preparing data for differential expression analysis or visualization.
+description: Aligns sample metadata with count matrices and constructs design matrices for downstream DE, handling the alphabetical-reference-level trap (relevel BEFORE DESeq), LRT reduced-model rules, the interaction-term resultsNames trap, continuous-covariate scaling and splines, repeated measures via duplicateCorrelation or dream, high-cardinality categorical pseudo-singular designs, sample swap detection via XIST/RPS4Y1 expression and somalier/NGSCheckMate genotypes, SABV (sex-as-biological-variable) mandate, Simpson's-paradox collapsing of technical replicates, and the `~ 0 + group` parameterization for clean contrasts. Use when building a design matrix, troubleshooting reversed fold-change direction, encoding paired or repeated-measures designs, detecting sample swaps, deciding sex-as-covariate, or aggregating technical replicates.
 tool_type: mixed
 primary_tool: pandas
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: pandas 2.2+
+Reference examples tested with: pandas 2.2+, DESeq2 1.42+, edgeR 4.0+, limma 3.58+, variancePartition / dream 1.32+, somalier 0.2.18+ (CLI), pyensembl 2.3+, anndata 0.10+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # Metadata Joins
 
-## Load Sample Metadata
+**"Align my sample metadata with my count matrix and build a design"** -> Reconcile sample identifiers, validate the join, set factor levels explicitly to control fold-change direction, encode the experimental structure (paired, repeated measures, interaction) in the design formula, and detect swaps before downstream DE.
 
-**Goal:** Read sample metadata into a DataFrame aligned with the count matrix columns.
+## The Single Most Important Modern Insight -- Alphabetical reference levels invert fold changes silently
 
-**Approach:** Load metadata CSV with sample IDs as the index, matching count matrix column names.
+DESeq2 picks the reference level alphabetically if not told otherwise. With `condition = c('Treated', 'Untreated')`, `T < U`, so `Treated` becomes the reference. The reported `log2FoldChange` is then `Untreated vs Treated` -- **the opposite of what the methods section says**. No error; the volcano plot looks plausible; the gene list is correct but with reversed sign.
 
-```python
-import pandas as pd
-
-# Load metadata
-metadata = pd.read_csv('sample_info.csv', index_col=0)
-
-# Metadata should have samples as rows, attributes as columns
-# Index should match count matrix column names
+```r
+dds$condition <- relevel(dds$condition, ref = 'Untreated')
+coldata$condition <- factor(coldata$condition, levels = c('Untreated', 'Treated'))
 ```
+
+Set BEFORE `DESeq()`; relevel-then-DESeq again to take effect.
+
+A second insight: in interaction designs `~ genotype * treatment`, `results(dds, name='treatment_drug_vs_vehicle')` returns the drug effect IN THE WT REFERENCE only, not the marginal/average effect. The interaction coefficient `genotypeKO.treatmentdrug` is the DIFFERENCE in drug effect between KO and WT (the difference of differences), NOT the drug effect in KO. The cleanest fix is to use `~ 0 + group` with `group = paste(genotype, treatment, sep='_')` so every comparison of interest is a single contrast.
+
+## Algorithmic Taxonomy
+
+| Pattern | Encoding | Tests | Caveat |
+|---------|----------|-------|--------|
+| Simple two-group | `~ condition` | `results(name='condition_treated_vs_control')` | Set reference level explicitly |
+| With known batch | `~ batch + condition` | `results(name='condition_...')` | Variable of interest LAST is the convention; not required |
+| Paired (pre/post per subject) | `~ subject + condition` | `results(name='condition_...')` | Pairing FIRST; subject absorbs baseline variability |
+| Repeated measures (>2 time per subject) | DREAM `~ condition + (1|subject)` | `topTable(coef='condition')` | Mixed model; uses voom + lmer |
+| Interaction (2x2) | `~ A * B` (expands to A + B + A:B) | `results(name='A.B')` for diff-in-diff; combined factor for cleaner contrasts | resultsNames trap |
+| Multi-group all pairwise | `~ 0 + group` + `makeContrasts` | Contrasts named directly | DESeq2 needs intercept; works for edgeR/limma |
+| Multi-level "any change" | LRT `reduced = ~ 1` | `results(dds)` from LRT fit | padj is omnibus; LFC is one specific level |
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended approach |
+|----------|---------------------|
+| Tumor / normal paired by patient | `~ patient + tissue`; pairing FIRST -- absorbs subject variability |
+| Pre / post drug, same patient (2 time points) | `~ subject + condition` |
+| Longitudinal, 4+ time points per subject | DREAM mixed model with `(1 \| subject)` random effect |
+| Known batch (sequencing run, library prep date) | `~ batch + condition`; do NOT subtract |
+| Many batches (>10 levels, n=20-40) | `~ condition + (1 \| batch)` via DREAM; or aggregate batches |
+| Continuous covariate (age, RIN) | Center first; include linearly OR via `ns(x, df=3)` if non-linear |
+| Mixed-sex cohort | Include sex unless sex-specific; report sex-stratified sensitivity |
+| Multi-group, want pairwise contrasts | `~ 0 + group` + `makeContrasts` |
+| Interaction question (does effect of A differ across B?) | Either `~ A * B` (handle resultsNames trap) or combined factor `~ 0 + group` |
+| Many technical reps within bio reps | `duplicateCorrelation` (limma) OR aggregate via `collapseReplicates` (DESeq2) |
+| Cohort >=20 samples | Run somalier or NGSCheckMate genotype check at the matrix-build step |
 
 ## Basic Join
 
-**Goal:** Align count matrix columns with metadata rows so samples are in matching order.
+**Goal:** Align count matrix columns with metadata rows; remove samples present in only one source; verify alignment before downstream use.
 
-**Approach:** Find common samples between both data sources, subset and reorder to ensure alignment.
-
-**"Match my sample metadata to my count matrix"** → Intersect sample identifiers between the count matrix and metadata, then reorder both to match.
+**Approach:** Intersect sample identifiers; reorder both data sources; assert match.
 
 ```python
 import pandas as pd
 
-# Count matrix: genes x samples
 counts = pd.read_csv('counts.tsv', sep='\t', index_col=0)
-
-# Metadata: samples x attributes
 metadata = pd.read_csv('metadata.csv', index_col=0)
 
-# Ensure sample order matches
-common_samples = counts.columns.intersection(metadata.index)
-counts = counts[common_samples]
-metadata = metadata.loc[common_samples]
+common = counts.columns.intersection(metadata.index)
+only_counts = set(counts.columns) - set(metadata.index)
+only_meta = set(metadata.index) - set(counts.columns)
+if only_counts: print(f'In counts not metadata: {only_counts}')
+if only_meta: print(f'In metadata not counts: {only_meta}')
 
-# Verify alignment
+counts = counts[common]
+metadata = metadata.loc[common]
 assert all(counts.columns == metadata.index)
 ```
 
-## Handle Sample Name Mismatches
-
-**Goal:** Identify and resolve discrepancies between count matrix column names and metadata row names.
-
-**Approach:** Report samples present in only one data source and subset to the intersection.
-
-```python
-def harmonize_sample_names(counts, metadata):
-    '''Match sample names between counts and metadata.'''
-    count_samples = set(counts.columns)
-    meta_samples = set(metadata.index)
-
-    common = count_samples & meta_samples
-    only_counts = count_samples - meta_samples
-    only_meta = meta_samples - count_samples
-
-    if only_counts:
-        print(f'Samples in counts but not metadata: {only_counts}')
-    if only_meta:
-        print(f'Samples in metadata but not counts: {only_meta}')
-
-    counts = counts[sorted(common)]
-    metadata = metadata.loc[sorted(common)]
-    return counts, metadata
-
-counts, metadata = harmonize_sample_names(counts, metadata)
-```
-
-## Flexible Sample Name Matching
-
-**Goal:** Automatically reconcile sample names that differ by common formatting variations.
-
-**Approach:** Try a series of string transformations (underscore/dash swap, suffix removal, case change) until names match.
-
-```python
-def fuzzy_match_samples(counts, metadata):
-    '''Try to match sample names with common transformations.'''
-    count_cols = counts.columns.tolist()
-    meta_idx = metadata.index.tolist()
-
-    # Try exact match first
-    if set(count_cols) == set(meta_idx):
-        return counts, metadata
-
-    # Common transformations
-    transformations = [
-        lambda x: x.replace('_', '-'),
-        lambda x: x.replace('-', '_'),
-        lambda x: x.split('_')[0],
-        lambda x: x.replace('.bam', ''),
-        lambda x: x.upper(),
-        lambda x: x.lower(),
-    ]
-
-    for transform in transformations:
-        transformed = {transform(c): c for c in count_cols}
-        matches = {m: transformed[transform(m)] for m in meta_idx if transform(m) in transformed}
-        if len(matches) == len(meta_idx):
-            print(f'Matched using transformation')
-            counts = counts[[matches[m] for m in meta_idx]]
-            return counts, metadata
-
-    raise ValueError('Could not match sample names')
-```
-
-## Add Gene Annotations
-
-**Goal:** Enrich the count matrix with gene-level annotations (symbol, name, biotype).
-
-**Approach:** Query mygene for annotation fields and merge with the count matrix on gene IDs.
-
-```python
-import mygene
-
-def add_gene_annotations(counts, fields=['symbol', 'name', 'type_of_gene']):
-    '''Add gene annotation columns to count matrix.'''
-    mg = mygene.MyGeneInfo()
-
-    clean_ids = [g.split('.')[0] for g in counts.index]
-    results = mg.querymany(clean_ids, scopes='ensembl.gene',
-        fields=fields, species='human', as_dataframe=True)
-
-    # Merge annotations
-    results = results.reset_index().rename(columns={'query': 'gene_id'})
-    counts_reset = counts.reset_index().rename(columns={counts.index.name: 'gene_id'})
-    counts_reset['clean_id'] = counts_reset['gene_id'].str.split('.').str[0]
-
-    annotated = counts_reset.merge(
-        results[['gene_id'] + fields].drop_duplicates(),
-        left_on='clean_id', right_on='gene_id', how='left', suffixes=('', '_anno'))
-
-    annotated = annotated.drop(['clean_id', 'gene_id_anno'], axis=1, errors='ignore')
-    annotated = annotated.set_index('gene_id')
-
-    return annotated
-```
-
-## R: Create DESeq2 Data
-
 ```r
-library(DESeq2)
-
-# Load data
-counts <- read.delim('counts.tsv', row.names=1)
-metadata <- read.csv('metadata.csv', row.names=1)
-
-# Ensure matching samples
-common <- intersect(colnames(counts), rownames(metadata))
+common <- intersect(colnames(counts), rownames(coldata))
 counts <- counts[, common]
-metadata <- metadata[common, , drop=FALSE]
-
-# Create DESeqDataSet
-dds <- DESeqDataSetFromMatrix(
-    countData=as.matrix(counts),
-    colData=metadata,
-    design=~condition  # Adjust to your design
-)
+coldata <- coldata[common, , drop = FALSE]
+stopifnot(all(colnames(counts) == rownames(coldata)))
 ```
 
-## R: Create edgeR DGEList
+When sample names differ by formatting (underscore vs dash, BAM suffix, case), try systematic transformations -- replace `_` <-> `-`, strip `.bam`, lower-case, take prefix before `_` -- before giving up.
+
+## Reference Level (Critical -- Set Before DESeq)
+
+**Goal:** Pick the baseline against which fold changes are reported, controlling sign direction.
+
+**Approach:** `relevel()` or construct the factor with explicit `levels=`. Set BEFORE `DESeq()` runs.
 
 ```r
+coldata$condition <- factor(coldata$condition, levels = c('control', 'treated'))
+
+coldata$condition <- relevel(coldata$condition, ref = 'control')
+```
+
+```python
+metadata['condition'] = pd.Categorical(metadata['condition'],
+                                        categories=['control', 'treated'],
+                                        ordered=True)
+```
+
+With factor levels explicit, the LFC reads `treated / control` -- treated up means LFC > 0.
+
+A reminder for edgeR / limma users: `makeContrasts(Treated - Control)` is explicit and immune to the reference-level trap. Same caution applies less because the user names the contrast.
+
+## Paired Designs
+
+```r
+design = ~ patient + tissue
+```
+
+Pairing variable FIRST (convention). Patient absorbs inter-subject baseline variability, dramatically increasing power for the tissue effect.
+
+For DESeq2:
+```r
+dds <- DESeqDataSetFromMatrix(counts, coldata, design = ~ patient + tissue)
+dds <- DESeq(dds)
+res <- results(dds, name = 'tissue_tumor_vs_normal')
+```
+
+For edgeR:
+```r
+design <- model.matrix(~ patient + tissue, coldata)
+y <- estimateDisp(y, design, robust = TRUE)
+fit <- glmQLFit(y, design, robust = TRUE)
+qlf <- glmQLFTest(fit, coef = 'tissuetumor')
+```
+
+Common mistake: writing `~ tissue + patient`. Numerically the model is the same; the convention of pairing-first improves readability and matches the natural mental model.
+
+## Interaction Terms -- the resultsNames Trap
+
+```r
+design = ~ genotype + treatment + genotype:treatment
+dds <- DESeqDataSetFromMatrix(counts, coldata, design = design)
+dds <- DESeq(dds)
+resultsNames(dds)
+```
+
+Output names (after relevel):
+```
+"Intercept"
+"genotype_KO_vs_WT"
+"treatment_drug_vs_vehicle"
+"genotypeKO.treatmentdrug"
+```
+
+| Question | Wrong answer | Right answer |
+|----------|--------------|--------------|
+| Drug effect averaged over genotypes | `results(name='treatment_drug_vs_vehicle')` -- this is drug effect in WT only | Combined factor `~ 0 + group`; or contrast that explicitly averages |
+| Is drug effect different between genotypes? | n/a | `results(name='genotypeKO.treatmentdrug')` -- the interaction coefficient IS the difference of differences |
+| Drug effect in KO | `results(name='treatment_drug_vs_vehicle')` -- WRONG, this is drug in WT | `results(contrast=list(c('treatment_drug_vs_vehicle', 'genotypeKO.treatmentdrug')))` (sum of main + interaction) |
+
+The cleaner alternative for designs with many contrasts of interest:
+
+```r
+coldata$group <- factor(paste(coldata$genotype, coldata$treatment, sep = '_'))
+dds <- DESeqDataSetFromMatrix(counts, coldata, design = ~ 0 + group)
+dds <- DESeq(dds)
+
+res_drug_in_ko <- results(dds, contrast = c('group', 'KO_drug', 'KO_vehicle'))
+res_drug_in_wt <- results(dds, contrast = c('group', 'WT_drug', 'WT_vehicle'))
+res_diff       <- results(dds, contrast = list(c('groupKO_drug', 'groupWT_vehicle'),
+                                                c('groupKO_vehicle', 'groupWT_drug')))
+```
+
+`~ 0 + group` parameterization is the long-standing edgeR / limma recommendation (Smyth and Robinson User's Guides) for any design with multiple pairwise contrasts of interest.
+
+## LRT and the Reduced Model
+
+```r
+dds <- DESeq(dds, test = 'LRT', reduced = ~ batch)
+```
+
+Reduced model drops the term being tested. With `design = ~ batch + condition` and `reduced = ~ batch`, the LRT tests condition. With interaction designs:
+
+```r
+dds <- DESeq(dds, test = 'LRT', reduced = ~ genotype + treatment)
+```
+
+(Tests the interaction.)
+
+The reduced model must be NESTED in the full model (every term in reduced must appear in full).
+
+## Continuous Covariates
+
+| Encoding | Assumption | When |
+|----------|------------|------|
+| Linear (`+ age`) | log-expression linear in age | Limited range, biologically linear |
+| Centered linear (`+ I(age - mean(age))`) | As linear, interpretable intercept | Standard for age-RIN-day covariates |
+| Natural spline (`+ ns(age, df=3)`) | Smooth nonlinear | Wide age range with non-monotonic effects |
+| Polynomial (`+ poly(age, 2)`) | Quadratic; orthogonal polynomials | Limited use; splines usually better |
+
+```r
+coldata$age_c <- coldata$age - mean(coldata$age)
+design = ~ age_c + RIN + condition
+
+library(splines)
+design = ~ ns(age, df = 3) + condition
+```
+
+DO NOT include library size as a covariate -- it is handled by size factors / normalization factors internally.
+
+## Repeated Measures -- duplicateCorrelation vs dream
+
+**Goal:** Correctly model within-subject correlation when the same subject contributes multiple samples.
+
+**Approach:** For technical reps within bio reps OR paired pre/post: `duplicateCorrelation` (limma) is adequate. For >2 time points per subject or random slopes: DREAM (`variancePartition`).
+
+```r
+library(limma)
 library(edgeR)
 
-# Load data
-counts <- read.delim('counts.tsv', row.names=1)
-metadata <- read.csv('metadata.csv', row.names=1)
-
-# Match samples
-common <- intersect(colnames(counts), rownames(metadata))
-counts <- counts[, common]
-metadata <- metadata[common, , drop=FALSE]
-
-# Create DGEList
-y <- DGEList(counts=as.matrix(counts), group=metadata$condition)
-y$samples <- cbind(y$samples, metadata)
+v <- voom(y, design)
+corfit <- duplicateCorrelation(v, design, block = coldata$donor)
+v <- voom(y, design, block = coldata$donor, correlation = corfit$consensus)
+corfit <- duplicateCorrelation(v, design, block = coldata$donor)
+fit <- lmFit(v, design, block = coldata$donor, correlation = corfit$consensus)
+fit <- eBayes(fit, robust = TRUE)
 ```
 
-## Create AnnData with Metadata
+The double pass is intentional: estimate correlation, re-voom with correlation, re-estimate, fit. Limma's `duplicateCorrelation` assumes ONE within-subject correlation across all genes -- approximation.
 
-```python
-import anndata as ad
-import pandas as pd
+For proper per-gene mixed models:
 
-def create_annotated_anndata(counts, sample_metadata, gene_metadata=None):
-    '''Create AnnData object with full metadata.'''
-    # AnnData expects samples as rows
-    adata = ad.AnnData(X=counts.T)
+```r
+library(variancePartition)
 
-    # Add sample metadata (obs)
-    adata.obs = sample_metadata.loc[counts.columns].copy()
-
-    # Add gene metadata (var)
-    if gene_metadata is not None:
-        adata.var = gene_metadata.loc[counts.index].copy()
-    else:
-        adata.var_names = counts.index
-
-    return adata
-
-# Usage
-adata = create_annotated_anndata(counts, metadata)
-adata.write_h5ad('annotated_counts.h5ad')
+form <- ~ condition + (1 | donor)
+vobj <- voomWithDreamWeights(y, form, coldata)
+fitmm <- dream(vobj, form, coldata)
+fitmm <- eBayes(fitmm)
+tt <- topTable(fitmm, coef = 'condition')
 ```
 
-## Validate Metadata
+See `differential-expression/timeseries-de` for full longitudinal designs.
 
-```python
-def validate_metadata(counts, metadata, required_columns=['condition']):
-    '''Check metadata validity.'''
-    issues = []
+Before committing to a design, `variancePartition::fitExtractVarPartModel(vobj, form, coldata)` quantifies the fraction of expression variance explained by each covariate, gene-by-gene. If a candidate "nuisance" covariate explains <1% of variance across most genes, it can usually be dropped; if a known biological factor explains <5% and isn't of direct interest, model it as a random effect rather than fixed.
 
-    count_samples = set(counts.columns)
-    meta_samples = set(metadata.index)
+## Sample Swap Detection (Mandatory for Cohort >= 20)
 
-    if count_samples != meta_samples:
-        missing = count_samples - meta_samples
-        extra = meta_samples - count_samples
-        if missing:
-            issues.append(f'Samples missing metadata: {missing}')
-        if extra:
-            issues.append(f'Extra metadata samples: {extra}')
+### Sex check via XIST and chrY expression
 
-    for col in required_columns:
-        if col not in metadata.columns:
-            issues.append(f'Missing required column: {col}')
-        elif metadata[col].isna().any():
-            n_na = metadata[col].isna().sum()
-            issues.append(f'Column {col} has {n_na} missing values')
+**Goal:** Detect mislabeled samples by checking that gene-expression sex matches reported sex.
 
-    if issues:
-        for issue in issues:
-            print(f'WARNING: {issue}')
-        return False
-
-    print('Metadata validation passed')
-    return True
-```
-
-## Sample Swap Detection
-
-**Goal:** Identify mislabeled samples before they contaminate downstream analysis.
-
-**Approach:** Use sex-linked gene expression (XIST for females, Y-chromosome genes for males) and within-pair clustering to detect swaps.
-
-### Sex Check
+**Approach:** Compare XIST expression (high in XX, low/absent in XY) against chrY-gene expression (DDX3Y, RPS4Y1, UTY, KDM5D, EIF1AY -- high in XY, absent in XX).
 
 ```python
 import pandas as pd
-import numpy as np
 
 def sex_check(counts, metadata, sex_column='sex'):
-    '''Verify reported sex matches gene expression.
-
-    Males: high DDX3Y/RPS4Y1/UTY, low XIST
-    Females: high XIST, low/zero Y-linked genes
-    '''
-    female_markers = ['XIST']
-    male_markers = ['DDX3Y', 'RPS4Y1', 'UTY', 'KDM5D', 'EIF1AY']
-
-    available_female = [g for g in female_markers if g in counts.index]
-    available_male = [g for g in male_markers if g in counts.index]
-
-    if not available_female or not available_male:
-        print('Sex marker genes not found -- are gene symbols in the index?')
+    y_genes = ['DDX3Y', 'RPS4Y1', 'UTY', 'KDM5D', 'EIF1AY']
+    y_avail = [g for g in y_genes if g in counts.index]
+    if 'XIST' not in counts.index or not y_avail:
         return None
-
-    female_expr = counts.loc[available_female].sum()
-    male_expr = counts.loc[available_male].sum()
-
-    predicted_sex = pd.Series('unknown', index=counts.columns)
-    predicted_sex[male_expr > female_expr] = 'M'
-    predicted_sex[female_expr > male_expr] = 'F'
-
+    predicted = pd.Series('unknown', index=counts.columns)
+    predicted[counts.loc[y_avail].sum() > counts.loc['XIST']] = 'M'
+    predicted[counts.loc['XIST'] > counts.loc[y_avail].sum()] = 'F'
     if sex_column in metadata.columns:
-        mismatches = predicted_sex != metadata[sex_column]
-        if mismatches.any():
-            print(f'SEX MISMATCHES DETECTED ({mismatches.sum()} samples):')
-            for sample in metadata.index[mismatches]:
-                print(f'  {sample}: reported={metadata.loc[sample, sex_column]}, predicted={predicted_sex[sample]}')
-        else:
-            print('Sex check passed -- all samples match')
-    return predicted_sex
+        mis = predicted != metadata[sex_column]
+        if mis.any():
+            print(f'SEX MISMATCHES: {list(metadata.index[mis])}')
+    return predicted
 ```
 
 ```r
-# R sex check
-sex_check <- function(counts, coldata, sex_col='sex') {
-    xist <- counts['XIST', ]
+sex_check <- function(counts, coldata, sex_col = 'sex') {
     y_genes <- c('DDX3Y', 'RPS4Y1', 'UTY', 'KDM5D', 'EIF1AY')
-    y_expr <- colSums(counts[intersect(y_genes, rownames(counts)), , drop=FALSE])
-    predicted <- ifelse(y_expr > xist, 'M', 'F')
-    mismatches <- predicted != coldata[[sex_col]]
-    if (any(mismatches)) cat('Sex mismatches:', colnames(counts)[mismatches], '\n')
-    return(predicted)
+    y_expr <- colSums(counts[intersect(y_genes, rownames(counts)), , drop = FALSE])
+    predicted <- ifelse(y_expr > counts['XIST', ], 'M', 'F')
+    mis <- predicted != coldata[[sex_col]]
+    if (any(mis)) cat('Sex mismatches:', colnames(counts)[mis], '\n')
+    predicted
 }
 ```
 
-## Experimental Design Guidance
+CAVEAT: tumors with X loss, sex chromosome aneuploidies, HeLa (XXX with mixed inactivation) muddy this. Genotype-based methods are more robust.
 
-### Reference Level Selection
+### Genotype-based: somalier and NGSCheckMate
 
-The reference level determines the direction of fold changes and the baseline for model coefficients. Set it explicitly **before** creating the DE dataset.
+```bash
+somalier extract -d extracted/ --sites sites.GRCh38.vcf.gz \
+    -f reference.fa sample.bam
+somalier relate --infer extracted/*.somalier
+```
+
+```bash
+ncm_fastq.py -l fastq_list.txt -O outdir -bed common_sites.bed
+```
+
+Somalier (Pedersen et al. 2020 *Genome Med* 12:62) extracts a few thousand SNP sketches per sample (sub-second per sample) and computes pairwise relatedness from BAM/CRAM/VCF. NGSCheckMate (Lee et al. 2017 *NAR* 45:e103) computes VAF correlation across a common-SNP panel; works on FASTQ/BAM/VCF including RNA-seq.
+
+For any cohort >=20 samples, run one of these at the matrix-build step. Catching a swap in raw data is cheap; finding it after DE is expensive.
+
+## SABV -- Sex as Biological Variable
+
+NIH 2016+ requires sex consideration in vertebrate animal and human studies. Mauvais-Jarvis F et al. 2020 *Lancet* 396:565 reviews effect-size differences across diseases.
+
+Practical implication:
+- Always include sex in the metadata, even when not in the model.
+- For sex-balanced cohorts, `~ sex + condition` rarely hurts and captures real biology.
+- For sex-confounded cohorts (all-male disease cohort vs mixed-sex control), can't rescue but documents the limitation.
+- For chrX/chrY analyses, sex MUST be in the model OR the analysis is uninterpretable.
+- Report DE counts overall AND sex-stratified.
+
+## Simpson's Paradox -- Collapsing Technical Replicates
+
+**Goal:** Aggregate technical replicates from the same subject correctly; never treat them as independent biological replicates.
+
+**Approach:** Sum (not average) technical replicates of the same subject BEFORE downstream DE.
 
 ```r
-# Always set reference explicitly -- do not rely on alphabetical order
-metadata$condition <- factor(metadata$condition, levels=c('control', 'treated'))
-# or
-metadata$condition <- relevel(factor(metadata$condition), ref='control')
+library(DESeq2)
+dds_collapsed <- collapseReplicates(dds, groupby = dds$subject)
 ```
 
 ```python
-metadata['condition'] = pd.Categorical(metadata['condition'], categories=['control', 'treated'], ordered=True)
+counts_per_subject = counts.T.groupby(metadata['subject']).sum().T
+metadata_per_subject = metadata.drop_duplicates(subset='subject').set_index('subject')
 ```
 
-Common mistake: forgetting to relevel, resulting in fold changes in the wrong direction (e.g., control vs treated instead of treated vs control).
+Why sum and not average? Reads add. Two technical replicates yielding 1M reads each are equivalent to one library yielding 2M reads. Averaging would understate the effective library size.
 
-### Paired Designs
+Treating technical replicates as independent biological samples is the cardinal sin: it inflates the apparent sample size and deflates standard errors. With 4 patients x 3 tech reps = 12 samples, naive DE assumes 12 independent observations; the truth is closer to 4. p-values are compressed ~3x.
 
-For paired samples (e.g., tumor vs normal from the same patient), include the pairing variable in the model **before** the condition of interest. This absorbs inter-subject variability and dramatically increases statistical power.
+## High-Cardinality Categorical Covariates
+
+**Goal:** Handle batch / lane / well covariates with many levels without making the design matrix singular.
+
+**Approach:** Aggregate to fewer levels, model as random effect via DREAM, or drop if confounded.
 
 ```r
-# Pairing variable MUST come before condition
-design = ~ patient + condition
+ct <- table(coldata$condition, coldata$batch)
+ct
 
-# edgeR alternative: blocking factor in design matrix
-design_matrix <- model.matrix(~ patient + condition, data=coldata)
+ad <- alias(model.matrix(~ batch + condition, coldata))
+ad$Complete
 ```
 
-### Interaction Terms
+For a batch with 30 levels in n=40 samples: 30 batch coefficients + condition + intercept = 32 parameters for 40 observations. Symptoms: `Matrix not positive definite` (DESeq2), degenerate p-values (limma).
 
-Interaction models test whether the effect of one factor differs across levels of another (e.g., does drug response differ between genotypes?).
+Fixes:
+- Aggregate batches (sequencing run, sequencing pool, library prep date as proxy).
+- Random effect: `~ condition + (1 | batch)` via DREAM borrows information across batch levels via shrinkage.
+- Drop the covariate if confounded with condition (`alias()` reveals collinearity).
+
+## ~ 0 + group Parameterization
 
 ```r
-# Full interaction model
-design = ~ genotype + treatment + genotype:treatment
+design_default <- model.matrix(~ group, coldata)
+# columns: (Intercept), groupB, groupC  -- A is reference
 
-# The interaction coefficient represents the DIFFERENCE in treatment effect
-# between genotypes -- NOT the overall treatment effect
-# Main effect 'treatment' = treatment effect at REFERENCE level of genotype only
+design_nointercept <- model.matrix(~ 0 + group, coldata)
+# columns: groupA, groupB, groupC  -- each column is mean of that group
 ```
 
-When interactions are present, the main effect coefficient applies only at the reference level of the other factor. This is a common misinterpretation.
+With `~ 0 + group`, every contrast reads as `B - A`:
 
-### Confounding vs Batch Effects
+```r
+library(limma)
 
-If all treated samples were processed in batch 1 and all controls in batch 2, the batch effect is **perfectly confounded** with treatment and cannot be corrected by any statistical method. Check for confounding early:
-
-```python
-# Check for confounding between condition and batch
-ct = pd.crosstab(metadata['condition'], metadata['batch'])
-print(ct)
-# Rows/columns with all zeros indicate complete confounding
+con <- makeContrasts(BvsA = groupB - groupA,
+                     CvsA = groupC - groupA,
+                     BvsC = groupB - groupC,
+                     levels = design_nointercept)
+fit <- glmQLFit(y, design_nointercept, robust = TRUE)
+qlf <- glmQLFTest(fit, contrast = con[, 'BvsA'])
 ```
 
-## Merge Multiple Metadata Files
+DESeq2 needs an intercept internally, so `~ 0 + group` works directly with edgeR/limma but DESeq2 uses `contrast=` to achieve the same effect.
 
-```python
-def merge_metadata_files(files, on='sample_id'):
-    '''Merge multiple metadata files.'''
-    dfs = [pd.read_csv(f) for f in files]
-    merged = dfs[0]
-    for df in dfs[1:]:
-        merged = merged.merge(df, on=on, how='outer')
-    return merged.set_index(on)
+## Create DESeq2 / edgeR / AnnData Containers
 
-# Usage
-metadata = merge_metadata_files(['clinical.csv', 'sequencing.csv', 'qc.csv'])
+```r
+dds <- DESeqDataSetFromMatrix(as.matrix(counts), coldata, design = ~ batch + condition)
+
+y <- DGEList(counts = as.matrix(counts), group = coldata$condition)
+y$samples <- cbind(y$samples, coldata)
+
+adata <- ad.AnnData(X = t(as.matrix(counts)), obs = coldata, var = data.frame(row.names = rownames(counts)))
 ```
+
+AnnData convention is cells (samples) in rows -- transpose from the typical R genes-in-rows convention.
+
+## Per-Method Failure Modes
+
+### Fold-change direction reversed
+
+**Trigger:** Methods says "treated vs control"; published volcano shows expected up-genes on the LEFT.
+
+**Mechanism:** Factor levels left at alphabetical default; `c('Treated','Untreated')` -> `T < U` -> Treated is reference -> LFC is Untreated/Treated.
+
+**Symptom:** Known up-regulated genes appear down; reviewer questions direction.
+
+**Fix:** `relevel(coldata$condition, ref = 'Untreated')` BEFORE `DESeq()`. Re-run.
+
+### Interaction coefficient mistaken for main effect
+
+**Trigger:** `~ A * B` design; `results(name='B_drug_vs_vehicle')` reported as "drug effect"; reviewer asks about genotype-specific effect.
+
+**Mechanism:** With interaction, `B_drug_vs_vehicle` is drug effect IN THE A REFERENCE LEVEL only, not averaged across A.
+
+**Symptom:** Drug effect doesn't match the marginal estimate from a separate `~ B`-only fit.
+
+**Fix:** Use `~ 0 + group` with combined factor; OR extract per-stratum results explicitly using contrasts that sum main + interaction.
+
+### Pseudoreplication -- 12 samples, only 3 subjects
+
+**Trigger:** 3 subjects x 4 conditions = 12 samples; vanilla DESeq2 with `~ condition`; many DE genes.
+
+**Mechanism:** Same subject contributes multiple observations; not independent. Effective sample size for testing condition is ~3, not 12.
+
+**Symptom:** p-value histogram anti-conservative; replication low.
+
+**Fix:** Include subject in design (`~ subject + condition`) OR use DREAM with random subject.
+
+### Sample swap caught in DE results, not metadata
+
+**Trigger:** PCA shows "control" sample clustering with treated; investigation reveals it was mislabeled at thaw.
+
+**Mechanism:** Manual sample tracking is error-prone; cohort >=20 inevitably has swaps.
+
+**Symptom:** One sample dramatically off its group cluster; DE gene list dominated by sample-specific effects.
+
+**Fix:** Run somalier or NGSCheckMate at the matrix-build step, BEFORE DE. Catching a swap early is cheap; finding it post-DE is expensive.
+
+### Sex confounded, chrY genes dominate top hits
+
+**Trigger:** Mixed-sex cohort; sex not in design; PCA shows clear sex split on PC1.
+
+**Mechanism:** Sex distribution differs between groups; "treatment effect" partially captures sex.
+
+**Symptom:** Top DE genes are DDX3Y, RPS4Y1, UTY (chrY) and XIST -- not biology of interest.
+
+**Fix:** Add sex to design (`~ sex + condition`). For sex-specific analyses, stratify and report each separately.
+
+### duplicateCorrelation single-pass
+
+**Trigger:** limma user wrote a one-pass `duplicateCorrelation` + lmFit; QC reviewer asks why no re-voom.
+
+**Mechanism:** The proper pattern is: voom -> dupCor -> re-voom WITH correlation -> dupCor again -> lmFit. The first voom doesn't know about block structure; re-voom with correlation gets better weights.
+
+**Symptom:** Slightly inflated DE counts vs the two-pass pattern.
+
+**Fix:** Implement the two-pass pattern per the limma User's Guide (section 9.7).
+
+## Common errors
+
+| Error / symptom | Cause | Fix |
+|-----------------|-------|-----|
+| Sample names don't match between counts and metadata | Underscore/dash inconsistency, BAM suffix, case | `fuzzy_match_samples()` or manual normalization; report what failed |
+| DESeq2 design not full rank | Confounded covariates | `alias(design)$Complete` to identify; aggregate or drop |
+| `Matrix not positive definite` | High-cardinality batch with few samples | Aggregate batches or use random effect via DREAM |
+| LFC direction reversed | Alphabetical reference level | `relevel()` before `DESeq()` |
+| `results(name='...')` returns drug effect in WT only | Interaction design and naming trap | Use combined factor `~ 0 + group`; or contrast summing main + interaction |
+| Inflated DE list with 12 samples from 3 subjects | Pseudoreplication | Include subject; or use DREAM |
+| Sex effect appears as treatment effect | Sex not in design | Add `~ sex + condition` |
+| Sample distance heatmap shows mixing groups | Likely swap | Run somalier or NGSCheckMate |
+
+## References
+
+- Love MI, Huber W, Anders S. 2014. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. *Genome Biol* 15(12):550. doi:10.1186/s13059-014-0550-8
+- Robinson MD, McCarthy DJ, Smyth GK. 2010. edgeR: a Bioconductor package for differential expression analysis of digital gene expression data. *Bioinformatics* 26(1):139-140. doi:10.1093/bioinformatics/btp616
+- Ritchie ME et al. 2015. limma powers differential expression analyses for RNA-sequencing and microarray studies. *Nucleic Acids Res* 43(7):e47. doi:10.1093/nar/gkv007
+- Smyth GK, Michaud J, Scott HS. 2005. Use of within-array replicate spots for assessing differential expression in microarray experiments. *Bioinformatics* 21(9):2067-2075. doi:10.1093/bioinformatics/bti270
+- Hoffman GE, Roussos P. 2021. dream: powerful differential expression analysis for repeated measures designs. *Bioinformatics* 37(2):192-201. doi:10.1093/bioinformatics/btaa687
+- Hoffman GE, Schadt EE. 2016. variancePartition: interpreting drivers of variation in complex gene expression studies. *BMC Bioinformatics* 17:483. doi:10.1186/s12859-016-1323-z
+- Pedersen BS, Bhetariya PJ, Brown J, Kravitz SN, Marth GT, Jensen RL, Bronner MP, Underhill HR, Quinlan AR. 2020. Somalier: rapid relatedness estimation for cancer and germline studies using efficient genome sketches. *Genome Medicine* 12:62. doi:10.1186/s13073-020-00761-2
+- Lee S, Lee S, Ouellette S, Park W-Y, Lee EA, Park PJ. 2017. NGSCheckMate: software for validating sample identity in next-generation sequencing studies within and across data types. *Nucleic Acids Res* 45(11):e103. doi:10.1093/nar/gkx193
+- Mauvais-Jarvis F, Bairey Merz N, Barnes PJ et al. 2020. Sex and gender: modifiers of health, disease, and medicine. *Lancet* 396(10250):565-582. doi:10.1016/S0140-6736(20)31561-0
 
 ## Related Skills
 
-- expression-matrix/counts-ingest - Load count data
-- expression-matrix/gene-id-mapping - Convert gene IDs
-- expression-matrix/normalization - Normalize before visualization
-- differential-expression/deseq2-basics - Downstream DE analysis
-- differential-expression/batch-correction - Batch effect correction
-- single-cell/preprocessing - Single-cell metadata handling
+- counts-ingest - Building count matrices before metadata join
+- gene-id-mapping - Annotating result tables with symbols
+- normalization - Reference for downstream normalization choice
+- sparse-handling - AnnData obs metadata convention
+- differential-expression/deseq2-basics - Where the design formula matters; relevel; interactions
+- differential-expression/edger-basics - edgeR design matrix conventions
+- differential-expression/batch-correction - Design-inclusion vs subtraction; confounding
+- differential-expression/timeseries-de - Repeated measures; DREAM mixed model details
+- single-cell/preprocessing - scRNA-seq sample metadata handling

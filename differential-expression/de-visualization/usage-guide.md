@@ -65,13 +65,16 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Always use variance-stabilized counts (vst) for PCA and heatmaps
-- Scale heatmap rows (z-score) for comparable gene patterns
+- Always use variance-stabilized counts (vst or rlog) for PCA and heatmaps; raw counts make PC1 = library size
+- `vst()` function default is `blind=TRUE`; the current DESeq2 vignette recommends `blind=FALSE` for downstream visualization after the model is fit -- pass `blind=` explicitly
+- Scale heatmap rows (z-score) for comparable gene patterns; for QC heatmaps showing batch shifts, use `scale='none'` instead
 - Check p-value histogram for analysis quality (uniform + spike near 0 is correct; U-shape means batch effects)
-- Use shrunken LFCs for volcano plot x-axis, un-shrunken p-values for y-axis
+- Use shrunken LFCs for volcano plot x-axis and un-shrunken p-values for y-axis; shrinkage compresses the cloud but does NOT recompute p-values, so the same genes remain significant
+- Always set `max.overlaps = Inf` (or `options(ggrepel.max.overlaps = Inf)`) when labeling more than ~10 genes -- ggrepel's default silently drops labels
+- For outlier-robust top-variable-gene selection, use `matrixStats::rowMads(assay(vsd))` instead of `rowVars` -- one outlier sample can inflate rowVars massively
 - Use colorblind-friendly palettes for publications
 - Save vector formats (PDF) for publications, raster (PNG) for presentations
-- MA plot cloud should be symmetric around LFC=0; asymmetry suggests normalization failure
+- MA plot cloud should be symmetric around LFC=0; asymmetry suggests normalization failure (TMM/RLE assumption violated)
 
 ## Related Skills
 
