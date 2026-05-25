@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-edna-pipeline
-description: End-to-end eDNA metabarcoding from raw amplicons to community ecology. Covers QC, primer removal, denoising with OBITools3 or DADA2, contamination filtering, taxonomy assignment, Hill number diversity, and constrained ordination. Use when processing environmental DNA samples for biodiversity assessment or ecological surveys.
+description: End-to-end eDNA metabarcoding from raw amplicons to community ecology. Covers QC, primer removal (mandatory before DADA2 filterAndTrim), denoising with OBITools3 v3 (obi stats plural; DMS-based) or DADA2 ASVs (Callahan 2017), decontam combined method as screening-not-classifier (Davis 2018), tag-jumping with NovaSeq 10x MiSeq caveat (Schnell 2015), Hill-number effective species counts with coverage-based rarefaction (Jost 2006; Chao & Jost 2012; doubling rule), beta-diversity decomposition with MANDATORY PERMANOVA + PERMDISP pair (Anderson & Walsh 2013), constrained ordination, and the read-counts-not-abundance critique (Lamb 2019). Use when processing eDNA samples for biodiversity assessment, deciding ASV vs OTU, configuring OBITools3 v3, interpreting decontam screening, or reporting community comparisons with the dispersion confound check.
 tool_type: mixed
 primary_tool: obitools3
 workflow: true
@@ -11,10 +11,11 @@ depends_on:
   - read-qc/quality-reports
 qc_checkpoints:
   - after_demux: "Reads per sample >1000; negative controls <100 reads"
-  - after_denoising: "Chimera rate <20%; ASV/OTU count reasonable for marker and environment"
-  - after_decontam: "No unexpected taxa remaining in negative controls; tag-jumping artifacts removed"
-  - after_taxonomy: "Assignment rate marker-specific: >90% to phylum for COI/BOLD, >60% for understudied markers"
-  - after_diversity: "Rarefaction curves approaching asymptote; sample completeness >80%"
+  - after_denoising: "Chimera rate <20% (>30% indicates library-prep issues); ASV/OTU count reasonable for marker"
+  - after_decontam: "decontam combined method at threshold 0.1 (0.05 for low-biomass); biological-plausibility review of each flagged ASV; tag-jumping rate quantified and filtered (~0.001-0.005 MiSeq; ~0.005-0.01 NovaSeq per Schnell 2015)"
+  - after_taxonomy: "Assignment rate marker-specific: 50-85% unassigned is typical per Wangensteen 2018; report gap honestly"
+  - after_diversity: "Hill numbers reported as effective species counts (not raw Shannon); coverage-based rarefaction at C=0.95; extrapolation bounded at 2x reference (doubling rule); sample completeness >80%"
+  - after_ordination: "PERMANOVA + PERMDISP reported TOGETHER (Anderson & Walsh 2013); if betadisper significant, location conclusion is not supported"
 ---
 
 ## Version Compatibility
@@ -221,10 +222,19 @@ ps <- phyloseq(otu_table(seqtab_nochim, taxa_are_rows = FALSE),
 # Identify negative controls
 sample_data(ps)$is_neg <- sample_data(ps)$sample_type == 'negative_control'
 
-# prevalence method: standard for eDNA; threshold 0.5 identifies contaminants
-# present more in negative controls than real samples
-contam <- isContaminant(ps, method = 'prevalence', neg = 'is_neg', threshold = 0.5)
-message(sprintf('Contaminant ASVs: %d', sum(contam$contaminant)))
+# Combined method (Davis 2018): uses BOTH negative controls AND DNA concentration
+# threshold=0.1 default; 0.05 for low-biomass samples
+# CRITICAL: output is SCREENING, not classification; biological-plausibility check required
+if ('dna_concentration' %in% sample_variables(ps)) {
+    contam <- isContaminant(ps, method = 'combined', neg = 'is_neg',
+                            conc = 'dna_concentration', threshold = 0.1)
+} else {
+    # Fall back to prevalence-only if no qPCR/Qubit DNA-concentration data
+    contam <- isContaminant(ps, method = 'prevalence', neg = 'is_neg',
+                            threshold = 0.1)
+}
+message(sprintf('Flagged candidate contaminant ASVs: %d', sum(contam$contaminant)))
+message('Manual review required: verify biological plausibility before deletion')
 
 ps_clean <- prune_taxa(!contam$contaminant, ps)
 
@@ -232,20 +242,27 @@ ps_clean <- prune_taxa(!contam$contaminant, ps)
 ps_clean <- subset_samples(ps_clean, sample_type != 'negative_control')
 ```
 
-### Tag-jumping removal
+### Tag-jumping removal (Schnell 2015; NovaSeq caveat)
 
 ```r
-# Tag-jumping: cross-contamination from index hopping during sequencing
-# Remove ASVs with <0.1% of max abundance in a sample (likely tag-jump artifacts)
+# Tag-jumping: cross-contamination from index hopping during library prep / sequencing
+# Schnell 2015 Mol Ecol Resour 15:1289-1303 documented 0.1-2% per read pair
+# NovaSeq patterned flow cells have ~10x higher rates than MiSeq
+# Use platform-appropriate threshold:
+#   MiSeq: 0.001-0.005 (0.1-0.5% of ASV total)
+#   NovaSeq: 0.005-0.01 (0.5-1% of ASV total)
+# Quantify residual rate first from per-ASV cross-sample appearance
 otu <- as(otu_table(ps_clean), 'matrix')
 max_per_asv <- apply(otu, 2, max)
 otu_filtered <- otu
+# Set threshold by platform; default below is for MiSeq
+tag_jump_frac <- 0.001
 for (j in 1:ncol(otu)) {
-    # 0.1% of max: standard tag-jump threshold
-    threshold <- max_per_asv[j] * 0.001
+    threshold <- max_per_asv[j] * tag_jump_frac
     otu_filtered[otu[, j] < threshold, j] <- 0
 }
 otu_table(ps_clean) <- otu_table(otu_filtered, taxa_are_rows = FALSE)
+# Modern alternative: metabaR::tagjumpslayer(metabarlist_obj, threshold = 0.03)
 ```
 
 ### QC Checkpoint: Decontamination
@@ -376,9 +393,24 @@ if (gradient_length <= 3) {
 anova_result <- anova.cca(ord, permutations = 999)
 message(sprintf('%s significance: p = %.4f', method_name, anova_result$`Pr(>F)`[1]))
 
-# Indicator species analysis
-# Groups defined by environmental category (e.g., site, season, habitat)
-indval <- multipatt(otu_matrix, env_data$site, control = how(nperm = 999))
+# MANDATORY companion: PERMANOVA + PERMDISP (Anderson & Walsh 2013 Ecol Monogr 83:557-574)
+# adonis2 tests centroid difference; betadisper tests dispersion homogeneity
+# If betadisper is also significant, PERMANOVA significance is dispersion-confounded
+bray_dist <- vegdist(otu_matrix, method = 'bray')
+permanova <- adonis2(bray_dist ~ site, data = env_data,
+                     by = 'margin', permutations = 999)
+disp <- betadisper(bray_dist, env_data$site)
+disp_test <- permutest(disp, permutations = 999)
+message(sprintf('PERMANOVA p = %.4f; PERMDISP p = %.4f',
+                permanova[['Pr(>F)']][1], disp_test$tab[['Pr(>F)']][1]))
+if (permanova[['Pr(>F)']][1] < 0.05 && disp_test$tab[['Pr(>F)']][1] < 0.05) {
+    message('WARNING: Both PERMANOVA and PERMDISP significant; location-vs-dispersion confounded')
+}
+
+# Indicator species analysis with group-size equalization (NOT basic IndVal)
+# func='IndVal.g' corrects for unbalanced group sizes (De Caceres & Legendre 2009)
+indval <- multipatt(otu_matrix, env_data$site, func = 'IndVal.g',
+                    control = how(nperm = 999))
 summary(indval, alpha = 0.05)
 ```
 
@@ -386,14 +418,18 @@ summary(indval, alpha = 0.05)
 
 | Step | Parameter | Recommendation |
 |------|-----------|----------------|
-| Cutadapt | --discard-untrimmed | Always use; removes off-target reads |
+| Cutadapt | --discard-untrimmed | Always use; removes off-target reads. MANDATORY before DADA2 filterAndTrim |
 | Cutadapt | --minimum-length | 50 (general); adjust per expected amplicon size |
-| DADA2 | truncLen | Set from quality profiles; marker-dependent |
+| DADA2 | truncLen | Set from quality profiles; marker-dependent (typical 2x250 COI: c(220,180)) |
 | DADA2 | maxEE | c(2,2) standard; c(5,5) for degraded eDNA |
 | DADA2 | minOverlap | 20 (standard); increase for short overlaps |
+| DADA2 | chimera method | 'consensus' standard (conservative); 'pooled' more aggressive |
+| OBITools3 v3 | command syntax | `obi stats` (plural; was `obistat` in v1); `.tar.gz` taxonomy |
 | OBITools3 | --min-count | 2 (removes singletons); 5-10 for noisy datasets |
-| decontam | threshold | 0.5 (prevalence method); 0.1 for stringent |
-| Tag-jumping | threshold | 0.1% of max abundance per ASV |
+| decontam | method | 'combined' if concentration AND controls; 'prevalence' fallback |
+| decontam | threshold | 0.1 default; 0.05 for low-biomass samples |
+| Tag-jumping MiSeq | threshold | 0.001-0.005 fraction of ASV total |
+| Tag-jumping NovaSeq | threshold | 0.005-0.01 (~10x MiSeq per Schnell 2015) |
 | Taxonomy | minBoot | 50 (sensitive); 80 (conservative) |
 | ecotag | --min-identity | 0.97 (COI species); 0.95 (genus); marker-dependent |
 | iNEXT | endpoint | 2x max observed sample size |

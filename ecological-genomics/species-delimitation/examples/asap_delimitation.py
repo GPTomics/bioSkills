@@ -1,4 +1,9 @@
 # Reference: biopython 1.83+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
+# NOTE: this is a barcoding-gap / threshold-scan INSPECTION tool, NOT a substitute
+# for ASAP. Run actual ASAP via the C binary or the web service at
+# https://bioinfo.mnhn.fr/abi/public/asap/ for primary species delimitation.
+# This script helps you visualize the distance distribution and check for the
+# barcoding gap (often ABSENT per Meyer & Paulay 2005 PLoS Biol 3:e422).
 from Bio import AlignIO
 from scipy.cluster.hierarchy import fcluster, linkage, dendrogram
 from scipy.spatial.distance import squareform

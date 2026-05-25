@@ -1,4 +1,6 @@
-# Reference: BioPython 1.83+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
+# Reference: splits 1.0+, ape 5.7+, phytools 2.1+ | Verify API if version differs
+# GMYC single- and multi-threshold delimitation on an ultrametric phylogeny.
+# Requires strictly ultrametric tree; uses ape::chronos() or BEAST output.
 library(splits)
 library(ape)
 library(phytools)

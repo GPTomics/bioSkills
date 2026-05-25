@@ -1,4 +1,6 @@
-# Reference: bcftools 1.19+ | Verify API if version differs
+# Reference: hierfstat 0.5+, adegenet 2.1+, poppr 2.9+, ggplot2 3.5+ | Verify API if version differs
+# Population genetic diversity (F-statistics, allelic richness, pairwise FST) for conservation.
+# Pairs with NeEstimator/GONE2 (ne_estimation.R) for full conservation-genetics workflow.
 library(hierfstat)
 library(adegenet)
 library(ggplot2)
