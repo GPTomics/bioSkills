@@ -1,34 +1,41 @@
-'''Explore NCBI database structure with Entrez.einfo()'''
+'''Discover Entrez database structure: fields, links, last update timestamp, sortable terms.'''
 # Reference: biopython 1.83+, entrez direct 21.0+ | Verify API if version differs
 from Bio import Entrez
+import time
 
 Entrez.email = 'your.email@example.com'
 
-# List all databases
-print('=== Available NCBI Databases ===')
-handle = Entrez.einfo()
-record = Entrez.read(handle)
-handle.close()
-print(f"Total databases: {len(record['DbList'])}")
-print(f"Databases: {', '.join(record['DbList'][:10])}...")
+DELAY = 0.34
 
-# Get info about specific database
-print('\n=== Nucleotide Database Info ===')
-handle = Entrez.einfo(db='nucleotide')
-record = Entrez.read(handle)
-handle.close()
-info = record['DbInfo']
-print(f"Name: {info['DbName']}")
-print(f"Description: {info['Description']}")
-print(f"Total records: {info['Count']}")
-print(f"Last updated: {info['LastUpdate']}")
 
-# List searchable fields
-print('\n=== Searchable Fields ===')
-for field in info['FieldList'][:10]:
-    print(f"  {field['Name']:15} - {field['Description']}")
+def all_databases():
+    h = Entrez.einfo()
+    r = Entrez.read(h); h.close()
+    return r['DbList']
 
-# List available links to other databases
-print('\n=== Links to Other Databases ===')
-for link in info['LinkList'][:5]:
-    print(f"  {link['Name']:30} -> {link['DbTo']}")
+
+def db_info(db):
+    h = Entrez.einfo(db=db)
+    r = Entrez.read(h); h.close()
+    return r['DbInfo']
+
+
+print('=== All Entrez databases ===')
+dbs = all_databases()
+print(f'Count: {len(dbs)}')
+print(', '.join(dbs))
+time.sleep(DELAY)
+
+for db in ['nucleotide', 'pubmed', 'sra', 'gds']:
+    info = db_info(db)
+    print(f'\n=== {info["DbName"]} ===')
+    print(f'Description: {info["Description"]}')
+    print(f'Count:       {info["Count"]}')
+    print(f'LastUpdate:  {info["LastUpdate"]}  # records submitted after this not yet searchable')
+    print(f'Field count: {len(info["FieldList"])}')
+    for field in info['FieldList'][:6]:
+        print(f'    {field["Name"]:<12} ({field["FullName"]:<25}) {field["Description"][:60]}')
+    print(f'Link count:  {len(info["LinkList"])}')
+    for link in info['LinkList'][:4]:
+        print(f'    {link["Name"]:<32} -> {link["DbTo"]}')
+    time.sleep(DELAY)

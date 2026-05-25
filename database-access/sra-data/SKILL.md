@@ -1,366 +1,377 @@
 ---
 name: bio-sra-data
-description: Download sequencing data from NCBI SRA using the SRA toolkit. Use when downloading FASTQ files from SRA accessions, prefetching large datasets, or validating SRA downloads.
+description: Download raw sequencing reads from NCBI SRA using sra-tools (prefetch, fasterq-dump, vdb-validate) or the ENA mirror. Use when pulling FASTQ for SRR/ERR/DRR accessions, deciding between SRA-direct, ENA mirror, or AWS/GCP cloud mirror (STRIDES), handling --include-technical for 10x and other single-cell records, validating with MD5/vdb-validate, navigating SRR/SRX/SRS/SRP/PRJNA hierarchy, or finding accessions via pysradb. Encodes SRA cloud-egress economics, the fasterq-dump uncompressed-scratch trap, and the --max-size default that silently truncates large prefetches.
 tool_type: cli
 primary_tool: sra-tools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+, SRA Toolkit 3.0+
+Reference examples tested with: sra-tools 3.0+ (fasterq-dump, prefetch, vdb-validate, vdb-config), pysradb 2.2+, ENA portal API 2.0+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- CLI: `fasterq-dump --version`, `prefetch --version`
+- Python: `pip show pysradb`
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+If a flag is unrecognized or behavior changes, run `<tool> --help` and adapt.
 
 # SRA Data
 
-Download raw sequencing data from the Sequence Read Archive using the SRA toolkit.
+**"Download FASTQ from this SRA accession"** -> Two paths exist in 2026: the **SRA toolkit** (NCBI's official, with prefetch + fasterq-dump) and the **ENA mirror** (EMBL-EBI's mirror with direct FASTQ download, often faster). For >1 TB workflows, a third path: **AWS Open Data** (STRIDES program) where same-region EC2 pulls SRA data with zero egress cost.
 
-**"Download FASTQ from SRA"** → Fetch raw sequencing reads from an SRA accession as FASTQ files.
-- CLI: `fasterq-dump SRR_ACCESSION` (SRA Toolkit)
-- Python: `subprocess.run(['fasterq-dump', accession])` or `Entrez.efetch()` for metadata
+The single most impactful decision is **where to pull from**. SRA-direct is the default but ENA is faster more often than not, and AWS Open Data is the right answer for cloud-native analysis pipelines.
 
-## Installation
+- CLI: `prefetch SRR...`, `fasterq-dump SRR...`, `vdb-validate SRR...` (sra-tools)
+- CLI: `curl https://ftp.sra.ebi.ac.uk/...` (ENA mirror; direct FASTQ)
+- CLI: `aws s3 cp s3://sra-pub-run-odp/sra/SRR.../SRR... ./SRR....sra ...` (STRIDES; object is unsuffixed; same-region free)
+- Python: `pysradb` for metadata; `subprocess` for download
+
+## Required Setup
 
 ```bash
-# macOS
-brew install sratoolkit
+# sra-tools (toolkit)
+conda install -c bioconda sra-tools           # 3.0+
+fasterq-dump --version                        # confirm
 
-# Ubuntu/Debian
-sudo apt install sra-toolkit
+# Configure cache location (default ~/ncbi/ -- often too small)
+vdb-config --cfg                              # show current config
+vdb-config --set /repository/user/main/public/root=/data/sra_cache
 
-# conda (recommended)
-conda install -c bioconda sra-tools
-
-# Verify installation
-fasterq-dump --version
+# Optional: pysradb for metadata
+pip install pysradb
 ```
 
-## Core Commands
-
-### fasterq-dump - Download FASTQ (Recommended)
-
-Fast, multithreaded FASTQ extraction. Preferred over `fastq-dump`.
-
+For STRIDES cloud:
 ```bash
-# Download single SRA run as FASTQ
-fasterq-dump SRR12345678
-
-# Output: SRR12345678.fastq (single-end)
-# Or: SRR12345678_1.fastq, SRR12345678_2.fastq (paired-end)
+# AWS CLI (no NCBI auth needed for public buckets)
+aws s3 ls s3://sra-pub-run-odp/sra/SRR12345678/ --no-sign-request
 ```
 
-**Key Options:**
-| Option | Description | Example |
-|--------|-------------|---------|
-| `-O` / `--outdir` | Output directory | `-O ./fastq/` |
-| `-o` / `--outfile` | Output filename | `-o sample.fastq` |
-| `-e` / `--threads` | Number of threads | `-e 8` |
-| `-p` / `--progress` | Show progress bar | `-p` |
-| `-S` / `--split-files` | Split paired reads (default) | `-S` |
-| `-3` / `--split-3` | Also output unpaired reads | `-3` |
-| `--skip-technical` | Skip technical reads | `--skip-technical` |
-| `-t` / `--temp` | Temp directory | `-t /tmp` |
-| `-f` / `--force` | Overwrite existing | `-f` |
+## Decision matrix: where to pull from
+
+| Source | When best | Speed | Cost |
+|---|---|---|---|
+| **ENA mirror** (FTP/Aspera) | Default for most workflows | Often fastest; direct FASTQ (no SRA->FASTQ conversion needed) | Free; no rate limit observed |
+| **SRA toolkit + AWS STRIDES** | Same-region EC2/EKS | Fastest within AWS us-east-1 | Free egress within region; small storage cost |
+| **SRA toolkit + GCP STRIDES** | Same-region GCP Compute Engine | Fastest within GCP us-central1 | Free egress within region |
+| **SRA-direct (prefetch + fasterq-dump)** | On-prem; small downloads; need SRA-format access | Variable; can be slow off-peak fails | Free; NCBI throttles by IP |
+| **Aspera (`ascp`)** | Institutional accounts only | Faster than HTTPS on long links | NCBI public Aspera retired 2019; ENA public Aspera retired ~2023; institutional use still possible |
+
+**Default recommendation**: **ENA mirror** for off-cloud, **STRIDES (AWS/GCP)** for in-cloud analysis. SRA-direct only when neither is available or when SRA format itself is needed (e.g. for re-extraction of technical reads).
+
+## SRA accession hierarchy
+
+| Prefix | Type | Granularity |
+|---|---|---|
+| SRR / ERR / DRR | Run | One sequencing run (file-level) |
+| SRX / ERX / DRX | Experiment | Library prep + sequencing strategy |
+| SRS / ERS / DRS | Sample | Biological sample |
+| SRP / ERP / DRP | Study | Project (deprecated; superseded by BioProject) |
+| PRJNA / PRJEB / PRJDB | BioProject | Top-level project ID |
+| SAMN / SAMEA / SAMD | BioSample | Biological sample (cross-archive) |
+
+Conversion is via SRA metadata: `pysradb metadata <ID>` or `efetch -db sra -id <UID> -rettype runinfo`.
+
+The actual download unit is SRR/ERR/DRR (runs). The BioProject (PRJNA...) is the convenient top-level handle for "pull all data for paper X".
+
+## fasterq-dump vs fastq-dump
+
+`fasterq-dump` (sra-tools 2.10+) is the multi-threaded successor. **Always prefer it**, with two exceptions noted below.
+
+| Aspect | fasterq-dump | fastq-dump |
+|---|---|---|
+| Threads | Multi (`-e N`) | Single |
+| Speed | ~5-10x faster | Baseline |
+| Disk overhead | Writes uncompressed FASTQ to scratch (~3x final size) | In-place; lower scratch |
+| Compression | NOT built-in (post-process with pigz) | `--gzip` flag built-in |
+| Single-cell technical reads | `--include-technical` works | Some 10x records need fastq-dump for full extraction |
+| 10x split semantics | Sometimes incomplete | Sometimes the only way to get all reads |
+
+The **uncompressed-scratch trap**: `fasterq-dump` writes uncompressed FASTQ first, then leaves it uncompressed. A 100 GB compressed FASTQ needs ~300 GB of scratch space + 300 GB of final output. Either compress post-hoc with `pigz` or use `--mem` to control RAM/disk tradeoff.
+
+## prefetch and the `--max-size` trap
+
+`prefetch` downloads `.sra` files to the configured cache before extraction. Default `--max-size 20G` silently skips runs larger than 20 GB.
 
 ```bash
-# Common usage with options
-fasterq-dump SRR12345678 -O ./data/ -e 8 -p --skip-technical
-
-# Force split files (paired-end)
-fasterq-dump SRR12345678 -S -O ./data/
-```
-
-### prefetch - Download SRA Files First
-
-For large files or unreliable connections, prefetch first, then convert.
-
-```bash
-# Prefetch SRA file (downloads .sra to ~/ncbi/sra/)
+# Wrong: silently skips runs >20 GB
 prefetch SRR12345678
 
-# Then convert to FASTQ
-fasterq-dump ~/ncbi/sra/SRR12345678.sra
-
-# Or convert in place
-fasterq-dump SRR12345678  # Will find prefetched file
-```
-
-**Prefetch Options:**
-| Option | Description |
-|--------|-------------|
-| `-O` / `--output-directory` | Download location |
-| `-p` / `--progress` | Show progress |
-| `-f` / `--force` | Re-download if exists |
-| `--max-size` | Max file size (e.g., `50G`) |
-| `-X` / `--max-size` | Same as above |
-
-```bash
-# Prefetch with size limit
+# Right: set max-size explicitly to your largest expected size
 prefetch SRR12345678 --max-size 100G -p
-
-# Prefetch multiple accessions
-prefetch SRR12345678 SRR12345679 SRR12345680
-
-# Prefetch from a list file
-prefetch --option-file accessions.txt
 ```
 
-### vdb-validate - Verify Downloads
+For unknown-size queues, set max-size to a generous upper bound (e.g. `--max-size 200G`) or query metadata first with `pysradb metadata`.
 
-Check integrity of downloaded SRA files.
+## ENA mirror: direct FASTQ URLs
+
+ENA stores FASTQ files directly (no SRA-format intermediate). Discover URLs via the ENA portal API:
 
 ```bash
-# Validate a downloaded file
+curl 'https://www.ebi.ac.uk/ena/portal/api/filereport?accession=SRR12345678&result=read_run&fields=fastq_ftp,fastq_md5,read_count&format=tsv'
+```
+
+Returns TSV with semicolon-separated paired-end URLs and md5 checksums.
+
+Direct download:
+```bash
+curl -O 'https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR123/078/SRR12345678/SRR12345678_1.fastq.gz'
+```
+
+ENA's mirror is typically faster than SRA's because (a) it's hosted on Aspera-aware servers, (b) the FASTQ is pre-compressed (no SRA->FASTQ conversion needed), (c) EMBL-EBI's bandwidth is generous. For most downloads in 2026, ENA is the right default.
+
+## Single-cell / 10x quirks
+
+10x Genomics records include "technical reads" (cell barcodes, UMIs) interleaved with biological reads. Default `fasterq-dump` (or `fastq-dump`) skips them. To get all reads:
+
+```bash
+# fasterq-dump with technical reads
+fasterq-dump SRR12345678 --include-technical --split-files -p -O ./fastq/
+
+# Some 10x records require fastq-dump -- check sra-stat first
+sra-stat --xml SRR12345678 | grep -E '(spotCount|baseCount|tag)'
+```
+
+For 10x v3, expect 3 files per run: R1 (barcode+UMI), R2 (cDNA), I1 (index). For 10x v2: R1 (barcode), R2 (UMI+cDNA), I1.
+
+## MD5 / vdb-validate
+
+Always verify downloads.
+
+```bash
+# vdb-validate for SRA-format files (toolkit path)
 vdb-validate SRR12345678
 
-# Validate with detailed output
-vdb-validate SRR12345678 2>&1
+# md5sum for ENA FASTQ files
+md5sum -c <(echo "<expected_md5>  SRR12345678_1.fastq.gz")
 ```
 
-### sra-stat - Get Run Statistics
+ENA provides md5 in the portal API response. SRA-toolkit's `vdb-validate` is the equivalent for `.sra` files (different file format).
 
-Get information about an SRA run without downloading.
+## Cloud (STRIDES) access
+
+NCBI's STRIDES initiative mirrored SRA data to AWS Open Data (us-east-1) and GCP (us-central1). Same-region pulls have zero egress cost.
 
 ```bash
-# Basic stats
-sra-stat --quick SRR12345678
+# List SRA cloud-hosted files (no NCBI auth needed)
+aws s3 ls s3://sra-pub-run-odp/sra/SRR12345678/ --no-sign-request
 
-# Detailed XML output
-sra-stat --xml SRR12345678
+# Direct copy to EC2 in us-east-1. The STRIDES object is named without a `.sra`
+# suffix (just SRR12345678); rename on copy to keep fasterq-dump happy.
+aws s3 cp s3://sra-pub-run-odp/sra/SRR12345678/SRR12345678 ./SRR12345678.sra --no-sign-request
+
+# Then fasterq-dump locally
+fasterq-dump ./SRR12345678.sra -p -e 8
 ```
 
-## Configuration
+For cloud-native analysis pipelines (Nextflow on AWS Batch, Cromwell, etc.), STRIDES is the right path.
 
-### vdb-config - Configure SRA Toolkit
+## Code patterns
 
-Set up cache location and other settings.
+### Single SRR via ENA mirror (preferred default)
 
-```bash
-# Interactive configuration
-vdb-config -i
+**Goal:** Download paired-end FASTQ for one SRR; verify md5; minimal dependencies.
 
-# Set cache directory
-vdb-config --set /repository/user/main/public/root=/path/to/cache
+**Approach:** Query ENA portal API for FASTQ URLs and md5; download with curl; verify with md5sum.
 
-# Check current configuration
-vdb-config --cfg
-```
-
-### Cache Location
-
-Default: `~/ncbi/` on Linux/macOS
-
-```bash
-# Create dedicated cache
-mkdir -p /data/sra_cache
-vdb-config --set /repository/user/main/public/root=/data/sra_cache
-```
-
-## Code Patterns
-
-### Download Single Run
-
+**Reference (ENA portal API 2.0+, curl):**
 ```bash
 #!/bin/bash
-SRR="SRR12345678"
-OUTDIR="./fastq"
+SRR="${1:-SRR12345678}"
+OUT="${2:-./fastq}"
+mkdir -p "${OUT}"
 
-mkdir -p $OUTDIR
-fasterq-dump $SRR -O $OUTDIR -e 8 -p
-```
+# Get FASTQ URLs + md5 from ENA portal API
+META=$(curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${SRR}&result=read_run&fields=fastq_ftp,fastq_md5&format=tsv" | tail -1)
+URLS=$(echo "${META}" | cut -f1 | tr ';' '\n')
+MD5S=$(echo "${META}" | cut -f2 | tr ';' '\n')
 
-### Download Multiple Runs
-
-```bash
-#!/bin/bash
-# From a list of accessions
-while read SRR; do
-    echo "Downloading $SRR..."
-    fasterq-dump $SRR -O ./fastq/ -e 4 -p
-done < accessions.txt
-```
-
-### Prefetch Then Convert (Large Files)
-
-```bash
-#!/bin/bash
-SRR="SRR12345678"
-
-# Prefetch first (resumable)
-prefetch $SRR -p
-
-# Validate
-vdb-validate $SRR
-
-# Convert to FASTQ
-fasterq-dump $SRR -O ./fastq/ -e 8 -p
-
-# Optionally remove .sra file
-rm -f ~/ncbi/sra/${SRR}.sra
-```
-
-### Batch Download Script
-
-**Goal:** Download, validate, and convert multiple SRA accessions from a list file in a single automated run.
-
-**Approach:** Loop through accessions, prefetch each .sra file for resumable downloading, validate integrity with vdb-validate, then convert to FASTQ with fasterq-dump.
-
-```bash
-#!/bin/bash
-# download_sra.sh - Download multiple SRA runs
-
-ACCESSIONS="$1"
-OUTDIR="${2:-./fastq}"
-THREADS="${3:-4}"
-
-mkdir -p $OUTDIR
-
-while read SRR; do
-    if [[ -z "$SRR" ]] || [[ "$SRR" == \#* ]]; then
-        continue
+i=0
+while read url; do
+    fname="${OUT}/$(basename ${url})"
+    expected_md5=$(echo "${MD5S}" | sed -n "$((i+1))p")
+    echo "Downloading ${fname}"
+    curl -sL -o "${fname}" "https://${url}"
+    actual_md5=$(md5sum "${fname}" | awk '{print $1}')
+    if [ "${actual_md5}" != "${expected_md5}" ]; then
+        echo "MD5 MISMATCH ${fname}: expected ${expected_md5}, got ${actual_md5}"
+        exit 1
     fi
-
-    echo "Processing $SRR..."
-
-    # Prefetch
-    prefetch $SRR -p -O $OUTDIR
-
-    # Validate
-    if ! vdb-validate ${OUTDIR}/${SRR}/${SRR}.sra 2>/dev/null; then
-        echo "Validation failed for $SRR, skipping..."
-        continue
-    fi
-
-    # Convert
-    fasterq-dump ${OUTDIR}/${SRR}/${SRR}.sra -O $OUTDIR -e $THREADS -p
-
-    # Cleanup .sra
-    rm -rf ${OUTDIR}/${SRR}
-
-    echo "Completed $SRR"
-done < "$ACCESSIONS"
+    echo "  md5 OK"
+    i=$((i+1))
+done <<< "${URLS}"
 ```
 
-### Python Wrapper
+### prefetch + fasterq-dump (SRA toolkit, classic)
 
-```python
-import subprocess
-import os
+```bash
+#!/bin/bash
+SRR="${1:-SRR12345678}"
+OUT="${2:-./fastq}"
+THREADS="${3:-8}"
+mkdir -p "${OUT}"
 
-def download_sra(accession, outdir='.', threads=4, skip_technical=True):
-    os.makedirs(outdir, exist_ok=True)
+# prefetch with explicit max-size (default 20G silently skips larger)
+prefetch "${SRR}" --max-size 100G -p
 
-    cmd = ['fasterq-dump', accession, '-O', outdir, '-e', str(threads), '-p']
-    if skip_technical:
-        cmd.append('--skip-technical')
+# Validate SRA file
+vdb-validate "${SRR}" || { echo "Validation FAILED"; exit 1; }
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"fasterq-dump failed: {result.stderr}")
+# Extract FASTQ (multi-threaded; uncompressed scratch ~3x final size)
+fasterq-dump "${SRR}" -O "${OUT}" -e "${THREADS}" -p --split-files
 
-    return result.stdout
+# Compress post-hoc (fasterq-dump does NOT compress)
+pigz -p "${THREADS}" "${OUT}/${SRR}"_*.fastq
 
-# Download a run
-download_sra('SRR12345678', outdir='./data', threads=8)
+# Cleanup SRA cache if you don't need it
+# rm -rf ~/ncbi/sra/${SRR}.sra
 ```
 
-### Find SRA Accessions with Entrez
+### Batch via pysradb metadata
 
-**Goal:** Discover SRA run accessions for a BioProject or search query without browsing the SRA website.
+**Goal:** Convert a list of GSE / BioProject / SRX IDs to SRR run accessions.
 
-**Approach:** Search the SRA database via Entrez, then fetch run info in CSV format and parse out the run accessions (SRR IDs).
+**Approach:** pysradb metadata returns a full hierarchy table; pull SRR column.
 
+**Reference (pysradb 2.2+):**
 ```python
-from Bio import Entrez
+from pysradb import SRAweb
+import pandas as pd
 
-Entrez.email = 'your.email@example.com'
 
-def find_sra_runs(term, max_results=100):
-    handle = Entrez.esearch(db='sra', term=term, retmax=max_results)
-    search = Entrez.read(handle)
-    handle.close()
-
-    if not search['IdList']:
+def gse_to_srr(gse):
+    db = SRAweb()
+    df = db.gse_to_srp(gse)
+    if df.empty:
         return []
+    srp = df['study_accession'].iloc[0]
+    runs = db.srp_to_srr(srp)
+    return runs['run_accession'].tolist()
 
-    handle = Entrez.efetch(db='sra', id=','.join(search['IdList']), rettype='runinfo', retmode='text')
-    runinfo = handle.read()
-    handle.close()
 
-    # Parse CSV-like output
-    runs = []
-    for line in runinfo.strip().split('\n')[1:]:
-        if line:
-            fields = line.split(',')
-            if len(fields) > 0:
-                runs.append(fields[0])  # First field is Run accession
-    return runs
+def bioproject_to_runs(prjna):
+    db = SRAweb()
+    return db.sra_metadata(prjna, detailed=True)
 
-# Find runs for a project
-runs = find_sra_runs('PRJNA123456[bioproject]')
-print(f"Found {len(runs)} runs")
+
+def batch_resolve(ids):
+    db = SRAweb()
+    rows = []
+    for id in ids:
+        try:
+            meta = db.sra_metadata(id, detailed=True)
+            rows.append(meta)
+        except Exception as e:
+            print(f'{id}: {e}')
+    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+
+
+# Resolve a GSE to all its SRRs
+srrs = gse_to_srr('GSE123456')
+print(f'GSE123456 -> {len(srrs)} SRRs')
 ```
 
-## SRA Accession Types
+### Cloud (STRIDES) via AWS
 
-| Prefix | Type | Description |
-|--------|------|-------------|
-| SRR | Run | Individual sequencing run |
-| SRX | Experiment | Experimental design |
-| SRS | Sample | Biological sample |
-| SRP | Project/Study | Research project |
-| PRJNA | BioProject | NCBI BioProject ID |
-| SAMN | BioSample | NCBI BioSample ID |
+```bash
+#!/bin/bash
+# Run from EC2 in us-east-1 for zero egress
+SRR="${1:-SRR12345678}"
 
-Use Run accessions (SRR*) with fasterq-dump.
+# Check if available on AWS Open Data
+aws s3 ls "s3://sra-pub-run-odp/sra/${SRR}/" --no-sign-request
 
-## Common Errors
+# Download .sra (then extract locally)
+aws s3 cp "s3://sra-pub-run-odp/sra/${SRR}/${SRR}" "./${SRR}.sra" --no-sign-request
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `item not found` | Invalid accession | Check accession exists |
-| `disk full` | Insufficient space | Check temp and output dirs |
-| `timeout` | Network issues | Use prefetch first |
-| `path not found` | Bad output path | Create output directory |
-| `permission denied` | Cache permission | Check vdb-config |
-
-## Comparison: fasterq-dump vs fastq-dump
-
-| Feature | fasterq-dump | fastq-dump |
-|---------|--------------|------------|
-| Speed | Fast (multithreaded) | Slow (single-threaded) |
-| Memory | Higher | Lower |
-| Progress | Built-in | None |
-| Recommended | Yes | Legacy only |
-
-Always prefer `fasterq-dump` unless memory constrained.
-
-## Decision Tree
-
+fasterq-dump "./${SRR}.sra" -p -e 8 --split-files
+pigz -p 8 "${SRR}"_*.fastq
 ```
-Need SRA sequencing data?
-├── Know the SRR accession?
-│   └── fasterq-dump SRR... -O ./fastq/ -p
-├── Large file (>20GB)?
-│   └── prefetch first, then fasterq-dump
-├── Multiple runs?
-│   └── Loop through accessions or use prefetch --option-file
-├── Need to find accessions?
-│   └── Search SRA database with Entrez
-├── Download interrupted?
-│   └── prefetch supports resume
-└── Verify integrity?
-    └── vdb-validate SRR...
+
+### 10x single-cell with technical reads
+
+```bash
+#!/bin/bash
+SRR="${1:-SRR_10x_run}"
+OUT="${2:-./fastq_10x}"
+mkdir -p "${OUT}"
+
+# Get all reads including technical (barcode/UMI/index)
+fasterq-dump "${SRR}" --include-technical --split-files -p -O "${OUT}" -e 8
+
+# 10x v3 expects: R1 (28-bp barcode+UMI), R2 (cDNA), I1 (sample index)
+ls -la "${OUT}/${SRR}"_*.fastq
+pigz -p 8 "${OUT}/${SRR}"_*.fastq
 ```
+
+## Failure modes
+
+### prefetch --max-size silent skip
+- **Trigger:** Default 20 GB limit; run is 50 GB.
+- **Mechanism:** prefetch returns success but downloads nothing.
+- **Symptom:** vdb-validate or fasterq-dump fails because no file exists.
+- **Fix:** Always set `--max-size` explicitly to a generous upper bound (e.g. 200G).
+
+### fasterq-dump scratch space exhaustion
+- **Trigger:** Run is 100 GB compressed; scratch dir has 200 GB free.
+- **Mechanism:** fasterq-dump writes ~300 GB uncompressed, fills disk.
+- **Symptom:** "out of disk space" mid-extraction.
+- **Fix:** Use a scratch dir with 4-5x the compressed size; or use `--mem` to trade memory for disk; or stick with `fastq-dump --gzip` (slower but lower scratch).
+
+### 10x technical reads missing
+- **Trigger:** Default `fasterq-dump` on a 10x record.
+- **Mechanism:** Technical reads (barcodes, UMIs) are skipped by default.
+- **Symptom:** Only the cDNA file (R2) appears; CellRanger / STARsolo errors.
+- **Fix:** Add `--include-technical`; verify with `sra-stat --xml` first.
+
+### SRA-direct slowness during US business hours
+- **Trigger:** Downloading from NCBI 9 AM-5 PM ET weekdays.
+- **Mechanism:** NCBI bandwidth contention; institutional users have priority.
+- **Symptom:** kbps-level download speeds.
+- **Fix:** Switch to ENA mirror or AWS STRIDES; run outside US business hours.
+
+### Aspera deprecation
+- **Trigger:** Old script using `ascp` against `anonftp@ftp.ncbi.nlm.nih.gov`.
+- **Mechanism:** NCBI retired public Aspera in 2019; ENA followed ~2023; only institutional accounts retain support.
+- **Symptom:** Connection refused or auth fails.
+- **Fix:** Switch to HTTPS (slower but works); for fastest cloud transfer use STRIDES (AWS/GCP).
+
+### Cloud egress costs surprise
+- **Trigger:** STRIDES pull from EC2 in us-west-2 against bucket in us-east-1.
+- **Mechanism:** Cross-region egress is charged.
+- **Symptom:** Unexpected AWS bill.
+- **Fix:** Match compute region to bucket region (us-east-1 for AWS, us-central1 for GCP).
+
+### vdb-config not persisted across containers
+- **Trigger:** Docker container without persisted `~/.ncbi/user-settings.mkfg`.
+- **Mechanism:** Cache config is per-user, per-home; container rebuild loses it.
+- **Symptom:** Cache fills container's small layer; download fails.
+- **Fix:** Mount a host volume at `~/.ncbi/` and persist user-settings.mkfg; or set `--temp` and `-O` explicitly in commands.
+
+## Common errors
+
+| Error / symptom | Cause | Solution |
+|---|---|---|
+| "item not found" | Invalid accession or not in current SRA | Verify; check ENA mirror |
+| Scratch disk full mid-extraction | fasterq-dump uncompressed write | Use larger scratch or fastq-dump --gzip |
+| Slow SRA-direct download | Business-hours contention | ENA or STRIDES |
+| 10x reads missing | --include-technical not set | Add the flag |
+| Container loses cache config | vdb-config not persisted | Mount ~/.ncbi as volume |
+| prefetch returns "success" but no file | --max-size silent skip | Set --max-size explicitly |
+| AWS bill on STRIDES | Cross-region pull | Match compute region |
+
+## References
+
+- NCBI. SRA Toolkit documentation. https://github.com/ncbi/sra-tools/wiki
+- NCBI. STRIDES program. https://datascience.nih.gov/strides
+- Leinonen R, Sugawara H, Shumway M; International Nucleotide Sequence Database Collaboration. (2011) The sequence read archive. *Nucleic Acids Res* 39:D19-D21.
+- Cochrane G, Karsch-Mizrachi I, Takagi T; International Nucleotide Sequence Database Collaboration. (2016) The International Nucleotide Sequence Database Collaboration. *Nucleic Acids Res* 44:D48-D50.
+- Choudhary S. (2019) pysradb: A Python package to query next-generation sequencing metadata and data from NCBI Sequence Read Archive. *F1000Research* 8:532.
 
 ## Related Skills
 
-- entrez-search - Search SRA database to find accessions
-- sequence-io - Read downloaded FASTQ files with Biopython
-- sequence-io/paired-end-fastq - Handle paired R1/R2 files
-- alignment-files - Align downloaded reads
+- entrez-search - Search the SRA db for accessions before downloading
+- geo-data - GEO Series often link to SRA; gds -> sra ELink
+- read-qc/quality-reports - QC the downloaded FASTQ
+- read-qc/fastp-workflow - Adapter trim downloaded FASTQ
+- ncbi-datasets-cli - Modern bulk path for genome data (NOT for SRA reads)

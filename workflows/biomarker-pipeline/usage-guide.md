@@ -65,6 +65,9 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
+- database-access/geo-data - Public expression cohorts for independent validation
+- database-access/sra-data - Pull raw FASTQ to build re-quantified validation cohorts
+- database-access/uniprot-access - Protein-level features (sequence, GO, PTMs) for protein biomarkers
 - machine-learning/biomarker-discovery - Detailed feature selection methods
 - machine-learning/model-validation - Nested CV implementation details
 - machine-learning/omics-classifiers - Classifier options and tuning

@@ -1,88 +1,83 @@
-# Interaction Databases - Usage Guide
+# Interaction Databases Usage Guide
 
 ## Overview
 
-This skill enables AI agents to query protein-protein interaction (PPI) databases including STRING, BioGRID, IntAct, and OmniPath. Retrieves interaction partners, confidence scores, and functional enrichment for gene sets, then converts results into NetworkX graphs for downstream analysis.
+Query protein-protein and gene interaction databases (STRING, BioGRID, IntAct, SIGNOR, Reactome, HuRI, HuMAP, OmniPath). Encodes the decision matrix (which resource for which question), STRING v12 channel semantics and confidence tiers, SIGNOR as the only major signed/directed signaling resource, OmniPath as the modern meta-database, BioGRID's HT-vs-LT distinction, per-resource license constraints (commercial restrictions on ConsensusPathDB and PhosphoSitePlus), and the STRING version-pinning trap (v11.5 deprecated 2023).
 
 ## Prerequisites
 
 ```bash
 pip install requests pandas networkx
+# Optional:
+pip install omnipath              # OmniPath Python client (cleaner than raw REST)
+# R alternatives: STRINGdb, OmnipathR (Bioconductor)
 ```
 
-Optional for specific databases:
-```bash
-# OmniPath Python client (alternative to REST)
-pip install omnipath
-
-# STRINGdb R package (alternative to REST)
-# install.packages('BiocManager')
-# BiocManager::install('STRINGdb')
-```
-
-- BioGRID requires a free API key from [thebiogrid.org](https://wiki.thebiogrid.org/doku.php/biogridrest)
-- STRING, IntAct, and OmniPath are key-free
+BioGRID requires a free API key from `https://webservice.thebiogrid.org/`. All other listed resources are key-free.
 
 ## Quick Start
 
-Tell your AI agent what you want to do:
-
-- "Get all protein interactions for TP53 from STRING"
-- "Build a PPI network for my list of DE genes"
-- "Find high-confidence interactions between these kinases"
-- "Query BioGRID for physical interactions with BRCA1"
-- "Combine STRING and OmniPath interactions into one network"
+- "Get STRING v12 interactions for [TP53, MDM2, BRCA1] at high confidence (700+); show per-channel scores"
+- "Filter BioGRID interactions to physical, low-throughput only (HT screens have higher FP rates)"
+- "Get signed signaling interactions from SIGNOR for MAPK pathway -- with direction and mechanism"
+- "Aggregate STRING + OmniPath + BioGRID into one network; track per-edge provenance"
+- "Use OmniPath with license=commercial to restrict to permissive-license sources"
 
 ## Example Prompts
 
-### STRING Queries
+### Decision: which resource
 
-> "Get STRING interactions for TP53, MDM2, BRCA1, ATM, and CHEK2 with high confidence"
+> "I want only physically interacting proteins for a 10-gene set, publication-grade. Don't use STRING's combined score (which mixes textmining). Use IntAct or BioGRID filtered to LT physical systems (Affinity Capture-MS, Two-hybrid, Reconstituted Complex)."
 
-> "Download the STRING network image for my DNA damage response genes"
+### STRING confidence + channels
 
-> "Run STRING enrichment analysis on my upregulated gene list"
+> "Get STRING v12 interactions for my gene list at score 700. Return the full per-channel breakdown (escore, dscore, tscore, ascore, etc.) so I can see whether each edge is supported by experiments vs textmining vs coexpression."
 
-### BioGRID Queries
+### Signed signaling
 
-> "Find all low-throughput physical interactions for MYC in BioGRID"
+> "I need signed, directed signaling for a TP53 pathway analysis. STRING and BioGRID won't do -- they're undirected. Use SIGNOR, which has direction, effect (up/down-regulates), and mechanism (phosphorylation, etc.)."
 
-> "Get BioGRID interactions for EGFR filtered to co-immunoprecipitation experiments"
+### Multi-resource aggregation
 
-### Multi-Database
+> "Build a union network across STRING (high confidence), OmniPath, and BioGRID LT physical. Track sources per edge; flag edges supported by multiple resources as highest confidence."
 
-> "Query both STRING and OmniPath for my gene list and merge the results"
+### License-aware OmniPath
 
-> "Build a combined PPI network from STRING, BioGRID, and IntAct for these 50 genes"
+> "I'm building a commercial product. Query OmniPath with license=commercial to filter to commercially-permissive sources only. Audit each source's license before adding to the pipeline."
 
-### Network Construction
+### Symbol disambiguation
 
-> "Convert my STRING interactions to a NetworkX graph and find the hub genes"
-
-> "Build a PPI network and compute centrality measures for my gene list"
+> "Resolve gene symbols to UniProt accessions before querying. MARCH1 was renamed to MARCHF1 in 2020 by HGNC. Some interaction resources updated; some haven't."
 
 ## What the Agent Will Do
 
-1. Resolve gene identifiers to database-specific IDs
-2. Query one or more interaction databases via REST APIs
-3. Filter interactions by confidence score and evidence type
-4. Convert results to a NetworkX graph
-5. Compute network statistics (degree, clustering, components)
-6. Export the network for visualization or downstream analysis
+1. Pick the right resource based on the question (physical/functional, signed/unsigned, HT/LT, species).
+2. For STRING, set `caller_identity` and pin to v12 URL; pick confidence threshold from the use case (700+ for publication).
+3. For BioGRID, filter `THROUGHPUT='Low Throughput'` and physical experimental systems for high-quality calls.
+4. For SIGNOR, preserve direction and mechanism; use DiGraph not Graph.
+5. For OmniPath, preserve `sources` and `references` per edge for provenance.
+6. Aggregate across resources for consensus; flag multi-source edges as higher confidence.
+7. Document license constraints for any commercial pipeline (avoid ConsensusPathDB / PhosphoSitePlus without legal review).
+8. Resolve gene symbols via UniProt or HGNC IDs before querying (HGNC rename instability).
 
 ## Tips
 
-- **Score threshold 700** - Use high-confidence STRING scores (700+) for publication networks; use 400 for exploratory analysis where recall matters
-- **BioGRID API key** - Free but required; register at thebiogrid.org for access
-- **Low-throughput evidence** - Filter BioGRID to low-throughput experiments for higher-quality physical interactions
-- **OmniPath for signaling** - OmniPath curates directed signaling interactions, ideal for pathway reconstruction
-- **Multi-database consensus** - Interactions found in multiple databases are more reliable; aggregate and filter by source count
-- **Species codes** - STRING uses NCBI taxonomy IDs: 9606 (human), 10090 (mouse), 7955 (zebrafish), 7227 (fly)
-- **Rate limiting** - Add delays between batch queries to STRING and BioGRID; process gene lists in chunks of 50-100
+- STRING URL is version-pinned: `version-12-0.string-db.org/api` as of 2024. Older `version-11-5` URLs were deprecated 2023.
+- STRING `caller_identity` is requested for usage attribution and rate-limit allocation; non-compliant clients get throttled first.
+- STRING combines 7 channels into a single score by default. Treating combined score as "physical interaction" is the most common misuse. Filter to `escore` (experiments channel) for physical-only.
+- BioGRID's `THROUGHPUT` flag is the most important quality filter -- LT (low-throughput) is curated and high-confidence; HT (high-throughput screens) has higher FP rates.
+- SIGNOR is **the only major curated database with signed and mechanism-typed interactions**. For any signaling pathway model, SIGNOR is essential.
+- OmniPath (Türei 2021) aggregates 100+ sources with provenance -- the modern one-stop for "give me everything available for X".
+- Reactome is gold-standard for human pathway curation; species coverage outside human is limited.
+- HuRI (binary Y2H interactome) and HuMAP (AP-MS complexes) are reference human-specific resources.
+- For commercial use: stick to STRING + BioGRID + IntAct + SIGNOR + Reactome + HuRI/HuMAP + OmniPath; ConsensusPathDB is academic-only; PhosphoSitePlus requires paid commercial license.
+- For directional resources (SIGNOR, OmniPath), use `nx.DiGraph` not `nx.Graph` to preserve direction.
 
 ## Related Skills
 
-- database-access/uniprot-access - Protein annotations and cross-references
+- uniprot-access - Resolve symbols to UniProt accessions
+- ensembl-rest - Cross-reference Ensembl IDs in network nodes
+- gene-regulatory-networks/coexpression-networks - Co-expression as complement to PPI
 - pathway-analysis/go-enrichment - Functional enrichment of network genes
-- gene-regulatory-networks/coexpression-networks - Co-expression network construction
-- data-visualization/network-visualization - Visualize interaction networks
+- pathway-analysis/reactome-pathways - Pathways alongside Reactome interactions
+- data-visualization/network-visualization - Network rendering

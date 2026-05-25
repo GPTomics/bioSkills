@@ -1,6 +1,6 @@
 ---
 name: bio-entrez-fetch
-description: Retrieve records from NCBI databases using Biopython Bio.Entrez. Use when downloading sequences, fetching GenBank records, getting document summaries, or parsing NCBI data into Biopython objects.
+description: Retrieve records from NCBI databases using Biopython Bio.Entrez (EFetch, ESummary). Use when downloading sequences, fetching GenBank/GenPept records, getting document summaries, parsing nested XML, navigating GI deprecation, choosing between rettype+retmode combinations, and parsing into Biopython SeqRecord/SwissProt objects. Covers nucleotide, protein, gene, pubmed, sra, gds, taxonomy, snp, clinvar.
 tool_type: python
 primary_tool: Bio.Entrez
 ---
@@ -10,325 +10,298 @@ primary_tool: Bio.Entrez
 Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
+- Python: `pip show biopython` then `help(Bio.Entrez.efetch)` to check signatures
+- CLI: `efetch -version` then `efetch -help` to confirm flags
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # Entrez Fetch
 
-**"Download a sequence from NCBI"** → Retrieve a record by accession from an NCBI database and parse it into a usable object.
-- Python: `Entrez.efetch()` + `SeqIO.read()` (BioPython)
-- CLI: `efetch -db nucleotide -id NM_007294 -format fasta` (Entrez Direct)
-- R: `entrez_fetch()` (rentrez)
+**"Download a record by accession from NCBI"** -> EFetch returns the full record content in a chosen format (FASTA, GenBank, XML, MEDLINE, etc.). ESummary returns a lightweight "docsum" object — much faster when only metadata is needed.
 
-Retrieve records from NCBI databases using Biopython's Entrez module (EFetch, ESummary utilities).
+The agent's first decision is always: does this workflow need the full record, or just metadata? ESummary is 5-10x cheaper than EFetch for the equivalent record set. For "tell me the organism, length, and definition line for 10,000 accessions", ESummary wins by an order of magnitude.
+
+- Python: `Entrez.efetch(db=..., id=..., rettype=..., retmode=...)` (BioPython)
+- CLI: `efetch -db nucleotide -id NM_007294 -format gb` (Entrez Direct, NBK179288)
+- R: `entrez_fetch(db=..., id=..., rettype=...)` (rentrez)
 
 ## Required Setup
 
 ```python
-from Bio import Entrez
-
-Entrez.email = 'your.email@example.com'  # Required by NCBI
-Entrez.api_key = 'your_api_key'          # Optional, raises rate limit 3->10 req/sec
-```
-
-## Core Functions
-
-### Entrez.efetch() - Retrieve Full Records
-
-Fetch complete records in various formats from any NCBI database.
-
-```python
-# Fetch GenBank record by ID
-handle = Entrez.efetch(db='nucleotide', id='NM_007294', rettype='gb', retmode='text')
-genbank_text = handle.read()
-handle.close()
-
-# Fetch FASTA sequence
-handle = Entrez.efetch(db='nucleotide', id='NM_007294', rettype='fasta', retmode='text')
-fasta_text = handle.read()
-handle.close()
-
-# Fetch multiple records
-handle = Entrez.efetch(db='nucleotide', id='NM_007294,NM_000059', rettype='fasta', retmode='text')
-```
-
-**Key Parameters:**
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `db` | Database name | `'nucleotide'`, `'protein'`, `'pubmed'` |
-| `id` | Record ID(s) | `'NM_007294'` or `'123,456,789'` |
-| `rettype` | Return type | `'fasta'`, `'gb'`, `'abstract'` |
-| `retmode` | Return mode | `'text'`, `'xml'` |
-| `retstart` | Start index | `0` |
-| `retmax` | Max records | `20` |
-| `WebEnv` | History server session | From esearch |
-| `query_key` | History server query | From esearch |
-
-### Common Return Types by Database
-
-**Nucleotide/Protein:**
-| rettype | retmode | Description |
-|---------|---------|-------------|
-| `'fasta'` | `'text'` | FASTA sequence |
-| `'gb'` | `'text'` | GenBank flat file |
-| `'gp'` | `'text'` | GenPept flat file (protein) |
-| `'gbwithparts'` | `'text'` | GenBank with contig sequences |
-| `'seqid'` | `'text'` | Seq-id only |
-| `'acc'` | `'text'` | Accession only |
-
-**PubMed:**
-| rettype | retmode | Description |
-|---------|---------|-------------|
-| `'abstract'` | `'text'` | Abstract text |
-| `'medline'` | `'text'` | MEDLINE format |
-| `'xml'` | `'xml'` | Full PubMed XML |
-
-**Gene:**
-| rettype | retmode | Description |
-|---------|---------|-------------|
-| `'gene_table'` | `'text'` | Gene table format |
-| `'xml'` | `'xml'` | Full gene XML |
-
-### Entrez.esummary() - Document Summaries
-
-Get brief summaries without downloading full records. Faster than efetch.
-
-```python
-# Get summary for nucleotide record
-handle = Entrez.esummary(db='nucleotide', id='NM_007294')
-record = Entrez.read(handle)
-handle.close()
-
-summary = record[0]  # First (only) record
-print(f"Title: {summary['Title']}")
-print(f"Length: {summary['Length']}")
-print(f"Organism: {summary['Organism']}")
-```
-
-**Common Summary Fields:**
-```python
-# Nucleotide/Protein
-summary['Title']          # Record title/description
-summary['Caption']        # Short identifier
-summary['Length']         # Sequence length
-summary['Organism']       # Source organism
-summary['TaxId']          # Taxonomy ID
-summary['AccessionVersion']  # Full accession.version
-
-# PubMed
-summary['Title']          # Article title
-summary['AuthorList']     # Authors
-summary['Source']         # Journal
-summary['PubDate']        # Publication date
-summary['DOI']            # Digital Object Identifier
-```
-
-## Parsing with Biopython
-
-### Parse into SeqRecord Objects
-
-```python
 from Bio import Entrez, SeqIO
-
-Entrez.email = 'your.email@example.com'
-
-# Parse GenBank into SeqRecord
-handle = Entrez.efetch(db='nucleotide', id='NM_007294', rettype='gb', retmode='text')
-record = SeqIO.read(handle, 'genbank')
-handle.close()
-
-print(f"ID: {record.id}")
-print(f"Length: {len(record.seq)}")
-print(f"Features: {len(record.features)}")
-
-# Parse FASTA into SeqRecord
-handle = Entrez.efetch(db='nucleotide', id='NM_007294', rettype='fasta', retmode='text')
-record = SeqIO.read(handle, 'fasta')
-handle.close()
+Entrez.email = 'researcher@institution.edu'
+Entrez.api_key = 'optional_api_key'  # raises rate to 10 req/sec
 ```
 
-### Parse Multiple Records
+## Decision matrix: rettype + retmode per database
 
-```python
-# Fetch multiple as FASTA
-handle = Entrez.efetch(db='nucleotide', id='NM_007294,NM_000059,NM_000546', rettype='fasta', retmode='text')
-records = list(SeqIO.parse(handle, 'fasta'))
-handle.close()
+The combinations are not orthogonal — each (db, rettype, retmode) triple is enabled or disabled by NCBI server-side. Wrong combinations return either silent empty responses or HTTP 400. The triples below are the safe, current set.
 
-for record in records:
-    print(f"{record.id}: {len(record.seq)} bp")
-```
+### nucleotide / protein
 
-### Parse XML with Entrez.read()
+| rettype | retmode | Returns | Use when |
+|---|---|---|---|
+| `fasta` | `text` | FASTA | Just need sequence + defline |
+| `gb` (nuc) / `gp` (prot) | `text` | Full flat file | Need annotations, features, references |
+| `gbwithparts` | `text` | GB with CONTIG sequences inlined | Whole-genome shotgun assemblies; default `gb` returns CONTIG records requiring a chase to resolve |
+| `fasta_cds_na` | `text` | CDS-only nucleotide | Extract coding regions from annotated GB |
+| `fasta_cds_aa` | `text` | CDS-translated AA | Get translated proteins from GB record in one call |
+| `xml` (== gb XML) | `xml` | INSDSeq XML | Programmatic parsing; the schema is unversioned and shifts |
+| `acc` | `text` | Accession.version per line | Just resolve UID -> accession |
+| `seqid` | `text` | Internal seq-id | Rarely needed |
 
-```python
-# For structured data, use XML mode
-handle = Entrez.efetch(db='gene', id='672', retmode='xml')
-records = Entrez.read(handle)
-handle.close()
+### pubmed
 
-# Navigate nested structure
-gene = records[0]
-print(f"Gene: {gene['Entrezgene_gene']['Gene-ref']['Gene-ref_locus']}")
-```
+| rettype | retmode | Returns | Use when |
+|---|---|---|---|
+| `abstract` | `text` | Title + authors + abstract | Reading abstracts |
+| `medline` | `text` | MEDLINE flat | Parsing with `Bio.Medline` |
+| `xml` | `xml` | Full PubMed XML | Programmatic — get MeSH, grants, PMC link |
+| (omitted) | (omitted) | Defaults to XML | EFetch default for pubmed is XML — pass `retmode='xml'` explicitly for clarity |
 
-## Code Patterns
+### gene
 
-### Fetch Sequence by Accession
+| rettype | retmode | Returns | Use when |
+|---|---|---|---|
+| `gene_table` | `text` | Tabular per-transcript layout | Exon coordinates |
+| `xml` | `xml` | Full Entrez Gene XML | Everything else — name, synonyms, GeneRIFs, locus |
 
-```python
-from Bio import Entrez, SeqIO
+### sra
 
-Entrez.email = 'your.email@example.com'
+| rettype | retmode | Returns | Use when |
+|---|---|---|---|
+| `runinfo` | `text` | CSV of run metadata | Convert SRA UID -> SRR accession + Run metrics |
+| `xml` | `xml` | Full SRA XML hierarchy | Need BioSample/BioProject linkage in one call |
 
-def fetch_sequence(accession, db='nucleotide'):
-    handle = Entrez.efetch(db=db, id=accession, rettype='fasta', retmode='text')
-    record = SeqIO.read(handle, 'fasta')
-    handle.close()
-    return record
+### taxonomy
 
-seq = fetch_sequence('NM_007294')
-print(f"{seq.id}: {seq.seq[:50]}...")
-```
+| rettype | retmode | Returns | Use when |
+|---|---|---|---|
+| `xml` | `xml` (default) | TaxNode XML | Lineage, parent, common name |
 
-### Fetch GenBank with Features
+### gds (GEO)
 
+| rettype | retmode | Returns | Use when |
+|---|---|---|---|
+| (default — no rettype) | `text` | Plaintext SOFT-style summary | Quick metadata; for full series matrix go to FTP |
+
+EFetch for GDS records is intentionally minimal — full GEO downloads go via the FTP mirror or `GEOparse`. See `geo-data` skill.
+
+## GI deprecation (still bites in 2026)
+
+NCBI stopped issuing new GI numbers for major nucleotide/protein submissions starting 2017. Records submitted after the cutoff have only `accession.version` identifiers. Many older scripts assume `id=<numeric_gi>`; passing a modern accession string also works, but mixing the two in one comma-separated id list is the bug.
+
+**Rules:**
+- For modern code, always pass `accession.version` strings.
+- A bare accession without `.version` resolves to the latest version — fine for exploratory work, dangerous for reproducibility.
+- Old `id=12345` GI lookups still work for records issued before 2017, but a search returning a UID that looks like a GI may actually be the legacy GI for an old record — assume UID is an opaque identifier.
+- EFetch accepts comma-separated IDs of mixed types but the URL has a ~2000 char practical limit; chunk large ID lists into batches.
+
+## ESummary vs EFetch triage
+
+| Need | ESummary | EFetch (text) | EFetch (xml) |
+|---|---|---|---|
+| Title, organism, length | yes | overkill | overkill |
+| Authors of a PubMed article | yes | yes | yes |
+| Full abstract text | no | `rettype=abstract` | better — structured |
+| MeSH terms, grant info, PMC ID | no | no | yes |
+| Sequence | no | `rettype=fasta` | overkill |
+| Sequence features (CDS, exons) | no | `rettype=gb` | yes |
+| Cross-references (xref) | partial | yes (in GB) | yes |
+| Bulk metadata for 10K records | best (1 call per ~500) | slow | slow |
+
+ESummary's documented hard limit is 10,000 docsums per call, but the practical sweet spot is ~500 (keeps the URL under length limits when IDs are comma-joined; for >500 use EPost to push IDs server-side first). Per-record payload is much smaller than EFetch. Use ESummary as the default for any metadata-only workflow.
+
+## XML schema brittleness
+
+`Entrez.read()` parses INSDSeq XML, PubmedArticle XML, Gene XML, etc. The schemas are NOT versioned; NCBI adds and renames fields without notice. Real-world consequence: a parser that worked in 2022 may KeyError in 2026 because a nested field moved.
+
+Defensive patterns:
+- Use `.get(key, default)` not `[key]` for every nested field
+- For sequence content, prefer `SeqIO.read()` over `Entrez.read()` — the SeqIO parsers are versioned with BioPython
+- Pin BioPython version in production code; expect to update the parser when NCBI changes the XML
+- For PubMed, `Bio.Medline.parse(handle)` (against `rettype='medline'`) is more stable than the XML route
+
+## Code patterns
+
+### Single sequence by accession
+
+**Goal:** Fetch one nucleotide record as a SeqRecord with features.
+
+**Approach:** EFetch with `rettype='gb', retmode='text'`; parse with `SeqIO.read()`.
+
+**Reference (BioPython 1.83+):**
 ```python
 def fetch_genbank(accession):
-    handle = Entrez.efetch(db='nucleotide', id=accession, rettype='gb', retmode='text')
-    record = SeqIO.read(handle, 'genbank')
-    handle.close()
+    h = Entrez.efetch(db='nucleotide', id=accession, rettype='gb', retmode='text')
+    record = SeqIO.read(h, 'genbank'); h.close()
     return record
 
-gb = fetch_genbank('NM_007294')
-for feature in gb.features:
-    if feature.type == 'CDS':
-        print(f"CDS: {feature.location}")
-        print(f"Product: {feature.qualifiers.get('product', ['?'])[0]}")
+gb = fetch_genbank('NM_007294.4')
+for feat in gb.features:
+    if feat.type == 'CDS':
+        print(feat.location, feat.qualifiers.get('product', ['?'])[0])
 ```
 
-### Fetch PubMed Abstract
+### Bulk metadata via ESummary
 
-```python
-def fetch_abstract(pmid):
-    handle = Entrez.efetch(db='pubmed', id=pmid, rettype='abstract', retmode='text')
-    abstract = handle.read()
-    handle.close()
-    return abstract
+**Goal:** Get organism + length + title for 1,000 UIDs without downloading sequences.
 
-abstract = fetch_abstract('35412348')
-print(abstract)
-```
-
-### Get Record Summaries
-
-```python
-def get_summaries(db, ids):
-    if isinstance(ids, list):
-        ids = ','.join(ids)
-    handle = Entrez.esummary(db=db, id=ids)
-    records = Entrez.read(handle)
-    handle.close()
-    return records
-
-summaries = get_summaries('nucleotide', ['NM_007294', 'NM_000059'])
-for s in summaries:
-    print(f"{s['Caption']}: {s['Title'][:50]}... ({s['Length']} bp)")
-```
-
-### Search Then Fetch
-
-**Goal:** Find records matching a query and download their sequences in one workflow.
-
-**Approach:** Search with `esearch` to get IDs, then batch-fetch with `efetch` and parse into SeqRecord objects.
+**Approach:** ESummary on a comma-joined ID batch (max 500 per call by convention; supports 10K hard limit).
 
 **Reference (BioPython 1.83+):**
 ```python
-handle = Entrez.esearch(db='nucleotide', term='human[orgn] AND insulin[gene] AND mRNA[fkey]', retmax=5)
-search_results = Entrez.read(handle)
-handle.close()
+def bulk_summaries(db, ids, chunk=500):
+    out = []
+    for i in range(0, len(ids), chunk):
+        h = Entrez.esummary(db=db, id=','.join(ids[i:i+chunk]))
+        out.extend(Entrez.read(h)); h.close()
+        time.sleep(0.1 if Entrez.api_key else 0.34)
+    return out
 
-ids = search_results['IdList']
-
-handle = Entrez.efetch(db='nucleotide', id=','.join(ids), rettype='fasta', retmode='text')
-records = list(SeqIO.parse(handle, 'fasta'))
-handle.close()
-
-for record in records:
-    print(f"{record.id}: {len(record.seq)} bp")
+records = bulk_summaries('nucleotide', uid_list)
 ```
 
-### Fetch Protein by Gene ID
+### Extract CDS in one round-trip
 
-**Goal:** Retrieve protein sequences for a gene, navigating from gene symbol to protein database.
+**Goal:** Download the CDS-only translated protein sequences from a GenBank record without manually walking features.
 
-**Approach:** Search the gene database by symbol, use `elink` to find linked protein IDs, then batch-fetch the protein sequences.
+**Approach:** Use `rettype='fasta_cds_aa'` — NCBI server-side extracts and translates every CDS in the record.
 
 **Reference (BioPython 1.83+):**
 ```python
-handle = Entrez.esearch(db='gene', term='BRCA1[sym] AND human[orgn]')
-result = Entrez.read(handle)
-handle.close()
-gene_id = result['IdList'][0]
+def cds_proteins(accession):
+    h = Entrez.efetch(db='nucleotide', id=accession, rettype='fasta_cds_aa', retmode='text')
+    return list(SeqIO.parse(h, 'fasta'))
 
-handle = Entrez.elink(dbfrom='gene', db='protein', id=gene_id)
-links = Entrez.read(handle)
-handle.close()
-
-protein_ids = [link['Id'] for link in links[0]['LinkSetDb'][0]['Link'][:3]]
-
-handle = Entrez.efetch(db='protein', id=','.join(protein_ids), rettype='fasta', retmode='text')
-proteins = list(SeqIO.parse(handle, 'fasta'))
-handle.close()
+proteins = cds_proteins('NC_000913.3')  # E. coli K-12 genome
+print(f'{len(proteins)} CDS-translated proteins')
 ```
 
-### Save Fetched Records to File
+### Pull PubMed with structured MeSH
+
+**Goal:** Get MeSH terms and grant information that aren't in the abstract format.
+
+**Approach:** `rettype='xml'` and walk the PubmedArticle structure defensively.
+
+**Reference (BioPython 1.83+):**
+```python
+def pubmed_full(pmid):
+    h = Entrez.efetch(db='pubmed', id=pmid, retmode='xml')
+    records = Entrez.read(h); h.close()
+    article = records['PubmedArticle'][0]
+    citation = article['MedlineCitation']
+    mesh = [m['DescriptorName'] for m in citation.get('MeshHeadingList', [])]
+    title = citation['Article']['ArticleTitle']
+    return {'pmid': pmid, 'title': title, 'mesh': mesh}
+```
+
+### History-server fetch (post-ESearch)
+
+**Goal:** Pull a 50,000-record result set without re-sending UIDs.
+
+**Approach:** ESearch with `usehistory='y'`; iterate EFetch with `webenv`/`query_key` and `retstart`. See `batch-downloads` for the production pattern.
 
 ```python
-def download_sequences(ids, output_file, db='nucleotide', format='fasta'):
-    handle = Entrez.efetch(db=db, id=','.join(ids), rettype=format, retmode='text')
-    with open(output_file, 'w') as out:
-        out.write(handle.read())
-    handle.close()
+h = Entrez.esearch(db='nucleotide', term='Homo sapiens[ORGN] AND srcdb_refseq[PROP] AND biomol_mrna[PROP]',
+                   usehistory='y', retmax=0)
+r = Entrez.read(h); h.close()
+total = int(r['Count'])
 
-download_sequences(['NM_007294', 'NM_000059'], 'brca_genes.fasta')
+with open('out.fasta', 'w') as out:
+    for start in range(0, total, 500):
+        h = Entrez.efetch(db='nucleotide', rettype='fasta', retmode='text',
+                          retstart=start, retmax=500,
+                          webenv=r['WebEnv'], query_key=r['QueryKey'])
+        out.write(h.read()); h.close()
+        time.sleep(0.1 if Entrez.api_key else 0.34)
 ```
 
-## Common Errors
+### SRA UID -> SRR accession + run metrics
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `HTTPError 400` | Invalid ID or parameters | Verify ID exists, check rettype |
-| `HTTPError 429` | Rate limit exceeded | Add delays or use API key |
-| Empty result | Record doesn't exist | Verify accession in web browser |
-| `ValueError` in SeqIO | Wrong format specified | Match rettype with SeqIO format |
-| `ExpatError` | XML parsing error | Use `retmode='text'` instead |
+**Goal:** Convert an opaque SRA UID into the SRR run accession plus Bases/Spots metrics, in one EFetch.
 
-## Decision Tree
+**Approach:** `rettype='runinfo'` returns a CSV row per run.
 
+```python
+def sra_runinfo(uids):
+    h = Entrez.efetch(db='sra', id=','.join(uids), rettype='runinfo', retmode='text')
+    text = h.read(); h.close()
+    lines = text.strip().split('\n')
+    header = lines[0].split(',')
+    return [dict(zip(header, row.split(','))) for row in lines[1:]]
 ```
-Need to retrieve NCBI records?
-├── Need full sequence?
-│   └── Use efetch with rettype='fasta'
-├── Need sequence + annotations?
-│   └── Use efetch with rettype='gb' (GenBank)
-├── Just need metadata (length, organism)?
-│   └── Use esummary (faster)
-├── Need PubMed abstract?
-│   └── Use efetch with rettype='abstract'
-├── Need structured data for parsing?
-│   └── Use efetch with retmode='xml' + Entrez.read()
-├── Downloading many records?
-│   └── See batch-downloads skill
-└── Need records from multiple databases?
-    └── See entrez-link skill first
+
+### Taxonomy lineage by TXID
+
+```python
+def lineage(txid):
+    h = Entrez.efetch(db='taxonomy', id=str(txid), retmode='xml')
+    record = Entrez.read(h)[0]; h.close()
+    return record['Lineage'], record['ScientificName']
 ```
+
+## Failure modes
+
+### Mixed-format batch silently truncates
+- **Trigger:** Mixing modern accessions and legacy GIs in one comma-separated `id=`.
+- **Mechanism:** EFetch parses left-to-right; on type-mismatch it may return only the prefix that succeeded.
+- **Symptom:** Batch of 100 returns 47 records with no error.
+- **Fix:** Validate that all IDs in a batch are the same type before sending.
+
+### `gb` returns CONTIG instead of sequence
+- **Trigger:** Fetching a whole-genome shotgun (WGS) assembly with `rettype='gb'`.
+- **Mechanism:** Default GB output skips the contig sequence for assemblies, returning only the join() statement.
+- **Symptom:** `len(record.seq) == 0` despite the record showing a length in metadata.
+- **Fix:** Use `rettype='gbwithparts'` for assemblies; or for FASTA use `rettype='fasta'` directly.
+
+### XML parse fails on schema drift
+- **Trigger:** Code that was last touched in 2022 hits a new NCBI XML field layout.
+- **Mechanism:** `Entrez.read()` uses cached DTDs that may not match current responses.
+- **Symptom:** KeyError or ValidationError on a field that "always worked".
+- **Fix:** Run `Entrez.read._XMLParser._DTDs.clear()` to force re-fetch of DTDs; upgrade BioPython; or switch to text format (`rettype='medline'` for pubmed) which is more stable.
+
+### Silent empty response on bad rettype
+- **Trigger:** Asking for `rettype='abstract'` on the nucleotide db (only valid for pubmed).
+- **Mechanism:** EFetch returns empty text — no HTTP error.
+- **Symptom:** `handle.read()` returns `''` or whitespace.
+- **Fix:** Check the decision matrix above before sending unfamiliar combinations.
+
+### Accession without `.version` returns wrong record later
+- **Trigger:** Storing `'NM_007294'` (no version) for reproducibility years later.
+- **Mechanism:** NCBI returns the current version, which may have changed annotation.
+- **Symptom:** Re-run produces different CDS coordinates than the original analysis.
+- **Fix:** Always pin `accession.version` (e.g. `NM_007294.4`); the version is in the GB LOCUS line.
+
+### EFetch returns HTML error page
+- **Trigger:** Invalid UID, mid-maintenance window, or expired WebEnv.
+- **Mechanism:** Failure surfaces in HTML body, HTTP status is 200.
+- **Symptom:** SeqIO chokes parsing HTML as GenBank.
+- **Fix:** Sniff the first line of the response — `LOCUS` for GB, `>` for FASTA — and raise on mismatch.
+
+## Common errors
+
+| Error / symptom | Cause | Solution |
+|---|---|---|
+| `HTTPError 400` | Invalid id/db/rettype combo | Verify against decision matrix; check accession exists |
+| `HTTPError 429` | Rate limit exceeded | Add `time.sleep(0.34)` or use API key |
+| Empty `SeqRecord.seq` | WGS record with `rettype='gb'` | Use `rettype='gbwithparts'` |
+| `ValueError: Sequence too short` | Wrong format declared to SeqIO | Match rettype to `SeqIO` format string |
+| `ExpatError` | Got HTML where XML expected | Sniff response start; retry |
+| KeyError on nested XML field | Schema drift | Use `.get()` defensively; pin BioPython |
+
+## References
+
+- Sayers EW et al. (2024) Database resources of the National Center for Biotechnology Information in 2024. *Nucleic Acids Res* 52:D33-D43.
+- Kans J. (2024) Entrez Direct: E-utilities on the Unix Command Line. NCBI Bookshelf NBK179288.
+- NCBI. EFetch help. NBK25499.
+- Cock PJ et al. (2009) Biopython: freely available Python tools for computational molecular biology and bioinformatics. *Bioinformatics* 25:1422-1423.
 
 ## Related Skills
 
-- entrez-search - Find record IDs before fetching
-- entrez-link - Find related records in other databases
-- batch-downloads - Download large numbers of records efficiently
-- sequence-io/read-sequences - Parse downloaded sequences with SeqIO
+- entrez-search - Find UIDs before fetching
+- entrez-link - Cross-database navigation via ELink
+- batch-downloads - History-server pipelines for large fetches
+- ncbi-datasets-cli - Modern CLI for genome / gene metadata; often faster than EFetch
+- sequence-io/read-sequences - Parse downloaded FASTA/GenBank with SeqIO

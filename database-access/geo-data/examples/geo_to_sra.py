@@ -1,72 +1,79 @@
-'''Link GEO series to SRA for raw data download'''
-# Reference: biopython 1.83+, entrez direct 21.0+ | Verify API if version differs
+'''Resolve GSE -> SRR via pysradb (preferred) or gds -> bioproject -> sra ELink chain (fallback).'''
+# Reference: biopython 1.83+, pysradb 2.2+ | Verify API if version differs
 from Bio import Entrez
+import time
 
 Entrez.email = 'your.email@example.com'
+DELAY = 0.34
 
-def get_sra_from_geo(gse_accession):
-    '''Find SRA experiments linked to a GEO series'''
-    # Find GEO record
-    handle = Entrez.esearch(db='gds', term=f'{gse_accession}[accn]')
-    search = Entrez.read(handle)
-    handle.close()
 
-    if not search['IdList']:
-        print(f"No GEO record found for {gse_accession}")
+def gse_to_srr_pysradb(gse):
+    try:
+        from pysradb import SRAweb
+    except ImportError:
+        return None
+    db = SRAweb()
+    srp_df = db.gse_to_srp(gse)
+    if srp_df.empty:
         return []
+    srp = srp_df['study_accession'].iloc[0]
+    srr_df = db.srp_to_srr(srp)
+    return srr_df['run_accession'].tolist()
 
-    gds_id = search['IdList'][0]
-    print(f"Found GEO record ID: {gds_id}")
 
-    # Link to SRA
-    handle = Entrez.elink(dbfrom='gds', db='sra', id=gds_id)
-    links = Entrez.read(handle)
-    handle.close()
-
-    if not links[0]['LinkSetDb']:
-        print("No SRA data linked to this GEO series")
+def gse_to_srr_entrez(gse):
+    '''Fallback: gds -> bioproject -> sra ELink chain (direct gds -> sra is not supported).'''
+    h = Entrez.esearch(db='gds', term=f'{gse}[Accession]')
+    s = Entrez.read(h); h.close()
+    if not s['IdList']:
         return []
+    gds_uid = s['IdList'][0]
+    time.sleep(DELAY)
 
-    sra_ids = [link['Id'] for link in links[0]['LinkSetDb'][0]['Link']]
-    print(f"Found {len(sra_ids)} SRA records")
+    # gds -> bioproject (acheck on gds shows: bioproject, gds, pmc, pubmed, taxonomy; NOT sra)
+    h = Entrez.elink(dbfrom='gds', db='bioproject', id=gds_uid)
+    r = Entrez.read(h); h.close()
+    if not r[0]['LinkSetDb']:
+        return []
+    bp_uids = [l['Id'] for l in r[0]['LinkSetDb'][0]['Link']]
+    time.sleep(DELAY)
 
-    return sra_ids
+    # bioproject -> sra
+    h = Entrez.elink(dbfrom='bioproject', db='sra', id=','.join(bp_uids))
+    r = Entrez.read(h); h.close()
+    sra_uids = []
+    for ls in r:
+        if ls['LinkSetDb']:
+            sra_uids.extend(l['Id'] for l in ls['LinkSetDb'][0]['Link'])
+    if not sra_uids:
+        return []
+    time.sleep(DELAY)
 
-def get_run_info(sra_ids):
-    '''Get run information from SRA IDs'''
-    if len(sra_ids) > 50:
-        sra_ids = sra_ids[:50]
-
-    handle = Entrez.efetch(db='sra', id=','.join(sra_ids), rettype='runinfo', retmode='text')
-    runinfo = handle.read()
-    handle.close()
-
+    h = Entrez.efetch(db='sra', id=','.join(sra_uids), rettype='runinfo', retmode='text')
+    text = h.read(); h.close()
     runs = []
-    lines = runinfo.strip().split('\n')
-    if len(lines) > 1:
-        header = lines[0].split(',')
-        for line in lines[1:]:
-            if line:
-                values = line.split(',')
-                run_dict = dict(zip(header, values))
-                if run_dict.get('Run'):
-                    runs.append(run_dict)
+    for line in text.strip().split('\n')[1:]:
+        if line:
+            runs.append(line.split(',')[0])
     return runs
 
-# Example: Find SRA data for a GEO series
-print('=== GEO to SRA ===')
-gse = 'GSE147507'  # COVID-19 RNA-seq dataset
-sra_ids = get_sra_from_geo(gse)
 
-if sra_ids:
-    runs = get_run_info(sra_ids[:20])
-    print(f"\nSRA Runs for {gse}:")
-    for run in runs[:10]:
-        print(f"  {run.get('Run', 'N/A')}: {run.get('LibraryStrategy', 'N/A')} - {run.get('spots', 'N/A')} spots")
+GSE = 'GSE147507'  # COVID-19 RNA-seq dataset (multi-cohort)
 
-    # Write accessions to file
-    with open(f'{gse}_sra_runs.txt', 'w') as f:
-        for run in runs:
-            if run.get('Run'):
-                f.write(run['Run'] + '\n')
-    print(f"\nWrote {len(runs)} accessions to {gse}_sra_runs.txt")
+print(f'=== {GSE} -> SRR via pysradb (preferred) ===')
+runs = gse_to_srr_pysradb(GSE)
+if runs is None:
+    print('  pysradb not installed; skip')
+else:
+    print(f'  {len(runs)} SRR runs (first 5: {runs[:5]})')
+
+print(f'\n=== {GSE} -> SRR via Entrez chain (fallback: gds -> bioproject -> sra) ===')
+runs = gse_to_srr_entrez(GSE)
+print(f'  {len(runs)} SRR runs (first 5: {runs[:5]})')
+
+print('\n=== Write run accessions for download ===')
+with open(f'{GSE}_sra_runs.txt', 'w') as f:
+    for r in runs:
+        f.write(f'{r}\n')
+print(f'  Wrote {len(runs)} accessions to {GSE}_sra_runs.txt')
+print(f'  Hand off to sra-data: bash download_batch.sh {GSE}_sra_runs.txt ./fastq')

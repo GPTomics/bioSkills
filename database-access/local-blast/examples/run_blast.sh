@@ -1,29 +1,46 @@
 #!/bin/bash
 # Reference: NCBI BLAST+ 2.15+ | Verify API if version differs
-# Run BLAST searches with common options
+# Run BLAST with -task chosen for the question; large hitlist + post-filter avoids the max_target_seqs trap.
 
-DB="${1:-ref_nucl_db}"
-QUERY="${2:-query.fasta}"
-OUTPUT="${3:-blast_results.tsv}"
-THREADS="${4:-4}"
-EVALUE="${5:-1e-5}"
+set -euo pipefail
 
-echo "Running BLASTN..."
-echo "  Query: $QUERY"
-echo "  Database: $DB"
-echo "  E-value: $EVALUE"
-echo "  Threads: $THREADS"
+PROGRAM="${1:-blastn}"        # blastn or blastp
+TASK="${2:-dc-megablast}"     # megablast | dc-megablast | blastn | blastn-short | blastp | blastp-short
+DB="${3:-ref_nucl_db}"
+QUERY="${4:-query.fasta}"
+OUT="${5:-blast_results.tsv}"
+THREADS="${6:-8}"
+EVALUE="${7:-1e-10}"
 
-blastn \
-    -query "$QUERY" \
-    -db "$DB" \
-    -out "$OUTPUT" \
-    -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore stitle" \
-    -evalue "$EVALUE" \
-    -num_threads "$THREADS" \
-    -max_target_seqs 10 \
-    -max_hsps 1
+# qcovs = total query coverage by all HSPs of subject; qcovhsp = best-HSP coverage.
+# staxids/sscinames require v5 database with taxonomy indexed.
+FMT="6 qseqid sseqid pident length qcovs qcovhsp evalue bitscore staxids sscinames stitle"
 
-echo -e "\nResults saved to: $OUTPUT"
-echo "Top hits:"
-head -5 "$OUTPUT" | column -t
+echo "=== ${PROGRAM} -task ${TASK} ==="
+echo "  Query: ${QUERY}"
+echo "  DB:    ${DB}"
+echo "  E:     ${EVALUE}"
+echo "  Threads: ${THREADS}"
+echo "  hitlist: 500 (post-filter to top-N by bit-score; avoids Shah 2019 trap)"
+echo
+
+${PROGRAM} \
+    -query "${QUERY}" \
+    -db "${DB}" \
+    -out "${OUT}" \
+    -outfmt "${FMT}" \
+    -task "${TASK}" \
+    -evalue "${EVALUE}" \
+    -num_threads "${THREADS}" \
+    -max_target_seqs 500 \
+    -soft_masking true
+
+echo
+echo "=== Top hit per query by bit-score ==="
+# Sort by qseqid then bitscore (col 8) descending; keep first row per qseqid
+sort -k1,1 -k8,8gr "${OUT}" | awk -F'\t' '!seen[$1]++' > "${OUT%.tsv}.top1.tsv"
+head -5 "${OUT%.tsv}.top1.tsv"
+
+echo
+echo "=== Coverage filter (qcovs >= 0.8) ==="
+awk -F'\t' '$5 >= 80' "${OUT}" | head -5

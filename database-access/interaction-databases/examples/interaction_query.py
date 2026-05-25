@@ -1,109 +1,126 @@
-'''Aggregate interactions from STRING and OmniPath into a unified network'''
-# Reference: biopython 1.83+, pandas 2.2+ | Verify API if version differs
-
+'''Aggregate STRING + OmniPath + SIGNOR into a unified network with per-edge provenance and direction handling.'''
+# Reference: requests 2.31+, pandas 2.2+, networkx 3.2+ | Verify API if version differs
 import requests
 import pandas as pd
 import networkx as nx
 from io import StringIO
 
-STRING_API = 'https://version-12-0.string-db.org/api'
-
-# --- ALTERNATIVE: Use real gene lists ---
-# de_genes = pd.read_csv('de_results.csv')
-# genes = de_genes[de_genes['padj'] < 0.05]['gene'].head(30).tolist()
-
-genes = ['TP53', 'MDM2', 'BRCA1', 'ATM', 'CHEK2', 'CDK2', 'CDKN1A', 'RB1',
-         'E2F1', 'MYC', 'JUN', 'FOS', 'AKT1', 'MAPK1', 'EGFR']
+STRING = 'https://version-12-0.string-db.org/api'
+OMNI = 'https://omnipathdb.org'
+SIGNOR = 'https://signor.uniroma2.it/getData.php'
+CALLER = 'bioskills-2026'
 
 
-def get_string_interactions(genes, species=9606, score_threshold=400):
-    url = f'{STRING_API}/tsv/network'
-    params = {
-        'identifiers': '%0d'.join(genes),
-        'species': species,
-        'required_score': score_threshold,
-        'caller_identity': 'bioskills'
-    }
-    response = requests.get(url, params=params)
-    return pd.read_csv(StringIO(response.text), sep='\t')
+def string_interactions(genes, species=9606, threshold=700):
+    r = requests.get(f'{STRING}/tsv/network',
+                     params={'identifiers': '%0d'.join(genes), 'species': species,
+                             'required_score': threshold, 'caller_identity': CALLER})
+    r.raise_for_status()
+    return pd.read_csv(StringIO(r.text), sep='\t')
 
 
-def get_omnipath_interactions(genes):
-    url = 'https://omnipathdb.org/interactions'
-    params = {'genesymbols': 1, 'fields': 'sources,references', 'partners': ','.join(genes)}
-    response = requests.get(url, params=params)
-    return pd.read_csv(StringIO(response.text), sep='\t')
+def omnipath_interactions(genes, license='academic'):
+    r = requests.get(f'{OMNI}/interactions',
+                     params={'genesymbols': 1, 'fields': 'sources,references,n_resources',
+                             'partners': ','.join(genes), 'license': license})
+    r.raise_for_status()
+    return pd.read_csv(StringIO(r.text), sep='\t')
 
 
-def get_string_enrichment(genes, species=9606):
-    url = f'{STRING_API}/tsv/enrichment'
-    params = {'identifiers': '%0d'.join(genes), 'species': species, 'caller_identity': 'bioskills'}
-    response = requests.get(url, params=params)
-    return pd.read_csv(StringIO(response.text), sep='\t')
+def signor_interactions(gene):
+    r = requests.get(SIGNOR, params={'organism': 'human', 'entity': gene})
+    r.raise_for_status()
+    rows = []
+    lines = r.text.strip().split('\n')
+    if len(lines) < 2:
+        return pd.DataFrame()
+    for line in lines[1:]:
+        cols = line.split('\t')
+        if len(cols) >= 8:
+            rows.append({
+                'source': cols[0], 'target': cols[1], 'effect': cols[2],
+                'mechanism': cols[3], 'pmid': cols[7] if len(cols) > 7 else '',
+            })
+    return pd.DataFrame(rows)
 
 
-# --- Query STRING ---
-# Score threshold 700: High confidence for reliable network construction.
-string_df = get_string_interactions(genes, score_threshold=700)
-print(f'STRING: {len(string_df)} interactions (score >= 700)')
+GENES = ['TP53', 'MDM2', 'BRCA1', 'ATM', 'CHEK2', 'CDK2', 'CDKN1A', 'RB1']
 
-# --- Query OmniPath ---
-omni_df = get_omnipath_interactions(genes)
-omni_filtered = omni_df[omni_df['source_genesymbol'].isin(genes) & omni_df['target_genesymbol'].isin(genes)]
-print(f'OmniPath: {len(omni_filtered)} interactions between query genes')
+# Use DiGraph because SIGNOR and OmniPath are directional;
+# STRING edges are undirected and added in both directions.
+g = nx.DiGraph()
 
-# --- Aggregate into unified network ---
-G = nx.Graph()
 
+print('=== STRING (high confidence; experiments channel emphasized) ===')
+string_df = string_interactions(GENES, threshold=700)
 for _, row in string_df.iterrows():
     a, b = row['preferredName_A'], row['preferredName_B']
-    if G.has_edge(a, b):
-        G[a][b]['sources'].add('STRING')
-        G[a][b]['string_score'] = row['score']
-    else:
-        G.add_edge(a, b, sources={'STRING'}, string_score=row['score'], omnipath_directed=False)
+    for src, tgt in [(a, b), (b, a)]:  # undirected -> two directed edges
+        if g.has_edge(src, tgt):
+            g[src][tgt]['sources'].add('STRING')
+        else:
+            g.add_edge(src, tgt, sources={'STRING'}, max_score=row['score'] / 1000.0,
+                       directional=False, signed_effect=None, mechanism=None)
+print(f'  {len(string_df)} STRING edges added')
 
-for _, row in omni_filtered.iterrows():
+
+print('\n=== OmniPath (directional aggregate) ===')
+omni_df = omnipath_interactions(GENES)
+omni_local = omni_df[omni_df['source_genesymbol'].isin(GENES) & omni_df['target_genesymbol'].isin(GENES)]
+for _, row in omni_local.iterrows():
     a, b = row['source_genesymbol'], row['target_genesymbol']
-    if G.has_edge(a, b):
-        G[a][b]['sources'].add('OmniPath')
-        G[a][b]['omnipath_directed'] = True
+    if g.has_edge(a, b):
+        g[a][b]['sources'].add('OmniPath')
+        g[a][b]['directional'] = True
     else:
-        G.add_edge(a, b, sources={'OmniPath'}, string_score=0, omnipath_directed=True)
+        g.add_edge(a, b, sources={'OmniPath'}, max_score=0.5,
+                   directional=True, signed_effect=None, mechanism=None)
+print(f'  {len(omni_local)} OmniPath directional edges added')
 
-print(f'\nUnified network: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges')
 
-# Edges found in both databases (higher confidence)
-multi_source_edges = [(u, v) for u, v, d in G.edges(data=True) if len(d['sources']) > 1]
-print(f'Edges in both databases: {len(multi_source_edges)}')
+print('\n=== SIGNOR (signed, mechanism-typed) ===')
+sig_count = 0
+for gene in GENES:
+    sig_df = signor_interactions(gene)
+    for _, row in sig_df.iterrows():
+        a, b = row['source'], row['target']
+        if a in GENES and b in GENES:
+            if g.has_edge(a, b):
+                g[a][b]['sources'].add('SIGNOR')
+                g[a][b]['signed_effect'] = row['effect']
+                g[a][b]['mechanism'] = row['mechanism']
+            else:
+                g.add_edge(a, b, sources={'SIGNOR'}, max_score=0.7,
+                           directional=True, signed_effect=row['effect'],
+                           mechanism=row['mechanism'])
+            sig_count += 1
+print(f'  {sig_count} SIGNOR signed edges added')
 
-# --- Network statistics ---
-degree_df = pd.DataFrame(sorted(G.degree(), key=lambda x: x[1], reverse=True), columns=['gene', 'degree'])
-print('\nHub genes (by degree):')
-print(degree_df.head(10).to_string(index=False))
 
-betweenness = nx.betweenness_centrality(G)
-top_bridges = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)[:5]
-print('\nBridge genes (by betweenness):')
-for gene, score in top_bridges:
-    print(f'  {gene}: {score:.3f}')
+print('\n=== Aggregated network summary ===')
+print(f'  Nodes: {g.number_of_nodes()}')
+print(f'  Directed edges: {g.number_of_edges()}')
+multi = [(a, b, d) for a, b, d in g.edges(data=True) if len(d['sources']) >= 2]
+print(f'  Multi-source edges (higher confidence): {len(multi)}')
+signed = [(a, b, d) for a, b, d in g.edges(data=True) if d.get('signed_effect')]
+print(f'  Signed (SIGNOR) edges: {len(signed)}')
 
-# --- STRING Enrichment ---
-enrichment = get_string_enrichment(genes)
-for category in ['Process', 'KEGG', 'Component']:
-    cat_df = enrichment[enrichment['category'] == category].head(5)
-    if len(cat_df) > 0:
-        print(f'\nTop {category} enrichments:')
-        for _, row in cat_df.iterrows():
-            print(f'  {row["description"]} (FDR={row["fdr"]:.2e}, genes={row["number_of_genes"]})')
 
-# --- Export ---
-edge_list = pd.DataFrame([(u, v, d['sources'], d['string_score'])
-                           for u, v, d in G.edges(data=True)],
-                          columns=['gene_a', 'gene_b', 'sources', 'string_score'])
-edge_list['sources'] = edge_list['sources'].apply(lambda x: ','.join(sorted(x)))
-edge_list.to_csv('aggregated_interactions.csv', index=False)
-print('\nAggregated interactions saved: aggregated_interactions.csv')
+print('\n=== Signed signaling edges with mechanism ===')
+for a, b, d in signed[:8]:
+    print(f'  {a} --{d["signed_effect"]}--> {b}  ({d["mechanism"]})')
 
-nx.write_graphml(G, 'aggregated_network.graphml')
-print('Network saved: aggregated_network.graphml (open in Cytoscape)')
+
+print('\n=== Export edge list with provenance ===')
+edge_rows = []
+for a, b, d in g.edges(data=True):
+    edge_rows.append({
+        'source': a, 'target': b,
+        'sources': ','.join(sorted(d['sources'])),
+        'n_sources': len(d['sources']),
+        'signed_effect': d.get('signed_effect'),
+        'mechanism': d.get('mechanism'),
+        'directional': d['directional'],
+    })
+pd.DataFrame(edge_rows).to_csv('aggregated_interactions.csv', index=False)
+print(f'  Wrote aggregated_interactions.csv ({len(edge_rows)} edges)')

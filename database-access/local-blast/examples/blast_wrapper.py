@@ -1,93 +1,86 @@
-'''Python wrapper for local BLAST operations'''
+'''Python wrapper for BLAST+ via subprocess: builds v5 DB, runs with -task, parses tabular with qcovs/qcovhsp distinction.'''
 # Reference: ncbi blast+ 2.15+ | Verify API if version differs
 import subprocess
-import os
-from pathlib import Path
+import shutil
 
-def make_blast_db(fasta_file, db_name, db_type='nucl', parse_seqids=True):
-    '''Create a BLAST database from a FASTA file'''
-    cmd = ['makeblastdb', '-in', fasta_file, '-dbtype', db_type, '-out', db_name]
+
+def require(tool):
+    if not shutil.which(tool):
+        raise RuntimeError(f'{tool} not on PATH; conda install -c bioconda blast')
+
+
+def make_blast_db(fasta, name, dbtype='nucl', parse_seqids=True, version=5):
+    require('makeblastdb')
+    cmd = ['makeblastdb', '-in', fasta, '-dbtype', dbtype, '-out', name,
+           '-blastdb_version', str(version), '-hash_index',
+           '-title', f'{fasta} ({dbtype})']
     if parse_seqids:
         cmd.append('-parse_seqids')
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f'makeblastdb failed: {r.stderr}')
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"makeblastdb failed: {result.stderr}")
-    print(f"Created {db_type} database: {db_name}")
 
-def run_blast(query, db, output, program='blastn', evalue=1e-5, threads=4,
-              max_targets=10, outfmt='6'):
-    '''Run a BLAST search'''
-    cmd = [
-        program,
-        '-query', query,
-        '-db', db,
-        '-out', output,
-        '-outfmt', str(outfmt),
-        '-evalue', str(evalue),
-        '-num_threads', str(threads),
-        '-max_target_seqs', str(max_targets)
-    ]
+def run_blast(query, db, out, program='blastn', task=None, evalue=1e-10,
+              threads=8, hitlist=500, soft_masking=True):
+    '''hitlist=500 with post-filter avoids the max_target_seqs early-termination trap (Shah 2019).'''
+    require(program)
+    cmd = [program, '-query', query, '-db', db, '-out', out,
+           '-evalue', str(evalue),
+           '-num_threads', str(threads),
+           '-max_target_seqs', str(hitlist),
+           '-soft_masking', 'true' if soft_masking else 'false',
+           '-outfmt', '6 qseqid sseqid pident length qcovs qcovhsp evalue bitscore staxids sscinames stitle']
+    if task:
+        cmd += ['-task', task]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f'{program} failed: {r.stderr}')
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"{program} failed: {result.stderr}")
-    print(f"Results saved to: {output}")
 
-def parse_blast_tabular(filename):
-    '''Parse BLAST tabular output (outfmt 6)'''
-    columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen',
-               'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore']
-
-    hits = []
-    with open(filename) as f:
+def parse_tabular(path):
+    cols = ['qseqid', 'sseqid', 'pident', 'length', 'qcovs', 'qcovhsp',
+            'evalue', 'bitscore', 'staxids', 'sscinames', 'stitle']
+    rows = []
+    with open(path) as f:
         for line in f:
-            if line.startswith('#'):
-                continue
-            values = line.strip().split('\t')
-            if len(values) >= 12:
-                hit = dict(zip(columns, values[:12]))
-                hit['pident'] = float(hit['pident'])
-                hit['evalue'] = float(hit['evalue'])
-                hit['length'] = int(hit['length'])
-                hit['bitscore'] = float(hit['bitscore'])
-                hits.append(hit)
-    return hits
+            vals = line.rstrip('\n').split('\t')
+            d = dict(zip(cols, vals + [''] * (len(cols) - len(vals))))
+            for k in ('pident', 'qcovs', 'qcovhsp', 'evalue', 'bitscore'):
+                d[k] = float(d[k]) if d[k] else 0.0
+            d['length'] = int(d['length']) if d['length'] else 0
+            rows.append(d)
+    return rows
 
-def get_best_hits(hits):
-    '''Get best hit per query (lowest E-value)'''
-    best = {}
-    for hit in hits:
-        qid = hit['qseqid']
-        if qid not in best or hit['evalue'] < best[qid]['evalue']:
-            best[qid] = hit
-    return list(best.values())
 
-def filter_hits(hits, min_identity=90, min_length=100, max_evalue=1e-10):
-    '''Filter hits by criteria'''
-    return [h for h in hits
-            if h['pident'] >= min_identity
-            and h['length'] >= min_length
-            and h['evalue'] <= max_evalue]
+def top_by_bitscore_per_query(rows, n=1):
+    by_q = {}
+    for r in rows:
+        by_q.setdefault(r['qseqid'], []).append(r)
+    for q in by_q:
+        by_q[q] = sorted(by_q[q], key=lambda x: -x['bitscore'])[:n]
+    return by_q
 
-# Example usage
+
+def filter_hits(rows, min_pident=30.0, min_qcovs=50.0, max_evalue=1e-5):
+    return [r for r in rows
+            if r['pident'] >= min_pident
+            and r['qcovs'] >= min_qcovs
+            and r['evalue'] <= max_evalue]
+
+
 if __name__ == '__main__':
-    # Create database
-    make_blast_db('reference.fasta', 'ref_db', 'nucl')
+    make_blast_db('reference.fasta', 'ref_db', dbtype='nucl')
+    run_blast('query.fasta', 'ref_db', 'results.tsv', program='blastn',
+              task='dc-megablast', threads=8)
+    rows = parse_tabular('results.tsv')
+    print(f'Total HSPs: {len(rows)}')
+    print(f'Unique queries with any hit: {len(set(r["qseqid"] for r in rows))}')
 
-    # Run BLAST
-    run_blast('query.fasta', 'ref_db', 'results.tsv', threads=8)
+    good = filter_hits(rows, min_pident=70.0, min_qcovs=80.0)
+    print(f'After identity>=70 + qcovs>=80 + E<=1e-5: {len(good)}')
 
-    # Parse and analyze
-    hits = parse_blast_tabular('results.tsv')
-    print(f"\nTotal hits: {len(hits)}")
-
-    best = get_best_hits(hits)
-    print(f"Unique queries with hits: {len(best)}")
-
-    good_hits = filter_hits(hits, min_identity=95)
-    print(f"Hits with >=95% identity: {len(good_hits)}")
-
-    print("\nTop 5 hits:")
-    for hit in sorted(hits, key=lambda x: x['evalue'])[:5]:
-        print(f"  {hit['qseqid']} -> {hit['sseqid']}: {hit['pident']:.1f}%, E={hit['evalue']:.2e}")
+    print('\nTop hit per query by bit-score:')
+    for q, top in list(top_by_bitscore_per_query(rows, n=1).items())[:5]:
+        h = top[0]
+        print(f'  {q} -> {h["sseqid"]}  bits={h["bitscore"]:.1f}  qcovs={h["qcovs"]:.0f}%  E={h["evalue"]:.1e}')

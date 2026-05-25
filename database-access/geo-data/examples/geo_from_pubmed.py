@@ -1,47 +1,43 @@
-'''Find GEO datasets from a publication'''
+'''Find GEO datasets cited in a paper via pubmed -> gds ELink, with SuperSeries flagging.'''
 # Reference: biopython 1.83+, entrez direct 21.0+ | Verify API if version differs
 from Bio import Entrez
+import time
 
 Entrez.email = 'your.email@example.com'
+DELAY = 0.34
 
-def find_geo_from_pubmed(pmid):
-    '''Find GEO datasets associated with a PubMed article'''
-    # Link PubMed to GDS
-    handle = Entrez.elink(dbfrom='pubmed', db='gds', id=pmid)
-    links = Entrez.read(handle)
-    handle.close()
 
-    if not links[0]['LinkSetDb']:
-        print(f"No GEO datasets linked to PMID {pmid}")
+def find_geo_for_pubmed(pmid):
+    h = Entrez.elink(dbfrom='pubmed', db='gds', id=pmid)
+    r = Entrez.read(h); h.close()
+    if not r[0]['LinkSetDb']:
         return []
+    gds_uids = [l['Id'] for l in r[0]['LinkSetDb'][0]['Link']]
+    time.sleep(DELAY)
+    h = Entrez.esummary(db='gds', id=','.join(gds_uids))
+    return Entrez.read(h)
 
-    gds_ids = [link['Id'] for link in links[0]['LinkSetDb'][0]['Link']]
-    print(f"Found {len(gds_ids)} linked GEO records")
 
-    # Get summaries
-    handle = Entrez.esummary(db='gds', id=','.join(gds_ids))
-    summaries = Entrez.read(handle)
-    handle.close()
+def article_info(pmid):
+    h = Entrez.esummary(db='pubmed', id=pmid)
+    r = Entrez.read(h)[0]; h.close()
+    return r
 
-    return summaries
 
-# Get article info
-print('=== Publication Info ===')
-pmid = '32228226'  # Example PMID
-handle = Entrez.esummary(db='pubmed', id=pmid)
-pubmed_info = Entrez.read(handle)[0]
-handle.close()
-print(f"PMID: {pmid}")
-print(f"Title: {pubmed_info['Title'][:80]}...")
+PMID = '32228226'  # Blanco-Melo et al. 2020 *Cell* (COVID-19 transcriptional response)
 
-# Find linked GEO
-print('\n=== Linked GEO Datasets ===')
-geo_datasets = find_geo_from_pubmed(pmid)
+print('=== Article ===')
+art = article_info(PMID)
+print(f'  PMID:    {PMID}')
+print(f'  Title:   {art.get("Title", "?")[:90]}')
+print(f'  Journal: {art.get("Source", "?")}, {art.get("PubDate", "?")}')
+time.sleep(DELAY)
 
-for ds in geo_datasets:
-    print(f"\n{ds['Accession']}")
-    print(f"  Title: {ds['title'][:60]}...")
-    print(f"  Organism: {ds['taxon']}")
-    print(f"  Samples: {ds['n_samples']}")
-    print(f"  Platform: {ds['GPL']}")
-    print(f"  Type: {ds['gdsType']}")
+print(f'\n=== GEO datasets cited in PMID {PMID} ===')
+for ds in find_geo_for_pubmed(PMID):
+    super_marker = ''
+    summary = ds.get('summary', '')
+    if 'SuperSeries' in str(summary):
+        super_marker = '[SuperSeries -- check SubSeries before processing]'
+    print(f'  {ds["Accession"]:12}  {ds["n_samples"]:>4} samples  {ds["GPL"]:<8}  {super_marker}')
+    print(f'      {ds["title"][:90]}')

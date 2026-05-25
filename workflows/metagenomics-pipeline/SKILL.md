@@ -269,6 +269,9 @@ echo "Bracken abundances: ${OUTDIR}/bracken/"
 
 ## Related Skills
 
+- database-access/sra-data - Pull metagenomic FASTQ from SRA / ENA (16S amplicon or shotgun)
+- database-access/ncbi-datasets-cli - Bulk-pull reference genomes for read mapping
+- database-access/remote-homology - DIAMOND --ultra-sensitive for predicted-ORF annotation
 - metagenomics/kraken-classification - Kraken2 details
 - metagenomics/metaphlan-profiling - MetaPhlAn parameters
 - metagenomics/abundance-estimation - Bracken options

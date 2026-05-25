@@ -1,25 +1,42 @@
 #!/bin/bash
 # Reference: NCBI BLAST+ 2.15+ | Verify API if version differs
-# Create BLAST databases from FASTA files
+# Build v5 BLAST databases with parse_seqids + hash_index + (optional) per-seq taxids.
 
-# Create nucleotide database
-echo "Creating nucleotide database..."
+set -euo pipefail
+
+REF_NUCL="${1:-reference.fasta}"
+REF_PROT="${2:-proteins.fasta}"
+
+echo "=== Build nucleotide DB (v5, parse_seqids, hash_index) ==="
 makeblastdb \
-    -in reference.fasta \
+    -in "$REF_NUCL" \
     -dbtype nucl \
-    -out ref_nucl_db \
-    -title "Reference Nucleotide Database" \
-    -parse_seqids
+    -blastdb_version 5 \
+    -parse_seqids \
+    -hash_index \
+    -title "Reference nucleotide $(date -u +%Y-%m-%d)" \
+    -out ref_nucl_db
 
-# Create protein database
-echo "Creating protein database..."
+echo
+echo "=== Build protein DB (v5, parse_seqids, hash_index) ==="
 makeblastdb \
-    -in proteins.fasta \
+    -in "$REF_PROT" \
     -dbtype prot \
-    -out ref_prot_db \
-    -title "Reference Protein Database" \
-    -parse_seqids
+    -blastdb_version 5 \
+    -parse_seqids \
+    -hash_index \
+    -title "Reference protein $(date -u +%Y-%m-%d)" \
+    -out ref_prot_db
 
-# Verify database was created
-echo -e "\nDatabase info:"
+echo
+echo "=== Optional: taxid-aware DB ==="
+echo "If your FASTA accessions have known taxids, build with a -taxid_map tsv (seqid<TAB>taxid):"
+echo "  makeblastdb -in seqs.fasta -dbtype nucl -blastdb_version 5 \\"
+echo "              -parse_seqids -taxid_map seqid_taxid.tsv -out taxid_db"
+echo "This enables blastn/blastp '-taxids 9606' and '-taxidlist file.txt' filtering."
+
+echo
+echo "=== Verify ==="
 blastdbcmd -db ref_nucl_db -info
+echo
+blastdbcmd -db ref_prot_db -info

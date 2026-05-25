@@ -327,6 +327,8 @@ plt.savefig('outbreak_results/outbreak_timeline.pdf')
 
 ## Related Skills
 
+- database-access/sra-data - Download outbreak FASTQ from SRA / ENA
+- database-access/ncbi-datasets-cli - Bulk-pull pathogen reference genomes (e.g. `datasets download virus`)
 - epidemiological-genomics/pathogen-typing - MLST and cgMLST details
 - epidemiological-genomics/amr-surveillance - AMRFinderPlus, ResFinder
 - epidemiological-genomics/phylodynamics - TreeTime, BEAST2 parameters

@@ -372,6 +372,10 @@ Do not compare raw -log10(p-values) across conditions — they scale with sample
 
 ## Related Skills
 
+- database-access/biomart-queries - Bulk SYMBOL -> Entrez / HGNC / UniProt ID mapping
+- database-access/uniprot-access - UniProt ID-mapping (alternative to bitr) for obsolete-accession resolution
+- database-access/interaction-databases - Layer STRING / OmniPath interactions on enriched gene sets
+- database-access/ortholog-inference - Pull pre-computed orthologs for cross-species enrichment
 - pathway-analysis/go-enrichment - GO enrichment details
 - pathway-analysis/kegg-pathways - KEGG analysis
 - pathway-analysis/reactome-pathways - Reactome analysis

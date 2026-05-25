@@ -102,6 +102,7 @@ BiocManager::install(c('DESeq2', 'Seurat', 'clusterProfiler'))
 
 ## Related Skills
 
+- **database-access** - Download public data (SRA / GEO / NCBI Datasets / Ensembl / UniProt / interaction DBs) before running any pipeline that starts from public records
 - **read-qc** - Quality control and preprocessing (first step in most workflows)
 - **read-alignment** - Alignment tools used by many workflows
 - **differential-expression** - DE analysis details

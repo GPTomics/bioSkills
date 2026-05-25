@@ -256,6 +256,9 @@ joblib.dump(scaler, 'feature_scaler.joblib')
 
 ## Related Skills
 
+- database-access/geo-data - Public expression cohorts for validation sets
+- database-access/sra-data - Pull raw FASTQ for re-quantified validation cohorts
+- database-access/uniprot-access - Protein-level features (sequence, GO terms, PTMs) for protein biomarkers
 - machine-learning/biomarker-discovery - Detailed feature selection methods
 - machine-learning/model-validation - Nested CV implementation details
 - machine-learning/omics-classifiers - Classifier options and tuning

@@ -310,6 +310,8 @@ echo "Results: ${OUTDIR}/gwas.*.glm.*"
 
 ## Related Skills
 
+- database-access/ensembl-rest - VEP annotation for top GWAS variants (per-variant); local VEP for >1K
+- database-access/biomart-queries - Bulk SNP-to-gene mapping via BioMart
 - population-genetics/plink-basics - PLINK file formats and commands
 - population-genetics/population-structure - PCA and admixture
 - population-genetics/association-testing - Statistical models

@@ -1,381 +1,311 @@
 ---
 name: bio-batch-downloads
-description: Download large datasets from NCBI efficiently using history server, batching, and rate limiting. Use when performing bulk sequence downloads, handling large query results, or production-scale data retrieval.
+description: Download large datasets from NCBI efficiently using EPost, history server, batching, rate limiting, and retry logic. Use when bulk-fetching tens of thousands of sequences, pulling all results of a large ESearch, designing reproducible pipelines, comparing E-utilities to NCBI Datasets v2 CLI, or implementing checksum-validated downloads. Encodes WebEnv TTL (~8h), EPost 200-ID limit, retmax caps, parallelization design, and integrity verification.
 tool_type: python
 primary_tool: Bio.Entrez
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, Entrez Direct 21.0+
+Reference examples tested with: BioPython 1.83+, NCBI Datasets CLI 16.0+, Entrez Direct 21.0+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
+- Python: `pip show biopython` then `help(Bio.Entrez.efetch)` to check signatures
+- CLI: `datasets --version` and `efetch -version`
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # Batch Downloads
 
-**"Download thousands of sequences from NCBI"** → Search NCBI with history server, then batch-fetch results with rate limiting and retry logic.
-- Python: `Entrez.esearch()`, `Entrez.efetch()` with `usehistory='y'` (BioPython)
+**"Download N thousand records from NCBI without getting blocked"** -> The right answer is rarely "parallelize requests". For >5000 records the answer is the **history server**: search once, fetch in chunks server-side. For >100,000 records or whole genomes, the modern answer is **NCBI Datasets v2 CLI** -- the E-utilities are not optimized for bulk genome/gene data anymore.
 
-Download large numbers of records from NCBI efficiently using the history server, batching, and proper rate limiting.
+This skill encodes (a) when to use each retrieval strategy, (b) the precise rate-limit math, (c) WebEnv lifecycle for long-running jobs, (d) how to design retry/resume, and (e) when to defect to Datasets CLI instead.
+
+- Python: `Entrez.esearch(usehistory='y')` + chunked `Entrez.efetch()` (BioPython)
+- CLI: `datasets download genome accession ...` (NCBI Datasets v2 -- preferred for genome/gene bulk)
+- CLI: `epost | efetch -mode webenv` (Entrez Direct)
 
 ## Required Setup
 
 ```python
 from Bio import Entrez
 import time
-
-Entrez.email = 'your.email@example.com'  # Required by NCBI
-Entrez.api_key = 'your_api_key'          # Recommended for large downloads
+Entrez.email = 'researcher@institution.edu'
+Entrez.api_key = 'YOUR_KEY'  # 3 -> 10 req/sec; mandatory for bulk
+Entrez.tool = 'project-name'
 ```
 
-## Rate Limits
+## Decision matrix: which retrieval strategy?
 
-| Authentication | Requests/Second | Delay Between |
-|---------------|-----------------|---------------|
-| Email only | 3 | 0.34 seconds |
-| Email + API key | 10 | 0.1 seconds |
+| Record count | Source | Strategy | Why |
+|---|---|---|---|
+| < 200 known IDs | Any db | EFetch with comma-joined `id=` | Single round-trip; trivial |
+| 200-5,000 known IDs | Any db | EPost (chunked at 200) -> history -> chunked EFetch | URL length limit + chunked retrieval |
+| 5,000-100,000 from a query | Any db | ESearch with `usehistory='y'` -> chunked EFetch | Push to server once; pull in batches |
+| > 100,000 sequences | nucleotide/protein | Consider FTP mirror or Datasets CLI; chunk if E-utils still | NCBI throttles bulk; offline mirror is faster |
+| Whole genome assemblies | Assembly/Datasets | `datasets download genome accession ...` | Datasets v2 is the modern bulk endpoint |
+| All RefSeq for a species | Datasets | `datasets download genome taxon ...` | Replaces assembly_summary.txt scraping |
+| All gene records for a list | Datasets | `datasets download gene gene-id ...` | Cleaner output than EFetch gene XML |
+| Raw sequencing reads | SRA | `prefetch` + `fasterq-dump` (or ENA mirror) | See `sra-data` skill |
 
-Get an API key at: https://www.ncbi.nlm.nih.gov/account/settings/
+The Datasets CLI is the right answer for any genome- or gene-centric bulk workflow as of 2023+. The E-utilities remain right for PubMed, ESummary metadata, custom queries, and anything not in the Datasets API. See `ncbi-datasets-cli` skill.
 
-## History Server
+## Rate-limit math (precise)
 
-The history server stores search results on NCBI servers, enabling efficient batch retrieval without re-sending large ID lists.
+| Auth | req/sec | Sleep between calls | Bulk-friendly notes |
+|---|---|---|---|
+| Email only | 3 | 0.34 s | Single-threaded only; parallelism violates ToS |
+| Email + API key | 10 | 0.10 s | Modest parallelism (max ~4 workers) safe |
+| Institutional bulk | Negotiated | Email `eutilities@ncbi.nlm.nih.gov` | For >100K queries; courtesy expected |
 
-### How It Works
+NCBI's terms ask that heavy automated downloads run **outside US weekday business hours (9 AM-5 PM ET)**. Cron the job for nights/weekends; pipelines that ignore this get IP-throttled.
 
-1. Search with `usehistory='y'`
-2. Get `WebEnv` (session ID) and `query_key` (result set ID)
-3. Fetch results in batches using these identifiers
-4. Results stay available for ~15 minutes
+**Critical**: parallelizing API calls is the WRONG bulk strategy. One stream with history server + larger batches is faster AND more polite than N parallel streams. The bottleneck is rarely NCBI's throughput at small N -- it's the round-trip count.
 
-```python
-# Search with history
-handle = Entrez.esearch(db='nucleotide', term='human[orgn] AND mRNA[fkey]', usehistory='y')
-search = Entrez.read(handle)
-handle.close()
+## History server lifecycle (the long-running-job trap)
 
-webenv = search['WebEnv']
-query_key = search['QueryKey']
-total = int(search['Count'])
+| Property | Value | Failure mode |
+|---|---|---|
+| TTL | 8 hours absolute (per NCBI E-utils help) | Job started Friday evening dies Saturday morning |
+| Idle eviction | ~15 min empirically under load | A worker that stalls loses its WebEnv |
+| Per-session isolation | One WebEnv string per session | Don't share across processes if isolation matters |
+| Expired session behavior | HTTP 200 with `<ERROR>WebEnv not found</ERROR>` | Won't surface as HTTP error -- must parse body |
+| Recovery | Re-run ESearch; resume at `retstart` | Need to checkpoint progress to disk |
 
-print(f"Found {total} records, stored in history")
-```
+Production pattern: checkpoint the `retstart` cursor after each successful chunk to disk; on restart, re-run ESearch (cheap), pick up `retstart` from checkpoint, continue.
 
-## Core Pattern: Batch Download
+## EPost specifics
 
-**Goal:** Download all records matching a search query, handling NCBI rate limits and large result sets.
+EPost pushes a list of UIDs to the history server so downstream EFetch can pull by WebEnv/QueryKey instead of by ID. Two constraints:
+- **200 IDs per EPost call** is the hard limit.
+- **Chained posts share a WebEnv**: pass the WebEnv from the first call into subsequent calls to accumulate IDs under one session; a new QueryKey is issued per call.
 
-**Approach:** Search with history server enabled to store results on NCBI, then fetch in batches using `WebEnv`/`query_key` with appropriate delays.
+To intersect: `term=#{key1} AND #{key2}` against the WebEnv produces a new key.
+
+## Batch size guidelines per rettype
+
+| Database | rettype | Optimal batch | Per-record payload |
+|---|---|---|---|
+| nucleotide | fasta | 500-1000 | ~1 KB |
+| nucleotide | gb | 100-200 | ~10-50 KB |
+| protein | fasta | 500-1000 | ~0.5 KB |
+| protein | gp | 100-200 | ~5-30 KB |
+| pubmed | medline | 1000-2000 | ~2 KB |
+| pubmed | xml | 200-500 | ~10-30 KB |
+| any | esummary (docsum) | 500 per call | ~1 KB |
+
+Smaller batches for GenBank/XML because per-record payload is larger; larger batches for FASTA because the per-call HTTP overhead dominates.
+
+## Code patterns
+
+### Production batch fetch (history server + retry + checkpoint)
+
+**Goal:** Download all records matching a query, robust to mid-job failures and session expiry.
+
+**Approach:** ESearch with history; checkpoint cursor to disk; on error, retry the chunk; on session expiry, re-run ESearch and resume from checkpoint.
 
 **Reference (BioPython 1.83+):**
 ```python
-from Bio import Entrez, SeqIO
+import json
 import time
-
-Entrez.email = 'your.email@example.com'
-
-def batch_download(db, term, output_file, rettype='fasta', batch_size=500):
-    handle = Entrez.esearch(db=db, term=term, usehistory='y')
-    search = Entrez.read(handle)
-    handle.close()
-
-    webenv = search['WebEnv']
-    query_key = search['QueryKey']
-    total = int(search['Count'])
-
-    print(f"Downloading {total} records...")
-
-    with open(output_file, 'w') as out:
-        for start in range(0, total, batch_size):
-            print(f"  Fetching {start+1}-{min(start+batch_size, total)}...")
-
-            handle = Entrez.efetch(
-                db=db,
-                rettype=rettype,
-                retmode='text',
-                retstart=start,
-                retmax=batch_size,
-                webenv=webenv,
-                query_key=query_key
-            )
-            out.write(handle.read())
-            handle.close()
-
-            time.sleep(0.34)  # Rate limiting (no API key)
-
-    print(f"Saved to {output_file}")
-```
-
-## Code Patterns
-
-### Download All Search Results
-
-```python
-from Bio import Entrez
-import time
-
-Entrez.email = 'your.email@example.com'
-Entrez.api_key = 'your_api_key'  # Optional
-
-def download_search_results(db, term, output_file, rettype='fasta', batch_size=500):
-    # Search with history server
-    handle = Entrez.esearch(db=db, term=term, usehistory='y', retmax=0)
-    search = Entrez.read(handle)
-    handle.close()
-
-    webenv = search['WebEnv']
-    query_key = search['QueryKey']
-    total = int(search['Count'])
-
-    if total == 0:
-        print("No records found")
-        return
-
-    delay = 0.1 if Entrez.api_key else 0.34
-
-    with open(output_file, 'w') as out:
-        for start in range(0, total, batch_size):
-            end = min(start + batch_size, total)
-            print(f"Downloading {start+1}-{end} of {total}")
-
-            attempts = 3
-            for attempt in range(attempts):
-                try:
-                    handle = Entrez.efetch(db=db, rettype=rettype, retmode='text',
-                                           retstart=start, retmax=batch_size,
-                                           webenv=webenv, query_key=query_key)
-                    out.write(handle.read())
-                    handle.close()
-                    break
-                except Exception as e:
-                    if attempt < attempts - 1:
-                        print(f"  Retry {attempt+1}: {e}")
-                        time.sleep(5)
-                    else:
-                        raise
-
-            time.sleep(delay)
-
-    print(f"Downloaded {total} records to {output_file}")
-
-download_search_results('nucleotide', 'human[orgn] AND insulin[gene] AND mRNA[fkey]', 'insulin_mrna.fasta')
-```
-
-### Download by ID List
-
-```python
-def download_by_ids(db, ids, output_file, rettype='fasta', batch_size=200):
-    total = len(ids)
-    delay = 0.1 if Entrez.api_key else 0.34
-
-    with open(output_file, 'w') as out:
-        for start in range(0, total, batch_size):
-            batch = ids[start:start+batch_size]
-            print(f"Downloading {start+1}-{start+len(batch)} of {total}")
-
-            handle = Entrez.efetch(db=db, id=','.join(batch), rettype=rettype, retmode='text')
-            out.write(handle.read())
-            handle.close()
-
-            time.sleep(delay)
-
-    print(f"Downloaded {total} records to {output_file}")
-
-# Example with list of IDs
-ids = ['NM_007294', 'NM_000059', 'NM_000546', 'NM_001126112', 'NM_004985']
-download_by_ids('nucleotide', ids, 'genes.fasta')
-```
-
-### Post IDs to History (EPost)
-
-For very large ID lists, post them to the history server first:
-
-```python
-def post_and_download(db, ids, output_file, rettype='fasta', batch_size=500):
-    # Post IDs to history server
-    handle = Entrez.epost(db=db, id=','.join(ids))
-    result = Entrez.read(handle)
-    handle.close()
-
-    webenv = result['WebEnv']
-    query_key = result['QueryKey']
-    total = len(ids)
-
-    delay = 0.1 if Entrez.api_key else 0.34
-
-    with open(output_file, 'w') as out:
-        for start in range(0, total, batch_size):
-            end = min(start + batch_size, total)
-            print(f"Fetching {start+1}-{end} of {total}")
-
-            handle = Entrez.efetch(db=db, rettype=rettype, retmode='text',
-                                   retstart=start, retmax=batch_size,
-                                   webenv=webenv, query_key=query_key)
-            out.write(handle.read())
-            handle.close()
-
-            time.sleep(delay)
-
-    print(f"Downloaded {total} records")
-```
-
-### Download GenBank with Progress
-
-```python
-from Bio import Entrez, SeqIO
-from io import StringIO
-import time
-
-def download_genbank_records(term, output_file, batch_size=100):
-    Entrez.email = 'your.email@example.com'
-
-    # Search
-    handle = Entrez.esearch(db='nucleotide', term=term, usehistory='y')
-    search = Entrez.read(handle)
-    handle.close()
-
-    webenv, query_key = search['WebEnv'], search['QueryKey']
-    total = int(search['Count'])
-
-    records = []
-    for start in range(0, total, batch_size):
-        print(f"Fetching {start+1}-{min(start+batch_size, total)} of {total}")
-
-        handle = Entrez.efetch(db='nucleotide', rettype='gb', retmode='text',
-                               retstart=start, retmax=batch_size,
-                               webenv=webenv, query_key=query_key)
-        batch_records = list(SeqIO.parse(handle, 'genbank'))
-        handle.close()
-
-        records.extend(batch_records)
-        time.sleep(0.34)
-
-    SeqIO.write(records, output_file, 'genbank')
-    print(f"Saved {len(records)} GenBank records")
-    return records
-```
-
-### Download with Retry Logic
-
-```python
-import time
+from pathlib import Path
 from urllib.error import HTTPError
+from Bio import Entrez
 
-def robust_download(db, term, output_file, rettype='fasta', batch_size=500, max_retries=3):
-    handle = Entrez.esearch(db=db, term=term, usehistory='y')
-    search = Entrez.read(handle)
-    handle.close()
 
-    webenv, query_key = search['WebEnv'], search['QueryKey']
-    total = int(search['Count'])
+def checkpointed_batch_download(db, term, out_path, ckpt_path, rettype='fasta',
+                                 retmode='text', batch_size=500, max_retries=3):
+    '''Download all matching records with disk checkpoint for resumability.'''
     delay = 0.1 if Entrez.api_key else 0.34
+    ckpt = Path(ckpt_path)
+    start = json.loads(ckpt.read_text())['start'] if ckpt.exists() else 0
 
-    with open(output_file, 'w') as out:
-        for start in range(0, total, batch_size):
-            for retry in range(max_retries):
+    h = Entrez.esearch(db=db, term=term, usehistory='y', retmax=0)
+    s = Entrez.read(h); h.close()
+    webenv, query_key, total = s['WebEnv'], s['QueryKey'], int(s['Count'])
+    print(f'{total:,} records matched; resuming at {start:,}')
+
+    mode = 'a' if start else 'w'
+    with open(out_path, mode) as out:
+        while start < total:
+            for attempt in range(max_retries):
                 try:
-                    handle = Entrez.efetch(db=db, rettype=rettype, retmode='text',
-                                           retstart=start, retmax=batch_size,
-                                           webenv=webenv, query_key=query_key)
-                    data = handle.read()
-                    handle.close()
-
-                    if data.strip():
-                        out.write(data)
+                    h = Entrez.efetch(db=db, rettype=rettype, retmode=retmode,
+                                      retstart=start, retmax=batch_size,
+                                      webenv=webenv, query_key=query_key)
+                    body = h.read(); h.close()
+                    if isinstance(body, bytes):
+                        body = body.decode('utf-8', errors='replace')
+                    if '<ERROR>' in body[:500]:
+                        raise RuntimeError(f'Server error in body: {body[:200]}')
+                    out.write(body)
                     break
-
                 except HTTPError as e:
-                    if e.code == 429:  # Rate limit
-                        wait = 10 * (retry + 1)
-                        print(f"Rate limited, waiting {wait}s...")
+                    if e.code == 429:
+                        wait = 10 * (attempt + 1)
+                        print(f'  Rate-limited; sleeping {wait}s')
                         time.sleep(wait)
-                    elif retry == max_retries - 1:
+                    elif attempt == max_retries - 1:
                         raise
                     else:
-                        time.sleep(5)
+                        time.sleep(5 * (attempt + 1))
+                except RuntimeError as e:
+                    # Likely WebEnv expired; re-run ESearch
+                    print(f'  {e}; refreshing WebEnv')
+                    h = Entrez.esearch(db=db, term=term, usehistory='y', retmax=0)
+                    s = Entrez.read(h); h.close()
+                    webenv, query_key = s['WebEnv'], s['QueryKey']
 
+            start += batch_size
+            ckpt.write_text(json.dumps({'start': start, 'total': total}))
             time.sleep(delay)
-
-    print(f"Downloaded to {output_file}")
+            print(f'  {min(start, total):,}/{total:,}')
+    ckpt.unlink(missing_ok=True)
 ```
 
-### Stream to File (Memory Efficient)
+### EPost large ID list, then EFetch
+
+**Goal:** Download by a known list of 5,000 accessions without 414 URI errors.
+
+**Approach:** EPost in 200-ID chunks; reuse WebEnv across chunks; final fetch reads from history.
+
+**Reference (BioPython 1.83+):**
+```python
+def epost_and_fetch(db, ids, out_path, rettype='fasta', retmode='text', batch_size=500):
+    delay = 0.1 if Entrez.api_key else 0.34
+    webenv = None
+    posted_keys = []  # (query_key, n_ids) so we iterate each key's actual size
+    for i in range(0, len(ids), 200):
+        chunk = ids[i:i+200]
+        kwargs = {'db': db, 'id': ','.join(chunk)}
+        if webenv:
+            kwargs['WebEnv'] = webenv
+        h = Entrez.epost(**kwargs)
+        r = Entrez.read(h); h.close()
+        webenv = r['WebEnv']
+        posted_keys.append((r['QueryKey'], len(chunk)))
+        time.sleep(delay)
+
+    with open(out_path, 'w') as out:
+        for qk, n in posted_keys:
+            for start in range(0, n, batch_size):
+                h = Entrez.efetch(db=db, rettype=rettype, retmode=retmode,
+                                  retstart=start, retmax=min(batch_size, n - start),
+                                  webenv=webenv, query_key=qk)
+                out.write(h.read()); h.close()
+                time.sleep(delay)
+```
+
+### Integrity check after download
+
+**Goal:** Confirm downloaded FASTA has the expected record count and no truncation.
+
+**Approach:** Count expected (from ESearch Count) vs observed (from SeqIO.parse).
 
 ```python
-def stream_download(db, term, output_file, rettype='fasta', batch_size=1000):
-    handle = Entrez.esearch(db=db, term=term, usehistory='y')
-    search = Entrez.read(handle)
-    handle.close()
+from Bio import SeqIO
 
-    webenv, query_key = search['WebEnv'], search['QueryKey']
-    total = int(search['Count'])
-
-    downloaded = 0
-    with open(output_file, 'w') as out:
-        for start in range(0, total, batch_size):
-            handle = Entrez.efetch(db=db, rettype=rettype, retmode='text',
-                                   retstart=start, retmax=batch_size,
-                                   webenv=webenv, query_key=query_key)
-
-            # Stream chunks to file
-            while True:
-                chunk = handle.read(8192)
-                if not chunk:
-                    break
-                out.write(chunk)
-
-            handle.close()
-            downloaded = min(start + batch_size, total)
-            print(f"Progress: {downloaded}/{total} ({100*downloaded/total:.1f}%)")
-            time.sleep(0.34)
+def verify_fasta_count(path, expected):
+    observed = sum(1 for _ in SeqIO.parse(path, 'fasta'))
+    assert observed == expected, f'Expected {expected:,} records, found {observed:,}'
+    return True
 ```
 
-## Batch Size Guidelines
+For genome assemblies and known-checksum files, NCBI provides MD5 manifests (e.g. `md5checksums.txt` in FTP genome directories). NCBI Datasets CLI verifies checksums automatically; the FTP-direct route needs explicit `md5sum -c`.
 
-| Database | rettype | Recommended Batch |
-|----------|---------|-------------------|
-| nucleotide | fasta | 500-1000 |
-| nucleotide | gb | 100-200 |
-| protein | fasta | 500-1000 |
-| protein | gp | 100-200 |
-| pubmed | abstract | 1000-2000 |
-| pubmed | xml | 200-500 |
+### Compare E-utils to Datasets CLI cost
 
-Smaller batches for GenBank/XML (more data per record).
-
-## Common Errors
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `HTTPError 429` | Rate limit exceeded | Increase delay, use API key |
-| `HTTPError 400` | Invalid WebEnv/query_key | Session expired, re-search |
-| Incomplete data | Connection interrupted | Add retry logic |
-| Memory error | Batch too large | Reduce batch_size |
-| Empty response | No more records | Check total vs start |
-
-## Decision Tree
-
+```python
+def estimate_efetch_calls(total, batch_size):
+    return -(-total // batch_size)  # ceiling division
 ```
-Need to download many NCBI records?
-├── Have search query?
-│   └── Use esearch with usehistory='y', then batch efetch
-├── Have list of IDs?
-│   ├── < 200 IDs? → Direct efetch with comma-separated IDs
-│   └── >= 200 IDs? → Use epost, then batch efetch
-├── Need records as Biopython objects?
-│   └── Parse each batch with SeqIO
-├── Downloading > 10,000 records?
-│   └── Use streaming to avoid memory issues
-└── Getting rate limited?
-    └── Get API key, add retry logic
+
+For 100,000 nucleotide records at 500/batch with API key: 200 calls * 0.1s = 20s minimum. For the same workflow via `datasets download gene gene-id 100000`: one CLI invocation, parallel download, automatic checksum. For genome-scale bulk, Datasets wins by an order of magnitude.
+
+### Parallelization design (modest)
+
+**Goal:** Pull from two independent queries concurrently without violating rate limits.
+
+**Approach:** Async with a global semaphore that enforces the API-key-permitted rate. Max 4 concurrent workers is the polite cap.
+
+```python
+import asyncio
+from asyncio import Semaphore
+
+# Pseudo-pattern; real impl needs aiohttp + Bio.Entrez async wrappers
+async def fetch_with_semaphore(sem, db, id_, rettype):
+    async with sem:
+        # call EFetch
+        await asyncio.sleep(0.1)  # rate gate
+        # ... actual call
+
+sem = Semaphore(4)
 ```
+
+Never exceed 4 concurrent workers with an API key, or 1 without. Above that NCBI throttles by IP and the whole pipeline grinds.
+
+## Failure modes
+
+### Session expires mid-pipeline
+- **Trigger:** Job runs >8h or worker idles >15 min.
+- **Mechanism:** WebEnv evicted; EFetch returns HTTP 200 with `<ERROR>WebEnv not found</ERROR>` body.
+- **Symptom:** Silently truncated output mid-file; downstream parsing fails on empty chunks.
+- **Fix:** Parse body for `<ERROR>`; re-run ESearch and resume at checkpointed `retstart`.
+
+### URL too long on >200 IDs
+- **Trigger:** Comma-joined `id=` to EFetch with 250+ IDs.
+- **Mechanism:** GET URL exceeds NCBI's ~2000 char limit.
+- **Symptom:** HTTP 414 URI Too Long, or silent truncation.
+- **Fix:** EPost in chunks of 200 first, then EFetch by WebEnv/QueryKey.
+
+### Rate-limit cascade
+- **Trigger:** Parallelizing without API key; or >10 req/s with key.
+- **Mechanism:** NCBI returns 429; aggressive retry triggers IP-level throttle.
+- **Symptom:** Pipeline gets slower and eventually stops.
+- **Fix:** Add jittered exponential backoff; reduce concurrency; reach out for institutional access if bulk is the norm.
+
+### Datasets / E-utils confusion
+- **Trigger:** Building a custom assembly_summary.txt scraper instead of using Datasets.
+- **Mechanism:** Datasets API is the official, supported bulk endpoint for genome/gene data; E-utils is not optimized for it.
+- **Symptom:** Slow downloads, stale snapshots, missing fields.
+- **Fix:** Use `datasets download genome ...` for genomes; `datasets download gene ...` for gene records. See `ncbi-datasets-cli`.
+
+### Silent retmax cap
+- **Trigger:** ESearch without `usehistory='y'`; Count > 9999.
+- **Mechanism:** Legacy esearch enforces 9999 cap; the rest of the result set is silently dropped.
+- **Symptom:** Batch loop terminates early; missing thousands of records.
+- **Fix:** Always set `usehistory='y'` for any query expected to return >5000.
+
+### Checkpoint corruption / partial chunk
+- **Trigger:** Job crashes mid-chunk; checkpoint hasn't been written.
+- **Mechanism:** Output file has half a record at the end.
+- **Symptom:** SeqIO.parse fails on the partial record.
+- **Fix:** Write checkpoint AFTER successful chunk write + file flush; on resume, truncate the output file at the last newline before continuing.
+
+## Common errors
+
+| Error / symptom | Cause | Solution |
+|---|---|---|
+| HTTPError 429 | Rate limit | Sleep with backoff; get API key |
+| HTTPError 414 | URL too long | EPost first |
+| `<ERROR>WebEnv not found</ERROR>` (HTTP 200) | Session expired | Re-run ESearch; resume at checkpoint |
+| Output file ends mid-record | Crash mid-chunk | Truncate-to-newline on resume |
+| Slow despite API key | Too few records per call | Increase batch_size to 500+ for FASTA |
+| Datasets CLI faster than EFetch | Workflow is genome/gene bulk | Switch to `ncbi-datasets-cli` |
+
+## References
+
+- Sayers EW et al. (2024) Database resources of the National Center for Biotechnology Information in 2024. *Nucleic Acids Res* 52:D33-D43.
+- Kans J. (2024) Entrez Direct: E-utilities on the Unix Command Line. NCBI Bookshelf NBK179288.
+- NCBI. EPost help and Usage Guidelines. NBK25499.
+- NCBI Datasets documentation: https://www.ncbi.nlm.nih.gov/datasets/docs/v2/
 
 ## Related Skills
 
-- entrez-search - Build search queries for batch downloads
-- entrez-fetch - Single record fetching
-- sra-data - For raw sequencing data (use SRA toolkit instead)
+- entrez-search - Build the query that batch-downloads will fetch
+- entrez-fetch - Single-record EFetch and ESummary
+- entrez-link - Chain ELink with neighbor_history for cross-db bulk
+- ncbi-datasets-cli - Modern bulk endpoint for genome/gene data; preferred over E-utils for that scope
+- sra-data - Raw read downloads via SRA toolkit (not via E-utilities)
+- geo-data - GEO supplementary file downloads

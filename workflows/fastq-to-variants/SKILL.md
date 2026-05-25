@@ -367,6 +367,9 @@ echo "Filtered VCF: ${OUTDIR}/variants/cohort.filtered.vcf.gz"
 
 ## Related Skills
 
+- database-access/sra-data - Pull public FASTQ for reanalysis (ENA mirror or STRIDES cloud)
+- database-access/ncbi-datasets-cli - Pull reference genome assembly via Datasets v2 CLI
+- database-access/ensembl-rest - Pull annotated reference and Compara orthologs for cross-species variants
 - read-qc/fastp-workflow - Detailed QC options
 - read-alignment/bwa-alignment - BWA-MEM2 parameters
 - alignment-files/duplicate-handling - Duplicate marking details

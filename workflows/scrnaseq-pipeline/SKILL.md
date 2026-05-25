@@ -339,6 +339,8 @@ cat('Pipeline complete. Object saved to:', output_dir, '\n')
 
 ## Related Skills
 
+- database-access/geo-data - Resolve GSE to SRA; detect SuperSeries before processing
+- database-access/sra-data - Download 10x records with --include-technical for barcodes/UMIs
 - single-cell/data-io - Loading different formats
 - single-cell/preprocessing - QC details
 - single-cell/doublet-detection - Doublet methods comparison

@@ -1,46 +1,62 @@
-'''Find SRA run accessions using Entrez'''
-# Reference: biopython 1.83+, entrez direct 21.0+, sra toolkit 3.0+ | Verify API if version differs
+'''Resolve hierarchical accessions (PRJNA, GSE, SRX, SRP) to SRR runs via pysradb (preferred) or Entrez runinfo.'''
+# Reference: pysradb 2.2+, biopython 1.83+ | Verify API if version differs
 from Bio import Entrez
+import time
 
 Entrez.email = 'your.email@example.com'
+DELAY = 0.34
 
-def search_sra(term, max_results=100):
-    '''Search SRA database and return run accessions'''
-    handle = Entrez.esearch(db='sra', term=term, retmax=max_results)
-    search = Entrez.read(handle)
-    handle.close()
 
-    print(f"Found {search['Count']} total results")
-    if not search['IdList']:
+def runs_via_entrez(term, max_results=10000):
+    '''Fallback path: Entrez runinfo CSV; less ergonomic than pysradb but no extra dep.'''
+    h = Entrez.esearch(db='sra', term=term, retmax=0, usehistory='y')
+    s = Entrez.read(h); h.close()
+    total = int(s['Count'])
+    if total == 0:
         return []
-
-    handle = Entrez.efetch(db='sra', id=','.join(search['IdList']), rettype='runinfo', retmode='text')
-    runinfo = handle.read()
-    handle.close()
-
+    webenv, qk = s['WebEnv'], s['QueryKey']
     runs = []
-    lines = runinfo.strip().split('\n')
-    if len(lines) > 1:
-        for line in lines[1:]:
+    for start in range(0, min(total, max_results), 500):
+        h = Entrez.efetch(db='sra', rettype='runinfo', retmode='text',
+                          retstart=start, retmax=500,
+                          webenv=webenv, query_key=qk)
+        text = h.read(); h.close()
+        for line in text.strip().split('\n')[1:]:
             if line:
-                fields = line.split(',')
-                if fields[0]:
-                    runs.append(fields[0])
+                runs.append(line.split(',')[0])
+        time.sleep(DELAY)
     return runs
 
-# Search by BioProject
-print('=== Search by BioProject ===')
-runs = search_sra('PRJNA398962[bioproject]', max_results=10)
-print(f"Runs: {runs}")
 
-# Search by organism and experiment type
-print('\n=== Search by Criteria ===')
-runs = search_sra('human[orgn] AND RNA-Seq[strategy] AND transcriptomic[source]', max_results=10)
-print(f"Runs: {runs}")
+def runs_via_pysradb(identifier):
+    '''Preferred path: pysradb handles GSE/PRJNA/SRX/SRP -> SRR cleanly.'''
+    try:
+        from pysradb import SRAweb
+    except ImportError:
+        print('pysradb not installed; pip install pysradb')
+        return []
+    db = SRAweb()
+    meta = db.sra_metadata(identifier, detailed=True)
+    if meta.empty:
+        return []
+    return meta['run_accession'].tolist()
 
-# Write accessions to file
-print('\n=== Writing to File ===')
+
+print('=== Entrez runinfo path: BioProject PRJNA398962 ===')
+runs = runs_via_entrez('PRJNA398962[BioProject]', max_results=20)
+print(f'  {len(runs)} SRR runs (first 5: {runs[:5]})')
+
+print('\n=== Entrez runinfo path: human RNA-Seq sample ===')
+runs = runs_via_entrez('Homo sapiens[ORGN] AND RNA-Seq[Strategy] AND transcriptomic[Source]', max_results=10)
+print(f'  {len(runs)} runs')
+
+print('\n=== pysradb path: GSE -> SRR ===')
+gse_runs = runs_via_pysradb('GSE110009')
+print(f'  GSE110009 -> {len(gse_runs)} runs (first 5: {gse_runs[:5]})')
+
+print('\n=== Write accessions file for batch download ===')
 with open('accessions.txt', 'w') as f:
-    for run in runs:
-        f.write(run + '\n')
-print(f"Wrote {len(runs)} accessions to accessions.txt")
+    for r in runs:
+        f.write(f'{r}\n')
+print(f'  Wrote {len(runs)} accessions to accessions.txt')
+print('  Now: bash download_batch.sh accessions.txt ./fastq')
