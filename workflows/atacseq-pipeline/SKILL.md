@@ -352,6 +352,8 @@ echo "Pipeline complete. Peaks: ${OUTDIR}/peaks/consensus_peaks.narrowPeak"
 
 ## Related Skills
 
+- database-access/sra-data - Pull ATAC-seq FASTQ from SRA / ENA (often 10x ATAC requires --include-technical)
+- database-access/geo-data - Resolve GEO accessions for ATAC datasets, detect SuperSeries
 - atac-seq/atac-peak-calling - MACS3 / Genrich / HMMRATAC details, ENCODE 4 IDR
 - atac-seq/atac-qc - TSS enrichment, FRiP, NRF/PBC1/PBC2 details
 - atac-seq/consensus-peakset - Corces 2018 iterative-overlap fixed-width consensus

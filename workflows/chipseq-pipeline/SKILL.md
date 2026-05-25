@@ -283,6 +283,8 @@ echo "Pipeline complete. Peaks: ${OUTDIR}/peaks/experiment_peaks.narrowPeak"
 
 ## Related Skills
 
+- database-access/sra-data - Pull ChIP-seq FASTQ from SRA / ENA for re-analysis
+- database-access/geo-data - Resolve ENCODE / Roadmap GSE accessions to SRA
 - chip-seq/chipseq-qc - FRiP, NSC/RSC, library complexity, hyper-ChIPable detection, antibody validation
 - chip-seq/peak-calling - MACS3/MACS2/HOMER/SPP, IDR vs naive overlap, per-tool failure modes
 - chip-seq/peak-annotation - ChIPseeker, HOMER, ENCODE cCRE classification, GREAT regulatory domains

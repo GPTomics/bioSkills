@@ -99,6 +99,8 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
+- database-access/sra-data - Pull ATAC-seq FASTQ from SRA / ENA
+- database-access/geo-data - Resolve GEO accessions for ATAC datasets
 - atac-seq/atac-peak-calling - MACS3 / Genrich / HMMRATAC details, ENCODE 4 IDR
 - atac-seq/atac-qc - ENCODE 4 thresholds with citations
 - atac-seq/consensus-peakset - Corces 2018 iterative overlap

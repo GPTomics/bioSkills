@@ -1,88 +1,67 @@
-'''Query STRING REST API for protein interactions and build a NetworkX graph'''
-# Reference: biopython 1.83+, pandas 2.2+ | Verify API if version differs
-
+'''STRING v12 network with per-channel inspection; functional-vs-physical filtering; multi-confidence comparison.'''
+# Reference: requests 2.31+, pandas 2.2+, networkx 3.2+ | Verify API if version differs
 import requests
 import pandas as pd
 import networkx as nx
-import matplotlib.pyplot as plt
 from io import StringIO
 
-STRING_API = 'https://version-12-0.string-db.org/api'
+STRING = 'https://version-12-0.string-db.org/api'
+CALLER = 'bioskills-2026'
 
-# --- ALTERNATIVE: Use real gene lists ---
-# Load DE genes or pathway members:
-#
-# de_results = pd.read_csv('de_results.csv')
-# genes = de_results[de_results['padj'] < 0.05]['gene'].head(50).tolist()
 
-genes = ['TP53', 'BRCA1', 'MDM2', 'ATM', 'CHEK2', 'CDK2', 'RB1', 'CDKN1A', 'BAX', 'BCL2']
-
-def get_string_interactions(genes, species=9606, score_threshold=400):
-    url = f'{STRING_API}/tsv/network'
+def string_network(genes, species=9606, threshold=400):
+    url = f'{STRING}/tsv/network'
     params = {
         'identifiers': '%0d'.join(genes),
         'species': species,
-        'required_score': score_threshold,
-        'caller_identity': 'bioskills'
+        'required_score': threshold,
+        'caller_identity': CALLER,
     }
-    response = requests.get(url, params=params)
-    return pd.read_csv(StringIO(response.text), sep='\t')
+    r = requests.get(url, params=params); r.raise_for_status()
+    return pd.read_csv(StringIO(r.text), sep='\t')
 
 
-def resolve_string_ids(genes, species=9606):
-    url = f'{STRING_API}/tsv/get_string_ids'
-    params = {'identifiers': '%0d'.join(genes), 'species': species, 'caller_identity': 'bioskills'}
-    response = requests.get(url, params=params)
-    return pd.read_csv(StringIO(response.text), sep='\t')
+def resolve_ids(genes, species=9606):
+    url = f'{STRING}/tsv/get_string_ids'
+    params = {'identifiers': '%0d'.join(genes), 'species': species, 'caller_identity': CALLER}
+    r = requests.get(url, params=params); r.raise_for_status()
+    return pd.read_csv(StringIO(r.text), sep='\t')
 
 
-# Resolve gene names to STRING IDs
-resolved = resolve_string_ids(genes)
-print('Resolved identifiers:')
-print(resolved[['queryItem', 'preferredName', 'stringId']].to_string(index=False))
+GENES = ['TP53', 'BRCA1', 'MDM2', 'ATM', 'CHEK2', 'CDK2', 'RB1', 'CDKN1A', 'BAX', 'BCL2']
 
-# Score threshold 700: High confidence. Filters text-mining and prediction noise.
-# Use 400 for exploratory analysis, 900 for highest-confidence core interactions.
-interactions = get_string_interactions(genes, score_threshold=700)
-print(f'\nFound {len(interactions)} high-confidence interactions (score >= 700)')
-print(interactions[['preferredName_A', 'preferredName_B', 'score']].head(10).to_string(index=False))
+print('=== Resolve gene symbols to STRING IDs ===')
+print(resolve_ids(GENES)[['queryItem', 'preferredName', 'stringId']].to_string(index=False))
 
-# Build NetworkX graph
-G = nx.Graph()
-for _, row in interactions.iterrows():
-    G.add_edge(row['preferredName_A'], row['preferredName_B'],
-               weight=row['score'] / 1000, score=row['score'])
+print('\n=== Compare confidence tiers (number of edges retained) ===')
+for thr in [400, 700, 900]:
+    df = string_network(GENES, threshold=thr)
+    print(f'  Threshold {thr}: {len(df)} edges')
 
-print(f'\nNetwork: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges')
-print(f'Density: {nx.density(G):.3f}')
-print(f'Connected components: {nx.number_connected_components(G)}')
+print('\n=== Per-channel breakdown at threshold 700 ===')
+df = string_network(GENES, threshold=700)
+# Channels: experiments (escore), database (dscore), textmining (tscore),
+# coexpression (ascore), neighborhood (nscore), fusion (fscore), cooccurrence (pscore)
+df_show = df[['preferredName_A', 'preferredName_B', 'score',
+              'escore', 'dscore', 'tscore', 'ascore']].head(8)
+print(df_show.to_string(index=False))
 
-# Degree centrality
-degree_df = pd.DataFrame(sorted(G.degree(), key=lambda x: x[1], reverse=True), columns=['gene', 'degree'])
-print('\nDegree ranking:')
-print(degree_df.to_string(index=False))
+print('\n=== Physical-only filter (experiments channel only) ===')
+# escore > 0.4 (in 0-1 scale; STRING reports 0-1 for individual channels in TSV)
+physical = df[df['escore'] > 0.4]
+print(f'  Combined-score 700+: {len(df)} edges total')
+print(f'  Filtered to escore > 0.4 (physical-only): {len(physical)} edges')
+print(f'  Use the physical subset for "physically interact" claims.')
 
-# Betweenness centrality (identifies bridge nodes)
-betweenness = nx.betweenness_centrality(G)
-betweenness_df = pd.DataFrame(sorted(betweenness.items(), key=lambda x: x[1], reverse=True), columns=['gene', 'betweenness'])
-print('\nBetweenness centrality:')
-print(betweenness_df.to_string(index=False))
+print('\n=== Build NetworkX graph and rank by centrality ===')
+g = nx.Graph()
+for _, row in df.iterrows():
+    g.add_edge(row['preferredName_A'], row['preferredName_B'],
+               score=row['score'], physical=row['escore'])
 
-# Visualize with matplotlib
-fig, ax = plt.subplots(figsize=(10, 8))
-pos = nx.spring_layout(G, seed=42, k=1.5)
+print(f'  Nodes: {g.number_of_nodes()}; edges: {g.number_of_edges()}; '
+      f'density: {nx.density(g):.3f}; components: {nx.number_connected_components(g)}')
 
-node_sizes = [300 + G.degree(n) * 200 for n in G.nodes()]
-edge_weights = [G[u][v]['weight'] * 2 for u, v in G.edges()]
-
-nx.draw_networkx_edges(G, pos, width=edge_weights, alpha=0.4, edge_color='gray', ax=ax)
-nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color='#4DBBD5', edgecolors='black', linewidths=0.5, ax=ax)
-nx.draw_networkx_labels(G, pos, font_size=9, font_weight='bold', ax=ax)
-
-ax.set_title(f'STRING PPI Network (score >= 700, {G.number_of_nodes()} nodes, {G.number_of_edges()} edges)')
-ax.axis('off')
-plt.tight_layout()
-plt.savefig('string_network.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-print('\nNetwork saved: string_network.png')
+deg = pd.DataFrame(sorted(g.degree(), key=lambda x: -x[1]), columns=['gene', 'degree'])
+print('\n  Hubs (top 5 by degree):')
+print(deg.head(5).to_string(index=False))

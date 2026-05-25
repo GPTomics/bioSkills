@@ -151,6 +151,8 @@ For spike-in workflow, see chip-seq/spike-in-normalization.
 
 ## Related Skills
 
+- database-access/sra-data - Pull ChIP-seq FASTQ from SRA / ENA for re-analysis
+- database-access/geo-data - Resolve ENCODE / Roadmap GSE accessions to SRA
 - chip-seq/chipseq-qc - FRiP, NSC/RSC, library complexity, hyper-ChIPable detection
 - chip-seq/peak-calling - MACS3/MACS2/HOMER/SPP, IDR, per-tool failure modes
 - chip-seq/peak-annotation - ChIPseeker, ENCODE cCRE classification, GREAT

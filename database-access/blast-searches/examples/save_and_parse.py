@@ -1,53 +1,53 @@
-'''Save BLAST results and parse later'''
+'''Persist BLAST XML for later re-parsing; demonstrates bit-score vs E-value sorting and identity/coverage filtering.'''
 # Reference: biopython 1.83+, ncbi blast+ 2.15+ | Verify API if version differs
 from Bio.Blast import NCBIWWW, NCBIXML
-from Bio import SeqIO
 
-def run_and_save_blast(sequence, output_file, program='blastn', database='nt'):
-    '''Run BLAST and save XML results'''
-    print(f"Running {program} against {database}...")
-    result_handle = NCBIWWW.qblast(program, database, sequence, hitlist_size=50)
+QUERY = '''>HBB_partial
+ATGGTGCATCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAACGTGGATGAAGTTGGTGGTGAGGCCCTGGGCAG'''
 
-    with open(output_file, 'w') as out:
-        out.write(result_handle.read())
-    result_handle.close()
-    print(f"Results saved to {output_file}")
 
-def parse_blast_xml(xml_file):
-    '''Parse saved BLAST XML file'''
-    with open(xml_file) as f:
-        blast_record = NCBIXML.read(f)
+def run_and_save(sequence, out_xml, program='blastn', database='refseq_select_rna', hitlist=500):
+    print(f'Running {program} against {database} (hitlist_size={hitlist}; avoids max_target_seqs trap)...')
+    handle = NCBIWWW.qblast(program, database, sequence,
+                            hitlist_size=hitlist, format_type='XML',
+                            expect=1e-10)
+    with open(out_xml, 'w') as f:
+        f.write(handle.read())
+    handle.close()
+    print(f'XML saved to {out_xml}')
 
+
+def parse_hits(xml_path):
+    with open(xml_path) as f:
+        record = NCBIXML.read(f)
+    qlen = record.query_length
     hits = []
-    for alignment in blast_record.alignments:
-        for hsp in alignment.hsps:
-            hits.append({
-                'accession': alignment.accession,
-                'title': alignment.title,
-                'length': alignment.length,
-                'evalue': hsp.expect,
-                'bits': hsp.bits,
-                'identities': hsp.identities,
-                'align_length': hsp.align_length,
-                'identity_pct': 100 * hsp.identities / hsp.align_length,
-                'query_start': hsp.query_start,
-                'query_end': hsp.query_end,
-                'sbjct_start': hsp.sbjct_start,
-                'sbjct_end': hsp.sbjct_end
-            })
-    return hits
+    for aln in record.alignments:
+        hsp = aln.hsps[0]
+        hits.append({
+            'accession': aln.accession,
+            'title': aln.title,
+            'evalue': hsp.expect,
+            'bits': hsp.bits,
+            'identity': hsp.identities / hsp.align_length,
+            'coverage': hsp.align_length / qlen,
+            'q_range': (hsp.query_start, hsp.query_end),
+            's_range': (hsp.sbjct_start, hsp.sbjct_end),
+        })
+    return hits, record
 
-# Example sequence
-sequence = '''ATGGTGCATCTGACTCCTGAGGAGAAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAACGTGGATGAAGTTGGTGGTGAGGCCCTGGGCAG'''
 
-# Run and save
-run_and_save_blast(sequence, 'blast_results.xml')
+run_and_save(QUERY, 'blast_results.xml')
 
-# Parse saved results
-print("\nParsing saved results...")
-hits = parse_blast_xml('blast_results.xml')
+hits, record = parse_hits('blast_results.xml')
+print(f'\nParsed {len(hits)} alignments from saved XML')
+print(f'Query length: {record.query_length}')
 
-print(f"\nFound {len(hits)} HSPs")
-print("\nTop hits by E-value:")
-for hit in sorted(hits, key=lambda x: x['evalue'])[:10]:
-    print(f"  {hit['accession']}: {hit['identity_pct']:.1f}% identity, E={hit['evalue']:.2e}")
+print('\nTop 10 by bit-score (correct for cross-DB comparison):')
+for h in sorted(hits, key=lambda x: -x['bits'])[:10]:
+    print(f'  {h["accession"]:<14}  bits={h["bits"]:>6.1f}  E={h["evalue"]:.1e}  '
+          f'id={h["identity"]:.2f}  cov={h["coverage"]:.2f}')
+
+print('\nTop 10 by E-value (same query+DB -- ranking should agree with bit-score):')
+for h in sorted(hits, key=lambda x: x['evalue'])[:10]:
+    print(f'  {h["accession"]:<14}  E={h["evalue"]:.1e}  bits={h["bits"]:>6.1f}')

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This workflow takes you from raw DNA sequencing FASTQ files to a filtered set of variant calls (SNPs and indels). It covers the entire process from quality control through alignment and variant calling.
+This workflow takes raw DNA sequencing FASTQ files to a filtered set of variant calls (SNPs and indels). It covers the entire process from quality control through alignment and variant calling.
 
 ## Prerequisites
 
@@ -78,6 +78,8 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
+- database-access/sra-data - Pull public WGS FASTQ for reanalysis
+- database-access/ncbi-datasets-cli - Pull reference genome assembly via Datasets v2 CLI
 - variant-calling/variant-calling - bcftools calling details
 - variant-calling/gatk-variant-calling - GATK HaplotypeCaller and DRAGEN mode
 - variant-calling/filtering-best-practices - VQSR and hard filtering

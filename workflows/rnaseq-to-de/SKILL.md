@@ -330,6 +330,8 @@ write.csv(as.data.frame(sig), 'significant_genes.csv')
 
 ## Related Skills
 
+- database-access/geo-data - Find a GSE on GEO, detect SuperSeries, link to SRA
+- database-access/sra-data - Download paired-end FASTQ from SRA / ENA / STRIDES cloud
 - read-qc/fastp-workflow - Detailed QC options and parameters
 - rna-quantification/alignment-free-quant - Salmon and kallisto details
 - rna-quantification/tximport-workflow - tximport options and tx2gene creation
