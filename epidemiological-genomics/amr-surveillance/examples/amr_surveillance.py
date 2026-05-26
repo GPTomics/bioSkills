@@ -1,180 +1,163 @@
-'''AMR gene detection and surveillance analysis'''
-# Reference: amrfinderplus 3.12+, pandas 2.2+ | Verify API if version differs
+'''Surveillance-grade per-isolate AMR pipeline.
 
+Runs AMRFinderPlus with species-specific point-mutation panel, harmonises with
+hAMRonization, joins MOB-suite plasmid context, and emits a long-format table
+suitable for WHO GLASS reporting. For Mtb, TB-Profiler is invoked instead of
+AMRFinderPlus because the latter has no Mtb organism mode in v4.x.'''
+# Reference: ncbi-amrfinderplus 4.0+, hamronization 1.1+, mob_suite 3.1+, tb-profiler 6.2+, pandas 2.2+ | Verify API if version differs
+
+import json
 import subprocess
+from pathlib import Path
 import pandas as pd
-from collections import Counter
+
+AMRF_DB_DATE = '2025-02-01.1'
+RESFINDER_DB_DATE = '2024-12-15'
+TBPROFILER_WHO_EDITION = '2nd'
+
+AMRF_PARTIAL_FLAG = 'PARTIAL_CONTIG_END'
+
+MTB_SPECIES_TOKENS = ('mycobacterium_tuberculosis', 'mycobacterium tuberculosis', 'mtb')
 
 
-def run_amrfinder(fasta_file, output_file, organism=None, protein=False):
-    '''Run AMRFinderPlus on genome/proteins
-
-    AMRFinderPlus detects:
-    - Acquired AMR genes (plasmid-borne)
-    - Point mutations (organism-specific)
-    - Stress response genes
-    - Virulence factors
-
-    Args:
-        organism: Enable point mutation detection for specific organisms
-                 Supported: Salmonella, Escherichia, Klebsiella, etc.
-        protein: If True, input is protein FASTA (faster, more sensitive)
-    '''
-    cmd = ['amrfinder']
-
-    if protein:
-        cmd.extend(['-p', fasta_file])
-    else:
-        cmd.extend(['-n', fasta_file])
-
-    if organism:
-        cmd.extend(['--organism', organism])
-
-    cmd.extend(['-o', output_file])
-
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f'AMRFinder error: {result.stderr}')
-        return None
-
-    return output_file
+def species_uses_tbprofiler(species):
+    return species.lower() in MTB_SPECIES_TOKENS
 
 
-def parse_amrfinder_results(results_file, min_coverage=90, min_identity=90):
-    '''Parse and filter AMRFinderPlus output
-
-    Filtering thresholds:
-    - Coverage ≥90%: Gene is mostly present
-    - Identity ≥90%: Strong match to known gene
-
-    Lower thresholds may capture variants but increase false positives
-    '''
-    df = pd.read_csv(results_file, sep='\t')
-
-    # Filter by quality
-    if '% Coverage of reference sequence' in df.columns:
-        df = df[df['% Coverage of reference sequence'] >= min_coverage]
-    if '% Identity to reference sequence' in df.columns:
-        df = df[df['% Identity to reference sequence'] >= min_identity]
-
-    return df
+def run_amrfinder(assembly, species, out_tsv, threads=8):
+    '''AMRFinderPlus with species mode and --plus; raises if --organism unsupported.'''
+    cmd = ['amrfinder', '-n', str(assembly), '--organism', species, '--plus',
+           '--threads', str(threads), '-o', str(out_tsv)]
+    subprocess.run(cmd, check=True)
+    return pd.read_csv(out_tsv, sep='\t')
 
 
-def summarize_amr_profile(results_df):
-    '''Summarize AMR genes by drug class'''
-    amr = results_df[results_df['Element type'] == 'AMR']
-
-    if len(amr) == 0:
-        return {'status': 'No AMR genes detected'}
-
-    summary = {
-        'total_genes': len(amr),
-        'drug_classes': amr['Class'].nunique(),
-        'genes_by_class': amr.groupby('Class')['Gene symbol'].apply(list).to_dict()
-    }
-
-    return summary
+def run_tbprofiler(reads_r1, reads_r2, prefix, out_dir):
+    '''TB-Profiler against bundled WHO catalogue; emits JSON with per-drug grading.'''
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cmd = ['tb-profiler', 'profile', '-1', str(reads_r1), '-2', str(reads_r2),
+           '-p', prefix, '--dir', str(out_dir), '--csv', '--txt']
+    subprocess.run(cmd, check=True)
+    with open(out_dir / 'results' / f'{prefix}.results.json') as fh:
+        return json.load(fh)
 
 
-def analyze_surveillance_data(samples_df):
-    '''Analyze AMR trends from multiple samples
+def parse_tbprofiler_drugs(tbp_json):
+    '''Per-drug summary with Group 1/2/3/4/5 grading preserved; Group 3 NOT collapsed to S.'''
+    rows = []
+    for drug in tbp_json.get('dr_variants', []):
+        rows.append({
+            'drug': drug.get('drug'),
+            'gene': drug.get('gene'),
+            'mutation': drug.get('change'),
+            'who_group': drug.get('confidence'),
+            'freq': drug.get('freq'),
+            'interpretation': drug.get('confidence'),
+        })
+    return pd.DataFrame(rows)
 
-    Surveillance metrics:
-    - Prevalence by drug class
-    - Temporal trends
-    - Co-occurrence patterns
-    '''
-    # Prevalence = proportion of samples with gene
-    n_samples = samples_df['sample_id'].nunique()
 
-    gene_prevalence = samples_df.groupby('Gene symbol')['sample_id'].nunique() / n_samples * 100
-    class_prevalence = samples_df.groupby('Class')['sample_id'].nunique() / n_samples * 100
+def hamronize_amrfinder(amrf_tsv, sample_id, out_tsv):
+    cmd = ['hamronize', 'amrfinderplus',
+           '--analysis_software_version', '4.0.3',
+           '--reference_database_version', AMRF_DB_DATE,
+           '--input_file_name', sample_id,
+           str(amrf_tsv)]
+    with open(out_tsv, 'w') as fh:
+        subprocess.run(cmd, check=True, stdout=fh)
+    return pd.read_csv(out_tsv, sep='\t')
 
-    # Critical resistance flags
-    critical_classes = ['Carbapenem', 'Colistin', 'Vancomycin']
-    critical_detected = []
-    for cls in critical_classes:
-        if any(cls.lower() in c.lower() for c in samples_df['Class'].unique()):
-            critical_detected.append(cls)
 
+def hamronize_resfinder(resfinder_json, sample_id, out_tsv):
+    cmd = ['hamronize', 'resfinder',
+           '--analysis_software_version', '4.5.0',
+           '--reference_database_version', RESFINDER_DB_DATE,
+           '--input_file_name', sample_id,
+           str(resfinder_json)]
+    with open(out_tsv, 'w') as fh:
+        subprocess.run(cmd, check=True, stdout=fh)
+    return pd.read_csv(out_tsv, sep='\t')
+
+
+def summarize_hamronized(hamr_dir, out_tsv):
+    cmd = ['hamronize', 'summarize', '-t', 'tsv', '-o', str(out_tsv)]
+    cmd.extend(sorted(str(p) for p in Path(hamr_dir).glob('*.tsv')))
+    subprocess.run(cmd, check=True)
+    return pd.read_csv(out_tsv, sep='\t')
+
+
+def run_mob_recon(assembly, out_dir):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cmd = ['mob_recon', '--infile', str(assembly), '--outdir', str(out_dir), '--num_threads', '4']
+    subprocess.run(cmd, check=True)
+    contig_report = out_dir / 'contig_report.txt'
+    return pd.read_csv(contig_report, sep='\t') if contig_report.exists() else pd.DataFrame()
+
+
+def join_amr_with_plasmid(amrf_df, mob_df):
+    '''Cross-reference AMR gene contig against MOB-suite plasmid contigs.
+
+    Output adds plasmid_id (or 'chromosome' / 'unassigned') per AMR row.'''
+    if mob_df.empty:
+        amrf_df['plasmid_id'] = 'unassigned'
+        return amrf_df
+    contig_to_plasmid = mob_df.set_index('contig_id')['primary_cluster_id'].to_dict()
+    amrf_df['plasmid_id'] = amrf_df['Contig id'].map(contig_to_plasmid).fillna('chromosome')
+    return amrf_df
+
+
+def flag_partial_contig_hits(amrf_df, critical_gene_patterns=None):
+    '''Return rows whose Method=PARTIAL_CONTIG_END for a clinically critical gene.
+
+    Match by case-insensitive substring against the Gene symbol field; AMRFinderPlus
+    output may use 'blaKPC-3', 'blaNDM-1', 'blaOXA-244', 'mcr-1.1', 'vanA' etc.,
+    so checking for the family token rather than an exact prefix is more robust.'''
+    critical_gene_patterns = critical_gene_patterns or ('KPC', 'NDM', 'OXA-48', 'OXA-181', 'OXA-232', 'OXA-244', 'mcr-', 'vanA')
+    mask_partial = amrf_df['Method'].str.contains(AMRF_PARTIAL_FLAG, na=False)
+    gene_upper = amrf_df['Gene symbol'].fillna('').str.upper()
+    mask_critical = gene_upper.apply(lambda g: any(p.upper() in g for p in critical_gene_patterns))
+    return amrf_df[mask_partial & mask_critical].copy()
+
+
+def flag_oxa48_subfamily_resolution(amrf_df):
+    '''Ensure OXA-48-like family alleles are reported individually, not collapsed.
+
+    AMRFinderPlus output uses gene symbols like 'blaOXA-244' (no underscore between
+    bla and OXA); the allele suffix is what determines clinical phenotype.'''
+    gene_upper = amrf_df['Gene symbol'].fillna('').str.upper()
+    oxa = amrf_df[gene_upper.str.contains('OXA-', na=False)].copy()
+    oxa['allele_resolved'] = oxa['Gene symbol'].fillna('').str.extract(r'(OXA-\d+)', expand=False)
+    return oxa
+
+
+def per_isolate_pipeline(sample_id, assembly, species, hamr_dir, mob_dir):
+    '''End-to-end per-isolate; chooses AMRFinderPlus vs TB-Profiler by species.'''
+    if species_uses_tbprofiler(species):
+        raise ValueError(f'{sample_id}: Mtb detected; route to run_tbprofiler with reads, not AMRFinderPlus')
+    amrf_tsv = Path(hamr_dir) / f'{sample_id}.amrfinder.tsv'
+    amrf_df = run_amrfinder(assembly, species, amrf_tsv)
+    hamr_tsv = Path(hamr_dir) / f'{sample_id}.hamr.tsv'
+    hamronize_amrfinder(amrf_tsv, sample_id, hamr_tsv)
+    mob_df = run_mob_recon(assembly, Path(mob_dir) / sample_id)
+    amrf_with_plasmid = join_amr_with_plasmid(amrf_df, mob_df)
+    partial_flags = flag_partial_contig_hits(amrf_with_plasmid)
+    oxa48_alleles = flag_oxa48_subfamily_resolution(amrf_with_plasmid)
     return {
-        'n_samples': n_samples,
-        'n_genes': samples_df['Gene symbol'].nunique(),
-        'gene_prevalence': gene_prevalence.to_dict(),
-        'class_prevalence': class_prevalence.to_dict(),
-        'critical_resistance': critical_detected
+        'sample_id': sample_id,
+        'amr_with_plasmid': amrf_with_plasmid,
+        'partial_contig_flags': partial_flags,
+        'oxa48_allele_resolution': oxa48_alleles,
+        'amrf_db_date': AMRF_DB_DATE,
     }
 
 
-def clinical_interpretation(genes):
-    '''Generate clinical interpretation of detected genes
-
-    Key resistance patterns requiring attention:
-    - ESBL (bla_CTX-M, bla_SHV): Avoid 3rd gen cephalosporins
-    - Carbapenemase (bla_KPC, bla_NDM, bla_OXA-48): Limited options
-    - MCR (mcr-1): Colistin resistance - last resort compromised
-    - VanA/B: Vancomycin resistance in Enterococcus
-    '''
-    interpretations = []
-
-    patterns = {
-        'CTX-M': ('ESBL', 'Avoid cephalosporins, consider carbapenems'),
-        'KPC': ('Carbapenemase', 'CRITICAL - limited options, consider ceftazidime-avibactam'),
-        'NDM': ('Carbapenemase', 'CRITICAL - consider aztreonam combinations'),
-        'OXA-48': ('Carbapenemase', 'CRITICAL - consider ceftazidime-avibactam'),
-        'mcr': ('Colistin resistance', 'Last-resort antibiotic compromised'),
-        'vanA': ('Vancomycin resistance', 'VRE - consider linezolid, daptomycin'),
-        'vanB': ('Vancomycin resistance', 'VRE - teicoplanin may be active'),
-    }
-
-    for gene in genes:
-        for pattern, (category, recommendation) in patterns.items():
-            if pattern.lower() in gene.lower():
-                interpretations.append({
-                    'gene': gene,
-                    'category': category,
-                    'recommendation': recommendation
-                })
-                break
-
-    return interpretations
-
-
-if __name__ == '__main__':
-    print('AMR Surveillance Analysis Example')
-    print('=' * 50)
-
-    # Simulated AMRFinder results
-    demo_data = pd.DataFrame({
-        'sample_id': ['S1', 'S1', 'S2', 'S2', 'S3', 'S4', 'S4'],
-        'Gene symbol': ['bla_CTX-M-15', 'aac(3)-IIa', 'bla_CTX-M-15', 'bla_KPC-2',
-                       'bla_TEM-1', 'bla_NDM-1', 'mcr-1'],
-        'Class': ['Beta-lactam', 'Aminoglycoside', 'Beta-lactam', 'Carbapenem',
-                 'Beta-lactam', 'Carbapenem', 'Colistin'],
-        'Element type': ['AMR'] * 7
-    })
-
-    print('\nSample AMR data:')
-    print(demo_data.to_string(index=False))
-
-    # Surveillance analysis
-    print('\n' + '=' * 50)
-    print('Surveillance Analysis:')
-    stats = analyze_surveillance_data(demo_data)
-    print(f"  Samples analyzed: {stats['n_samples']}")
-    print(f"  Unique AMR genes: {stats['n_genes']}")
-    print(f"\n  Prevalence by class:")
-    for cls, prev in sorted(stats['class_prevalence'].items(), key=lambda x: -x[1]):
-        print(f"    {cls}: {prev:.0f}%")
-
-    if stats['critical_resistance']:
-        print(f"\n  CRITICAL: {', '.join(stats['critical_resistance'])} resistance detected!")
-
-    # Clinical interpretation
-    print('\n' + '=' * 50)
-    print('Clinical Interpretation:')
-    genes = demo_data['Gene symbol'].unique()
-    interp = clinical_interpretation(genes)
-    for i in interp:
-        print(f"\n  {i['gene']} ({i['category']}):")
-        print(f"    {i['recommendation']}")
+def cohort_pipeline(samples, hamr_dir, mob_dir, cohort_table):
+    '''samples: list of dicts with sample_id, assembly, species.'''
+    Path(hamr_dir).mkdir(parents=True, exist_ok=True)
+    Path(mob_dir).mkdir(parents=True, exist_ok=True)
+    per_sample_results = [per_isolate_pipeline(s['sample_id'], s['assembly'], s['species'], hamr_dir, mob_dir)
+                          for s in samples if not species_uses_tbprofiler(s['species'])]
+    summarize_hamronized(hamr_dir, cohort_table)
+    return per_sample_results
