@@ -19,12 +19,14 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: AMRFinderPlus 3.12+, BioPython 1.83+, IQ-TREE 2.2+, Nextclade 3.3+, TreeTime 0.11+, matplotlib 3.8+, mlst 2.23+, pandas 2.2+, scanpy 1.10+
+Reference examples tested with: ncbi-amrfinderplus 4.0+, hamronization 1.1+, tb-profiler 6.2+, mlst 2.23+, chewBBACA 3.3+, pangolin 4.3+ (pangolin-data 1.30+), nextclade 3.8+, snippy 4.6+, gubbins 3.3+, clonalframeml 1.13+, IQ-TREE 2.3.6+, TreeTime 0.11+, BEAST 2.7.6+ (BDSKY 1.5+, MASCOT 3.0+, BICEPS), TransPhylo 1.4+ (R), outbreaker2 1.2+ (R), bactdating 1.1+ (R), freyja 1.4+, mob_suite 3.1+, BioPython 1.84+, pandas 2.2+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Python: `pip show <package>`; CLI: `<tool> --version` then `--help`
+- R: `packageVersion('<pkg>')` then `?function_name`
+- Pangolin: `pangolin --all-versions` (records pangolin + pangolin-data + scorpio + constellations)
+- Nextclade: `nextclade dataset list --tag latest sars-cov-2`
+- TB-Profiler: `tb-profiler list_db` (verify WHO catalogue edition)
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
@@ -38,43 +40,60 @@ Complete workflow for genomic epidemiology: from pathogen isolates to transmissi
 ## Workflow Overview
 
 ```
-Pathogen Isolate Genomes (FASTA/FASTQ)
+Pathogen Isolate Genomes (FASTA/FASTQ) + collection dates + (optional) contact data
         |
         v
    +---------+---------+
    |                   |
    v                   v
-[1a. MLST Typing]   [1b. AMR Detection]  <-- Parallel execution
+[1a. MLST + cgMLST     [1b. AMR + species mode:
+     + serotyping +         AMRFinderPlus --organism,
+     Pangolin/UShER        TB-Profiler for Mtb,
+     for SARS-CoV-2]       hAMRonization across tools]
    |                   |
    +--------+----------+
             |
             v
-[2. Core Genome Alignment] --> snippy / ParSNP
+[2. snippy + snippy-core (bacteria) -> Gubbins on core.full.aln to mask recombination
+    (mandatory for bacteria; skip only for clonal Mtb)]
             |
             v
-[3. Phylodynamics] --> TreeTime / BEAST2
+[3. IQ-TREE on recombination-masked alignment + TempEst R^2 >= 0.3 + date-randomisation;
+    TreeTime --coalescent skyline --clock-filter 4 OR BactDating;
+    BEAST2 BDSKY (origin > rootHeight, multi-chain) for posterior R_e]
             |
             v
-[4. Transmission Inference] --> TransPhylo
+[4. Transmission inference: outbreaker2 (dense + contact data) OR TransPhylo (sparse,
+    from dated tree) OR transcluster (pair-level probability); pathogen-specific SNP
+    threshold for cluster definition -- NEVER a universal cutoff]
             |
             v
-Transmission Network + R0 Estimates + Timeline
+Transmission tree posterior + R_e(t) + lineage / clone context + AMR phenotype
 ```
 
 ## Prerequisites
 
 ```bash
-conda install -c bioconda mlst abricate snippy iqtree fasttree
+conda install -c bioconda mlst chewbbaca ncbi-amrfinderplus hamronization tb-profiler \
+    snippy snp-dists gubbins clonalframeml iqtree treetime pangolin nextclade freyja \
+    mob_suite plasmidfinder sistr_cmd seqsero2 kleborate kaptive seroba
 
-pip install treetime transphylo biopython pandas matplotlib
+conda install -c bioconda beast2
+packagemanager -add BDSKY BEASTLabs feast ORC MASCOT BICEPS
 
-# R packages for TransPhylo
-Rscript -e "install.packages('TransPhylo')"
+Rscript -e "install.packages(c('TransPhylo', 'outbreaker2', 'BactDating', 'bdskytools', 'coda', 'ape'))"
+
+amrfinder -u
+tb-profiler update_tbdb
 ```
 
 ## Primary Path: Bacterial Outbreak Investigation
 
 ### Step 1a: MLST Typing (Parallel)
+
+**Goal:** Assign 7-locus PubMLST sequence types to all isolates for clonal-context interpretation.
+
+**Approach:** Run Seemann's `mlst` per assembly; auto-detect scheme; concatenate the per-isolate output into a cohort TSV.
 
 ```bash
 #!/bin/bash
@@ -94,21 +113,38 @@ cat ${OUTDIR}/mlst/*.mlst.txt > ${OUTDIR}/mlst/all_mlst.tsv
 echo "MLST complete: ${OUTDIR}/mlst/all_mlst.tsv"
 ```
 
-### Step 1b: AMR Detection (Parallel)
+### Step 1b: AMR Detection (Parallel) -- AMRFinderPlus with species mode
+
+**Goal:** Produce per-isolate AMR calls with species-specific point-mutation panel activated, then harmonise across the cohort to the PHA4GE schema for cross-lab comparison.
+
+**Approach:** AMRFinderPlus `-n` for nucleotide assembly with `--organism` and `--plus`; pipe each per-isolate TSV through `hamronize amrfinderplus` with mandatory PHA4GE metadata; `hamronize summarize` merges to a cohort table. For *M. tuberculosis*, switch to TB-Profiler -- AMRFinderPlus has no Mtb organism mode.
 
 ```bash
 echo "=== AMR Detection ==="
+SPECIES="Klebsiella_pneumoniae"
 for fasta in $ISOLATES; do
     sample=$(basename $fasta .fasta)
-    abricate --db ncbi $fasta > ${OUTDIR}/amr/${sample}.amr.tsv
+    amrfinder -n $fasta --organism $SPECIES --plus --threads 8 \
+        -o ${OUTDIR}/amr/${sample}.amrfinder.tsv
+
+    hamronize amrfinderplus \
+        --analysis_software_version $(amrfinder -V | awk '/Software/{print $NF}') \
+        --reference_database_version $(amrfinder -V | awk '/Database/{print $NF}') \
+        --input_file_name ${sample} \
+        ${OUTDIR}/amr/${sample}.amrfinder.tsv > ${OUTDIR}/amr/${sample}.hamr.tsv
 done
 
-# Summary matrix
-abricate --summary ${OUTDIR}/amr/*.amr.tsv > ${OUTDIR}/amr/amr_summary.tsv
-echo "AMR summary: ${OUTDIR}/amr/amr_summary.tsv"
+hamronize summarize -t tsv -o ${OUTDIR}/amr/cohort.hamr.tsv ${OUTDIR}/amr/*.hamr.tsv
+echo "AMR summary: ${OUTDIR}/amr/cohort.hamr.tsv"
 ```
 
-### Step 2: Core Genome Alignment
+For *M. tuberculosis*, route to TB-Profiler instead -- AMRFinderPlus has no Mtb organism mode. For colistin / mcr surveillance and any plasmid-mobility claim, follow with MOB-suite (`mob_recon` + `mob_typer`) to determine plasmid context. See epidemiological-genomics/amr-surveillance for the full decision tree.
+
+### Step 2: Core Genome Alignment + Recombination Masking (Bacteria)
+
+**Goal:** Build a recombination-aware core-genome alignment that is safe for downstream clock inference.
+
+**Approach:** Snippy per isolate against the reference; snippy-core to merge into the core alignment; Gubbins on `core.full.aln` (NOT `core.aln`) to mask recombinant tracts. Skipping recombination masking inflates the clock rate 2-5x for recombining bacteria (S. pneumoniae, N. gonorrhoeae, E. coli, Klebsiella, Campylobacter, H. pylori); the date-randomisation test is NOT a sufficient guard.
 
 ```bash
 echo "=== Core Genome Alignment ==="
@@ -124,16 +160,24 @@ for fasta in $ISOLATES; do
 done
 
 # Core SNP alignment
-snippy-core --ref $REFERENCE ${OUTDIR}/alignment/snippy_*
+snippy-core --ref $REFERENCE --prefix core ${OUTDIR}/alignment/snippy_*
 
-# Clean alignment (remove recombination, optional)
-# run_gubbins.py core.full.aln
+# Mandatory for recombining bacteria (S. pneumoniae, N. gonorrhoeae, E. coli, Klebsiella,
+# Campylobacter, H. pylori). Skip ONLY for clonal Mtb cross-lineage analyses where
+# recombination is documented to be rare; even then a recombination check is defensible.
+# Input MUST be core.full.aln (full positions including invariant); core.aln (variable-only)
+# gives wrong recombination calls because Gubbins cannot estimate background SNP density.
+run_gubbins.py --prefix gubbins core.full.aln
 
-mv core.* ${OUTDIR}/alignment/
-echo "Core alignment: ${OUTDIR}/alignment/core.aln"
+mv core.* gubbins.* ${OUTDIR}/alignment/
+echo "Recombination-masked alignment: ${OUTDIR}/alignment/gubbins.filtered_polymorphic_sites.fasta"
 ```
 
 ### Step 3: Phylodynamics with TreeTime
+
+**Goal:** Time-scale the recombination-masked phylogeny with a global clock-rate estimate, gated by temporal-signal QC.
+
+**Approach:** IQ-TREE on the recombination-masked alignment with `+ASC` ascertainment correction; TreeTime with coalescent skyline prior and `--clock-filter 4`; inspect `root_to_tip_regression.pdf` BEFORE trusting downstream output (R^2 >= 0.3 minimum per Rambaut 2016 TempEst).
 
 ```python
 import subprocess
@@ -144,10 +188,11 @@ from pathlib import Path
 
 outdir = Path('outbreak_results')
 
-# Build ML tree
+# Build ML tree on the recombination-masked alignment with ascertainment-bias correction
+# +ASC is required because the input contains variable positions only post-Gubbins
 subprocess.run([
-    'iqtree2', '-s', str(outdir / 'alignment/core.aln'),
-    '-m', 'GTR+G', '-B', '1000', '-bnni', '-T', 'AUTO',
+    'iqtree2', '-s', str(outdir / 'alignment/gubbins.filtered_polymorphic_sites.fasta'),
+    '-m', 'GTR+G+ASC', '-B', '1000', '-bnni', '-T', 'AUTO',
     '--prefix', str(outdir / 'phylo/outbreak')
 ], check=True)
 
@@ -163,19 +208,28 @@ metadata.to_csv(outdir / 'phylo/metadata.tsv', sep='\t', index=False)
 subprocess.run([
     'treetime',
     '--tree', str(outdir / 'phylo/outbreak.treefile'),
-    '--aln', str(outdir / 'alignment/core.aln'),
+    '--aln', str(outdir / 'alignment/gubbins.filtered_polymorphic_sites.fasta'),
     '--dates', str(outdir / 'phylo/metadata.tsv'),
     '--outdir', str(outdir / 'phylo/treetime_output'),
     '--coalescent', 'skyline',
-    '--clock-filter', '3'  # Remove outliers >3 IQR from clock
+    '--clock-filter', '4',  # SD multiplier; TreeTime convention (Boskova 2017)
+    '--confidence',
+    '--reroot', 'best'
 ], check=True)
 
-# Check temporal signal
-# Good signal: R2 > 0.5, clock rate ~1e-6 to 1e-7 subs/site/year for bacteria
+# Temporal-signal QC: inspect root_to_tip_regression.pdf BEFORE trusting any downstream output.
+# R^2 >= 0.3 minimum (Rambaut 2016 TempEst convention). If R^2 < 0.3, time-scaling is not
+# supported -- report uncertainty and consider extending the sampling window. The
+# date-randomisation test is a secondary check; it can pass with narrow sampling windows
+# (false negative).
 print('TreeTime output:', outdir / 'phylo/treetime_output')
 ```
 
 ### Step 4: Transmission Inference with TransPhylo
+
+**Goal:** Reconstruct the posterior who-infected-whom transmission tree and R_e from the dated phylogeny.
+
+**Approach:** Convert the TreeTime dated tree to TransPhylo `ptree`; supply pathogen-tuned generation-time and sampling-time Gamma priors; run MCMC at >=1e5 iterations (10k is smoke-test only); summarise via medoid transmission tree and per-pair WIWS probability. For dense outbreaks with contact-tracing data, outbreaker2 with `ctd` is preferred over TransPhylo (genomic-only).
 
 ```r
 library(TransPhylo)
@@ -192,33 +246,37 @@ dateT <- 2024.2  # Decimal year when sampling ended
 w_shape <- 2     # Generation time shape (Gamma)
 w_scale <- 7/365 # Generation time scale in years (~7 days mean)
 
-# Run TransPhylo
+# Run TransPhylo with enough iterations for posterior convergence; 10k is a smoke-test only.
+# For publication, run >=1e5 (small outbreaks) to >=1e6+ iterations and inspect trace plots.
 res <- inferTTree(tree, dateT = dateT,
                    w.shape = w_shape, w.scale = w_scale,
-                   mcmcIterations = 10000,
+                   mcmcIterations = 1e5,
                    startNeg = 1, startPi = 0.5)
 
 # Extract results
-ttree <- extractTTree(res)
-
-# Transmission network
-medTTree <- medTTree(res)
+med_ctree <- medTTree(res)
 
 # Plot transmission tree
 pdf("outbreak_results/transmission/transmission_tree.pdf", width=10, height=8)
-plotTTree(medTTree)
+plotTTree(med_ctree)
 dev.off()
 
 # Who infected whom matrix
 wiw <- computeMatWIW(res)
 write.csv(wiw, "outbreak_results/transmission/who_infected_whom.csv")
 
-# R0 estimate
-R0 <- getOffspringMulti(res)
-cat("R0 estimate:", mean(R0), "(95% CI:", quantile(R0, 0.025), "-", quantile(R0, 0.975), ")\n")
+# R_e estimate (effective reproduction number under current immunity / interventions).
+# This is NOT R_0 (basic reproduction number in a fully susceptible population);
+# the phylodynamics literature is explicit about this distinction.
+Re <- getOffspringMulti(res)
+cat("R_e estimate:", mean(Re), "(95% CI:", quantile(Re, 0.025), "-", quantile(Re, 0.975), ")\n")
 ```
 
 ### Python Alternative: TransPhylo via rpy2
+
+**Goal:** Drive the same TransPhylo workflow from Python pipelines that prefer not to fork into R.
+
+**Approach:** rpy2 bridges into the TransPhylo R package with named-argument passing; same priors and MCMC iteration discipline apply.
 
 ```python
 import rpy2.robjects as ro
@@ -256,6 +314,10 @@ print(f'Transmission tree saved to {outdir}/transmission/')
 ```
 
 ## Visualization: Outbreak Timeline
+
+**Goal:** Plot isolates over time coloured by sequence type to communicate cluster expansion and clonal context.
+
+**Approach:** Merge collection-date metadata with MLST output; plot per-isolate timestamps as a strip chart with per-ST colour.
 
 ```python
 import pandas as pd
@@ -298,10 +360,30 @@ plt.savefig('outbreak_results/outbreak_timeline.pdf')
 | Step | Parameter | Value | Rationale |
 |------|-----------|-------|-----------|
 | snippy | --mincov | 10 | Minimum coverage for variant call |
-| IQ-TREE | -m | GTR+G | General time-reversible model |
-| TreeTime | --clock-filter | 3 | Remove temporal outliers >3 IQR |
-| TransPhylo | w.shape, w.scale | 2, 7/365 | Generation time ~7 days for many bacteria |
-| TransPhylo | mcmcIterations | 10000+ | Ensure convergence |
+| Gubbins | input | core.full.aln | Full positions required to estimate background SNP density; core.aln is wrong |
+| IQ-TREE | -m | GTR+G+ASC | +ASC ascertainment correction for SNP-only post-Gubbins input |
+| TreeTime | --clock-filter | 4 | SD multiplier on root-to-tip residual; TreeTime convention |
+| TreeTime | R^2 minimum | 0.3 | Below this, temporal signal insufficient (Rambaut 2016 TempEst) |
+| TransPhylo | w.shape, w.scale | 2, 7/365 | Generation time ~7 days for many bacteria; cite the pathogen-specific literature |
+| TransPhylo | mcmcIterations | 1e5-1e6+ | 10k is a smoke-test only; inspect trace and ESS before reporting |
+| BEAST2 BDSKY | origin | > rootHeight | Initialise to ~(tMRCA + 0.1*tMRCA); origin == rootHeight biases R_e upward (Stadler 2013) |
+| BEAST2 chains | independent runs | >=3-4 | Single-chain ESS >=200 is necessary but not sufficient; combine after marginal overlap |
+| Pangolin | --analysis-mode | usher | pangoLEARN deprecated mid-2023; UShER default since v4 (Pongmoragot 2024) |
+
+## Pathogen-Specific SNP / cgMLST Cluster Thresholds
+
+Cluster definition is pathogen- AND population-specific. NEVER apply a universal cutoff. See epidemiological-genomics/transmission-inference for full table with citations.
+
+| Pathogen | Cluster threshold | Source |
+|----------|-------------------|--------|
+| *M. tuberculosis* (core SNP) | <=12 SNPs (likely transmission); <=5 (recent) | Walker 2013 *Lancet Infect Dis* 13:137 (UK low-transmission setting -- inflates 2-5x in high-burden) |
+| *S. aureus* (core SNP) | <=15 SNPs (within hospital) | Coll 2017 *Clin Infect Dis* 65:1781 |
+| *K. pneumoniae* (KPC outbreak) | <=21 SNPs | Snitkin 2012 *Sci Transl Med* 4:148ra116 |
+| *C. difficile* (recombination-masked core SNP) | <=2 SNPs (likely direct) | Eyre 2013 *NEJM* 369:1195 |
+| *Salmonella* (cgMLST, EnteroBase) | <=5 alleles | EnteroBase / EFSA convention |
+| *Listeria* (PulseNet cgMLST) | <=4 alleles | PulseNet protocol |
+| SARS-CoV-2 | NOT defined by SNP alone | 0-2 SNPs + epi link + sampling window |
+| HIV-1 subtype B | 1.5% TN93 distance | HIV-TRACE US-CDC default (re-tune for non-B subtypes) |
 
 ## Troubleshooting
 
