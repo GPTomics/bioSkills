@@ -1,74 +1,85 @@
-'''MeRIP-seq QC: check IP enrichment and replicate correlation'''
-# Reference: star 2.7.11+, deeptools 3.5+, samtools 1.19+ | Verify API if version differs
-import pysam
-import numpy as np
+#!/usr/bin/env python3
+# Reference: deepTools 3.5+, pysam 0.22+, pandas 2.2+, PreSeq 3.2+ | Verify with `deeptools --version`, `pysam.__version__`, `preseq --version` if installed releases differ.
+# MeRIP-seq QC: replicate Spearman concordance, plotFingerprint JS distances, saturation curves via PreSeq.
+# Inputs: sorted indexed BAM files for IP and Input libraries in aligned/.
+
+import subprocess
 from pathlib import Path
 
-def calculate_enrichment(ip_bam, input_bam, regions_bed):
-    '''Calculate IP/Input enrichment at known m6A regions'''
-    ip = pysam.AlignmentFile(ip_bam, 'rb')
-    inp = pysam.AlignmentFile(input_bam, 'rb')
+import pandas as pd
 
-    enrichments = []
-    with open(regions_bed) as f:
-        for line in f:
-            chrom, start, end = line.strip().split('\t')[:3]
-            start, end = int(start), int(end)
+ALIGNED_DIR = Path('aligned')
+QC_DIR = Path('qc')
+COMPLEXITY_DIR = Path('complexity')
+TRACK_DIR = Path('tracks')
+BIN_SIZE_CORRELATION = 10000
+BIN_SIZE_TRACKS = 25
+PSEUDOCOUNT = 1
+THREADS = 8
 
-            ip_count = ip.count(chrom, start, end)
-            input_count = inp.count(chrom, start, end)
+QC_DIR.mkdir(exist_ok=True)
+COMPLEXITY_DIR.mkdir(exist_ok=True)
+TRACK_DIR.mkdir(exist_ok=True)
 
-            # Avoid division by zero
-            if input_count > 0:
-                enrichments.append(ip_count / input_count)
+ip_bams = sorted(ALIGNED_DIR.glob('IP_*_Aligned.sortedByCoord.out.bam'))
+input_bams = sorted(ALIGNED_DIR.glob('Input_*_Aligned.sortedByCoord.out.bam'))
+all_bams = ip_bams + input_bams
+labels = [b.name.split('_Aligned')[0] for b in all_bams]
 
-    ip.close()
-    inp.close()
+# Replicate concordance: 10 kb bins -> Spearman heatmap.
+subprocess.run(['multiBamSummary', 'bins',
+    '--bamfiles', *map(str, all_bams),
+    '--binSize', str(BIN_SIZE_CORRELATION),
+    '--numberOfProcessors', str(THREADS),
+    '--outRawCounts', str(QC_DIR / 'raw_bin_counts.tab'),
+    '-o', str(QC_DIR / 'cov.npz')], check=True)
 
-    return np.median(enrichments) if enrichments else 0
+subprocess.run(['plotCorrelation',
+    '--corData', str(QC_DIR / 'cov.npz'),
+    '--corMethod', 'spearman',
+    '--skipZeros',
+    '--whatToPlot', 'heatmap',
+    '--colorMap', 'RdYlBu_r',
+    '--plotNumbers',
+    '-o', str(QC_DIR / 'replicate_correlation.pdf')], check=True)
 
-def check_replicate_correlation(bam_files, bin_size=10000):
-    '''Compute pairwise correlation between BAM coverage profiles'''
-    from scipy import stats
+# IP enrichment QC via plotFingerprint.
+subprocess.run(['plotFingerprint',
+    '--bamfiles', *map(str, all_bams),
+    '--labels', *labels,
+    '--numberOfProcessors', str(THREADS),
+    '--skipZeros',
+    '--outQualityMetrics', str(QC_DIR / 'fingerprint_metrics.tab'),
+    '-o', str(QC_DIR / 'fingerprint.pdf')], check=True)
 
-    coverages = []
-    for bam_file in bam_files:
-        bam = pysam.AlignmentFile(bam_file, 'rb')
-        coverage = []
-        for chrom in bam.references[:22]:  # Autosomes only
-            length = bam.get_reference_length(chrom)
-            for start in range(0, length, bin_size):
-                end = min(start + bin_size, length)
-                coverage.append(bam.count(chrom, start, end))
-        coverages.append(coverage)
-        bam.close()
+# Library complexity / saturation per library. Subsampling for cross-condition comparison drives off these curves.
+for bam in all_bams:
+    name = bam.stem.split('_Aligned')[0]
+    subprocess.run(['preseq', 'c_curve', '-B', '-o', str(COMPLEXITY_DIR / f'{name}_c_curve.txt'), str(bam)], check=True)
+    subprocess.run(['preseq', 'lc_extrap', '-B', '-o', str(COMPLEXITY_DIR / f'{name}_lc_extrap.txt'), str(bam)], check=True)
 
-    # Pairwise Spearman correlation
-    # Good replicates: r > 0.9 for same condition
-    correlations = {}
-    for i in range(len(bam_files)):
-        for j in range(i + 1, len(bam_files)):
-            r, p = stats.spearmanr(coverages[i], coverages[j])
-            correlations[(Path(bam_files[i]).stem, Path(bam_files[j]).stem)] = r
+# IP-over-Input log2 bigWig tracks for each matched IP/Input pair.
+pairs = list(zip(ip_bams, input_bams))
+for ip, inp in pairs:
+    out = TRACK_DIR / f'{ip.stem.split("_Aligned")[0]}_over_{inp.stem.split("_Aligned")[0]}.bw'
+    subprocess.run(['bamCompare',
+        '-b1', str(ip),
+        '-b2', str(inp),
+        '--operation', 'log2',
+        '--pseudocount', str(PSEUDOCOUNT),
+        '--binSize', str(BIN_SIZE_TRACKS),
+        '--normalizeUsing', 'CPM',
+        '--numberOfProcessors', str(THREADS),
+        '-o', str(out)], check=True)
 
-    return correlations
+# Summarise fingerprint metrics; flag failed IPs (low IP-vs-input JS distance).
+fp = pd.read_csv(QC_DIR / 'fingerprint_metrics.tab', sep='\t')
+ip_rows = fp[fp['Sample'].str.startswith('IP_')].copy()
+ip_rows['flag'] = ip_rows['JS Distance'].apply(lambda j: 'POSSIBLE_FAILED_IP' if j < 0.5 else 'OK')
+ip_rows[['Sample', 'JS Distance', 'flag']].to_csv(QC_DIR / 'ip_qc_summary.tsv', sep='\t', index=False)
 
-if __name__ == '__main__':
-    import sys
-
-    if len(sys.argv) < 3:
-        print('Usage: merip_qc.py <ip.bam> <input.bam> [known_m6a.bed]')
-        sys.exit(1)
-
-    ip_bam = sys.argv[1]
-    input_bam = sys.argv[2]
-
-    if len(sys.argv) > 3:
-        regions = sys.argv[3]
-        enrich = calculate_enrichment(ip_bam, input_bam, regions)
-        # Good MeRIP: enrichment > 2 at known m6A sites
-        print(f'Median IP/Input enrichment at known sites: {enrich:.2f}')
-
-    corr = check_replicate_correlation([ip_bam, input_bam])
-    for pair, r in corr.items():
-        print(f'{pair[0]} vs {pair[1]}: r = {r:.3f}')
+print('QC complete. Inspect:')
+print(f'  - {QC_DIR / "replicate_correlation.pdf"} (Spearman matrix; IP-IP within condition >= 0.85)')
+print(f'  - {QC_DIR / "fingerprint.pdf"} (Lorenz curves; IP should sit below diagonal)')
+print(f'  - {COMPLEXITY_DIR}/*lc_extrap.txt (saturation curves; rarefy to common depth before peak calling)')
+print(f'  - {QC_DIR / "ip_qc_summary.tsv"} (failed-IP flags)')

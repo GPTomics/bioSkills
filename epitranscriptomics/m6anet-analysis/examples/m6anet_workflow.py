@@ -1,82 +1,92 @@
-'''m6Anet workflow for ONT direct RNA m6A detection'''
-# Reference: minimap2 2.26+, pandas 2.2+ | Verify API if version differs
+#!/usr/bin/env python3
+# Reference: m6anet 2.1+, nanopolish 0.14+, minimap2 2.26+, samtools 1.19+, pandas 2.2+ | Verify with `pip show m6anet`, `nanopolish --version`, `minimap2 --version`, `samtools --version`, `import pandas; pandas.__version__` if installed releases differ.
+# Full m6Anet pipeline: basecalled FASTQ -> transcriptome alignment -> nanopolish eventalign -> m6anet dataprep -> m6anet inference.
+# CRITICAL: minimap2 to TRANSCRIPTOME (not genome); nanopolish --scale-events --signal-index are the m6Anet-required flags (--samples --print-read-names are needed only by other downstream tools).
+
 import subprocess
 from pathlib import Path
+
 import pandas as pd
 
-def run_m6anet_pipeline(fast5_dir, transcriptome_fa, output_dir, n_processes=8):
-    '''Run complete m6Anet pipeline'''
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+READS_FASTQ = Path('reads.fastq')
+POD5_DIR = Path('pod5')
+TRANSCRIPTOME_FA = Path('refs/transcriptome.fa')
+ALIGNED_BAM = Path('aligned.bam')
+EVENTALIGN_OUT = Path('eventalign.txt')
+DATAPREP_DIR = Path('m6anet_data')
+INFERENCE_DIR = Path('m6anet_results')
 
-    data_dir = output_dir / 'dataprep'
-    results_dir = output_dir / 'inference'
+THREADS = 12
+PROBABILITY_THRESHOLD = 0.9
+MIN_COVERAGE = 20
 
-    # Step 1: Preprocess FAST5 files
-    # Extracts signal features at DRACH motifs
-    print('Running m6Anet dataprep...')
-    subprocess.run([
-        'm6anet', 'dataprep',
-        '--input_dir', str(fast5_dir),
-        '--output_dir', str(data_dir),
-        '--reference', str(transcriptome_fa),
-        '--n_processes', str(n_processes)
-    ], check=True)
+DATAPREP_DIR.mkdir(exist_ok=True)
+INFERENCE_DIR.mkdir(exist_ok=True)
 
-    # Step 2: Run m6A inference
-    # Uses neural network to predict m6A probability
-    print('Running m6Anet inference...')
-    subprocess.run([
-        'm6anet', 'inference',
-        '--input_dir', str(data_dir),
-        '--output_dir', str(results_dir),
-        '--n_processes', str(n_processes)
-    ], check=True)
+# Step 1: minimap2 transcriptome alignment with ONT DRS flags. -uf forces forward strand (DRS is directional); -k14 is recommended k-mer.
+with open('aligned.sam', 'w') as out:
+    subprocess.run(['minimap2',
+        '-ax', 'map-ont',
+        '-uf',
+        '-k14',
+        '--secondary=no',
+        '-t', str(THREADS),
+        str(TRANSCRIPTOME_FA),
+        str(READS_FASTQ)], check=True, stdout=out)
 
-    return results_dir
+subprocess.run(['samtools', 'sort', '-@', '8', '-o', str(ALIGNED_BAM), 'aligned.sam'], check=True)
+subprocess.run(['samtools', 'index', str(ALIGNED_BAM)], check=True)
+Path('aligned.sam').unlink()
 
-def filter_m6a_sites(results_dir, prob_threshold=0.9, min_coverage=20):
-    '''Filter m6Anet results for high-confidence sites'''
-    results_file = Path(results_dir) / 'data.site_proba.csv'
-    df = pd.read_csv(results_file)
+# Step 2: nanopolish index + eventalign. Required flags pinned to m6Anet trained input format.
+subprocess.run(['nanopolish', 'index', '-d', str(POD5_DIR), str(READS_FASTQ)], check=True)
 
-    # prob_threshold > 0.9: High confidence, few false positives
-    # Lower (0.7-0.8) for more sensitive detection
-    # min_coverage > 20: Require sufficient reads for reliable probability
-    filtered = df[
-        (df['probability_modified'] > prob_threshold) &
-        (df['n_reads'] >= min_coverage)
-    ]
+with open(EVENTALIGN_OUT, 'w') as out:
+    subprocess.run(['nanopolish', 'eventalign',
+        '--reads', str(READS_FASTQ),
+        '--bam', str(ALIGNED_BAM),
+        '--genome', str(TRANSCRIPTOME_FA),
+        '--scale-events',
+        '--signal-index',
+        '--threads', str(THREADS),
+        '--summary', 'nanopolish_summary.tsv'], check=True, stdout=out)
 
-    print(f'Total sites tested: {len(df)}')
-    print(f'High-confidence m6A sites: {len(filtered)}')
+# Step 3: m6anet dataprep + inference (v2+ subcommand syntax).
+subprocess.run(['m6anet', 'dataprep',
+    '--eventalign', str(EVENTALIGN_OUT),
+    '--out_dir', str(DATAPREP_DIR),
+    '--n_processes', str(THREADS)], check=True)
 
-    return filtered
+subprocess.run(['m6anet', 'inference',
+    '--input_dir', str(DATAPREP_DIR),
+    '--out_dir', str(INFERENCE_DIR),
+    '--n_processes', '4',
+    '--num_iterations', '1000'], check=True)
 
-def summarize_by_transcript(filtered_sites):
-    '''Summarize m6A sites per transcript'''
-    summary = filtered_sites.groupby('transcript_id').agg(
-        n_m6a_sites=('position', 'count'),
-        mean_probability=('probability_modified', 'mean'),
-        total_coverage=('n_reads', 'sum')
-    ).reset_index()
+# Step 4: Filter sites and aggregate per-transcript.
+sites = pd.read_csv(INFERENCE_DIR / 'data.site_proba.csv')
 
-    return summary.sort_values('n_m6a_sites', ascending=False)
+print(f'Total DRACH sites tested: {len(sites)}')
 
-if __name__ == '__main__':
-    import sys
+filtered = sites[(sites['n_reads'] >= MIN_COVERAGE) &
+                 (sites['probability_modified'] >= PROBABILITY_THRESHOLD)]
 
-    if len(sys.argv) < 4:
-        print('Usage: m6anet_workflow.py <fast5_dir> <transcriptome.fa> <output_dir>')
-        sys.exit(1)
+print(f'High-confidence m6A sites (n_reads >= {MIN_COVERAGE}, prob >= {PROBABILITY_THRESHOLD}): {len(filtered)}')
 
-    fast5_dir = sys.argv[1]
-    transcriptome = sys.argv[2]
-    output = sys.argv[3]
+per_transcript = (filtered
+    .groupby('transcript_id')
+    .agg(n_high_conf_sites=('transcript_position', 'count'),
+         mean_probability=('probability_modified', 'mean'),
+         mean_mod_ratio=('mod_ratio', 'mean'),
+         total_coverage=('n_reads', 'sum'))
+    .reset_index()
+    .sort_values('n_high_conf_sites', ascending=False))
 
-    results = run_m6anet_pipeline(fast5_dir, transcriptome, output)
-    sites = filter_m6a_sites(results)
-    sites.to_csv(Path(output) / 'm6a_high_confidence.csv', index=False)
+filtered.to_csv(INFERENCE_DIR / 'high_confidence_sites.tsv', sep='\t', index=False)
+per_transcript.to_csv(INFERENCE_DIR / 'm6a_per_transcript.tsv', sep='\t', index=False)
 
-    summary = summarize_by_transcript(sites)
-    summary.to_csv(Path(output) / 'm6a_per_transcript.csv', index=False)
+print('Outputs:')
+print(f'  - {INFERENCE_DIR / "data.site_proba.csv"} (all per-site predictions)')
+print(f'  - {INFERENCE_DIR / "high_confidence_sites.tsv"} (filtered)')
+print(f'  - {INFERENCE_DIR / "m6a_per_transcript.tsv"} (top modified transcripts)')
+print('Next: cross-validate top hits against GLORI / m6A-SAC-seq for absolute stoichiometry.')
