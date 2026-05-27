@@ -1,49 +1,75 @@
-#!/bin/bash
-# Reference: deepTools 3.5+ | Verify API if version differs
-# Metagene and heatmap visualization with deepTools
+#!/usr/bin/env bash
+# Reference: deepTools 3.5+, samtools 1.19+ | Verify with `deeptools --version`, `samtools --version` if installed releases differ.
+# Genome-coordinate metagene + peak-centred heatmap via deepTools. Pairs with Guitar transcript-feature metagene.
+# deepTools `--operation log2` is the modern syntax; `--ratio log2` is being phased out.
 
-IP_BAM=$1
-INPUT_BAM=$2
-GENES_BED=$3
-OUTPUT_PREFIX=${4:-"m6a_viz"}
+set -euo pipefail
 
-# Create log2 IP/Input ratio bigWig
-# Normalize by read depth
+IP_BAM=${1:-'aligned/IP_rep1_Aligned.sortedByCoord.out.bam'}
+INPUT_BAM=${2:-'aligned/Input_rep1_Aligned.sortedByCoord.out.bam'}
+GENES_BED=${3:-'refs/protein_coding.bed'}
+PEAKS_BED=${4:-'exomepeak2_output/m6a_run1/peaks.bed'}
+OUTDIR=${5:-'figures'}
+THREADS=8
+
+mkdir -p "${OUTDIR}"
+
+# Step 1: IP-over-Input log2 bigWig.
 bamCompare \
-    -b1 $IP_BAM \
-    -b2 $INPUT_BAM \
-    --scaleFactorsMethod readCount \
-    --ratio log2 \
-    --binSize 10 \
-    -p 8 \
-    -o ${OUTPUT_PREFIX}_log2ratio.bw
+    -b1 "${IP_BAM}" \
+    -b2 "${INPUT_BAM}" \
+    --operation log2 \
+    --pseudocount 1 \
+    --binSize 25 \
+    --normalizeUsing CPM \
+    --numberOfProcessors "${THREADS}" \
+    -o "${OUTDIR}/log2_IP_over_Input.bw"
 
-# Metagene around gene body
-# Scale all genes to same length, add flanking regions
+# Step 2: Genome-coordinate metagene over protein-coding genes (5' end to 3' end, scaled).
 computeMatrix scale-regions \
-    -S ${OUTPUT_PREFIX}_log2ratio.bw \
-    -R $GENES_BED \
-    --regionBodyLength 3000 \
-    --beforeRegionStartLength 1000 \
-    --afterRegionStartLength 1000 \
+    --regionsFileName "${GENES_BED}" \
+    --scoreFileName "${OUTDIR}/log2_IP_over_Input.bw" \
+    --regionBodyLength 2000 \
+    --upstream 500 \
+    --downstream 500 \
     --skipZeros \
-    -p 8 \
-    -o ${OUTPUT_PREFIX}_matrix.gz
+    --numberOfProcessors "${THREADS}" \
+    --outFileName "${OUTDIR}/genebody_matrix.gz"
 
-# Profile plot (metagene)
 plotProfile \
-    -m ${OUTPUT_PREFIX}_matrix.gz \
-    -o ${OUTPUT_PREFIX}_profile.pdf \
-    --plotTitle "m6A signal across genes" \
-    --yAxisLabel "log2(IP/Input)" \
-    --regionsLabel "Genes"
+    --matrixFile "${OUTDIR}/genebody_matrix.gz" \
+    --outFileName "${OUTDIR}/genebody_profile.pdf" \
+    --plotTitle 'm6A IP/Input metagene (genome-coordinate, scaled gene body)' \
+    --plotType lines
 
-# Heatmap
 plotHeatmap \
-    -m ${OUTPUT_PREFIX}_matrix.gz \
-    -o ${OUTPUT_PREFIX}_heatmap.pdf \
+    --matrixFile "${OUTDIR}/genebody_matrix.gz" \
+    --outFileName "${OUTDIR}/genebody_heatmap.pdf" \
     --colorMap RdBu_r \
-    --whatToShow 'heatmap and colorbar' \
-    --sortUsing mean
+    --plotTitle 'm6A IP/Input across gene body'
 
-echo "Outputs: ${OUTPUT_PREFIX}_profile.pdf, ${OUTPUT_PREFIX}_heatmap.pdf"
+# Step 3: Peak-centred matrix + heatmap (+/-500 bp around peak centre).
+computeMatrix reference-point \
+    --regionsFileName "${PEAKS_BED}" \
+    --scoreFileName "${OUTDIR}/log2_IP_over_Input.bw" \
+    --referencePoint center \
+    --upstream 500 \
+    --downstream 500 \
+    --binSize 25 \
+    --skipZeros \
+    --numberOfProcessors "${THREADS}" \
+    --outFileName "${OUTDIR}/peak_centred_matrix.gz" \
+    --outFileNameMatrix "${OUTDIR}/peak_centred_matrix.tab"
+
+plotHeatmap \
+    --matrixFile "${OUTDIR}/peak_centred_matrix.gz" \
+    --outFileName "${OUTDIR}/peak_centred_heatmap.pdf" \
+    --kmeans 3 \
+    --colorMap viridis \
+    --plotTitle 'm6A signal centred at peaks (k-means k=3)'
+
+echo "Outputs:"
+echo "  - ${OUTDIR}/genebody_profile.pdf (genome-coordinate metagene profile)"
+echo "  - ${OUTDIR}/genebody_heatmap.pdf (genome-coordinate heatmap)"
+echo "  - ${OUTDIR}/peak_centred_heatmap.pdf (peak-centred k-means k=3)"
+echo "Pair with Guitar transcript-feature metagene for 5UTR/CDS/3UTR semantics."
