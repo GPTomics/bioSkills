@@ -2,52 +2,69 @@
 
 ## Overview
 
-This guide covers calculating statistical power for RNA-seq, ATAC-seq, and other sequencing experiments.
+This guide covers calculating statistical power for high-dimensional genomics experiments: bulk RNA-seq, scRNA-seq, ATAC-seq, ChIP-seq, methylation, and proteomics. The central idea is that power in a sequencing experiment is a per-gene quantity that depends on each gene's mean expression and dispersion, so the honest summary is the marginal (average) power across the transcriptome at a target false discovery rate. Closed-form formulas using a single coefficient of variation give a fast approximation; simulation from the empirical mean-dispersion trend is the defensible default for count data. The guide also covers the depth-versus-replicate tradeoff and why observed (post-hoc) power should never be used to interpret a null result.
 
 ## Prerequisites
 
 ```r
 # R/Bioconductor
 install.packages('BiocManager')
-BiocManager::install(c('RNASeqPower', 'ssizeRNA'))
+BiocManager::install(c('RNASeqPower', 'PROPER', 'DESeq2', 'edgeR'))
+install.packages('pwr')
+
+# powsimR (GitHub; pin a commit for reproducibility)
+# remotes::install_github('bvieth/powsimR')
 ```
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Calculate power for my RNA-seq experiment with 3 replicates per group"
-- "How many samples do I need to detect 2-fold changes in RNA-seq?"
-- "What's the minimum effect size I can detect with my current sample size?"
-- "Run a power analysis for my ATAC-seq experiment"
+- "How many replicates do I need to detect 1.5-fold changes in RNA-seq at 80% power?"
+- "Estimate marginal power across the transcriptome at FDR 0.05 by simulation"
+- "Should I sequence deeper or add samples on a fixed budget?"
+- "Estimate power for my scRNA-seq disease-versus-control comparison"
+- "Is reporting observed power a valid way to explain my non-significant result?"
 
 ## Example Prompts
 
-### RNA-seq Power
+### Bulk RNA-seq Power
 
-> "I'm planning an RNA-seq experiment comparing drug-treated vs control cells. I expect about 0.3 CV and want to detect 1.5-fold changes. How many replicates do I need for 80% power?"
+> "I'm comparing drug-treated versus control cells, expect biological CV around 0.3, and want to detect 1.5-fold changes. How many replicates for 80% power, and can you confirm with simulation?"
 
-> "Calculate the power of my RNA-seq study with 4 samples per group, 20x coverage, assuming CV of 0.4"
+> "Calculate the marginal power of a 5-versus-5 RNA-seq design at FDR 0.05 using PROPER with pilot dispersions."
 
-### ATAC-seq Power
+### Single-cell
 
-> "Run power analysis for my ATAC-seq comparing two conditions with 3 replicates each"
+> "How does power scale with number of patients versus number of cells per patient for a scRNA-seq differential expression study?"
 
-### Budget Optimization
+### Budget and Design Tradeoffs
 
-> "I have budget for 10 samples total. Should I do 5 vs 5 or 4 vs 6 for my RNA-seq experiment?"
+> "I have budget for either 20M reads on 4 samples or 10M reads on 8 samples per group. Which gives more power to detect DE genes?"
+
+> "A reviewer says my study is underpowered because the observed power was 0.3. How should I respond?"
 
 ## What the Agent Will Do
 
-1. Identify experiment type (RNA-seq, ATAC-seq, etc.)
-2. Determine key parameters (CV, effect size, depth)
-3. Use appropriate power calculation package
-4. Report power or required sample size
-5. Provide interpretation and recommendations
+1. Identify the assay and whether pilot data exist.
+2. Choose closed-form (RNASeqPower) for a quick number or simulation (PROPER/powsimR) for the reported figure.
+3. Report power as a function of replicate number at the target FDR, not a single transcriptome-wide value.
+4. Advise on the depth-versus-replicate allocation under budget constraints.
+5. Flag misuse of observed power and recommend effect-size/CI reporting instead.
 
 ## Tips
 
-- Estimate CV from pilot data or literature for your tissue type
-- For human samples, assume higher CV (0.3-0.5) than cell lines (0.1-0.2)
-- Power > 0.8 is standard; > 0.9 for critical studies
-- More biological replicates beats deeper sequencing after ~20M reads
-- Consider practical constraints (cost, sample availability) alongside statistics
+- Power is per-gene; report marginal power at a target FDR, not one number for the whole transcriptome.
+- Use simulation from the mean-dispersion trend for the reported figure; closed-form for a quick sanity check.
+- Estimate the coefficient of variation or dispersion from pilot data; a literature value can be off by a factor of two.
+- Past roughly 10-20 million mapped reads, add biological replicates rather than depth.
+- Power to the minimum biologically meaningful effect, never the pilot-observed effect.
+- Never use observed (post-hoc) power to interpret a non-significant result; report the confidence interval.
+
+## Related Skills
+
+- sample-size - The inverse problem: minimum replicates for a target power at a target FDR
+- randomization-blocking - The experimental unit defines what is replicated
+- batch-design - Account for batch/blocking factors in the power model
+- differential-expression/deseq2-basics - Estimating dispersions from pilot data
+- single-cell/preprocessing - Pseudobulk model underlying scRNA-seq power
+- clinical-biostatistics/power-and-sample-size - Power for regulated clinical-trial endpoints

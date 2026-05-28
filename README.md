@@ -167,7 +167,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **imaging-mass-cytometry** | 6 | steinbock, squidpy, napari | IMC preprocessing, segmentation, spatial analysis, annotation, QC |
 | **flow-cytometry** | 8 | flowCore, CATALYST, CytoML | FCS handling, compensation, gating, clustering, differential, QC |
 | **reporting** | 5 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
-| **experimental-design** | 4 | RNASeqPower, ssizeRNA, qvalue, sva | Power analysis, sample size, multiple testing, batch design |
+| **experimental-design** | 5 | designit, RNASeqPower, ssizeRNA, qvalue, sva | Randomization/blocking, pseudoreplication, power analysis, sample size, multiple testing (FDR), batch design |
 | **workflow-management** | 4 | Snakemake, Nextflow, cwltool, Cromwell | Scalable pipeline frameworks with containers |
 | **data-visualization** | 20 | ggplot2, matplotlib, plotly, ComplexHeatmap, patchwork, scico (Crameri), Okabe-Ito, EnhancedVolcano, apeglm/ashr, qqman, locuszoomr, metafor, ggalluvial, ComplexUpset, ggseqlogo, maftools, NetworkX, pyGenomeTracks | PhD-grade figures: perceptual-effectiveness (Cleveland-McGill 1984), Crameri/cividis CVD-safe palettes (Wong 2011, Crameri 2020), ward.D2 + Optimal Leaf Ordering (Murtagh-Legendre 2014, Bar-Joseph 2001), apeglm LFC shrinkage (Zhu 2019), Manhattan/QQ with λGC + LDSC (Bulik-Sullivan 2015), oncoprint + lollipop + sequence logos for cohort genomics, raincloud (Allen 2019) + Weissgerber 2015 bar critique, forest/funnel with REML and contour-enhanced bias (Egger 1997), CONSORT 2010 + alluvial flow, UMAP/t-SNE with Kobak-Berens 2019 init + Chari-Pachter 2023 caveats, ChIP-Rx spike-in via --scaleFactor (NOT --normalizeUsing), Kaleido v1 static export, Type-42 font embedding |
 | **tcr-bcr-analysis** | 5 | MiXCR, VDJtools, Immcantation, scirpy | TCR/BCR repertoire analysis, clonotype assembly, diversity metrics |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 523 skills across 63 categories**
+**Total: 524 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 523 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 524 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
