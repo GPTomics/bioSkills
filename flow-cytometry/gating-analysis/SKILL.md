@@ -1,193 +1,144 @@
 ---
 name: bio-flow-cytometry-gating-analysis
-description: Manual and automated gating for defining cell populations in flow cytometry. Covers rectangular, polygon, and data-driven gates. Use when identifying cell populations through hierarchical gating strategies.
+description: Defines cell populations in flow and spectral cytometry through manual gates (rectangle, polygon, quadrant, boolean) and reproducible automated gating (openCyto gating templates, flowDensity data-driven thresholds, flowClust model-based gates), organized as a hierarchical GatingSet (flowWorkspace) and round-tripped with FlowJo via CytoML. Covers the canonical gate order (time -> debris -> singlets -> live -> lineage), FMO-vs-isotype boundary setting, gate-order dependence and recompute semantics, rare-event/MRD gating, and per-population statistics. Use when building a gating strategy, automating a manual FlowJo scheme across samples, choosing manual vs data-driven gates, or extracting population frequencies.
 tool_type: r
 primary_tool: flowWorkspace
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: flowCore 2.14+
+Reference examples tested with: flowWorkspace 4.14+, openCyto 2.14+, flowDensity 1.36+, flowCore 2.14+, CytoML 2.14+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+openCyto gating-method names drift across versions - confirm with `gt_list_methods()` on the
+installed package (e.g. `gate_flowclust_2d` vs `flowClust.2d`). Adapt rather than retrying.
 
 # Gating Analysis
 
-**"Gate my flow cytometry data to identify cell populations"** → Define cell populations through manual or automated gating strategies using rectangular, polygon, or data-driven gates in a hierarchical framework.
-- R: `flowWorkspace::gs_add_gating_method()`, `openCyto::gating()` for automated gating
+**"Gate my data to identify cell populations"** -> Define populations by drawing boundaries in marker space, organized as a hierarchy, manually or with reproducible data-driven methods.
+- R (manual + hierarchy): `flowCore` gates -> `flowWorkspace::GatingSet` -> `gs_pop_add` -> `recompute`
+- R (automated): `openCyto` gating template (CSV) or `flowDensity::deGate`
 
-## Manual Rectangular Gates
+## The Single Most Important Modern Insight -- FMO, Not Isotype, Sets the Boundary; and Gate Order Is a Funnel
 
-```r
-library(flowCore)
+The position of a positive/negative boundary is governed by SPREADING ERROR - the variance that every other bright fluorophore spills into the channel of interest - NOT by nonspecific antibody binding (Roederer 2001 *Cytometry* 45:194). An FMO control (full panel minus the one channel) reproduces exactly that spreading and is the correct way to set the gate; an isotype control addresses only nonspecific binding, has a different total fluorochrome load, and sits in the wrong place. Isotypes are deprecated for boundary-setting (still fine for a qualitative new-reagent check). Equally load-bearing is gate ORDER: time -> debris (FSC/SSC) -> singlets (FSC-A vs FSC-H) -> live/dead -> lineage. This is a funnel that removes the broadest, least-specific contaminants first (time instability corrupts ALL channels; doublets are scatter-normal AND viable AND double-positive; dead cells bind antibody nonspecifically) so each narrower downstream gate operates on clean input. Reorder it - gate lineage before singlets - and artifacts are baked into the result that no later gate can remove.
 
-# Create rectangular gate
-cd4_gate <- rectangleGate(filterId = 'CD4+',
-                           'CD4' = c(500, Inf),
-                           'CD3' = c(200, Inf))
+## Automated-Gating Taxonomy
 
-# Apply gate
-cd4_result <- filter(fcs, cd4_gate)
-summary(cd4_result)
+| Method | Citation | Mechanism | When to use |
+|--------|----------|-----------|-------------|
+| openCyto | Finak 2014 *PLoS Comput Biol* 10:e1003806 | CSV gatingTemplate + per-gate algorithms | reproduce a manual SOP across many samples; human-readable + automated |
+| `mindensity` (openCyto) | - | KDE valley between two peaks | clear bimodal marker, 1D cut |
+| `tailgate` (openCyto) | - | KDE-derivative tail onset | rare positive tail, no clean second peak |
+| `quantileGate` (openCyto) | - | cut at a fixed event quantile | threshold should track a fraction |
+| flowDensity | Malek 2015 *Bioinformatics* 31:606 | sequential bivariate density cutoffs | reproduce an entire predefined manual strategy |
+| flowClust / `gate_flowclust_2d` | Lo 2009 *BMC Bioinformatics* 10:145 | t-mixture + Box-Cox, K by BIC | overlapping elliptical populations |
+| DAFi | Lee 2018 *Cytometry A* 93:597 | recursive filter + clustering on a hierarchy | discovery WITH interpretability |
 
-# Get cells in gate
-cd4_cells <- Subset(fcs, cd4_gate)
-```
+Rule of thumb: 1D bimodal -> `mindensity`; rare tail -> `tailgate`; overlapping ellipses -> `flowClust.2d`; replicate a full manual SOP -> flowDensity; discovery-with-interpretability -> DAFi.
 
-## Polygon Gates
+## Build a Gating Hierarchy
 
-```r
-# Define polygon vertices
-vertices <- matrix(c(100, 100,    # x1, y1
-                      1000, 100,   # x2, y2
-                      1000, 1000,  # x3, y3
-                      100, 1000),  # x4, y4
-                    ncol = 2, byrow = TRUE)
-colnames(vertices) <- c('FSC-A', 'SSC-A')
+**Goal:** Apply gates in the canonical order and extract population statistics.
 
-# Create polygon gate
-poly_gate <- polygonGate(filterId = 'Lymphocytes', .gate = vertices)
-
-# Apply
-lymph <- Subset(fcs, poly_gate)
-```
-
-## Gating Hierarchy (flowWorkspace)
+**Approach:** Build a GatingSet, add gates parent-by-parent, then `recompute()` - WITHOUT it, child populations are empty. Gates apply on the TRANSFORMED scale if the GatingSet is transformed.
 
 ```r
-library(flowWorkspace)
+library(flowWorkspace); library(flowCore)
 
-# Create GatingSet from flowSet
 gs <- GatingSet(fs)
-
-# Add gates to hierarchy
-gs_pop_add(gs, cd4_gate, parent = 'root')
-
-# Add child gate
-cd4_cd8_gate <- rectangleGate(filterId = 'CD8+', 'CD8' = c(500, Inf))
-gs_pop_add(gs, cd4_cd8_gate, parent = 'CD4+')
-
-# View hierarchy
-gs_get_pop_paths(gs)
-
-# Recompute statistics
-recompute(gs)
-
-# Get population statistics
-gs_pop_get_stats(gs)
+# matrix dimnames preserve 'FSC-A'/'FSC-H'; data.frame() would mangle them to FSC.A
+singlet <- polygonGate('singlets', .gate = matrix(
+  c(2e4, 1e4, 25e4, 2e5, 25e4, 26e4, 2e4, 4e4), ncol = 2, byrow = TRUE,
+  dimnames = list(NULL, c('FSC-A', 'FSC-H'))))
+gs_pop_add(gs, singlet, parent = 'root')
+gs_pop_add(gs, rectangleGate('CD3+', CD3 = c(1.5, Inf)), parent = 'singlets')  # transformed scale
+recompute(gs)                                   # REQUIRED - else children are empty
+gs_pop_get_stats(gs, type = 'count')
 ```
 
-## Automated Gating: flowDensity
+## Automated Gating with an openCyto Template
+
+**Goal:** Apply a reproducible, declarative gating strategy across all samples.
+
+**Approach:** A CSV template (alias/pop/parent/dims/gating_method/gating_args) defines the hierarchy; `gt_gating` applies it. Confirm method names with `gt_list_methods()`.
 
 ```r
-library(flowDensity)
+library(openCyto); library(data.table)
 
-# Data-driven gate based on density
-cd4_gate <- deGate(fcs, channel = 'CD4', use.upper = TRUE)
-
-# Get threshold
-cd4_threshold <- cd4_gate@min
-
-# Apply
-cd4_pos <- flowDensity(fcs, channels = 'CD4', position = c(TRUE))
-cd4_cells <- getflowFrame(cd4_pos)
-```
-
-## Automated Gating: openCyto
-
-**Goal:** Apply a reproducible, template-driven gating strategy that automatically identifies cell populations across all samples.
-
-**Approach:** Define a CSV gating template specifying parent-child hierarchy, channel combinations, and gating algorithms (flowClust, singletGate, mindensity, quadrantGate), then apply the template to a GatingSet for batch processing.
-
-```r
-library(openCyto)
-
-# Define gating template
-gating_template <- fread('
+tmpl <- fread('
 alias,pop,parent,dims,gating_method,gating_args
-nonDebris,+,root,FSC-A,flowClust,K=2
+nonDebris,+,root,FSC-A,mindensity,
 singlets,+,nonDebris,"FSC-A,FSC-H",singletGate,
-lymph,+,singlets,"FSC-A,SSC-A",flowClust,K=3
-cd3,+,lymph,CD3,mindensity,
-cd4,+,cd3,"CD4,CD8",quadrantGate,
+live,-,singlets,"Live_Dead",mindensity,
+CD3,+,live,CD3,mindensity,
+CD4CD8,+,CD3,"CD4,CD8",gate_flowclust_2d,K=2
 ')
-
-# Apply template
-gt <- gatingTemplate(gating_template)
+gt <- gatingTemplate(tmpl)
 gs <- GatingSet(fs)
-gating(gt, gs)
+gt_gating(gt, gs)
 ```
 
-## Quadrant Gates
+## Rare-Event / MRD Gating
+
+**Goal:** Detect a rare population (e.g. MRD at 1e-4 to 1e-5).
+
+**Approach:** Unsupervised clustering FAILS here (a 1e-5 population is ~10 events, invisible to density/SOM); MRD stays supervised/template-gated. Compute the acquisition depth needed from the target sensitivity and the ~50-event Poisson rule BEFORE acquiring; never downsample.
 
 ```r
-# Create quadrant gate
-quad_gate <- quadGate(filterId = 'CD4_CD8_quad',
-                       'CD4' = 500,
-                       'CD8' = 500)
-
-# Results in 4 populations:
-# CD4+CD8-, CD4-CD8+, CD4+CD8+, CD4-CD8-
+# Need ~50-60 target events for CV < ~15%; sensitivity 1e-5 => acquire ~1e6 cells.
+target_sensitivity <- 1e-5
+events_needed <- ceiling(50 / target_sensitivity)   # cells to acquire
+# Gate the rare population with a prespecified template; report observed LOD from cells acquired.
 ```
 
-## Boolean Gates
+## Per-Method Failure Modes
 
-```r
-# Combine gates with logic
-cd4_not_cd8 <- cd4_gate & !cd8_gate
+### Empty child populations
+**Trigger:** querying stats right after `gs_pop_add`. **Mechanism:** membership not computed. **Symptom:** zero counts. **Fix:** `recompute(gs)`.
 
-# Alternative using GatingSet
-gs_pop_add(gs,
-           booleanFilter(CD4+CD8- = CD4+ & !CD8+),
-           parent = 'lymph')
-```
+### Gate coordinates on the wrong scale
+**Trigger:** raw-scale gate values on a transformed GatingSet (or vice versa). **Mechanism:** scale mismatch. **Symptom:** gate in the wrong place / empty. **Fix:** set gate values on the same (transformed) scale the GS uses.
 
-## Extract Gated Populations
+### Isotype-defined boundary
+**Trigger:** isotype control to set positivity. **Mechanism:** spreading error, not nonspecific binding, sets the edge. **Symptom:** wrong negative boundary. **Fix:** use FMO.
 
-```r
-# Get data for specific population
-cd4_data <- gh_pop_get_data(gs[[1]], 'CD4+')
+### Clustering used for rare events
+**Trigger:** FlowSOM for a 1e-5 population. **Mechanism:** too few events. **Symptom:** rare pop absorbed into a neighbor. **Fix:** supervised/template gating; size acquisition for the Poisson floor.
 
-# Get indices
-cd4_indices <- gh_pop_get_indices(gs[[1]], 'CD4+')
+## Quantitative Thresholds
 
-# Counts
-gs_pop_get_count_fast(gs)
-```
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| ~50-60 events for CV < 15% | Poisson statistics | rare-event detection floor |
+| sensitivity 1e-5 needs ~1e6 cells | Poisson floor | to collect ~50 events at that frequency |
+| FMO for boundary, not isotype | Roederer 2001; Maecker & Trotter 2006 | spreading error dominates the boundary |
 
-## Visualization
+## Common Errors
 
-```r
-library(ggcyto)
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| zero counts in children | no `recompute()` | call it after adding gates |
+| `gt_gating` method not found | version-renamed method | check `gt_list_methods()` |
+| `filter()` vs `Subset()` confusion | `filter` returns a mask, `Subset` the data | use `Subset(ff, gate)` for the population |
+| FlowJo `.jo` won't import | only `.wsp` supported | re-save as wsp; use CytoML |
 
-# Plot with gates
-autoplot(gs[[1]], 'CD4+')
+## References
 
-# Multiple populations
-autoplot(gs[[1]], c('CD4+', 'CD8+'))
-
-# Gate overlay
-autoplot(fcs, 'CD4', 'CD8') +
-    geom_gate(cd4_gate)
-```
-
-## Export Gating Strategy
-
-```r
-# Save GatingSet
-save_gs(gs, 'gating_set')
-
-# Export to FlowJo workspace
-library(CytoML)
-gatingset_to_flowjo(gs, 'analysis.wsp')
-```
+- Roederer 2001 *Cytometry* 45(3):194-205 — spreading error sets the gate boundary.
+- Maecker & Trotter 2006 *Cytometry A* 69(9):1037-1042 — FMO doctrine, controls, positivity.
+- Finak 2014 *PLoS Comput Biol* 10(8):e1003806 — openCyto automated gating templates.
+- Malek 2015 *Bioinformatics* 31(4):606-607 — flowDensity data-driven gating.
+- Lo 2009 *BMC Bioinformatics* 10:145 — flowClust model-based gating.
+- Lee 2018 *Cytometry A* 93(6):597-610 — DAFi directed filtering + clustering.
+- Spidlen 2015 *Cytometry A* 87(7):683-687 — Gating-ML 2.0 portable gate standard.
 
 ## Related Skills
 
-- compensation-transformation - Preprocess before gating
-- clustering-phenotyping - Unsupervised alternative
-- differential-analysis - Compare gated populations
+- compensation-transformation - Preprocess before gating; gate on the transformed scale
+- doublet-detection - The singlet step of the gating funnel
+- clustering-phenotyping - Unsupervised alternative for high-dim discovery
+- differential-analysis - Compare gated population frequencies between conditions
+- fcs-handling - Load FCS and import FlowJo workspaces via CytoML

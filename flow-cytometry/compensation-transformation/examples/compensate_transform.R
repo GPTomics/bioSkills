@@ -1,5 +1,6 @@
-# Reference: flowCore 2.14+, scanpy 1.10+ | Verify API if version differs
+# Reference: flowCore 2.14+, flowWorkspace 4.14+ | Verify API if version differs
 library(flowCore)
+library(flowWorkspace)  # estimateLogicle lives here, not in flowCore
 
 # Public flow cytometry data sources:
 # - FlowRepository: https://flowrepository.org (FR-FCM-ZZPH for CyTOF)
@@ -11,8 +12,10 @@ library(flowCore)
 fcs <- read.FCS('sample.fcs', transformation = FALSE)
 cat('Loaded', nrow(fcs), 'events\n')
 
-# Get compensation matrix from keywords
+# Get compensation matrix from keywords (try all three conventions)
 comp_kw <- keyword(fcs)$`$SPILLOVER`
+if (is.null(comp_kw)) comp_kw <- keyword(fcs)$SPILL        # digital BD convention
+if (is.null(comp_kw)) comp_kw <- keyword(fcs)$`$COMP`      # legacy FCS 3.0
 if (!is.null(comp_kw)) {
     comp <- compensation(comp_kw)
     fcs_comp <- compensate(fcs, comp)

@@ -1,5 +1,5 @@
-# Reference: flowCore 2.14+, ggplot2 3.5+ | Verify API if version differs
-library(flowCore)
+# Reference: ggplot2 3.5+, dplyr 1.1+ | Verify API if version differs
+# Self-contained QC simulation. For real files use flowAI::flow_auto_qc() / PeacoQC::PeacoQC().
 library(ggplot2)
 library(dplyr)
 

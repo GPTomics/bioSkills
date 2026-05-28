@@ -1,321 +1,257 @@
 ---
 name: bio-workflows-cytometry-pipeline
-description: End-to-end flow cytometry workflow from FCS files to differential analysis. Orchestrates compensation, transformation, gating/clustering, and statistical testing with CATALYST/diffcyt. Use when processing flow or mass cytometry data end-to-end.
+description: End-to-end flow, spectral, and mass cytometry (CyTOF) pipeline from raw FCS files to differentially abundant/expressed cell populations. Orchestrates the read -> compensate/unmix -> transform -> QC -> doublet-removal -> cluster-or-gate -> annotate -> diffcyt DA/DS chain with flowCore/CATALYST/diffcyt, branching on instrument type and on clustering-vs-gating. Use when processing a cytometry experiment end-to-end, deciding the pipeline path for an instrument, or wiring the flow-cytometry component skills into one analysis with valid sample-level statistics.
 tool_type: r
 primary_tool: CATALYST
 workflow: true
 depends_on:
   - flow-cytometry/fcs-handling
   - flow-cytometry/compensation-transformation
+  - flow-cytometry/cytometry-qc
+  - flow-cytometry/doublet-detection
+  - flow-cytometry/bead-normalization
   - flow-cytometry/gating-analysis
   - flow-cytometry/clustering-phenotyping
   - flow-cytometry/differential-analysis
-  - flow-cytometry/doublet-detection
-  - flow-cytometry/bead-normalization
-  - flow-cytometry/cytometry-qc
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: FlowSOM 2.10+, edgeR 4.0+, flowCore 2.14+, ggplot2 3.5+, limma 3.58+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+
+Reference examples tested with: CATALYST 1.26+, diffcyt 1.22+, FlowSOM 2.10+, flowCore 2.14+, flowWorkspace 4.14+, flowStats 4.14+, edgeR 4.0+, limma 3.58+, ggplot2 3.5+; Python (partial alt) flowkit 1.1+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- Python: `pip show <package>` then `help(module.function)` to check signatures
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+package and adapt rather than retrying. Each stage defers depth to its component skill.
 
 # Flow Cytometry Pipeline
 
-**"Process my flow cytometry data from FCS to differential analysis"** → Orchestrate compensation, transformation, doublet removal, FlowSOM clustering, phenotype annotation, and diffcyt differential testing across conditions.
+**"Process my cytometry data from FCS to differential populations"** -> read raw -> compensate/unmix -> transform -> QC -> remove doublets -> cluster (or gate) -> annotate -> test DA/DS, with the sample as the unit of inference.
+- R: `flowCore` + `CATALYST::prepData/cluster/runDR` + `diffcyt::diffcyt()`
+
+## The Single Most Important Modern Insight -- A Pipeline Is a Chain of Irreversible Decisions, and the Unit of Inference Is the Sample
+
+Each early choice silently gates the validity of the final test: reading raw (not log-linearized), compensating BEFORE transforming, removing margin events before density QC, assigning type-vs-state markers correctly, and removing doublets before clustering. None of these is recoverable downstream - a doublet clustered as a "double-positive," a state marker used for clustering, or an uncompensated channel becomes a false population that the differential test then "confirms." The second load-bearing thread is that the SAMPLE/subject, not the cell, is the experimental unit: diffcyt aggregates cells to per-sample-per-cluster counts (DA) and medians (DS) before testing, so biological replication (>= 2-3 per group) is mandatory and a per-cell test is invalid. Two normalization layers sit at OPPOSITE ends of the pipeline - EQ-bead drift correction on raw counts at the very front (CyTOF), and CytoNorm cross-batch harmonization after clustering - and conflating them is a classic error.
+
+## Decision Tree: Which Path
+
+| Situation | Path | Why |
+|-----------|------|-----|
+| Conventional fluorescence flow | compensate (`$SPILLOVER`/flowStats) -> logicle -> ... | optical spillover; logicle handles negatives |
+| Spectral cytometer (Aurora/ID7000) | UNMIX (not compensate) -> arcsinh ~150 | overdetermined system; fluorescence-scale |
+| Mass cytometry (CyTOF) | EQ-bead normalize (raw) -> arcsinh cofactor 5 -> `compCytof` if needed | metals barely spill (~1-4%); drift correction first |
+| High-dim discovery, no prior gates | cluster (FlowSOM via CATALYST) | scales; finds unexpected populations |
+| Well-defined populations / rare events (MRD) | hierarchical gating (openCyto) | interpretable; clustering fails for ultra-rare |
+| Multi-batch / multi-day | anchor sample per batch -> CytoNorm (after clustering) | model batch in the design for inference |
 
 ## Pipeline Overview
 
 ```
-FCS Files ──> Compensation ──> Transformation ──> Gated/Clustered Data
-                                                          │
-                                                          ▼
-                  ┌─────────────────────────────────────────────────┐
-                  │            cytometry-pipeline                   │
-                  ├─────────────────────────────────────────────────┤
-                  │  1. Load FCS Files                              │
-                  │  2. Compensation & Transformation               │
-                  │  3. QC & Filtering                              │
-                  │  4. Clustering (FlowSOM) or Gating              │
-                  │  5. Dimensionality Reduction (UMAP)             │
-                  │  6. Differential Abundance/State Analysis       │
-                  │  7. Visualization                               │
-                  └─────────────────────────────────────────────────┘
-                                                          │
-                                                          ▼
-                      Differential Cell Populations + Markers
+FCS -> compensate/unmix -> transform -> QC (margins, time, dead) -> doublets
+     -> [ cluster (FlowSOM) | gate (openCyto) ] -> annotate -> diffcyt DA/DS -> report
+EQ-bead drift normalization (CyTOF) runs on raw counts BEFORE everything; CytoNorm runs LAST.
 ```
 
-## Complete R Workflow (CATALYST)
+## 1. Panel, Metadata, and Load
+
+**Goal:** Define the type/state panel and sample metadata, then load FCS.
+
+**Approach:** Panel `marker_class` drives everything downstream (type clusters, state is tested); metadata keys samples to condition/subject. See flow-cytometry/fcs-handling.
 
 ```r
-library(CATALYST)
-library(diffcyt)
-library(SingleCellExperiment)
-library(flowCore)
-library(ggplot2)
+library(CATALYST); library(diffcyt); library(flowCore); library(ggplot2)
 
-# === 1. SETUP PANEL AND METADATA ===
-# Panel definition
 panel <- data.frame(
-    fcs_colname = c('FSC-A', 'SSC-A', 'CD45', 'CD3', 'CD4', 'CD8', 'CD19',
-                    'CD14', 'CD56', 'HLA-DR', 'Ki67', 'IFNg'),
-    antigen = c('FSC', 'SSC', 'CD45', 'CD3', 'CD4', 'CD8', 'CD19',
-                'CD14', 'CD56', 'HLA-DR', 'Ki67', 'IFNg'),
-    marker_class = c('none', 'none', 'type', 'type', 'type', 'type', 'type',
-                     'type', 'type', 'type', 'state', 'state')
-)
-
-# Sample metadata
-md <- data.frame(
-    file_name = list.files('data/', pattern = '\\.fcs$'),
-    sample_id = paste0('Sample', 1:8),
-    condition = rep(c('Control', 'Treatment'), each = 4),
-    patient_id = rep(paste0('Patient', 1:4), 2)
-)
-
-cat('Loading', nrow(md), 'FCS files...\n')
-
-# === 2. LOAD AND PREPARE DATA ===
-fcs_files <- file.path('data', md$file_name)
-fs <- read.flowSet(fcs_files)
-
-# Apply compensation if stored in FCS
-fs_comp <- compensate(fs, spillover(fs[[1]]))
-
-# Prepare SingleCellExperiment with CATALYST
-sce <- prepData(fs_comp, panel, md,
-                transform = TRUE,
-                cofactor = 5,  # For CyTOF use 5, flow cytometry use 150
-                FACS = TRUE)
-
-cat('Loaded', ncol(sce), 'cells\n')
-
-# === 3. QC ===
-# Per-sample cell counts
-table(sce$sample_id)
-
-# Expression distributions
-plotExprs(sce, color_by = 'condition')
-ggsave('qc_expression_distributions.png', width = 12, height = 8)
-
-# MDS plot for sample similarity
-plotMDS(sce, color_by = 'condition')
-ggsave('qc_mds.png', width = 8, height = 6)
-
-# === 4. CLUSTERING ===
-cat('Clustering...\n')
-sce <- cluster(sce,
-               features = 'type',  # Use lineage markers
-               xdim = 10, ydim = 10,
-               maxK = 20,
-               seed = 42)
-
-# Metaclustering at different resolutions
-table(cluster_ids(sce, 'meta20'))
-
-# === 5. DIMENSIONALITY REDUCTION ===
-cat('Running UMAP...\n')
-sce <- runDR(sce, dr = 'UMAP', features = 'type')
-
-# Plot UMAP
-plotDR(sce, dr = 'UMAP', color_by = 'meta20')
-ggsave('umap_clusters.png', width = 8, height = 6)
-
-plotDR(sce, dr = 'UMAP', color_by = 'condition')
-ggsave('umap_condition.png', width = 8, height = 6)
-
-# === 6. CLUSTER ANNOTATION ===
-# Heatmap of marker expression
-plotExprHeatmap(sce, features = 'type', k = 'meta20',
-                by = 'cluster_id', scale = 'last', bars = TRUE)
-ggsave('heatmap_clusters.png', width = 12, height = 8)
-
-# Manual annotation based on markers
-cluster_annotations <- c(
-    '1' = 'CD4 T cells',
-    '2' = 'CD8 T cells',
-    '3' = 'B cells',
-    '4' = 'Monocytes',
-    '5' = 'NK cells'
-    # ... continue for all clusters
-)
-sce$cell_type <- cluster_annotations[cluster_ids(sce, 'meta20')]
-
-# === 7. DIFFERENTIAL ANALYSIS ===
-cat('Running differential analysis...\n')
-
-# Create design matrix
-design <- createDesignMatrix(ei(sce), cols_design = 'condition')
-
-# Contrast
-contrast <- createContrast(c(0, 1))  # Treatment vs Control
-
-# Differential Abundance (DA)
-res_DA <- testDA_edgeR(sce, design, contrast, cluster_id = 'meta20')
-
-da_results <- as.data.frame(rowData(res_DA))
-da_results <- da_results[order(da_results$p_adj), ]
-cat('\nDifferential Abundance Results:\n')
-print(da_results[, c('cluster_id', 'logFC', 'p_val', 'p_adj')])
-
-# Differential State (DS) - marker expression
-res_DS <- testDS_limma(sce, design, contrast,
-                        cluster_id = 'meta20',
-                        markers_include = rownames(sce)[rowData(sce)$marker_class == 'state'])
-
-ds_results <- as.data.frame(rowData(res_DS))
-cat('\nDifferential State Results:\n')
-sig_ds <- ds_results[ds_results$p_adj < 0.05, ]
-print(sig_ds[, c('cluster_id', 'marker_id', 'logFC', 'p_adj')])
-
-# === 8. VISUALIZATION ===
-# DA heatmap
-plotDiffHeatmap(sce, res_DA, all = TRUE, fdr = 0.05)
-ggsave('da_heatmap.png', width = 10, height = 8)
-
-# Abundance boxplots
-plotAbundances(sce, k = 'meta20', by = 'cluster_id', group_by = 'condition')
-ggsave('abundance_boxplots.png', width = 12, height = 8)
-
-# Volcano plot
-da_results$significant <- da_results$p_adj < 0.05
-ggplot(da_results, aes(x = logFC, y = -log10(p_adj), color = significant)) +
-    geom_point(size = 3) +
-    geom_hline(yintercept = -log10(0.05), linetype = 'dashed') +
-    scale_color_manual(values = c('gray', 'red')) +
-    theme_bw() +
-    labs(title = 'Differential Abundance')
-ggsave('da_volcano.png', width = 8, height = 6)
-
-# === 9. EXPORT ===
-write.csv(da_results, 'da_results.csv', row.names = FALSE)
-write.csv(ds_results, 'ds_results.csv', row.names = FALSE)
-saveRDS(sce, 'cytometry_analysis.rds')
-
-cat('\nAnalysis complete!\n')
-cat('Significant DA clusters:', sum(da_results$p_adj < 0.05), '\n')
+  fcs_colname = c('FSC-A','SSC-A','CD45','CD3','CD4','CD8','CD19','CD14','Ki67','IFNg'),
+  antigen     = c('FSC','SSC','CD45','CD3','CD4','CD8','CD19','CD14','Ki67','IFNg'),
+  marker_class = c('none','none','type','type','type','type','type','type','state','state'))
+md <- data.frame(file_name = list.files('data', pattern = '\\.fcs$'),
+                 sample_id = paste0('S', 1:8),
+                 condition = rep(c('Control','Treatment'), each = 4),
+                 patient_id = rep(paste0('P', 1:4), 2))
+fs <- read.flowSet(file.path('data', md$file_name), transformation = FALSE, truncate_max_range = FALSE)
 ```
 
-## flowCore + Manual Gating Workflow
+## 2. Compensate / Unmix, then Transform
+
+**Goal:** Remove spillover on linear data, then variance-stabilize.
+
+**Approach:** Conventional flow compensates (matrix before transform); CyTOF skips fluorescence compensation and uses cofactor 5; spectral unmixes then uses ~150. See flow-cytometry/compensation-transformation.
 
 ```r
-library(flowCore)
-library(flowWorkspace)
-library(ggcyto)
-
-# Load data
-fs <- read.flowSet(list.files('data/', pattern = '\\.fcs$', full.names = TRUE))
-
-# Compensation
-comp_matrix <- spillover(fs[[1]])[[1]]
-fs_comp <- compensate(fs, comp_matrix)
-
-# Transformation
-trans <- estimateLogicle(fs_comp[[1]], colnames(comp_matrix))
-fs_trans <- transform(fs_comp, trans)
-
-# Create GatingSet
-gs <- GatingSet(fs_trans)
-
-# Apply gates
-gs_add_gating_method(gs, alias = 'live',
-                     pop = '+', parent = 'root',
-                     dims = 'FSC-A,SSC-A',
-                     gating_method = 'gate_flowclust_2d',
-                     gating_args = list(K = 2, target = c(50000, 25000)))
-
-gs_add_gating_method(gs, alias = 'singlets',
-                     pop = '+', parent = 'live',
-                     dims = 'FSC-A,FSC-H',
-                     gating_method = 'singletGate')
-
-# Visualize gates
-autoplot(gs[[1]], 'singlets')
-
-# Extract gated data
-gated_data <- gs_pop_get_data(gs, 'singlets')
+fs_comp <- compensate(fs, spillover(fs[[1]])[[1]])      # conventional flow; CyTOF: omit or use compCytof
+COFACTOR <- 150                                          # 5 for CyTOF, ~150 for fluorescence/spectral
+sce <- prepData(fs_comp, panel, md, transform = TRUE, cofactor = COFACTOR, FACS = TRUE)
 ```
 
-## Python Alternative (FlowCytometryTools)
+## 3. QC (order matters)
+
+**Goal:** Remove margin/boundary events and time anomalies before any density step.
+
+**Approach:** Margins first, then time-based cleaning; on CyTOF, EQ-bead drift correction happens upstream on raw counts. See flow-cytometry/cytometry-qc and flow-cytometry/bead-normalization.
+
+```r
+# per-sample sanity + sample-similarity MDS (flag outlier samples)
+plotExprs(sce, color_by = 'condition'); plotMDS(sce, color_by = 'condition')
+# event-level cleaning runs per-FCS upstream: PeacoQC::RemoveMargins() -> PeacoQC()/flowAI on transformed data
+```
+
+## 4. Remove Doublets
+
+**Goal:** Drop aggregates before clustering so they don't form phantom double-positives.
+
+**Approach:** Flow uses the FSC-A vs FSC-H diagonal; CyTOF uses DNA intercalator + Gaussian/Event_length. See flow-cytometry/doublet-detection.
+
+```r
+# CyTOF (FACS=TRUE retained Event_length on the arcsinh scale):
+e <- assay(sce, 'exprs')
+if (all(c('DNA1','Event_length') %in% rownames(sce))) {
+  keep <- e['DNA1', ] > quantile(e['DNA1', ], 0.05) &
+          e['Event_length', ] <= quantile(e['Event_length', ], 0.99)
+  sce <- sce[, keep]
+}
+```
+
+## 5. Cluster (FlowSOM) or Gate
+
+**Goal:** Define populations by unsupervised clustering on TYPE markers (discovery) or hierarchical gating (defined/rare).
+
+**Approach:** `cluster()` wraps FlowSOM+ConsensusClusterPlus; over-provision the grid, set a seed. See flow-cytometry/clustering-phenotyping (clustering) and flow-cytometry/gating-analysis (gating).
+
+```r
+sce <- cluster(sce, features = 'type', xdim = 10, ydim = 10, maxK = 20, seed = 42)
+```
+
+## 6. Annotate and Visualize Structure
+
+**Goal:** Label metaclusters from marker medians; embed for display only.
+
+**Approach:** Median heatmap drives annotation; UMAP colors by cluster but is never used to define or quantify populations.
+
+```r
+plotExprHeatmap(sce, features = 'type', by = 'cluster_id', k = 'meta20', scale = 'last')
+sce <- runDR(sce, dr = 'UMAP', features = 'type', cells = 2000)
+plotDR(sce, dr = 'UMAP', color_by = 'meta20')
+```
+
+## 7. Differential Abundance and State
+
+**Goal:** Test which populations change in frequency (DA) or state-marker expression (DS) between conditions.
+
+**Approach:** The `diffcyt()` wrapper aggregates to the sample level; results live in `res$res`. See flow-cytometry/differential-analysis.
+
+```r
+design   <- createDesignMatrix(ei(sce), cols_design = 'condition')
+contrast <- createContrast(c(0, 1))                        # Treatment vs Control
+res_DA <- diffcyt(sce, clustering_to_use = 'meta20', analysis_type = 'DA',
+                  method_DA = 'diffcyt-DA-edgeR', design = design, contrast = contrast)
+res_DS <- diffcyt(sce, clustering_to_use = 'meta20', analysis_type = 'DS',
+                  method_DS = 'diffcyt-DS-limma', design = design, contrast = contrast)
+da <- as.data.frame(SummarizedExperiment::rowData(res_DA$res))   # cluster_id, logFC, p_val, p_adj
+```
+
+## 8. Visualize Results and Export
+
+**Goal:** Summarize significant populations and persist results.
+
+**Approach:** Pass the inner result object (`res$res`) to plotting; export tables and the SCE.
+
+```r
+plotDiffHeatmap(sce, res_DA$res, all = TRUE, fdr = 0.05)
+plotAbundances(sce, k = 'meta20', by = 'cluster_id', group_by = 'condition')
+write.csv(da, 'da_results.csv', row.names = FALSE); saveRDS(sce, 'cytometry_analysis.rds')
+```
+
+## Paired / Repeated-Measures Variant
+
+**Goal:** Account for within-subject correlation (pre/post on the same donor).
+
+**Approach:** Use a GLMM with a random effect for subject (NOT voom, which is fixed-effects only).
+
+```r
+formula <- createFormula(ei(sce), cols_fixed = 'condition', cols_random = 'patient_id')
+res_DA <- diffcyt(sce, clustering_to_use = 'meta20', analysis_type = 'DA',
+                  method_DA = 'diffcyt-DA-GLMM', formula = formula, contrast = createContrast(c(0, 1)))
+```
+
+## Manual Gating Path (alternative to clustering)
+
+**Goal:** Define populations by a reproducible hierarchy when they are well-defined or rare.
+
+**Approach:** Build a GatingSet on transformed data; recompute after adding gates. See flow-cytometry/gating-analysis.
+
+```r
+library(flowWorkspace)
+tl <- estimateLogicle(fs_comp[[1]], colnames(spillover(fs[[1]])[[1]]))
+gs <- GatingSet(transform(fs_comp, tl))
+# add openCyto template or manual gates (time -> debris -> singlets -> live -> lineage), then:
+recompute(gs); gs_pop_get_stats(gs, type = 'count')
+```
+
+## Python Alternative (FlowKit) -- partial
+
+**Goal:** Read, compensate, and gate in Python where an R pipeline is not an option.
+
+**Approach:** FlowKit covers IO/compensation/GatingML; there is NO Python equivalent for diffcyt DA/DS, so the differential step stays in R (or bridge via readfcs -> AnnData -> scanpy for clustering only).
 
 ```python
 import flowkit as fk
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-
-# Load FCS files
 sample = fk.Sample('sample.fcs')
-
-# Get data as DataFrame
-data = sample.as_dataframe(source='raw')
-
-# Compensation (if needed)
-comp_matrix = sample.metadata['spill']
-data_comp = np.dot(data, np.linalg.inv(comp_matrix))
-
-# Arcsinh transformation
-cofactor = 150  # For flow cytometry
-data_trans = np.arcsinh(data_comp / cofactor)
-
-# Clustering
-scaler = StandardScaler()
-data_scaled = scaler.fit_transform(data_trans)
-
-kmeans = KMeans(n_clusters=10, random_state=42)
-clusters = kmeans.fit_predict(data_scaled)
+sample.apply_compensation(sample.metadata['spill'])    # use FlowKit's API, not a hand-rolled matrix inverse
+df = sample.as_dataframe(source='comp')
 ```
 
-## QC Checkpoints
+## Per-Stage Failure Modes
 
-| Stage | Check | Action if Failed |
-|-------|-------|------------------|
-| Loading | All FCS files read | Check file integrity |
-| Compensation | Spillover values reasonable | Recalculate |
-| Transformation | Distributions normalized | Adjust cofactor |
-| Events | >10K cells per sample | Check acquisition |
-| Clustering | 10-30 populations | Adjust K/resolution |
-| DA | >3 replicates per group | Need more samples |
+### Per-cell pseudoreplication
+**Trigger:** testing across all cells. **Mechanism:** cells are not independent replicates. **Symptom:** p ~ 1e-40 from few subjects. **Fix:** diffcyt aggregates to sample level; require >= 2-3 replicates/group.
 
-## Workflow Variants
+### Clustering on state markers
+**Trigger:** activation/phospho markers in `features`. **Mechanism:** state contaminates lineage identity. **Symptom:** activated/resting splits of one type. **Fix:** cluster on `type`; test state in DS.
 
-### CyTOF Data
-```r
-# CyTOF-specific settings
-sce <- prepData(fs, panel, md,
-                transform = TRUE,
-                cofactor = 5,  # CyTOF uses cofactor 5
-                FACS = FALSE)  # Not flow cytometry
+### Doublets / wrong cofactor / uncompensated input
+**Trigger:** skipping doublet removal, cofactor 5 on fluorescence, or clustering raw data. **Mechanism:** phantom double-positives, compressed dim markers, spillover-dominated distances. **Symptom:** non-reproducible "novel" populations. **Fix:** remove doublets first; cofactor 5 (CyTOF) / 150 (fluorescence); compensate+transform before clustering.
 
-# Bead normalization should be done upstream (Fluidigm software)
-```
+### Batch cleaned instead of modeled
+**Trigger:** CytoNorm-ing then testing naively, or batch confounded with condition. **Mechanism:** over-correction / non-identifiability. **Symptom:** attenuated or fabricated effects. **Fix:** model batch in the design; if batch == condition, no rescue.
 
-### Paired Design
-```r
-# For paired samples (e.g., pre/post treatment)
-design <- createDesignMatrix(ei(sce), cols_design = c('condition', 'patient_id'))
+## Quantitative Thresholds
 
-# Include patient as blocking factor
-formula <- createFormula(ei(sce), cols_fixed = 'condition', cols_random = 'patient_id')
-res_DA <- testDA_voom(sce, formula, contrast)
-```
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| arcsinh cofactor 5 (CyTOF) / ~150 (fluorescence) | Nowicka 2017 *F1000Res* 6:748 | matches platform noise scale |
+| >= 2-3 biological replicates per group | Weber 2019 *Commun Biol* 2:183 | minimum for a valid DA/DS error term |
+| > ~10K cells per sample | community | stable per-sample cluster frequencies |
+| 10-30 metaclusters typical (maxK=20 default) | Weber & Robinson 2016 *Cytometry A* 89:1084 | over-provision then merge |
+| BH FDR across clusters (and clusters x markers for DS) | diffcyt | many simultaneous tests |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `testDA_edgeR(sce, ...)` not found / wrong | fabricated signature | use the `diffcyt()` wrapper; results in `res$res` |
+| `compensate()` errors on a list | `spillover(ff)` returns a list | index `[[1]]` |
+| empty DS results | state markers not flagged | set `marker_class='state'` in the panel |
+| paired design ignored | used fixed-effect method | `diffcyt-DA-GLMM` with a random effect |
+
+## References
+
+- Weber 2019 *Commun Biol* 2:183 — diffcyt DA/DS framework.
+- Nowicka 2017 *F1000Research* 6:748 — CATALYST CyTOF workflow; type/state, cofactor 5.
+- Weber & Robinson 2016 *Cytometry A* 89(12):1084-1096 — FlowSOM clustering benchmark.
+- Van Gassen 2020 *Cytometry A* 97(3):268-278 — CytoNorm cross-batch normalization.
+- Hurlbert 1984 *Ecol Monogr* 54(2):187-211 — pseudoreplication (sample is the unit).
 
 ## Related Skills
 
-- flow-cytometry/fcs-handling - FCS file operations
-- flow-cytometry/compensation-transformation - Data preprocessing
-- flow-cytometry/gating-analysis - Manual gating
-- flow-cytometry/clustering-phenotyping - Unsupervised clustering
-- flow-cytometry/differential-analysis - Statistical testing
-- flow-cytometry/doublet-detection - Remove doublet events
-- flow-cytometry/bead-normalization - CyTOF EQ bead normalization
-- flow-cytometry/cytometry-qc - Comprehensive QC
-- single-cell/clustering - Related clustering methods
+- flow-cytometry/fcs-handling - Read FCS and map channels
+- flow-cytometry/compensation-transformation - Compensate/unmix and transform
+- flow-cytometry/cytometry-qc - Time/margin/dead-cell QC
+- flow-cytometry/doublet-detection - Singlet discrimination
+- flow-cytometry/bead-normalization - EQ-bead drift and CytoNorm batch correction
+- flow-cytometry/gating-analysis - Hierarchical/automated gating path
+- flow-cytometry/clustering-phenotyping - FlowSOM clustering and annotation
+- flow-cytometry/differential-analysis - diffcyt DA/DS testing
+- single-cell/clustering - Related graph-clustering for scRNA-seq

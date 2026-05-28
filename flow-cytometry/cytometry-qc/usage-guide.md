@@ -1,84 +1,54 @@
 # Cytometry QC - Usage Guide
 
 ## Overview
-Comprehensive quality control ensures reliable flow cytometry and CyTOF data by detecting acquisition problems, removing problematic events, and flagging outlier samples.
+Quality control detects and removes acquisition artifacts before any downstream analysis. The Time parameter is the master axis: flow-rate instability, signal drift, clogs, and CyTOF sensitivity decay all show up as signal-versus-time anomalies, which is what flowAI, flowCut, flowClean, and PeacoQC detect. This skill covers tool selection, the load-bearing QC ordering (compensate -> transform -> margins -> time QC -> gating), CyTOF-specific checks, the instrument calibration/standardization machinery (MESF, CS&T, peak-2) that makes cross-study comparison possible, and batch-level outlier flagging.
 
 ## Prerequisites
 ```bash
 # R/Bioconductor
-BiocManager::install(c('flowCore', 'flowAI', 'CATALYST'))
-
-# Optional for advanced QC
-BiocManager::install('PeacoQC')
+BiocManager::install(c('flowCore', 'flowAI', 'PeacoQC', 'flowDensity', 'CATALYST'))
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Run quality control on my flow cytometry data"
-- "Check for flow rate anomalies and signal drift"
-- "Identify and flag low-quality samples"
+- "Run automated QC on my FCS files and tell me what was removed"
+- "Remove margin events, then clean unstable time segments with PeacoQC"
+- "Check my CyTOF run for signal drift and gate single nucleated cells"
+- "Flag outlier samples across my batch"
 
 ## Example Prompts
-### Event-Level QC
-> "Remove margin events and anomalous time segments"
-> "Run flowAI to automatically clean my FCS files"
-> "Apply PeacoQC to detect acquisition problems"
+### Event-level cleaning
+> "Run flowAI on these files but it's removing too much - it's a slow acquisition, so tune the flow-rate sensitivity and show me the report before committing."
+> "Remove margin/boundary events first, then apply PeacoQC across the marker channels - and explain why margins have to go before the density step."
 
-### Sample-Level QC
-> "Check flow rate stability for each sample"
-> "Flag samples with high dead cell percentages"
-> "Identify outlier samples based on event counts"
+### CyTOF and drift
+> "This is a multi-day CyTOF study - check EQ-bead signal versus time for drift and gate intercalator-positive single cells by Event_length and Gaussian parameters."
+> "Detect per-channel signal drift over acquisition time and tell me which markers exceed 10% change."
 
-### CyTOF-Specific QC
-> "Filter events by Event_length and DNA content"
-> "Check Gaussian parameters for acquisition quality"
-> "Generate a QC report for my CyTOF batch"
-
-### Batch QC
-> "Compare QC metrics across all samples in my experiment"
-> "Create a QC summary table for my dataset"
-> "Flag samples that fail QC thresholds"
+### Calibration and batch QC
+> "Convert my PE MFI to antibodies-bound-per-cell using Quantibrite beads."
+> "Build a per-sample QC table (events, flow-rate stability, marker medians) and flag outliers by MAD."
 
 ## What the Agent Will Do
-1. Load QC packages (flowAI, PeacoQC, or CATALYST)
-2. Check flow rate stability over time
-3. Identify margin events and signal anomalies
-4. Remove or flag problematic events
-5. Generate QC report with pass/fail metrics
+1. Confirm data is compensated and transformed (QC on raw data misbehaves).
+2. Remove margin/boundary events before any density-based step.
+3. Run time-based cleaning with the appropriate tool (flowAI/flowCut/PeacoQC) and the correct, non-inverted parameters.
+4. Apply instrument-specific checks (dead-cell dye for flow; DNA/Event_length/Gaussian + bead drift for CyTOF).
+5. Summarize per-sample metrics and flag outliers; report what was removed.
 
 ## Tips
-- Run QC before any downstream analysis
-- flowAI handles flow rate, signal drift, and margin events
-- For CyTOF, filter by Event_length (15-45) and DNA content
-- Dead cells (>10%) indicate sample handling issues
-- Document QC thresholds before analyzing data
+- Order matters: compensate -> transform -> margins -> time-based QC -> gating -> normalization.
+- flowAI checks are FR (flow rate) / FS (signal) / FM (dynamic range) - FM is not "flow"; flowAI is known to be aggressive.
+- PeacoQC `MAD` and `IT_limit` are LESS strict when higher (counterintuitive); run `RemoveMargins()` first.
+- PeacoQC is the only cleaning tool validated across flow, mass, and spectral.
+- flowClean needs ~30,000+ events and writes a "GoodVsBad" parameter you must gate on.
+- For CyTOF, EQ-bead-median-vs-Time is the single most informative drift readout (see bead-normalization).
+- Report dead-cell % and outlier samples; don't silently auto-exclude a whole sample without inspection.
+- Cross-study MFI comparison requires calibration (MESF/ERF beads, CS&T, standardized voltages via peak-2) - record voltages per MIFlowCyt.
 
-## QC Thresholds
-
-| Metric | Acceptable | Warning | Fail |
-|--------|------------|---------|------|
-| Flow rate CV | <15% | 15-25% | >25% |
-| Signal drift | <5% | 5-15% | >15% |
-| Margin events | <1% | 1-5% | >5% |
-| Dead cells | <10% | 10-30% | >30% |
-
-## CyTOF-Specific Checks
-
-| Check | Purpose | Typical Range |
-|-------|---------|---------------|
-| Event_length | Cell size proxy | 15-45 |
-| DNA (Ir191/193) | Confirms nucleated cells | Bimodal peak |
-| Gaussian Center/Width | Push quality | Per run baseline |
-
-## Common Issues
-
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| High dead cells | Sample handling, temperature | Improve protocol |
-| Flow rate instability | Clog, air bubble | Clean instrument |
-| Signal drift | Laser warmup, temperature | Allow warmup, normalize |
-
-## References
-- flowAI: doi:10.1093/bioinformatics/btw191
-- PeacoQC: doi:10.1002/cyto.a.24501
-- CyTOF QC: doi:10.1002/cyto.a.22624
+## Related Skills
+- compensation-transformation - Compensate/transform before time-based QC
+- doublet-detection - Singlet discrimination after QC
+- bead-normalization - EQ-bead drift correction for CyTOF
+- clustering-phenotyping - Cluster only QC-passed events
+- experimental-design/batch-design - Anchor/reference-sample design for batch QC

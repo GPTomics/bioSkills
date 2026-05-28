@@ -1,217 +1,142 @@
 ---
 name: bio-flow-cytometry-differential-analysis
-description: Differential abundance and state analysis for cytometry data. Compare cell populations between conditions using statistical methods. Use when testing for significant changes in cell frequencies or marker expression between groups.
+description: Differential abundance (DA) and differential state (DS) analysis for flow and mass cytometry - tests which cell populations change in frequency or marker expression between conditions using diffcyt (edgeR/voom/GLMM for DA, limma/LMM for DS), with cydar, CITRUS, and compositional methods (sccomp, scCODA, DCATS) as alternatives. Covers the sample-is-the-experimental-unit principle, design/contrast and mixed-model formulas, compositionality of cluster proportions, and FDR across clusters. Use when comparing populations between groups, choosing a DA method, handling paired/batch designs, or deciding whether compositional correction is needed.
 tool_type: r
-primary_tool: CATALYST
+primary_tool: diffcyt
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: R stats (base), edgeR 4.0+, ggplot2 3.5+, limma 3.58+
+Reference examples tested with: diffcyt 1.22+, CATALYST 1.26+, edgeR 4.0+, limma 3.58+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+`testDA_edgeR`/`testDS_limma` are diffcyt functions operating on count/median objects from
+`calcCounts`/`calcMedians`; the CATALYST-integrated path is the `diffcyt()` wrapper on the SCE.
+Confirm the signature with `?diffcyt` before relying on it.
 
 # Differential Analysis
 
-**"Compare cell populations between my conditions"** → Test for significant changes in cell type frequencies (differential abundance) or marker expression levels (differential state) between experimental groups.
-- R: `CATALYST::testDA_edgeR()` or `diffcyt::testDA_GLMM()`
+**"Compare cell populations between my conditions"** -> Test cluster frequencies (DA) and within-cluster marker expression (DS) between groups, with the sample (not the cell) as the unit.
+- R: `diffcyt::diffcyt(sce, analysis_type='DA', method_DA='diffcyt-DA-edgeR', design, contrast)`
+- R: `diffcyt(sce, analysis_type='DS', method_DS='diffcyt-DS-limma', ...)`
 
-## Differential Abundance (DA)
+## The Single Most Important Modern Insight -- The Sample Is the Experimental Unit, Not the Cell
 
-**Goal:** Test which cell population clusters differ in frequency between experimental conditions.
+Tens of thousands of cells from one donor are technical PSEUDOREPLICATES, not independent observations. A per-cell test (Wilcoxon across all cells) treats them as n = cells and produces astronomically significant p-values from two mice - it is the single most common statistical sin in modern cytometry (Hurlbert 1984 *Ecol Monogr* 54:187; the cytometry mirror of the scRNA-seq pseudobulk lesson). The correct unit is the SAMPLE/subject: diffcyt aggregates cells to PER-SAMPLE-PER-CLUSTER counts (DA) and PER-SAMPLE-PER-CLUSTER arcsinh-MEDIANS (DS), then tests across samples with edgeR/limma/GLMM (Weber 2019 *Commun Biol* 2:183). Biological replication is mandatory (>= 2-3 per group); DA from a single sample per condition has no valid test. Paired with this: cluster proportions are COMPOSITIONAL (they sum to 1), so a real increase in one population mechanically forces apparent depletion in others - a source of false DA in "unchanged" clusters.
 
-**Approach:** Create a design matrix and contrast from sample metadata, then run edgeR-based differential abundance testing on cluster counts per sample using testDA_edgeR from the diffcyt framework.
+## DA vs DS, and the type/state marker link
+
+- **DA** (differential abundance): does a cluster's FREQUENCY differ? Clusters are defined by TYPE markers.
+- **DS** (differential state): within a fixed-identity cluster, does a STATE marker's expression differ? State markers were withheld from clustering for exactly this test.
+
+## Method Taxonomy
+
+| Method | Citation | Mechanism | When to use |
+|--------|----------|-----------|-------------|
+| diffcyt-DA-edgeR / voom | Weber 2019 *Commun Biol* 2:183 | edgeR/voom empirical-Bayes on per-sample counts; optional TMM | standard 2+ group with replicates (DEFAULT) |
+| diffcyt-DA-GLMM / DS-LMM | Weber 2019 | random effects in the formula | paired/repeated-measures/nested (subject random effect) |
+| cydar | Lun 2017 *Nat Methods* 14:707 | overlapping hyperspheres + edgeR + spatial FDR | continuum, avoid hard clusters |
+| CITRUS | Bruggner 2014 *PNAS* 111:E2770 | hierarchical clustering + LASSO | predictive signature, LARGE n; correlated-not-causal; largely superseded |
+| sccomp / scCODA / DCATS | Mangiola 2023 *PNAS* 120:e2203828120 / Buttner 2021 *Nat Commun* 12:6876 / Lin 2023 *Genome Biol* 24:151 | simplex-aware compositional models | strong compositional shift (one pop dominates); DCATS for assignment uncertainty |
+
+## Run diffcyt DA and DS
+
+**Goal:** Test abundance and state on a CATALYST-clustered SCE.
+
+**Approach:** Build design + contrast from `ei(sce)`; the `diffcyt()` wrapper uses the stored clustering. State markers are tested in DS, type markers define DA clusters.
 
 ```r
-library(CATALYST)
-library(diffcyt)
+library(CATALYST); library(diffcyt)
 
-# Load clustered data
 sce <- readRDS('sce_clustered.rds')
+design   <- createDesignMatrix(ei(sce), cols_design = 'condition')
+contrast <- createContrast(c(0, 1))                    # Treatment vs Control
 
-# Create design matrix
-design <- createDesignMatrix(ei(sce), cols_design = 'condition')
+res_DA <- diffcyt(sce, clustering_to_use = 'meta20',
+                  analysis_type = 'DA', method_DA = 'diffcyt-DA-edgeR',
+                  design = design, contrast = contrast)
+res_DS <- diffcyt(sce, clustering_to_use = 'meta20',
+                  analysis_type = 'DS', method_DS = 'diffcyt-DS-limma',
+                  design = design, contrast = contrast)
 
-# Create contrast
-contrast <- createContrast(c(0, 1))  # Treatment vs Control
-
-# Differential abundance test
-res_DA <- testDA_edgeR(sce, design, contrast, cluster_id = 'meta20')
-
-# View results
-rowData(res_DA)$cluster_id
-rowData(res_DA)$p_adj
-
-# Significant clusters
-sig_DA <- rowData(res_DA)$p_adj < 0.05
-table(sig_DA)
+library(SummarizedExperiment)
+rowData(res_DA$res)        # cluster_id, logFC, p_val, p_adj (BH across clusters)
 ```
 
-## Differential State (DS)
+## Paired / Repeated-Measures (mixed models)
+
+**Goal:** Account for within-subject correlation (e.g. pre/post on the same donor).
+
+**Approach:** Use a GLMM/LMM method with a random effect for subject via a formula.
 
 ```r
-# Test for marker expression differences within clusters
-res_DS <- testDS_limma(sce, design, contrast,
-                        cluster_id = 'meta20',
-                        markers_include = rownames(sce)[rowData(sce)$marker_class == 'state'])
-
-# Results per marker per cluster
-ds_results <- rowData(res_DS)
+formula <- createFormula(ei(sce), cols_fixed = 'condition', cols_random = 'patient_id')
+res_DA  <- diffcyt(sce, clustering_to_use = 'meta20',
+                   analysis_type = 'DA', method_DA = 'diffcyt-DA-GLMM',
+                   formula = formula, contrast = createContrast(c(0, 1)))
 ```
 
-## Visualization
+## Compositional Re-Check
+
+**Goal:** Confirm a headline single-population shift is not inducing artifactual reciprocal depletion.
+
+**Approach:** Re-test with a simplex-aware model when one cluster changes a lot or total yield differs by group.
 
 ```r
-# DA results heatmap
-plotDiffHeatmap(sce, res_DA, all = TRUE, fdr = 0.05)
-
-# DS results heatmap
-plotDiffHeatmap(sce, res_DS, all = TRUE, fdr = 0.05)
-
-# Abundance by condition
-plotAbundances(sce, k = 'meta20', by = 'cluster_id', group_by = 'condition')
+# If a dominant population expands, the apparent depletion of others may be a simplex artifact.
+# Re-test with sccomp / scCODA (reference cell type) / DCATS (assignment uncertainty)
+# before reporting reciprocal depletion as independent biology.
 ```
 
-## Manual Statistical Testing
+## Per-Method Failure Modes
 
-```r
-library(tidyverse)
+### Per-cell pseudoreplication
+**Trigger:** Wilcoxon/t-test across all cells. **Mechanism:** cells aren't independent. **Symptom:** p ~ 1e-40 from few subjects. **Fix:** aggregate to per-sample summaries (diffcyt).
 
-# Get cluster frequencies per sample
-freqs <- colData(sce) %>%
-    as.data.frame() %>%
-    group_by(sample_id, condition, cluster_id = cluster_ids(sce, 'meta20')) %>%
-    summarise(n = n(), .groups = 'drop') %>%
-    group_by(sample_id) %>%
-    mutate(freq = n / sum(n) * 100)
+### Compositional false DA
+**Trigger:** one population expands strongly. **Mechanism:** proportions sum to 1. **Symptom:** significant "depletion" of unrelated clusters. **Fix:** TMM only when total cell abundance is NOT itself the biological signal (else it removes real signal), or a compositional method (sccomp/scCODA/DCATS); report total-yield differences.
 
-# Test each cluster
-test_abundance <- function(df, cluster) {
-    cluster_data <- filter(df, cluster_id == cluster)
-    ctrl <- filter(cluster_data, condition == 'Control')$freq
-    treat <- filter(cluster_data, condition == 'Treatment')$freq
+### Batch cleaned instead of modeled
+**Trigger:** normalizing batch out then testing naively. **Mechanism:** over-correction removes real signal. **Symptom:** attenuated effects. **Fix:** include batch in the design; if batch == condition, no rescue - design it out.
 
-    if (length(ctrl) >= 2 && length(treat) >= 2) {
-        test <- t.test(treat, ctrl)
-        return(data.frame(
-            cluster = cluster,
-            fc = mean(treat) / mean(ctrl),
-            pvalue = test$p.value
-        ))
-    }
-    return(NULL)
-}
+### No replicates
+**Trigger:** 1 sample per condition. **Mechanism:** no error term. **Symptom:** uninterpretable p. **Fix:** require >= 2-3 biological replicates per group.
 
-results <- map_dfr(unique(freqs$cluster_id), ~test_abundance(freqs, .x))
-results$padj <- p.adjust(results$pvalue, method = 'BH')
-```
+## Quantitative Thresholds
 
-## Mixed Effects Models
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| >= 2-3 biological replicates per group | Weber 2019 | minimum for a valid DA/DS error term |
+| BH FDR across clusters (and clusters x markers for DS) | diffcyt | high-resolution grids have many tests |
+| arcsinh median as DS statistic | Nowicka 2017 | robust per-cluster per-sample summary |
 
-```r
-library(lme4)
-library(lmerTest)
+## Common Errors
 
-# For paired/repeated measures designs
-# Random effect for patient/donor
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `testDA_edgeR(sce, ...)` fails | wrong signature | use the `diffcyt()` wrapper on the SCE, or `calcCounts` first |
+| results empty | wrong `clustering_to_use` name | match the stored clustering id (e.g. `meta20`) |
+| no DS results | state markers not flagged | set `marker_class='state'` in the panel |
+| paired design ignored | used fixed-effect method | use `diffcyt-DA-GLMM` with a random effect |
 
-fit_mixed <- function(df, cluster) {
-    cluster_data <- filter(df, cluster_id == cluster)
+## References
 
-    model <- lmer(freq ~ condition + (1|patient_id), data = cluster_data)
-
-    coef <- summary(model)$coefficients
-    return(data.frame(
-        cluster = cluster,
-        estimate = coef[2, 'Estimate'],
-        pvalue = coef[2, 'Pr(>|t|)']
-    ))
-}
-```
-
-## CITRUS (Automated Discovery)
-
-```r
-library(citrus)
-
-# Prepare data
-fcs_files <- list.files('data', pattern = '\\.fcs$', full.names = TRUE)
-labels <- c(rep('Control', 2), rep('Treatment', 2))
-
-# Run CITRUS
-citrus_result <- citrus(
-    fcs_files,
-    labels,
-    fileSampleSize = 1000,
-    featureType = 'abundances',
-    modelType = 'glmnet',
-    family = 'classification'
-)
-
-# Get significant clusters
-citrus_plot(citrus_result)
-```
-
-## Volcano Plot
-
-```r
-library(ggplot2)
-
-# From DA results
-da_df <- as.data.frame(rowData(res_DA))
-da_df$significant <- da_df$p_adj < 0.05
-
-ggplot(da_df, aes(x = logFC, y = -log10(p_adj), color = significant)) +
-    geom_point() +
-    geom_hline(yintercept = -log10(0.05), linetype = 'dashed') +
-    geom_vline(xintercept = c(-1, 1), linetype = 'dashed') +
-    scale_color_manual(values = c('gray', 'red')) +
-    theme_bw() +
-    labs(title = 'Differential Abundance')
-```
-
-## Export Results
-
-```r
-# Combine DA and DS results
-da_results <- as.data.frame(rowData(res_DA))
-da_results$analysis <- 'DA'
-
-ds_results <- as.data.frame(rowData(res_DS))
-ds_results$analysis <- 'DS'
-
-# Save
-write.csv(da_results, 'da_results.csv', row.names = FALSE)
-write.csv(ds_results, 'ds_results.csv', row.names = FALSE)
-```
-
-## Multiple Comparisons
-
-```r
-# For multiple conditions
-design_full <- model.matrix(~ 0 + condition, data = ei(sce))
-colnames(design_full) <- levels(factor(ei(sce)$condition))
-
-# Multiple contrasts
-contrasts <- makeContrasts(
-    TreatA_vs_Ctrl = TreatmentA - Control,
-    TreatB_vs_Ctrl = TreatmentB - Control,
-    TreatA_vs_B = TreatmentA - TreatmentB,
-    levels = design_full
-)
-
-# Test each contrast
-res_list <- lapply(1:ncol(contrasts), function(i) {
-    testDA_edgeR(sce, design_full, contrasts[, i], cluster_id = 'meta20')
-})
-```
+- Weber 2019 *Commun Biol* 2:183 — diffcyt (DA + DS).
+- Bruggner 2014 *PNAS* 111(26):E2770-E2777 — CITRUS.
+- Lun 2017 *Nat Methods* 14(7):707-709 — cydar hypersphere DA.
+- Mangiola 2023 *PNAS* 120(33):e2203828120 — sccomp compositional analysis.
+- Buttner 2021 *Nat Commun* 12:6876 — scCODA.
+- Lin 2023 *Genome Biol* 24:151 — DCATS (assignment-uncertainty-aware).
+- Nowicka 2017 *F1000Research* 6:748 — CyTOF workflow; arcsinh-median DS statistic.
+- Hurlbert 1984 *Ecol Monogr* 54(2):187-211 — pseudoreplication.
 
 ## Related Skills
 
-- clustering-phenotyping - Cluster data first
-- gating-analysis - Compare gated populations
-- differential-expression/de-results - Similar statistical concepts
+- clustering-phenotyping - Cluster (type markers) before testing
+- gating-analysis - Compare manually gated population frequencies
+- differential-expression/de-results - Shared edgeR/limma output semantics (padj)
+- differential-expression/edger-basics - The count-model engine diffcyt reuses
+- experimental-design/multiple-testing - FDR across clusters and clusters x markers
+- experimental-design/batch-design - Model batch in the design, don't clean it out

@@ -1,4 +1,4 @@
-# Reference: FlowSOM 2.10+, edgeR 4.0+, flowCore 2.14+, ggplot2 3.5+, limma 3.58+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
+# Reference: CATALYST 1.26+, diffcyt 1.22+, FlowSOM 2.10+, flowCore 2.14+, edgeR 4.0+, limma 3.58+, ggplot2 3.5+ | Verify API if version differs
 library(CATALYST)
 library(diffcyt)
 library(SingleCellExperiment)
@@ -54,15 +54,17 @@ cat('Running differential analysis...\n')
 design <- createDesignMatrix(ei(sce), cols_design = 'condition')
 contrast <- createContrast(c(0, 1))
 
-res_DA <- testDA_edgeR(sce, design, contrast, cluster_id = 'meta20')
-da_results <- as.data.frame(rowData(res_DA))
+res_DA <- diffcyt(sce, clustering_to_use = 'meta20',
+                  analysis_type = 'DA', method_DA = 'diffcyt-DA-edgeR',
+                  design = design, contrast = contrast)
+da_results <- as.data.frame(rowData(res_DA$res))
 da_results <- da_results[order(da_results$p_adj), ]
 
 cat('\nSignificant clusters (FDR < 0.05):\n')
 print(da_results[da_results$p_adj < 0.05, c('cluster_id', 'logFC', 'p_adj')])
 
 # === 8. VISUALIZATION ===
-plotDiffHeatmap(sce, res_DA, all = TRUE, fdr = 0.05)
+plotDiffHeatmap(sce, res_DA$res, all = TRUE, fdr = 0.05)
 ggsave(file.path(output_dir, 'da_heatmap.png'), width = 10, height = 8)
 
 plotAbundances(sce, k = 'meta20', by = 'cluster_id', group_by = 'condition')

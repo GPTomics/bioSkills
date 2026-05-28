@@ -1,68 +1,52 @@
 # Doublet Detection - Usage Guide
 
 ## Overview
-Doublets are events where two or more cells pass through the laser simultaneously. They appear as false intermediate populations and must be removed before downstream analysis.
+Doublets are events where two or more cells traverse the laser (or ionize) together. They appear as false intermediate or double-positive populations and must be removed before clustering or quantification. The discriminating signal in flow is the non-proportionality of pulse Area vs Height (singlets fall on the FSC-A vs FSC-H diagonal; doublets deflect off it) plus Width - not a one-dimensional area gate. On CyTOF there is no scatter, so doublets are caught by DNA intercalator content and ion-cloud Gaussian/Event_length parameters. A key expert caveat: scatter gating is necessary but not sufficient - heterotypic conjugates survive it and masquerade as double-positive populations.
 
 ## Prerequisites
 ```bash
 # R/Bioconductor
-BiocManager::install(c('flowCore', 'flowDensity'))
+BiocManager::install(c('flowCore', 'flowDensity', 'CATALYST'))
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Remove doublets from my flow cytometry data"
 - "Gate singlets using FSC-A vs FSC-H"
-- "Identify doublets in my CyTOF data"
+- "Remove doublets from all samples and report the rate per sample"
+- "Identify doublets in my CyTOF data using DNA and Event_length"
+- "This double-positive population looks suspicious - is it a doublet artifact?"
 
 ## Example Prompts
-### Standard Doublet Removal
-> "Create a singlet gate using FSC-A vs FSC-H"
-> "Remove doublets from all samples in my flowSet"
-> "Show the doublet rate for each sample"
+### Flow / spectral
+> "Create a polygon singlet gate along the FSC-A vs FSC-H diagonal (not a rectangle, so I don't keep off-diagonal doublets) and apply it across my flowSet, reporting the doublet rate per sample."
+> "My instrument records FSC-W - add a width-based singlet criterion on top of the A-vs-H gate."
 
-### CyTOF Doublet Removal
-> "Gate singlets using DNA intercalator channels"
-> "Remove doublets based on Event_length"
-> "Create a combined doublet filter using DNA and Event_length"
+### CyTOF
+> "Gate intercalator-positive single cells using the Ir191/Ir193 DNA channels and Event_length, and explain why I can't use FSC-A here."
+> "Use the Gaussian discrimination parameters to remove ion-cloud fusions that DNA content alone misses."
 
-### Quality Assessment
-> "Show FSC-A vs FSC-H plots before and after singlet gating"
-> "Calculate the percentage of doublets removed per sample"
-> "Flag samples with unusually high doublet rates"
+### Diagnosing artifacts
+> "I have a CD3+CD14+ cluster sitting between my T-cell and monocyte clusters - check whether it's a heterotypic doublet by looking at parental marker intensity."
 
 ## What the Agent Will Do
-1. Identify appropriate doublet detection channels (FSC-A/H for flow, DNA/Event_length for CyTOF)
-2. Create singlet gate based on pulse geometry or DNA content
-3. Apply gate to remove doublets
-4. Calculate doublet rates and generate QC plots
-5. Return cleaned data for downstream analysis
+1. Identify the right channels (FSC-A/H[/W] for flow; DNA + Event_length/Gaussian for CyTOF).
+2. Build a diagonal singlet gate (polygon) or DNA/Gaussian filter.
+3. Apply across samples and report per-sample doublet rates.
+4. Flag suspicious double-positive populations as possible residual heterotypic doublets.
+5. Return cleaned data for downstream clustering.
 
 ## Tips
-- FSC-A vs FSC-H is the standard method for conventional flow
-- Singlets show linear A vs H relationship; doublets have higher A for given H
-- CyTOF: use DNA intercalator (Ir191/Ir193) or Event_length
-- Expect 1-5% doublets in PBMCs, higher in tissue digests
-- High doublet rates (>15%) indicate sample preparation issues
+- Use the FSC-A vs FSC-H diagonal, not a 1D area gate - doublets overlap singlets in area but not in the A-H relationship.
+- Prefer a diagonal polygon to a rectangle; a box keeps off-diagonal doublets and clips large singlets.
+- CyTOF has no scatter: use DNA intercalator (Ir191/193) and Gaussian/Event_length parameters.
+- Scatter gating is necessary but not sufficient - heterotypic conjugates (T:monocyte) survive and look like double-positives; their lineage markers look comparable to true singlets, so the tell is an elevated shared marker (e.g. CD45) and the definitive resolver is imaging flow, not a lineage-intensity check.
+- Expect ~1-5% doublets in PBMCs, higher in tissue digests; rates far above are a prep-quality flag, not a removal threshold.
+- Cytometry doublet removal is gating-based; DoubletFinder/Scrublet are droplet-scRNA-seq methods with limited transfer here.
 
-## Detection Methods
-
-| Method | Instrument | Principle |
-|--------|------------|-----------|
-| FSC-A vs FSC-H | Flow | Pulse geometry (singlets are linear) |
-| FSC-A vs FSC-W | Flow | Doublets have increased width |
-| DNA content | CyTOF | Doublets have ~2x DNA signal |
-| Event_length | CyTOF | Doublets have longer transit time |
-
-## Expected Doublet Rates
-
-| Sample Type | Expected Rate |
-|-------------|---------------|
-| PBMCs | 1-5% |
-| Cell lines | 2-10% |
-| Tissue digest | 5-15% |
-| Sorted cells | <1% |
-
-## References
-- flowAI: doi:10.1093/bioinformatics/btw191
-- flowDensity: doi:10.1093/bioinformatics/btu677
+## Related Skills
+- cytometry-qc - Run first: flow-rate/signal/margin cleaning
+- bead-normalization - CyTOF drift correction after doublet removal
+- fcs-handling - Load FCS files
+- gating-analysis - Where singlet discrimination sits in the gating hierarchy
+- clustering-phenotyping - Downstream analysis after doublet removal
+- single-cell/doublet-detection - Droplet scRNA-seq doublet methods (different principle)

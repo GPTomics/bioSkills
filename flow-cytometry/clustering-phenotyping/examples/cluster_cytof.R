@@ -1,8 +1,9 @@
-# Reference: FlowSOM 2.10+, scanpy 1.10+ | Verify API if version differs
+# Reference: CATALYST 1.26+, FlowSOM 2.10+ | Verify API if version differs
 library(CATALYST)
 library(SingleCellExperiment)
 
-# Panel definition
+# Panel definition. fcs_colname must match the actual FCS channel/detector names
+# (e.g. metal channels like 'Nd142Di' on CyTOF); antigen is the human-readable label.
 panel <- data.frame(
     fcs_colname = c('CD45', 'CD3', 'CD4', 'CD8', 'CD20', 'CD14'),
     antigen = c('CD45', 'CD3', 'CD4', 'CD8', 'CD20', 'CD14'),
