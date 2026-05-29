@@ -18,7 +18,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | methylation-pipeline | Bisulfite-seq to differentially methylated regions |
 | metagenomics-pipeline | Metagenomic reads to taxonomic profiles |
 | expression-to-pathways | DE results to functional enrichment (GO, KEGG, Reactome, GSEA) with prokaryotic support and multi-condition comparison |
-| genome-assembly-pipeline | Reads to polished assembly with QC |
+| genome-assembly-pipeline | Profile, QC, assemble (short/long/HiFi/meta), polish, decontaminate, scaffold, and three-axis QC from reads |
 | longread-sv-pipeline | Long reads to structural variants |
 | gwas-pipeline | VCF to genome-wide associations |
 | cnv-pipeline | BAM to copy number variants |
