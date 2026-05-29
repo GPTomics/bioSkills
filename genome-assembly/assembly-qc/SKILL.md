@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Assembly QC
 
-**"Assess my genome assembly quality"** → Evaluate assembly contiguity (N50, total length, misassemblies) and gene completeness using conserved single-copy orthologs.
+**"Assess my genome assembly quality"** -> Evaluate assembly contiguity (N50, total length, misassemblies) and gene completeness using conserved single-copy orthologs.
 - CLI: `quast assembly.fa -r reference.fa` (contiguity), `busco -i assembly.fa -l lineage` (completeness)
 
 ## Key Metrics
@@ -353,4 +353,4 @@ metaquast.py metagenome_assembly.fa -o metaquast_output -t 16
 - short-read-assembly - SPAdes assembly
 - long-read-assembly - Flye/Canu assembly
 - assembly-polishing - Improve accuracy
-- metagenomics - Metagenome analysis
+- metagenomics/abundance-estimation - Metagenome analysis

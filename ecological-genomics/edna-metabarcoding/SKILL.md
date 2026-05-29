@@ -291,7 +291,7 @@ summary(fit)
 
 **Mechanism:** Primer-template binding affinity varies systematically across taxa; PCR amplification is non-linear (saturates); read counts have weak-to-moderate, NONLINEAR correlation with biomass (Elbrecht 2015; Lamb 2019).
 
-**Symptom:** Reviewer asks "how do you know reads = biomass?"; cross-study quantitative comparisons fail to replicate.
+**Symptom:** Reviewer asks "how is it known that reads = biomass?"; cross-study quantitative comparisons fail to replicate.
 
 **Fix:** Either (a) restrict reporting to presence/absence; (b) report read counts as relative abundances with explicit caveat; or (c) include mock-community of known composition for primer-specific calibration. Do not silently equate reads with biomass.
 

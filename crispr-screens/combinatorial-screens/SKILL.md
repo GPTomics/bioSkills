@@ -183,7 +183,7 @@ def in4mer_pair_analysis(paired_counts_df, gene_pairs):
 ### GI scoring without singletons
 
 **Trigger:** Library lacks single-gene controls (only paired knockouts).
-**Mechanism:** GI = paired - expected_additive requires single-gene LFC; without them, you can't compute expected.
+**Mechanism:** GI = paired - expected_additive requires single-gene LFC; without them, expected cannot be computed.
 **Symptom:** Cannot score GI; only paired LFCs available.
 **Fix:** Design library to include singletons (place gene A with 3 placeholder guides; gene B with 3 placeholders); re-run with full design.
 
@@ -192,7 +192,7 @@ def in4mer_pair_analysis(paired_counts_df, gene_pairs):
 **Trigger:** Using public single-gene LFCs (e.g., DepMap) as the baseline for paired-screen GI scoring.
 **Mechanism:** Single-gene effects are cell-line specific; using HCT116 single-gene LFCs to score K562 paired-screen GIs is invalid.
 **Symptom:** GI scores look noisy; many false positives.
-**Fix:** Include singleton controls in your own screen; or use cell-line-matched DepMap data.
+**Fix:** Include singleton controls in the screen; or use cell-line-matched DepMap data.
 
 ### Confounding cell-cycle / proliferation in GI scoring
 

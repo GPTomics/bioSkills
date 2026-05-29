@@ -19,12 +19,12 @@ package and adapt the example to match the actual API rather than retrying.
 
 Handle gzip, bzip2, and BGZF compressed sequence files with Biopython.
 
-**"Read a compressed sequence file"** → Open a compressed file handle in text mode, then parse with the standard SeqIO interface.
+**"Read a compressed sequence file"** -> Open a compressed file handle in text mode, then parse with the standard SeqIO interface.
 - gzip: `gzip.open(path, 'rt')` (Python stdlib)
 - bzip2: `bz2.open(path, 'rt')` (Python stdlib)
 - BGZF: `bgzf.open(path, 'rt')` (BioPython) or direct `SeqIO.parse(path, fmt)`
 
-**"Make a compressed file indexable"** → Convert to BGZF format. Only BGZF supports `SeqIO.index()` on compressed data.
+**"Make a compressed file indexable"** -> Convert to BGZF format. Only BGZF supports `SeqIO.index()` on compressed data.
 
 ## Required Imports
 
@@ -41,7 +41,7 @@ from Bio import bgzf
 
 **Approach:** Open a decompression handle in text mode (`'rt'`), then pass the handle to `SeqIO.parse()`. The parser works identically to uncompressed input.
 
-### Gzip (.gz) (BioPython 1.83+)
+### Gzip (.gz)
 ```python
 with gzip.open('sequences.fasta.gz', 'rt') as handle:
     for record in SeqIO.parse(handle, 'fasta'):
@@ -50,14 +50,14 @@ with gzip.open('sequences.fasta.gz', 'rt') as handle:
 
 **Important:** Use `'rt'` (read text) mode, not `'rb'` (read binary).
 
-### Bzip2 (.bz2) (BioPython 1.83+)
+### Bzip2 (.bz2)
 ```python
 with bz2.open('sequences.fasta.bz2', 'rt') as handle:
     for record in SeqIO.parse(handle, 'fasta'):
         print(record.id, len(record.seq))
 ```
 
-### BGZF (Block Gzip) (BioPython 1.83+)
+### BGZF (Block Gzip)
 BGZF files can be read like regular gzip, but also support indexing:
 
 ```python
@@ -121,7 +121,7 @@ records = SeqIO.index_db('index.sqlite', 'sequences.fasta.bgz', 'fasta')
 
 ### Convert Gzip to BGZF
 
-**"Convert gzip to indexable format"** → Parse from gzip handle, write through BGZF handle.
+**"Convert gzip to indexable format"** -> Parse from gzip handle, write through BGZF handle.
 
 ```python
 from Bio import SeqIO, bgzf
@@ -249,8 +249,8 @@ Working with compressed sequence files?
 ├── Need to index the compressed file?
 │   └── Convert to BGZF, then use SeqIO.index()
 ├── Writing compressed output?
-│   ├── Will need to index later? → Use bgzf.open()
-│   └── Just archiving? → Use gzip.open() or bz2.open()
+│   ├── Will need to index later? -> Use bgzf.open()
+│   └── Just archiving? -> Use gzip.open() or bz2.open()
 └── Converting between formats?
     └── Parse with SeqIO, write to new handle
 ```
@@ -260,4 +260,4 @@ Working with compressed sequence files?
 - read-sequences - Core parsing functions used with compressed handles
 - write-sequences - Write to compressed output files
 - batch-processing - Process multiple compressed files
-- alignment-files - BAM files use BGZF natively; samtools handles compression
+- alignment-files/sam-bam-basics - BAM files use BGZF natively; samtools handles compression

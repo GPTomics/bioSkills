@@ -20,7 +20,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 All-in-one preprocessing tool that handles adapter trimming, quality filtering, deduplication, and report generation in a single pass.
 
-**"Preprocess FASTQ reads with fastp"** → Run adapter trimming, quality filtering, and QC reporting in a single pass.
+**"Preprocess FASTQ reads with fastp"** -> Run adapter trimming, quality filtering, and QC reporting in a single pass.
 - CLI: `fastp -i R1.fq -I R2.fq -o clean_R1.fq -O clean_R2.fq --html report.html`
 
 ## Basic Usage

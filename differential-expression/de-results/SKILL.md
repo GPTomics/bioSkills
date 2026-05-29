@@ -109,7 +109,7 @@ res_treat <- results(dds, lfcThreshold = log2(1.5), altHypothesis = 'greaterAbs'
 tr <- glmTreat(fit, coef = 2, lfc = log2(1.5))
 ```
 
-What a reviewer is asking when they say "you reported 200 genes >2x changed at FDR 5%": is the FDR for the change>2x claim or for the change-non-zero claim? Post-hoc filtering controls FDR only for the latter. TREAT (or `lfcThreshold=`) controls FDR for the former. McCarthy & Smyth 2009 *Bioinformatics* 25:765 is the canonical citation.
+What a reviewer is really probing with a "200 genes >2x changed at FDR 5%" claim: is the FDR for the change>2x claim or for the change-non-zero claim? Post-hoc filtering controls FDR only for the latter. TREAT (or `lfcThreshold=`) controls FDR for the former. McCarthy & Smyth 2009 *Bioinformatics* 25:765 is the canonical citation.
 
 ## IHW for Better Power
 

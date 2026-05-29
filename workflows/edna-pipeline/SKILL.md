@@ -31,7 +31,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # eDNA Metabarcoding Pipeline
 
-**"Process my eDNA samples from raw reads to community ecology"** → Orchestrate primer removal, denoising (OBITools3 or DADA2), contamination filtering, taxonomy assignment, Hill number diversity estimation, and constrained ordination for species-environment analysis.
+**"Process my eDNA samples from raw reads to community ecology"** -> Orchestrate primer removal, denoising (OBITools3 or DADA2), contamination filtering, taxonomy assignment, Hill number diversity estimation, and constrained ordination for species-environment analysis.
 
 Complete workflow from raw amplicon sequences to community ecology analysis, supporting
 both OBITools3 and DADA2 processing paths.

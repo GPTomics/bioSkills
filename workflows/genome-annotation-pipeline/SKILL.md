@@ -7,7 +7,10 @@ workflow: true
 depends_on:
   - genome-annotation/prokaryotic-annotation
   - genome-annotation/eukaryotic-gene-prediction
+  - genome-annotation/repeat-annotation
   - genome-annotation/functional-annotation
+  - genome-annotation/ncrna-annotation
+  - genome-annotation/annotation-qc
   - genome-assembly/assembly-qc
 qc_checkpoints:
   - after_repeat_masking: "Repeat content within expected range for taxon"
@@ -28,7 +31,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Genome Annotation Pipeline
 
-**"Annotate my genome assembly"** → Orchestrate prokaryotic (Bakta) or eukaryotic (BRAKER3) gene prediction, repeat masking (RepeatMasker), functional annotation (eggNOG-mapper, InterProScan), and ncRNA annotation (Infernal).
+**"Annotate my genome assembly"** -> Orchestrate prokaryotic (Bakta) or eukaryotic (BRAKER3) gene prediction, repeat masking (RepeatMasker), functional annotation (eggNOG-mapper, InterProScan), and ncRNA annotation (Infernal).
 
 Complete workflow from assembled contigs to functional annotation for prokaryotic or eukaryotic genomes.
 
@@ -131,7 +134,7 @@ def validate_prokaryotic_annotation(bakta_dir, prefix, expected_cds_range=(500, 
 
 ```bash
 # Build species-specific repeat library
-RepeatModeler -database mygenome -pa 8 -LTRStruct
+RepeatModeler -database mygenome -threads 8 -LTRStruct
 
 # Combine with known repeats
 cat mygenome-families.fa /path/to/RepeatMasker/Libraries/RepeatMaskerLib.h5 > combined_lib.fa
@@ -213,12 +216,15 @@ braker.pl \
 #### Gene Prediction QC Checkpoint
 
 ```bash
-# BUSCO completeness check on predicted proteins
+# BUSCO completeness on predicted proteins. Use the DEEPEST applicable clade dataset
+# (e.g. insecta_odb10 / embryophyta_odb10), NOT the shallow eukaryota_odb10.
+# The diagnostic that matters: compare this proteome BUSCO to a genome-mode BUSCO on the
+# same assembly -- a large gap means the predictor missed present genes (see genome-annotation/annotation-qc).
 busco \
     -i braker_out/braker.aa \
-    -l eukaryota_odb10 \
+    -l <clade>_odb10 \
     -o busco_annotation \
-    -m protein \
+    -m proteins \
     --cpu 8
 ```
 
@@ -297,7 +303,10 @@ def check_functional_annotation(eggnog_annotations, total_genes):
     QC gate: > 60% of genes should have functional assignment.
     Below 50% suggests database issues or highly divergent organism.
     '''
-    df = pd.read_csv(eggnog_annotations, sep='\t', comment='#')
+    cols = ['query', 'seed_ortholog', 'evalue', 'score', 'eggNOG_OGs', 'max_annot_lvl',
+            'COG_category', 'Description', 'Preferred_name', 'GOs', 'EC', 'KEGG_ko']
+    df = pd.read_csv(eggnog_annotations, sep='\t', comment='#', header=None)
+    df.columns = (cols + [f'c{i}' for i in range(len(df.columns) - len(cols))])[:len(df.columns)]
     annotated = len(df[df['Description'] != '-'])
     pct_annotated = annotated / total_genes * 100
 
@@ -395,7 +404,7 @@ else
     echo "Running eukaryotic annotation pipeline"
 
     echo "Step 1: Repeat masking"
-    RepeatModeler -database mygenome -pa $THREADS -LTRStruct
+    RepeatModeler -database mygenome -threads $THREADS -LTRStruct
     RepeatMasker -lib mygenome-families.fa -pa $THREADS -xsmall -gff -dir repeat_out $GENOME
 
     echo "Step 2: Gene prediction with BRAKER3"
@@ -403,8 +412,8 @@ else
               --bam=$RNASEQ_BAM --prot_seq=$PROTEINS \
               --softmasking --threads $THREADS --gff3 --workingdir=braker_out
 
-    echo "Step 3: BUSCO QC"
-    busco -i braker_out/braker.aa -l eukaryota_odb10 -o busco_check -m protein --cpu $THREADS
+    echo "Step 3: BUSCO QC (use the deepest applicable clade dataset, not eukaryota_odb10)"
+    busco -i braker_out/braker.aa -l ${LINEAGE:-eukaryota_odb10} -o busco_check -m proteins --cpu $THREADS
 
     echo "Step 4: Functional annotation"
     emapper.py -i braker_out/braker.aa --output eggnog_out --cpu $THREADS -m diamond
@@ -421,6 +430,9 @@ fi
 
 - genome-annotation/prokaryotic-annotation - Bakta and Prokka details
 - genome-annotation/eukaryotic-gene-prediction - BRAKER3 and AUGUSTUS options
+- genome-annotation/repeat-annotation - Soft-masking before gene prediction
 - genome-annotation/functional-annotation - eggNOG-mapper and InterProScan
+- genome-annotation/ncrna-annotation - Infernal/Rfam and tRNAscan-SE detail
+- genome-annotation/annotation-qc - BUSCO genome-vs-proteome, OMArk, CheckM2 gates
 - genome-assembly/assembly-qc - Pre-annotation assembly quality checks
 - genome-intervals/gtf-gff-handling - GFF3/GTF parsing and manipulation

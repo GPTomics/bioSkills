@@ -70,7 +70,7 @@ Tell the agent what to do:
    - Heatmaps with `--zMin/--zMax` set; `--kmeans N` for biological subgrouping
    - Profile plots with `--perGroup` for sample comparison
    - Browser tracks via pyGenomeTracks INI (recommended) or Gviz (R)
-5. **Sample correlation**: `multiBamSummary bins` → `plotCorrelation --corMethod spearman`
+5. **Sample correlation**: `multiBamSummary bins` -> `plotCorrelation --corMethod spearman`
 6. **Validate**: check that scale, normalization, and figure annotations match the biological claim
 7. **Export**: PDF (publication) or PNG (presentation); pyGenomeTracks supports both
 8. **Document**: normalization method + parameters, bin size, color map, z-scale, region count, kmeans settings if used
@@ -92,10 +92,10 @@ Tell the agent what to do:
 
 ### Heatmap looks pancake-flat
 
-1. `--zMin/--zMax` not set; outliers dominate the color scale → set explicit range
-2. Bin size too large for signal pattern → use 10 bp for sharp marks
-3. Window too narrow for biology → broaden `-b -a` parameters
-4. Signal too low → check FRiP, depth (see chipseq-qc)
+1. `--zMin/--zMax` not set; outliers dominate the color scale -> set explicit range
+2. Bin size too large for signal pattern -> use 10 bp for sharp marks
+3. Window too narrow for biology -> broaden `-b -a` parameters
+4. Signal too low -> check FRiP, depth (see chipseq-qc)
 
 ### Spike-in scaled tracks identical to CPM tracks
 
@@ -109,8 +109,8 @@ Tell the agent what to do:
 
 ### Tracks display "no data" in pyGenomeTracks
 
-1. Region outside chromosome bounds → check `samtools view -H bam | head`
-2. INI file path errors → use absolute paths in `file =`
+1. Region outside chromosome bounds -> check `samtools view -H bam | head`
+2. INI file path errors -> use absolute paths in `file =`
 3. Chromosome naming mismatch (chr vs no chr)
 
 ### IGV batch script hangs

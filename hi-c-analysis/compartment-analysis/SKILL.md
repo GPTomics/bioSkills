@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Compartment Analysis
 
-**"Identify A/B compartments from my Hi-C data"** → Decompose the contact matrix via eigenvector analysis to classify chromatin into active (A) and inactive (B) compartments.
+**"Identify A/B compartments from my Hi-C data"** -> Decompose the contact matrix via eigenvector analysis to classify chromatin into active (A) and inactive (B) compartments.
 - Python: `cooltools.eigs_cis(clr, gc_cov)` for eigenvector decomposition
 
 Detect A/B compartments from Hi-C contact matrices.
@@ -258,4 +258,4 @@ print(f'B compartment expression: {b_expr.mean():.2f}')
 
 - matrix-operations - Prepare matrices for compartment analysis
 - hic-visualization - Visualize compartments
-- chip-seq - Correlate with histone marks
+- chip-seq/peak-calling - Correlate with histone marks

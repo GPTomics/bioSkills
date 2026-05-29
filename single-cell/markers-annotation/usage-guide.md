@@ -21,12 +21,9 @@ BiocManager::install('MAST')
 ## Quick Start
 
 Ask your AI agent:
-
-> "Find marker genes for each cluster"
-
-> "What cell types are in my data?"
-
-> "Show a dot plot of marker expression"
+- "Find marker genes for each cluster"
+- "What cell types are in my data?"
+- "Show a dot plot of marker expression"
 
 ## Example Prompts
 

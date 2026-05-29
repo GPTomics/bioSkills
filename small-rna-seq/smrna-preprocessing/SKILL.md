@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Small RNA Preprocessing
 
-**"Preprocess my small RNA-seq reads"** → Remove 3' adapter sequences and size-select reads in the small RNA range (18-30 nt for miRNA, 24-32 nt for piRNA) before quantification or discovery.
+**"Preprocess my small RNA-seq reads"** -> Remove 3' adapter sequences and size-select reads in the small RNA range (18-30 nt for miRNA, 24-32 nt for piRNA) before quantification or discovery.
 - CLI: `cutadapt -a ADAPTER -m 18 -M 30 -o trimmed.fastq input.fastq`
 
 ## Adapter Trimming with Cutadapt

@@ -25,7 +25,7 @@ Requires Bioconductor 3.18+ with xcms 4.0+ and MSnbase 2.28+.
 
 **Approach:** Read mzML/mzXML files into an OnDiskMSnExp object using MSnbase for memory-efficient access.
 
-**"Process my raw LC-MS data into a feature table"** → Detect chromatographic peaks, align retention times across samples, group corresponding peaks, and fill missing values to produce a sample-by-feature intensity matrix.
+**"Process my raw LC-MS data into a feature table"** -> Detect chromatographic peaks, align retention times across samples, group corresponding peaks, and fill missing values to produce a sample-by-feature intensity matrix.
 
 ```r
 library(xcms)

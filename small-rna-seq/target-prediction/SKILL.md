@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # miRNA Target Prediction
 
-**"Predict target genes for my miRNAs"** → Identify potential mRNA targets of miRNAs using sequence-based thermodynamic alignment and database lookups from validated interaction repositories.
+**"Predict target genes for my miRNAs"** -> Identify potential mRNA targets of miRNAs using sequence-based thermodynamic alignment and database lookups from validated interaction repositories.
 - CLI: `miranda miRNA.fa UTR.fa -sc 140 -en -20` for de novo prediction
 - Python: API queries to miRTarBase, TargetScan for validated targets
 

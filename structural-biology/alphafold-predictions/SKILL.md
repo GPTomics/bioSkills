@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # AlphaFold Predictions
 
-**"Get the AlphaFold predicted structure for my protein"** → Download pre-computed AlphaFold structures by UniProt ID and assess prediction quality via per-residue pLDDT confidence scores.
+**"Get the AlphaFold predicted structure for my protein"** -> Download pre-computed AlphaFold structures by UniProt ID and assess prediction quality via per-residue pLDDT confidence scores.
 - Python: `requests.get(f'https://alphafold.ebi.ac.uk/files/AF-{uniprot}-F1-model_v4.pdb')`
 
 Download and analyze AlphaFold predicted protein structures from the AlphaFold Protein Structure Database.

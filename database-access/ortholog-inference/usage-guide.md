@@ -67,7 +67,7 @@ No API keys required for the listed resources (as of 2026). Rate limits: Ensembl
 - Ensembl REST has a 15 req/sec rate limit (55K/hour). Sleep 0.07s between calls; check `Retry-After` on 429.
 - HomoloGene is frozen at 2014 -- use only for legacy comparisons; switch live workflows to Compara or OrthoDB.
 - For thousands of genes, BioMart bulk export beats REST loops by 100x -- see `biomart-queries`.
-- HGNC gene-symbol renames break symbol-based queries. The big ones: MARCH1→MARCHF1, SEPT1→SEPTIN1 (Excel autocorrect drove the renaming in 2020). Always resolve to Ensembl Gene IDs first.
+- HGNC gene-symbol renames break symbol-based queries. The big ones: MARCH1->MARCHF1, SEPT1->SEPTIN1 (Excel autocorrect drove the renaming in 2020). Always resolve to Ensembl Gene IDs first.
 - KEGG license is academic-free, commercial-paid. eggNOG and OrthoDB licenses are more permissive for commercial use.
 - Resource disagreement is informative. If Ensembl says 1:1 but OMA gives no call, the gene tree is probably ambiguous -- flag this for review.
 - The orthology conjecture (orthologs share function) is supported but weakly (Studer & Robinson-Rechavi 2009). For drug-target or clinical questions, cross-validate orthology with shared catalytic residues or expression conservation.

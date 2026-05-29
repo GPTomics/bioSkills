@@ -27,7 +27,7 @@ Detect splicing changes between conditions. Tool choice is a decision about **st
 |------|-------|-----------------|---------------------|---------------------|------------|
 | rMATS-turbo | Binomial counts with hierarchical PSI variance | LRT on \|ΔPSI\| > `cutoff` (default 0.0001) | n>=3 | Well-calibrated at n>=3 with adequate junction reads | Junction read imbalance; very low coverage; uncorrected for confounders |
 | leafcutter | Dirichlet-multinomial GLM at cluster level | LRT on group factor | n>=2 (n>=3 preferred) | Strong at n>=3; novel-junction-friendly | Undersampled clusters (DM dispersion unstable); cluster topology arbitrariness |
-| MAJIQ deltapsi | Beta-binomial bootstrap → posterior over PSI per LSV | P(\|ΔPSI\| > T) threshold (T=0.2) | n>=3 | Replicate-structured n=3 vs n=3 | Cohorts where between-sample variability dominates between-group |
+| MAJIQ deltapsi | Beta-binomial bootstrap -> posterior over PSI per LSV | P(\|ΔPSI\| > T) threshold (T=0.2) | n>=3 | Replicate-structured n=3 vs n=3 | Cohorts where between-sample variability dominates between-group |
 | MAJIQ HET | Same model, heterogeneity-aware | Per-LSV permutation-based test | n>=10 | n>=10 vs n>=10 cohort designs | Tightly-controlled small replicate experiments |
 | SUPPA2 (empirical) | Empirical null from between-replicate ΔPSI | ECDF on \|ΔPSI\| conditioned on TPM | n>=4 | n>=4 vs n>=4 with paired-end deep sequencing | n<=3 vs n<=3 (sparse null collapses) |
 | SUPPA2 (classical) | Wilcoxon rank-sum on PSI distributions | Wilcoxon p-value | n>=2 | Small samples; non-parametric backup | Cassette events with tight PSI distributions |
@@ -143,7 +143,7 @@ sig_clusters <- subset(cluster_sig, p.adjust < 0.05)
 
 **Goal:** Detect differential LSVs with full posterior distributions over ΔPSI; ideal for complex multi-junction events and heterogeneous cohorts.
 
-**Approach:** Build splice graph → compute coverage per group → run deltapsi (replicate-structured) or heterogen (cohort-style).
+**Approach:** Build splice graph -> compute coverage per group -> run deltapsi (replicate-structured) or heterogen (cohort-style).
 
 ```bash
 majiq build annotation.gff3 -c settings.ini -j 8 -o build_output
@@ -229,7 +229,7 @@ Shiba (Kubota 2025 *NAR*) reportedly outperforms rMATS at n=2 vs n=2 by correcti
 
 **Trigger:** A cluster spans a complex topology (cassette + alternative donor in same cluster).
 
-**Mechanism:** Cluster-level p-value reports "something in this cluster differs" but doesn't tell you which intron drove the change; downstream analysis needs per-intron effect sizes.
+**Mechanism:** Cluster-level p-value reports "something in this cluster differs" but doesn't indicate which intron drove the change; downstream analysis needs per-intron effect sizes.
 
 **Symptom:** Significant cluster, multiple introns with different ΔPSI directions, ambiguous biological interpretation.
 
@@ -249,7 +249,7 @@ Shiba (Kubota 2025 *NAR*) reportedly outperforms rMATS at n=2 vs n=2 by correcti
 
 **Trigger:** n<=3 vs n<=3 with `--method empirical`.
 
-**Mechanism:** Empirical null is ECDF of |ΔPSI| from between-replicate comparisons within each group, binned by transcript expression. Few replicates → few null observations → wide confidence on null distribution.
+**Mechanism:** Empirical null is ECDF of |ΔPSI| from between-replicate comparisons within each group, binned by transcript expression. Few replicates -> few null observations -> wide confidence on null distribution.
 
 **Symptom:** Inflated FDR (15-30%); "significant" hits don't replicate or validate.
 
@@ -375,7 +375,7 @@ top_events = sig.nlargest(50, 'score')
 ```
 
 Cross-reference top hits with:
-- **eCLIP/ENCODE RBP target databases** (POSTAR3, oRNAment, RBP2GO) → candidate trans-regulators
+- **eCLIP/ENCODE RBP target databases** (POSTAR3, oRNAment, RBP2GO) -> candidate trans-regulators
 - **Disease-specific signatures**: SF3B1 cryptic 3'ss for MDS/CLL/UM; TDP-43 cryptic exons (UNC13A, STMN2) for ALS/FTD
 - **Conservation**: VastDB cross-species PSI for evolutionary support
 - **Splice-site predictions**: SpliceAI scores for the involved sites (see splice-variant-prediction)

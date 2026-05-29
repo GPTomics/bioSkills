@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Immcantation Analysis
 
-**"Analyze B cell repertoire evolution and clonal lineages"** → Study somatic hypermutation, build B cell phylogenies, and track affinity maturation using the Immcantation framework for BCR repertoire analysis.
+**"Analyze B cell repertoire evolution and clonal lineages"** -> Study somatic hypermutation, build B cell phylogenies, and track affinity maturation using the Immcantation framework for BCR repertoire analysis.
 - R: `alakazam::plotMutability()`, `dowser::buildPhylipLineage()`, `scoper::spectralClones()`
 
 Requires Immcantation suite: alakazam 1.3+, shazam 1.2+, scoper 1.3+, dowser 2.0+, tigger 1.1+.

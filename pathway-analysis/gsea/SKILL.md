@@ -38,7 +38,7 @@ In benchmarks, GSEA-family methods outperform ORA by ~35% higher F1 score on sim
 
 **Approach:** Extract fold changes (or other statistics) from DE results, name by gene ID, and sort in decreasing order.
 
-**"Run GSEA on my differential expression results"** → Rank all genes by expression statistic and test whether predefined gene sets cluster toward the extremes of the ranked list.
+**"Run GSEA on my differential expression results"** -> Rank all genes by expression statistic and test whether predefined gene sets cluster toward the extremes of the ranked list.
 
 ```r
 library(clusterProfiler)

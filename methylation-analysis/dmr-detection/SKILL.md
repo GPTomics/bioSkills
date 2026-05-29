@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # DMR Detection
 
-**"Find differentially methylated regions"** → Identify contiguous genomic regions with statistically significant methylation differences between conditions using tiling, smoothing, or kernel-based approaches.
+**"Find differentially methylated regions"** -> Identify contiguous genomic regions with statistically significant methylation differences between conditions using tiling, smoothing, or kernel-based approaches.
 - R: `methylKit::tileMethylCounts()` + `calculateDiffMeth()`, `bsseq::BSmooth()`, `DMRcate::dmrcate()`
 
 ## methylKit Tile-Based DMRs

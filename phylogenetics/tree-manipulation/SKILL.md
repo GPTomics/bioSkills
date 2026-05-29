@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Tree Manipulation
 
-**"Root and prune my phylogenetic tree"** → Modify tree topology by rooting with outgroups or midpoint, pruning taxa, collapsing low-support clades, ladderizing branches, or extracting subtrees.
+**"Root and prune my phylogenetic tree"** -> Modify tree topology by rooting with outgroups or midpoint, pruning taxa, collapsing low-support clades, ladderizing branches, or extracting subtrees.
 - Python: `tree.root_with_outgroup()`, `tree.prune()`, `tree.ladderize()` (Bio.Phylo)
 
 Modify phylogenetic tree structure: rooting, pruning, ladderizing, and subtree extraction.

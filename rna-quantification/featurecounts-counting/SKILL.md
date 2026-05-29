@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # featureCounts Counting
 
-**"Count reads per gene from my BAM files"** → Assign aligned reads to genomic features using a GTF annotation to produce a gene-by-sample count matrix for DE analysis.
+**"Count reads per gene from my BAM files"** -> Assign aligned reads to genomic features using a GTF annotation to produce a gene-by-sample count matrix for DE analysis.
 - CLI: `featureCounts -a genes.gtf -o counts.txt sample1.bam sample2.bam`
 
 Count reads mapping to genomic features (genes, exons) from BAM files.

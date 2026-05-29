@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Interval Arithmetic
 
-**"Perform set operations on genomic intervals"** → Intersect, subtract, merge, or complement BED/GFF intervals to identify overlapping or unique regions.
+**"Perform set operations on genomic intervals"** -> Intersect, subtract, merge, or complement BED/GFF intervals to identify overlapping or unique regions.
 - CLI: `bedtools intersect -a file1.bed -b file2.bed`, `bedtools merge`, `bedtools subtract`
 - Python: `a.intersect(b)`, `a.subtract(b)`, `a.merge()` (pybedtools)
 

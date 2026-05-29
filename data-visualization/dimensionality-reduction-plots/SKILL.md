@@ -164,7 +164,7 @@ sc.pl.umap(adata, color='leiden', palette='tab20', frameon=False,
 
 **Random seed matters.** UMAP is deterministic given seed; without setting seed, results vary across runs. Always set `random_state` (umap-learn) or `seed=` (uwot).
 
-**scanpy.pl.umap save trap:** `save='_x.pdf'` writes to `sc.settings.figdir` (default `./figures/`) with prefix `umap`, producing `figures/umap_x.pdf` — not the path you specified. Default `dpi_save = 150` is below journal requirements.
+**scanpy.pl.umap save trap:** `save='_x.pdf'` writes to `sc.settings.figdir` (default `./figures/`) with prefix `umap`, producing `figures/umap_x.pdf` — not the path specified. Default `dpi_save = 150` is below journal requirements.
 
 ## PHATE -- For Continuous Trajectories
 

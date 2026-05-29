@@ -33,7 +33,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Outbreak Pipeline
 
-**"Characterize a pathogen outbreak from my isolate sequences"** → Orchestrate MLST typing, SNP phylogeny, TreeTime time-scaled tree construction, TransPhylo transmission inference, AMR profiling, and variant surveillance for genomic epidemiology.
+**"Characterize a pathogen outbreak from my isolate sequences"** -> Orchestrate MLST typing, SNP phylogeny, TreeTime time-scaled tree construction, TransPhylo transmission inference, AMR profiling, and variant surveillance for genomic epidemiology.
 
 Complete workflow for genomic epidemiology: from pathogen isolates to transmission networks and outbreak characterization.
 

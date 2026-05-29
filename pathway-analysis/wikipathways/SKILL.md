@@ -33,7 +33,7 @@ Check the "Last edited" date and contributor for specific pathways before relyin
 
 **Approach:** Test for enrichment using enrichWP against community-curated open-source pathway definitions.
 
-**"Run pathway enrichment against WikiPathways"** → Test whether genes from community-curated WikiPathways are over-represented among significant genes.
+**"Run pathway enrichment against WikiPathways"** -> Test whether genes from community-curated WikiPathways are over-represented among significant genes.
 
 ```r
 library(clusterProfiler)

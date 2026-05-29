@@ -29,7 +29,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # RNA-seq to Differential Expression Workflow
 
-**"Run RNA-seq analysis from FASTQ to differentially expressed genes"** → Orchestrate fastp QC, STAR/HISAT2 alignment, featureCounts/Salmon quantification, DESeq2 differential expression, shrinkage estimation, and results visualization (volcano, MA plots).
+**"Run RNA-seq analysis from FASTQ to differentially expressed genes"** -> Orchestrate fastp QC, STAR/HISAT2 alignment, featureCounts/Salmon quantification, DESeq2 differential expression, shrinkage estimation, and results visualization (volcano, MA plots).
 
 Complete pipeline from raw FASTQ files to differential expression results.
 

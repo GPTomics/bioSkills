@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Mass Spectrometry Data Import
 
-**"Load my mass spec data into Python"** → Parse mzML/mzXML raw files or MaxQuant proteinGroups.txt into data structures for programmatic access and downstream analysis.
+**"Load my mass spec data into Python"** -> Parse mzML/mzXML raw files or MaxQuant proteinGroups.txt into data structures for programmatic access and downstream analysis.
 - Python: `pyopenms.MzMLFile().load()` for raw spectra, `pandas.read_csv()` for search engine outputs
 - R: `MSnbase::readMSData()` for raw, `read.delim()` for MaxQuant/Proteome Discoverer
 

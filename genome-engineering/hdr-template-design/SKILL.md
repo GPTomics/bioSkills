@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # HDR Template Design
 
-**"Design a donor template for my CRISPR knock-in"** → Create homology-directed repair templates (ssODN, dsDNA, or plasmid) with optimized homology arm lengths and silent PAM mutations, using primer3 for flanking primer design.
+**"Design a donor template for my CRISPR knock-in"** -> Create homology-directed repair templates (ssODN, dsDNA, or plasmid) with optimized homology arm lengths and silent PAM mutations, using primer3 for flanking primer design.
 - Python: `primer3.bindings.design_primers()` (primer3-py) for primer/arm design, `Bio.Seq` for template construction
 
 ## Template Types

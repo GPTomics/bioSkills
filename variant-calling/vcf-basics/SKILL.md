@@ -110,7 +110,7 @@ For multiallelic sites with n alleles, PL contains n*(n+1)/2 values covering all
 
 **Approach:** Use bcftools view with flags for header control, region selection, sample extraction, and format conversion.
 
-**"Show me what's in this VCF file"** → Display VCF contents with optional filtering by header, region, or sample.
+**"Show me what's in this VCF file"** -> Display VCF contents with optional filtering by header, region, or sample.
 
 ### View VCF
 ```bash
@@ -148,7 +148,7 @@ bcftools view -s ^sample3 input.vcf.gz
 
 **Approach:** Use bcftools query with format specifiers for CHROM, POS, INFO, and FORMAT fields.
 
-**"Extract positions and genotypes from my VCF"** → Pull specific columns from variant records into a flat text format.
+**"Extract positions and genotypes from my VCF"** -> Pull specific columns from variant records into a flat text format.
 
 Extract specific fields in custom format.
 
@@ -263,7 +263,7 @@ At multiallelic sites (e.g., ALT = G,T), allele indices reference the comma-sepa
 
 **Approach:** Use cyvcf2's VCF reader to iterate variants, access properties/INFO/FORMAT fields, and write filtered output with Writer.
 
-**"Parse this VCF in Python"** → Open VCF with cyvcf2 and iterate variant records with attribute-style access to fields.
+**"Parse this VCF in Python"** -> Open VCF with cyvcf2 and iterate variant records with attribute-style access to fields.
 
 ### Open and Iterate
 ```python

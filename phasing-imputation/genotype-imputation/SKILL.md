@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Genotype Imputation
 
-**"Impute missing genotypes using a reference panel"** → Fill in untyped variants by leveraging LD patterns from a reference panel to increase variant density for GWAS or cross-platform harmonization.
+**"Impute missing genotypes using a reference panel"** -> Fill in untyped variants by leveraging LD patterns from a reference panel to increase variant density for GWAS or cross-platform harmonization.
 - CLI: `java -jar beagle.jar gt=input.vcf ref=panel.vcf out=imputed`
 - CLI: `minimac4 --refHaps panel.m3vcf --haps input.vcf --prefix imputed`
 

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Coverage Analysis
 
-**"Calculate sequencing coverage"** → Compute per-base or per-region depth from BAM files to assess sequencing adequacy.
+**"Calculate sequencing coverage"** -> Compute per-base or per-region depth from BAM files to assess sequencing adequacy.
 - CLI: `bedtools genomecov -ibam input.bam`, `samtools depth input.bam`
 - Python: `pybedtools.BedTool('input.bam').genome_coverage()` (pybedtools)
 

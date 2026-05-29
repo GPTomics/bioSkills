@@ -30,7 +30,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Single-Cell RNA-seq Pipeline
 
-**"Analyze my single-cell RNA-seq data from counts to cell types"** → Orchestrate QC filtering, normalization (scanpy/Seurat), batch integration (scVI/Harmony), clustering, marker detection, cell type annotation, and trajectory inference.
+**"Analyze my single-cell RNA-seq data from counts to cell types"** -> Orchestrate QC filtering, normalization (scanpy/Seurat), batch integration (scVI/Harmony), clustering, marker detection, cell type annotation, and trajectory inference.
 
 Complete workflow from 10X Genomics Cell Ranger output to annotated cell types.
 
@@ -52,10 +52,10 @@ Complete workflow from 10X Genomics Cell Ranger output to annotated cell types.
 [4. HVG Selection] -----> FindVariableFeatures
     |
     v
-[5. Dim Reduction] -----> PCA → UMAP
+[5. Dim Reduction] -----> PCA -> UMAP
     |
     v
-[6. Clustering] --------> FindNeighbors → FindClusters
+[6. Clustering] --------> FindNeighbors -> FindClusters
     |
     v
 [7. Markers] -----------> FindAllMarkers

@@ -23,7 +23,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 **Approach:** Test for enrichment using the hypergeometric test via clusterProfiler enrichKEGG against the KEGG online database.
 
-**"Find enriched KEGG pathways in my gene list"** → Test whether KEGG pathway gene sets are over-represented among significant genes.
+**"Find enriched KEGG pathways in my gene list"** -> Test whether KEGG pathway gene sets are over-represented among significant genes.
 
 ```r
 library(clusterProfiler)

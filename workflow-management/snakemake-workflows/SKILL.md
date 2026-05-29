@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Snakemake Workflows
 
-**"Build a reproducible bioinformatics pipeline with Snakemake"** → Define analysis steps as rules with input/output declarations, automatic dependency resolution via wildcards, and cluster execution support for HPC/cloud environments.
+**"Build a reproducible bioinformatics pipeline with Snakemake"** -> Define analysis steps as rules with input/output declarations, automatic dependency resolution via wildcards, and cluster execution support for HPC/cloud environments.
 - Python: Snakefile rule syntax with `expand()`, `wildcards`, and `config` for parameterization
 
 Compatible with Snakemake 7.x, 8.x, and 9.x. For Snakemake 8.0+, use `--executor` instead of `--cluster`.

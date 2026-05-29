@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Long-Read Quality Control
 
-**"Check the quality of my Nanopore/PacBio run"** → Generate read length distributions, quality score plots, and summary statistics, then filter reads by length and quality thresholds.
+**"Check the quality of my Nanopore/PacBio run"** -> Generate read length distributions, quality score plots, and summary statistics, then filter reads by length and quality thresholds.
 - CLI: `NanoPlot --fastq reads.fq.gz -o nanoplot_output/`, `chopper -q 10 -l 1000 < reads.fq > filtered.fq`
 
 ## NanoPlot - Visualization

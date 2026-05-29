@@ -121,10 +121,10 @@ Indicates poor Tn5 activity or over-tagmentation. Re-do with titrated Tn5; verif
 
 ### MACS2 peak calling produces few peaks
 
-1. `-f BAM` instead of `-f BAMPE` → switch
-2. `--keep-dup auto` removed CUT&Tag biology → use `--keep-dup all`
-3. `-q 0.05` too lenient for very-low-background CUT&Tag → tighten to `-q 0.01`
-4. Library too shallow → 3-5M reads minimum
+1. `-f BAM` instead of `-f BAMPE` -> switch
+2. `--keep-dup auto` removed CUT&Tag biology -> use `--keep-dup all`
+3. `-q 0.05` too lenient for very-low-background CUT&Tag -> tighten to `-q 0.01`
+4. Library too shallow -> 3-5M reads minimum
 
 ### Adapter content high in FASTQ
 

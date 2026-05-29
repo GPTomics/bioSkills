@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Hi-C Matrix Operations
 
-**"Normalize my Hi-C contact matrix"** → Apply iterative correction (ICE/KR balancing), compute distance-decay expected values, and generate observed/expected ratio matrices.
+**"Normalize my Hi-C contact matrix"** -> Apply iterative correction (ICE/KR balancing), compute distance-decay expected values, and generate observed/expected ratio matrices.
 - Python: `cooler.balance_cooler(clr)`, `cooltools.expected_cis(clr)`
 
 Balance, normalize, and transform contact matrices.

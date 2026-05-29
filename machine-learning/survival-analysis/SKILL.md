@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Survival Prediction with lifelines
 
-**"Analyze patient survival data"** → Estimate survival curves (Kaplan-Meier), compare groups (log-rank test), and model time-to-event outcomes with Cox proportional hazards regression.
+**"Analyze patient survival data"** -> Estimate survival curves (Kaplan-Meier), compare groups (log-rank test), and model time-to-event outcomes with Cox proportional hazards regression.
 - Python: `lifelines.KaplanMeierFitter()`, `lifelines.CoxPHFitter()`
 
 ## Kaplan-Meier Curves

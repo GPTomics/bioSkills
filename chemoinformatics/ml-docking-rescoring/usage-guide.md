@@ -24,7 +24,7 @@ Tell the AI agent what to do:
 ## Example Prompts
 
 ### Hybrid VS pipeline
-> "For 100 ligands in lib.csv against receptor.pdb: DiffDock-L sample 5 poses each → GNINA CNN rescore → PoseBusters filter. Output top 10 PB-valid + RMSD-validated."
+> "For 100 ligands in lib.csv against receptor.pdb: DiffDock-L sample 5 poses each -> GNINA CNN rescore -> PoseBusters filter. Output top 10 PB-valid + RMSD-validated."
 
 ### Boltz-2 affinity triage
 > "Boltz-2 affinity prediction for 1000 SMILES against PDB 4XYZ. Rank by predicted affinity. Output top 50 for FEP follow-up."

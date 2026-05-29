@@ -17,12 +17,12 @@ package and adapt the example to match the actual API rather than retrying.
 
 # TCR/BCR Analysis Pipeline
 
-**"Analyze my TCR/BCR repertoire sequencing data end-to-end"** → Orchestrate MiXCR clonotype extraction, VDJtools diversity/repertoire analysis, Immcantation SHM and lineage analysis, and visualization of V/J gene usage and clonal dynamics.
+**"Analyze my TCR/BCR repertoire sequencing data end-to-end"** -> Orchestrate MiXCR clonotype extraction, VDJtools diversity/repertoire analysis, Immcantation SHM and lineage analysis, and visualization of V/J gene usage and clonal dynamics.
 
 ## Pipeline Overview
 
 ```
-FASTQ → MiXCR align → Assemble → Export → VDJtools diversity → Visualization
+FASTQ -> MiXCR align -> Assemble -> Export -> VDJtools diversity -> Visualization
 ```
 
 ## Step 1: MiXCR Processing

@@ -36,7 +36,7 @@ Tell the AI agent what to do:
 
 ## What the Agent Will Do
 
-1. Set up perturbation: ligand1 → ligand2 (RBFE) or ligand → uncoupled (ABFE).
+1. Set up perturbation: ligand1 -> ligand2 (RBFE) or ligand -> uncoupled (ABFE).
 2. Build hybrid topology with atom mapping (LOMAP for RBFE).
 3. Generate lambda window schedule (12-20 windows typical).
 4. Equilibrate each window, then production MD (5-20 ns/window).

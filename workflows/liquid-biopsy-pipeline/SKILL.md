@@ -19,14 +19,14 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Liquid Biopsy Analysis Pipeline
 
-**"Analyze my liquid biopsy cfDNA data end-to-end"** → Orchestrate UMI-aware preprocessing (fgbio), ctDNA mutation detection (VarDict), tumor fraction estimation (ichorCNA), fragmentomics analysis, and longitudinal monitoring for treatment response.
+**"Analyze my liquid biopsy cfDNA data end-to-end"** -> Orchestrate UMI-aware preprocessing (fgbio), ctDNA mutation detection (VarDict), tumor fraction estimation (ichorCNA), fragmentomics analysis, and longitudinal monitoring for treatment response.
 
 Complete workflow for cfDNA analysis from sequencing to clinical interpretation.
 
 ## Pipeline Overview
 
 ```
-Pre-analytical QC → cfDNA Preprocessing → Fragment QC
+Pre-analytical QC -> cfDNA Preprocessing -> Fragment QC
                           ↓
         ┌─────────────────┴─────────────────┐
         ↓                                   ↓

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # HiFi Assembly
 
-**"Assemble a genome from HiFi reads"** → Build a phased, reference-quality diploid assembly from PacBio HiFi reads with optional trio or Hi-C phasing for full haplotype resolution.
+**"Assemble a genome from HiFi reads"** -> Build a phased, reference-quality diploid assembly from PacBio HiFi reads with optional trio or Hi-C phasing for full haplotype resolution.
 - CLI: `hifiasm -o output reads.fq.gz`
 
 ## Basic Assembly

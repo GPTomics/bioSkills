@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Temporal Gene Clustering
 
-**"Group my time-course genes by expression pattern shape"** → Cluster temporally variable genes into co-expression modules by trajectory shape using fuzzy c-means (Mfuzz), hierarchical methods, or DTW-based approaches, revealing coordinated response patterns.
+**"Group my time-course genes by expression pattern shape"** -> Cluster temporally variable genes into co-expression modules by trajectory shape using fuzzy c-means (Mfuzz), hierarchical methods, or DTW-based approaches, revealing coordinated response patterns.
 - R: `Mfuzz::mfuzz()` for soft (fuzzy) temporal clustering
 - Python: `sklearn.cluster.KMeans` on z-scored time profiles for hard clustering
 

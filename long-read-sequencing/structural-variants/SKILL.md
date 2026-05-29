@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Structural Variant Detection
 
-**"Call structural variants from my long reads"** → Detect large deletions, insertions, inversions, duplications, and translocations with precise breakpoint resolution from ONT or PacBio alignments.
+**"Call structural variants from my long reads"** -> Detect large deletions, insertions, inversions, duplications, and translocations with precise breakpoint resolution from ONT or PacBio alignments.
 - CLI: `sniffles --input aligned.bam --vcf svs.vcf`, `cuteSV aligned.bam ref.fa svs.vcf output/`
 
 ## Sniffles2 - Basic SV Calling

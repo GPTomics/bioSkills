@@ -129,7 +129,7 @@ def replicate_concordance(counts_df, condition_map):
 | Pearson on log10(counts+1) | >0.95 | >0.85 | <0.80 |
 | Spearman on raw ranks | >0.85 | >0.70 | <0.60 |
 
-**When Pearson is high but Spearman is low**, you have a few outlier sgRNAs driving correlation (one extreme guide dominates). Inspect the scatterplot; typically caused by PCR jackpotting at a single guide. Hit calling should use a method that ranks (RRA, drugZ) rather than one that fits per-sgRNA fold change directly.
+**When Pearson is high but Spearman is low**, a few outlier sgRNAs are driving correlation (one extreme guide dominates). Inspect the scatterplot; typically caused by PCR jackpotting at a single guide. Hit calling should use a method that ranks (RRA, drugZ) rather than one that fits per-sgRNA fold change directly.
 
 ## Essentialome Recovery (CEGv2 PR-AUC)
 

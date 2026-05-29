@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Interactive Annotation
 
-**"Manually annotate cell types in my IMC data"** → Interactively label cells using napari visualization with marker overlays for training classifiers or validating automated phenotyping results.
+**"Manually annotate cell types in my IMC data"** -> Interactively label cells using napari visualization with marker overlays for training classifiers or validating automated phenotyping results.
 - Python: `napari.Viewer()` with label layer for interactive annotation
 
 ## Napari-Based Annotation

@@ -31,7 +31,7 @@ A forest plot's bottom must report: pooled estimate + 95% CI + I² + τ² (betwe
 | Analysis | Tool | Pooling model | Forest method |
 |----------|------|---------------|---------------|
 | Single-trial subgroup HRs | survminer::ggforest | None (subgroup display) | Coxph object |
-| Meta-analysis of binary outcomes | metafor::rma → forest() | DerSimonian-Laird or REML random-effects | Standard forest |
+| Meta-analysis of binary outcomes | metafor::rma -> forest() | DerSimonian-Laird or REML random-effects | Standard forest |
 | Meta-analysis of continuous outcomes | metafor::rma(yi, vi) | REML random-effects | Standard forest |
 | Mendelian randomization | MendelianRandomization::mr_forest | Multiple MR methods | MR-specific forest |
 | Subgroup forest with interaction p | metafor::rma + addpoly + interaction model | Subgroup REML | Nested forest |
@@ -218,7 +218,7 @@ funnel(res, level = c(90, 95, 99), shade = c('white', 'gray55', 'gray75'),
 | Pattern | Cause | Action |
 |---------|-------|--------|
 | Fixed-effect significant; random-effects n.s. | High heterogeneity inflates RE variance | Trust random-effects when I² > 30% |
-| Egger n.s. but funnel looks asymmetric | k < 10 → Egger underpowered | Trust visual; report contour-enhanced funnel |
+| Egger n.s. but funnel looks asymmetric | k < 10 -> Egger underpowered | Trust visual; report contour-enhanced funnel |
 | Trim-and-fill imputes many studies | Severe asymmetry | Caution; sensitivity, not primary |
 | Subgroup forest suggests effect modification; interaction test n.s. | Visual difference does not establish formal interaction | Trust interaction test |
 | MR forest shows divergent estimates across methods | Pleiotropy or weak instruments | Run MR-Egger, weighted median, mode-based (sensitivity); cite Bowden 2015 |

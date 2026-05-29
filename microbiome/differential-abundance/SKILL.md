@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Differential Abundance Testing
 
-**"Find which taxa differ between my groups"** → Identify differentially abundant taxa between experimental conditions using compositionally-aware methods that account for the relative nature of microbiome data.
+**"Find which taxa differ between my groups"** -> Identify differentially abundant taxa between experimental conditions using compositionally-aware methods that account for the relative nature of microbiome data.
 - R: `ALDEx2::aldex()` for CLR-transformed Welch's t-test
 - R: `ANCOMBC::ancombc2()` for bias-corrected log-linear models
 - R: `Maaslin2::Maaslin2()` for multivariable association

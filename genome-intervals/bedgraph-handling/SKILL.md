@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # bedGraph Handling
 
-**"Work with bedGraph signal tracks"** → Create, manipulate, and convert bedGraph files for displaying coverage or signal intensity on genome browsers.
+**"Work with bedGraph signal tracks"** -> Create, manipulate, and convert bedGraph files for displaying coverage or signal intensity on genome browsers.
 - CLI: `bedtools genomecov -bg` to generate, `bedGraphToBigWig` to convert
 - Python: `pyBigWig`, `pybedtools`
 

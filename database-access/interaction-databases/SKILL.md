@@ -116,7 +116,7 @@ Direct REST API has changed multiple times; the most stable access is via OmniPa
 
 SIGNOR (Lo Surdo et al. 2023 *Nucleic Acids Res* 51:D631) is **the only major curated database with signed, directed, mechanism-typed interactions**. Each edge has:
 
-- `direction`: A→B
+- `direction`: A->B
 - `effect`: `up-regulates`, `down-regulates`, `unknown`
 - `mechanism`: `phosphorylation`, `dephosphorylation`, `ubiquitination`, `binding`, etc.
 

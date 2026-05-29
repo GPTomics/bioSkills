@@ -291,9 +291,9 @@ def find_alphamissense_pathogenic(gene, min_score=0.564):
 | Pushback | Standard response |
 |----------|-------------------|
 | "myvariant.info is just an aggregator; why not query sources directly?" | Aggregator avoids per-source API setup; sufficient for single-source unique queries we defer to source-specific skills. |
-| "Your annotation differs from VarSome" | VarSome uses its own ACMG implementation; myvariant.info does NOT produce ACMG calls; we pair with `acmg-classification`. |
+| "This annotation differs from VarSome" | VarSome uses its own ACMG implementation; myvariant.info does NOT produce ACMG calls; we pair with `acmg-classification`. |
 | "dbNSFP REVEL differs from REVEL website" | dbNSFP version is on the order of 1 year behind primary; check `_meta.src.dbnsfp.version`. |
-| "You missed AlphaMissense calibration thresholds" | AlphaMissense is integrated via dbNSFP; PP3 calibration is in `clinical-databases/acmg-classification` skill. |
+| "AlphaMissense calibration thresholds were missed" | AlphaMissense is integrated via dbNSFP; PP3 calibration is in `clinical-databases/acmg-classification` skill. |
 | "Why not OpenCRAVAT?" | OpenCRAVAT requires local install; myvariant is faster for batch annotation. Switch to OpenCRAVAT for PHI-sensitive or offline workflows. |
 
 ## References

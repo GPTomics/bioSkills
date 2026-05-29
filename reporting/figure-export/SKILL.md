@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Publication-Ready Figure Export
 
-**"Export figures for publication"** → Save plots as high-resolution PDF/SVG/TIFF with journal-required DPI and dimensions.
+**"Export figures for publication"** -> Save plots as high-resolution PDF/SVG/TIFF with journal-required DPI and dimensions.
 - Python: `fig.savefig('fig.pdf', dpi=300, bbox_inches='tight')`
 - R: `ggsave('fig.pdf', width=7, height=5, units='in')`
 

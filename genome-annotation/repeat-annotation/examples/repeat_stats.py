@@ -70,9 +70,11 @@ def repeat_summary(rm_df, genome_size):
 def repeat_landscape(rm_df, output_file='repeat_landscape.png'):
     '''Plot repeat divergence landscape showing TE accumulation history.
 
-    Low divergence = recent insertions.
-    High divergence = ancient insertions.
-    Peaks indicate bursts of TE activity.
+    Uses the RepeatMasker .out perc_div column, which is UNCORRECTED percent
+    substitution from consensus -- a quick proxy for relative age (low = recent,
+    high = ancient). For a true CpG-aware Kimura (K2P) landscape, run
+    calcDivergenceFromAlign.pl on the .align file then createRepeatLandscape.pl.
+    The landscape is right-censored: the most ancient copies decayed past detection.
     '''
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -88,9 +90,9 @@ def repeat_landscape(rm_df, output_file='repeat_landscape.png'):
             ax.hist(subset['perc_div'], bins=50, range=(0, 50), weights=subset['length'],
                     alpha=0.6, label=f'{cls} ({len(subset):,})', color=color)
 
-    ax.set_xlabel('Kimura Divergence from Consensus (%)')
+    ax.set_xlabel('Substitution from Consensus (% uncorrected, RepeatMasker .out)')
     ax.set_ylabel('Base Pairs')
-    ax.set_title('Repeat Landscape')
+    ax.set_title('Repeat Landscape (relative age; .align needed for CpG-corrected Kimura)')
     ax.legend()
     plt.savefig(output_file, dpi=150, bbox_inches='tight')
     plt.close()

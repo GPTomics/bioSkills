@@ -19,12 +19,9 @@ install.packages('Seurat')
 ## Quick Start
 
 Ask your AI agent:
-
-> "Run QC on my single-cell data and filter low-quality cells"
-
-> "Normalize my scRNA-seq data and find highly variable genes"
-
-> "Preprocess this 10X data for clustering"
+- "Run QC on my single-cell data and filter low-quality cells"
+- "Normalize my scRNA-seq data and find highly variable genes"
+- "Preprocess this 10X data for clustering"
 
 ## Example Prompts
 

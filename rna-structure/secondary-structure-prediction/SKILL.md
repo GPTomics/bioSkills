@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Secondary Structure Prediction
 
-**"Predict the secondary structure of my RNA sequence"** → Compute minimum free energy (MFE) folding, base-pair probabilities via partition function, and consensus structures from alignments using thermodynamic models.
+**"Predict the secondary structure of my RNA sequence"** -> Compute minimum free energy (MFE) folding, base-pair probabilities via partition function, and consensus structures from alignments using thermodynamic models.
 - CLI: `RNAfold` for single-sequence MFE/partition folding
 - CLI: `RNAalifold` for consensus structure from alignment
 - CLI: `RNAcofold` for RNA-RNA interaction structure

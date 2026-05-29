@@ -12,7 +12,7 @@ Reference examples tested with: TransPhylo 1.4+ (R), outbreaker2 1.2+ (R), phybr
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('TransPhylo')`; `?inferTTree` to confirm arg names
 - R: `packageVersion('outbreaker2')`; `?create_config` -- iteration count is set via `n_iter` in the `config` object, NOT as `iters` to `outbreaker()`
-- Python: `pip show lofreq`; check whether deep variant calling supports your MAF target
+- Python: `pip show lofreq`; check whether deep variant calling supports the target MAF
 - CLI: `snp-dists --help`; `hiv-trace --help`
 
 If R rejects an argument, the function signature changed between minor releases; `?function_name` is authoritative.
@@ -286,14 +286,14 @@ CRITICAL: a number from one pathogen does NOT transfer to another. Always cite t
 | Pushback | Response |
 |----------|----------|
 | "What SNP threshold and on what population?" | Cite Walker 2013 / Eyre 2013 / Coll 2017 per pathogen; caveat the population if extrapolating |
-| "Did you handle unsampled intermediates?" | outbreaker2 `pi` parameter or TransPhylo / SCOTTI explicit modelling; never a raw SNP-distance method on sub-sampled data |
+| "Were unsampled intermediates handled?" | outbreaker2 `pi` parameter or TransPhylo / SCOTTI explicit modelling; never a raw SNP-distance method on sub-sampled data |
 | "Direction of transmission inference?" | Within-host samples + contact tracing required for direction; otherwise "consistent with" phrasing |
 | "Generation interval vs serial interval?" | Documented `w_dens` source; cite Britton 2019 if SI used as approximation for GI |
 | "Why TransPhylo / outbreaker2 / phybreak?" | Decision tree based on sampling completeness, dataset size, contact-tracing availability |
 | "Was within-host diversity considered?" | TransPhylo's within-host coalescent OR BadTrIP for mixed-strain; bottleneck size from Sobel Leonard 2017 if relevant |
 | "HIV-TRACE 1.5% threshold outside subtype B?" | Acknowledged US-CDC subtype B origin; either use locally validated threshold or document caveat |
 | "Source attribution sampling-intensity bias?" | Re-weighted reference collection or rarified; cite Mather 2013 limitation |
-| "Did you run forward simulation as sanity check?" | SLiM / FAVITES / SEEDY if claims are high-stakes; routinely under-done in published transmission inference |
+| "Was forward simulation run as a sanity check?" | SLiM / FAVITES / SEEDY if claims are high-stakes; routinely under-done in published transmission inference |
 
 ## References
 

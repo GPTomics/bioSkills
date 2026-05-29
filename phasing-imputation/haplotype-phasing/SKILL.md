@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Haplotype Phasing
 
-**"Phase my genotypes into haplotypes"** → Resolve which alleles are inherited together on each chromosome for downstream imputation, HLA typing, or population genetic analyses.
+**"Phase my genotypes into haplotypes"** -> Resolve which alleles are inherited together on each chromosome for downstream imputation, HLA typing, or population genetic analyses.
 - CLI: `java -jar beagle.jar gt=input.vcf out=phased` (Beagle 5.4)
 - CLI: `shapeit4 --input input.vcf --output phased.vcf` (SHAPEIT)
 

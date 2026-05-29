@@ -115,9 +115,9 @@ hetSNP / peak chromosome naming mismatch. Standardize chr prefixes.
 
 ### RASQUAL convergence failure
 
-1. Sparse hetSNPs per peak → require more samples or combine peaks
-2. Strong CN imbalance → use BaalChIP
-3. Imputation quality poor → require r² > 0.8
+1. Sparse hetSNPs per peak -> require more samples or combine peaks
+2. Strong CN imbalance -> use BaalChIP
+3. Imputation quality poor -> require r² > 0.8
 
 ### AlleleSeq "diploid genome too large"
 
@@ -129,9 +129,9 @@ ASB needs ≥20 reads per allele to detect a 2:1 ratio at p<0.05. Increase seque
 
 ### Disagreement with chromBPNet predictions
 
-1. ASB sample has low coverage at variant → boost depth
-2. chromBPNet model may be in extrapolation regime → check ensemble agreement
-3. Variant in context the model didn't see → caution
+1. ASB sample has low coverage at variant -> boost depth
+2. chromBPNet model may be in extrapolation regime -> check ensemble agreement
+3. Variant in context the model didn't see -> caution
 
 ## Related Skills
 

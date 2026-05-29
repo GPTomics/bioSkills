@@ -27,7 +27,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metabolomics Pipeline
 
-**"Process my LC-MS metabolomics data end-to-end"** → Orchestrate XCMS peak detection, RT alignment, grouping, normalization/QC, metabolite annotation, statistical analysis, and pathway mapping for untargeted metabolomics.
+**"Process my LC-MS metabolomics data end-to-end"** -> Orchestrate XCMS peak detection, RT alignment, grouping, normalization/QC, metabolite annotation, statistical analysis, and pathway mapping for untargeted metabolomics.
 
 ## Pipeline Overview
 

@@ -30,7 +30,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Neoantigen Pipeline
 
-**"Predict neoantigens from my tumor sequencing data"** → Orchestrate HLA typing (OptiType), somatic variant calling, pVACtools neoantigen prediction, MHC binding scoring, and immunogenicity-based candidate ranking for personalized cancer immunotherapy.
+**"Predict neoantigens from my tumor sequencing data"** -> Orchestrate HLA typing (OptiType), somatic variant calling, pVACtools neoantigen prediction, MHC binding scoring, and immunogenicity-based candidate ranking for personalized cancer immunotherapy.
 
 Complete workflow from somatic variants to ranked neoantigen vaccine candidates for personalized cancer immunotherapy.
 

@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Read biological sequence data from files using Biopython's Bio.SeqIO module.
 
-**"Read sequences from a file"** → Parse file into a collection of SeqRecord objects with IDs, sequences, and annotations accessible.
+**"Read sequences from a file"** -> Parse file into a collection of SeqRecord objects with IDs, sequences, and annotations accessible.
 - Python: `SeqIO.parse()` or `SeqIO.read()` (BioPython)
 - R: `readDNAStringSet()` or `readAAStringSet()` (Biostrings)
 
@@ -296,8 +296,8 @@ Need to read sequences?
 │   ├── Process one at a time (memory efficient)?
 │   │   └── Use SeqIO.parse() iterator
 │   ├── Large file, need random access by ID?
-│   │   ├── Single session? → Use SeqIO.index()
-│   │   └── Persistent/multi-file? → Use SeqIO.index_db()
+│   │   ├── Single session? -> Use SeqIO.index()
+│   │   └── Persistent/multi-file? -> Use SeqIO.index_db()
 │   └── Maximum throughput needed?
 │       └── Use SimpleFastaParser or FastqGeneralIterator
 ├── Sanger sequencing trace?
@@ -315,5 +315,5 @@ Need to read sequences?
 - format-conversion - Convert between formats
 - compressed-files - Read gzip/bzip2/BGZF compressed sequence files
 - sequence-manipulation/seq-objects - Work with parsed SeqRecord objects
-- database-access - Fetch sequences from NCBI instead of local files
-- alignment-files - For SAM/BAM/CRAM alignment files, use samtools/pysam
+- database-access/entrez-fetch - Fetch sequences from NCBI instead of local files
+- alignment-files/sam-bam-basics - For SAM/BAM/CRAM alignment files, use samtools/pysam

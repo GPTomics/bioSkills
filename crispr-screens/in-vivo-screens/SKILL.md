@@ -50,7 +50,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 **Standard focused-library principles:**
 
-1. **Gene selection:** Define the biology you want to test (e.g., immune evasion, metastasis); restrict library to genes plausibly involved (kinases, surface proteins, regulators)
+1. **Gene selection:** Define the biology to be tested (e.g., immune evasion, metastasis); restrict library to genes plausibly involved (kinases, surface proteins, regulators)
 2. **Library size:** 500-3,000 genes; 3-6 sgRNAs/gene; total 3,000-18,000 sgRNAs
 3. **Coverage achievable:** With 5M cells implanted, 100-300x coverage is achievable
 

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Epitope Prediction
 
-**"Predict B-cell and T-cell epitopes in my protein"** → Identify immunogenic regions in antigens for vaccine design using sequence-based and structure-based prediction tools.
+**"Predict B-cell and T-cell epitopes in my protein"** -> Identify immunogenic regions in antigens for vaccine design using sequence-based and structure-based prediction tools.
 - Python: IEDB API for B-cell epitope prediction (BepiPred)
 - Python: `mhcflurry` for T-cell epitope MHC binding prediction
 

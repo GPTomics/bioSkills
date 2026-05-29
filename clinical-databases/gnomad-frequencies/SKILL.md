@@ -25,7 +25,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 ## v2.1.1 / v3.1.2 / v4.x: When to Use Which
 
-This is the most consequential decision in any gnomAD query. The releases are **not interchangeable**; choice determines what you can and cannot say about a variant.
+This is the most consequential decision in any gnomAD query. The releases are **not interchangeable**; choice determines what can and cannot be said about a variant.
 
 | Release | Build | Samples | Use when | Fails when |
 |---------|-------|---------|----------|-----------|
@@ -395,11 +395,11 @@ def filter_rare_variants_hail(input_vcf, max_grpmax_faf95=0.0001, output_path='f
 |----------|-------------------|
 | "Why FAF95 instead of AF?" | Raw AF is point estimate; FAF95 is Poisson lower-bound 95% CI; ClinGen SVI recommendation for BS1/BA1. |
 | "Why exclude FIN and ASJ from grpmax?" | Founder-population pathogenic variants reach high AF locally; including them would trigger false BA1. |
-| "Your LOEUF differs from the 2020 paper" | We use v4 March 2024 constraint (807k samples); 2020 paper used v2 (141k samples). Decile rank is stable; absolute shifted. |
+| "This LOEUF differs from the 2020 paper" | We use v4 March 2024 constraint (807k samples); 2020 paper used v2 (141k samples). Decile rank is stable; absolute shifted. |
 | "Why not v4 for chrX constraint?" | v4 March 2024 constraint release is autosomes only; chrX/Y not yet released as of 2025. Fall back to v2. |
 | "Why v3 if v4 exists?" | v4 genomes = v3 genomes reprocessed; for genome-only analysis they are equivalent. |
 | "Variant exists in liftover v2 but not v4" | ~0.5-1% of sites differ post-assembly fixes; use v4 native, not liftover, as ground truth. |
-| "Browser AF higher than your value" | Browser includes flagged variants by default; we filter on PASS. |
+| "Browser AF higher than this value" | Browser includes flagged variants by default; we filter on PASS. |
 
 ## References
 

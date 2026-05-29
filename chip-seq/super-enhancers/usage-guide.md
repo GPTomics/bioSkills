@@ -85,16 +85,16 @@ Tell the agent what to do:
 
 ### Too few SE called
 
-1. Hockey-stick inflection failed → check `_Plot_points.png`; need ≥ 5000 enhancer peaks
-2. Stitching distance too small for biology → try `-s 15000` or `-s 25000` for tissue samples
-3. TSS exclusion too aggressive → reduce `-t 500` if including promoter-proximal SE
-4. Input control too strong → consider running without input or with LILY's variant
+1. Hockey-stick inflection failed -> check `_Plot_points.png`; need ≥ 5000 enhancer peaks
+2. Stitching distance too small for biology -> try `-s 15000` or `-s 25000` for tissue samples
+3. TSS exclusion too aggressive -> reduce `-t 500` if including promoter-proximal SE
+4. Input control too strong -> consider running without input or with LILY's variant
 
 ### Too many SE called
 
-1. Hyper-ChIPable artifacts inflated input → filter blacklist + custom top-1% input signal
-2. Insufficient differentiation in signal distribution → hockey-stick fails; check `_Plot_points.png`
-3. Threshold not biologically meaningful → use top 5-10% by signal as alternative
+1. Hyper-ChIPable artifacts inflated input -> filter blacklist + custom top-1% input signal
+2. Insufficient differentiation in signal distribution -> hockey-stick fails; check `_Plot_points.png`
+3. Threshold not biologically meaningful -> use top 5-10% by signal as alternative
 
 ### SE counts differ between conditions
 
@@ -107,9 +107,9 @@ Fix the confounding before interpreting: spike-in normalize and quantify on unio
 
 ### CRC network has too many components / too few
 
-1. Too many TFs (default lists may include non-master TFs) → restrict to TFs with motifs in own SE
-2. Too few cross-bindings → check motif quality (use HOCOMOCO v12 not JASPAR for robust calls)
-3. Cell type with no master regulators (rare) → CRC may not apply
+1. Too many TFs (default lists may include non-master TFs) -> restrict to TFs with motifs in own SE
+2. Too few cross-bindings -> check motif quality (use HOCOMOCO v12 not JASPAR for robust calls)
+3. Cell type with no master regulators (rare) -> CRC may not apply
 
 ### Differential SE all "novel" gain/loss
 

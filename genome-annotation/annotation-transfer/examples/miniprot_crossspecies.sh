@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: BioPython 1.83+, pandas 2.2+ | Verify API if version differs
+# Reference: miniprot 0.13+ | Verify API if version differs
 # Cross-species annotation transfer with MiniProt
 set -euo pipefail
 
@@ -28,14 +28,16 @@ miniprot -t $THREADS -d ${OUTDIR}/target.mpi $TARGET
 # Align proteins to genome
 # --gff: GFF3 output with gene models
 # -G: Max intron size (species-dependent)
-# --outs: Include secondary alignments (for paralogs/recent duplications)
+# Secondary alignments (paralogs/recent duplications) are emitted by default; tune with
+# --outn (max alignments per protein) and --outs (min secondary-to-best score ratio).
+# RAISING --outs is a STRICTER filter that suppresses secondaries -- do not raise it to "include" them.
 echo ""
 echo "Aligning proteins to genome..."
 miniprot \
     -t $THREADS \
     --gff \
     -G $MAX_INTRON \
-    --outs 0.95 \
+    --outn 5 \
     ${OUTDIR}/target.mpi \
     $PROTEINS > ${OUTDIR}/miniprot_alignments.gff
 

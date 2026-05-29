@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Proximity Operations
 
-**"Find nearest features or extend intervals"** → Identify the closest genomic feature to each interval, or expand intervals by a fixed flank size.
+**"Find nearest features or extend intervals"** -> Identify the closest genomic feature to each interval, or expand intervals by a fixed flank size.
 - CLI: `bedtools closest -a peaks.bed -b genes.bed`, `bedtools slop -b 1000`
 - Python: `a.closest(b)`, `a.slop(b=1000, g=genome)` (pybedtools)
 

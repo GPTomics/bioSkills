@@ -27,7 +27,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Expression to Pathways Workflow
 
-**"Find enriched pathways from my differential expression results"** → Orchestrate GO enrichment (clusterProfiler), GSEA, KEGG/Reactome pathway mapping, and enrichment visualization from DE gene lists or ranked gene lists.
+**"Find enriched pathways from my differential expression results"** -> Orchestrate GO enrichment (clusterProfiler), GSEA, KEGG/Reactome pathway mapping, and enrichment visualization from DE gene lists or ranked gene lists.
 
 Convert differential expression results into biological insights through functional enrichment analysis.
 

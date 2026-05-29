@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Structure Modification
 
-**"Extract a chain from a PDB file"** → Remove/add atoms, residues, or chains; transform coordinates; modify B-factors and occupancies; build structures programmatically.
+**"Extract a chain from a PDB file"** -> Remove/add atoms, residues, or chains; transform coordinates; modify B-factors and occupancies; build structures programmatically.
 - Python: `Bio.PDB.PDBIO()` with `Select` subclass for filtering, `Bio.PDB.Superimposer()` for transforms
 
 Transform coordinates, remove/add entities, modify properties, and build structures programmatically.

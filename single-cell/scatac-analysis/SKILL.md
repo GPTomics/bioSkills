@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # scATAC-seq Analysis
 
-**"Analyze my single-cell ATAC-seq data"** → Process peak-barcode matrices, perform QC/filtering, reduce dimensions with LSI, cluster cells, call peaks per cluster, and score motif activity.
-- R: `Signac::CreateChromatinAssay()` → `RunTFIDF()` → `FindTopFeatures()` → `RunSVD()`
+**"Analyze my single-cell ATAC-seq data"** -> Process peak-barcode matrices, perform QC/filtering, reduce dimensions with LSI, cluster cells, call peaks per cluster, and score motif activity.
+- R: `Signac::CreateChromatinAssay()` -> `RunTFIDF()` -> `FindTopFeatures()` -> `RunSVD()`
 - R: `ArchR::createArrowFiles()` for large datasets
 
 Analyze single-cell chromatin accessibility data to identify cell types and regulatory elements.
@@ -322,5 +322,5 @@ plotVariability(variability, use_plotly = FALSE)
 - preprocessing - scRNA-seq QC (similar concepts)
 - clustering - Clustering approaches (shared with scRNA-seq)
 - multimodal-integration - Joint scRNA+scATAC analysis
-- atac-seq - Bulk ATAC-seq methods
+- atac-seq/atac-peak-calling - Bulk ATAC-seq methods
 - chip-seq/motif-analysis - Motif databases and analysis

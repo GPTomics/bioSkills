@@ -290,7 +290,7 @@ Drop sub-populations failing futility; re-power on responders. **Closed-test sta
 
 ### Drop-the-loser vs promising-the-winner
 
-- **Adaptive arm-dropping (futility):** Bayesian posterior probability of beating control drops below threshold → arm closes. Mathematically straightforward; FDA-acceptable.
+- **Adaptive arm-dropping (futility):** Bayesian posterior probability of beating control drops below threshold -> arm closes. Mathematically straightforward; FDA-acceptable.
 - **"Promising-the-winner" (graduate to Phase 3):** introduces selection bias. Bias-adjusted estimators (Robertson 2023; conditional MLE) now standard in I-SPY 2 reports.
 
 ## Phase I Dose-Finding -- BOIN, mTPI, CRM

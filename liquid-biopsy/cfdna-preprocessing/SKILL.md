@@ -18,8 +18,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # cfDNA Preprocessing
 
-**"Preprocess my cfDNA sequencing data"** → Process cell-free DNA reads with UMI extraction, consensus calling, and error suppression for sensitive variant detection.
-- CLI: `fgbio FastqToBam` → `fgbio GroupReadsByUmi` → `fgbio CallMolecularConsensusReads`
+**"Preprocess my cfDNA sequencing data"** -> Process cell-free DNA reads with UMI extraction, consensus calling, and error suppression for sensitive variant detection.
+- CLI: `fgbio FastqToBam` -> `fgbio GroupReadsByUmi` -> `fgbio CallMolecularConsensusReads`
 
 Preprocess cell-free DNA sequencing data with UMI-aware deduplication.
 

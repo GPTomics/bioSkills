@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Image Analysis for Spatial Transcriptomics
 
-**"Segment cells in my tissue image"** → Extract image features, segment nuclei/cells, and compute morphological features from H&E or immunofluorescence images paired with spatial data.
+**"Segment cells in my tissue image"** -> Extract image features, segment nuclei/cells, and compute morphological features from H&E or immunofluorescence images paired with spatial data.
 - Python: `squidpy.im.process()`, `squidpy.im.segment()` with Cellpose backend
 
 Extract features and segment tissue images in spatial transcriptomics data.

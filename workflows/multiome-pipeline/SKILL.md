@@ -32,7 +32,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Multiome Pipeline
 
-**"Analyze my 10X Multiome data jointly"** → Orchestrate Cell Ranger ARC processing, Seurat/Signac scRNA+scATAC integration via WNN, chromatin accessibility peak calling, motif enrichment, and gene regulatory network inference.
+**"Analyze my 10X Multiome data jointly"** -> Orchestrate Cell Ranger ARC processing, Seurat/Signac scRNA+scATAC integration via WNN, chromatin accessibility peak calling, motif enrichment, and gene regulatory network inference.
 
 Complete workflow for 10X Multiome (joint scRNA + scATAC) analysis using Seurat and Signac.
 

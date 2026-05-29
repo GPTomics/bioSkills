@@ -60,7 +60,7 @@ Core reference: **FRASER 2.0** for splicing outliers, **OUTRIDER** for expressio
 - Question: "What differs between groups?"
 - Statistical model: two-group LRT or related
 
-If you have n>=10 patients with a shared phenotype, prefer **differential** (more power); if single patient or heterogeneous case series, use **outlier**.
+If n>=10 patients with a shared phenotype are available, prefer **differential** (more power); if single patient or heterogeneous case series, use **outlier**.
 
 ## FRASER 2.0 Workflow
 
@@ -255,7 +255,7 @@ For typical 50-100 sample cohorts, q=8-15 is the usual operating range (DROP / F
 
 **Trigger:** Default q=10 used without tuning; or wrong q for cohort size.
 
-**Mechanism:** Q is the autoencoder bottleneck dimension; too small → confounders leak into outlier signal; too large → real biological signal absorbed by autoencoder.
+**Mechanism:** Q is the autoencoder bottleneck dimension; too small -> confounders leak into outlier signal; too large -> real biological signal absorbed by autoencoder.
 
 **Symptom:** Either no significant outliers (q too high) or many spurious calls clustering by batch (q too low).
 
@@ -285,7 +285,7 @@ For typical 50-100 sample cohorts, q=8-15 is the usual operating range (DROP / F
 
 **Trigger:** Very few clusters in patient sample (low coverage or filtered out).
 
-**Mechanism:** LeafcutterMD computes Mahalanobis distance over clusters; few observations → unstable distance.
+**Mechanism:** LeafcutterMD computes Mahalanobis distance over clusters; few observations -> unstable distance.
 
 **Symptom:** Inflated or deflated p-values; few significant calls.
 

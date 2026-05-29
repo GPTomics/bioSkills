@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Model Curation
 
-**"Validate and improve the quality of my metabolic model"** → Score a genome-scale model against SBML community standards using memote, then gap-fill blocked reactions and fix stoichiometric inconsistencies using COBRApy to ensure biologically meaningful predictions.
+**"Validate and improve the quality of my metabolic model"** -> Score a genome-scale model against SBML community standards using memote, then gap-fill blocked reactions and fix stoichiometric inconsistencies using COBRApy to ensure biologically meaningful predictions.
 - CLI: `memote report snapshot` for quality scoring
 - Python: `cobra.flux_analysis.gapfilling.gapfill()` for gap-filling
 

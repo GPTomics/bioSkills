@@ -348,7 +348,7 @@ hrdetect <- HRDetect_pipeline(
 |----------|-------------------|
 | "Why not deconstructSigs?" | Operationally deprecated; NNLS overfits. Use SigProfilerAssignment or MutationalPatterns strict refit. |
 | "Single tumor signatures meaningless?" | Below 200 mutations: yes. We aggregate cohorts and run refit for low-mutation samples. |
-| "Your de novo NMF rank choice?" | nmf_replicates=100 with stability gates; minimum >=0.2, average >=0.8, combined =1.0; SigProfilerExtractor defaults. |
+| "The de novo NMF rank choice?" | nmf_replicates=100 with stability gates; minimum >=0.2, average >=0.8, combined =1.0; SigProfilerExtractor defaults. |
 | "FFPE samples bias signatures" | Modern attribution: FFPE artifact resembles SBS30 (not SBS33); we run matched FF controls or use enzymatic uracil pretreatment. |
 | "SBS5 etiology; 'unknown' is unsatisfying" | Tomasetti-Vogelstein clock model; Druck 2026 FHIT + TC-NER; field has not converged; we report "unknown, clock-like". |
 | "Why no APOBEC subtype distinction?" | Reported via YTCA vs RTCA tetranucleotide ratio per Petljak 2022; not all tools surface this; we used SigProfilerTopography. |

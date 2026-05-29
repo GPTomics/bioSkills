@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Nextflow Pipelines
 
-**"Create a scalable containerized pipeline with Nextflow"** → Build DSL2 workflows with process definitions, channel-based data flow, Docker/Singularity container support, and cloud execution (AWS, Google Cloud) for portable bioinformatics analysis.
+**"Create a scalable containerized pipeline with Nextflow"** -> Build DSL2 workflows with process definitions, channel-based data flow, Docker/Singularity container support, and cloud execution (AWS, Google Cloud) for portable bioinformatics analysis.
 - CLI: `nextflow run main.nf` for pipeline execution
 - Groovy: DSL2 process/workflow syntax for pipeline definition
 

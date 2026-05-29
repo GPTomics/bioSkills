@@ -53,7 +53,7 @@ BAM file + Reference FASTA
 
 **Approach:** Generate per-position pileup likelihoods with mpileup, then call genotypes with the multiallelic caller.
 
-**"Call variants from my BAM file"** → Generate genotype likelihoods from aligned reads and identify variant sites using a Bayesian caller.
+**"Call variants from my BAM file"** -> Generate genotype likelihoods from aligned reads and identify variant sites using a Bayesian caller.
 
 ### Basic Variant Calling
 ```bash

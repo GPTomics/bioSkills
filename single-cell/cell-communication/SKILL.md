@@ -18,8 +18,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Cell-Cell Communication Analysis
 
-**"Infer cell-cell communication from my scRNA-seq data"** → Predict ligand-receptor interactions between cell types and visualize intercellular signaling networks.
-- R: `CellChat::createCellChat()` → `computeCommunProb()` → `netAnalysis()`
+**"Infer cell-cell communication from my scRNA-seq data"** -> Predict ligand-receptor interactions between cell types and visualize intercellular signaling networks.
+- R: `CellChat::createCellChat()` -> `computeCommunProb()` -> `netAnalysis()`
 - Python: `liana.method.cellchat()` (LIANA framework)
 
 ## CellChat (R)

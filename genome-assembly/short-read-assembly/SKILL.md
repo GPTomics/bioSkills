@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Short-Read Assembly
 
-**"Assemble a genome from Illumina reads"** → Build a de novo assembly from short paired-end reads using de Bruijn graph algorithms with multiple k-mer sizes.
+**"Assemble a genome from Illumina reads"** -> Build a de novo assembly from short paired-end reads using de Bruijn graph algorithms with multiple k-mer sizes.
 - CLI: `spades.py -1 R1.fq.gz -2 R2.fq.gz -o output`
 
 ## SPAdes Overview
@@ -308,7 +308,7 @@ megahit -1 R1.fq.gz -2 R2.fq.gz -o megahit_output -t 16
 
 ## Related Skills
 
-- read-qc - Preprocess reads before assembly
+- read-qc/quality-reports - Preprocess reads before assembly
 - assembly-polishing - Polish assembly with Pilon
 - assembly-qc - Assess with QUAST/BUSCO
 - long-read-assembly - Long-read alternatives

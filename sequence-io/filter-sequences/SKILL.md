@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Filter Sequences
 
-**"Filter sequences by length, quality, or content"** → Apply boolean criteria to a stream of sequence records and write survivors to output.
+**"Filter sequences by length, quality, or content"** -> Apply boolean criteria to a stream of sequence records and write survivors to output.
 - Python: generator expression with `SeqIO.parse()` + `SeqIO.write()` (BioPython)
 - CLI: `seqkit seq -m 200` (SeqKit) or `awk` on FASTA
 
@@ -262,4 +262,4 @@ SeqIO.write(long, 'long.fasta', 'fasta')
 - fastq-quality - Filter FASTQ by quality scores
 - paired-end-fastq - Synchronized filtering of paired reads
 - sequence-manipulation/motif-search - Filter by complex motif patterns
-- alignment-files - Filter aligned reads with samtools view -f/-F
+- alignment-files/alignment-filtering - Filter aligned reads with samtools view -f/-F

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # VDJtools Analysis
 
-**"Compute diversity and overlap for my TCR repertoires"** → Calculate repertoire diversity metrics, sample overlap, and perform statistical comparisons between immune repertoire samples.
+**"Compute diversity and overlap for my TCR repertoires"** -> Calculate repertoire diversity metrics, sample overlap, and perform statistical comparisons between immune repertoire samples.
 - CLI: `vdjtools CalcDiversityStats`, `vdjtools OverlapPair`, `vdjtools PlotFancySpectratype`
 
 ## Basic Usage

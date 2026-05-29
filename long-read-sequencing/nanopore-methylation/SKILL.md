@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Nanopore Methylation Calling
 
-**"Call methylation from my Nanopore reads"** → Extract 5mC/6mA modification probabilities from basecalled reads and summarize per-site methylation frequencies.
+**"Call methylation from my Nanopore reads"** -> Extract 5mC/6mA modification probabilities from basecalled reads and summarize per-site methylation frequencies.
 - CLI: `modkit pileup aligned.bam methylation.bed --ref ref.fa`
 
 ## Modern Workflow (modkit)

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Contamination Detection
 
-**"Check my assembly for contamination"** → Evaluate genome completeness and detect contaminating sequences using marker gene sets or chimeric contig detection.
+**"Check my assembly for contamination"** -> Evaluate genome completeness and detect contaminating sequences using marker gene sets or chimeric contig detection.
 - CLI: `checkm2 predict --input assembly.fa`, `gunc run`, `gtdbtk classify_wf`
 
 ## CheckM2 (Recommended)

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Hi-C Visualization
 
-**"Plot my Hi-C contact matrix"** → Create triangle heatmaps, virtual 4C profiles, and multi-track figures combining contact maps with genomic annotations.
+**"Plot my Hi-C contact matrix"** -> Create triangle heatmaps, virtual 4C profiles, and multi-track figures combining contact maps with genomic annotations.
 - Python: `matplotlib.pyplot.imshow()` on cooler matrices, `cooltools` for aggregate plots
 - CLI: `hicPlotMatrix` (HiCExplorer)
 

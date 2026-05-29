@@ -23,7 +23,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 **Approach:** Read CSV files, partition by sample type, and assess missing value prevalence.
 
-**"Normalize my metabolomics data and correct for batch effects"** → Apply QC-based signal correction, handle missing values, transform intensities, and assess normalization quality via RSD and PCA.
+**"Normalize my metabolomics data and correct for batch effects"** -> Apply QC-based signal correction, handle missing values, transform intensities, and assess normalization quality via RSD and PCA.
 
 ```r
 library(tidyverse)

@@ -28,7 +28,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # GWAS Pipeline
 
-**"Run a GWAS from my genotype data"** → Orchestrate sample/variant QC (PLINK2), population stratification (PCA), association testing (linear/logistic regression), multiple testing correction, and Manhattan/QQ plot visualization.
+**"Run a GWAS from my genotype data"** -> Orchestrate sample/variant QC (PLINK2), population stratification (PCA), association testing (linear/logistic regression), multiple testing correction, and Manhattan/QQ plot visualization.
 
 Complete workflow for genome-wide association studies from genotype data to significant associations.
 

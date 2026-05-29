@@ -2,7 +2,7 @@
 
 ## Overview
 
-Reads, validates, and prepares CDISC SDTM and ADaM clinical trial data for downstream statistical analysis. Covers SDTM domain joins (DM, AE, EX, VS, LB, DS), ADaM architecture (ADSL, BDS, OCCDS, ADTTE) with traceability and Define-XML 2.1, treatment-emergent AE conventions per ICH E2A, baseline derivation, SUPPQUAL pivoting and NSV Registry transition, Pinnacle 21 / CORE validation, and the SAS XPT v5 → Dataset-JSON v1.1 transition (FDA Federal Register notice April 2025).
+Reads, validates, and prepares CDISC SDTM and ADaM clinical trial data for downstream statistical analysis. Covers SDTM domain joins (DM, AE, EX, VS, LB, DS), ADaM architecture (ADSL, BDS, OCCDS, ADTTE) with traceability and Define-XML 2.1, treatment-emergent AE conventions per ICH E2A, baseline derivation, SUPPQUAL pivoting and NSV Registry transition, Pinnacle 21 / CORE validation, and the SAS XPT v5 -> Dataset-JSON v1.1 transition (FDA Federal Register notice April 2025).
 
 ## Prerequisites
 

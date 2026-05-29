@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # ORF Detection
 
-**"Detect translated ORFs from my Ribo-seq data"** → Identify actively translated open reading frames including uORFs and novel ORFs using 3-nucleotide periodicity as evidence of active translation.
+**"Detect translated ORFs from my Ribo-seq data"** -> Identify actively translated open reading frames including uORFs and novel ORFs using 3-nucleotide periodicity as evidence of active translation.
 - CLI: `RiboCode` for periodicity-based ORF detection
 - R: `ORFik` for ORF quantification and annotation
 
@@ -300,4 +300,4 @@ results <- results(dds)
 
 - ribosome-periodicity - Validate ORF calling
 - translation-efficiency - Quantify ORF translation
-- differential-expression - Compare ORF expression
+- differential-expression/deseq2-basics - Compare ORF expression

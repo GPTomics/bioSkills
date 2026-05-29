@@ -18,12 +18,12 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Small RNA-seq Pipeline
 
-**"Analyze my small RNA-seq data from FASTQ to differential miRNAs"** → Orchestrate adapter trimming (cutadapt), miRNA quantification (miRDeep2/miRge3), novel miRNA discovery, differential expression (DESeq2), and target prediction (miRanda).
+**"Analyze my small RNA-seq data from FASTQ to differential miRNAs"** -> Orchestrate adapter trimming (cutadapt), miRNA quantification (miRDeep2/miRge3), novel miRNA discovery, differential expression (DESeq2), and target prediction (miRanda).
 
 ## Pipeline Overview
 
 ```
-FASTQ → cutadapt trim → miRDeep2 → Quantification → DESeq2 → Target prediction
+FASTQ -> cutadapt trim -> miRDeep2 -> Quantification -> DESeq2 -> Target prediction
 ```
 
 ## Step 1: Preprocessing

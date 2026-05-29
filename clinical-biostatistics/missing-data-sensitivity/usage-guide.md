@@ -68,7 +68,7 @@ Tell your AI agent what you want to do:
 - **MAR vs MNAR is fundamentally untestable from observed data.** Pre-specify based on clinical reasoning (DS domain examination), not observed data.
 - **LOCF is biased even under MCAR** (Mallinckrodt 2008). NRC 2010 Rec 11 explicitly rejects LOCF as default. Never use as primary or as "conservative" sensitivity.
 - **MMRM under MAR is the FDA-favoured continuous-endpoint analysis** with UN covariance + Kenward-Roger. Use `mmrm` package in R; statsmodels.mixedlm lacks KR and is not FDA-equivalent.
-- **Always pre-specify the convergence fallback hierarchy** in the SAP (UN+KR → UN+Satterthwaite → het Toeplitz → AR(1) → CS). Document any deviation invoked at analysis time.
+- **Always pre-specify the convergence fallback hierarchy** in the SAP (UN+KR -> UN+Satterthwaite -> het Toeplitz -> AR(1) -> CS). Document any deviation invoked at analysis time.
 - **Reference-based MI (Carpenter-Roger 2013) operationalises MNAR as clinical narrative**, not arbitrary delta. J2R, CR, CIR, LMCF are the four operational forms -- choose the one matching the clinical scenario.
 - **The variance debate is ongoing.** EMA tolerates either Rubin's or frequentist; FDA increasingly wants frequentist supplement. **Report both** for safety.
 - **Tipping-point delta should be in residual SD units** (FDA preference) for cross-trial comparison, not raw outcome units.

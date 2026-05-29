@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Repertoire Visualization
 
-**"Visualize my immune repertoire data"** → Create publication-quality figures for TCR/BCR repertoires including circos plots, V(D)J gene usage heatmaps, diversity plots, and clonal tracking across samples.
+**"Visualize my immune repertoire data"** -> Create publication-quality figures for TCR/BCR repertoires including circos plots, V(D)J gene usage heatmaps, diversity plots, and clonal tracking across samples.
 - CLI: `vdjtools PlotFancyVJUsage` for circos-style V-J plots
 - Python: `matplotlib`/`seaborn` for custom repertoire visualizations
 

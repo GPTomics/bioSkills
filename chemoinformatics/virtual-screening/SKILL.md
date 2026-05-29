@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Virtual Screening
 
-Screen chemical libraries against protein targets via molecular docking. Vina is the de-facto default, SMINA adds flexibility (Vinardo scoring, custom scoring), and GNINA adds CNN-based pose scoring (Top-1 redock 58%→73% over Vina, cross-dock 27%→37%). Deep-learning docking (DiffDock-L, EquiBind, NeuralPLexer) competes in pose accuracy but fails physical-plausibility tests (PoseBusters) ~50% of the time; the postdoc-grade workflow combines ML pose sampling with classical scoring and physical validation. For ultralarge libraries (>1M), library preparation, hierarchical filtering, and HPC orchestration become the limiting steps.
+Screen chemical libraries against protein targets via molecular docking. Vina is the de-facto default, SMINA adds flexibility (Vinardo scoring, custom scoring), and GNINA adds CNN-based pose scoring (Top-1 redock 58%->73% over Vina, cross-dock 27%->37%). Deep-learning docking (DiffDock-L, EquiBind, NeuralPLexer) competes in pose accuracy but fails physical-plausibility tests (PoseBusters) ~50% of the time; the postdoc-grade workflow combines ML pose sampling with classical scoring and physical validation. For ultralarge libraries (>1M), library preparation, hierarchical filtering, and HPC orchestration become the limiting steps.
 
 For pose physical-validity QC, see `chemoinformatics/pose-validation`. For ML-driven docking + rescoring, see `chemoinformatics/ml-docking-rescoring`. For covalent docking, see `chemoinformatics/covalent-design`. For affinity calculations (FEP), see `chemoinformatics/free-energy-calculations`.
 
@@ -40,7 +40,7 @@ For pose physical-validity QC, see `chemoinformatics/pose-validation`. For ML-dr
 | EquiBind | Equivariant NN | <1 (GPU) | Single-shot pose | Lowest accuracy in PoseBuster benchmarks |
 | Boltz-2 + GNINA rescore | Foundation model + CNN | 10 (GPU) | Modern SOTA hybrid | High GPU; not all proteins |
 
-**Decision:** For most screens, **GNINA 1.1** with CNN scoring is the modern default (better than Vina on every benchmark; 30s/ligand on GPU). For >1M library scale, hierarchical Vina → GNINA → MM/GBSA. For cross-docking (predicted target structure or apo-holo), GNINA's CNN scoring transfers better than Vina.
+**Decision:** For most screens, **GNINA 1.1** with CNN scoring is the modern default (better than Vina on every benchmark; 30s/ligand on GPU). For >1M library scale, hierarchical Vina -> GNINA -> MM/GBSA. For cross-docking (predicted target structure or apo-holo), GNINA's CNN scoring transfers better than Vina.
 
 ## Decision Tree by Scenario
 
@@ -48,9 +48,9 @@ For pose physical-validity QC, see `chemoinformatics/pose-validation`. For ML-dr
 |----------|---------------------|
 | Self-dock against known ligand pocket | GNINA `gnina --cnn_scoring rescore` |
 | Cross-dock to apo or related-target structure | DiffDock-L pose + GNINA rescore + PoseBusters |
-| Ultralarge library (10M+) | Vina hierarchical: pre-filter (Lipinski, PAINS) → Vina dock → top 1% GNINA rescore → top 0.1% MM/GBSA |
+| Ultralarge library (10M+) | Vina hierarchical: pre-filter (Lipinski, PAINS) -> Vina dock -> top 1% GNINA rescore -> top 0.1% MM/GBSA |
 | Cryptic pocket / induced fit | Ensemble docking (10 conformer snapshots) + AlphaFold3 or Boltz-1 holo prediction |
-| Allosteric / undefined site | P2Rank for pocket detection → ensemble dock all pockets |
+| Allosteric / undefined site | P2Rank for pocket detection -> ensemble dock all pockets |
 | Metal-coordinated ligand | GOLD (commercial) or manually parameterize Vina metal scoring |
 | Covalent inhibitor | See `chemoinformatics/covalent-design`: DOCKovalent, HCovDock |
 | Fragment screen (<300 Da) | rDock or constrained Vina with seed atoms |
@@ -60,7 +60,7 @@ For pose physical-validity QC, see `chemoinformatics/pose-validation`. For ML-dr
 
 **Goal:** Convert a protein PDB into a docking-ready format with correct protonation, missing atoms, and removed waters.
 
-**Approach:** Strip ligands and waters → fill missing atoms (PROPKA or pdbfixer) → add hydrogens at pH 7.4 (PDB2PQR / Reduce) → assign partial charges → convert to PDBQT (Open Babel).
+**Approach:** Strip ligands and waters -> fill missing atoms (PROPKA or pdbfixer) -> add hydrogens at pH 7.4 (PDB2PQR / Reduce) -> assign partial charges -> convert to PDBQT (Open Babel).
 
 ```python
 import subprocess
@@ -92,7 +92,7 @@ def prepare_receptor(pdb_in, pdbqt_out, pH=7.4, remove_het=True):
 
 **Goal:** Generate a 3D, docking-ready ligand file from SMILES with appropriate protonation and conformation.
 
-**Approach:** Protonate at pH 7.4 with `Chem.MolFromSmiles` then `rdMolStandardize.Uncharger` → embed 3D with ETKDGv3 → minimize with MMFF94 → assign Gasteiger charges → write PDBQT with meeko.
+**Approach:** Protonate at pH 7.4 with `Chem.MolFromSmiles` then `rdMolStandardize.Uncharger` -> embed 3D with ETKDGv3 -> minimize with MMFF94 -> assign Gasteiger charges -> write PDBQT with meeko.
 
 ```python
 from rdkit import Chem
@@ -238,8 +238,8 @@ For 10M-compound libraries (ZINC22, Enamine REAL), use slurm-orchestrated parall
 | ChEMBL | 2.5M | SMILES + bioactivity | Activity-labeled |
 
 For ultralarge VS:
-1. Pre-filter to drug-like (Lipinski + Ro5 + PAINS) → typically 10-20x reduction
-2. Pre-filter by 2D similarity to known actives (Tanimoto >= 0.4 via ECFP4) → 100x reduction
+1. Pre-filter to drug-like (Lipinski + Ro5 + PAINS) -> typically 10-20x reduction
+2. Pre-filter by 2D similarity to known actives (Tanimoto >= 0.4 via ECFP4) -> 100x reduction
 3. Vina dock the filtered subset
 4. Rescore top 1% with GNINA
 5. Rescore top 0.1% with MM/GBSA or FEP

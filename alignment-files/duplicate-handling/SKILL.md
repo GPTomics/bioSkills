@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Duplicate Handling
 
-**"Remove PCR duplicates from my BAM file"** → Mark or remove duplicate reads using the fixmate-sort-markdup pipeline to prevent duplicate bias in variant calling.
+**"Remove PCR duplicates from my BAM file"** -> Mark or remove duplicate reads using the fixmate-sort-markdup pipeline to prevent duplicate bias in variant calling.
 - CLI: `samtools fixmate`, `samtools markdup` (samtools)
 - Python: `pysam.fixmate()`, `pysam.markdup()` (pysam)
 

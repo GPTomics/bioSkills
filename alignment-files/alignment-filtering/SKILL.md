@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Alignment Filtering
 
-**"Filter my BAM file to keep only high-quality reads"** → Select reads by FLAG bits, mapping quality, and genomic regions using samtools view or pysam.
+**"Filter my BAM file to keep only high-quality reads"** -> Select reads by FLAG bits, mapping quality, and genomic regions using samtools view or pysam.
 - CLI: `samtools view` with `-F`/`-f`/`-q`/`-L` flags (samtools)
 - Python: `pysam.AlignmentFile` iteration with attribute filters (pysam)
 

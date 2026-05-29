@@ -28,7 +28,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Genome Assembly Pipeline
 
-**"Assemble and polish a genome from my sequencing reads"** → Orchestrate read QC, assembly (hifiasm, Flye, SPAdes), polishing (Medaka, Pilon), scaffolding, contamination detection (BlobToolKit), and quality assessment (QUAST, BUSCO).
+**"Assemble and polish a genome from my sequencing reads"** -> Orchestrate read QC, assembly (hifiasm, Flye, SPAdes), polishing (Medaka, Pilon), scaffolding, contamination detection (BlobToolKit), and quality assessment (QUAST, BUSCO).
 
 Complete workflow from sequencing reads to polished, quality-assessed genome assembly.
 

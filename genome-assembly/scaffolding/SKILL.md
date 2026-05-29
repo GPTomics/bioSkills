@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Genome Scaffolding
 
-**"Scaffold my contigs to chromosome level"** → Order and orient contigs into chromosome-scale scaffolds using Hi-C proximity ligation data.
+**"Scaffold my contigs to chromosome level"** -> Order and orient contigs into chromosome-scale scaffolds using Hi-C proximity ligation data.
 - CLI: `yahs contigs.fa hic_alignments.bam`, `3d-dna`, `salsa2`
 
 ## Hi-C Data Preprocessing

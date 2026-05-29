@@ -362,15 +362,15 @@ Nanocompore reports `GMM_logit_pvalue`, `KS_dwell_pvalue`, `KS_intensity_pvalue`
 | Pushback | Response |
 |----------|----------|
 | "Why m6Anet over Dorado native?" | m6Anet for high-precision DRACH calling; Dorado for high-recall first-pass; both reported when feasible |
-| "How did you handle non-DRACH sites?" | m6Anet is DRACH-only by design; non-DRACH discovery via Dorado / xPore / Nanocompore; cited limitation |
+| "How were non-DRACH sites handled?" | m6Anet is DRACH-only by design; non-DRACH discovery via Dorado / xPore / Nanocompore; cited limitation |
 | "What's the per-site coverage threshold?" | `n_reads >= 20` conservative per Hendra 2022; `>= 50` for stringent calls |
-| "Did you cross-validate against orthogonal methods?" | High-stakes sites cross-checked against GLORI / m6A-SAC-seq / MeRIP peaks; cross-method concordance reported |
+| "Was cross-validation against orthogonal methods done?" | High-stakes sites cross-checked against GLORI / m6A-SAC-seq / MeRIP peaks; cross-method concordance reported |
 | "Why RNA002 vs RNA004?" | Chemistry version pinned per project; m6Anet model selected to match (RNA002 model on RNA002 data, RNA004 on RNA004) |
-| "Did you pin the Dorado modification model version?" | Yes — version recorded in pipeline metadata; rerun batches with new model when upgrading |
+| "Was the Dorado modification model version pinned?" | Yes — version recorded in pipeline metadata; rerun batches with new model when upgrading |
 | "Per-site probability vs mod_ratio?" | `probability_modified` is the per-site model posterior; `mod_ratio` is the per-site stoichiometry (fraction of reads called modified) — both reported |
 | "Is mod_ratio the same as absolute stoichiometry?" | Approximately; per-read calls have ~5-15% error; for absolute stoichiometry at named loci, cross-validate with GLORI |
 | "Why not just use Tombo / EpiNano?" | Tombo less maintained since 2020; EpiNano tied to obsolete Albacore basecaller; m6Anet / Dorado / CHEUI are modern |
-| "Did you handle f5c vs nanopolish?" | Used nanopolish (m6Anet-trained source); did not substitute f5c |
+| "How were f5c vs nanopolish handled?" | Used nanopolish (m6Anet-trained source); did not substitute f5c |
 
 ## References
 

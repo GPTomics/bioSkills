@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # DIA Proteomics Analysis
 
-**"Analyze my DIA proteomics data"** → Process data-independent acquisition MS data to identify and quantify proteins using library-free or library-based workflows.
+**"Analyze my DIA proteomics data"** -> Process data-independent acquisition MS data to identify and quantify proteins using library-free or library-based workflows.
 - CLI: `diann` for end-to-end DIA analysis with neural network scoring
 - CLI: `EncyclopeDIA` for chromatogram library-based quantification
 

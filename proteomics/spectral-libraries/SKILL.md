@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spectral Library Management
 
-**"Build a spectral library for DIA analysis"** → Create, filter, and manage spectral libraries from DDA experiments or predicted spectra for use in DIA quantification workflows.
+**"Build a spectral library for DIA analysis"** -> Create, filter, and manage spectral libraries from DDA experiments or predicted spectra for use in DIA quantification workflows.
 - CLI: `spectrast` (TPP) for consensus library building from search results
 - CLI: Prosit/DeepLC for deep learning-predicted spectral libraries
 - Python: `pandas` for library format conversion and quality filtering

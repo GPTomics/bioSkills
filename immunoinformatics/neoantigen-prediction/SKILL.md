@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Neoantigen Prediction
 
-**"Identify neoantigens from my tumor mutations"** → Predict mutant peptides from somatic variants that bind patient HLA alleles and may elicit T-cell responses for personalized cancer immunotherapy.
+**"Identify neoantigens from my tumor mutations"** -> Predict mutant peptides from somatic variants that bind patient HLA alleles and may elicit T-cell responses for personalized cancer immunotherapy.
 - CLI: `pvacseq run` with VEP-annotated VCF and patient HLA types (pVACtools)
 
 ## pVACtools Pipeline (Ensembl VEP 111+)

@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Create and manipulate biological sequence objects using Biopython.
 
-**"Create a sequence object"** → Wrap a raw string in a typed sequence container for biological operations.
+**"Create a sequence object"** -> Wrap a raw string in a typed sequence container for biological operations.
 - Immutable: `Seq('ATGC')` (BioPython) — string-like, supports complement/translate
 - Mutable: `MutableSeq('ATGC')` (BioPython) — supports in-place edits
 - Annotated: `SeqRecord(Seq(...), id=...)` (BioPython) — adds metadata for file I/O

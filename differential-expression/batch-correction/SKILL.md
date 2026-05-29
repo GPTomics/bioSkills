@@ -54,7 +54,7 @@ A second clarification: structural confounding (every "treated" sample in batch 
 | PCA shows batch separation | Include batch in design; for the figure, `removeBatchEffect` is OK (visualization only) | Two purposes, two tools |
 | Unknown batch structure | `sva` / `svaseq`; add SVs as covariates in design | Captures latent technical factors |
 | Have ERCC spike-ins or trusted housekeeping | `RUVSeq::RUVg` with control gene indices; add W to design | Most principled UV removal |
-| Have replicate samples (technical reps within biological) | `RUVSeq::RUVs` | Replicate structure tells you "this differs only by UV" |
+| Have replicate samples (technical reps within biological) | `RUVSeq::RUVs` | Replicate structure indicates "this differs only by UV" |
 | Cross-study integration (TCGA + ICGC + own data) | ComBat-seq for counts, ComBat for log-expression, THEN meta-analysis -- do NOT pool then DE | Goh 2017 warning |
 | Fully confounded batch and condition | Re-collect samples; no method fixes this | Non-identifiable |
 | Visualizing batch removal for a figure | `removeBatchEffect(expr, batch = batch, design = model.matrix(~condition))` | Visualization is what it's for |
@@ -145,7 +145,7 @@ design(dds) <- sv_formula
 dds <- DESeq(dds)
 ```
 
-CRITICAL CHECK: compute the correlation between each SV and the variable of interest. If any SV correlates with treatment at r > 0.3, do NOT include it -- you would be partialling out biology, deflating the effect of interest.
+CRITICAL CHECK: compute the correlation between each SV and the variable of interest. If any SV correlates with treatment at r > 0.3, do NOT include it -- doing so would partial out biology, deflating the effect of interest.
 
 ```r
 sapply(seq_len(ncol(svobj$sv)),

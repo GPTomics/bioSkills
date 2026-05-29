@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Reference Panels
 
-**"Set up reference panels for imputation"** → Download, prepare, and manage reference panels (1000 Genomes, HRC, TOPMed) for genotype phasing and imputation, including population subsetting and format conversion.
+**"Set up reference panels for imputation"** -> Download, prepare, and manage reference panels (1000 Genomes, HRC, TOPMed) for genotype phasing and imputation, including population subsetting and format conversion.
 - CLI: `bcftools view -S panel_samples.txt` for subsetting, `bcftools norm` for normalization
 
 ## 1000 Genomes Phase 3 (GRCh38)

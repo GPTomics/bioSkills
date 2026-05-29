@@ -17,7 +17,7 @@ If code throws errors, introspect the installed tool and adapt the example to ma
 
 # Multiple Sequence Alignment
 
-**"Align multiple sequences"** → Compute an optimal alignment of three or more homologous sequences using progressive, iterative, or consistency-based methods.
+**"Align multiple sequences"** -> Compute an optimal alignment of three or more homologous sequences using progressive, iterative, or consistency-based methods.
 - CLI: `mafft` (most versatile), `muscle` (highest accuracy), `clustalo` (scales well), `t_coffee` (consistency-based)
 - Python: `subprocess.run()` wrapping CLI tools; BioPython `Bio.Align.Applications` was removed in BioPython 1.86 (verify with `pip show biopython`); use `subprocess` directly
 

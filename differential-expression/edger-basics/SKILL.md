@@ -143,7 +143,7 @@ tr <- glmTreat(fit, coef = 2, lfc = log2(1.5))
 topTags(tr)
 ```
 
-The cardinal sin TREAT avoids: filtering `padj < 0.05 & abs(logFC) > 1` after a vanilla QL F-test does NOT control FDR for "the LFC exceeds 1". Post-hoc filtering is FDR-controlled for the |LFC|>0 hypothesis only. If reviewers ask "what is the FDR of your '2-fold up' gene list", the only honest answers are TREAT (FDR controlled at the threshold) or "FDR is for non-zero only; the magnitude filter has no FDR guarantee".
+The cardinal sin TREAT avoids: filtering `padj < 0.05 & abs(logFC) > 1` after a vanilla QL F-test does NOT control FDR for "the LFC exceeds 1". Post-hoc filtering is FDR-controlled for the |LFC|>0 hypothesis only. If reviewers ask "what is the FDR of the '2-fold up' gene list", the only honest answers are TREAT (FDR controlled at the threshold) or "FDR is for non-zero only; the magnitude filter has no FDR guarantee".
 
 Equivalent in DESeq2: `results(dds, lfcThreshold = log2(1.5), altHypothesis = 'greaterAbs')`. Both implement the McCarthy & Smyth 2009 *Bioinformatics* 25:765 idea.
 

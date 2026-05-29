@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Enzyme Selection
 
-**"Find enzymes that cut my sequence once"** → Search restriction enzyme databases by cut frequency, overhang type, commercial availability, or compatible ends for cloning.
+**"Find enzymes that cut my sequence once"** -> Search restriction enzyme databases by cut frequency, overhang type, commercial availability, or compatible ends for cloning.
 - Python: `Bio.Restriction.Analysis(rb, seq)` with `RestrictionBatch` filters
 
 ## Find Enzymes by Cut Frequency

@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Remove sequencing adapters from reads using Cutadapt (precise, flexible) or Trimmomatic (paired-end optimized).
 
-**"Trim adapters from reads"** → Remove sequencing adapter sequences from FASTQ reads to prevent adapter contamination in downstream alignment.
+**"Trim adapters from reads"** -> Remove sequencing adapter sequences from FASTQ reads to prevent adapter contamination in downstream alignment.
 - CLI: `cutadapt -a ADAPTER -o out.fq in.fq` or `trimmomatic PE` with ILLUMINACLIP
 - CLI: `fastp -i in.fq -o out.fq` (auto-detects adapters)
 

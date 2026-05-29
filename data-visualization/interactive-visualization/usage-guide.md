@@ -48,7 +48,7 @@ Tell your AI agent what you want to do:
 
 ## What the Agent Will Do
 
-1. Decide interactive vs static: notebook exploration / supplement / dashboard → interactive; journal figure → static (alongside).
+1. Decide interactive vs static: notebook exploration / supplement / dashboard -> interactive; journal figure -> static (alongside).
 2. For Python: plotly Express for fast onboarding; graph_objects for fine control; Scattergl for >5000 points.
 3. For R: prefer ggplotly for ggplot conversion; htmlwidgets ecosystem for tables/maps/networks.
 4. Configure hover_data, tooltips, color/size aesthetics.

@@ -365,10 +365,10 @@ Concordance scoring is conservative; some real causal genes score 2-of-6 because
 
 | Pushback | Standard response |
 |----------|-------------------|
-| "Did you just take the nearest gene?" | No. L2G + PoPS concordance reported per locus; ABC / ENCODE-rE2G applied when matched epigenome exists. Nearest-gene flagged as low-confidence fallback only. |
-| "Did you try L2G + PoPS concordance?" | Yes. Both scores reported per (locus, gene) candidate; multi-stream concordance score (>= 3 of 6 streams) gates high-confidence calls. |
+| "Was the nearest gene just taken?" | No. L2G + PoPS concordance reported per locus; ABC / ENCODE-rE2G applied when matched epigenome exists. Nearest-gene flagged as low-confidence fallback only. |
+| "Was L2G + PoPS concordance tried?" | Yes. Both scores reported per (locus, gene) candidate; multi-stream concordance score (>= 3 of 6 streams) gates high-confidence calls. |
 | "Was the eQTL panel tissue-relevant?" | Causal tissue identified via stratified LDSC / LDSC-SEG; TWAS run in that tissue; cross-tissue check via S-MultiXcan. |
-| "Did you apply ABC / ENCODE-rE2G?" | Applied when matched ATAC + H3K27ac (+ Hi-C optional) available; otherwise flagged as limitation. Cross-reference atac-seq/enhancer-gene-linking. |
+| "Was ABC / ENCODE-rE2G applied?" | Applied when matched ATAC + H3K27ac (+ Hi-C optional) available; otherwise flagged as limitation. Cross-reference atac-seq/enhancer-gene-linking. |
 | "Was CRISPRi-FlowFISH validation considered?" | Cross-referenced against Fulco 2019 K562 catalog (~5,000 pairs); Gasperini 2019 at-scale catalog (~75,000 pairs); Schraivogel 2020 multi-cell-type catalog for non-K562 cells. |
 | "What MAGMA window was used?" | Window stated explicitly. FUMA 35+10 vs MAGMA-native 0+0 distinction made; sensitivity over 0+0, 35+10, 50+50 reported for high-stakes loci. |
 

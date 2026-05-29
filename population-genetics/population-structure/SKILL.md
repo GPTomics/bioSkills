@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Population Structure
 
-**"Analyze population structure in my genotype data"** → Detect population stratification using PCA of genotypes and estimate ancestry proportions with ADMIXTURE modeling.
+**"Analyze population structure in my genotype data"** -> Detect population stratification using PCA of genotypes and estimate ancestry proportions with ADMIXTURE modeling.
 - CLI: `plink2 --pca 20` for principal component analysis
 - CLI: `admixture genotypes.bed K` for admixture proportions
 

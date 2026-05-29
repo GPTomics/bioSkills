@@ -24,7 +24,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Proteomics Pipeline
 
-**"Process my proteomics data from raw MS files to differential abundance"** → Orchestrate data import (pyopenms/MaxQuant), QC assessment, protein quantification, normalization, differential abundance testing (limma/DEqMS, or MSstats for feature-level designs), and PTM analysis.
+**"Process my proteomics data from raw MS files to differential abundance"** -> Orchestrate data import (pyopenms/MaxQuant), QC assessment, protein quantification, normalization, differential abundance testing (limma/DEqMS, or MSstats for feature-level designs), and PTM analysis.
 
 ## Pipeline Overview
 

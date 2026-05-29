@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # PLINK Basics
 
-**"Convert my VCF to PLINK format and run QC"** → Handle PLINK file format conversions (VCF, BED/BIM/FAM, PED/MAP) and apply standard genotype QC filters for MAF, genotyping rate, and HWE.
+**"Convert my VCF to PLINK format and run QC"** -> Handle PLINK file format conversions (VCF, BED/BIM/FAM, PED/MAP) and apply standard genotype QC filters for MAF, genotyping rate, and HWE.
 - CLI: `plink2 --vcf input.vcf --make-bed` for format conversion
 - CLI: `plink2 --maf 0.01 --geno 0.05 --hwe 1e-6` for QC filtering
 

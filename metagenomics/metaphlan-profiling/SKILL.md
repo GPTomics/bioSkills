@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # MetaPhlAn 4 Profiling
 
-**"Profile the species composition of my metagenome"** → Determine species-level relative abundances from shotgun metagenomic reads using clade-specific marker gene alignment.
+**"Profile the species composition of my metagenome"** -> Determine species-level relative abundances from shotgun metagenomic reads using clade-specific marker gene alignment.
 - CLI: `metaphlan sample.fastq --input_type fastq -o profile.txt`
 
 MetaPhlAn 4 uses ~5M clade-specific markers from 26,970 species-level genome bins. Supports both short reads (bowtie2) and long reads (minimap2).

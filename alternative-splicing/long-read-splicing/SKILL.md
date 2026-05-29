@@ -50,17 +50,17 @@ Full-length long-read sequencing solves problems that short-read AS cannot: anch
 
 | Use case | Recommended tools |
 |----------|--------------------|
-| Bulk Iso-Seq transcript discovery in well-annotated organism | minimap2 -ax splice:hq → IsoQuant or Bambu → SQANTI3 |
-| Bulk ONT cDNA in well-annotated organism | minimap2 -ax splice -uf -k14 → IsoQuant or FLAIR → SQANTI3 |
-| End-to-end pipeline for differential analysis | FLAIR (correct → collapse → quantify → diffSplice) |
+| Bulk Iso-Seq transcript discovery in well-annotated organism | minimap2 -ax splice:hq -> IsoQuant or Bambu -> SQANTI3 |
+| Bulk ONT cDNA in well-annotated organism | minimap2 -ax splice -uf -k14 -> IsoQuant or FLAIR -> SQANTI3 |
+| End-to-end pipeline for differential analysis | FLAIR (correct -> collapse -> quantify -> diffSplice) |
 | Joint discovery + quantification with calibrated novel rate | Bambu in R |
 | De novo discovery for non-model organism | IsoQuant with --genedb omitted |
 | Event-level differential splicing on long reads | rMATS-long |
-| DTU on long-read transcript counts | DRIMSeq → DEXSeq/satuRn → stageR (no Salmon Gibbs needed) |
+| DTU on long-read transcript counts | DRIMSeq -> DEXSeq/satuRn -> stageR (no Salmon Gibbs needed) |
 | Hybrid short+long for cohort | StringTie2 hybrid + FLAIR / IsoQuant |
-| Single-cell full-length isoforms | MAS-Iso-seq + 10X 5' → FLAMES or scNanoGPS |
-| Cryptic exon validation in ALS | minimap2 → FLAIR collapse → manual inspection of UNC13A, STMN2 |
-| ASO design with full-isoform context | minimap2 → IsoQuant → SQANTI3 → ASO design (see splice-variant-prediction) |
+| Single-cell full-length isoforms | MAS-Iso-seq + 10X 5' -> FLAMES or scNanoGPS |
+| Cryptic exon validation in ALS | minimap2 -> FLAIR collapse -> manual inspection of UNC13A, STMN2 |
+| ASO design with full-isoform context | minimap2 -> IsoQuant -> SQANTI3 -> ASO design (see splice-variant-prediction) |
 
 ## Splice-Aware Alignment
 
@@ -90,11 +90,11 @@ minimap2 -ax splice -uf -k14 \
 samtools index ont_rna_aligned.bam
 ```
 
-`-uf` forces all reads to the forward transcript strand — correct for direct RNA (single-stranded) and stranded cDNA library preps; **omit for unstranded cDNA** (default ONT PCS/PCB kits) or you lose ~half the reads. `--secondary=no` discards secondary alignments. For genomes with poorly-annotated splice sites, supplement with `--junc-bed gencode_junctions.bed`. uLTRA (Sahlin & Mäkinen 2021 *Bioinformatics*) and deSALT (Liu 2019 *Genome Biol*) are alternatives with higher precision on small/cryptic exons.
+`-uf` forces all reads to the forward transcript strand — correct for direct RNA (single-stranded) and stranded cDNA library preps; **omit for unstranded cDNA** (default ONT PCS/PCB kits) or ~half the reads are lost. `--secondary=no` discards secondary alignments. For genomes with poorly-annotated splice sites, supplement with `--junc-bed gencode_junctions.bed`. uLTRA (Sahlin & Mäkinen 2021 *Bioinformatics*) and deSALT (Liu 2019 *Genome Biol*) are alternatives with higher precision on small/cryptic exons.
 
 **Critical:** `splice:hq` is the preset for HiFi (Q30+ reads); plain `splice` is for ONT regardless of cDNA vs direct RNA. Using `splice` on HiFi data underuses the high quality; using `splice:hq` on ONT misses true junctions due to error-tolerance mismatch.
 
-## FLAIR Workflow (correct → collapse → quantify → diffSplice)
+## FLAIR Workflow (correct -> collapse -> quantify -> diffSplice)
 
 **Goal:** Identify, quantify, and test full-length isoforms from long-read RNA-seq across conditions.
 

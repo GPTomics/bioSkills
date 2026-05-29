@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # miRDeep2 Analysis
 
-**"Discover novel miRNAs from my small RNA-seq data"** → Identify known and novel miRNAs by mapping reads to the genome and scoring precursor hairpin structures using a probabilistic model.
+**"Discover novel miRNAs from my small RNA-seq data"** -> Identify known and novel miRNAs by mapping reads to the genome and scoring precursor hairpin structures using a probabilistic model.
 - CLI: `mapper.pl` for read mapping, `miRDeep2.pl` for de novo miRNA prediction
 
 ## Workflow Overview

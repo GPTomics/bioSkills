@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metabolomics Pathway Mapping
 
-**"Map my metabolites to pathways"** → Perform pathway enrichment and topology analysis using KEGG, Reactome, or MetaboAnalyst to interpret metabolomics results in biochemical context.
-- R: `MetaboAnalystR::SetMetabolomeFilter()` → `PerformDetailMatch()` → pathway topology
+**"Map my metabolites to pathways"** -> Perform pathway enrichment and topology analysis using KEGG, Reactome, or MetaboAnalyst to interpret metabolomics results in biochemical context.
+- R: `MetaboAnalystR::SetMetabolomeFilter()` -> `PerformDetailMatch()` -> pathway topology
 
 ## KEGG Pathway Enrichment
 

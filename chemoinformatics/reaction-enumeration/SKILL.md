@@ -25,14 +25,14 @@ For retrosynthetic planning (target-to-starting-material decomposition), see `ch
 
 | Operation | Goal | Tool | Fails when |
 |-----------|------|------|------------|
-| Forward enumeration | Apply reaction to building blocks → products | RDKit `ReactionFromSmarts` + `RunReactants` | Wrong atom mapping; missing connectivity |
-| Reverse enumeration (retrosynthesis) | Product → starting materials | AiZynthFinder, Chemformer | See retrosynthesis skill |
-| Template mining | Reaction database → reaction SMARTS templates | RDKit reaction mining; rxnmapper | Atom mapping ambiguous; mechanism unclear |
-| RECAP fragmentation | Molecule → retro-synthetic fragments | RDKit `Chem.Recap` | Inflexible bond rules |
-| BRICS fragmentation | Molecule → retro-synthetic fragments | RDKit `BRICS` module | Many false fragments |
-| R-group decomposition | Set of mols + scaffold → R-group table | RDKit `Chem.rdRGroupDecomposition` | Multiple scaffolds; ambiguous attachment |
-| Matched Molecular Pairs (MMPA) | Set of mols → transformation rules | mmpdb | Need ≥1k compound dataset |
-| Free-Wilson | Compounds + activities → additive R-group contributions | scikit-learn linear regression | Strict additivity assumption |
+| Forward enumeration | Apply reaction to building blocks -> products | RDKit `ReactionFromSmarts` + `RunReactants` | Wrong atom mapping; missing connectivity |
+| Reverse enumeration (retrosynthesis) | Product -> starting materials | AiZynthFinder, Chemformer | See retrosynthesis skill |
+| Template mining | Reaction database -> reaction SMARTS templates | RDKit reaction mining; rxnmapper | Atom mapping ambiguous; mechanism unclear |
+| RECAP fragmentation | Molecule -> retro-synthetic fragments | RDKit `Chem.Recap` | Inflexible bond rules |
+| BRICS fragmentation | Molecule -> retro-synthetic fragments | RDKit `BRICS` module | Many false fragments |
+| R-group decomposition | Set of mols + scaffold -> R-group table | RDKit `Chem.rdRGroupDecomposition` | Multiple scaffolds; ambiguous attachment |
+| Matched Molecular Pairs (MMPA) | Set of mols -> transformation rules | mmpdb | Need ≥1k compound dataset |
+| Free-Wilson | Compounds + activities -> additive R-group contributions | scikit-learn linear regression | Strict additivity assumption |
 
 ## Reaction SMARTS Basics
 
@@ -184,13 +184,13 @@ mmpdb transform --smiles 'COc1ccccc1' data.mmpdb
 
 | Transformation | Avg delta(pIC50) | N pairs | Confidence |
 |----------------|-------------------|---------|------------|
-| Me → F | +0.5 | 152 | high |
-| OMe → OH | -0.3 | 89 | moderate |
-| Ph → 4-pyridine | +1.2 | 23 | moderate |
+| Me -> F | +0.5 | 152 | high |
+| OMe -> OH | -0.3 | 89 | moderate |
+| Ph -> 4-pyridine | +1.2 | 23 | moderate |
 
 **Use case:** Lead optimization. Given a hit, ask "what transformations have improved similar series?" Apply top-ranked transformations to generate analog suggestions.
 
-**Context-based MMPA** (Awale 2024): condition rules on local chemical context (e.g., "Me→F adjacent to amide"). Outperforms classical MMPA on CYP1A2 inhibition reduction.
+**Context-based MMPA** (Awale 2024): condition rules on local chemical context (e.g., "Me->F adjacent to amide"). Outperforms classical MMPA on CYP1A2 inhibition reduction.
 
 ## Free-Wilson Analysis
 
@@ -299,7 +299,7 @@ Both methods derive R-group rules but from different perspectives:
 - Free-Wilson: linear regression on assembled SAR table; gives R-group contributions
 - MMPA: transformation-based; gives delta(activity) for each substitution
 
-If they agree on direction (Me→F improves activity), high confidence. If they disagree, investigate non-additive interactions or look for context dependence in MMPA.
+If they agree on direction (Me->F improves activity), high confidence. If they disagree, investigate non-additive interactions or look for context dependence in MMPA.
 
 ## Common Errors
 
@@ -331,6 +331,6 @@ If they agree on direction (Me→F improves activity), high confidence. If they 
 - chemoinformatics/scaffold-analysis - Bemis-Murcko scaffolds for R-decomp
 - chemoinformatics/molecular-descriptors - Featurize products
 - chemoinformatics/admet-prediction - Filter enumerated products
-- chemoinformatics/retrosynthesis - Reverse direction (target → starting materials)
+- chemoinformatics/retrosynthesis - Reverse direction (target -> starting materials)
 - chemoinformatics/generative-design - Generative alternatives to template enumeration
 - chemoinformatics/qsar-modeling - Validate Free-Wilson predictions

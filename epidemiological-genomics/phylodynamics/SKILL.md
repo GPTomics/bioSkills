@@ -258,14 +258,14 @@ loganalyser -burnin 10 mascot.log
 
 | Pushback | Response |
 |----------|----------|
-| "Did you check for temporal signal?" | TempEst R^2 reported; date-randomisation test run; both interpreted (date-randomisation can pass with narrow windows) |
-| "Did you mask recombination?" | Gubbins on `core.full.aln`; rebuilt tree on masked alignment; cite Croucher 2015 |
+| "Was temporal signal checked?" | TempEst R^2 reported; date-randomisation test run; both interpreted (date-randomisation can pass with narrow windows) |
+| "Was recombination masked?" | Gubbins on `core.full.aln`; rebuilt tree on masked alignment; cite Croucher 2015 |
 | "Why BDSKY and not BSP?" | BICEPS / BDSKY model sampling explicitly; BSP / Skygrid assume uniform sampling, biased under preferential surveillance |
 | "How many BEAST chains?" | 3-4 independent chains; marginal posterior overlap checked; logcombiner only after agreement |
-| "Did you use MASCOT or DTA for migration?" | MASCOT (or MASCOT-GLM with covariates); DTA inherits Lemey 2009 sampling bias for source attribution |
+| "Was MASCOT or DTA used for migration?" | MASCOT (or MASCOT-GLM with covariates); DTA inherits Lemey 2009 sampling bias for source attribution |
 | "BDSKY origin vs rootHeight?" | `origin > rootHeight` by Stadler 2013 convention; documented |
-| "Is your clock rate consistent with the literature?" | Compared to species-specific reference; recombination-masked S. pneumoniae expected ~1.5e-6 |
-| "Did you reconcile with case-based R_t?" | Reported both; disagreement attributed to sampling bias (phylodynamic is lineage-specific; case data is population mean) |
+| "Is the clock rate consistent with the literature?" | Compared to species-specific reference; recombination-masked S. pneumoniae expected ~1.5e-6 |
+| "Was the case-based R_t reconciled?" | Reported both; disagreement attributed to sampling bias (phylodynamic is lineage-specific; case data is population mean) |
 
 ## References
 

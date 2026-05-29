@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Neighbor Graphs
 
-**"Build a spatial neighborhood graph"** → Construct spatial connectivity graphs using k-nearest neighbors, Delaunay triangulation, or radius-based methods for downstream spatial statistics.
+**"Build a spatial neighborhood graph"** -> Construct spatial connectivity graphs using k-nearest neighbors, Delaunay triangulation, or radius-based methods for downstream spatial statistics.
 - Python: `squidpy.gr.spatial_neighbors(adata, coord_type='generic', n_neighs=6)`
 
 Build spatial neighbor graphs for connectivity-based analyses.

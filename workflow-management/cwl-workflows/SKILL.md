@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # CWL Workflows
 
-**"Write a portable CWL workflow for my analysis"** → Define tools and workflows in YAML using the Common Workflow Language standard for maximum cross-platform portability and sharing through workflow registries.
+**"Write a portable CWL workflow for my analysis"** -> Define tools and workflows in YAML using the Common Workflow Language standard for maximum cross-platform portability and sharing through workflow registries.
 - CLI: `cwltool` for local execution of CWL documents
 - YAML: CWL v1.2 CommandLineTool and Workflow class definitions
 

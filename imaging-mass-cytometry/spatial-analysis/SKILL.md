@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Analysis for IMC
 
-**"Analyze spatial cell interactions in my IMC data"** → Build spatial neighborhood graphs, test for cell-cell interaction enrichment, and identify spatial domains from multiplexed imaging data.
+**"Analyze spatial cell interactions in my IMC data"** -> Build spatial neighborhood graphs, test for cell-cell interaction enrichment, and identify spatial domains from multiplexed imaging data.
 - Python: `squidpy.gr.spatial_neighbors()`, `squidpy.gr.nhood_enrichment()`
 
 ## Build Spatial Graph

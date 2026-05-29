@@ -200,7 +200,7 @@ crest opt.xyz --gfn2 --T 12 -ewin 6
 
 Output: `crest_conformers.xyz` with sampled ensemble.
 
-**Workflow:** Start from RDKit ETKDGv3 + MMFF94 (cheap initial structure) → save as XYZ → CREST refinement.
+**Workflow:** Start from RDKit ETKDGv3 + MMFF94 (cheap initial structure) -> save as XYZ -> CREST refinement.
 
 ```python
 from rdkit import Chem

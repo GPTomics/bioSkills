@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Context-Specific Models
 
-**"Build a tissue-specific metabolic model from my expression data"** → Constrain a generic genome-scale model using transcriptomics data to produce a context-specific model reflecting the active metabolism of a particular tissue or condition, using GIMME, iMAT, or INIT algorithms.
+**"Build a tissue-specific metabolic model from my expression data"** -> Constrain a generic genome-scale model using transcriptomics data to produce a context-specific model reflecting the active metabolism of a particular tissue or condition, using GIMME, iMAT, or INIT algorithms.
 - Python: custom implementations with `cobra` model manipulation (COBRApy)
 
 ## GIMME Algorithm

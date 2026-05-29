@@ -30,7 +30,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metabolic Modeling Pipeline
 
-**"Build and analyze a metabolic model for my organism"** → Orchestrate CarveMe reconstruction, memote quality scoring, gap-filling, FBA/FVA flux analysis, gene essentiality prediction, and context-specific model building from expression data.
+**"Build and analyze a metabolic model for my organism"** -> Orchestrate CarveMe reconstruction, memote quality scoring, gap-filling, FBA/FVA flux analysis, gene essentiality prediction, and context-specific model building from expression data.
 
 Complete workflow for genome-scale metabolic modeling: from protein sequences to flux predictions and phenotype analysis.
 

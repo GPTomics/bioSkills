@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Protein Inference
 
-**"Resolve protein groups from my peptide identifications"** → Group peptide-spectrum matches into protein groups, resolving shared-peptide ambiguity using parsimony or probabilistic methods, then apply protein-level FDR.
+**"Resolve protein groups from my peptide identifications"** -> Group peptide-spectrum matches into protein groups, resolving shared-peptide ambiguity using parsimony or probabilistic methods, then apply protein-level FDR.
 - Python: `pyopenms.ProteinInference()` for parsimony-based grouping
 - R: Bioconductor protein inference workflows
 

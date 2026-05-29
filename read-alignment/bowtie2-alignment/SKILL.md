@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Bowtie2 Alignment
 
-**"Align DNA reads with Bowtie2"** → Map short reads to a reference genome using Bowtie2's end-to-end or local alignment modes.
+**"Align DNA reads with Bowtie2"** -> Map short reads to a reference genome using Bowtie2's end-to-end or local alignment modes.
 - CLI: `bowtie2 -x index -1 R1.fq -2 R2.fq | samtools sort -o aligned.bam`
 
 ## Build Index

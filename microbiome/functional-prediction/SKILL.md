@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Functional Prediction with PICRUSt2
 
-**"Predict functional pathways from my 16S data"** → Infer metagenome functional content from marker gene (16S/ITS) ASV tables using phylogenetic placement and gene content prediction.
+**"Predict functional pathways from my 16S data"** -> Infer metagenome functional content from marker gene (16S/ITS) ASV tables using phylogenetic placement and gene content prediction.
 - CLI: `picrust2_pipeline.py -s seqs.fna -i table.biom -o output/`
 
 ## Prepare Input Files

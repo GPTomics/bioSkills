@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Splicing-Specific Quality Control
 
-Splicing analysis is more demanding than DGE on read length, depth, library prep, alignment strategy, and annotation choice. Failures in any of these silently bias PSI estimates and inflate novel-junction false positives. The decision sequence is: experimental design → library prep → alignment strategy → annotation → diagnostic metrics. Each layer's failure mode is distinct.
+Splicing analysis is more demanding than DGE on read length, depth, library prep, alignment strategy, and annotation choice. Failures in any of these silently bias PSI estimates and inflate novel-junction false positives. The decision sequence is: experimental design -> library prep -> alignment strategy -> annotation -> diagnostic metrics. Each layer's failure mode is distinct.
 
 ## QC Layer Taxonomy
 

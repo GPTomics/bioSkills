@@ -25,7 +25,7 @@ For reaction-based enumeration and Free-Wilson, see `chemoinformatics/reaction-e
 
 | Representation | Origin | Definition | Use case | Fails when |
 |----------------|--------|------------|----------|------------|
-| Bemis-Murcko scaffold | Bemis & Murcko 1996 | Ring systems + linkers, R-groups stripped | Default chemotype identifier | Linear molecules (no rings) → empty scaffold |
+| Bemis-Murcko scaffold | Bemis & Murcko 1996 | Ring systems + linkers, R-groups stripped | Default chemotype identifier | Linear molecules (no rings) -> empty scaffold |
 | Generic framework | Bemis & Murcko 1996 | Bemis-Murcko with all atoms set to C, all bonds single | Topology comparison | Loses heteroatom info |
 | Cyclic skeleton (CSK) | RDKit | Ring atoms only, all C, all single | Pure ring-topology view | Loses linker info |
 | Murcko atom set | RDKit `GetScaffoldForMol(returnMol=False)` | Atom indices | Programmatic operations | Not a SMILES |
@@ -49,7 +49,7 @@ def all_scaffold_views(smi):
     }
 ```
 
-Example: `Cc1ccc(C(=O)NCC2CCCC2)cc1` → Bemis-Murcko `c1ccc(C(=O)NCC2CCCC2)cc1`; generic `C1CCC(C(C)NCC2CCCC2)CC1`.
+Example: `Cc1ccc(C(=O)NCC2CCCC2)cc1` -> Bemis-Murcko `c1ccc(C(=O)NCC2CCCC2)cc1`; generic `C1CCC(C(C)NCC2CCCC2)CC1`.
 
 ## Library Chemotype Clustering
 
@@ -149,14 +149,14 @@ mmpdb transform --smiles 'COc1ccccc1' --property pIC50 data.mmpdb
 Output: ranked transformations with delta(pIC50), N pairs, confidence.
 
 **Confidence interpretation:**
-- N >= 50, |delta| > 0.5 → reliable rule
-- N = 10-50, |delta| > 1.0 → suggestive
-- N < 10 → anecdotal
+- N >= 50, |delta| > 0.5 -> reliable rule
+- N = 10-50, |delta| > 1.0 -> suggestive
+- N < 10 -> anecdotal
 
 ## Context-Based MMPA
 
-Classical MMPA: "Me → F always +0.5 log units."
-Context-based MMPA: "Me → F adjacent to amide is +0.5; Me → F adjacent to ester is -0.1."
+Classical MMPA: "Me -> F always +0.5 log units."
+Context-based MMPA: "Me -> F adjacent to amide is +0.5; Me -> F adjacent to ester is -0.1."
 
 Awale et al. 2024 showed context-conditioned transformations have 60% higher predictive accuracy. mmpdb supports context via `--context` flag for pre-defined contexts; for arbitrary contexts, custom analysis.
 

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Off-Target Prediction
 
-**"Check my guide RNA for off-target sites"** → Search the genome for potential unintended cleavage sites allowing mismatches, then score each off-target by cutting frequency determination (CFD) to assess guide specificity.
+**"Check my guide RNA for off-target sites"** -> Search the genome for potential unintended cleavage sites allowing mismatches, then score each off-target by cutting frequency determination (CFD) to assess guide specificity.
 - CLI: `cas-offinder` for genome-wide off-target search
 - Python: CFD scoring with mismatch penalty matrices
 

@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Amplicon Processing with DADA2
 
-**"Process my 16S amplicon data to get ASVs"** → Denoise amplicon sequencing reads into exact amplicon sequence variants (ASVs) through quality filtering, error model learning, and chimera removal.
-- R: `dada2::filterAndTrim()` → `learnErrors()` → `dada()` → `removeBimeraDenovo()`
+**"Process my 16S amplicon data to get ASVs"** -> Denoise amplicon sequencing reads into exact amplicon sequence variants (ASVs) through quality filtering, error model learning, and chimera removal.
+- R: `dada2::filterAndTrim()` -> `learnErrors()` -> `dada()` -> `removeBimeraDenovo()`
 
 ## Complete DADA2 Workflow
 

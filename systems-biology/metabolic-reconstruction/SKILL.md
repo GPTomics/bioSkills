@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metabolic Reconstruction
 
-**"Build a metabolic model for my organism from its genome"** → Generate a genome-scale metabolic model by mapping protein sequences to a universal reaction database, then gap-filling to ensure growth capability on specified media.
+**"Build a metabolic model for my organism from its genome"** -> Generate a genome-scale metabolic model by mapping protein sequences to a universal reaction database, then gap-filling to ensure growth capability on specified media.
 - CLI: `carve` (CarveMe) for automated reconstruction from protein FASTA
 - CLI: `gapseq find` + `gapseq draft` + `gapseq fill` for pathway-based reconstruction
 

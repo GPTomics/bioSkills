@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # QIIME2 Amplicon Workflow
 
-**"Run my amplicon analysis through QIIME2"** → Process 16S/ITS amplicon data end-to-end using the QIIME2 CLI with built-in provenance tracking, from import through denoising, taxonomy, and diversity analysis.
+**"Run my amplicon analysis through QIIME2"** -> Process 16S/ITS amplicon data end-to-end using the QIIME2 CLI with built-in provenance tracking, from import through denoising, taxonomy, and diversity analysis.
 - CLI: `qiime dada2 denoise-paired`, `qiime diversity core-metrics-phylogenetic`
 
 ## Import Data

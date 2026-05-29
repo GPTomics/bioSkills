@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # scikit-allel Analysis
 
-**"Analyze population genetics in Python"** → Read VCF files into efficient array structures, compute allele frequencies, diversity statistics, PCA, and selection scans using scikit-allel.
+**"Analyze population genetics in Python"** -> Read VCF files into efficient array structures, compute allele frequencies, diversity statistics, PCA, and selection scans using scikit-allel.
 - Python: `allel.read_vcf()`, `allel.GenotypeArray()`, `allel.mean_pairwise_difference()`
 
 Python library for population genetics analysis with efficient array data structures.

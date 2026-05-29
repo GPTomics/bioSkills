@@ -26,7 +26,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # CNV Pipeline
 
-**"Detect copy number variants from my sequencing data"** → Orchestrate CNVkit coverage analysis, segmentation, calling, visualization, and annotation for exome or targeted sequencing panels.
+**"Detect copy number variants from my sequencing data"** -> Orchestrate CNVkit coverage analysis, segmentation, calling, visualization, and annotation for exome or targeted sequencing panels.
 
 Complete workflow for detecting copy number variants from exome or targeted sequencing data.
 

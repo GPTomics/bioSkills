@@ -19,10 +19,10 @@ package and adapt the example to match the actual API rather than retrying.
 
 Analyze codon usage patterns and calculate codon adaptation metrics using Biopython.
 
-**"Analyze codon usage"** → Count codons in a coding sequence, compute frequencies and bias metrics.
+**"Analyze codon usage"** -> Count codons in a coding sequence, compute frequencies and bias metrics.
 - Python: `Counter` on 3-mers + `CodonAdaptationIndex` (BioPython)
 
-**"Optimize codons for expression"** → Replace codons with host-preferred synonymous codons using a preference table.
+**"Optimize codons for expression"** -> Replace codons with host-preferred synonymous codons using a preference table.
 - Python: custom mapping dict + `Seq()` (BioPython)
 
 ## Required Imports

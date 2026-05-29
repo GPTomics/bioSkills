@@ -215,7 +215,7 @@ Columns exhibiting **both** high gap fraction AND low conservation are the stron
 
 ## Consensus Sequence
 
-**"Get consensus sequence"** → Derive a single representative sequence from an MSA based on majority-rule voting at each column.
+**"Get consensus sequence"** -> Derive a single representative sequence from an MSA based on majority-rule voting at each column.
 
 **Goal:** Generate a consensus sequence from the alignment using a frequency threshold.
 

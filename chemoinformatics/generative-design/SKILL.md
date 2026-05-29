@@ -128,7 +128,7 @@ high = 0.5
 low = 0.3
 ```
 
-`geometric_mean` ensures all components must be reasonably high (one zero → zero total). `arithmetic_mean` allows compensation.
+`geometric_mean` ensures all components must be reasonably high (one zero -> zero total). `arithmetic_mean` allows compensation.
 
 ## Multi-Parameter Optimization (MPO)
 
@@ -223,7 +223,7 @@ filter_only = true
 
 ## MolMIM (NVIDIA BioNeMo)
 
-MolMIM uses latent-space optimization: encode SMILES to latent → optimize in latent → decode. Faster than RL for property optimization.
+MolMIM uses latent-space optimization: encode SMILES to latent -> optimize in latent -> decode. Faster than RL for property optimization.
 
 ```python
 # Pseudo-code; requires NVIDIA NIM access

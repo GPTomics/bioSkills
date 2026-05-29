@@ -9,7 +9,12 @@ from collections import defaultdict
 
 
 def parse_infernal_tbl(tbl_file):
-    '''Parse Infernal cmscan --tblout --fmt 2 output.'''
+    '''Parse Infernal cmscan --tblout --fmt 2 output.
+
+    fmt 2 column order (0-based): 1=target(family) name, 2=target accession,
+    3=query(sequence) name, 7/8=model from/to, 9/10=seq from/to, 11=strand,
+    16=score, 17=E-value, 19=olp. (Do not confuse model coords with seq coords.)
+    '''
     hits = []
     with open(tbl_file) as f:
         for line in f:
@@ -18,17 +23,17 @@ def parse_infernal_tbl(tbl_file):
             parts = line.split()
             if len(parts) < 18:
                 continue
-            strand = '+' if parts[9] == '+' else '-'
-            start, end = (int(parts[7]), int(parts[8])) if strand == '+' else (int(parts[8]), int(parts[7]))
+            strand = '+' if parts[11] == '+' else '-'
+            start, end = (int(parts[9]), int(parts[10])) if strand == '+' else (int(parts[10]), int(parts[9]))
             hits.append({
-                'rfam_acc': parts[1],
-                'rfam_name': parts[2],
+                'rfam_name': parts[1],
+                'rfam_acc': parts[2],
                 'seqid': parts[3],
                 'start': start,
                 'end': end,
                 'strand': strand,
-                'evalue': float(parts[16]),
-                'score': float(parts[15]),
+                'score': float(parts[16]),
+                'evalue': float(parts[17]),
             })
     df = pd.DataFrame(hits)
     if len(df) > 0:
@@ -51,7 +56,7 @@ def classify_rfam(name):
         return 'riboswitch'
     if any(k in n for k in ['ires', 'leader', 'utr']):
         return 'cis-reg'
-    if 'snrna' in n or n.startswith('u') and n[1:].isdigit():
+    if 'snrna' in n or (n.startswith('u') and len(n) > 1 and n[1].isdigit()):
         return 'snRNA'
     return 'other_ncRNA'
 

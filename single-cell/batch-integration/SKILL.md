@@ -35,7 +35,7 @@ Integrate multiple scRNA-seq datasets to remove batch effects while preserving b
 
 **Approach:** Run PCA on merged data, iteratively adjust embeddings to mix batches while preserving biological variation, and use corrected embeddings for downstream analysis.
 
-**"Integrate my batches"** → Merge samples, preprocess jointly, correct technical variation in the embedding space, and cluster on corrected coordinates.
+**"Integrate my batches"** -> Merge samples, preprocess jointly, correct technical variation in the embedding space, and cluster on corrected coordinates.
 
 ### R with Seurat
 

@@ -2,7 +2,7 @@
 '''
 Parse prokaryotic genome annotation GFF3 output and compute QC metrics.
 '''
-# Reference: busco 5.5+, scanpy 1.10+ | Verify API if version differs
+# Reference: gffutils 0.12+, biopython 1.83+, pandas 2.2+ | Verify API if version differs
 
 import gffutils
 import pandas as pd
@@ -34,9 +34,9 @@ def extract_cds_info(db):
 def compute_coding_density(db, genome_fasta):
     '''Compute coding density from GFF3 and genome FASTA.
 
-    Typical prokaryotic coding density: 85-95%.
-    Below 80% may indicate annotation gaps or many pseudogenes.
-    Above 95% may indicate overlapping annotations needing review.
+    Typical prokaryotic coding density: 88-90% (band 85-93%).
+    Below 85% may indicate a wrong translation table, a fragmented assembly, or heavy pseudogenization.
+    Above 93% may indicate ORF over-calling (spurious short hypotheticals).
     '''
     genome_length = sum(len(rec.seq) for rec in SeqIO.parse(genome_fasta, 'fasta'))
     coding_bp = sum(cds.end - cds.start + 1 for cds in db.features_of_type('CDS'))
@@ -76,10 +76,10 @@ def annotation_qc_report(gff_file, genome_fasta):
     print(f'  Coding bases: {coding_bp:,} bp')
     print(f'  Coding density: {density:.1%}')
 
-    if density < 0.80:
-        print('  WARNING: Low coding density (<80%). Check assembly completeness.')
-    elif density > 0.95:
-        print('  WARNING: High coding density (>95%). Check for overlapping annotations.')
+    if density < 0.85:
+        print('  WARNING: Low coding density (<85%). Check translation table, assembly completeness, or pseudogenization.')
+    elif density > 0.93:
+        print('  WARNING: High coding density (>93%). Check for ORF over-calling.')
 
     return cds_df
 

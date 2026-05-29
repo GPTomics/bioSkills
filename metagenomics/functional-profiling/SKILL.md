@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Functional Profiling
 
-**"What metabolic pathways are present in my metagenome?"** → Profile functional potential of metagenomic samples to obtain pathway abundances and gene family counts using translated search against UniRef and MetaCyc.
+**"What metabolic pathways are present in my metagenome?"** -> Profile functional potential of metagenomic samples to obtain pathway abundances and gene family counts using translated search against UniRef and MetaCyc.
 - CLI: `humann --input reads.fastq --output results/` (HUMAnN3)
 
 Profile the functional potential of metagenomic samples using HUMAnN3 to get pathway and gene family abundances.

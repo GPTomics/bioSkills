@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Differential miRNA Expression
 
-**"Find differentially expressed miRNAs between my conditions"** → Perform statistical testing on miRNA count matrices to identify miRNAs with significant expression changes, accounting for small RNA-specific normalization considerations.
+**"Find differentially expressed miRNAs between my conditions"** -> Perform statistical testing on miRNA count matrices to identify miRNAs with significant expression changes, accounting for small RNA-specific normalization considerations.
 - R: `DESeq2::DESeq()` or `edgeR::glmQLFTest()` on miRNA count data
 
 ## Load miRNA Count Data

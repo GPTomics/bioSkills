@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Diversity Analysis
 
-**"Compare microbial diversity across my samples"** → Calculate alpha diversity (within-sample richness/evenness) and beta diversity (between-sample dissimilarity) to test for community composition differences across groups.
+**"Compare microbial diversity across my samples"** -> Calculate alpha diversity (within-sample richness/evenness) and beta diversity (between-sample dissimilarity) to test for community composition differences across groups.
 - R: `phyloseq::estimate_richness()` for alpha, `phyloseq::ordinate()` for beta
 - R: `vegan::adonis2()` for PERMANOVA testing
 

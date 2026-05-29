@@ -232,7 +232,7 @@ Severe pneumonia, repurposed for COVID-19; Bayesian factorial multi-domain desig
 
 ### Drop-the-loser vs promising-the-winner
 
-- **Adaptive arm-dropping (futility):** posterior P(beating control) drops below threshold → close. Mathematically straightforward.
+- **Adaptive arm-dropping (futility):** posterior P(beating control) drops below threshold -> close. Mathematically straightforward.
 - **"Promising-the-winner":** selection bias. Bias-adjusted estimators (Robertson 2023; conditional MLE) standard in I-SPY 2 reports.
 
 ## Hierarchical Models for Safety Multiplicity (Berry-Berry 2004)

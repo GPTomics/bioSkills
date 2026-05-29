@@ -26,7 +26,7 @@ Find differentially expressed genes between clusters and annotate cell types.
 
 **Approach:** Perform differential expression testing between clusters with Wilcoxon rank-sum, visualize markers with dot plots and heatmaps, and assign cell type labels manually.
 
-**"Find marker genes for each cluster"** → Test each cluster against all others for differentially expressed genes and rank by statistical significance and fold change.
+**"Find marker genes for each cluster"** -> Test each cluster against all others for differentially expressed genes and rank by statistical significance and fold change.
 
 ### Required Imports
 

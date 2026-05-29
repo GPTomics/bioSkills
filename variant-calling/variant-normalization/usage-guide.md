@@ -26,9 +26,9 @@ The same indel can be written multiple ways:
 
 ```
 # All represent the same 3bp deletion
-Position 100:  ATCGA → A--GA  (ATG deleted)
-Position 101:  TCGA  → T--A   (CGA deleted, shifted right)
-Position 102:  CGA   → -GA    (C deleted, different start)
+Position 100:  ATCGA -> A--GA  (ATG deleted)
+Position 101:  TCGA  -> T--A   (CGA deleted, shifted right)
+Position 102:  CGA   -> -GA    (C deleted, different start)
 ```
 
 Different callers may choose different representations, making comparison impossible without normalization.

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # UMI Processing
 
-**"Deduplicate reads using UMIs"** → Extract UMI barcodes, group reads by UMI+position, and collapse PCR duplicates to count unique molecules.
+**"Deduplicate reads using UMIs"** -> Extract UMI barcodes, group reads by UMI+position, and collapse PCR duplicates to count unique molecules.
 - CLI: `umi_tools extract` + `umi_tools dedup` (UMI-tools)
 - CLI: `fgbio GroupReadsByUmi` + `fgbio CallMolecularConsensusReads`
 

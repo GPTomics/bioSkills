@@ -166,7 +166,7 @@ def filter_by_editing_efficiency(crispresso_outputs_dir, target_pos, target_base
 
 ## Bystander Edit Attribution
 
-**Why this matters:** When a sgRNA's editing window contains the target base AND a bystander base, the screen scores the combination. To attribute screen signal to the target variant alone, you must either (a) include sgRNAs that edit only the target (no bystander) -- often impossible -- or (b) deconvolute via parallel measurements.
+**Why this matters:** When a sgRNA's editing window contains the target base AND a bystander base, the screen scores the combination. To attribute screen signal to the target variant alone, either (a) include sgRNAs that edit only the target (no bystander) -- often impossible -- or (b) deconvolute via parallel measurements.
 
 **Strategies for variant-by-variant attribution:**
 

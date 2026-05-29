@@ -26,10 +26,10 @@ The fundamental rule: spike-in scaling is applied at the READ level (via size fa
 
 | Experimental design | Spike-in needed? |
 |---------------------|------------------|
-| HDAC inhibitor → global H3K27ac increase | Yes |
-| BET inhibitor (JQ1, OTX015) → global BRD4 / H3K27ac decrease | Yes |
-| EZH2 inhibitor → global H3K27me3 loss | Yes |
-| DNMT inhibitor → global 5mC loss; downstream histone mark shifts | Yes |
+| HDAC inhibitor -> global H3K27ac increase | Yes |
+| BET inhibitor (JQ1, OTX015) -> global BRD4 / H3K27ac decrease | Yes |
+| EZH2 inhibitor -> global H3K27me3 loss | Yes |
+| DNMT inhibitor -> global 5mC loss; downstream histone mark shifts | Yes |
 | Target factor knockdown / degron | Yes (or matched-input subtraction) |
 | Cell-cycle synchronization / arrest | Yes |
 | Dosage titration | Yes |

@@ -20,7 +20,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Generate quality reports for FASTQ files using FastQC and aggregate multiple reports with MultiQC.
 
-**"Run quality control on FASTQ files"** → Generate per-base quality, adapter content, and duplication plots, then aggregate across samples.
+**"Run quality control on FASTQ files"** -> Generate per-base quality, adapter content, and duplication plots, then aggregate across samples.
 - CLI: `fastqc *.fastq.gz` then `multiqc .`
 
 ## FastQC - Single Sample Reports

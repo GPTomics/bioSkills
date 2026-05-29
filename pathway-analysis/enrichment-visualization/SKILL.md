@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Enrichment Visualization
 
-**"Create publication-quality plots from my enrichment analysis"** → Generate dotplots, gene-concept networks, enrichment maps, GSEA running score plots, and ridgeplots from clusterProfiler results.
+**"Create publication-quality plots from my enrichment analysis"** -> Generate dotplots, gene-concept networks, enrichment maps, GSEA running score plots, and ridgeplots from clusterProfiler results.
 - R: `dotplot()`, `cnetplot()`, `emapplot()`, `gseaplot2()` (enrichplot)
 
 ## Scope

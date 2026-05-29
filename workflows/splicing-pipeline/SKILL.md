@@ -19,14 +19,14 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Alternative Splicing Analysis Pipeline
 
-**"Analyze alternative splicing from my RNA-seq data"** → Orchestrate STAR alignment, PSI quantification (rMATS-turbo/SUPPA2), differential splicing detection, isoform switching analysis (IsoformSwitchAnalyzeR), sashimi plot visualization, and junction QC.
+**"Analyze alternative splicing from my RNA-seq data"** -> Orchestrate STAR alignment, PSI quantification (rMATS-turbo/SUPPA2), differential splicing detection, isoform switching analysis (IsoformSwitchAnalyzeR), sashimi plot visualization, and junction QC.
 
 Complete workflow from raw RNA-seq to differential splicing results.
 
 ## Pipeline Overview
 
 ```
-FASTQ → Read QC → STAR 2-pass → Junction QC → rMATS-turbo → Results → Visualization
+FASTQ -> Read QC -> STAR 2-pass -> Junction QC -> rMATS-turbo -> Results -> Visualization
                                     ↓
                             (Optional) IsoformSwitchAnalyzeR
 ```

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Methylation-Based Detection
 
-**"Detect cancer from cfDNA methylation patterns"** → Analyze cell-free DNA methylation for multi-cancer early detection and tissue-of-origin classification using bisulfite or enzymatic conversion.
+**"Detect cancer from cfDNA methylation patterns"** -> Analyze cell-free DNA methylation for multi-cancer early detection and tissue-of-origin classification using bisulfite or enzymatic conversion.
 - CLI: `MethylDackel extract` for methylation calling from cfDNA bisulfite data
 
 Analyze cfDNA methylation for cancer detection and tissue-of-origin analysis.

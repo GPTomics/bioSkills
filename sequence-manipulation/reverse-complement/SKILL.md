@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Generate complementary and reverse complementary sequences using Biopython.
 
-**"Get the reverse complement"** → Produce the 5'-to-3' sequence of the opposite strand.
+**"Get the reverse complement"** -> Produce the 5'-to-3' sequence of the opposite strand.
 - Python: `seq.reverse_complement()` (BioPython `Seq`)
 - CLI: `samtools faidx ref.fa region --reverse-complement`
 
@@ -40,7 +40,7 @@ seq = Seq('ATGCGATCG')
 rc = seq.reverse_complement()  # Returns Seq('CGATCGCAT')
 ```
 
-This is the most commonly used operation - it gives you the sequence of the opposite strand in the conventional 5' to 3' direction.
+This is the most commonly used operation - it produces the sequence of the opposite strand in the conventional 5' to 3' direction.
 
 ### complement()
 

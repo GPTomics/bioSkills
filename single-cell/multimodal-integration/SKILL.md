@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Multimodal Integration
 
-**"Integrate RNA and protein data from my CITE-seq experiment"** → Jointly analyze multiple modalities (RNA + protein, RNA + ATAC) measured in the same cells using weighted nearest neighbor or factor analysis.
+**"Integrate RNA and protein data from my CITE-seq experiment"** -> Jointly analyze multiple modalities (RNA + protein, RNA + ATAC) measured in the same cells using weighted nearest neighbor or factor analysis.
 - R: `Seurat::FindMultiModalNeighbors()` for WNN integration
 - Python: `muon` for MuData handling, `scanpy` + `anndata` for multimodal objects
 

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Sequence Statistics
 
-**"Calculate N50 and other assembly statistics"** → Compute sequence count, length distribution, N50/L50, GC content, and nucleotide composition for FASTA datasets.
+**"Calculate N50 and other assembly statistics"** -> Compute sequence count, length distribution, N50/L50, GC content, and nucleotide composition for FASTA datasets.
 - Python: `SeqIO.parse()`, `gc_fraction()` (BioPython)
 
 Calculate comprehensive statistics for sequence datasets using Biopython.
@@ -315,4 +315,4 @@ for base in ['A', 'T', 'G', 'C', 'N']:
 - batch-processing - Calculate stats across multiple files
 - fastq-quality - Quality score statistics for FASTQ files
 - sequence-manipulation/sequence-properties - Per-sequence GC content and properties
-- alignment-files - samtools stats/flagstat for alignment statistics
+- alignment-files/bam-statistics - samtools stats/flagstat for alignment statistics

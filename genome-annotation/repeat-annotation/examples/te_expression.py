@@ -50,12 +50,12 @@ def te_family_summary(te_counts):
     '''Summarize TE expression by family and class.'''
     te_info = []
     for te_id in te_counts.index:
-        parts = te_id.split(':')
+        parts = te_id.split(':')   # TEtranscripts index is name:family:class (e.g. L1HS:L1:LINE)
         te_info.append({
             'te_id': te_id,
             'te_name': parts[0] if len(parts) > 0 else te_id,
-            'te_class': parts[1] if len(parts) > 1 else 'unknown',
-            'te_family': parts[2] if len(parts) > 2 else 'unknown',
+            'te_family': parts[1] if len(parts) > 1 else 'unknown',
+            'te_class': parts[2] if len(parts) > 2 else 'unknown',
             'mean_count': te_counts.loc[te_id].mean(),
         })
 

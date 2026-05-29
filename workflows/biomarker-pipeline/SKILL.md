@@ -27,7 +27,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Biomarker Discovery Pipeline
 
-**"Build a validated biomarker panel from my omics data"** → Orchestrate feature selection (Boruta/LASSO), nested cross-validation classifier training, and SHAP interpretation to produce a robust, validated biomarker signature.
+**"Build a validated biomarker panel from my omics data"** -> Orchestrate feature selection (Boruta/LASSO), nested cross-validation classifier training, and SHAP interpretation to produce a robust, validated biomarker signature.
 
 Complete pipeline from expression data to validated biomarker panels with classifier.
 

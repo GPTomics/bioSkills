@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Trim low-quality bases and filter reads using Trimmomatic sliding window or fastp quality filtering.
 
-**"Filter reads by quality"** → Remove low-quality bases and discard reads below quality/length thresholds.
+**"Filter reads by quality"** -> Remove low-quality bases and discard reads below quality/length thresholds.
 - CLI: `trimmomatic PE` with SLIDINGWINDOW and MINLEN options
 - CLI: `fastp --qualified_quality_phred 20 --length_required 50`
 

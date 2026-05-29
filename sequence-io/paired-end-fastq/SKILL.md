@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Paired-End FASTQ
 
-**"Work with my paired-end FASTQ files"** → Iterate R1/R2 pairs in sync, filter both mates together, interleave/deinterleave files, and auto-detect paired file naming.
+**"Work with my paired-end FASTQ files"** -> Iterate R1/R2 pairs in sync, filter both mates together, interleave/deinterleave files, and auto-detect paired file naming.
 - Python: `SeqIO.parse()` with `zip()` iteration (BioPython)
 
 Handle paired-end sequencing data (R1/R2 files) using Biopython.
@@ -331,4 +331,4 @@ for r1, r2 in iterate_gzipped_pairs('reads_R1.fastq.gz', 'reads_R2.fastq.gz'):
 - fastq-quality - Quality filtering before paired processing
 - filter-sequences - Additional filtering criteria
 - compressed-files - Handle gzipped paired files
-- alignment-files - After filtering, align paired reads with bwa mem; proper pairs in BAM
+- alignment-files/sam-bam-basics - After filtering, align paired reads with bwa mem; proper pairs in BAM

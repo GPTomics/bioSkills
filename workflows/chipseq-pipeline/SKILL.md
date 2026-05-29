@@ -35,7 +35,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # ChIP-seq Pipeline
 
-**"Process my ChIP-seq data from FASTQ to annotated peaks"** → Orchestrate QC, Bowtie2 alignment, duplicate removal, MACS3 peak calling, ChIPseeker annotation, and QC metrics (FRiP, strand cross-correlation).
+**"Process my ChIP-seq data from FASTQ to annotated peaks"** -> Orchestrate QC, Bowtie2 alignment, duplicate removal, MACS3 peak calling, ChIPseeker annotation, and QC metrics (FRiP, strand cross-correlation).
 
 Complete workflow from raw ChIP-seq FASTQ files to annotated peaks.
 

@@ -24,7 +24,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 **Approach:** Load a reference model, predict cell types with majority voting for cluster-level consensus, and add predictions to AnnData.
 
-**"Automatically label my cell types"** → Apply a trained classifier to assign cell type identities based on transcriptomic similarity to a reference atlas.
+**"Automatically label my cell types"** -> Apply a trained classifier to assign cell type identities based on transcriptomic similarity to a reference atlas.
 
 ```python
 import celltypist

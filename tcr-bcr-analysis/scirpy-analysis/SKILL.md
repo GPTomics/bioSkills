@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # scirpy Analysis
 
-**"Analyze single-cell TCR/BCR with gene expression"** → Integrate immune receptor clonotype data with scRNA-seq gene expression for joint analysis of clonal expansion and cell state.
+**"Analyze single-cell TCR/BCR with gene expression"** -> Integrate immune receptor clonotype data with scRNA-seq gene expression for joint analysis of clonal expansion and cell state.
 - Python: `scirpy.io.read_10x_vdj()`, `scirpy.tl.clonal_expansion()`, `scirpy.tl.clonotype_network()`
 
 ## Load VDJ Data

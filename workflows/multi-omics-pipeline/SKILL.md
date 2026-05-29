@@ -23,7 +23,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Multi-omics Integration Pipeline
 
-**"Integrate my multi-omics datasets"** → Orchestrate data harmonization, MOFA+ factor analysis, mixOmics multivariate integration, similarity network fusion, and joint pathway interpretation across transcriptomics, proteomics, metabolomics, or other modalities.
+**"Integrate my multi-omics datasets"** -> Orchestrate data harmonization, MOFA+ factor analysis, mixOmics multivariate integration, similarity network fusion, and joint pathway interpretation across transcriptomics, proteomics, metabolomics, or other modalities.
 
 ## Pipeline Overview
 

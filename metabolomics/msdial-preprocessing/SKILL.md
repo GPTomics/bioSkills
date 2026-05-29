@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # MS-DIAL Preprocessing
 
-**"Process my LC-MS data with MS-DIAL"** → Detect chromatographic peaks, align across samples, annotate metabolites, and export a feature table for statistical analysis.
+**"Process my LC-MS data with MS-DIAL"** -> Detect chromatographic peaks, align across samples, annotate metabolites, and export a feature table for statistical analysis.
 - CLI: MS-DIAL GUI or console mode for peak picking and alignment
 
 ## MS-DIAL GUI Workflow

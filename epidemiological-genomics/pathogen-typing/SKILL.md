@@ -277,12 +277,12 @@ CRITICAL: a number from one pathogen does NOT transfer to another. Substitution 
 | Pushback | Response |
 |----------|----------|
 | "Why cgMLST and not core-SNP?" | EFSA harmonised foodborne uses cgMLST; cross-lab comparability via shared schema. For outbreak-internal who-infected-whom, core-SNP supplements |
-| "What threshold did you use, and on what population?" | Cite Walker 2013 / Eyre 2013 / EFSA per pathogen; caveat the population for non-universal thresholds |
-| "How did you handle missing cgMLST loci?" | Pairwise-complete distance; locus must be called in BOTH samples to count |
+| "What threshold was used, and on what population?" | Cite Walker 2013 / Eyre 2013 / EFSA per pathogen; caveat the population for non-universal thresholds |
+| "How were missing cgMLST loci handled?" | Pairwise-complete distance; locus must be called in BOTH samples to count |
 | "Pangolin version?" | `pangolin --all-versions` recorded; re-run on dataset update |
 | "Why TB-Profiler over Mykrobe?" | TB-Profiler is primary (WHO catalogue integration + Napier barcode); Mykrobe is cross-check on R/XDR calls |
-| "Did you check the Napier 2020 barcode?" | Verified `tb-profiler list_db`; lineage 7-9 callable |
-| "Did you cite Beijing-as-monolith literature?" | Disaggregated to WGS sublineage (2.2.1.1 modern / 2.2.1.2 ancestral); pre-2014 Beijing claims treated as hypotheses |
+| "Was the Napier 2020 barcode checked?" | Verified `tb-profiler list_db`; lineage 7-9 callable |
+| "Was the Beijing-as-monolith literature cited?" | Disaggregated to WGS sublineage (2.2.1.1 modern / 2.2.1.2 ancestral); pre-2014 Beijing claims treated as hypotheses |
 | "Multi-country outbreak: harmonised schema?" | EnteroBase HierCC for *Salmonella* / *E. coli* / *Listeria*; documented schema source + date |
 
 ## References

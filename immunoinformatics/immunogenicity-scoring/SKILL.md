@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Immunogenicity Scoring
 
-**"Rank my neoantigen candidates by immunogenicity"** → Score and prioritize epitopes using multi-factor models combining MHC binding, proteasomal processing, expression level, and sequence foreignness for vaccine candidate selection.
+**"Rank my neoantigen candidates by immunogenicity"** -> Score and prioritize epitopes using multi-factor models combining MHC binding, proteasomal processing, expression level, and sequence foreignness for vaccine candidate selection.
 - Python: `mhcflurry` for binding + processing predictions, custom scoring pipeline
 
 ## Multi-Factor Scoring

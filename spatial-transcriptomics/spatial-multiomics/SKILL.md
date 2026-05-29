@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Multi-omics Analysis
 
-**"Analyze my high-resolution spatial data"** → Process subcellular-resolution spatial platforms (Xenium, MERFISH, Slide-seq, Stereo-seq) including cell segmentation, binning strategies, and multi-modal integration.
+**"Analyze my high-resolution spatial data"** -> Process subcellular-resolution spatial platforms (Xenium, MERFISH, Slide-seq, Stereo-seq) including cell segmentation, binning strategies, and multi-modal integration.
 - Python: `spatialdata` + `squidpy` for unified multi-platform analysis
 
 ## Platform Comparison

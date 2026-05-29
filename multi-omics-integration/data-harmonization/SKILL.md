@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Data Harmonization for Multi-Omics
 
-**"Prepare my multi-omics data for integration"** → Normalize, batch-correct, align features, and handle missing values across RNA-seq, proteomics, methylation, and other data types before joint analysis.
+**"Prepare my multi-omics data for integration"** -> Normalize, batch-correct, align features, and handle missing values across RNA-seq, proteomics, methylation, and other data types before joint analysis.
 - R: `MultiAssayExperiment` for unified multi-omics containers
 
 ## MultiAssayExperiment Structure

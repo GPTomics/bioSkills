@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Lipidomics Analysis
 
-**"Analyze my lipidomics data"** → Identify and quantify lipid species by class and chain composition, then perform differential lipid analysis and pathway interpretation.
+**"Analyze my lipidomics data"** -> Identify and quantify lipid species by class and chain composition, then perform differential lipid analysis and pathway interpretation.
 - R: `lipidr::as_lipidomics_experiment()`, `de_analysis()`
 - CLI: MS-DIAL or LipidSearch for lipid identification
 

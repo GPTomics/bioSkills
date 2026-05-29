@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Quarto Reports
 
-**"Create a Quarto analysis report"** → Write reproducible documents mixing code (Python/R), narrative, and figures that render to HTML/PDF/Word.
+**"Create a Quarto analysis report"** -> Write reproducible documents mixing code (Python/R), narrative, and figures that render to HTML/PDF/Word.
 - CLI: `quarto render report.qmd --to html`
 
 ## Basic Document

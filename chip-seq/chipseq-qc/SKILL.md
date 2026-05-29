@@ -240,7 +240,7 @@ Most QC thresholds are stable across ENCODE versions; blacklist update is the ma
 
 **Symptom:** NRF reports 0.99-1.0; metric is meaningless.
 
-**Fix:** Compute NRF / PBC1 / PBC2 on the PRE-deduplication BAM. ENCODE-compliant pipeline: filter → MarkDuplicates (don't remove) → compute NRF → filter out duplicates → call peaks.
+**Fix:** Compute NRF / PBC1 / PBC2 on the PRE-deduplication BAM. ENCODE-compliant pipeline: filter -> MarkDuplicates (don't remove) -> compute NRF -> filter out duplicates -> call peaks.
 
 ### IDR -- Wrong rank column
 

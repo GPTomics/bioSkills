@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metagenome Visualization
 
-**"Visualize the taxonomic composition of my metagenomes"** → Create publication-quality figures (stacked bars, heatmaps, ordination plots) from taxonomic profiling output to compare community composition across samples.
+**"Visualize the taxonomic composition of my metagenomes"** -> Create publication-quality figures (stacked bars, heatmaps, ordination plots) from taxonomic profiling output to compare community composition across samples.
 - R: `phyloseq::plot_bar()`, `microbiome` package
 - Python: `matplotlib`/`seaborn` with pandas for custom compositions
 

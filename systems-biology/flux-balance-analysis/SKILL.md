@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Flux Balance Analysis
 
-**"Predict growth rate and metabolic fluxes for my organism"** → Solve a linear program over a genome-scale metabolic model to find the optimal flux distribution that maximizes biomass (or a custom objective), and assess flux ranges with FVA.
+**"Predict growth rate and metabolic fluxes for my organism"** -> Solve a linear program over a genome-scale metabolic model to find the optimal flux distribution that maximizes biomass (or a custom objective), and assess flux ranges with FVA.
 - Python: `model.optimize()`, `cobra.flux_analysis.flux_variability_analysis()` (COBRApy)
 
 ## Load Models

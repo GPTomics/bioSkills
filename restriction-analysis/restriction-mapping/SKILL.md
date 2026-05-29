@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Restriction Mapping
 
-**"Create a restriction map of my sequence"** → Visualize cut site positions for multiple enzymes along a DNA sequence with inter-site distances.
+**"Create a restriction map of my sequence"** -> Visualize cut site positions for multiple enzymes along a DNA sequence with inter-site distances.
 - Python: `Bio.Restriction.Analysis` for positions, `matplotlib` for graphical maps
 
 ## Create Basic Restriction Map

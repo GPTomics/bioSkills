@@ -192,7 +192,7 @@ def ma_plot(res, fdr=0.05, ax=None):
 
 **Symptom:** "Top hits" by |LFC| are all genes with baseMean < 5; biologically interesting genes with moderate LFC are hidden in the noise cloud.
 
-**Fix:** `lfcShrink(dds, coef=..., type='apeglm')` for the default case; `type='ashr'` if you need `contrast=`.
+**Fix:** `lfcShrink(dds, coef=..., type='apeglm')` for the default case; `type='ashr'` if `contrast=` is needed.
 
 ### Raw p threshold line drawn on adjusted axis
 

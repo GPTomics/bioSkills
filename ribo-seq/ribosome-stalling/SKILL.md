@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Ribosome Stalling Detection
 
-**"Find ribosome pause sites in my data"** → Detect codon-level ribosome stalling and pausing events from Ribo-seq footprint density, identifying positions with abnormally high ribosome occupancy.
+**"Find ribosome pause sites in my data"** -> Detect codon-level ribosome stalling and pausing events from Ribo-seq footprint density, identifying positions with abnormally high ribosome occupancy.
 - Python: `plastid` for codon-resolution density calculation, `scipy` for statistical scoring
 
 ## Concept

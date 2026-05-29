@@ -30,7 +30,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # FASTQ to Variants Workflow
 
-**"Call variants from my whole-genome or exome FASTQ files"** → Orchestrate fastp QC, BWA-MEM2 alignment, duplicate marking, BQSR, GATK HaplotypeCaller variant calling, and VQSR/hard filtering to produce filtered VCF output.
+**"Call variants from my whole-genome or exome FASTQ files"** -> Orchestrate fastp QC, BWA-MEM2 alignment, duplicate marking, BQSR, GATK HaplotypeCaller variant calling, and VQSR/hard filtering to produce filtered VCF output.
 
 Complete pipeline from raw DNA sequencing FASTQ files to filtered variant calls.
 

@@ -110,24 +110,24 @@ Tell the agent what to do:
 ### No significant motifs
 
 Causes in order of frequency:
-1. **Peak quality / hyper-ChIPable contamination** → see chipseq-qc, filter blacklist + custom hyper-ChIPable
-2. **Too few peaks** (< 500) → motif discovery needs ≥ 500-1000 high-confidence peaks
-3. **Wrong sequence window** → recenter to summit ±100-250 bp
-4. **Wrong background** → for unusual GC composition, supply matched background explicitly
-5. **Broad histone mark** → motif analysis may not apply
+1. **Peak quality / hyper-ChIPable contamination** -> see chipseq-qc, filter blacklist + custom hyper-ChIPable
+2. **Too few peaks** (< 500) -> motif discovery needs ≥ 500-1000 high-confidence peaks
+3. **Wrong sequence window** -> recenter to summit ±100-250 bp
+4. **Wrong background** -> for unusual GC composition, supply matched background explicitly
+5. **Broad histone mark** -> motif analysis may not apply
 
 ### Top motif is GC-rich or matches no TF database
 
-1. Repeat contamination → use `-mask` (HOMER) or pre-mask sequences
-2. CpG island bias → matched background; consider order-2 Markov
-3. Hyper-ChIPable artifacts → filter peaks; see chipseq-qc
-4. Compositional control failed → switch tool (STREME order-2 typically better)
+1. Repeat contamination -> use `-mask` (HOMER) or pre-mask sequences
+2. CpG island bias -> matched background; consider order-2 Markov
+3. Hyper-ChIPable artifacts -> filter peaks; see chipseq-qc
+4. Compositional control failed -> switch tool (STREME order-2 typically better)
 
 ### Known TF motif not recovered
 
-1. ChIP quality issue → check FRiP, NSC, antibody validation
-2. Tethered (indirect) binding → CentriMo may show no central enrichment despite overall enrichment
-3. Cofactor binding (motif belongs to partner) → check known interaction partners
+1. ChIP quality issue -> check FRiP, NSC, antibody validation
+2. Tethered (indirect) binding -> CentriMo may show no central enrichment despite overall enrichment
+3. Cofactor binding (motif belongs to partner) -> check known interaction partners
 
 ### Too many motif hits (FIMO)
 

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Structure I/O
 
-**"Read a PDB file"** → Parse protein structure files (PDB, mmCIF, MMTF), download from RCSB PDB, and write structures to various formats.
+**"Read a PDB file"** -> Parse protein structure files (PDB, mmCIF, MMTF), download from RCSB PDB, and write structures to various formats.
 - Python: `Bio.PDB.PDBParser().get_structure('id', 'file.pdb')`, `Bio.PDB.MMCIFParser()`
 
 Parse, download, and write protein structure files in PDB, mmCIF, and MMTF formats.

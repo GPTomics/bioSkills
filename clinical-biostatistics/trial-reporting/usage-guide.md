@@ -35,7 +35,7 @@ Tell your AI agent what you want to do:
 
 ### MMRM with Kenward-Roger
 
-> "Implement MMRM in R mmrm package with UN covariance + Kenward-Roger-Linear (matches SAS PROC MIXED bit-for-bit). Pre-specify fallback: UN+KR → UN+Satterthwaite → heterogeneous Toeplitz → AR(1) → CS."
+> "Implement MMRM in R mmrm package with UN covariance + Kenward-Roger-Linear (matches SAS PROC MIXED bit-for-bit). Pre-specify fallback: UN+KR -> UN+Satterthwaite -> heterogeneous Toeplitz -> AR(1) -> CS."
 
 ### Reference-based MI
 

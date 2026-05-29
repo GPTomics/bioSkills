@@ -262,12 +262,12 @@ Document MOB-suite version explicitly: v2 and v3 cluster codes are non-interoper
 | Pushback | Response |
 |----------|----------|
 | "Why AMRFinderPlus, not RGI?" | AMRFinderPlus uses gene-family HMMs and NCBI-curated cutoffs that catch divergent novel variants without producing the Loose-tier noise of RGI; both are valid and `hamronize` lets the reviewer compare |
-| "How did you handle Group 3 WHO Mtb mutations?" | Reported as "Uncertain significance -- phenotypic DST recommended"; not collapsed to S |
+| "How were Group 3 WHO Mtb mutations handled?" | Reported as "Uncertain significance -- phenotypic DST recommended"; not collapsed to S |
 | "What about heteroresistance?" | Read-based deep variant calling supplements assembly-based AMR for clinically critical drugs; report MAF |
 | "Why not just trust ResFinder phenotype prediction?" | EUCAST/CLSI breakpoint year must be documented; rule-based phenotype prediction inherits its curation as a hidden dependency. Pair with explicit gene + class reporting |
 | "Why long-read assembly for AMR?" | Short-read drafts fragment plasmid contigs and lose MGE / promoter context (e.g., IS*Ecp1* upstream of ampC; Tn4401 variants); long-read or hybrid is mandatory for any mobility / regulatory claim |
 | "Why hAMRonization rather than tool-native outputs?" | Cross-tool comparison requires schema unification; PHA4GE is the public-health consensus |
-| "Did you consider intrinsic vs acquired distinction?" | Yes -- `--organism` activates suppression of clinically inert intrinsic genes; reported separately |
+| "Was the intrinsic vs acquired distinction considered?" | Yes -- `--organism` activates suppression of clinically inert intrinsic genes; reported separately |
 
 ## References
 

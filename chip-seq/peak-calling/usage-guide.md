@@ -111,37 +111,37 @@ bedtools intersect -a tmp12.bed -b rep3_peaks.broadPeak -f 0.40 -r -u > naive_ov
 ### Model building fails
 
 MACS2/3 needs ≥100 paired plus/minus enrichment regions within `--mfold` (default `[5, 50]`). Causes:
-- Single-chromosome or targeted data → use `--nomodel`
-- Low read count (<500k) → use `--nomodel`
-- Sparse enrichment → widen with `--mfold 3 50` first, then fall back to `--nomodel`
+- Single-chromosome or targeted data -> use `--nomodel`
+- Low read count (<500k) -> use `--nomodel`
+- Sparse enrichment -> widen with `--mfold 3 50` first, then fall back to `--nomodel`
 
 Always inspect `<sample>_model.r` plot; silent model failure produces wrong fragment size.
 
 ### Zero peaks called
 
-- Wrong genome size on subset data (`hs` on chr21 inflates lambda 60×) → use numeric `-g`
-- Wrong `-f` flag (BAM vs BAMPE vs BED) → match input file type
-- Swapped treatment / control → verify `-t` is enriched sample
-- Library too shallow → check sequenced read count; minimum ~10M unique mapped for TFs, 20M+ for broad marks
+- Wrong genome size on subset data (`hs` on chr21 inflates lambda 60×) -> use numeric `-g`
+- Wrong `-f` flag (BAM vs BAMPE vs BED) -> match input file type
+- Swapped treatment / control -> verify `-t` is enriched sample
+- Library too shallow -> check sequenced read count; minimum ~10M unique mapped for TFs, 20M+ for broad marks
 
 ### Peak count >> 500k
 
-- Did not deduplicate → `samtools view -F 1804 -q 30` filter pre-call
-- chrM reads dominate → remove chrM from BAM before calling
-- `-q` too loose → tighten to `-q 0.01`
-- Hyper-ChIPable artifacts → build custom blacklist from top-1% input signal
+- Did not deduplicate -> `samtools view -F 1804 -q 30` filter pre-call
+- chrM reads dominate -> remove chrM from BAM before calling
+- `-q` too loose -> tighten to `-q 0.01`
+- Hyper-ChIPable artifacts -> build custom blacklist from top-1% input signal
 
 ### Peaks shifted from motif by ~75 bp
 
-- `--shift` not set with `-f BAM` → add `--shift 0 --extsize {fraglen}`
-- Cross-correlation fraglen wrong → inspect `_cc.txt` and verify against `predictd` output
-- Aligner pre-applied shift (chromap) → drop downstream shift OR use `--no-correction`
+- `--shift` not set with `-f BAM` -> add `--shift 0 --extsize {fraglen}`
+- Cross-correlation fraglen wrong -> inspect `_cc.txt` and verify against `predictd` output
+- Aligner pre-applied shift (chromap) -> drop downstream shift OR use `--no-correction`
 
 ### IDR returns 0 reproducible peaks
 
-- Sorted by wrong column → use `sort -k8,8nr` (p-value descending)
-- Library size imbalance >2× → pseudoreplicate IDR will fail Nself/Nt rule; rebalance via downsampling or re-do shallow rep
-- One replicate is bad → check per-rep FRiP, NSC, RSC; do not average
+- Sorted by wrong column -> use `sort -k8,8nr` (p-value descending)
+- Library size imbalance >2× -> pseudoreplicate IDR will fail Nself/Nt rule; rebalance via downsampling or re-do shallow rep
+- One replicate is bad -> check per-rep FRiP, NSC, RSC; do not average
 
 ### FRiP < 1%
 
