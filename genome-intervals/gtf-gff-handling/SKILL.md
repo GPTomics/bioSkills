@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # GTF/GFF Handling
 
-**"Parse gene annotations from GTF/GFF"** → Read gene models, extract features by type (gene, exon, CDS), and query attributes from annotation files.
+**"Parse gene annotations from GTF/GFF"** -> Read gene models, extract features by type (gene, exon, CDS), and query attributes from annotation files.
 - Python: `gffutils.create_db('file.gtf')` (gffutils), `pyranges.read_gtf()` (pyranges)
 - CLI: `awk` on tab-delimited GTF fields
 

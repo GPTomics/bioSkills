@@ -26,7 +26,7 @@ Doublets are droplets containing two or more cells. They appear as artificial in
 
 **Approach:** Simulate artificial doublets by combining random cell pairs, embed real and simulated cells together, and score each cell's similarity to simulated doublets.
 
-**"Remove doublets from my data"** → Identify droplets containing multiple cells by comparing each cell's profile to computationally simulated doublets, then filter flagged cells.
+**"Remove doublets from my data"** -> Identify droplets containing multiple cells by comparing each cell's profile to computationally simulated doublets, then filter flagged cells.
 
 ### Basic Usage
 

@@ -25,7 +25,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 **Approach:** Learn a principal graph through the data manifold, order cells along the graph from a root state, and extract pseudotime values.
 
-**"Find the developmental trajectory in my data"** → Construct a tree-like graph through the cell embedding, assign pseudotime from a root population, and identify branch points.
+**"Find the developmental trajectory in my data"** -> Construct a tree-like graph through the cell embedding, assign pseudotime from a root population, and identify branch points.
 
 ```r
 library(monocle3)

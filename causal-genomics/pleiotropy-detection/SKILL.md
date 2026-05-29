@@ -369,7 +369,7 @@ Full gcp interpretation table is in usage-guide.md.
 
 | Pushback | Standard response |
 |----------|-------------------|
-| "Did you check for CHP?" | LDSC rg reported (causal-genomics/genetic-correlation); if rg > 0.3, CAUSE or LHC-MR ran; q posterior reported |
+| "Was CHP checked for?" | LDSC rg reported (causal-genomics/genetic-correlation); if rg > 0.3, CAUSE or LHC-MR ran; q posterior reported |
 | "Why CAUSE and not LHC-MR?" | CAUSE preferred when `>= 100` significant SNPs available (Morrison 2020). LHC-MR preferred when significant-SNP set is small or polygenic, using genome-wide sumstats (Darrous 2021) |
 | "Egger NOME?" | I^2_GX computed; if 0.6 <= I^2_GX < 0.9, SIMEX correction applied; if < 0.6, Egger dropped in favor of MR-RAPS |
 | "PRESSO doesn't catch CHP?" | Confirmed (Morrison 2020); CAUSE / LHC-MR reported alongside PRESSO for that reason |

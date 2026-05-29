@@ -41,7 +41,7 @@ Predict whether a DNA variant alters mRNA splicing. **Distinct from "variant pat
 | SpliceTransformer | 2024+ benchmark improvements | Tissue-specific ΔPSI | When transformer foundation models outperform CNN on benchmark variant sets | New (2024); limited clinical adoption |
 | TrASPr | Multi-transformer, 2024-2025 | Tissue-specific PSI/ΔPSI | Strong on tissue-specific test sets | New; verify before clinical use |
 | SpliceVault | Empirical mis-splicing outcome | Top-N events at the affected splice site | Predicting consequence (skip vs cryptic) of canonical-disrupting variants | Variants not represented in 300K-RNA training |
-| CADD-Splice | Single composite score | Scaled C-score | Clinical pipelines wanting one number | When you need to know which sub-component drove the score |
+| CADD-Splice | Single composite score | Scaled C-score | Clinical pipelines wanting one number | When knowing which sub-component drove the score is needed |
 
 Methodology evolves; verify benchmarks (Strawn 2025 *bioRxiv*; You et al 2024 *Nat Commun*) and ClinGen SVI splicing recommendations before reporting clinical interpretations. Concordance across SpliceAI + Pangolin + MMSplice is gold-standard evidence; discordance flags need RNA validation.
 

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # miRge3 Analysis
 
-**"Quantify miRNAs with isomiR detection"** → Fast miRNA annotation and quantification with isomiR variant detection and A-to-I RNA editing analysis from small RNA-seq reads.
+**"Quantify miRNAs with isomiR detection"** -> Fast miRNA annotation and quantification with isomiR variant detection and A-to-I RNA editing analysis from small RNA-seq reads.
 - CLI: `miRge3.0 annotate -s sample.fastq -lib human -db mirgenedb -o results/`
 
 ## Basic Quantification

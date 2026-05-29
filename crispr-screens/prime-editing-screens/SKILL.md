@@ -220,7 +220,7 @@ CRISPResso \
 **Trigger:** Sequence-only prediction missed chromatin context.
 **Mechanism:** Closed chromatin reduces Cas9 binding and RT activity; PRIDICT2 only sees sequence.
 **Symptom:** PRIDICT2 predicts 60% efficiency; observed is 5%.
-**Fix:** Cross-reference target with chromatin accessibility data (ATAC-seq) in your cell line; flag pegRNAs at silenced loci; pilot before screen.
+**Fix:** Cross-reference target with chromatin accessibility data (ATAC-seq) in the cell line; flag pegRNAs at silenced loci; pilot before screen.
 
 ### High scaffold incorporation
 

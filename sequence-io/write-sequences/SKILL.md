@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Write Sequences
 
-**"Write sequences to a file"** → Serialize SeqRecord objects into a formatted sequence file.
+**"Write sequences to a file"** -> Serialize SeqRecord objects into a formatted sequence file.
 - Python: `SeqIO.write()` (BioPython)
 - R: `writeXStringSet()` (Biostrings)
 
@@ -61,7 +61,7 @@ print(formatted)
 
 **Approach:** Create `SeqRecord` with at minimum a `Seq` and `id`. Add `letter_annotations` for FASTQ, `annotations['molecule_type']` for GenBank/EMBL.
 
-**"Create a sequence record from scratch"** → Wrap a `Seq` string in a `SeqRecord` with metadata fields.
+**"Create a sequence record from scratch"** -> Wrap a `Seq` string in a `SeqRecord` with metadata fields.
 - Python: `SeqRecord(Seq(...), id=...)` (BioPython)
 
 ### Minimal SeqRecord
@@ -134,7 +134,7 @@ with open('output.fasta', 'w') as handle:
 
 **Approach:** Parse input, apply transformation via generator, write output. Using a generator avoids loading all records into memory.
 
-**"Modify sequences and save"** → Parse records, transform each, write to new file with `SeqIO.write()`.
+**"Modify sequences and save"** -> Parse records, transform each, write to new file with `SeqIO.write()`.
 
 ```python
 from Bio.Seq import Seq
@@ -202,4 +202,4 @@ All sequences must be same length. IDs truncated to 10 characters.
 - format-conversion - Direct format conversion without intermediate processing
 - filter-sequences - Filter sequences before writing subset
 - sequence-manipulation/seq-objects - Create SeqRecord objects to write
-- alignment-files - For SAM/BAM output, use samtools/pysam
+- alignment-files/sam-bam-basics - For SAM/BAM output, use samtools/pysam

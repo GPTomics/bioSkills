@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Transcription and Translation
 
-**"Translate my DNA sequence to protein"** → Transcribe DNA to RNA and translate to protein, handling alternative codon tables and six-frame translation.
+**"Translate my DNA sequence to protein"** -> Transcribe DNA to RNA and translate to protein, handling alternative codon tables and six-frame translation.
 - Python: `Seq.translate()`, `Seq.transcribe()` (BioPython)
 
 Convert between DNA, RNA, and protein sequences using Biopython.

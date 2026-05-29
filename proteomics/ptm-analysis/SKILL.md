@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Post-Translational Modification Analysis
 
-**"Analyze phosphorylation sites from my proteomics data"** → Identify and quantify post-translational modifications including phosphorylation, acetylation, and ubiquitination with site localization and motif analysis.
+**"Analyze phosphorylation sites from my proteomics data"** -> Identify and quantify post-translational modifications including phosphorylation, acetylation, and ubiquitination with site localization and motif analysis.
 - Python: `pyopenms` for PTM-aware search, `scipy` for site-level statistics
 - CLI: MaxQuant with variable modifications for enrichment-based PTM analysis
 

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Targeted Metabolomics Analysis
 
-**"Quantify specific metabolites from my MRM data"** → Perform absolute quantification using calibration curves, internal standards, and quality assessment for targeted metabolomics.
+**"Quantify specific metabolites from my MRM data"** -> Perform absolute quantification using calibration curves, internal standards, and quality assessment for targeted metabolomics.
 - CLI: Skyline for peak integration and export
 - Python/R: calibration curve fitting and sample quantification
 

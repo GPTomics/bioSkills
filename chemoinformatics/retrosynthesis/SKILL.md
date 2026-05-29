@@ -135,7 +135,7 @@ aizynthtrain build-stock --input zinc_building_blocks.smi --output zinc.h5
 
 ## Forward Validation with Molecular Transformer
 
-AiZynthFinder predicts retrosynthesis (target → precursors); Molecular Transformer predicts forward (precursors → product). Validating the round-trip:
+AiZynthFinder predicts retrosynthesis (target -> precursors); Molecular Transformer predicts forward (precursors -> product). Validating the round-trip:
 
 ```python
 from molecular_transformer import predict_forward

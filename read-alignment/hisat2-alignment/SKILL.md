@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # HISAT2 RNA-seq Alignment
 
-**"Align RNA-seq reads with HISAT2"** → Map RNA-seq reads to a reference genome with splice-aware alignment. Suitable for gene expression quantification workflows.
+**"Align RNA-seq reads with HISAT2"** -> Map RNA-seq reads to a reference genome with splice-aware alignment. Suitable for gene expression quantification workflows.
 - CLI: `hisat2 -x index -1 R1.fq -2 R2.fq | samtools sort -o aligned.bam`
 
 ## Build Index

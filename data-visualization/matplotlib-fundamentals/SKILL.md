@@ -19,7 +19,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 **"Make a publication figure in Python"** -> Build via the **object-oriented Figure/Axes API** (not pyplot state-machine), with `constrained_layout` for axes alignment, `pdf.fonttype=42` for journal-compliant TrueType fonts, CVD-safe palettes, and rasterized point layers for large scatter. The pyplot interface is for notebook scratch; the Figure/Axes API is for reproducible figures.
 
-- Python: `fig, ax = plt.subplots()` → `ax.scatter` / `ax.plot` / `ax.bar`; `seaborn.objects` (new grammar API) for ggplot-like
+- Python: `fig, ax = plt.subplots()` -> `ax.scatter` / `ax.plot` / `ax.bar`; `seaborn.objects` (new grammar API) for ggplot-like
 
 ## The Three Modern Defaults
 

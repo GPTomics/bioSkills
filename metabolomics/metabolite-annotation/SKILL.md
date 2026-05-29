@@ -25,7 +25,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 **Approach:** Convert m/z to neutral mass by subtracting adduct mass, then query HMDB within a specified ppm tolerance.
 
-**"Annotate my metabolomics features with compound identities"** → Match detected features against metabolite databases by exact mass, MS/MS spectra, and retention time to assign compound identities with confidence levels.
+**"Annotate my metabolomics features with compound identities"** -> Match detected features against metabolite databases by exact mass, MS/MS spectra, and retention time to assign compound identities with confidence levels.
 
 ```r
 library(MetaboAnalystR)

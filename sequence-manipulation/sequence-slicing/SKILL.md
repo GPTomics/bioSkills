@@ -19,10 +19,10 @@ package and adapt the example to match the actual API rather than retrying.
 
 Extract, slice, and concatenate sequences using Biopython's Seq objects.
 
-**"Extract a subsequence"** → Use Python slicing on Seq objects with 0-based half-open coordinates.
+**"Extract a subsequence"** -> Use Python slicing on Seq objects with 0-based half-open coordinates.
 - Python: `seq[start:end]` (BioPython Seq)
 
-**"Join exons into mRNA"** → Extract multiple regions and concatenate them.
+**"Join exons into mRNA"** -> Extract multiple regions and concatenate them.
 - Python: `sum((seq[s:e] for s, e in coords), Seq(''))` or `+` operator
 
 ## Required Import
@@ -229,4 +229,4 @@ Need to extract or combine sequences?
 - seq-objects - Create Seq and SeqRecord objects
 - sequence-io/read-sequences - Parse GenBank files with features to extract
 - transcription-translation - Translate extracted CDS regions
-- alignment-files - Extract sequences from BAM using samtools fasta/fastq
+- alignment-files/sam-bam-basics - Extract sequences from BAM using samtools fasta/fastq

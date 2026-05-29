@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Fragment Analysis
 
-**"Predict fragment sizes from a restriction digest"** → Simulate enzyme digestion to get fragment lengths, sequences, and gel electrophoresis patterns including double digests.
+**"Predict fragment sizes from a restriction digest"** -> Simulate enzyme digestion to get fragment lengths, sequences, and gel electrophoresis patterns including double digests.
 - Python: `Bio.Restriction` analysis with `catalyze()` for fragment details
 
 ## Get Fragment Sizes

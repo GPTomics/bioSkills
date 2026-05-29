@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Domain Detection
 
-**"Identify tissue domains in my spatial data"** → Cluster spots/cells considering both gene expression and physical proximity to define anatomically coherent spatial domains.
-- Python: `squidpy.gr.spatial_neighbors()` → Leiden clustering with spatial graph, or BayesSpace/SpaGCN
+**"Identify tissue domains in my spatial data"** -> Cluster spots/cells considering both gene expression and physical proximity to define anatomically coherent spatial domains.
+- Python: `squidpy.gr.spatial_neighbors()` -> Leiden clustering with spatial graph, or BayesSpace/SpaGCN
 
 Identify spatial domains and tissue regions by combining expression and spatial information.
 

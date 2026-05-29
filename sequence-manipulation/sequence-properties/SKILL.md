@@ -19,10 +19,10 @@ package and adapt the example to match the actual API rather than retrying.
 
 Calculate physical and chemical properties of biological sequences using Biopython.
 
-**"Calculate GC content"** → Compute the fraction of G+C bases in a nucleotide sequence.
+**"Calculate GC content"** -> Compute the fraction of G+C bases in a nucleotide sequence.
 - Python: `gc_fraction(seq)` (BioPython SeqUtils)
 
-**"Analyze protein properties"** → Compute MW, pI, stability, hydrophobicity from an amino acid sequence.
+**"Analyze protein properties"** -> Compute MW, pI, stability, hydrophobicity from an amino acid sequence.
 - Python: `ProteinAnalysis(str_seq)` (BioPython ProtParam)
 
 ## Required Imports
@@ -374,20 +374,20 @@ def cpg_ratio(seq):
 ```
 Need sequence properties?
 ├── DNA/RNA sequence?
-│   ├── GC content? → gc_fraction()
-│   ├── GC at codon positions? → GC123()
-│   ├── GC skew (replication origin)? → GC_skew()
-│   ├── Molecular weight? → molecular_weight()
-│   ├── Melting temperature? → MeltingTemp.Tm_NN()
-│   └── Search with IUPAC codes? → nt_search()
+│   ├── GC content? -> gc_fraction()
+│   ├── GC at codon positions? -> GC123()
+│   ├── GC skew (replication origin)? -> GC_skew()
+│   ├── Molecular weight? -> molecular_weight()
+│   ├── Melting temperature? -> MeltingTemp.Tm_NN()
+│   └── Search with IUPAC codes? -> nt_search()
 ├── Protein sequence?
 │   └── Create ProteinAnalysis object
-│       ├── Size → molecular_weight()
-│       ├── Charge → isoelectric_point(), charge_at_pH()
-│       ├── Stability → instability_index()
-│       ├── Hydrophobicity → gravy()
-│       ├── Flexibility → flexibility()
-│       └── Structure → secondary_structure_fraction()
+│       ├── Size -> molecular_weight()
+│       ├── Charge -> isoelectric_point(), charge_at_pH()
+│       ├── Stability -> instability_index()
+│       ├── Hydrophobicity -> gravy()
+│       ├── Flexibility -> flexibility()
+│       └── Structure -> secondary_structure_fraction()
 └── Convert amino acid codes?
     └── seq1() / seq3()
 ```

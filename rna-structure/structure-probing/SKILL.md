@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Structure Probing
 
-**"Process my SHAPE-MaP experiment to get RNA reactivity profiles"** → Convert mutation rates from SHAPE-MaP or DMS-MaPseq sequencing data into per-nucleotide reactivity profiles, then use reactivities as constraints for thermodynamic structure prediction.
+**"Process my SHAPE-MaP experiment to get RNA reactivity profiles"** -> Convert mutation rates from SHAPE-MaP or DMS-MaPseq sequencing data into per-nucleotide reactivity profiles, then use reactivities as constraints for thermodynamic structure prediction.
 - CLI: `shapemapper` (ShapeMapper2) for end-to-end SHAPE-MaP processing
 - CLI: `RNAfold --shape` (ViennaRNA) for SHAPE-constrained folding
 

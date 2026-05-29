@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Preprocessing
 
-**"Preprocess my spatial transcriptomics data"** → Calculate spatial QC metrics (genes/spot, mitochondrial fraction), filter spots by expression and tissue coverage, normalize, and select variable genes.
-- Python: `scanpy.pp.calculate_qc_metrics()` → `filter_cells()` → `normalize_total()` on spatial AnnData
+**"Preprocess my spatial transcriptomics data"** -> Calculate spatial QC metrics (genes/spot, mitochondrial fraction), filter spots by expression and tissue coverage, normalize, and select variable genes.
+- Python: `scanpy.pp.calculate_qc_metrics()` -> `filter_cells()` -> `normalize_total()` on spatial AnnData
 
 QC, filtering, normalization, and feature selection for spatial data.
 

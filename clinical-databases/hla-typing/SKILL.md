@@ -353,7 +353,7 @@ Now operational in NMDP donor selection algorithms; legacy TCE3 frameworks (Croc
 | Pushback | Standard response |
 |----------|-------------------|
 | "Why T1K when HLA-LA is the published reference?" | T1K matches HLA-LA accuracy on class II while also typing class I + KIR in one pass with lower RAM; we cite both. |
-| "Your African-ancestry samples have low confidence" | IPD-IMGT/HLA still under-represents African ancestry (~30-40% allele gap); we ran with current 2025 release; for transplant we recommend long-read confirmation. |
+| "These African-ancestry samples have low confidence" | IPD-IMGT/HLA still under-represents African ancestry (~30-40% allele gap); we ran with current 2025 release; for transplant we recommend long-read confirmation. |
 | "DRB1 vs DRB3/4/5 reported inconsistently" | We verified DRB1+DRB3/4/5 linkage rule on each sample as routine QC; flagged violations for re-typing. |
 | "Why is HLA-B\*15:01 not flagged for carbamazepine?" | \*15:01 (NFE common) is not the SJS risk allele; \*15:02 (Han Chinese) is. PGx requires 4-field specificity. |
 | "Imputation results differ from sequencing" | Imputation panel quality is the limiting factor; EUR-trained HIBAG on non-EUR is unreliable; we used ancestry-matched panel. |

@@ -26,7 +26,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Long-Read SV Pipeline
 
-**"Detect structural variants from my long-read sequencing data"** → Orchestrate minimap2 alignment, SV calling (Sniffles2/cuteSV), VCF merging across callers, annotation (AnnotSV), and visualization for ONT or PacBio data.
+**"Detect structural variants from my long-read sequencing data"** -> Orchestrate minimap2 alignment, SV calling (Sniffles2/cuteSV), VCF merging across callers, annotation (AnnotSV), and visualization for ONT or PacBio data.
 
 Complete workflow for detecting structural variants from ONT or PacBio long-read data.
 

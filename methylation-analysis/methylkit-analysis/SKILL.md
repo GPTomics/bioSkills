@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # methylKit Analysis
 
-**"Analyze methylation patterns across my samples"** → Import per-cytosine methylation data, filter by coverage, normalize across samples, and test for differential methylation at individual CpG sites.
-- R: `methylKit::methRead()` → `filterByCoverage()` → `normalizeCoverage()` → `calculateDiffMeth()`
+**"Analyze methylation patterns across my samples"** -> Import per-cytosine methylation data, filter by coverage, normalize across samples, and test for differential methylation at individual CpG sites.
+- R: `methylKit::methRead()` -> `filterByCoverage()` -> `normalizeCoverage()` -> `calculateDiffMeth()`
 
 ## Read Bismark Coverage Files
 

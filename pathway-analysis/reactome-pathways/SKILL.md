@@ -35,7 +35,7 @@ Reactome pathways are curated by PhD-level biologists and externally peer-review
 
 **Approach:** Test for enrichment using the hypergeometric test via ReactomePA enrichPathway against curated peer-reviewed pathways.
 
-**"Run pathway enrichment against Reactome"** → Test whether genes in curated Reactome pathways are over-represented among significant genes.
+**"Run pathway enrichment against Reactome"** -> Test whether genes in curated Reactome pathways are over-represented among significant genes.
 
 ```r
 library(ReactomePA)

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Gene Essentiality Analysis
 
-**"Predict which genes are essential for growth in my organism"** → Perform in silico single and double gene knockouts on a metabolic model, identifying genes whose deletion abolishes growth and synthetic lethal pairs for drug target discovery.
+**"Predict which genes are essential for growth in my organism"** -> Perform in silico single and double gene knockouts on a metabolic model, identifying genes whose deletion abolishes growth and synthetic lethal pairs for drug target discovery.
 - Python: `cobra.flux_analysis.single_gene_deletion()`, `cobra.flux_analysis.double_gene_deletion()` (COBRApy)
 
 ## Single Gene Knockouts

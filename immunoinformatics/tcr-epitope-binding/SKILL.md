@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # TCR-Epitope Binding
 
-**"Predict which epitopes my TCRs recognize"** → Match T-cell receptors to their cognate epitopes using deep learning models for TCR antigen specificity prediction.
+**"Predict which epitopes my TCRs recognize"** -> Match T-cell receptors to their cognate epitopes using deep learning models for TCR antigen specificity prediction.
 - Python: ERGO-II model for TCR-epitope binding prediction
 
 ## ERGO-II Model

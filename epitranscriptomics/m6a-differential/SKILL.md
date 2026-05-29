@@ -326,12 +326,12 @@ The caption is intentional: MeRIP differential reports CHANGES IN ENRICHMENT RAT
 |----------|----------|
 | "How many replicates per condition?" | N=3 minimum; N=4-5 preferred; rationale McIntyre 2020 |
 | "What's the effect-size threshold?" | |log2FC| >= 0.5 minimum; results table reports effect size alongside FDR |
-| "Did you control for batch / antibody lot?" | Yes — `antibody_lot` included as fixed effect in DESeq2 model on featureCounts-on-peaks counts (exomePeak2's top-level API does not accept covariates); per-lot exomePeak2 + meta-analysis when DESeq2 path infeasible; lot-condition confounding assessed |
+| "Was batch / antibody lot controlled for?" | Yes — `antibody_lot` included as fixed effect in DESeq2 model on featureCounts-on-peaks counts (exomePeak2's top-level API does not accept covariates); per-lot exomePeak2 + meta-analysis when DESeq2 path infeasible; lot-condition confounding assessed |
 | "Does the differential signal track expression changes?" | Cross-checked log2FC vs input log2FC per peak; only peaks with strong IP/input ratio shift reported as differential |
-| "Have you orthogonally validated?" | Top hits orthogonally validated via GLORI / m6Anet / per-locus assay |
+| "Was orthogonal validation done?" | Top hits orthogonally validated via GLORI / m6Anet / per-locus assay |
 | "Why exomePeak2 over QNB?" | exomePeak2 default for standard 3-vs-3; QNB used for small-N sensitivity analyses; both reported as concordance check |
 | "What about absolute stoichiometry?" | MeRIP differential reports relative enrichment changes; absolute stoichiometry requires GLORI / SAC-seq |
-| "Did you use the right normalisation?" | Per-window IP/input ratio normalisation; exomePeak2 internal; alternative TMM (RADAR) compared |
+| "Was the right normalisation used?" | Per-window IP/input ratio normalisation; exomePeak2 internal; alternative TMM (RADAR) compared |
 | "How does this replicate in independent studies?" | Cross-study peak overlap reported; differential subset checked against published m6A-Atlas |
 | "Why not edgeR / DESeq2?" | Generic RNA-seq DE on peak counts loses IP/input pairing structure; used only for sensitivity analysis with paired symmetric design |
 

@@ -30,7 +30,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metagenomics Pipeline
 
-**"Analyze my metagenomic samples from FASTQ to taxonomic and functional profiles"** → Orchestrate host depletion, Kraken2/Bracken taxonomic classification, MetaPhlAn profiling, HUMAnN3 functional analysis, and AMR gene detection.
+**"Analyze my metagenomic samples from FASTQ to taxonomic and functional profiles"** -> Orchestrate host depletion, Kraken2/Bracken taxonomic classification, MetaPhlAn profiling, HUMAnN3 functional analysis, and AMR gene detection.
 
 Complete workflow from metagenomic FASTQ to taxonomic and functional profiles.
 

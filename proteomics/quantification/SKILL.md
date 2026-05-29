@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Protein Quantification
 
-**"Quantify proteins from my mass spec data"** → Extract protein abundances from MS data using label-free (LFQ, spectral counting), isobaric labeling (TMT, iTRAQ), or metabolic labeling (SILAC) approaches.
+**"Quantify proteins from my mass spec data"** -> Extract protein abundances from MS data using label-free (LFQ, spectral counting), isobaric labeling (TMT, iTRAQ), or metabolic labeling (SILAC) approaches.
 - R: `MSstats::dataProcess()` for feature-to-protein summarization
 - Python: `pandas` for MaxLFQ-style normalization and ratio calculation
 - R: `MSnbase` for isobaric tag reporter ion extraction

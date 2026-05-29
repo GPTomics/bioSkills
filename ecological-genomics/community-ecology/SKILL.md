@@ -232,7 +232,7 @@ anova(dbrda_result, by = 'margin', permutations = 999)
 
 **Mechanism:** PERMANOVA's pseudo-F responds to BOTH centroid shifts AND dispersion heterogeneity (Anderson & Walsh 2013). When groups differ in dispersion but not centroid, PERMANOVA can return p < 0.05 from the dispersion difference alone.
 
-**Symptom:** Reviewer asks "did you check dispersion?"; PCoA visualization shows overlapping centroids but one group is more dispersed; betadisper p < 0.05.
+**Symptom:** Reviewer asks "was dispersion checked?"; PCoA visualization shows overlapping centroids but one group is more dispersed; betadisper p < 0.05.
 
 **Fix:** Report both PERMANOVA and betadisper. If betadisper is significant, the conclusion must be reframed: "Groups differ in either centroid or dispersion, with dispersion heterogeneity present." Consider db-RDA which is more dispersion-robust.
 

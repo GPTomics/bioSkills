@@ -25,7 +25,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 ## The Three Modern Standards
 
-1. **Perceptual uniformity** -- equal data steps produce equal perceived color steps. viridis (van der Walt 2015), cividis (Nuñez 2018), and the Crameri family (batlow, roma, vik) are designed for this. Jet, rainbow, and red→green are not.
+1. **Perceptual uniformity** -- equal data steps produce equal perceived color steps. viridis (van der Walt 2015), cividis (Nuñez 2018), and the Crameri family (batlow, roma, vik) are designed for this. Jet, rainbow, and red->green are not.
 
 2. **Color vision deficiency safety** -- ~6% of males have deuteranopia / protanopia (red-green deficiency). cividis was explicitly designed to be near-identical under normal and CVD viewing (Nuñez 2018 *PLOS ONE* 13:e0199239). The Okabe-Ito 8-color qualitative palette (popularized in Wong 2011 *Nat Methods* 8:441) is the CVD-safe categorical default.
 
@@ -48,11 +48,11 @@ Crameri 2020 *Nat Commun* 11:5444 documented the prevalence of misleading palett
 
 | Crameri name | Type | Use case |
 |--------------|------|----------|
-| `batlow` | sequential | Default jet replacement; runs through dark-blue → ochre → light-yellow |
+| `batlow` | sequential | Default jet replacement; runs through dark-blue -> ochre -> light-yellow |
 | `lipari` | sequential | Higher-saturation alternative; better for projection |
-| `vik` | diverging | Blue → white → red equivalent, perceptually uniform |
+| `vik` | diverging | Blue -> white -> red equivalent, perceptually uniform |
 | `roma` | diverging | Slightly warmer than vik |
-| `bam` | diverging | Brown → white → green |
+| `bam` | diverging | Brown -> white -> green |
 | `romaO` | cyclic | Phase, time-of-day, angle data |
 | `vikO` | cyclic | Diverging cyclic |
 

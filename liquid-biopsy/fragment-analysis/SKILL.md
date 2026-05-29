@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Fragment Analysis
 
-**"Analyze cfDNA fragment patterns for cancer detection"** → Extract fragmentomics features (size distributions, nucleosome positioning, DELFI profiles) from cfDNA for tumor detection and tissue-of-origin analysis.
+**"Analyze cfDNA fragment patterns for cancer detection"** -> Extract fragmentomics features (size distributions, nucleosome positioning, DELFI profiles) from cfDNA for tumor detection and tissue-of-origin analysis.
 - Python: `FinaleToolkit` or `Griffin` for fragment feature extraction
 - Python: `pysam` for custom fragmentomics analysis
 

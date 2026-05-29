@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Model Interpretation for Omics Classifiers
 
-**"Which genes drive my classifier's predictions?"** → Compute per-feature attribution scores using SHAP values or LIME to explain which genes or features contribute most to model decisions.
+**"Which genes drive my classifier's predictions?"** -> Compute per-feature attribution scores using SHAP values or LIME to explain which genes or features contribute most to model decisions.
 - Python: `shap.TreeExplainer(model).shap_values(X)`, `lime.lime_tabular.LimeTabularExplainer()`
 
 ## SHAP TreeExplainer

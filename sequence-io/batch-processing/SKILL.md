@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Batch Processing
 
-**"Process all my sequence files in a directory"** → Iterate, merge, split, convert, and generate summary statistics across multiple sequence files.
+**"Process all my sequence files in a directory"** -> Iterate, merge, split, convert, and generate summary statistics across multiple sequence files.
 - Python: `SeqIO.parse()`, `Path.glob()` (BioPython, pathlib)
 
 Process multiple sequence files efficiently using Biopython.
@@ -300,4 +300,4 @@ for fasta_file in Path('input/').glob('*.fasta'):
 - sequence-statistics - Generate per-file statistics
 - format-conversion - Batch format conversion
 - compressed-files - Handle compressed files in batch
-- database-access - Batch download sequences from NCBI
+- database-access/entrez-fetch - Batch download sequences from NCBI

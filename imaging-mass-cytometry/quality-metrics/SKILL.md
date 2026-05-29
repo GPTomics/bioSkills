@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Quality Metrics
 
-**"Assess quality of my IMC acquisition"** → Evaluate IMC data quality through signal-to-noise ratios, channel correlations, tissue integrity scores, and acquisition-specific QC metrics.
+**"Assess quality of my IMC acquisition"** -> Evaluate IMC data quality through signal-to-noise ratios, channel correlations, tissue integrity scores, and acquisition-specific QC metrics.
 - Python: `numpy`/`scipy` for SNR calculation and channel correlation analysis
 
 ## Signal-to-Noise Ratio

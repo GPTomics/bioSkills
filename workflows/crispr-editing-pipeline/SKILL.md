@@ -29,7 +29,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # CRISPR Editing Pipeline
 
-**"Design a complete CRISPR editing experiment for my target gene"** → Orchestrate guide RNA design, off-target assessment, and strategy-specific template design (knockout, base editing, HDR knock-in, or prime editing) to produce delivery-ready constructs.
+**"Design a complete CRISPR editing experiment for my target gene"** -> Orchestrate guide RNA design, off-target assessment, and strategy-specific template design (knockout, base editing, HDR knock-in, or prime editing) to produce delivery-ready constructs.
 
 Complete workflow for CRISPR experiment design: from target gene to delivery-ready constructs with branching paths for different editing strategies.
 

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Consensus Sequences
 
-**"Generate a consensus sequence from my VCF"** → Apply called variants to a reference FASTA, producing a sample-specific genome with optional haplotype selection and low-coverage masking.
+**"Generate a consensus sequence from my VCF"** -> Apply called variants to a reference FASTA, producing a sample-specific genome with optional haplotype selection and low-coverage masking.
 - CLI: `bcftools consensus -f reference.fa input.vcf.gz`
 - Python: `cyvcf2` + `Bio.SeqIO` for simple SNP-only cases
 
@@ -87,12 +87,12 @@ bcftools consensus -f reference.fa -I input.vcf.gz > consensus_iupac.fa
 ```
 
 Heterozygous sites encoded with IUPAC ambiguity codes:
-- A/G → R
-- C/T → Y
-- A/C → M
-- G/T → K
-- A/T → W
-- C/G → S
+- A/G -> R
+- C/T -> Y
+- A/C -> M
+- G/T -> K
+- A/T -> W
+- C/G -> S
 
 ## Missing Data Handling
 

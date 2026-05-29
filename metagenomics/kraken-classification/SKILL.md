@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Kraken2 Classification
 
-**"Classify what organisms are in my metagenomic sample"** → Assign taxonomic labels to sequencing reads using exact k-mer matching against a reference database for fast initial classification.
+**"Classify what organisms are in my metagenomic sample"** -> Assign taxonomic labels to sequencing reads using exact k-mer matching against a reference database for fast initial classification.
 - CLI: `kraken2 --db db --paired R1.fastq R2.fastq --report report.txt`
 
 ## Basic Classification

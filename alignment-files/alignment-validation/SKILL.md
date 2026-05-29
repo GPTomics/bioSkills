@@ -20,7 +20,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Post-alignment quality control to verify alignment quality and identify issues.
 
-**"Check alignment quality"** → Compute post-alignment QC metrics (mapping rate, pairing, insert size, strand balance) to identify issues before downstream analysis.
+**"Check alignment quality"** -> Compute post-alignment QC metrics (mapping rate, pairing, insert size, strand balance) to identify issues before downstream analysis.
 - CLI: `samtools flagstat`, `samtools stats`, Picard `CollectAlignmentSummaryMetrics`
 - Python: `pysam.AlignmentFile` iteration with metric calculations
 

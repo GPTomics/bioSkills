@@ -20,7 +20,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 RNA-seq specific QC metrics beyond general read quality.
 
-**"Check RNA-seq alignment quality"** → Assess gene body coverage, read distribution (exonic/intronic/intergenic), strand specificity, and rRNA contamination rate.
+**"Check RNA-seq alignment quality"** -> Assess gene body coverage, read distribution (exonic/intronic/intergenic), strand specificity, and rRNA contamination rate.
 - CLI: `infer_experiment.py`, `read_distribution.py` (RSeQC)
 - CLI: `picard CollectRnaSeqMetrics`
 

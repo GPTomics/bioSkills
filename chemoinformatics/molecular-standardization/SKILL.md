@@ -121,12 +121,12 @@ def full_standardize(smi, keep_isotopes=False):
 
 | Salt form | Action | Example |
 |-----------|--------|---------|
-| Mono-salt | Strip counter-ion | `[Na+].CC(=O)[O-]` → `CC(=O)O` |
-| Di-salt | Strip both | `[Na+].[Na+].CC(=O)[O-].CC(=O)[O-]` → `CC(=O)O` |
-| Mixed salt | Largest organic fragment | `CCO.CC(=O)O` → `CCO` (or CC(=O)O depending on rule) |
+| Mono-salt | Strip counter-ion | `[Na+].CC(=O)[O-]` -> `CC(=O)O` |
+| Di-salt | Strip both | `[Na+].[Na+].CC(=O)[O-].CC(=O)[O-]` -> `CC(=O)O` |
+| Mixed salt | Largest organic fragment | `CCO.CC(=O)O` -> `CCO` (or CC(=O)O depending on rule) |
 | Co-crystal | Hardest case | `CC(=O)O.CCOC(C)=O` -- both organic; default returns largest |
-| Hydrate | Strip waters | `CC(=O)O.O` → `CC(=O)O` |
-| Solvate | Strip solvents | `CC(=O)O.CO` → `CC(=O)O` |
+| Hydrate | Strip waters | `CC(=O)O.O` -> `CC(=O)O` |
+| Solvate | Strip solvents | `CC(=O)O.CO` -> `CC(=O)O` |
 | Quaternary ammonium | Preserve charge | `[N+](C)(C)(C)C` (permanent charge; do NOT neutralize) |
 
 **`LargestFragmentChooser(preferOrganic=True)`** prefers organic fragments over inorganic counter-ions even if smaller; for co-crystals, default rule picks largest organic fragment.
@@ -172,10 +172,10 @@ def standardize_stereo(mol, remove_undefined=False):
 ```
 
 **Cases:**
-- Explicit stereo with `@` / `\` / `/` → preserved
-- Wedge bonds in SDF → re-perceived from 3D coords if present
-- Ambiguous stereo (no markers) → left as-is, marked as undefined
-- Racemic (explicit "rac") → keep as racemate
+- Explicit stereo with `@` / `\` / `/` -> preserved
+- Wedge bonds in SDF -> re-perceived from 3D coords if present
+- Ambiguous stereo (no markers) -> left as-is, marked as undefined
+- Racemic (explicit "rac") -> keep as racemate
 
 For ML, often drop stereo entirely (`Chem.RemoveStereochemistry(mol)`) since most QSAR endpoints are not stereo-specific. For docking and FEP, preserve stereo always.
 
@@ -257,7 +257,7 @@ Deduplication by InChIKey collapses tautomer-equivalent compounds. Replicate cou
 
 **Symptom:** ImportError or AttributeError on newer RDKit.
 
-**Fix:** Migrate to `from rdkit.Chem.MolStandardize import rdMolStandardize`; methods renamed (e.g., `standardize` → `Cleanup`).
+**Fix:** Migrate to `from rdkit.Chem.MolStandardize import rdMolStandardize`; methods renamed (e.g., `standardize` -> `Cleanup`).
 
 ### Round-trip InChIKey mismatch
 

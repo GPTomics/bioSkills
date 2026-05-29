@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Long-Read Alignment with minimap2
 
-**"Align my long reads to the reference"** → Map ONT or PacBio reads using minimap2 with technology-specific presets for optimal sensitivity and accuracy.
+**"Align my long reads to the reference"** -> Map ONT or PacBio reads using minimap2 with technology-specific presets for optimal sensitivity and accuracy.
 - CLI: `minimap2 -ax map-ont ref.fa reads.fq | samtools sort -o aligned.bam` (ONT), `minimap2 -ax map-hifi` (PacBio HiFi)
 
 ## Oxford Nanopore Alignment

@@ -226,7 +226,7 @@ For rare-cancer cohorts where N < 50, the standard OncoPrint + Fisher mutex pipe
 |--------|------------|
 | Report per-gene frequencies | Use exact-binomial CI (Clopper-Pearson via `binom.test`) — Wald CI is invalid at low frequency |
 | Do NOT report mutex p-values | Fisher exact on 2x2 with cell counts ≤ 5 has no power; the "significant" mutex finding is noise |
-| Hypothesis generation only | Pool with TCGA Pan-Cancer + ICGC for credible mutex; treat your cohort as the *replication* not the discovery |
+| Hypothesis generation only | Pool with TCGA Pan-Cancer + ICGC for credible mutex; treat the cohort as the *replication* not the discovery |
 | Co-occurrence reporting | OR with Haldane-Anscombe 0.5 correction for zero cells; report alongside cohort N |
 
 Show the OncoPrint for visual transparency, but the per-gene-frequency *table* (with exact-binomial CIs) is the load-bearing scientific output, not the mutex test.

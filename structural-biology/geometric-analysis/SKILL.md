@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Geometric Analysis
 
-**"Calculate RMSD between two protein structures"** → Measure atomic distances/angles/dihedrals, superimpose structures, compute RMSD, and find inter-residue contacts.
+**"Calculate RMSD between two protein structures"** -> Measure atomic distances/angles/dihedrals, superimpose structures, compute RMSD, and find inter-residue contacts.
 - Python: `Bio.PDB.Superimposer()` for RMSD, `NeighborSearch` for contacts
 
 Measure distances, angles, and dihedrals. Superimpose structures and calculate RMSD. Find neighbor atoms and contacts.

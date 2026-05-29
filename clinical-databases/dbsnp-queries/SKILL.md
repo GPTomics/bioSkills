@@ -300,7 +300,7 @@ def alfa_frequency(rsid, ancestry='Total'):
 | Symptom | Cause | Solution |
 |---------|-------|----------|
 | 404 from Variation Services on valid rsID | rsID is withdrawn or never assigned | Check `refsnp-withdrawn.json.bz2`; consider strand-flipped equivalent |
-| Merge chain resolves but final rsID has different alleles | Multi-allelic cluster; pick allele matching your variant | Filter `placements_with_allele.alleles[*]` by allele match |
+| Merge chain resolves but final rsID has different alleles | Multi-allelic cluster; pick allele matching the variant | Filter `placements_with_allele.alleles[*]` by allele match |
 | ALFA frequency missing for common variant | Variant not in dbGaP-deposited studies | Fall back to gnomAD (sequencing-derived) |
 | `Entrez.esummary` returns old data | Legacy E-utilities, not Build 156 schema | Switch to Variation Services REST `/v0/refsnp/{id}` |
 | HGVS-c conversion fails for synonymous variants | Some HGVS-c rely on non-MANE transcripts not in NCBI default | Specify transcript explicitly; use VEP `--mane_select` |
@@ -312,10 +312,10 @@ def alfa_frequency(rsid, ancestry='Total'):
 | Pushback | Standard response |
 |----------|-------------------|
 | "Why not just use rsID for the join?" | rsID is a cluster identifier; ~6-8% of clusters are multi-allelic, causing silent mismatches. We use SPDI / CA ID. |
-| "Your annotation says rs12345 but the literature says rs67890" | rsIDs are merged; we resolved through `RsMergeArch` / `merged_snapshot_data` to the current canonical rsID. |
+| "This annotation says rs12345 but the literature says rs67890" | rsIDs are merged; we resolved through `RsMergeArch` / `merged_snapshot_data` to the current canonical rsID. |
 | "dbSNP frequency != gnomAD frequency" | ALFA (dbSNP-embedded) and gnomAD use different sample sets and different ascertainment (array vs sequencing); reconciled per use case. |
-| "Why didn't you use Entrez?" | Entrez `db=snp` returns the pre-Build-156 summary missing key fields; we use Variation Services REST for the full JSON. |
-| "Coordinate off-by-one in your SPDI" | SPDI is 0-based half-open; VCF is 1-based; intentional conversion applied. |
+| "Why wasn't Entrez used?" | Entrez `db=snp` returns the pre-Build-156 summary missing key fields; we use Variation Services REST for the full JSON. |
+| "Coordinate off-by-one in the SPDI" | SPDI is 0-based half-open; VCF is 1-based; intentional conversion applied. |
 
 ## References
 

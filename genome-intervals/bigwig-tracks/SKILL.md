@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # BigWig Tracks
 
-**"Read and create BigWig files"** → Access indexed binary signal tracks for efficient region queries and genome browser display.
+**"Read and create BigWig files"** -> Access indexed binary signal tracks for efficient region queries and genome browser display.
 - Python: `pyBigWig.open('file.bw')` (pyBigWig)
 - CLI: `bigWigToBedGraph`, `bedGraphToBigWig` (UCSC tools)
 

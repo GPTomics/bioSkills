@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Alignment-Free Quantification
 
-**"Quantify gene expression without alignment"** → Estimate transcript abundances directly from FASTQ reads using pseudo-alignment or selective alignment, bypassing genome mapping.
+**"Quantify gene expression without alignment"** -> Estimate transcript abundances directly from FASTQ reads using pseudo-alignment or selective alignment, bypassing genome mapping.
 - CLI: `salmon quant -i index -l A -1 R1.fq.gz -2 R2.fq.gz -o quant/`, `kallisto quant -i index -o output R1.fq.gz R2.fq.gz`
 
 Quantify transcript abundance directly from FASTQ reads using pseudo-alignment (kallisto) or selective alignment (Salmon).

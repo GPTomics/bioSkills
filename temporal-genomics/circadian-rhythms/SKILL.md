@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Circadian Rhythm Detection
 
-**"Test which genes in my time-course data have circadian rhythms"** → Fit cosinor models at a specified period (typically 24h) to expression time series, estimating amplitude, phase (acrophase), and rhythmicity significance for each gene.
+**"Test which genes in my time-course data have circadian rhythms"** -> Fit cosinor models at a specified period (typically 24h) to expression time series, estimating amplitude, phase (acrophase), and rhythmicity significance for each gene.
 - Python: `CosinorPy.cosinor.fit_group()` for cosinor regression
 - R: `MetaCycle::meta2d()` for multi-method rhythmicity testing (JTK_CYCLE + ARSER)
 

@@ -16,7 +16,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - `nextclade run --help` -- v3+ syntax replaced v2; old `nextclade` invocation no longer works
 - `augur --version`; `augur refine --help` for current root-strategy flags
 
-If `pangolin --inference usher` is rejected, the flag is `--analysis-mode usher` (no `--inference`). If `nextclade --input-dataset DIR` works, you may be on v2; v3 accepts both but `--dataset NAME` is the modern form for built-in datasets. Pangolin and Nextclade output column names differ between major releases -- introspect rather than retry.
+If `pangolin --inference usher` is rejected, the flag is `--analysis-mode usher` (no `--inference`). If `nextclade --input-dataset DIR` works, the installed version may be v2; v3 accepts both but `--dataset NAME` is the modern form for built-in datasets. Pangolin and Nextclade output column names differ between major releases -- introspect rather than retry.
 
 # Variant Surveillance
 
@@ -310,8 +310,8 @@ Hodcroft 2021 *Nature* 591:30 documented that Nextstrain subsampling configurati
 | "Pangolin version?" | `pangolin --all-versions` recorded; pinned for the analysis; archive re-run on dataset update |
 | "Nextclade dataset version?" | Dataset tag from `pathogen.json` recorded; pre-downloaded folder used to lock the version |
 | "Why UShER not pangoLEARN?" | pangoLEARN deprecated mid-2023 (Pongmoragot 2024); UShER default since v4 |
-| "How did you handle ARTIC dropouts?" | Per-amplicon coverage checked; failed amplicons masked; primer scheme documented per isolate |
-| "Did you check for recombinants?" | Bolotie / 3SEQ run on candidates; cross-checked Pangolin vs Nextclade; submitted to cov-lineages for novel candidates |
+| "How were ARTIC dropouts handled?" | Per-amplicon coverage checked; failed amplicons masked; primer scheme documented per isolate |
+| "Were recombinants checked for?" | Bolotie / 3SEQ run on candidates; cross-checked Pangolin vs Nextclade; submitted to cov-lineages for novel candidates |
 | "Wastewater barcode date?" | Barcode date postdates sample collection; `freyja barcode-build` from current UShER tree if needed |
 | "Wastewater-to-cases conversion?" | Variant-specific shedding rate flagged in the wastewater literature; not assumed constant |
 | "Lineage growth-advantage CI?" | Multinomial covariance reported; early estimates noted as inflated (Abousamra 2024) |

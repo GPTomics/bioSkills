@@ -31,9 +31,9 @@ These two operations are commonly confused:
 
 You have variants called separately for each sample:
 ```
-sample1.vcf.gz  →  contains only sample1
-sample2.vcf.gz  →  contains only sample2
-sample3.vcf.gz  →  contains only sample3
+sample1.vcf.gz  ->  contains only sample1
+sample2.vcf.gz  ->  contains only sample2
+sample3.vcf.gz  ->  contains only sample3
 ```
 
 Use `bcftools merge` to combine into one multi-sample VCF.
@@ -42,9 +42,9 @@ Use `bcftools merge` to combine into one multi-sample VCF.
 
 You have variants called in parallel by chromosome:
 ```
-chr1.vcf.gz  →  all samples, chromosome 1
-chr2.vcf.gz  →  all samples, chromosome 2
-chr3.vcf.gz  →  all samples, chromosome 3
+chr1.vcf.gz  ->  all samples, chromosome 1
+chr2.vcf.gz  ->  all samples, chromosome 2
+chr3.vcf.gz  ->  all samples, chromosome 3
 ```
 
 Use `bcftools concat` to combine into one genome-wide VCF.

@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metabolite-Mediated Cell Communication
 
-**"Analyze metabolic crosstalk between cell types"** → Predict metabolite secretion-sensing interactions between cell populations based on enzyme and transporter expression patterns.
-- Python: `mebocost.MeboCost(adata, groupby='cell_type')` → `run_mebocost()`
+**"Analyze metabolic crosstalk between cell types"** -> Predict metabolite secretion-sensing interactions between cell populations based on enzyme and transporter expression patterns.
+- Python: `mebocost.MeboCost(adata, groupby='cell_type')` -> `run_mebocost()`
 
 ## MeboCost Overview
 

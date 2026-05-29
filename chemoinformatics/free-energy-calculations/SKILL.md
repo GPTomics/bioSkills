@@ -56,9 +56,9 @@ For docking input poses, see `chemoinformatics/virtual-screening`. For pose vali
 
 ## Relative Binding Free Energy (RBFE) Setup
 
-**Goal:** Calculate delta-delta-G between two ligands (lig1 → lig2) in pocket.
+**Goal:** Calculate delta-delta-G between two ligands (lig1 -> lig2) in pocket.
 
-**Approach:** Alchemical transformation lig1 → lig2 in both bound state (pocket + ligand + water) and unbound state (ligand + water alone). Thermodynamic cycle:
+**Approach:** Alchemical transformation lig1 -> lig2 in both bound state (pocket + ligand + water) and unbound state (ligand + water alone). Thermodynamic cycle:
 
 ```
 delta(delta-G_binding) = (delta-G_lig1->lig2 in pocket) - (delta-G_lig1->lig2 in solvent)

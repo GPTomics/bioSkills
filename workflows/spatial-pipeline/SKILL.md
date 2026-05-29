@@ -29,7 +29,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Transcriptomics Pipeline
 
-**"Analyze my spatial transcriptomics data end-to-end"** → Orchestrate data loading (squidpy/scanpy), QC, normalization, spatial domain detection, deconvolution (cell2location), spatial neighbor analysis, cell-cell communication, and tissue visualization.
+**"Analyze my spatial transcriptomics data end-to-end"** -> Orchestrate data loading (squidpy/scanpy), QC, normalization, spatial domain detection, deconvolution (cell2location), spatial neighbor analysis, cell-cell communication, and tissue visualization.
 
 Complete workflow for analyzing Visium, Xenium, or other spatial transcriptomics data.
 

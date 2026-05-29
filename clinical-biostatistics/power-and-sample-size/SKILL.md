@@ -246,7 +246,7 @@ print(f'NI sample size per arm: {n}')
 
 ## Equivalence Designs and Bioequivalence
 
-**TOST (Two One-Sided Tests; Schuirmann 1987):** reject H0 of inequivalence iff both one-sided tests reject at α each — equivalent to the 1-2α CI lying within (-δ, +δ). Closed under intersection-union → no multiplicity adjustment needed despite two tests.
+**TOST (Two One-Sided Tests; Schuirmann 1987):** reject H0 of inequivalence iff both one-sided tests reject at α each — equivalent to the 1-2α CI lying within (-δ, +δ). Closed under intersection-union -> no multiplicity adjustment needed despite two tests.
 
 ```python
 # TOST sample size for continuous outcome
@@ -351,7 +351,7 @@ If period significant, treatment effect is still unbiased (orthogonal in balance
 
 For co-primary endpoints, power-adjust per FDA Multiple Endpoints Guidance (October 2022):
 
-- **Co-primary (all-must-win):** each endpoint at full alpha but joint power = product → inflate n
+- **Co-primary (all-must-win):** each endpoint at full alpha but joint power = product -> inflate n
 - **Multiple primary (any-wins):** alpha split (e.g., Bonferroni or graphical)
 - **Hierarchical:** test in order; if any fail, downstream cannot be claimed
 

@@ -110,10 +110,10 @@ Inverse convention bug. `sizeFactors(dds) <- 1 / scale_factors`, not `sizeFactor
 ### Internal-control regions shift after scaling
 
 Scaling broken. Common causes:
-1. Scaling applied to peak counts → fix application layer
-2. Spike-in reads not dedup'd → re-extract from filtered BAM
-3. mapq filter too loose → use `-q 30`
-4. Spike-in saturated → verify titration linearity
+1. Scaling applied to peak counts -> fix application layer
+2. Spike-in reads not dedup'd -> re-extract from filtered BAM
+3. mapq filter too loose -> use `-q 30`
+4. Spike-in saturated -> verify titration linearity
 
 ### Cross-condition comparison still shows no effect
 

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Hi-C Differential Analysis
 
-**"Compare Hi-C contacts between my conditions"** → Compute log2 fold-change contact maps, identify statistically significant differential interactions, and visualize changes in 3D genome organization.
+**"Compare Hi-C contacts between my conditions"** -> Compute log2 fold-change contact maps, identify statistically significant differential interactions, and visualize changes in 3D genome organization.
 - Python: `cooltools` for expected values, custom differential analysis with `scipy.stats`
 
 Compare Hi-C contact matrices between conditions.

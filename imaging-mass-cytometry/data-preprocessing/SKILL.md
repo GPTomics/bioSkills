@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # IMC Data Preprocessing
 
-**"Preprocess my imaging mass cytometry data"** → Load MCD files, apply hot pixel removal, channel cropping, and signal normalization to prepare multiplexed images for segmentation and analysis.
+**"Preprocess my imaging mass cytometry data"** -> Load MCD files, apply hot pixel removal, channel cropping, and signal normalization to prepare multiplexed images for segmentation and analysis.
 - CLI: `steinbock preprocess` for automated IMC preprocessing pipeline
 
 ## Load MCD Files with steinbock

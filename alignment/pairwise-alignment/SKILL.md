@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Pairwise Sequence Alignment
 
-**"Align two sequences"** → Compute an optimal alignment between a pair of sequences using dynamic programming.
+**"Align two sequences"** -> Compute an optimal alignment between a pair of sequences using dynamic programming.
 - Python: `PairwiseAligner()` (BioPython Bio.Align)
 - CLI: `needle` (global) or `water` (local) from EMBOSS
 - R: `pairwiseAlignment()` (Biostrings)
@@ -104,7 +104,7 @@ aligner = PairwiseAligner(mode='global', substitution_matrix=substitution_matric
 
 ## Performing Alignments
 
-**"Align two sequences"** → Compute optimal alignment(s) between a pair of sequences, returning alignment objects or a score.
+**"Align two sequences"** -> Compute optimal alignment(s) between a pair of sequences, returning alignment objects or a score.
 
 **Goal:** Align two sequences and retrieve the optimal alignment(s) or score.
 

@@ -369,14 +369,14 @@ done
 
 | Pushback | Response |
 |----------|----------|
-| "Did you deduplicate?" | No — standard non-UMI MeRIP protocol; PCR duplicate vs biological resampling indistinguishable without UMI; dedup collapses real coverage at high-expression transcripts |
+| "Was deduplication applied?" | No — standard non-UMI MeRIP protocol; PCR duplicate vs biological resampling indistinguishable without UMI; dedup collapses real coverage at high-expression transcripts |
 | "What is the IP enrichment QC?" | deepTools plotFingerprint reported per replicate; JS distance >=0.5 vs input |
 | "Are the replicates concordant?" | Spearman correlation matrix reported via deepTools plotCorrelation on 10 kb bins; IP-IP within condition >=0.85 |
 | "Saturation curve?" | PreSeq lc_extrap per library; libraries rarefied to common depth before downstream peak calling |
 | "What antibody clone and lot?" | Recorded per sample in metadata; same lot for all replicates within study |
 | "Why STAR instead of HISAT2?" | STAR splice-junction-DB-based vs HISAT2 graph-based; both valid for MeRIP; choice driven by memory budget |
 | "How many biological replicates?" | N >=3 per condition (per McIntyre 2020); N=2 is under-powered for differential downstream |
-| "Did you align to genome or transcriptome?" | Genome (required for exomePeak2 / MeTPeak / MACS3 downstream); transcriptome alignment is for m6anet-analysis only |
+| "Was alignment to genome or transcriptome?" | Genome (required for exomePeak2 / MeTPeak / MACS3 downstream); transcriptome alignment is for m6anet-analysis only |
 
 ## References
 

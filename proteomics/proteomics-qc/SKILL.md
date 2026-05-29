@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Proteomics Quality Control
 
-**"Check the quality of my proteomics data"** → Assess data quality through identification rates, missing value patterns, replicate correlation, intensity distributions, and batch effect detection before downstream analysis.
+**"Check the quality of my proteomics data"** -> Assess data quality through identification rates, missing value patterns, replicate correlation, intensity distributions, and batch effect detection before downstream analysis.
 - Python: `pandas` + `matplotlib`/`seaborn` for QC metrics and visualization
 - R: `limma::plotMDS()`, correlation heatmaps, CV distributions
 

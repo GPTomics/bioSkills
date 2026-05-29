@@ -45,7 +45,7 @@ Common mistake: using concat when merge is needed (or vice versa). `concat --all
 
 **Approach:** Use bcftools merge to join files with different sample columns at shared genomic positions.
 
-**"Merge my per-sample VCFs into one file"** → Combine variant records from multiple samples into a single multi-sample VCF.
+**"Merge my per-sample VCFs into one file"** -> Combine variant records from multiple samples into a single multi-sample VCF.
 
 Combine multiple VCF files with **different samples** at the same positions.
 
@@ -187,7 +187,7 @@ bcftools sort -m 4G input.vcf.gz -Oz -o sorted.vcf.gz
 
 **Approach:** Use bcftools isec to partition variants into private-to-each-file and shared subsets.
 
-**"Find variants called by both GATK and bcftools"** → Intersect two call sets to identify concordant and discordant variants.
+**"Find variants called by both GATK and bcftools"** -> Intersect two call sets to identify concordant and discordant variants.
 
 Intersect and compare VCF files.
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: BioPython 1.83+, pandas 2.2+ | Verify API if version differs
+# Reference: liftoff 1.6.3+ | Verify API if version differs
 # Same-species annotation transfer with Liftoff
 set -euo pipefail
 
@@ -21,15 +21,16 @@ REF_GENES=$(grep -c $'\tgene\t' $REF_ANNOTATION || echo 0)
 echo "Reference genes: $REF_GENES"
 
 # Run Liftoff with strict parameters for same-species transfer
-# -sc 0.95: 95% coverage threshold (fraction of ref feature that must align)
-# -s 0.90: 90% sequence identity threshold
-# -exclude_partial: Exclude partially mapped features
+# -a 0.95: minimum alignment coverage (fraction of the reference feature that must align)
+# -s 0.90: minimum sequence identity of child features
+# -exclude_partial: send partial/low-identity mappings to the unmapped file
+# (note: -sc is the COPY identity threshold and only takes effect with -copies; it is not a coverage gate)
 liftoff \
     -g $REF_ANNOTATION \
     -o ${OUTDIR}/lifted_annotation.gff3 \
     -u ${OUTDIR}/unmapped_features.txt \
     -dir ${OUTDIR}/intermediates \
-    -sc 0.95 \
+    -a 0.95 \
     -s 0.90 \
     -exclude_partial \
     -p $THREADS \

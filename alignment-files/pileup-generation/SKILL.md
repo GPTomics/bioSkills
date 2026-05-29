@@ -20,11 +20,11 @@ package and adapt the example to match the actual API rather than retrying.
 
 Generate pileup data for variant calling and position-level analysis.
 
-**"Generate pileup from BAM"** → Produce per-position read summaries showing depth, bases, and qualities.
+**"Generate pileup from BAM"** -> Produce per-position read summaries showing depth, bases, and qualities.
 - CLI: `samtools mpileup -f ref.fa input.bam`
 - Python: `bam.pileup(chrom, start, end)` (pysam)
 
-**"Count alleles at a position"** → Extract per-base read support at a specific genomic coordinate.
+**"Count alleles at a position"** -> Extract per-base read support at a specific genomic coordinate.
 - Python: iterate `pileup_column.pileups` and count bases (pysam)
 
 ## What is Pileup?

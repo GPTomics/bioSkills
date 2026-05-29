@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Temporal Trajectory Modeling
 
-**"Fit smooth curves to my gene expression time series"** → Model continuous temporal trajectories using generalized additive models (GAMs) or spline regression, test for condition differences, and detect changepoints where dynamics shift abruptly.
+**"Fit smooth curves to my gene expression time series"** -> Model continuous temporal trajectories using generalized additive models (GAMs) or spline regression, test for condition differences, and detect changepoints where dynamics shift abruptly.
 - R: `mgcv::gam()` for GAM fitting with smooth terms
 - Python: `ruptures` for changepoint detection in temporal profiles
 

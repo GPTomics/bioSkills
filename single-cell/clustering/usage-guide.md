@@ -21,12 +21,9 @@ install.packages('clustree')
 ## Quick Start
 
 Ask your AI agent:
-
-> "Run PCA and cluster my single-cell data"
-
-> "Generate a UMAP and color by cluster"
-
-> "Try different clustering resolutions"
+- "Run PCA and cluster my single-cell data"
+- "Generate a UMAP and color by cluster"
+- "Try different clustering resolutions"
 
 ## Example Prompts
 

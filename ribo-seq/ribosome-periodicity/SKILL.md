@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Ribosome Periodicity Analysis
 
-**"Check if my Ribo-seq data shows triplet periodicity"** → Validate Ribo-seq library quality by verifying 3-nucleotide translocation patterns and calculating P-site offsets from metagene profiles.
+**"Check if my Ribo-seq data shows triplet periodicity"** -> Validate Ribo-seq library quality by verifying 3-nucleotide translocation patterns and calculating P-site offsets from metagene profiles.
 - Python: `plastid` for P-site offset calculation and metagene analysis
 
 ## 3-Nucleotide Periodicity

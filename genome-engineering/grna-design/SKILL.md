@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Guide RNA Design
 
-**"Design guide RNAs for my CRISPR knockout experiment"** → Scan a target gene sequence for PAM sites, extract candidate spacer sequences, and score them for on-target activity using Rule Set 2 or CRISPRscan algorithms.
+**"Design guide RNAs for my CRISPR knockout experiment"** -> Scan a target gene sequence for PAM sites, extract candidate spacer sequences, and score them for on-target activity using Rule Set 2 or CRISPRscan algorithms.
 - Python: custom PAM scanning with `Bio.Seq`, CRISPRscan scoring models
 
 ## Find PAM Sites

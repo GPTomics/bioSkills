@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # AMR Detection
 
-**"Screen my isolates for antibiotic resistance genes"** → Identify antimicrobial resistance determinants in bacterial genomes or metagenomes by searching against curated resistance gene databases.
+**"Screen my isolates for antibiotic resistance genes"** -> Identify antimicrobial resistance determinants in bacterial genomes or metagenomes by searching against curated resistance gene databases.
 - CLI: `amrfinder -n assembly.fasta --organism Escherichia` (AMRFinderPlus)
 - CLI: ResFinder, CARD/RGI for alternative database searches
 

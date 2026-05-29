@@ -281,7 +281,7 @@ Joint training improves performance when endpoints are correlated (Wu 2018 Molec
 
 **Trigger:** Code/tutorial from before late 2024.
 
-**Mechanism:** Major API change: `chemprop_train` → `chemprop train`; Python API redesigned.
+**Mechanism:** Major API change: `chemprop_train` -> `chemprop train`; Python API redesigned.
 
 **Symptom:** ImportError or different keyword arguments.
 

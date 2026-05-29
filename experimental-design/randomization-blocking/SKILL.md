@@ -21,7 +21,7 @@ against the installed vignette (`vignette(package = 'designit')`) before relying
 
 **"Design the experiment so the statistics will be valid"** -> Decide what the experimental unit is, randomize treatments to those units, replicate the unit (not the measurement), and remove known nuisance variation by blocking — so that the analysis model mirrors how the experiment was actually run.
 - R: `designit::optimize_design()` for constrained randomization; `lme4::lmer()` / `lmerTest` for the matching mixed model
-- The design and the analysis are one decision: "analyze as you randomized"
+- The design and the analysis are one decision: "analyze as randomized"
 
 ## The Single Most Important Modern Insight -- The Experimental Unit, Not the Measurement, Is the n
 
@@ -52,7 +52,7 @@ A second, deeper point (Fisher): **randomization is what licenses the p-value.**
 | Treatment delivered per cage (chow/water), several mice/cage | EU = cage; block or model cage as random | randomization acted on the cage |
 | Two factors of interest (genotype x drug) | factorial; estimate the interaction | main effects uninterpretable if interaction is large |
 | One factor fixed per run (incubator temp, sequencing lane) | split-plot; whole-plot = run, sub-plot = sample | two error strata; test whole-plot against whole-plot error |
-| Known batch/day nuisance, all conditions fit per block | RCBD; include block in the model | removes nuisance from error; "analyze as you randomize" |
+| Known batch/day nuisance, all conditions fit per block | RCBD; include block in the model | removes nuisance from error; "analyze as randomized" |
 | Plate holds fewer samples than conditions | incomplete block + include block term | balance preserves estimability |
 | Assigning samples to sequencing batches/lanes | -> experimental-design/batch-design | constrained sample-to-batch allocation lives there |
 | Regulated clinical trial randomization | -> clinical-biostatistics | confirmatory/regulated regime out of scope |

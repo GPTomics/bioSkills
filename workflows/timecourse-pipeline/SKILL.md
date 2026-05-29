@@ -29,7 +29,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Time-Course Analysis Pipeline
 
-**"Analyze my time-course expression data end-to-end"** → Orchestrate temporal differential expression, Mfuzz soft clustering, optional circadian rhythm detection, GAM trajectory fitting, changepoint detection, and per-cluster pathway enrichment.
+**"Analyze my time-course expression data end-to-end"** -> Orchestrate temporal differential expression, Mfuzz soft clustering, optional circadian rhythm detection, GAM trajectory fitting, changepoint detection, and per-cluster pathway enrichment.
 
 Complete workflow from expression matrix through temporal differential expression, soft clustering,
 optional rhythm detection, trajectory fitting, and per-cluster pathway enrichment.

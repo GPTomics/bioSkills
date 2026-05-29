@@ -35,7 +35,7 @@ ORA converts continuous measures into binary (significant/not), losing informati
 
 **Approach:** Test for over-representation of GO terms using the hypergeometric test via clusterProfiler enrichGO.
 
-**"Run GO enrichment on my gene list"** → Test whether biological process, molecular function, or cellular component terms are over-represented among significant genes.
+**"Run GO enrichment on my gene list"** -> Test whether biological process, molecular function, or cellular component terms are over-represented among significant genes.
 
 ```r
 library(clusterProfiler)

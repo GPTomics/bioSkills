@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Longitudinal Monitoring
 
-**"Track ctDNA levels over my patient's treatment"** → Monitor tumor fraction and mutation dynamics across serial liquid biopsy timepoints for treatment response assessment and early relapse detection.
+**"Track ctDNA levels over my patient's treatment"** -> Monitor tumor fraction and mutation dynamics across serial liquid biopsy timepoints for treatment response assessment and early relapse detection.
 - Python: `pandas` + `matplotlib` for trend analysis and molecular response classification
 
 Track ctDNA dynamics over treatment for response assessment and relapse detection.

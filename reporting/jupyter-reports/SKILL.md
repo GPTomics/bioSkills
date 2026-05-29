@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Jupyter Reports with Papermill
 
-**"Generate reproducible analysis reports"** → Execute parameterized Jupyter notebooks programmatically and export as HTML/PDF reports.
+**"Generate reproducible analysis reports"** -> Execute parameterized Jupyter notebooks programmatically and export as HTML/PDF reports.
 - Python: `papermill.execute_notebook(input, output, parameters={...})`
 - CLI: `jupyter nbconvert --to html notebook.ipynb`
 

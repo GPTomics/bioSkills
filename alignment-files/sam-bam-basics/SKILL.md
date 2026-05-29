@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # SAM/BAM/CRAM Basics
 
-**"Read a BAM file"** → Open a binary alignment file and iterate over aligned reads with their mapping coordinates, flags, and quality scores.
+**"Read a BAM file"** -> Open a binary alignment file and iterate over aligned reads with their mapping coordinates, flags, and quality scores.
 - Python: `pysam.AlignmentFile()` (pysam)
 - CLI: `samtools view` (samtools)
 - R: `scanBam()` (Rsamtools)

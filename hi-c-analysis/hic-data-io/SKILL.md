@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Hi-C Data I/O
 
-**"Load my Hi-C contact matrix"** → Read .cool/.mcool/.hic files into Python, access contact pixels, convert between formats, and export subsets.
+**"Load my Hi-C contact matrix"** -> Read .cool/.mcool/.hic files into Python, access contact pixels, convert between formats, and export subsets.
 - Python: `cooler.Cooler('file.mcool::resolutions/10000')`
 - CLI: `cooler load`, `hic2cool convert`
 

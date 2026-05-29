@@ -82,7 +82,7 @@ DiffBind 3.x conflates two orthogonal choices: the normalization method (`normal
 
 **Trigger:** Treatment causes global chromatin compaction (e.g., HDAC inhibitor, DNMT inhibitor).
 
-**Mechanism:** Full library-size normalization is robust to background but the default still scales background reads in; under uniform global compaction the magnitudes can collapse. RiP scaling (`library=DBA_LIBSIZE_PEAKREADS`) makes the opposite assumption (peak signal is stable, background absorbs the shift) and so erases the very biology you want to detect.
+**Mechanism:** Full library-size normalization is robust to background but the default still scales background reads in; under uniform global compaction the magnitudes can collapse. RiP scaling (`library=DBA_LIBSIZE_PEAKREADS`) makes the opposite assumption (peak signal is stable, background absorbs the shift) and so erases the very biology of interest.
 
 **Symptom:** Volcano plot is symmetric about zero; PCA shows treatment effect that vanishes after normalization.
 

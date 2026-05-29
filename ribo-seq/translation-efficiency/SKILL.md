@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Translation Efficiency
 
-**"Calculate translation efficiency from my Ribo-seq and RNA-seq"** → Compute the ratio of ribosome occupancy to mRNA abundance per gene to identify translational regulation independent of transcription changes.
+**"Calculate translation efficiency from my Ribo-seq and RNA-seq"** -> Compute the ratio of ribosome occupancy to mRNA abundance per gene to identify translational regulation independent of transcription changes.
 - R: `riborex` for differential TE with DESeq2 backend
 - Python: Ribo-seq/RNA-seq count ratio with statistical testing
 
@@ -178,6 +178,6 @@ def calculate_te_matrix(ribo_tpm, rna_tpm):
 
 ## Related Skills
 
-- rna-quantification - Get RNA-seq counts
-- differential-expression - Compare expression
+- rna-quantification/featurecounts-counting - Get RNA-seq counts
+- differential-expression/deseq2-basics - Compare expression
 - orf-detection - Identify translated ORFs

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Tree I/O
 
-**"Read and convert my phylogenetic tree files"** → Parse trees from Newick, Nexus, PhyloXML, or NeXML formats and convert between formats for use in different tools.
+**"Read and convert my phylogenetic tree files"** -> Parse trees from Newick, Nexus, PhyloXML, or NeXML formats and convert between formats for use in different tools.
 - Python: `Bio.Phylo.read('tree.nwk', 'newick')`, `Bio.Phylo.convert()`
 
 Parse, write, and convert phylogenetic tree files in various formats.

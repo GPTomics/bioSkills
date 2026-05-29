@@ -35,7 +35,7 @@ import math
 
 ## Pairwise Identity
 
-**"Calculate percent identity"** → Compute the fraction of identical aligned residues between sequence pairs.
+**"Calculate percent identity"** -> Compute the fraction of identical aligned residues between sequence pairs.
 
 **Goal:** Measure sequence similarity as percent identity for individual pairs or across all sequences in an alignment.
 

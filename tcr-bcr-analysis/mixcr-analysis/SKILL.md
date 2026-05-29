@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # MiXCR Analysis
 
-**"Extract TCR/BCR clonotypes from my sequencing data"** → Assemble immune receptor sequences from raw reads, identify V(D)J gene segments, and generate clonotype tables for repertoire analysis.
+**"Extract TCR/BCR clonotypes from my sequencing data"** -> Assemble immune receptor sequences from raw reads, identify V(D)J gene segments, and generate clonotype tables for repertoire analysis.
 - CLI: `mixcr analyze` for end-to-end TCR/BCR extraction and clonotype assembly
 
 ## Complete Workflow (Recommended)

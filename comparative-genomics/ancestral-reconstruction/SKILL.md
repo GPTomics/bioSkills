@@ -383,7 +383,7 @@ grasp -aln alignment.fasta -tree species.nwk -out grasp_run --inference joint --
 | Pushback | Standard response |
 |----------|-------------------|
 | "Why marginal not joint reconstruction?" | Marginal exposes per-site uncertainty necessary for resurrection construct design; joint is internally consistent but hides ambiguity (Pupko 2000 MBE 17:890) |
-| "How did you handle epistasis?" | Designed and tested N alternative constructs at ambiguous (P < 0.8) sites; report functional range, not just ML sequence (Hochberg & Thornton 2017) |
+| "How was epistasis handled?" | Designed and tested N alternative constructs at ambiguous (P < 0.8) sites; report functional range, not just ML sequence (Hochberg & Thornton 2017) |
 | "Why these models?" | AIC compared ER/SYM/ARD for discrete; BM/OU/EB/lambda for continuous; site-homogeneous + CAT-PMSF for deep sequence ASR; reported ancestral state only at model-invariant nodes |
 | "Phylogenetic signal?" | Pagel's lambda = X; Blomberg's K = Y; signal supports tree-based ASR (or: signal weak, ASR exploratory only) |
 | "Effect of rooting?" | Reconstructed under multiple rootings; state at root invariant across STRIDE / MAD / outgroup, or explicit caveat for root-sensitive nodes |

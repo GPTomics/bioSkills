@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Long-Read Assembly
 
-**"Assemble a genome from long reads"** → Build a contiguous de novo assembly from ONT or PacBio reads, producing complete or near-complete chromosomes.
+**"Assemble a genome from long reads"** -> Build a contiguous de novo assembly from ONT or PacBio reads, producing complete or near-complete chromosomes.
 - CLI: `flye --nano-raw reads.fq -o output` (ONT), `canu -p asm -d output -nanopore reads.fq` (ONT/PacBio)
 
 ## Tool Comparison
@@ -299,4 +299,4 @@ flye --nano-raw $LONG --out-dir ${OUTDIR}/flye --genome-size 5m --threads 16
 - assembly-polishing - Polish long-read assemblies
 - assembly-qc - QUAST and BUSCO assessment
 - short-read-assembly - Hybrid with Illumina
-- long-read-sequencing - Read QC and alignment
+- long-read-sequencing/long-read-qc - Read QC and alignment

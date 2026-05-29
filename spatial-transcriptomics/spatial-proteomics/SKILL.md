@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Proteomics Analysis
 
-**"Analyze my CODEX/IMC spatial proteomics data"** → Process multiplexed imaging data including cell segmentation, protein phenotyping, spatial neighborhood analysis, and protein colocalization scoring.
+**"Analyze my CODEX/IMC spatial proteomics data"** -> Process multiplexed imaging data including cell segmentation, protein phenotyping, spatial neighborhood analysis, and protein colocalization scoring.
 - Python: `scimap.tl.phenotype_cells()`, `squidpy.gr.nhood_enrichment()`
 
 ## Data Loading

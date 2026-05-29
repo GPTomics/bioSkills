@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Imputation QC
 
-**"Filter my imputed genotypes by quality"** → Assess imputation accuracy using INFO/R2 scores, filter low-quality imputed variants, and validate against known genotypes before downstream GWAS.
+**"Filter my imputed genotypes by quality"** -> Assess imputation accuracy using INFO/R2 scores, filter low-quality imputed variants, and validate against known genotypes before downstream GWAS.
 - CLI: `bcftools query -f '%CHROM %POS %INFO/R2\n'` to extract quality scores
 - Python: `pandas` for R2 distribution analysis and threshold selection
 

@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Joint Calling
 
-**"Joint genotype my cohort samples"** → Combine per-sample gVCFs into a single cohort callset with consistent genotyping across all sites, enabling VQSR and population-level analysis.
-- CLI: `gatk HaplotypeCaller -ERC GVCF` → `gatk GenomicsDBImport` → `gatk GenotypeGVCFs`
+**"Joint genotype my cohort samples"** -> Combine per-sample gVCFs into a single cohort callset with consistent genotyping across all sites, enabling VQSR and population-level analysis.
+- CLI: `gatk HaplotypeCaller -ERC GVCF` -> `gatk GenomicsDBImport` -> `gatk GenotypeGVCFs`
 
 ## Why Joint Calling Matters
 

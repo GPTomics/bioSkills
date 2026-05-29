@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Feature Selection for Biomarker Discovery
 
-**"Find the best biomarkers in my omics data"** → Select informative features using all-relevant selection (Boruta), minimum redundancy (mRMR), or regularization (LASSO) to identify candidate biomarkers.
+**"Find the best biomarkers in my omics data"** -> Select informative features using all-relevant selection (Boruta), minimum redundancy (mRMR), or regularization (LASSO) to identify candidate biomarkers.
 - Python: `BorutaPy(rf, n_estimators='auto')`, `sklearn.linear_model.LassoCV()`
 
 ## Boruta All-Relevant Selection

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: pandas 2.2+ | Verify API if version differs
+# Reference: infernal 1.1.4+, trnascan-se 2.0.12+, barrnap 0.9+ | Verify API if version differs
 # Non-coding RNA annotation with Infernal and tRNAscan-SE
 set -euo pipefail
 
@@ -22,14 +22,20 @@ if [ ! -f "${RFAM_CM}.i1m" ]; then
     cmpress $RFAM_CM
 fi
 
+# Effective database size (Mb) for run-comparable E-values: residues x 2 (both strands) / 1e6
+BP=$(grep -v '^>' $GENOME | tr -d '\n' | tr -cd 'ACGTNacgtn' | wc -c | tr -d ' ')
+ZMB=$(echo "scale=6; $BP * 2 / 1000000" | bc)
+
 # Run Infernal cmscan against Rfam
+# -Z: effective DB size (Mb) so E-values are comparable across runs/chunks
 # --cut_ga: Rfam gathering threshold (family-specific, recommended)
 # --rfam: Rfam-optimized speed settings
-# --nohmmonly: CM-only scoring (more accurate for structured RNAs)
-# --clanin: Resolve overlapping hits from same clan
+# --nohmmonly: CM-only scoring so scores are GA-comparable
+# --fmt 2 + --clanin: emit overlap columns and clan membership for deoverlapping
 echo ""
-echo "Running Infernal cmscan..."
+echo "Running Infernal cmscan (-Z $ZMB)..."
 cmscan \
+    -Z $ZMB \
     --cut_ga \
     --rfam \
     --nohmmonly \
@@ -40,8 +46,10 @@ cmscan \
     $RFAM_CM \
     $GENOME > ${OUTDIR}/infernal_hits.out
 
-INFERNAL_HITS=$(grep -c -v '^#' ${OUTDIR}/infernal_hits.tbl || echo 0)
-echo "Infernal hits: $INFERNAL_HITS"
+# Clan competition: drop within-clan overlapped lower-scoring hits (mandatory, not optional)
+grep -v " = " ${OUTDIR}/infernal_hits.tbl > ${OUTDIR}/infernal_hits.deoverlapped.tbl
+INFERNAL_HITS=$(grep -c -v '^#' ${OUTDIR}/infernal_hits.deoverlapped.tbl || echo 0)
+echo "Infernal hits (deoverlapped): $INFERNAL_HITS"
 
 # Run tRNAscan-SE
 echo ""
@@ -80,8 +88,8 @@ echo "rRNAs (barrnap): $RRNA_COUNT"
 # Count Infernal hits by type
 echo ""
 echo "Infernal hits by Rfam family (top 20):"
-grep -v '^#' ${OUTDIR}/infernal_hits.tbl | awk '{print $3}' | sort | uniq -c | sort -rn | head -20
+grep -v '^#' ${OUTDIR}/infernal_hits.deoverlapped.tbl | awk '{print $2}' | sort | uniq -c | sort -rn | head -20
 
 echo ""
 echo "Results in: $OUTDIR"
-echo "Run parse_ncrna.py to combine and categorize all results."
+echo "Run: parse_ncrna.py ${OUTDIR}/infernal_hits.deoverlapped.tbl ${OUTDIR}/trnascan.gff3"

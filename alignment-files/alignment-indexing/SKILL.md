@@ -20,7 +20,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Create indices for random access to alignment files using samtools and pysam.
 
-**"Index a BAM file"** → Create a .bai/.csi index enabling random access to genomic regions.
+**"Index a BAM file"** -> Create a .bai/.csi index enabling random access to genomic regions.
 - CLI: `samtools index file.bam`
 - Python: `pysam.index('file.bam')`
 

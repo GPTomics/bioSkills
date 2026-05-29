@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Finding Restriction Sites
 
-**"Find restriction sites in my DNA sequence"** → Locate cut positions for one or more restriction enzymes in linear or circular DNA.
+**"Find restriction sites in my DNA sequence"** -> Locate cut positions for one or more restriction enzymes in linear or circular DNA.
 - Python: `Bio.Restriction.Analysis(rb, seq, linear=True).full()`
 
 ## Core Pattern

@@ -21,12 +21,9 @@ remotes::install_github('mojaveazure/seurat-disk')
 ## Quick Start
 
 Ask your AI agent:
-
-> "Load my 10X data into Scanpy"
-
-> "Create a Seurat object from this count matrix"
-
-> "Convert my h5ad file to Seurat format"
+- "Load my 10X data into Scanpy"
+- "Create a Seurat object from this count matrix"
+- "Convert my h5ad file to Seurat format"
 
 ## Example Prompts
 

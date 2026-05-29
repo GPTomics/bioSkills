@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # MHC Binding Prediction
 
-**"Predict which peptides bind to MHC"** → Predict peptide-MHC class I and II binding affinity using neural network models to identify potential T-cell epitopes from protein sequences.
+**"Predict which peptides bind to MHC"** -> Predict peptide-MHC class I and II binding affinity using neural network models to identify potential T-cell epitopes from protein sequences.
 - Python: `mhcflurry.Class1PresentationPredictor().predict()` for MHC-I
 - CLI: `netMHCpan` for alternative MHC-I/II predictions
 

@@ -20,7 +20,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Sort alignment files by coordinate or read name using samtools and pysam.
 
-**"Sort a BAM file"** → Reorder reads by genomic coordinate (for indexing/variant calling) or by name (for paired-end processing).
+**"Sort a BAM file"** -> Reorder reads by genomic coordinate (for indexing/variant calling) or by name (for paired-end processing).
 - CLI: `samtools sort -o sorted.bam input.bam`
 - Python: `pysam.sort('-o', 'sorted.bam', 'input.bam')`
 

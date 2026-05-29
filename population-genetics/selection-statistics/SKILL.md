@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Selection Statistics
 
-**"Scan my population data for signs of natural selection"** → Calculate selection statistics (Fst, Tajima's D, iHS, XP-EHH) to detect selective sweeps and departures from neutrality.
+**"Scan my population data for signs of natural selection"** -> Calculate selection statistics (Fst, Tajima's D, iHS, XP-EHH) to detect selective sweeps and departures from neutrality.
 - Python: `allel.moving_hudson_fst()`, `allel.ihs()`, `allel.xpehh()` (scikit-allel)
 - CLI: `vcftools --weir-fst-pop` for pairwise Fst
 

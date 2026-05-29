@@ -17,14 +17,14 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 # Structural Alignment
 
-**"Align two protein structures"** → Compute backbone-aware superposition and a fold-similarity score (TM-score, RMSD, or LDDT).
+**"Align two protein structures"** -> Compute backbone-aware superposition and a fold-similarity score (TM-score, RMSD, or LDDT).
 - CLI pairwise: `TMalign A.pdb B.pdb`, `USalign A.pdb B.pdb`
 - CLI search at scale: `foldseek easy-search query/ AFDB result.m8 tmp/`
 - CLI structural MSA: `foldmason easy-msa structures/*.pdb out tmp/`
 - Python pairwise: `Bio.PDB.Superimposer`, or `subprocess` wrapping `TMalign` / `USalign` (see `examples/tm_align_pairwise.py`)
 - GUI / scripted molecular-graphics superposition: ChimeraX `matchmaker`, PyMOL `super`/`cealign`
 
-**"Find structural homologs of an AlphaFold model"** → Search a structure database by 3Di-encoded structural alphabet (Foldseek) or by full TM-align rotation (DALI, US-align).
+**"Find structural homologs of an AlphaFold model"** -> Search a structure database by 3Di-encoded structural alphabet (Foldseek) or by full TM-align rotation (DALI, US-align).
 
 ## When to Use Structural Alignment
 

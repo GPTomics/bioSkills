@@ -19,8 +19,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Iso-Seq Analysis
 
-**"Analyze full-length isoforms from my Iso-Seq data"** → Process PacBio HiFi reads through CCS generation, primer removal, clustering, and isoform classification to discover novel transcript variants.
-- CLI: `isoseq3 refine` → `isoseq3 cluster` → `pbmm2 align` → `sqanti3_qc.py`
+**"Analyze full-length isoforms from my Iso-Seq data"** -> Process PacBio HiFi reads through CCS generation, primer removal, clustering, and isoform classification to discover novel transcript variants.
+- CLI: `isoseq3 refine` -> `isoseq3 cluster` -> `pbmm2 align` -> `sqanti3_qc.py`
 
 ## IsoSeq3 Pipeline Overview
 

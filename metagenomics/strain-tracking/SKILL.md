@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Strain Tracking
 
-**"Track bacterial strains across my samples"** → Resolve sub-species variation using genome sketching (Mash/sourmash), average nucleotide identity (fastANI), or within-sample strain profiling (inStrain) for outbreak tracking and transmission analysis.
+**"Track bacterial strains across my samples"** -> Resolve sub-species variation using genome sketching (Mash/sourmash), average nucleotide identity (fastANI), or within-sample strain profiling (inStrain) for outbreak tracking and transmission analysis.
 - CLI: `mash dist`, `sourmash compare`, `fastANI`, `inStrain profile`
 
 Identify and track bacterial strains at sub-species resolution.

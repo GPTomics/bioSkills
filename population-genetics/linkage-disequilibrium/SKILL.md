@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Linkage Disequilibrium
 
-**"Calculate LD between my variants"** → Compute pairwise LD statistics (r², D'), prune correlated variants for independent sets, and identify haplotype blocks from genotype data.
+**"Calculate LD between my variants"** -> Compute pairwise LD statistics (r², D'), prune correlated variants for independent sets, and identify haplotype blocks from genotype data.
 - CLI: `plink2 --r2` for LD calculation, `--indep-pairwise` for pruning
 - Python: `allel.rogers_huff_r()` for windowed LD in scikit-allel
 

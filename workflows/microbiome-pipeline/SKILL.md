@@ -23,7 +23,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Microbiome Pipeline
 
-**"Run end-to-end 16S microbiome analysis from FASTQ"** → Orchestrate DADA2 denoising, taxonomy assignment, alpha/beta diversity (phyloseq), differential abundance (ALDEx2/ANCOM-BC2), and functional prediction (PICRUSt2).
+**"Run end-to-end 16S microbiome analysis from FASTQ"** -> Orchestrate DADA2 denoising, taxonomy assignment, alpha/beta diversity (phyloseq), differential abundance (ALDEx2/ANCOM-BC2), and functional prediction (PICRUSt2).
 
 ## Pipeline Overview
 

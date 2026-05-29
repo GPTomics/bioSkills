@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Association Testing
 
-**"Run a GWAS on my genotyping data"** → Perform genome-wide association testing using logistic (case-control) or linear (quantitative) regression with covariates, then visualize results with Manhattan and QQ plots.
+**"Run a GWAS on my genotyping data"** -> Perform genome-wide association testing using logistic (case-control) or linear (quantitative) regression with covariates, then visualize results with Manhattan and QQ plots.
 - CLI: `plink2 --glm` for association testing with covariates
 
 GWAS analysis using PLINK 2.0's unified `--glm` command for case-control and quantitative traits.

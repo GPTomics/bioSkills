@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Somatic Variant Pipeline
 
-**"Call somatic mutations from my tumor-normal pair"** → Orchestrate alignment, Mutect2 somatic calling, contamination filtering, variant annotation (Funcotator/VEP), TMB calculation, and mutational signature analysis.
+**"Call somatic mutations from my tumor-normal pair"** -> Orchestrate alignment, Mutect2 somatic calling, contamination filtering, variant annotation (Funcotator/VEP), TMB calculation, and mutational signature analysis.
 
 Complete workflow for calling somatic mutations from tumor-normal paired samples.
 

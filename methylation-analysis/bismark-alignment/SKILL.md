@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Bismark Alignment
 
-**"Align my bisulfite sequencing reads"** → Map WGBS/RRBS reads to an in-silico bisulfite-converted reference genome, producing BAM files with methylation context tags.
+**"Align my bisulfite sequencing reads"** -> Map WGBS/RRBS reads to an in-silico bisulfite-converted reference genome, producing BAM files with methylation context tags.
 - CLI: `bismark_genome_preparation genome/` then `bismark --genome genome/ reads.fq.gz`
 
 ## Prepare Genome Index

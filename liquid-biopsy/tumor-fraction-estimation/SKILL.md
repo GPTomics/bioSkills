@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Tumor Fraction Estimation
 
-**"Estimate tumor fraction from my cfDNA data"** → Calculate the proportion of tumor-derived DNA in a liquid biopsy sample using copy number aberrations from shallow whole-genome sequencing.
+**"Estimate tumor fraction from my cfDNA data"** -> Calculate the proportion of tumor-derived DNA in a liquid biopsy sample using copy number aberrations from shallow whole-genome sequencing.
 - R: `ichorCNA` for tumor fraction and CNA estimation from sWGS
 
 Estimate ctDNA tumor fraction from shallow whole-genome sequencing.

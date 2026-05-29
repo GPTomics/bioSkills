@@ -123,11 +123,11 @@ print(result)
 
 | Pattern | Graph topology | Use |
 |---------|----------------|-----|
-| Pure hierarchical (fixed sequence) | H1 → H2 → H3 with weight 1 on each transition | Strict ordering |
-| Holm graph (equal weights) | Each Hi → Hj with weight 1/(m-1) | No priority ordering |
-| Primary + secondaries | Primary → Sec1 (0.5), Sec2 (0.5); Sec1 ↔ Sec2 (1) | Pivotal labeling claims |
-| Co-primary chain | H1 → H2 with full weight if BOTH H1a, H1b reject | Co-primary + secondary |
-| Subgroup branch | Primary → Subgroup_OS (0.2), Sec1 (0.4), Sec2 (0.4) | Discovery subgroup with budget |
+| Pure hierarchical (fixed sequence) | H1 -> H2 -> H3 with weight 1 on each transition | Strict ordering |
+| Holm graph (equal weights) | Each Hi -> Hj with weight 1/(m-1) | No priority ordering |
+| Primary + secondaries | Primary -> Sec1 (0.5), Sec2 (0.5); Sec1 ↔ Sec2 (1) | Pivotal labeling claims |
+| Co-primary chain | H1 -> H2 with full weight if BOTH H1a, H1b reject | Co-primary + secondary |
+| Subgroup branch | Primary -> Subgroup_OS (0.2), Sec1 (0.4), Sec2 (0.4) | Discovery subgroup with budget |
 
 ### Bretz et al 2011 -- Simes and parametric extensions
 

@@ -63,7 +63,7 @@ Recommend `Bio.Align` (modern API) over `Bio.AlignIO` (legacy) for new code; it 
 
 ## Reading Alignments
 
-**"Read an alignment file"** → Parse an alignment file into an alignment object with sequences and metadata accessible.
+**"Read an alignment file"** -> Parse an alignment file into an alignment object with sequences and metadata accessible.
 
 **Goal:** Load alignment data from files in various formats (Clustal, PHYLIP, Stockholm, FASTA).
 
@@ -116,7 +116,7 @@ with open('output.aln', 'w') as handle:
 
 ## Format Conversion
 
-**"Convert alignment format"** → Transform an alignment file from one format to another (e.g., Clustal to PHYLIP).
+**"Convert alignment format"** -> Transform an alignment file from one format to another (e.g., Clustal to PHYLIP).
 
 **Goal:** Convert alignment files between formats for compatibility with different analysis tools.
 

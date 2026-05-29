@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # FASTQ Quality Scores
 
-**"Filter my FASTQ reads by quality score"** → Access, analyze, and filter Phred quality scores, trim low-quality bases, and generate per-position quality profiles.
+**"Filter my FASTQ reads by quality score"** -> Access, analyze, and filter Phred quality scores, trim low-quality bases, and generate per-position quality profiles.
 - Python: `SeqIO.parse()` with `letter_annotations['phred_quality']` (BioPython)
 
 Analyze and manipulate FASTQ quality scores using Biopython.
@@ -276,4 +276,4 @@ def detect_quality_encoding(filepath, sample_size=1000):
 - filter-sequences - Filter reads by other criteria (length, content)
 - paired-end-fastq - Handle R1/R2 paired quality filtering
 - sequence-statistics - Generate summary statistics including quality
-- alignment-files - After filtering, align reads with bwa/bowtie2; quality scores in BAM
+- alignment-files/sam-bam-basics - After filtering, align reads with bwa/bowtie2; quality scores in BAM

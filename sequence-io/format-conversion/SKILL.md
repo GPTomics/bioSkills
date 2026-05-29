@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Format Conversion
 
-**"Convert this file to a different format"** → Read records in one format, optionally add missing annotations, and write in the target format.
+**"Convert this file to a different format"** -> Read records in one format, optionally add missing annotations, and write in the target format.
 - Python: `SeqIO.convert()` for direct conversion, or `SeqIO.parse()` + `SeqIO.write()` when modifications are needed (BioPython)
 - CLI: `seqkit seq` (SeqKit) for FASTA/FASTQ; `samtools view` for SAM/BAM/CRAM
 
@@ -190,4 +190,4 @@ Converting formats?
 - write-sequences - Write converted sequences with modifications
 - batch-processing - Convert multiple files at once
 - compressed-files - Handle compressed input/output during conversion
-- alignment-files - For SAM/BAM/CRAM conversion, use samtools view
+- alignment-files/sam-bam-basics - For SAM/BAM/CRAM conversion, use samtools view

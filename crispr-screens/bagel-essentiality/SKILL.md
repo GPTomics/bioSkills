@@ -48,7 +48,7 @@ Reference set integrity:
 - CEGv2: pan-cancer essentials -- common dropouts across most cancer cell lines
 - NEGv1: confidently non-essential -- genes without expression or genes with verified neutral status
 
-**Critical pitfall:** Using a custom essentiality reference (e.g., a single-cell-line CRISPR screen) instead of CEGv2 biases the BAGEL2 model toward that line's specific biology. Always use the standardized references unless you have a specific reason for custom training.
+**Critical pitfall:** Using a custom essentiality reference (e.g., a single-cell-line CRISPR screen) instead of CEGv2 biases the BAGEL2 model toward that line's specific biology. Always use the standardized references unless there is a specific reason for custom training.
 
 ## Compute Per-Sample Fold Changes
 

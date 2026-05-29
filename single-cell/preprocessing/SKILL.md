@@ -18,9 +18,9 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Single-Cell Preprocessing
 
-**"Preprocess my scRNA-seq data"** → Filter low-quality cells/genes, normalize counts, identify highly variable genes, and prepare data for dimensionality reduction and clustering.
-- Python: `scanpy.pp.filter_cells()` → `normalize_total()` → `log1p()` → `highly_variable_genes()`
-- R: `Seurat::NormalizeData()` → `FindVariableFeatures()` → `ScaleData()`
+**"Preprocess my scRNA-seq data"** -> Filter low-quality cells/genes, normalize counts, identify highly variable genes, and prepare data for dimensionality reduction and clustering.
+- Python: `scanpy.pp.filter_cells()` -> `normalize_total()` -> `log1p()` -> `highly_variable_genes()`
+- R: `Seurat::NormalizeData()` -> `FindVariableFeatures()` -> `ScaleData()`
 
 Quality control, filtering, normalization, and feature selection for scRNA-seq data.
 

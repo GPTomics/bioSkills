@@ -26,7 +26,7 @@ Read, write, and create single-cell data objects for analysis.
 
 **Approach:** Read 10X Genomics output, CSV, or Loom formats into AnnData objects, manipulate metadata and layers, and write to h5ad format.
 
-**"Load my 10X data"** → Read Cell Ranger output directory or h5 file into an AnnData object with expression matrix, cell barcodes, and gene annotations.
+**"Load my 10X data"** -> Read Cell Ranger output directory or h5 file into an AnnData object with expression matrix, cell barcodes, and gene annotations.
 
 ### Required Imports
 

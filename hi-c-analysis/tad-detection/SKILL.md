@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # TAD Detection
 
-**"Call TADs from my Hi-C data"** → Identify topologically associating domain boundaries using insulation score minima or other boundary-detection algorithms.
+**"Call TADs from my Hi-C data"** -> Identify topologically associating domain boundaries using insulation score minima or other boundary-detection algorithms.
 - Python: `cooltools.insulation(clr, window_bp)` then threshold boundary strength
 - CLI: `hicFindTADs` (HiCExplorer)
 

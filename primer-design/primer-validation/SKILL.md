@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Check primers for secondary structures, dimers, and other issues using primer3-py.
 
-**"Validate a primer pair"** → Check for hairpins, self-dimers, heterodimers, and 3' stability using thermodynamic calculations.
+**"Validate a primer pair"** -> Check for hairpins, self-dimers, heterodimers, and 3' stability using thermodynamic calculations.
 - Python: `primer3.calc_hairpin()`, `primer3.calc_homodimer()`, `primer3.calc_heterodimer()` (primer3-py)
 
 ## Required Imports

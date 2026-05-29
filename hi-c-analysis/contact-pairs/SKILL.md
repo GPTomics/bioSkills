@@ -18,8 +18,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Hi-C Contact Pairs Processing
 
-**"Process my Hi-C read pairs"** → Parse aligned Hi-C reads into contact pairs, filter duplicates, classify pair types (cis/trans), and generate contact statistics.
-- CLI: `pairtools parse` → `pairtools sort` → `pairtools dedup` → `pairtools stats`
+**"Process my Hi-C read pairs"** -> Parse aligned Hi-C reads into contact pairs, filter duplicates, classify pair types (cis/trans), and generate contact statistics.
+- CLI: `pairtools parse` -> `pairtools sort` -> `pairtools dedup` -> `pairtools stats`
 
 Process Hi-C read pairs with pairtools.
 
@@ -275,4 +275,4 @@ echo "Done processing $SAMPLE"
 
 - hic-data-io - Work with cooler matrices
 - matrix-operations - Balance resulting matrices
-- read-alignment - Align Hi-C reads before processing
+- read-alignment/bwa-alignment - Align Hi-C reads before processing

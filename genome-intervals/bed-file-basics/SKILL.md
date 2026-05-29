@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # BED File Basics
 
-**"Work with BED files"** → Read, create, and manipulate genomic interval files in BED format (0-based, half-open coordinates).
+**"Work with BED files"** -> Read, create, and manipulate genomic interval files in BED format (0-based, half-open coordinates).
 - Python: `pybedtools.BedTool('file.bed')` (pybedtools)
 - CLI: `bedtools` commands
 

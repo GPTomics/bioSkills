@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # PCR Primer Design
 
-**"Design primers for this sequence"** → Given a template sequence and constraints (product size, Tm, GC%), find ranked primer pairs that amplify the target region.
+**"Design primers for this sequence"** -> Given a template sequence and constraints (product size, Tm, GC%), find ranked primer pairs that amplify the target region.
 - Python: `primer3.design_primers()` (primer3-py)
 - CLI: `primer3_core` (Primer3)
 
@@ -284,5 +284,5 @@ print(df)
 
 - qpcr-primers - Design primers with internal probes for qPCR
 - primer-validation - Check primers for specificity and secondary structures
-- sequence-io - Load template sequences
+- sequence-io/read-sequences - Load template sequences
 - database-access/local-blast - BLAST primers for specificity checking

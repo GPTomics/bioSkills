@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Screen FASTQ files against multiple genomes to identify contamination sources using FastQ Screen.
 
-**"Check for contamination in sequencing data"** → Align a sample of reads against multiple reference genomes to identify cross-species or cross-sample contamination.
+**"Check for contamination in sequencing data"** -> Align a sample of reads against multiple reference genomes to identify cross-species or cross-sample contamination.
 - CLI: `fastq_screen --conf fastq_screen.conf reads.fq`
 
 ## FastQ Screen Overview

@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Abundance Estimation with Bracken
 
-**"Get species-level abundances from my Kraken2 results"** → Redistribute reads assigned to higher taxonomic levels down to species using Bracken's Bayesian re-estimation for more accurate abundance profiles.
+**"Get species-level abundances from my Kraken2 results"** -> Redistribute reads assigned to higher taxonomic levels down to species using Bracken's Bayesian re-estimation for more accurate abundance profiles.
 - CLI: `bracken -d db -i kraken2.report -o bracken.output -r 150 -l S`
 
 ## Basic Abundance Estimation
@@ -194,7 +194,7 @@ merged.to_csv('abundance_matrix.txt', sep='\t', index=False)
 
 Pre-built databases typically include: 50, 75, 100, 150, 200, 250, 300 bp
 
-Choose the length closest to your actual read length.
+Choose the length closest to the actual read length.
 
 ## Related Skills
 

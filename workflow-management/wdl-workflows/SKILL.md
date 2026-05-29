@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # WDL Workflows
 
-**"Build a WDL pipeline for Terra/AnVIL execution"** → Define tasks and workflows in WDL (Workflow Description Language) for execution on Cromwell, miniwdl, or cloud platforms (Terra, AnVIL) with built-in GATK best practices support.
+**"Build a WDL pipeline for Terra/AnVIL execution"** -> Define tasks and workflows in WDL (Workflow Description Language) for execution on Cromwell, miniwdl, or cloud platforms (Terra, AnVIL) with built-in GATK best practices support.
 - CLI: `cromwell run workflow.wdl` or `miniwdl run workflow.wdl` for execution
 - WDL: version 1.0 task/workflow syntax with scatter-gather parallelism
 

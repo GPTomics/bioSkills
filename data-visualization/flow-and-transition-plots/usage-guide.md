@@ -35,15 +35,15 @@ Tell your AI agent what you want to do:
 
 ### Variant QC pipeline
 
-> "Sankey showing how N variants flow through QC stages (raw → quality-filtered → MAF-filtered → annotated → final). Counts at each transition."
+> "Sankey showing how N variants flow through QC stages (raw -> quality-filtered -> MAF-filtered -> annotated -> final). Counts at each transition."
 
 ### Interactive multi-omics flow
 
-> "Interactive Sankey (networkD3 or plotly) showing pathway → gene → variant relationships."
+> "Interactive Sankey (networkD3 or plotly) showing pathway -> gene -> variant relationships."
 
 ### Drug-response trajectory
 
-> "Alluvial of patient response class (CR/PR/SD/PD) across 3 assessments. Highlight responders → non-responders."
+> "Alluvial of patient response class (CR/PR/SD/PD) across 3 assessments. Highlight responders -> non-responders."
 
 ## What the Agent Will Do
 

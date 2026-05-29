@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Methylation Calling
 
-**"Extract methylation calls from my Bismark BAM"** → Generate per-cytosine methylation reports (CpG, CHG, CHH contexts) from aligned bisulfite sequencing data.
+**"Extract methylation calls from my Bismark BAM"** -> Generate per-cytosine methylation reports (CpG, CHG, CHH contexts) from aligned bisulfite sequencing data.
 - CLI: `bismark_methylation_extractor --bedGraph --cytosine_report sample.bam`
 
 ## Basic Extraction

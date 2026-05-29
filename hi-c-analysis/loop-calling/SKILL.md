@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Chromatin Loop Calling
 
-**"Call chromatin loops from my Hi-C data"** → Detect point enrichments in contact matrices representing CTCF-mediated loops and enhancer-promoter interactions.
+**"Call chromatin loops from my Hi-C data"** -> Detect point enrichments in contact matrices representing CTCF-mediated loops and enhancer-promoter interactions.
 - Python: `cooltools.dots()` or `chromosight detect --pattern=loops`
 
 Detect chromatin loops and point interactions from Hi-C data.
@@ -281,4 +281,4 @@ print(f'Promoter-enhancer loops: {len(pe_loops)}')
 
 - hic-data-io - Load Hi-C matrices
 - hic-visualization - Visualize loops
-- chip-seq - CTCF ChIP-seq for loop anchor validation
+- chip-seq/peak-calling - CTCF ChIP-seq for loop anchor validation

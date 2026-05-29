@@ -277,11 +277,11 @@ A single VCV can carry all three with distinct evaluations; the legacy "Pathogen
 
 | Pushback | Standard response |
 |----------|-------------------|
-| "Why is your pathogenic variant 1-star?" | We report star rating per submission; clinical action requires star >=2 OR VCEP curation per ClinGen SVI 2018. |
+| "Why is this pathogenic variant 1-star?" | We report star rating per submission; clinical action requires star >=2 OR VCEP curation per ClinGen SVI 2018. |
 | "ClinVar says P but gnomAD AF = 2%" | Reconciled via Whiffin FAF95 max-credible-AF framework; bottleneck-group rule applied. |
-| "Your VCV count differs from ClinVar.gov" | We pulled from the monthly archive (first-Thursday-of-month) for reproducibility; the live web is post-most-recent-weekly. |
-| "Why didn't you flag the somatic variant?" | Pre-2024 XML schema had no separate somatic field; we now read `ONCDN`/`SCIDN`/`SomaticClinicalImpact` per v2 schema. |
-| "VarSome says LP but you say VUS" | Tool-specific aggregation rule differences; VarSome auto-applies PP3+PM2 by default per Tavtigian point system; we apply VCEP-specific PP3 calibration per CSpec. |
+| "This VCV count differs from ClinVar.gov" | We pulled from the monthly archive (first-Thursday-of-month) for reproducibility; the live web is post-most-recent-weekly. |
+| "Why wasn't the somatic variant flagged?" | Pre-2024 XML schema had no separate somatic field; we now read `ONCDN`/`SCIDN`/`SomaticClinicalImpact` per v2 schema. |
+| "VarSome says LP but this says VUS" | Tool-specific aggregation rule differences; VarSome auto-applies PP3+PM2 by default per Tavtigian point system; we apply VCEP-specific PP3 calibration per CSpec. |
 | "rsID match returned wrong variant" | rsID is a cluster identifier; multi-allelic rsIDs require allele-level resolution; we use SPDI or CA ID. |
 | "Why retest a 2022-curated variant?" | Submission staleness median 5-year reclassification cycle in active genes (Harrison 2017); ClinGen recommends annual re-review for active diagnostic variants. |
 

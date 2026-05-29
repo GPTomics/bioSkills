@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Modern Structure Prediction
 
-**"Predict the structure of my protein"** → Run ML-based structure prediction using ESMFold (single-sequence, fast), AlphaFold3 (MSA-based, highest accuracy), Chai-1, or Boltz-1 and compare predictions across methods.
+**"Predict the structure of my protein"** -> Run ML-based structure prediction using ESMFold (single-sequence, fast), AlphaFold3 (MSA-based, highest accuracy), Chai-1, or Boltz-1 and compare predictions across methods.
 - Python: ESMFold API via `requests`, local ESMFold with `esm.pretrained`
 
 Predict protein structures using state-of-the-art machine learning models. This covers cloud APIs, local installations, and interpretation of results.

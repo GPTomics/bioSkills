@@ -231,7 +231,7 @@ Single-cell pseudobulk: most genes have zeros across donors, so `type='poscounts
 
 **Fix:** Treat LRT padj as a screen for "any change". For effect sizes, extract per-level Wald coefficients individually via `results(dds, name='<specific coefficient>')` for each non-reference level.
 
-### Cook's silences the gene you wanted
+### Cook's silences the gene of interest
 
 **Trigger:** Rare-disease cohort or CNV-amplified patient where ONE sample drives the biology; that gene has `padj=NA`.
 

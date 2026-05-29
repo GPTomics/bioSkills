@@ -138,7 +138,7 @@ CONSORT is a *required* element in randomized trial publication (CONSORT 2010 st
 
 **Mechanism:** Sankey collapses to source-sink summary; loses entity-trajectory continuity.
 
-**Symptom:** Reader sees "cluster A → 50% to B, 50% to C" but cannot trace individual trajectories.
+**Symptom:** Reader sees "cluster A -> 50% to B, 50% to C" but cannot trace individual trajectories.
 
 **Fix:** Use ggalluvial for multi-axis trajectories; Sankey for single-step source-to-sink.
 

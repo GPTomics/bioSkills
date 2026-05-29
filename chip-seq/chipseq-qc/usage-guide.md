@@ -89,7 +89,7 @@ The agent applies the following operational rules:
 
 - **Always compute QC before peak calling.** Failing QC samples produce false-positive peaks that consume downstream resources.
 - **NRF / PBC1 / PBC2 must be computed BEFORE deduplication.** Post-MarkDuplicates BAMs report meaningless library complexity (NRF ~ 1.0).
-- **FRiP varies with peak caller stringency.** Tighter q-value → fewer peaks → higher FRiP per peak but may understate enrichment quality. Use ENCODE `-p 1e-2` calls for consistent FRiP reporting.
+- **FRiP varies with peak caller stringency.** Tighter q-value -> fewer peaks -> higher FRiP per peak but may understate enrichment quality. Use ENCODE `-p 1e-2` calls for consistent FRiP reporting.
 - **phantompeakqualtools is depth-sensitive.** Subsample to 15-25M reads (`samtools view -s`) for consistent NSC/RSC across replicates of different depth.
 - **plotFingerprint JS distance has mark-specific thresholds.** TFs > 0.3; broad histones can be 0.05-0.15 and still be high-quality.
 - **Replicate correlation is not transitive.** Three-replicate experiments need pairwise Spearman > 0.8 for ALL pairs, not just the average.
@@ -103,40 +103,40 @@ The agent applies the following operational rules:
 ### Low FRiP (< 1% TF / < 5% histone)
 
 The single most common ChIP failure mode. Causes in order of frequency:
-1. Antibody specificity / lot issue → re-validate with KO/KD
-2. IP efficiency low → check IP-Western
-3. Fragment size wrong → check sonication, library prep
-4. Sequencing depth too shallow → typically need ≥ 20M unique mapped
-5. Hyper-ChIPable artifact dominance → build custom blacklist and recompute
+1. Antibody specificity / lot issue -> re-validate with KO/KD
+2. IP efficiency low -> check IP-Western
+3. Fragment size wrong -> check sonication, library prep
+4. Sequencing depth too shallow -> typically need ≥ 20M unique mapped
+5. Hyper-ChIPable artifact dominance -> build custom blacklist and recompute
 
 Increasing sequencing depth on a failed-FRiP sample does not fix the underlying issue.
 
 ### Low NSC/RSC (< 1.05 NSC, < 0.8 RSC)
 
 Cross-correlation reflects strand-shift enrichment. Causes:
-1. Weak ChIP signal → check FRiP
-2. Wrong fragment length estimate → check `_cc.pdf` plot for clear peak
-3. Phantom peak dominates (high signal at read length) → bad library
-4. phantompeakqualtools R compatibility issue → use kundajelab fork
+1. Weak ChIP signal -> check FRiP
+2. Wrong fragment length estimate -> check `_cc.pdf` plot for clear peak
+3. Phantom peak dominates (high signal at read length) -> bad library
+4. phantompeakqualtools R compatibility issue -> use kundajelab fork
 
 For broad histone marks (H3K27me3, H3K9me3), NSC marginal at 1.05 with strong FRiP > 15% is acceptable.
 
 ### Poor replicate concordance (Spearman < 0.6)
 
 Causes:
-1. Sample swap → verify with sequencing index, library prep batch records
-2. Batch effect → check date of IP, library prep, sequencer
-3. Biological variability → expected for some cell states (differentiation time course)
-4. One bad replicate → check per-rep FRiP / NSC; drop and repeat
+1. Sample swap -> verify with sequencing index, library prep batch records
+2. Batch effect -> check date of IP, library prep, sequencer
+3. Biological variability -> expected for some cell states (differentiation time course)
+4. One bad replicate -> check per-rep FRiP / NSC; drop and repeat
 
 Do NOT average across replicates to fix poor concordance.
 
 ### IDR returns 0 reproducible peaks
 
-1. Sorted by wrong column → use `-k8,8nr` (p-value descending)
-2. Library size imbalance > 2× → downsample to common depth
-3. One replicate dominated → check per-rep peak count
-4. Truly different conditions labeled as replicates → check metadata
+1. Sorted by wrong column -> use `-k8,8nr` (p-value descending)
+2. Library size imbalance > 2× -> downsample to common depth
+3. One replicate dominated -> check per-rep peak count
+4. Truly different conditions labeled as replicates -> check metadata
 
 ### Hyper-ChIPable region detected
 

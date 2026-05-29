@@ -22,17 +22,17 @@ package and adapt the example to match the actual API rather than retrying.
 
 ```
 Is this somatic data?
-├── Yes → FilterMutectCalls (GATK), not VQSR or hard filters
-└── No (germline) →
+├── Yes -> FilterMutectCalls (GATK), not VQSR or hard filters
+└── No (germline) ->
     Was DRAGEN-GATK mode used?
-    ├── Yes → Hard filter on QUAL only (DRAGEN QUAL is well-calibrated)
-    └── No →
+    ├── Yes -> Hard filter on QUAL only (DRAGEN QUAL is well-calibrated)
+    └── No ->
         Is dataset large enough for VQSR?
-        ├── Yes (>30 WGS/exomes, human, truth sets available) → VQSR
-        │   └── Large cohort? → Use allele-specific VQSR (-AS flag)
-        └── No → Hard filtering
-            ├── Non-model organism → Hard filtering only (no training resources)
-            └── Targeted panel → Hard filtering (too few variants for VQSR model)
+        ├── Yes (>30 WGS/exomes, human, truth sets available) -> VQSR
+        │   └── Large cohort? -> Use allele-specific VQSR (-AS flag)
+        └── No -> Hard filtering
+            ├── Non-model organism -> Hard filtering only (no training resources)
+            └── Targeted panel -> Hard filtering (too few variants for VQSR model)
 ```
 
 VQSR requires a Gaussian mixture model trained on known truth sets (HapMap, 1000G, dbSNP).
@@ -45,7 +45,7 @@ Targeted panels produce too few variants for stable model convergence, regardles
 
 **Approach:** Use VariantFiltration with per-metric filter expressions for SNPs and indels separately.
 
-**"Filter my variants using GATK best practices"** → Apply fixed annotation thresholds (QD, FS, MQ, SOR, RankSum) to flag low-quality variants.
+**"Filter my variants using GATK best practices"** -> Apply fixed annotation thresholds (QD, FS, MQ, SOR, RankSum) to flag low-quality variants.
 
 ```bash
 # SNPs

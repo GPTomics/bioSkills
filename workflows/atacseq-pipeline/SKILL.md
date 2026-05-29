@@ -35,7 +35,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # ATAC-seq Pipeline
 
-**"Run end-to-end ATAC-seq analysis from FASTQ to differential accessibility"** → Orchestrate QC, Bowtie2 alignment, MACS3 peak calling, FRiP/TSS enrichment QC, differential accessibility, and optional TOBIAS footprinting.
+**"Run end-to-end ATAC-seq analysis from FASTQ to differential accessibility"** -> Orchestrate QC, Bowtie2 alignment, MACS3 peak calling, FRiP/TSS enrichment QC, differential accessibility, and optional TOBIAS footprinting.
 
 Complete workflow from raw ATAC-seq FASTQ files to accessibility peaks, differential analysis, and TF footprinting.
 

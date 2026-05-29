@@ -51,13 +51,13 @@ Tell the agent what to do:
 
 ## What the Agent Will Do
 
-1. **Diagnose the normalization problem**: ask about expected global vs local changes (HDACi/BETi/EZH2i/dosage → global; standard TF perturbation → local); check MA plot loess curve after a default run
+1. **Diagnose the normalization problem**: ask about expected global vs local changes (HDACi/BETi/EZH2i/dosage -> global; standard TF perturbation -> local); check MA plot loess curve after a default run
 2. **Choose the appropriate tool/normalization** per the three-problem framework
 3. **Build sample sheet** with SampleID, Condition, Replicate, bamReads, bamControl, Peaks, PeakCaller
 4. **Run differential binding:**
-   - DiffBind: `dba.count()` → `dba.normalize()` → `dba.analyze()`
-   - DESeq2/edgeR: count matrix → DESeqDataSet → test
-   - csaw: `windowCounts()` → `normFactors()` → `glmQLFTest()` → merge
+   - DiffBind: `dba.count()` -> `dba.normalize()` -> `dba.analyze()`
+   - DESeq2/edgeR: count matrix -> DESeqDataSet -> test
+   - csaw: `windowCounts()` -> `normFactors()` -> `glmQLFTest()` -> merge
    - NormR: `diffR()` joint binomial mixture on bins
 5. **Spike-in integration** if applicable; compute scaling factors from Drosophila/E. coli reads, pass via `sizeFactors()` or `DiffBind` spike-in fields
 6. **Verify normalization**: `dba.normalize(obj, bRetrieve = TRUE)` for DiffBind; inspect MA loess curve
@@ -84,7 +84,7 @@ Tell the agent what to do:
 Usually wrong normalization for the biology:
 1. Check MA loess; if shifted off y=0, switch to `background=TRUE` (DiffBind) or spike-in
 2. Global-shift drug? Spike-in required; no algorithmic fix works
-3. Pre-filtering too aggressive → `rowSums >= 1` only
+3. Pre-filtering too aggressive -> `rowSums >= 1` only
 
 ### Differential peaks have wrong sign
 
@@ -102,11 +102,11 @@ Usually wrong normalization for the biology:
 
 ### Spike-in scaling gives nonsense
 
-1. Applied to peak counts instead of `sizeFactors()` → fix application layer
-2. Spike-in reads not deduplicated → re-extract from BAM
-3. Spike-in saturated (too many reads) → verify titration linearity
-4. Spike-in mismatch with target → confirm spike-in genome (Drosophila for human/mouse; E. coli for CUT&RUN/Tag)
-5. Internal control changes → see chipseq-qc and re-validate
+1. Applied to peak counts instead of `sizeFactors()` -> fix application layer
+2. Spike-in reads not deduplicated -> re-extract from BAM
+3. Spike-in saturated (too many reads) -> verify titration linearity
+4. Spike-in mismatch with target -> confirm spike-in genome (Drosophila for human/mouse; E. coli for CUT&RUN/Tag)
+5. Internal control changes -> see chipseq-qc and re-validate
 
 ### `Error: condition has only one level`
 

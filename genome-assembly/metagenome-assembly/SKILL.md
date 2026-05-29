@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metagenome Assembly
 
-**"Assemble genomes from my metagenome data"** → Reconstruct individual microbial genomes (MAGs) from mixed community sequencing reads using metagenome-aware assemblers and binning.
+**"Assemble genomes from my metagenome data"** -> Reconstruct individual microbial genomes (MAGs) from mixed community sequencing reads using metagenome-aware assemblers and binning.
 - CLI: `flye --meta --nano-raw reads.fq` (long-read), `metaspades.py -1 R1.fq -2 R2.fq` (short-read)
 
 ## Overview

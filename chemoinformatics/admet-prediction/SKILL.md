@@ -261,10 +261,10 @@ def druglike_score(mol):
 ## Reconciliation Across Models
 
 When ADMETlab, ProTox, and chemprop disagree on hERG:
-- All three predict hERG+ → high confidence, deprioritize
-- Two predict hERG+, one hERG- → moderate confidence, plan in vitro patch-clamp
-- Single positive (other two negative) → likely false positive of disagreeing model; verify chemotype is in distribution
-- All three hERG- → low confidence (especially novel chemotype); still consider in vitro screen for clinical candidates
+- All three predict hERG+ -> high confidence, deprioritize
+- Two predict hERG+, one hERG- -> moderate confidence, plan in vitro patch-clamp
+- Single positive (other two negative) -> likely false positive of disagreeing model; verify chemotype is in distribution
+- All three hERG- -> low confidence (especially novel chemotype); still consider in vitro screen for clinical candidates
 
 ## Common Errors
 

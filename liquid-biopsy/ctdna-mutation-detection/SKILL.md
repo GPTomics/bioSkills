@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # ctDNA Mutation Detection
 
-**"Detect mutations in my cfDNA sample"** → Identify somatic variants at low allele fractions (0.1-1%) from cell-free DNA using error-suppressed consensus calling and specialized callers.
+**"Detect mutations in my cfDNA sample"** -> Identify somatic variants at low allele fractions (0.1-1%) from cell-free DNA using error-suppressed consensus calling and specialized callers.
 - CLI: `vardict-java` for low-VAF variant calling from cfDNA
 
 Detect somatic mutations in cfDNA at low variant allele fractions.

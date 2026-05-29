@@ -19,7 +19,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 Design primers and internal probes for quantitative PCR using primer3-py.
 
-**"Design qPCR primers with probe"** → Generate primer pairs plus internal TaqMan/molecular beacon probes with constrained Tm and spacing.
+**"Design qPCR primers with probe"** -> Generate primer pairs plus internal TaqMan/molecular beacon probes with constrained Tm and spacing.
 - Python: `primer3.design_primers(seq_args, global_args)` with `PRIMER_PICK_INTERNAL_OLIGO=1` (primer3-py)
 
 ## Required Imports
@@ -263,4 +263,4 @@ print(df)
 
 - primer-basics - General PCR primer design
 - primer-validation - Check primers for dimers and specificity
-- sequence-manipulation - Work with cDNA sequences
+- sequence-manipulation/transcription-translation - Work with cDNA sequences

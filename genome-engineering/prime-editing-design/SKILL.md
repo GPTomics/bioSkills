@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Prime Editing Design
 
-**"Design a prime editing guide for my point mutation"** → Generate pegRNA sequences (spacer, scaffold, RT template, PBS) for precise genomic modifications without double-strand breaks, optimizing PBS length and RT template for editing efficiency.
+**"Design a prime editing guide for my point mutation"** -> Generate pegRNA sequences (spacer, scaffold, RT template, PBS) for precise genomic modifications without double-strand breaks, optimizing PBS length and RT template for editing efficiency.
 - Python: PrimeDesign algorithms with `Bio.Seq` for sequence handling
 
 ## pegRNA Structure

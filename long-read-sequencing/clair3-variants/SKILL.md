@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Clair3 Variant Calling
 
-**"Call variants from my long-read data"** → Use deep learning to identify germline SNPs and small indels from ONT or PacBio aligned reads with high accuracy.
+**"Call variants from my long-read data"** -> Use deep learning to identify germline SNPs and small indels from ONT or PacBio aligned reads with high accuracy.
 - CLI: `run_clair3.sh --bam_fn=sample.bam --ref_fn=ref.fa --platform=ont`
 
 ## Basic Usage

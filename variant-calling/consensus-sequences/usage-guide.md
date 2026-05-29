@@ -24,8 +24,8 @@ Tell your AI agent what you want to do:
 
 ```
 Reference:  ATCGATCGATCG
-VCF:        pos 5: T→C
-            pos 8: C→G
+VCF:        pos 5: T->C
+            pos 8: C->G
 Consensus:  ATCGACCGAGCG
 ```
 

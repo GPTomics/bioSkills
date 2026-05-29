@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: BUSCO 5.5+, HISAT2 2.2.1+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
+# Reference: galba 1.0.11+, busco 5.5+ | Verify API if version differs
 # Eukaryotic gene prediction with GALBA using protein-only evidence
 set -euo pipefail
 
@@ -8,6 +8,7 @@ PROTEINS=$2
 OUTDIR=${3:-galba_out}
 SPECIES=${4:-my_species}
 THREADS=${5:-16}
+LINEAGE=${6:-vertebrata_odb10}   # set to the DEEPEST applicable clade dataset, not the shallow eukaryota_odb10
 
 echo "=== GALBA Protein-Only Gene Prediction ==="
 echo "Genome: $GENOME"
@@ -34,10 +35,10 @@ echo "Input proteins: $PROT_COUNT"
 # Run GALBA
 echo ""
 echo "Running GALBA..."
+# GALBA always treats the genome as soft-masked for repeats (no --softmasking flag, unlike BRAKER)
 galba.pl \
     --genome=$GENOME \
     --prot_seq=$PROTEINS \
-    --softmasking \
     --threads=$THREADS \
     --species=$SPECIES \
     --workingdir=$OUTDIR \
@@ -57,7 +58,7 @@ echo "mRNAs: $MRNA_COUNT"
 # BUSCO evaluation
 echo ""
 echo "Running BUSCO on predicted proteins..."
-busco -i ${OUTDIR}/galba.aa -m proteins -l eukaryota_odb10 -o ${OUTDIR}/busco_eval -c $THREADS --offline 2>/dev/null || echo "BUSCO skipped"
+busco -i ${OUTDIR}/galba.aa -m proteins -l $LINEAGE -o ${OUTDIR}/busco_eval -c $THREADS --offline 2>/dev/null || echo "BUSCO skipped"
 
 echo ""
 echo "Results in: $OUTDIR"

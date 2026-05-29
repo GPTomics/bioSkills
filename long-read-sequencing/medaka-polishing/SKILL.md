@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Medaka Polishing and Variant Calling
 
-**"Polish my ONT assembly with medaka"** → Use neural networks trained on specific basecaller models to correct assembly errors and call variants from Nanopore data.
+**"Polish my ONT assembly with medaka"** -> Use neural networks trained on specific basecaller models to correct assembly errors and call variants from Nanopore data.
 - CLI: `medaka_polisher -i reads.fq -d draft.fa -o polished.fa -m r1041_e82_400bps_sup_v5.0.0`
 
 ## Basic Consensus Polishing

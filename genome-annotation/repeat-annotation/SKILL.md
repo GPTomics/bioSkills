@@ -1,196 +1,99 @@
 ---
 name: bio-genome-annotation-repeat-annotation
-description: Identify and classify repetitive elements and transposable elements using RepeatModeler for de novo repeat library construction and RepeatMasker for genome-wide repeat annotation. Quantify TE expression from RNA-seq with TEtranscripts. Use when masking repeats before gene prediction or analyzing transposable element activity.
+description: Discovers, classifies, and masks repetitive elements and transposable elements with RepeatModeler2 (de novo family library), RepeatMasker (masking against a library), EDTA (plant/structural TEs), or EarlGrey (auto-curating wrapper), and quantifies TE expression from RNA-seq with TEtranscripts/SQuIRE. Covers de-novo-library-as-curation-project, soft-vs-hard masking, the domesticated-gene over-masking massacre, Dfam-vs-RepBase, TE classification (Class I/II, family-vs-copy), Kimura repeat landscapes, LAI, and the RNA-seq multimapping problem. Use when masking repeats before gene prediction, building a TE library for a non-model genome, or analyzing transposable-element content or expression.
 tool_type: cli
 primary_tool: RepeatMasker
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: DESeq2 1.42+, STAR 2.7.11+, matplotlib 3.8+, pandas 2.2+
+Reference examples tested with: RepeatModeler 2.0.5+, RepeatMasker 4.1.5+, EDTA 2.1+, EarlGrey 4.0+, TEtranscripts 2.2+, matplotlib 3.8+, pandas 2.2+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Python: `pip show <package>` then `help(module.function)` to check signatures
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+The **library database version matters as much as the binary**: RepeatMasker now ships with Dfam (open); RepBase has been paywalled since May 2019, so any pipeline that "requires RepBase" is a reproducibility/access hazard - record the Dfam release and library provenance. If code throws an error, introspect the installed tool and adapt rather than retrying.
 
 # Repeat and Transposable Element Annotation
 
-**"Mask repeats in my genome assembly"** → Build a de novo repeat library and annotate/softmask repetitive elements as a prerequisite for gene prediction.
-- CLI: `RepeatModeler -database mydb` (library), `RepeatMasker -lib custom-lib.fa -xsmall assembly.fa` (masking)
+**"Mask repeats in my genome assembly"** -> Build a de novo repeat-family library, annotate copies genome-wide, and soft-mask them as a prerequisite for gene prediction.
+- CLI: `RepeatModeler -database mydb -LTRStruct` (library), `RepeatMasker -lib lib.fa -xsmall assembly.fa` (soft-mask), or `EarlGrey`/`EDTA.pl` (wrappers)
 
-Identify, classify, and mask repetitive elements using RepeatModeler (de novo library construction) and RepeatMasker (genome-wide annotation). Softmasked output is a prerequisite for eukaryotic gene prediction.
+## The Single Most Important Modern Insight -- The Library Is the Experiment, and the Assembly Caps It
 
-## RepeatModeler (De Novo Library)
+Two load-bearing truths the masker hides:
 
-RepeatModeler builds a species-specific repeat library by detecting repetitive elements de novo from the assembly.
+1. **De novo library construction is a curation research project, not a button.** A RepeatModeler2 run emits `mydb-families.fa` overnight - a *draft of a draft*: consensi are routinely 5'-truncated (L1 looks 1.5 kb when the active element is 6 kb), boundary-bled into flanking unique sequence, chimeric (two families merged), and 30-60% "Unknown" on a non-model genome. The dominant error in published TE annotations is the *library*, not the masker engine. Crucially, **masking percentage is robust to a bad library** (a chimeric consensus still masks roughly the right real estate), so the headline number survives while everything downstream rots: inflated family counts, wrong classification, distorted age landscapes, and - the killer - host-gene-contaminated consensi that silently mask real genes. Masking + gross % can use an automated library; any *per-family biological claim* (this family is young/active/novel) needs curation (Goubert 2022 *Mob DNA* 13:7; TE-Aid; MCHelper).
 
-### Build Database and Run
+2. **Annotation quality is capped by assembly quality.** Short-read de Bruijn assemblers *collapse* near-identical TE copies and *drop* the youngest (most identical, most biologically active) ones, so short-read assemblies systematically under-count TEs and bias the age distribution toward "old" - which masquerades as the real signal "this lineage has no recent activity." Software cannot recover what the assembler threw away. Always ask what assembly a "% repeat" came from; HiFi/T2T raised the ceiling (LAI measures it) but T2T satellite/centromere repeats still exceed what the standard TE toolchain can annotate.
 
-```bash
-# Build RepeatModeler database
-BuildDatabase -name my_genome -engine ncbi assembly.fasta
+## Tool Taxonomy
 
-# Run RepeatModeler (this takes hours to days depending on genome size)
-# -LTRStruct enables LTR structural detection (recommended)
-RepeatModeler -database my_genome -pa 16 -LTRStruct
-```
+| Tool | Citation | Role | When |
+|------|----------|------|------|
+| RepeatModeler2 | Flynn 2020 *PNAS* | de novo family discovery -> consensus library | discover genome-specific families (run `-LTRStruct`) |
+| RepeatMasker | Smit/Hubley/Green (software) | annotate/mask a genome **against** a library | the masking step; does not discover families |
+| EarlGrey | Baril 2024 *MBE* | wraps RepeatModeler2 + auto consensus-elongation + RepeatMasker + plots | **non-model default**; minimal hand-work |
+| EDTA | Ou 2019 *Genome Biol* | structural LTR/TIR/Helitron discovery + filtering | **plant / structurally-rich** genomes |
+| LTR_retriever | Ou & Jiang 2018 *Plant Physiol* | isolate intact LTR-RTs; feeds LAI | LTR focus / assembly-quality (LAI) |
+| TRF | Benson 1999 *NAR* | tandem/satellite repeats | a different algorithm class from TE maskers |
+| RepeatClassifier / DeepTE / TERL | Flynn 2020; Yan 2020 | classify unknown consensi | attack the "Unknown" fraction (validate; can mislabel) |
 
-### Key Options
+Dfam (open) vs RepBase (paywalled since 2019) is the database schism - modern open pipelines build on Dfam + de novo. Engine `-e`: `rmblast` (default, consensus FASTA) vs `nhmmer` (Dfam profile HMMs, more sensitive for ancient repeats, slower) - the same genome reads a higher % with HMM detection.
 
-| Option | Description |
-|--------|-------------|
-| `-database` | Database name from BuildDatabase |
-| `-pa` | Parallel processes |
-| `-LTRStruct` | Enable LTR structural detection pipeline |
-| `-engine` | Search engine: ncbi (RMBLAST) or abblast |
+## Decision Tree by Scenario
 
-### Output
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Non-model eukaryote, defensible answer, minimal hand-work | EarlGrey | RepeatModeler2 + auto-curation + clean outputs |
+| Plant / structurally-rich TE genome | EDTA | best-in-class LTR/TIR/Helitron structural annotation + host-gene filtering |
+| Well-covered vertebrate, just need masking | RepeatMasker `-species` against Dfam | curated families already exist |
+| Mask before gene prediction | RepeatMasker `-xsmall` (soft) + decontaminated library | predictors need soft-masking |
+| Publication-grade TE biology claim | de novo -> manual curation (Goubert protocol, TE-Aid) | automated library is the start, not the end |
+| Tandem/satellite/centromeric repeats | TRF + satellite tools (not RepeatMasker) | library-based TE tools don't see tandem arrays |
+| TE expression from RNA-seq | -> TEtranscripts/SQuIRE (EM multimapper handling) | see expression section |
+| TE insertion polymorphisms from reads | -> variant-calling (MELT/TEPID) | out of scope here |
 
-```
-my_genome-families.fa     # Consensus repeat library
-my_genome-families.stk    # Stockholm alignments
-RM_*/                     # Working directory with intermediate files
-```
-
-The output `*-families.fa` is the repeat library used by RepeatMasker.
-
-## RepeatMasker (Genome-Wide Annotation)
-
-### With De Novo Library
+## RepeatModeler2 -> RepeatMasker (the canonical pair)
 
 ```bash
-# Use species-specific de novo library (recommended)
-RepeatMasker \
-    -lib my_genome-families.fa \
-    -pa 16 \
-    -xsmall \
-    -gff \
-    -dir repeatmasker_out \
-    assembly.fasta
+# 1. De novo family discovery -> mydb-families.fa
+BuildDatabase -name mydb assembly.fa
+RepeatModeler -database mydb -threads 16 -LTRStruct   # -LTRStruct enables the LTR structural pipeline
+
+# 2. (Recommended) decontaminate the library against host proteins, then UNION with Dfam clade
+#    -> pull any consensus whose best hit is a host gene with no transposase/RT/integrase domain
+
+# 3. Soft-mask against (custom library) for gene prediction
+RepeatMasker -lib mydb-families.fa -xsmall -gff -e rmblast -pa 16 -dir rm_out assembly.fa
 ```
 
-### With Dfam/RepBase Library
+`-xsmall` = **soft-mask (lowercase)** - the key flag, the one people get wrong. Default `.masked` output hard-masks with N; `-x` masks with X. `-nolow` skips low-complexity/simple repeats (often wanted before gene prediction - see below). Outputs: `.masked`, `.out`, `.tbl` (summary %), `.align` (needed for the landscape).
 
-```bash
-# Use Dfam curated library for a known species
-RepeatMasker \
-    -species "Homo sapiens" \
-    -pa 16 \
-    -xsmall \
-    -gff \
-    -dir repeatmasker_out \
-    assembly.fasta
-```
+## Soft vs Hard Masking (Critical, and the Over-Masking Massacre)
 
-### Combined Library (De Novo + Known)
+- **Gene prediction needs SOFT-masking.** Modern predictors (AUGUSTUS/GeneMark/BRAKER) avoid *nucleating* models in lowercase but let exons extend into repeats - real genes have TE-derived exons and TE-filled introns. **Hard-masking (N) destroys sequence**: any gene overlapping a repeat is truncated or never called, and the predictor reports nothing - no error, no log. The gene is simply absent.
+- **Over-aggressive soft-masking is also a failure.** A gene whose promoter sits in an LTR, or a young gene inside a recent TE burst, gets suppressed because the predictor won't start a model in a heavily-lowercased locus. Before gene prediction, soft-mask *interspersed repeats only* and skip low-complexity (`-nolow`) - simple repeats overlap real coding microsatellites and low-complexity protein domains.
+- **The domesticated-gene massacre.** A de novo library contains fragments of real multicopy gene families because they *look* repetitive - and masking them deletes the genome's most interesting genes. Named casualties: **RAG1/RAG2** (domesticated Transib transposase; V(D)J recombination), **syncytins** (captured retroviral env; placentation), **SETMAR/Metnase** (Hsmar1 mariner + SET domain; DNA repair), **CENP-B** (pogo transposase; centromere), and the **KRAB-ZNF arrays** (~350+ primate zinc-finger genes that exist *to repress TEs* - masking them deletes the genome's anti-TE machinery). Defense: **decontaminate the library against a protein DB before masking** (EDTA does a version; RepeatModeler2 does not by default). Treat any gene model falling entirely inside a masked "TE" as a flag to investigate, not a finished call.
 
-```bash
-# Combine de novo and curated libraries for best results
-cat my_genome-families.fa known_repeats.fa > combined_lib.fa
+## TE Classification (Wicker-compatible)
 
-RepeatMasker \
-    -lib combined_lib.fa \
-    -pa 16 \
-    -xsmall \
-    -gff \
-    -dir repeatmasker_out \
-    assembly.fasta
-```
+- **Class I (retrotransposons, copy-and-paste via RNA + RT):** LTR-RTs (Ty3/Gypsy, Ty1/Copia - dominate large plant genomes), LINEs (autonomous, often 5'-truncated), SINEs (non-autonomous, e.g. Alu).
+- **Class II (DNA transposons, mostly cut-and-paste):** TIR superfamilies (hAT, Tc1/Mariner, CACTA, PIF/Harbinger, Mutator), Helitrons (rolling-circle, can capture host genes), MITEs (non-autonomous TIR derivatives, EDTA reclassifies ≤600 bp).
+- **Family vs copy:** a *family* is one consensus in the library (~thousands); a *copy/insertion* is one genomic locus matching it (millions). "% genome masked" counts copies; classification is family-level; "10,000 TEs" is ambiguous between the two.
+- **Full-length vs decayed:** most copies are dead, truncated, point-mutated relics; only a tiny fraction are intact. **Solo-LTR : full-length ratio** is real biology (recombinational LTR-RT removal rate), measurable only if the assembly resolved full-length elements. Wicker 2007 *Nat Rev Genet* is the reference scheme; present Gypsy/Copia and the ICTV Metaviridae/Pseudoviridae names both.
 
-### Key Options
+## Repeat Statistics and Age Landscape with Python
 
-| Option | Description |
-|--------|-------------|
-| `-lib` | Custom repeat library FASTA |
-| `-species` | Species name (uses Dfam database) |
-| `-pa` | Parallel processes |
-| `-xsmall` | Softmask output (lowercase repeats, required for gene prediction) |
-| `-gff` | Generate GFF output |
-| `-dir` | Output directory |
-| `-nolow` | Skip low-complexity masking |
-| `-noint` | Skip interspersed repeats |
-| `-e` | Search engine: crossmatch, ncbi, hmmer, abblast |
-| `-s` | Slow/sensitive search |
-| `-q` | Quick search (5-10% less sensitive) |
+**Goal:** Summarize masked content by class and plot the Kimura-divergence landscape (a relative within-genome age readout).
 
-### Output Files
-
-```
-repeatmasker_out/
-├── assembly.fasta.masked    # Hardmasked genome (N's replace repeats)
-├── assembly.fasta.out       # Detailed repeat annotation table
-├── assembly.fasta.tbl       # Summary statistics table
-├── assembly.fasta.out.gff   # GFF annotation of repeats
-└── assembly.fasta.cat.gz    # Search result alignments
-```
-
-### Softmasking for Gene Prediction
-
-The `-xsmall` flag produces softmasked output where repeats are lowercase. This is the required input format for BRAKER3 and most gene prediction tools.
-
-```bash
-# The softmasked genome is written in place of the input
-# Copy original first
-cp assembly.fasta assembly_original.fasta
-
-RepeatMasker -lib my_genome-families.fa -pa 16 -xsmall assembly.fasta
-
-# assembly.fasta.masked is the softmasked output
-mv assembly.fasta.masked assembly_softmasked.fasta
-```
-
-## TEtranscripts (TE Expression)
-
-Quantify transposable element expression from RNA-seq data using TEtranscripts, which works with DESeq2 for differential TE expression.
-
-```bash
-# Requires STAR alignment with multi-mapping reads retained
-STAR --runThreadN 16 \
-    --genomeDir star_index \
-    --readFilesIn reads_R1.fq.gz reads_R2.fq.gz \
-    --readFilesCommand zcat \
-    --outSAMtype BAM SortedByCoordinate \
-    --winAnchorMultimapNmax 100 \
-    --outFilterMultimapNmax 100 \
-    --outFileNamePrefix sample_
-
-# Run TEtranscripts for differential expression
-TEtranscripts \
-    --treatment sample1.bam sample2.bam sample3.bam \
-    --control ctrl1.bam ctrl2.bam ctrl3.bam \
-    --GTF genes.gtf \
-    --TE te_annotation.gtf \
-    --mode multi \
-    --sortByPos
-```
-
-### Key TEtranscripts Options
-
-| Option | Description |
-|--------|-------------|
-| `--treatment` | Treatment BAM files |
-| `--control` | Control BAM files |
-| `--GTF` | Gene annotation GTF |
-| `--TE` | TE annotation GTF (from RepeatMasker) |
-| `--mode` | multi (recommended) or uniq |
-| `--sortByPos` | Input sorted by position |
-| `--stranded` | Strand-specific protocol (yes, no, reverse) |
-
-## Python: Repeat Statistics
-
-**Goal:** Parse RepeatMasker output to summarize repeat content by class and visualize the repeat divergence landscape.
-
-**Approach:** Read the RepeatMasker `.out` file into a DataFrame, group by repeat class to compute total bp and genome percentage, then plot a Kimura divergence histogram stratified by major TE classes (LINE, SINE, LTR, DNA).
+**Approach:** Parse the RepeatMasker `.out` file, group by class for bp and genome fraction, then histogram percent divergence stratified by major TE class (x = divergence-from-consensus ~ relative age).
 
 ```python
 import pandas as pd
-import re
 
 def parse_repeatmasker_out(out_file):
-    '''Parse RepeatMasker .out file into a DataFrame.'''
     records = []
     with open(out_file) as f:
         for i, line in enumerate(f):
@@ -199,90 +102,81 @@ def parse_repeatmasker_out(out_file):
             parts = line.split()
             if len(parts) < 15:
                 continue
-            records.append({
-                'score': int(parts[0]),
-                'perc_div': float(parts[1]),
-                'perc_del': float(parts[2]),
-                'perc_ins': float(parts[3]),
-                'seqid': parts[4],
-                'start': int(parts[5]),
-                'end': int(parts[6]),
-                'strand': '+' if parts[8] == '+' else '-',
-                'repeat_name': parts[9],
-                'repeat_class': parts[10],
-                'length': int(parts[6]) - int(parts[5]) + 1,
-            })
+            records.append({'perc_div': float(parts[1]), 'seqid': parts[4],
+                            'repeat_class': parts[10], 'length': int(parts[6]) - int(parts[5]) + 1})
     return pd.DataFrame(records)
 
 def repeat_summary(rm_df, genome_size):
-    '''Summarize repeat content by class.'''
-    class_summary = rm_df.groupby('repeat_class').agg(
-        count=('repeat_name', 'count'),
-        total_bp=('length', 'sum'),
-    ).sort_values('total_bp', ascending=False)
-
-    class_summary['pct_genome'] = class_summary['total_bp'] / genome_size * 100
-    total_masked = rm_df['length'].sum()
-
-    print(f'=== Repeat Summary ===')
-    print(f'Total masked: {total_masked:,} bp ({total_masked/genome_size:.1%} of genome)')
-    print(f'\nBy class:')
-    for cls, row in class_summary.iterrows():
-        print(f'  {cls}: {row["count"]:,} elements, {row["total_bp"]:,} bp ({row["pct_genome"]:.1f}%)')
-
-    return class_summary
-
-def repeat_landscape(rm_df, output_file='repeat_landscape.png'):
-    '''Plot repeat divergence landscape (Kimura distance).'''
-    import matplotlib.pyplot as plt
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    major_classes = ['LINE', 'SINE', 'LTR', 'DNA']
-    colors = {'LINE': '#1f77b4', 'SINE': '#ff7f0e', 'LTR': '#2ca02c', 'DNA': '#d62728'}
-
-    for cls in major_classes:
-        subset = rm_df[rm_df['repeat_class'].str.contains(cls, case=False, na=False)]
-        if len(subset) > 0:
-            ax.hist(subset['perc_div'], bins=50, range=(0, 50), alpha=0.6, label=cls, color=colors.get(cls))
-
-    ax.set_xlabel('Kimura Divergence (%)')
-    ax.set_ylabel('Count')
-    ax.set_title('Repeat Landscape')
-    ax.legend()
-    plt.savefig(output_file, dpi=150, bbox_inches='tight')
-    plt.close()
+    by_class = rm_df.groupby('repeat_class')['length'].sum().sort_values(ascending=False)
+    total = rm_df['length'].sum()
+    print(f'Total masked: {total/genome_size:.1%} of genome (a LOWER bound; ancient copies decay past detection)')
+    return by_class / genome_size * 100
 ```
 
-## Expected Repeat Content
+The landscape is **right-censored** - the most ancient TEs decayed past alignment detection, so "no old activity" can mean "old activity is invisible." A sharp left (low-divergence) peak is a recent/ongoing burst; treat *presence* of a recent peak as informative and *absence* of an old hump cautiously. A truncated/chimeric consensus distorts the whole x-axis (another reason curation matters); never compare landscapes across genomes annotated with different libraries.
 
-| Organism | Repeat Content | Notes |
-|----------|---------------|-------|
-| Bacteria | 1-5% | Mostly IS elements |
-| Yeast | 3-5% | Ty elements |
-| Drosophila | 15-25% | LTR-rich |
-| Zebrafish | 45-55% | DNA transposon-rich |
-| Human | 45-50% | LINE/SINE-rich |
-| Maize | 80-85% | LTR-rich |
+## TE Expression from RNA-seq (the Multimapping Minefield)
 
-## Troubleshooting
+A read from a young high-copy family maps equally to hundreds of near-identical loci. **Unique-only mapping** (standard RNA-seq QC) discards most TE signal and biases toward old, uniquely-mappable copies - measuring the *least* active elements. Use EM/probabilistic reassignment: **TEtranscripts/TElocal** (Jin 2015), **SQuIRE** (Yang 2019), **Telescope** (Bendall 2019). Subfamily-level (TEtranscripts: "L1 went up", high power, no locus) vs locus-level (SQuIRE/TElocal/Telescope: "this HERV-K on chr7 is on", noisy, mappability-sensitive) changes the conclusion, not just the resolution. The dominant false positive: **a TE in an intron or downstream of an expressed gene is not "expressed"** - read-through/intron-retention piles reads on it; distinguish autonomous transcription from passenger signal by strand and continuity (TEspeX filters embedded-TE reads). Be skeptical of any "TEs reactivated in disease/aging" headline that used unique-only mapping.
 
-### RepeatModeler Runs Very Slowly
-- Normal for large genomes (days for mammalian-size)
-- Use `-pa` for parallelization
-- Consider EDTA as alternative for plant genomes
+## Per-Method Failure Modes
 
-### Low Masking Percentage
-- May indicate novel repeats not in database
-- Always run RepeatModeler before RepeatMasker
-- Combine de novo + known libraries
+### Hard-masking before gene prediction
+**Trigger:** running RepeatMasker without `-xsmall` (default hard-masks with N). **Mechanism:** masked sequence is destroyed. **Symptom:** genes overlapping repeats silently absent from the GFF. **Fix:** `-xsmall`; hand a soft-masked genome to the predictor.
 
-### Gene Prediction Finds Too Many Genes After Masking
-- Verify softmasking with: `grep -v '^>' assembly.fasta | tr -cd 'a-z' | wc -c`
-- Ensure using `-xsmall` not default hardmasking
+### Host-gene-contaminated library
+**Trigger:** masking with an uncurated de novo library. **Mechanism:** multicopy gene families look repetitive and enter the library. **Symptom:** suspiciously few NLR/ZNF/OR genes; domesticated genes (RAG1, CENP-B) missing. **Fix:** BLAST the library against a protein DB; drop consensi hitting host genes with no TE domain.
+
+### Trusting % repeat from a short-read assembly
+**Trigger:** comparing TE content across studies/assemblies. **Mechanism:** short reads collapse/drop young copies; % depends on library+engine+assembly. **Symptom:** "low TE, all ancient" or non-comparable cross-study tables. **Fix:** check LAI/assembly type; report method + assembly with every number; never compare published % across papers.
+
+### Discarding multimappers in TE RNA-seq
+**Trigger:** unique-only TE quantification. **Mechanism:** young high-copy families are not uniquely mappable. **Symptom:** most TE signal lost, bias to old elements. **Fix:** EM tools (TEtranscripts/SQuIRE/Telescope); separate read-through from autonomous transcription.
+
+### "Unknown" passed off as a result
+**Trigger:** shipping a 40%-Unknown library without inspection. **Mechanism:** classification is the hardest, last, most-skipped step. **Symptom:** weak biological annotation; possible gene-family contamination hiding in Unknown. **Fix:** RepeatClassifier/DeepTE to triage; curate; note DB-coverage limits.
+
+## Quantitative Thresholds
+
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| `-xsmall` soft-mask before gene prediction | predictor requirement | hard-mask truncates repeat-overlapping genes |
+| TE content scales with genome size (human ~50%, maize ~85%, Arabidopsis ~20-25%, fungi ~1-20%) | clade norms (approx) | main driver of the C-value enigma; sanity-check vs genome size |
+| "Unknown" ~<15% (mammal) vs 30-50% (non-model) | DB coverage | high Unknown bounds biological claims; very low on non-model = over-assignment |
+| LAI <10 draft / 10-20 reference / >20 gold | Ou 2018 *NAR* | LTR-RT-resolution metric; only valid for LTR-rich genomes |
+| Report library + engine + assembly with any % | reproducibility | % masked is non-comparable across methods |
+| 80-80-80 (≥80% id over ≥80% length over ≥80 bp) | Wicker lineage | dereplication threshold, NOT a quality check |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Gene prediction finds too few genes | hard-masked, or over-masked low-complexity | `-xsmall`; `-nolow` before gene prediction |
+| Suspiciously few NLR/ZNF/OR genes | uncurated library masked gene families | decontaminate library against a protein DB |
+| Low masking percentage | novel repeats absent from DB | run RepeatModeler2 first; union de novo + Dfam |
+| RepeatModeler very slow | normal for large genomes | `-threads`; consider EDTA (plants) or EarlGrey |
+| "TE re-activated" result looks too clean | unique-only mapping / read-through | EM tools; check strand + continuity from neighbor |
+| Cross-study % repeat disagree | different library/engine/assembly | re-annotate uniformly; report method |
+
+## References
+
+- Flynn JM, et al. 2020. RepeatModeler2 for automated genomic discovery of transposable element families. *PNAS* 117:9451-9457.
+- Storer J, et al. 2021. The Dfam community resource of transposable element families, sequence models, and genome annotations. *Mob DNA* 12:2.
+- Ou S, et al. 2019. Benchmarking transposable element annotation methods for creation of a streamlined, comprehensive pipeline (EDTA). *Genome Biol* 20:275.
+- Ou S, Jiang N. 2018. LTR_retriever: a highly accurate and sensitive program for identification of long terminal repeat retrotransposons. *Plant Physiol* 176:1410-1422.
+- Ou S, Chen J, Jiang N. 2018. Assessing genome assembly quality using the LTR Assembly Index (LAI). *Nucleic Acids Res* 46:e126.
+- Wicker T, et al. 2007. A unified classification system for eukaryotic transposable elements. *Nat Rev Genet* 8:973-982.
+- Baril T, Galbraith J, Hayward A. 2024. Earl Grey: a fully automated user-friendly transposable element annotation and analysis pipeline. *Mol Biol Evol* 41:msae068.
+- Goubert C, et al. 2022. A beginner's guide to manual curation of transposable elements. *Mob DNA* 13:7.
+- Jin Y, et al. 2015. TEtranscripts: a package for including transposable elements in differential expression analysis of RNA-seq datasets. *Bioinformatics* 31:3593-3599.
+- Yang WR, et al. 2019. SQuIRE reveals locus-specific regulation of interspersed repeat expression. *Nucleic Acids Res* 47:e27.
+- Bendall ML, et al. 2019. Telescope: characterization of the retrotranscriptome by accurate estimation of transposable element expression. *PLoS Comput Biol* 15:e1006453.
+- Benson G. 1999. Tandem repeats finder: a program to analyze DNA sequences. *Nucleic Acids Res* 27:573-580.
 
 ## Related Skills
 
-- eukaryotic-gene-prediction - Requires softmasked genome from repeat annotation
-- genome-assembly/assembly-qc - Assess assembly quality including repeat content
-- differential-expression/deseq2-basics - Differential TE expression analysis
+- eukaryotic-gene-prediction - Receives the soft-masked genome; over-masking is a shared failure
+- annotation-qc - LAI and repeat-content sanity in the assembly-to-annotation handoff
+- genome-assembly/assembly-qc - Assembly type sets the TE-annotation ceiling (LAI)
+- differential-expression/deseq2-basics - Differential TE expression from TEtranscripts/SQuIRE counts
+- copy-number/recurrent-cnv - Segmental duplications, a distinct phenomenon from interspersed repeats

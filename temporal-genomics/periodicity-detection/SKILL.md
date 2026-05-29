@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Periodicity Detection
 
-**"Find periodic patterns of unknown period in my time-series data"** → Compute frequency spectra using Lomb-Scargle periodograms (handles irregular sampling), identify significant spectral peaks, and detect transient periodicity via continuous wavelet transforms.
+**"Find periodic patterns of unknown period in my time-series data"** -> Compute frequency spectra using Lomb-Scargle periodograms (handles irregular sampling), identify significant spectral peaks, and detect transient periodicity via continuous wavelet transforms.
 - Python: `scipy.signal.lombscargle()` for Lomb-Scargle periodogram
 - Python: `pywt.cwt()` for wavelet time-frequency decomposition
 

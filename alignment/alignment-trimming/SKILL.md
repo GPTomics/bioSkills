@@ -17,11 +17,11 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 # Alignment Trimming
 
-**"Remove unreliable columns from this MSA"** → Filter or split columns based on gap fraction, conservation, entropy, or per-residue quality.
+**"Remove unreliable columns from this MSA"** -> Filter or split columns based on gap fraction, conservation, entropy, or per-residue quality.
 - CLI: `clipkit`, `trimal`, `BMGE`, `Divvier`, `HMMcleaner`
 - Python: post-process via Bio.AlignIO with custom column masks
 
-**"Make this alignment publication-grade for phylogenetics"** → Apply ClipKIT's `kpic-smart-gap` mode, or trimAl `-automated1`, then verify via tree-stability comparison before vs after trimming.
+**"Make this alignment publication-grade for phylogenetics"** -> Apply ClipKIT's `kpic-smart-gap` mode, or trimAl `-automated1`, then verify via tree-stability comparison before vs after trimming.
 
 Tool choice and aggressiveness matter more than trimming vs not-trimming. Pick a mode by dataset character (table below), and always run a sensitivity check by building trees on trimmed and untrimmed alignments.
 
@@ -35,7 +35,7 @@ Tool choice and aggressiveness matter more than trimming vs not-trimming. Pick a
 | Concatenated supermatrix with very long alignments (>10 kb) | Trimming reduces phylogenetic noise | `kpic-smart-gap` or BMGE `-h 0.5` |
 | Single short genes (<200 bp aligned) | Trimming amplifies stochastic error | Skip column trimming; use sequence-level outlier filtering |
 
-**The 20%/40% rule.** Tan et al 2015 (Syst Biol) and Steenwyk et al 2020 (PLOS Bio) appear to disagree but their conclusions are reconciled by trimming aggressiveness: light trimming (<20% of columns removed) has minimal impact on tree accuracy regardless of method; heavy trimming (>40%) removes phylogenetic signal alongside noise and degrades tree accuracy on most empirical datasets. Steenwyk's ClipKIT `kpic-smart-gap` improves trees because it stays in the light-trim regime; the older Gblocks defaults fail because they over-trim. **Operational rule:** if your trimmer removes >40% of columns, the mode is too aggressive for the dataset; switch to a less aggressive mode or skip trimming.
+**The 20%/40% rule.** Tan et al 2015 (Syst Biol) and Steenwyk et al 2020 (PLOS Bio) appear to disagree but their conclusions are reconciled by trimming aggressiveness: light trimming (<20% of columns removed) has minimal impact on tree accuracy regardless of method; heavy trimming (>40%) removes phylogenetic signal alongside noise and degrades tree accuracy on most empirical datasets. Steenwyk's ClipKIT `kpic-smart-gap` improves trees because it stays in the light-trim regime; the older Gblocks defaults fail because they over-trim. **Operational rule:** if the trimmer removes >40% of columns, the mode is too aggressive for the dataset; switch to a less aggressive mode or skip trimming.
 
 Always run a sensitivity analysis: build the tree on trimmed AND untrimmed alignments. If topology and support are stable across trimming choices, the conclusion is robust; if unstable, report this and pick the result better supported by independent evidence (gene-tree concordance, biological priors).
 

@@ -27,7 +27,7 @@ Variant calling with bcftools is a two-step process:
 2. **call** - Uses likelihoods to make variant calls
 
 ```
-BAM + Reference → mpileup → genotype likelihoods → call → VCF
+BAM + Reference -> mpileup -> genotype likelihoods -> call -> VCF
 ```
 
 ## Basic Variant Calling

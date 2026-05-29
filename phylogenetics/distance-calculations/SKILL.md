@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Distance Calculations and Tree Building
 
-**"Build a phylogenetic tree from my alignment"** → Compute evolutionary distance matrices from sequence alignments and construct neighbor-joining or UPGMA trees with bootstrap support.
+**"Build a phylogenetic tree from my alignment"** -> Compute evolutionary distance matrices from sequence alignments and construct neighbor-joining or UPGMA trees with bootstrap support.
 - Python: `Bio.Phylo.TreeConstruction.DistanceCalculator()`, `DistanceTreeConstructor()`
 
 Compute distances from alignments and construct phylogenetic trees.

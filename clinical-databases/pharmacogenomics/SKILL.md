@@ -32,7 +32,7 @@ These four authorities are routinely conflated. They differ in scope, scale, and
 
 | Authority | Scope | Output | Anchors |
 |-----------|-------|--------|---------|
-| **CPIC** (US Clinical Pharmacogenetics Implementation Consortium) | Once you have a result, what to prescribe | Level A/B/C/D gene-drug pair + strength of recommendation per phenotype + evidence quality | ~26 guidelines, ~25 genes, 100+ drugs as of 2026 |
+| **CPIC** (US Clinical Pharmacogenetics Implementation Consortium) | Once a result is available, what to prescribe | Level A/B/C/D gene-drug pair + strength of recommendation per phenotype + evidence quality | ~26 guidelines, ~25 genes, 100+ drugs as of 2026 |
 | **DPWG** (Dutch Pharmacogenetics Working Group) | Whether to test AND what to prescribe | 5-pt (0-4) evidence + 7-pt (AA-F) clinical-relevance scale | G-Standaard (Dutch EHR-integrated); RCT-validated via PREPARE |
 | **PharmGKB clinical annotation levels** | Evidence cataloguing | 1A/1B/2A/2B/3/4 | 1A = guideline OR medical-society OR PGRN/eMERGE implementation; NOT pure evidence |
 | **FDA Table of Pharmacogenomic Biomarkers** | Drug label info | ~300 drugs (informational) | NOT an actionability list; many entries are dosing-suggestion-only |

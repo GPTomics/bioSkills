@@ -253,7 +253,7 @@ Three biologically distinct states all called "IR" by generic tools:
 2. **Detained intron (DI)** (Boutz 2015 *Genes Dev*): nuclear-localized, mature transcripts retaining a specific intron; a regulated reservoir released into translation upon signaling.
 3. **Co-transcriptional unspliced**: nascent pre-mRNA captured before splicing complete; not a regulated state.
 
-**Library prep determines which state(s) you see:**
+**Library prep determines which state(s) are visible:**
 - Poly(A) selection: enriches (1), depletes (2)/(3)
 - rRNA depletion (cytoplasmic): captures (1)
 - rRNA depletion (whole cell or nuclear): captures all three

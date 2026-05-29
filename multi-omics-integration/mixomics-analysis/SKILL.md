@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # mixOmics Multi-Omics Analysis
 
-**"Integrate my multi-omics data with supervised analysis"** → Identify cross-omics feature signatures that discriminate between groups using sparse PLS and multi-block discriminant analysis.
+**"Integrate my multi-omics data with supervised analysis"** -> Identify cross-omics feature signatures that discriminate between groups using sparse PLS and multi-block discriminant analysis.
 - R: `mixOmics::block.splsda()` (DIABLO), `mixOmics::spls()` for pairwise integration
 
 ## Setup and Data Preparation

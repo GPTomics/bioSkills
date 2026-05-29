@@ -18,8 +18,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Count Matrix QC
 
-**"Check my count matrix for outliers and batch effects"** → Perform PCA, sample-sample correlation, library size assessment, and outlier detection before running differential expression.
-- R: `DESeq2::vst()` → `plotPCA()`, sample distance heatmap
+**"Check my count matrix for outliers and batch effects"** -> Perform PCA, sample-sample correlation, library size assessment, and outlier detection before running differential expression.
+- R: `DESeq2::vst()` -> `plotPCA()`, sample distance heatmap
 - Python: `sklearn.decomposition.PCA`, `seaborn.clustermap`
 
 Quality control and exploratory analysis of count matrices before differential expression.

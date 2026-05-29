@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Visualization
 
-**"Plot gene expression on my tissue section"** → Overlay gene expression, cluster assignments, or continuous scores on spatial coordinates with optional histology image background.
+**"Plot gene expression on my tissue section"** -> Overlay gene expression, cluster assignments, or continuous scores on spatial coordinates with optional histology image background.
 - Python: `squidpy.pl.spatial_scatter(adata, color='gene')`, `scanpy.pl.spatial(adata, color='leiden')`
 
 Create visualizations for spatial transcriptomics data.

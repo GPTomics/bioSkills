@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Automated QC Reports with MultiQC
 
-**"Aggregate QC results into one report"** → Combine outputs from FastQC, samtools, Picard, and other tools into a single interactive HTML report.
+**"Aggregate QC results into one report"** -> Combine outputs from FastQC, samtools, Picard, and other tools into a single interactive HTML report.
 - CLI: `multiqc .` (scans current directory for recognized tool outputs)
 
 ## Basic Usage

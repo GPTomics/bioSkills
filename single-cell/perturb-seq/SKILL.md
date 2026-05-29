@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Perturb-seq Analysis
 
-**"Analyze my Perturb-seq CRISPR screen"** → Link guide RNA assignments to transcriptional phenotypes in pooled CRISPR screens with single-cell readout to identify gene function.
+**"Analyze my Perturb-seq CRISPR screen"** -> Link guide RNA assignments to transcriptional phenotypes in pooled CRISPR screens with single-cell readout to identify gene function.
 - Python: `pertpy.tl.Mixscape(adata)` for perturbation classification, `pertpy.tl.Augur` for prioritization
 
 ## Load and Annotate Perturbations

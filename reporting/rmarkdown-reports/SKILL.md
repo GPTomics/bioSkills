@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # R Markdown Reports
 
-**"Create an R Markdown report"** → Write reproducible R-based documents combining code chunks, results, and narrative that render to HTML/PDF/Word.
+**"Create an R Markdown report"** -> Write reproducible R-based documents combining code chunks, results, and narrative that render to HTML/PDF/Word.
 - R: `rmarkdown::render('report.Rmd')`, or Knit button in RStudio
 
 ## Basic Document Structure

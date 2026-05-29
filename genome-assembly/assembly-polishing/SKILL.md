@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Assembly Polishing
 
-**"Polish my genome assembly"** → Iteratively correct base-level errors in a draft assembly using short-read or long-read alignments.
+**"Polish my genome assembly"** -> Iteratively correct base-level errors in a draft assembly using short-read or long-read alignments.
 - CLI: `pilon --genome draft.fa --frags short_reads.bam` (short-read), `medaka_polish` (ONT), `racon` (long-read)
 
 ## Polishing Strategies
@@ -329,4 +329,4 @@ minimap2 -ax map-ont polished.fa reads.fq.gz | samtools stats | grep "error rate
 - long-read-assembly - Initial assembly
 - short-read-assembly - Source of polishing reads
 - assembly-qc - Assess polishing improvement
-- long-read-sequencing - medaka variant calling
+- long-read-sequencing/medaka-polishing - medaka variant calling

@@ -41,7 +41,7 @@ Anti-m6A antibodies (Synaptic Systems 202-003, Abcam ab151230, NEB EpiMark E1610
 | MeRIPtools (R wrapper) | Bundles exomePeak / MeTPeak / motif / annotation steps | FASTQ -> peaks pipeline | full report | Reproducible end-to-end | Less flexibility than calling tools separately |
 | MoAIMS | Mixture model alternative | paired IP/input BAM | peaks | Smaller user base; less benchmarked | Niche use |
 | m6Aboost (R) | Boost peak-calling sensitivity by leveraging DRACH motif as a prior | paired IP/input BAM + motif file | refined peak set | Improves sensitivity in low-coverage regions | Builds DRACH into the calling — DON'T use as evidence for DRACH enrichment downstream (circular) |
-| m6ACali (recent ML peak filter; verify current citation against the project repo) | ML-based false-peak filter trained on exomePeak2 + MACS2 outputs across many cell lines | called peak set + IP/input BAM | refined peak set | Modern QC layer; cuts antibody artifact peaks | Trained on specific antibody clones; verify it generalises to your antibody |
+| m6ACali (recent ML peak filter; verify current citation against the project repo) | ML-based false-peak filter trained on exomePeak2 + MACS2 outputs across many cell lines | called peak set + IP/input BAM | refined peak set | Modern QC layer; cuts antibody artifact peaks | Trained on specific antibody clones; verify it generalises to the antibody used |
 
 ## Decision Tree by Scenario
 
@@ -320,16 +320,16 @@ Intersection (consensus) is the conservative choice; union inflates the false-po
 
 | Pushback | Response |
 |----------|----------|
-| "How many peak callers did you use?" | Two minimum (exomePeak2 + MeTPeak or + MACS3); intersection reported as high-confidence; per-tool counts as supplementary |
-| "Did you filter by DRACH?" | No — DRACH reported as enrichment-on-the-peak-set (HOMER E-value); per-peak DRACH filtering drops 5-10% real m6A sites |
-| "How did you handle 5'UTR peaks?" | Flagged peaks within 50 nt of TSS as m6A-or-m6Am ambiguous; restricted internal-m6A analyses to peaks past the 5'UTR; cited Linder 2015 / Mauer 2017 cross-reactivity |
+| "How many peak callers were used?" | Two minimum (exomePeak2 + MeTPeak or + MACS3); intersection reported as high-confidence; per-tool counts as supplementary |
+| "Was filtering by DRACH applied?" | No — DRACH reported as enrichment-on-the-peak-set (HOMER E-value); per-peak DRACH filtering drops 5-10% real m6A sites |
+| "How were 5'UTR peaks handled?" | Flagged peaks within 50 nt of TSS as m6A-or-m6Am ambiguous; restricted internal-m6A analyses to peaks past the 5'UTR; cited Linder 2015 / Mauer 2017 cross-reactivity |
 | "What's the FDR threshold?" | exomePeak2 default FDR 0.05; MACS3 q-value 0.05; peaks reported with both fold-change and FDR |
-| "Did you validate orthogonally?" | High-stakes sites validated against published miCLIP / GLORI / SAC-seq / m6A-Atlas; cross-method overlap reported |
+| "Was orthogonal validation done?" | High-stakes sites validated against published miCLIP / GLORI / SAC-seq / m6A-Atlas; cross-method overlap reported |
 | "Why exomePeak2 over MeTPeak?" | exomePeak2 implements GC-bias correction; MeTPeak does not. For low-coverage datasets MeTPeak HMM smoothing helps; for typical datasets exomePeak2 is the field default |
-| "Did you check for failed IPs?" | Replicate IPs inspected via plotFingerprint AND per-transcript IP/input ratio distribution in merip-preprocessing BEFORE peak calling |
+| "Were failed IPs checked for?" | Replicate IPs inspected via plotFingerprint AND per-transcript IP/input ratio distribution in merip-preprocessing BEFORE peak calling |
 | "What's the cross-replicate peak overlap?" | Reported per pair; expect ~80% within-lab per McIntyre 2020 |
-| "Did you intersect with m6A-Atlas?" | Yes — common-core overlap reported as a confidence anchor; novel peaks flagged for orthogonal validation |
-| "Why didn't you call m6A-CLIP peaks here?" | miCLIP / m6A-CLIP single-nucleotide methods live in `clip-seq/peak-calling`; this skill is for fragment-level MeRIP peak calling |
+| "Was the peak set intersected with m6A-Atlas?" | Yes — common-core overlap reported as a confidence anchor; novel peaks flagged for orthogonal validation |
+| "Why weren't m6A-CLIP peaks called here?" | miCLIP / m6A-CLIP single-nucleotide methods live in `clip-seq/peak-calling`; this skill is for fragment-level MeRIP peak calling |
 
 ## References
 

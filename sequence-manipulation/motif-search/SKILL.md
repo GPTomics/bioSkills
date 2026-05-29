@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Motif Search
 
-**"Search for a sequence motif or binding site pattern"** → Scan sequences for patterns using IUPAC ambiguity codes, regex, or position weight matrices to locate transcription factor binding sites, regulatory elements, or custom motifs.
+**"Search for a sequence motif or binding site pattern"** -> Scan sequences for patterns using IUPAC ambiguity codes, regex, or position weight matrices to locate transcription factor binding sites, regulatory elements, or custom motifs.
 - Python: `Bio.motifs` for PWM scanning, `re` for regex pattern matching
 
 Find patterns and motifs in biological sequences using Biopython and regex.
@@ -321,9 +321,9 @@ with open('output.transfac', 'w') as f:
 ```
 Need to find patterns in sequence?
 ├── Exact match?
-│   ├── Just need position of first? → seq.find()
-│   ├── Need count? → seq.count()
-│   └── Need all positions? → loop with find()
+│   ├── Just need position of first? -> seq.find()
+│   ├── Need count? -> seq.count()
+│   └── Need all positions? -> loop with find()
 ├── Fuzzy/ambiguous pattern?
 │   └── Use regex with re.finditer()
 ├── IUPAC pattern?
@@ -332,11 +332,11 @@ Need to find patterns in sequence?
 │   └── Search original and reverse_complement
 ├── Probabilistic (PWM/PSSM)?
 │   └── Use Bio.motifs
-│       ├── Create from instances → motifs.create()
-│       ├── Read from file → motifs.read() / parse()
-│       ├── Get consensus → m.consensus, m.degenerate_consensus
-│       ├── Search sequence → pssm.search()
-│       └── Calculate threshold → distribution.threshold_fpr()
+│       ├── Create from instances -> motifs.create()
+│       ├── Read from file -> motifs.read() / parse()
+│       ├── Get consensus -> m.consensus, m.degenerate_consensus
+│       ├── Search sequence -> pssm.search()
+│       └── Calculate threshold -> distribution.threshold_fpr()
 └── Restriction sites?
     └── Use restriction-analysis skill (Bio.Restriction)
 ```
@@ -347,4 +347,4 @@ Need to find patterns in sequence?
 - reverse-complement - Search both strands for motifs
 - sequence-io/filter-sequences - Filter sequences that contain specific motifs
 - restriction-analysis/restriction-sites - For restriction enzyme site searching
-- database-access - Download motif databases from NCBI/JASPAR
+- database-access/entrez-fetch - Download motif databases from NCBI/JASPAR

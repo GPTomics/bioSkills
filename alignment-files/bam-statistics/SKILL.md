@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # BAM Statistics
 
-**"Get alignment statistics and coverage from my BAM file"** → Generate read counts, mapping rates, per-chromosome statistics, depth profiles, and coverage summaries.
+**"Get alignment statistics and coverage from my BAM file"** -> Generate read counts, mapping rates, per-chromosome statistics, depth profiles, and coverage summaries.
 - CLI: `samtools flagstat`, `samtools stats`, `samtools depth`, `samtools coverage` (samtools)
 - Python: `pysam.AlignmentFile` with `pileup()` and `get_index_statistics()` (pysam)
 

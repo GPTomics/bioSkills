@@ -23,12 +23,12 @@ GATK HaplotypeCaller performs local de novo assembly of haplotypes in active reg
 
 ```
 What is the analysis context?
-├── Single sample, highest accuracy → DRAGEN-GATK mode (hard filter on QUAL)
-├── Cohort <1000, human → Standard Best Practices (GVCF → joint genotype → VQSR)
-├── Cohort >1000, human → GATK "Biggest Practices" or DeepVariant + GLnexus
-├── Non-human organism → Hard filtering (no VQSR training resources)
-├── Targeted panel / small exome → Hard filtering (too few variants for VQSR)
-└── Somatic variants → Mutect2 (not HaplotypeCaller)
+├── Single sample, highest accuracy -> DRAGEN-GATK mode (hard filter on QUAL)
+├── Cohort <1000, human -> Standard Best Practices (GVCF -> joint genotype -> VQSR)
+├── Cohort >1000, human -> GATK "Biggest Practices" or DeepVariant + GLnexus
+├── Non-human organism -> Hard filtering (no VQSR training resources)
+├── Targeted panel / small exome -> Hard filtering (too few variants for VQSR)
+└── Somatic variants -> Mutect2 (not HaplotypeCaller)
 ```
 
 ## DRAGEN-GATK Mode (Current Recommendation)
@@ -72,7 +72,7 @@ BAM files should be preprocessed:
 
 **Approach:** Run local de novo assembly of haplotypes in active regions to detect variants with optional annotation enrichment.
 
-**"Call variants from my BAM file using GATK"** → Perform local haplotype assembly and genotyping on aligned reads using HaplotypeCaller.
+**"Call variants from my BAM file using GATK"** -> Perform local haplotype assembly and genotyping on aligned reads using HaplotypeCaller.
 
 ### Basic HaplotypeCaller
 

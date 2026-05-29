@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Lineage Tracing Analysis
 
-**"Reconstruct cell lineage trees from CRISPR barcodes"** → Build phylogenetic trees of cell relationships from lineage barcode mutations to study clonal dynamics and cell fate decisions.
+**"Reconstruct cell lineage trees from CRISPR barcodes"** -> Build phylogenetic trees of cell relationships from lineage barcode mutations to study clonal dynamics and cell fate decisions.
 - Python: `cassiopeia.tl.ILPSolver(cas_tree)` or `GreedySolver` for tree reconstruction
 
 ## Cassiopeia Tree Reconstruction

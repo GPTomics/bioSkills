@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: DESeq2 1.42+, STAR 2.7.11+, matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
+# Reference: repeatmodeler 2.0.5+, repeatmasker 4.1.5+ | Verify API if version differs
 # Repeat annotation with RepeatModeler and RepeatMasker
 set -euo pipefail
 
@@ -23,7 +23,7 @@ BuildDatabase -name ${OUTDIR}/${DB_NAME} -engine ncbi $ASSEMBLY
 echo ""
 echo "Running RepeatModeler (this may take hours to days)..."
 cd $OUTDIR
-RepeatModeler -database ${DB_NAME} -pa $THREADS -LTRStruct
+RepeatModeler -database ${DB_NAME} -threads $THREADS -LTRStruct
 cd -
 
 REPEAT_LIB=${OUTDIR}/${DB_NAME}-families.fa

@@ -30,7 +30,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Methylation Pipeline
 
-**"Analyze my bisulfite sequencing data from FASTQ to DMRs"** → Orchestrate Bismark alignment, methylation calling, methylKit analysis, DMR detection, annotation with genomic features, and visualization of methylation patterns.
+**"Analyze my bisulfite sequencing data from FASTQ to DMRs"** -> Orchestrate Bismark alignment, methylation calling, methylKit analysis, DMR detection, annotation with genomic features, and visualization of methylation patterns.
 
 Complete workflow from bisulfite sequencing FASTQ to differentially methylated regions.
 

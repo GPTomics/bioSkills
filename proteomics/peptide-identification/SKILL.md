@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Peptide Identification
 
-**"Identify peptides from my MS/MS spectra"** → Match tandem mass spectra against a protein database to identify peptide sequences, then control false discovery rate using target-decoy competition.
+**"Identify peptides from my MS/MS spectra"** -> Match tandem mass spectra against a protein database to identify peptide sequences, then control false discovery rate using target-decoy competition.
 - Python: `pyopenms` for in-memory database search and PSM handling
 - CLI: `comet`, `MSFragger`, `X!Tandem` for high-throughput database searching
 - R: `MSnbase::readMSData()` for importing search results

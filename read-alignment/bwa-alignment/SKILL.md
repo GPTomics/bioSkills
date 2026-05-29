@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # BWA-MEM2 Alignment
 
-**"Align reads with BWA"** → Map DNA reads to a reference genome using BWA-MEM2, the standard aligner for whole-genome and exome sequencing.
+**"Align reads with BWA"** -> Map DNA reads to a reference genome using BWA-MEM2, the standard aligner for whole-genome and exome sequencing.
 - CLI: `bwa-mem2 mem -t 8 ref.fa R1.fq R2.fq | samtools sort -o aligned.bam`
 
 ## Build Index

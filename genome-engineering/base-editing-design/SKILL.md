@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Base Editing Design
 
-**"Design a base editor guide for my C-to-T conversion"** → Identify guide sequences that position the target nucleotide within the editing window of cytosine (CBE) or adenine (ABE) base editors, predicting editing outcomes and bystander effects.
+**"Design a base editor guide for my C-to-T conversion"** -> Identify guide sequences that position the target nucleotide within the editing window of cytosine (CBE) or adenine (ABE) base editors, predicting editing outcomes and bystander effects.
 - Python: editing window analysis with `Bio.Seq`, BE-Hive outcome prediction
 
 ## Base Editor Types

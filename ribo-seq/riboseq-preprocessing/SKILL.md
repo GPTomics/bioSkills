@@ -18,8 +18,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Ribo-seq Preprocessing
 
-**"Preprocess my ribosome profiling data"** → Trim adapters, size-select ribosome-protected fragments (26-34 nt), remove rRNA contamination, and align to the transcriptome for translation analysis.
-- CLI: `cutadapt` → `bowtie2` (rRNA removal) → `STAR` (genome alignment)
+**"Preprocess my ribosome profiling data"** -> Trim adapters, size-select ribosome-protected fragments (26-34 nt), remove rRNA contamination, and align to the transcriptome for translation analysis.
+- CLI: `cutadapt` -> `bowtie2` (rRNA removal) -> `STAR` (genome alignment)
 
 ## Workflow Overview
 
@@ -172,5 +172,5 @@ def filter_by_length(bam_in, bam_out, min_len=28, max_len=32):
 ## Related Skills
 
 - ribosome-periodicity - Validate preprocessing quality
-- read-qc - General quality control
-- read-alignment - Alignment concepts
+- read-qc/quality-reports - General quality control
+- read-alignment/star-alignment - Alignment concepts

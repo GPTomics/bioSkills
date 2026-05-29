@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # STAR RNA-seq Alignment
 
-**"Align RNA-seq reads with STAR"** → Map RNA-seq reads to a reference genome with fast, sensitive splice-aware alignment. Preferred for large datasets and downstream fusion/chimeric read detection.
+**"Align RNA-seq reads with STAR"** -> Map RNA-seq reads to a reference genome with fast, sensitive splice-aware alignment. Preferred for large datasets and downstream fusion/chimeric read detection.
 - CLI: `STAR --runMode alignReads --genomeDir index/ --readFilesIn R1.fq R2.fq --outSAMtype BAM SortedByCoordinate`
 
 ## Generate Genome Index

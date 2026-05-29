@@ -20,11 +20,11 @@ package and adapt the example to match the actual API rather than retrying.
 
 Generate consensus sequences and manage reference files using samtools.
 
-**"Prepare a reference genome"** → Index the FASTA and create a sequence dictionary for downstream tools.
+**"Prepare a reference genome"** -> Index the FASTA and create a sequence dictionary for downstream tools.
 - CLI: `samtools faidx ref.fa` + `samtools dict ref.fa -o ref.dict`
 - Python: `pysam.FastaFile('ref.fa')` (auto-uses .fai index)
 
-**"Build a consensus from BAM"** → Derive the most-supported base at each position from aligned reads.
+**"Build a consensus from BAM"** -> Derive the most-supported base at each position from aligned reads.
 - CLI: `samtools consensus input.bam -o consensus.fa`
 - Python: iterate pileup columns and take majority base (pysam)
 

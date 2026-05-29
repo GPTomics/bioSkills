@@ -320,7 +320,7 @@ Output `project.emapper.annotations` includes per-gene: best ortholog, taxonomic
 | OrthoFinder 1:1; ProteinOrtho merges into single OG | Different connectivity threshold | OrthoFinder HOG is more granular; both correct at different levels |
 | OMA "1:1 across all species"; OrthoFinder "split orthogroups" | OMA more conservative (strict RBH) | Use OMA for stringent comparative analyses; OrthoFinder for broader recall |
 | OrthoFinder OG contains tandem duplicates | Tandem duplications not collapsed | Use ProteinOrtho `-synteny` or GENESPACE post-filter; or apply MCScanX tandem detection (default 5-gene window) |
-| eggNOG ortholog disagrees with OrthoFinder | eggNOG uses fixed reference set; OrthoFinder uses your sampled species | Trust OrthoFinder for sampled-species 1:1; trust eggNOG for functional annotation from curated references |
+| eggNOG ortholog disagrees with OrthoFinder | eggNOG uses fixed reference set; OrthoFinder uses the sampled species | Trust OrthoFinder for sampled-species 1:1; trust eggNOG for functional annotation from curated references |
 | TOGA reports "Lost" but OrthoFinder finds ortholog | TOGA chain-projection failed; assembly gap | Re-check assembly contig at locus; if gap, treat as missing (M) not lost (L) |
 | All methods disagree on a single OG | Likely tandem duplicates, chimeric assembly, or hidden paralogy | Manual gene-tree inspection; treat OG as low-confidence |
 

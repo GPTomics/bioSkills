@@ -36,7 +36,7 @@ Annotated VCF
     │   └── SpliceAI
     │
     ├── ACMG Classification
-    │   └── Pathogenic → Likely Pathogenic → VUS → Likely Benign → Benign
+    │   └── Pathogenic -> Likely Pathogenic -> VUS -> Likely Benign -> Benign
     │
     └── Prioritized Variant List
 ```
@@ -47,7 +47,7 @@ Annotated VCF
 
 **Approach:** Download the ClinVar VCF, add CLNSIG/CLNDN/CLNREVSTAT fields with bcftools annotate, then filter by significance level.
 
-**"Find pathogenic variants in my VCF"** → Cross-reference variants against ClinVar clinical assertions and extract those classified as pathogenic or likely pathogenic.
+**"Find pathogenic variants in my VCF"** -> Cross-reference variants against ClinVar clinical assertions and extract those classified as pathogenic or likely pathogenic.
 
 ### Download ClinVar
 

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Tree Visualization
 
-**"Create a publication-quality tree figure"** → Draw and customize phylogenetic tree visualizations with colored branches, tip labels, and bootstrap support values using matplotlib.
+**"Create a publication-quality tree figure"** -> Draw and customize phylogenetic tree visualizations with colored branches, tip labels, and bootstrap support values using matplotlib.
 - Python: `Bio.Phylo.draw()` with matplotlib customization
 
 Draw phylogenetic trees using matplotlib integration. Bio.Phylo provides basic rectangular tree plots suitable for quick visualization. For publication-quality figures with complex annotations, circular layouts, or metadata heatmaps, consider the alternatives below.

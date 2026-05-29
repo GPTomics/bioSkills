@@ -439,15 +439,15 @@ ggplot(feature_counts, aes(x='m6A peaks', y=fraction, fill=feature)) +
 
 | Pushback | Response |
 |----------|----------|
-| "Does your MeRIP show the canonical stop-codon enrichment?" | Yes — Guitar metagene plot shows expected stop-codon-proximal enrichment; cited Dominissini 2012 / Meyer 2012 |
+| "Does the MeRIP show the canonical stop-codon enrichment?" | Yes — Guitar metagene plot shows expected stop-codon-proximal enrichment; cited Dominissini 2012 / Meyer 2012 |
 | "Why Guitar and not deepTools?" | Guitar is transcript-feature-scaled (5'UTR / CDS / 3'UTR semantics); deepTools is genome-coordinate; both reported when needed |
 | "Is the DRACH motif enriched?" | ggseqlogo of peak-centre 5-mers; OR HOMER findMotifsGenome.pl E-value reported |
-| "Is your browser figure reproducible?" | Yes — pyGenomeTracks INI config OR ggcoverage R script; not IGV screenshot |
+| "Is the browser figure reproducible?" | Yes — pyGenomeTracks INI config OR ggcoverage R script; not IGV screenshot |
 | "How were peaks annotated to features?" | ChIPseeker annotatePeak with matched TxDb; hierarchy explicit |
 | "Why these specific clusters in the heatmap?" | k-means with k=3 chosen via elbow / silhouette; clusters reflect signal heterogeneity |
 | "Does the metagene differ between conditions?" | Per-condition metagenes plotted alongside; differences quantified at the feature level |
-| "Why is your colour scheme red-blue?" | Standard convention for log2 ratios (red = up, blue = down); colour-blind-safe palette via viridis available |
-| "Did you cross-check with published m6A-Atlas peaks?" | Common-core overlap reported; cited m6A-Atlas v2 |
+| "Why is the colour scheme red-blue?" | Standard convention for log2 ratios (red = up, blue = down); colour-blind-safe palette via viridis available |
+| "Was a cross-check with published m6A-Atlas peaks done?" | Common-core overlap reported; cited m6A-Atlas v2 |
 | "Are the browser track signal magnitudes comparable across samples?" | bigWig CPM-normalised in merip-preprocessing; documented |
 
 ## References

@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Data I/O
 
-**"Load my Visium spatial data"** → Read spatial transcriptomics outputs (Visium, Xenium, MERFISH, Slide-seq) into AnnData objects with spatial coordinates and tissue images.
+**"Load my Visium spatial data"** -> Read spatial transcriptomics outputs (Visium, Xenium, MERFISH, Slide-seq) into AnnData objects with spatial coordinates and tissue images.
 - Python: `squidpy.read.visium('spaceranger_out/')`, `spatialdata.read_zarr()`
 
 Load and work with spatial transcriptomics data from various platforms.

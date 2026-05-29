@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Transfer Learning for Single-Cell Data
 
-**"Map my scRNA-seq data onto a reference atlas"** → Transfer cell type labels from a pre-trained reference model to query cells using architectural surgery (scArches) without retraining.
-- Python: `scvi.model.SCVI.load_query_data()` → `get_latent_representation()` → `scanpy.tl.ingest()`
+**"Map my scRNA-seq data onto a reference atlas"** -> Transfer cell type labels from a pre-trained reference model to query cells using architectural surgery (scArches) without retraining.
+- Python: `scvi.model.SCVI.load_query_data()` -> `get_latent_representation()` -> `scanpy.tl.ingest()`
 
 ## scVI Reference Mapping (scArches)
 

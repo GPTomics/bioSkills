@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Temporal Gene Regulatory Network Inference
 
-**"Infer causal regulatory relationships from my time-series expression data"** → Identify time-delayed TF-target regulatory edges from bulk temporal expression using Granger causality testing, dynGENIE3 tree-based ODE inference, or dynamic Bayesian networks.
+**"Infer causal regulatory relationships from my time-series expression data"** -> Identify time-delayed TF-target regulatory edges from bulk temporal expression using Granger causality testing, dynGENIE3 tree-based ODE inference, or dynamic Bayesian networks.
 - Python: `statsmodels.tsa.stattools.grangercausalitytests()` for Granger causality
 - R: `dynGENIE3::dynGENIE3()` for ODE-based GRN inference from time series
 

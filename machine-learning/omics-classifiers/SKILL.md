@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Classification Models for Omics Data
 
-**"Build a classifier from my gene expression data"** → Train RandomForest, XGBoost, or logistic regression models on omics features with proper preprocessing and evaluation metrics.
+**"Build a classifier from my gene expression data"** -> Train RandomForest, XGBoost, or logistic regression models on omics features with proper preprocessing and evaluation metrics.
 - Python: `sklearn.ensemble.RandomForestClassifier()`, `xgboost.XGBClassifier()`
 
 ## Core Workflow

@@ -27,7 +27,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Imaging Mass Cytometry Pipeline
 
-**"Process my imaging mass cytometry data from images to spatial analysis"** → Orchestrate image preprocessing (steinbock), cell segmentation (Cellpose), phenotyping (FlowSOM/scanpy), spatial neighborhood analysis (squidpy), and tissue community detection.
+**"Process my imaging mass cytometry data from images to spatial analysis"** -> Orchestrate image preprocessing (steinbock), cell segmentation (Cellpose), phenotyping (FlowSOM/scanpy), spatial neighborhood analysis (squidpy), and tissue community detection.
 
 ## Pipeline Overview
 

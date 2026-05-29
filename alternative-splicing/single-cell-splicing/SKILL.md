@@ -33,7 +33,7 @@ Three compounding mechanisms make 10X Chromium 3' (v3.1, GEM-X, v4) hostile to s
 
 **The 5' kit (10X 5' GEX) does not solve this** — it shifts capture from 3' UTR to 5' UTR / TSS-proximal regions. Marginal improvement; not a transcriptome-wide solution. Note that V(D)J recovery requires the **10X Chromium Single Cell Immune Profiling kit** (with TCR/BCR-specific enrichment), not 5' GEX alone — postdocs designing immune-repertoire experiments must use the dedicated V(D)J kit.
 
-## Decision: Does Your Chemistry Support Splicing Analysis?
+## Decision: Does the Chemistry Support Splicing Analysis?
 
 | Chemistry | Splicing analysis viable? | Best alternative if no |
 |-----------|----------------------------|--------------------------|
@@ -240,7 +240,7 @@ counts <- CountPeaks(
 apa_results <- DUTest(counts, group1 = ctrl_cells, group2 = trt_cells)
 ```
 
-If you only have 10X 3' data, this is often what you actually want. Distinct UTRs change miRNA targeting, RBP binding, and stability — biologically meaningful but not splicing.
+If only 10X 3' data is available, this is often what is actually wanted. Distinct UTRs change miRNA targeting, RBP binding, and stability — biologically meaningful but not splicing.
 
 ## Pseudobulk for Statistical Power
 
@@ -283,7 +283,7 @@ For splicing-specific full-length single-cell analysis, see `long-read-splicing`
 
 **Symptom:** "no `coord.intron` column found" errors; or empty PSI tables despite junction reads being present.
 
-**Fix:** Verify wide-matrix structure; ensure SJ.out.tabs are merged on the `chr:start:end` key with cells as columns. Use `data.table::dcast` for the long→wide reshape.
+**Fix:** Verify wide-matrix structure; ensure SJ.out.tabs are merged on the `chr:start:end` key with cells as columns. Use `data.table::dcast` for the long->wide reshape.
 
 ### BRIE2: TensorFlow Memory
 
@@ -352,18 +352,18 @@ For splicing-specific full-length single-cell analysis, see `long-read-splicing`
 
 **Beta-binomial vs binomial models:** with sparse counts, binomial PSI is overdispersed. Beta-binomial models (BRIE2; leafcutter2 as Dirichlet-multinomial cluster-level) handle this. For very sparse droplet data, even beta-binomial fits poorly per cell — collapse to pseudobulk.
 
-**Imputation pitfalls:** naive imputation (MAGIC, scImpute, ALRA) of expression matrices is **not** appropriate for PSI: imputing missing junction counts averages over neighboring cells and obliterates the very heterogeneity you want to study. Psix's approach — testing smoothness of observed PSI on the kNN graph — is the principled alternative.
+**Imputation pitfalls:** naive imputation (MAGIC, scImpute, ALRA) of expression matrices is **not** appropriate for PSI: imputing missing junction counts averages over neighboring cells and obliterates the very heterogeneity under study. Psix's approach — testing smoothness of observed PSI on the kNN graph — is the principled alternative.
 
 ## Cell-Type-Specific Splicing Biology
 
 | System | Event | Regulator |
 |--------|-------|-----------|
 | Neural microexons | 3-27 nt exons enriched in brain | SRRM4 (nSR100); SRRM3 in retina (Irimia 2014 *Cell*) |
-| Neural differentiation | PTBP1 → PTBP2 switch | miR-124 represses PTBP1; derepresses neural exons (Boutz 2007 *Genes Dev*) |
-| T-cell activation | CD45 RA → RO | hnRNP-L, ESRP-mediated |
+| Neural differentiation | PTBP1 -> PTBP2 switch | miR-124 represses PTBP1; derepresses neural exons (Boutz 2007 *Genes Dev*) |
+| T-cell activation | CD45 RA -> RO | hnRNP-L, ESRP-mediated |
 | Erythropoiesis | EPB41 exon 16 | Splicing factor switching during maturation |
-| Cardiac development | TTN N2BA → N2B | MBNL1/CELF1 antagonism |
-| EMT | FGFR2 IIIb → IIIc, ENAH exon 11a | ESRP1/2 loss in mesenchymal state (Warzecha 2009 *Mol Cell*) |
+| Cardiac development | TTN N2BA -> N2B | MBNL1/CELF1 antagonism |
+| EMT | FGFR2 IIIb -> IIIc, ENAH exon 11a | ESRP1/2 loss in mesenchymal state (Warzecha 2009 *Mol Cell*) |
 | Activated T cell | CD45 isoform shift | Multiple SR/hnRNP regulators |
 
 ## Quality Thresholds
@@ -393,7 +393,7 @@ For splicing-specific full-length single-cell analysis, see `long-read-splicing`
 ## Common Pitfalls
 
 - **Treating 10X 3' splicing analysis as legitimate** — the chemistry doesn't support it. Use Sierra for APA or upgrade to MAS-Iso-seq.
-- **Imputing PSI matrices** — destroys the heterogeneity you want to detect. Use Psix or BRIE2 instead.
+- **Imputing PSI matrices** — destroys the heterogeneity to be detected. Use Psix or BRIE2 instead.
 - **Per-cell PSI on droplet data** — typically too sparse for stable estimates. Use pseudobulk first, then drill down to per-cell.
 - **Confusing APA with splicing** — Sierra results look like AS but are 3' UTR isoforms. Different machinery, different biology.
 - **snRNA-seq IR signal misinterpreted as splicing dysregulation** — nuclear RNA is enriched for incompletely spliced transcripts; baseline IR is high.

@@ -10,7 +10,7 @@ from pathlib import Path
 
 def parse_eggnog(annotations_file):
     '''Parse eggNOG-mapper v2.1.x annotations output.'''
-    df = pd.read_csv(annotations_file, sep='\t', comment='#', header=None, skiprows=5)
+    df = pd.read_csv(annotations_file, sep='\t', comment='#', header=None)
     col_names = [
         'query', 'seed_ortholog', 'evalue', 'score', 'eggNOG_OGs',
         'max_annot_lvl', 'COG_category', 'Description', 'Preferred_name',

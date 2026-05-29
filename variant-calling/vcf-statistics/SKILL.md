@@ -34,7 +34,7 @@ Generate statistics and quality metrics using bcftools.
 
 **Approach:** Run bcftools stats and parse section-tagged output lines (SN, TSTV, AF, QUAL, DP).
 
-**"How many variants are in this VCF?"** → Compute summary counts, substitution types, and quality distributions from variant records.
+**"How many variants are in this VCF?"** -> Compute summary counts, substitution types, and quality distributions from variant records.
 
 ### Basic Statistics
 
@@ -78,7 +78,7 @@ Reports:
 bcftools stats input.vcf.gz | grep "^TSTV"
 ```
 
-Transitions (purine-to-purine: A↔G, or pyrimidine-to-pyrimidine: C↔T) are chemically favored over transversions because they preserve the purine/pyrimidine ring structure. CpG deamination (methylated C→T) is the single most common point mutation in vertebrate genomes and is a transition, which further inflates the Ti/Tv ratio. Exomes have higher Ti/Tv than whole genomes because coding regions are enriched for CpG dinucleotides.
+Transitions (purine-to-purine: A↔G, or pyrimidine-to-pyrimidine: C↔T) are chemically favored over transversions because they preserve the purine/pyrimidine ring structure. CpG deamination (methylated C->T) is the single most common point mutation in vertebrate genomes and is a transition, which further inflates the Ti/Tv ratio. Exomes have higher Ti/Tv than whole genomes because coding regions are enriched for CpG dinucleotides.
 
 Expected Ti/Tv ratio:
 - Whole genome: ~2.0-2.1

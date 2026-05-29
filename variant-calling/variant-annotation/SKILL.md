@@ -75,7 +75,7 @@ Practical implication: for clinical applications, annotate with multiple tools a
 
 **Approach:** Match variants by position and allele against annotation VCF/BED/TAB files, copying specified columns.
 
-**"Add rsIDs to my VCF from dbSNP"** → Match variant positions against a database and copy identifiers or annotation fields into the VCF.
+**"Add rsIDs to my VCF from dbSNP"** -> Match variant positions against a database and copy identifiers or annotation fields into the VCF.
 
 ### Add Annotations from Database
 
@@ -153,7 +153,7 @@ bcftools csq -f reference.fa -g genes.gff3.gz input.vcf.gz -Oz -o consequences.v
 
 **Approach:** Run VEP with offline cache, enabling SIFT, PolyPhen, HGVS, frequency, and plugin-based predictions.
 
-**"Annotate my variants with functional consequences"** → Predict coding effects, impact severity, and pathogenicity using Ensembl's Variant Effect Predictor.
+**"Annotate my variants with functional consequences"** -> Predict coding effects, impact severity, and pathogenicity using Ensembl's Variant Effect Predictor.
 
 ### Installation
 

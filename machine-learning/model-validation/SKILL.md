@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Cross-Validation for Biomedical Data
 
-**"Properly validate my omics classifier"** → Use nested cross-validation with stratified splits to get unbiased performance estimates while tuning hyperparameters on small biomedical datasets.
+**"Properly validate my omics classifier"** -> Use nested cross-validation with stratified splits to get unbiased performance estimates while tuning hyperparameters on small biomedical datasets.
 - Python: `sklearn.model_selection.cross_val_score()` with `StratifiedKFold` inner/outer loops
 
 ## Why Nested CV Matters

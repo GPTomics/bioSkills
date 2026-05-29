@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Similarity Network Fusion
 
-**"Stratify patients using multi-omics data"** → Fuse omics-specific patient similarity networks into a unified network for subtype discovery and clustering.
+**"Stratify patients using multi-omics data"** -> Fuse omics-specific patient similarity networks into a unified network for subtype discovery and clustering.
 - R: `SNFtool::SNF()` to fuse networks, `spectralClustering()` for subtyping
 
 ## Basic SNF Workflow

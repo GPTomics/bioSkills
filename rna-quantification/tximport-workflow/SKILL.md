@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # tximport Workflow
 
-**"Import Salmon/kallisto results into DESeq2"** → Summarize transcript-level abundance estimates to gene-level counts with proper length-offset correction for use in DESeq2 or edgeR.
+**"Import Salmon/kallisto results into DESeq2"** -> Summarize transcript-level abundance estimates to gene-level counts with proper length-offset correction for use in DESeq2 or edgeR.
 - R: `tximport::tximport(files, type='salmon', tx2gene=tx2gene)`
 
 Import transcript-level estimates from Salmon, kallisto, or other quantifiers into R for gene-level differential expression analysis.

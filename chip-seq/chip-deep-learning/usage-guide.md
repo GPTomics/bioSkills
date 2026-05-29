@@ -101,16 +101,16 @@ Tell the agent what to do:
 - **JASPAR 2026 has 1259 BPNet ChIP models.** Lowest-effort variant prediction; covers 240 TFs from ENCODE.
 - **EnFormer is tissue-aggregated.** Cell-line-specific predictions require fine-tuning OR chromBPNet trained on cell-line data.
 - **Variant must be in ACGT only.** Models cannot handle ambiguous nucleotides; filter N positions.
-- **Need ≥5000 peaks for stable BPNet training.** Fewer peaks → fall back to PWM-based motif analysis.
+- **Need ≥5000 peaks for stable BPNet training.** Fewer peaks -> fall back to PWM-based motif analysis.
 
 ## Troubleshooting
 
 ### Training accuracy low (Spearman < 0.5)
 
-1. Insufficient peaks → need ≥5000 high-confidence
-2. Wrong bias model → train on matched assay
-3. Library quality poor → check chipseq-qc upstream
-4. Hyperparameters → check chromBPNet recommended config
+1. Insufficient peaks -> need ≥5000 high-confidence
+2. Wrong bias model -> train on matched assay
+3. Library quality poor -> check chipseq-qc upstream
+4. Hyperparameters -> check chromBPNet recommended config
 
 ### Variant predictions noisy / unstable
 

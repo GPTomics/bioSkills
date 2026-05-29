@@ -209,7 +209,7 @@ Reference: AGReMA-Mediation guideline (Lee 2021 BMJ 372:n122) and MacKinnon 2008
 | "Sequential ignorability?" | Imai rho_crit reported via `medsens`; mediational E-value reported on the risk-ratio scale |
 | "Exposure-induced confounder of M-Y?" | DAG drawn; if L present, switch to `CMAverse::cmest(estimation='msm')` for interventional indirect effect (Vansteelandt & Daniel 2017) |
 | "Why this bootstrap method?" | BCa with sims=5000 for publication; percentile fallback when BCa fails to converge (acceleration estimate unstable at boundary) |
-| "Why didn't you do MR-mediation?" | If valid IVs for E and M exist: two-step MR or MVMR-mediation done (see code below); if not, documented absence of trans-instruments |
+| "Why was MR-mediation not done?" | If valid IVs for E and M exist: two-step MR or MVMR-mediation done (see code below); if not, documented absence of trans-instruments |
 | "Mediator measured with error?" | Regression calibration (Carroll 2006 Measurement Error in Nonlinear Models) OR sensitivity analysis assuming reliability r = 0.7 (Valeri & VanderWeele 2014) |
 | "Why HIMA2 not BAMA?" | HIMA2 = frequentist + FDR control + faster; BAMA = Bayesian when prior information is available; sample-size justification given against simulation rule-of-thumb |
 | "Proportion mediated unstable?" | When |total| < 2*SE(total), proportion-mediated CI is unreliable (denominator near zero); report indirect effect alone with absolute effect size |

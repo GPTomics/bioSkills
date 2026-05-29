@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Cell Phenotyping for IMC
 
-**"Assign cell types to my segmented IMC cells"** → Classify cells based on protein marker expression using clustering, manual gating, or supervised classification approaches.
+**"Assign cell types to my segmented IMC cells"** -> Classify cells based on protein marker expression using clustering, manual gating, or supervised classification approaches.
 - Python: `scanpy.tl.leiden()` for unsupervised clustering, then manual annotation
 - R: `FlowSOM` for self-organizing map-based phenotyping
 

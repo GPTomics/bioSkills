@@ -17,8 +17,8 @@ package and adapt the example to match the actual API rather than retrying.
 
 # MOFA2 Integration
 
-**"Find shared variation across my omics layers"** → Discover latent factors that capture shared and modality-specific sources of biological variation in an unsupervised manner.
-- R: `MOFA2::create_mofa()` → `prepare_mofa()` → `run_mofa()`
+**"Find shared variation across my omics layers"** -> Discover latent factors that capture shared and modality-specific sources of biological variation in an unsupervised manner.
+- R: `MOFA2::create_mofa()` -> `prepare_mofa()` -> `run_mofa()`
 - Python: `mofapy2` for training, `muon` for downstream
 
 ## Prepare Multi-Omics Data

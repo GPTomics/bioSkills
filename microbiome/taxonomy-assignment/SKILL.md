@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Taxonomy Assignment
 
-**"Assign taxonomy to my ASVs"** → Classify amplicon sequence variants against reference databases (SILVA, GTDB, UNITE) using naive Bayes or exact-matching approaches for taxonomic annotation.
+**"Assign taxonomy to my ASVs"** -> Classify amplicon sequence variants against reference databases (SILVA, GTDB, UNITE) using naive Bayes or exact-matching approaches for taxonomic annotation.
 - R: `dada2::assignTaxonomy()` with SILVA/GTDB reference
 - CLI: `qiime feature-classifier classify-sklearn` for QIIME2 workflows
 

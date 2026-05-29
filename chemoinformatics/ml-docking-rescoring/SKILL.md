@@ -47,7 +47,7 @@ For classical docking, see `chemoinformatics/virtual-screening`. For pose valida
 | Apo or AF-predicted protein, need pose | Boltz-1 or Chai-1 |
 | Cross-docking + scaffold hopping | DiffDock-L + GNINA rescore + PoseBusters |
 | Affinity prediction (replace FEP first-pass) | Boltz-2 affinity module |
-| Ultralarge library (1M+) | Vina pre-filter → GNINA on top 1% → Boltz-2 on top 0.1% |
+| Ultralarge library (1M+) | Vina pre-filter -> GNINA on top 1% -> Boltz-2 on top 0.1% |
 | Novel target family | Boltz-1 / Chai-1 (uses MSA flexibility) |
 | Cofactor / metal binding | AlphaFold3 (best cofactor handling); validate with classical |
 | PROTAC / bivalent | Boltz-1 / Chai-1 with multimer + constraints |

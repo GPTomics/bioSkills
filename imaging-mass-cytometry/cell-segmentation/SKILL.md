@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Cell Segmentation for IMC
 
-**"Segment cells from my IMC images"** → Identify individual cell boundaries in multiplexed imaging data using deep learning (Cellpose) or watershed-based approaches for single-cell extraction.
+**"Segment cells from my IMC images"** -> Identify individual cell boundaries in multiplexed imaging data using deep learning (Cellpose) or watershed-based approaches for single-cell extraction.
 - Python: `cellpose.models.Cellpose()` for deep learning segmentation
 - CLI: `steinbock segment` for pipeline-based segmentation
 

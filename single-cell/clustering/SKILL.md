@@ -26,7 +26,7 @@ Dimensionality reduction, neighbor graph construction, and clustering.
 
 **Approach:** Run PCA for dimensionality reduction, construct a k-NN graph, apply Leiden community detection, and compute UMAP embedding.
 
-**"Cluster cells and find groups"** → Reduce dimensionality with PCA, build a neighborhood graph, partition cells into clusters, and embed in 2D for visualization.
+**"Cluster cells and find groups"** -> Reduce dimensionality with PCA, build a neighborhood graph, partition cells into clusters, and embed in 2D for visualization.
 
 ### Required Imports
 

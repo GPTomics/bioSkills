@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Nanopore Basecalling
 
-**"Basecall my Nanopore data"** → Convert raw electrical signal (FAST5/POD5) into nucleotide sequences with quality scores, optionally detecting modified bases.
+**"Basecall my Nanopore data"** -> Convert raw electrical signal (FAST5/POD5) into nucleotide sequences with quality scores, optionally detecting modified bases.
 - CLI: `dorado basecaller sup pod5/ > calls.bam` (recommended), `dorado basecaller sup,5mCG_5hmCG pod5/` (with modifications)
 
 Convert raw electrical signal from Nanopore sequencing into nucleotide sequences.

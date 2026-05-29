@@ -31,7 +31,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Hi-C Pipeline
 
-**"Analyze my Hi-C data from FASTQ to 3D genome features"** → Orchestrate read alignment, contact matrix generation, normalization, TAD calling, loop detection, compartment analysis, and differential interaction testing.
+**"Analyze my Hi-C data from FASTQ to 3D genome features"** -> Orchestrate read alignment, contact matrix generation, normalization, TAD calling, loop detection, compartment analysis, and differential interaction testing.
 
 Complete workflow for Hi-C chromosome conformation capture analysis.
 

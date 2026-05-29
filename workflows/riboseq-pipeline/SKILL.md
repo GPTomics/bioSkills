@@ -18,12 +18,12 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Ribo-seq Pipeline
 
-**"Analyze my ribosome profiling data from FASTQ to translation efficiency"** → Orchestrate adapter trimming, rRNA depletion, genome alignment, periodicity QC, ORF detection (RiboCode), stalling analysis, and translation efficiency estimation (riborex).
+**"Analyze my ribosome profiling data from FASTQ to translation efficiency"** -> Orchestrate adapter trimming, rRNA depletion, genome alignment, periodicity QC, ORF detection (RiboCode), stalling analysis, and translation efficiency estimation (riborex).
 
 ## Pipeline Overview
 
 ```
-FASTQ → Preprocessing → rRNA removal → Alignment → P-site → TE → ORF calling
+FASTQ -> Preprocessing -> rRNA removal -> Alignment -> P-site -> TE -> ORF calling
 ```
 
 ## Step 1: Preprocessing
@@ -84,4 +84,4 @@ RiboCode -a annotation.gtf -c config.txt -o ribocoded_orfs
 ## Related Skills
 
 - ribo-seq/ - Individual Ribo-seq analysis skills
-- differential-expression - For differential TE
+- differential-expression/deseq2-basics - For differential TE

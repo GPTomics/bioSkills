@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # ncRNA Search
 
-**"Search my sequences for known non-coding RNA families"** → Query sequences against the Rfam database using covariance models that score both sequence and secondary structure conservation, or build custom CMs for novel RNA families.
+**"Search my sequences for known non-coding RNA families"** -> Query sequences against the Rfam database using covariance models that score both sequence and secondary structure conservation, or build custom CMs for novel RNA families.
 - CLI: `cmscan` for searching against Rfam CMs
 - CLI: `cmbuild` + `cmcalibrate` for building custom covariance models
 
