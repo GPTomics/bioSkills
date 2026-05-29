@@ -37,9 +37,9 @@ def plot_regulon_heatmap(auc_mtx, cell_types, top_n=5, save='regulon_heatmap.pdf
 
 
 def plot_rss_panel(rss, cell_types_to_show=None, top_n=5, save='rss_panel.pdf'):
-    '''Panel of RSS rank plots per cell type.'''
+    '''Panel of RSS rank plots per cell type. RSS is indexed cell type (rows) x regulon (cols).'''
     if cell_types_to_show is None:
-        cell_types_to_show = rss.columns.tolist()
+        cell_types_to_show = rss.index.tolist()
 
     n_types = len(cell_types_to_show)
     ncols = min(4, n_types)
@@ -50,7 +50,7 @@ def plot_rss_panel(rss, cell_types_to_show=None, top_n=5, save='rss_panel.pdf'):
 
     for i, ct in enumerate(cell_types_to_show):
         ax = axes[i]
-        scores = rss[ct].sort_values(ascending=False)
+        scores = rss.loc[ct].sort_values(ascending=False)
         ax.plot(range(len(scores)), scores.values, '.', color='steelblue', markersize=3)
 
         for j, (reg, score) in enumerate(scores.head(top_n).items()):

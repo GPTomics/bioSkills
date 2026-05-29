@@ -3,9 +3,9 @@ CellOracle TF perturbation simulation workflow.
 
 Requires:
 - clustered.h5ad: preprocessed scRNA-seq with UMAP and cell type labels
-- atac_peaks.bed: accessible chromatin regions (from scATAC or bulk ATAC)
+- processed_peaks.parquet: peaks linked to genes (peak_id, gene_short_name), or a prebuilt base GRN
 '''
-# Reference: anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
+# Reference: celloracle 0.18+, scanpy 1.10+, anndata 0.10+ | Verify API if version differs
 
 import scanpy as sc
 import celloracle as co
@@ -14,19 +14,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def build_base_grn(peaks_bed, ref_genome='hg38'):
-    '''Scan accessible regions for TF motifs to build base GRN.'''
-    peaks = pd.read_csv(peaks_bed, sep='\t', header=None, names=['chr', 'start', 'end'])
+def build_base_grn(processed_peaks_parquet, ref_genome='hg38'):
+    '''Scan peak-to-gene-annotated regions for TF motifs to build the base GRN.
+
+    The input must already carry peak_id + gene_short_name columns (peaks linked to
+    promoters/genes via Cicero co-accessibility). Building that file is covered in
+    multiomics-grn; alternatively load a prebuilt base GRN with co.data.load_*_base_GRN().
+    '''
+    peaks = pd.read_parquet(processed_peaks_parquet)   # columns: peak_id, gene_short_name
 
     tfi = co.motif_analysis.TFinfo(peak_data_frame=peaks, ref_genome=ref_genome)
-    # fpr 0.02: false positive rate for motif scanning
-    tfi.scan(fpr=0.02)
+    tfi.scan(fpr=0.02)                                 # motif-match false-positive rate
     tfi.filter_motifs_by_score(threshold=10)
-    tfi.make_TFinfo_dataframe_and_target_gene_dataframe()
+    tfi.make_TFinfo_dataframe_and_dictionary()
 
-    base_grn = tfi.to_dataframe()
+    base_grn = tfi.to_dataframe()                      # peak_id, gene_short_name, one col per TF
     base_grn.to_parquet('base_grn.parquet')
-    print(f'Base GRN: {len(base_grn)} TF-target links, {base_grn["source"].nunique()} TFs')
+    print(f'Base GRN: {base_grn.shape[0]} rows x {base_grn.shape[1] - 2} TFs')
     return base_grn
 
 
@@ -41,7 +45,9 @@ def construct_grn(adata, base_grn, cluster_column='cell_type'):
     oracle.import_TF_data(TF_info_matrix=base_grn)
 
     oracle.perform_PCA()
-    oracle.knn_imputation(n_pnn=30, balanced=True, b_sight=3000, b_maxl=1500)
+    # k ~ 2.5% of cells; CellOracle convention sets b_sight=k*8, b_maxl=k*4.
+    k = int(0.025 * oracle.adata.n_obs)
+    oracle.knn_imputation(n_pca_dims=50, k=k, balanced=True, b_sight=k * 8, b_maxl=k * 4)
 
     links = oracle.get_links(cluster_name_for_GRN_unit=cluster_column, alpha=10, verbose_level=0)
     # p=0.001: significance threshold for TF-target connections
@@ -72,8 +78,8 @@ def plot_perturbation(oracle, tf_name, save_prefix=None):
     sc.pl.embedding(oracle.adata, basis='umap', color='cell_type',
                     ax=axes[0], show=False, title='Cell types')
 
-    # Quiver plot
-    oracle.plot_quiver(ax=axes[1], scale=30, plot_whole_cells=True)
+    # Quiver plot of the simulated cell-state shift
+    oracle.plot_quiver(ax=axes[1], scale=30)
     axes[1].set_title(f'{tf_name} KO - predicted shifts')
 
     # Shift magnitude
@@ -95,7 +101,7 @@ def screen_tfs(oracle, tf_list, n_propagation=3):
         results[tf] = {
             'mean_shift': shift.mean(),
             'max_shift': shift.max(),
-            'affected_cells_90pct': (shift > shift.quantile(0.9)).sum()
+            'affected_cells_90pct': (shift > np.quantile(shift, 0.9)).sum()
         }
 
     screen_df = pd.DataFrame(results).T.sort_values('mean_shift', ascending=False)
@@ -106,7 +112,7 @@ def screen_tfs(oracle, tf_list, n_propagation=3):
 
 
 if __name__ == '__main__':
-    # base_grn = build_base_grn('atac_peaks.bed')
+    # base_grn = build_base_grn('processed_peaks.parquet')  # or co.data.load_*_base_GRN()
 
     # adata = sc.read_h5ad('clustered.h5ad')
     # base_grn = pd.read_parquet('base_grn.parquet')
