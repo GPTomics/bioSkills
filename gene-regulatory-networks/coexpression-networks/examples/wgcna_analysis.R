@@ -1,5 +1,5 @@
 # Reference: WGCNA 1.72+ | Verify API if version differs
-# Complete WGCNA co-expression network analysis
+# Complete WGCNA co-expression network analysis (signed network, bicor, kME hubs)
 
 library(WGCNA)
 options(stringsAsFactors = FALSE)
@@ -19,7 +19,8 @@ plot(sample_tree, main = 'Sample clustering to detect outliers')
 dev.off()
 
 powers <- c(1:20)
-sft <- pickSoftThreshold(expr_data, powerVector = powers, verbose = 5)
+# Pick the power on the SIGNED fit so it matches blockwiseModules below.
+sft <- pickSoftThreshold(expr_data, powerVector = powers, networkType = 'signed', verbose = 5)
 
 pdf('soft_threshold.pdf', width = 10, height = 5)
 par(mfrow = c(1, 2))
@@ -38,11 +39,16 @@ cat('Selected soft power:', soft_power, '\n')
 
 net <- blockwiseModules(
     expr_data, power = soft_power,
-    TOMType = 'unsigned',
+    # Signed network keeps activators and repressors in separate modules.
+    networkType = 'signed', TOMType = 'signed',
+    # bicor down-weights outliers; maxPOutliers caps false outlier flags at modest n.
+    corType = 'bicor', maxPOutliers = 0.05,
     # minModuleSize 30: smaller modules are often noise
     minModuleSize = 30,
     # mergeCutHeight 0.25: merges modules with >75% eigengene correlation
     reassignThreshold = 0, mergeCutHeight = 0.25,
+    # maxBlockSize >= n_genes keeps one block (no cross-block blindness artifact).
+    maxBlockSize = ncol(expr_data) + 1,
     numericLabels = TRUE, pamRespectsDendro = FALSE,
     saveTOMs = TRUE, saveTOMFileBase = 'TOM',
     verbose = 3
@@ -58,8 +64,9 @@ plotDendroAndColors(net$dendrograms[[1]], module_colors[net$blockGenes[[1]]],
                     addGuide = TRUE, guideHang = 0.05)
 dev.off()
 
-MEs <- net$MEs
-MEs <- orderMEs(MEs)
+# Recompute eigengenes from COLOR labels so ME/kME column names match module_colors
+# (net$MEs is ME0/ME1... under numericLabels=TRUE and would not match color names).
+MEs <- orderMEs(moduleEigengenes(expr_data, module_colors)$eigengenes)
 
 traits <- read.csv('sample_traits.csv', row.names = 1)
 module_trait_cor <- cor(MEs, traits, use = 'p')
@@ -77,26 +84,15 @@ labeledHeatmap(Matrix = module_trait_cor,
                main = 'Module-trait relationships')
 dev.off()
 
-# Hub genes: high module membership AND high trait significance
+# Hubs by module membership (kME): signed, bounded, comparable across modules.
 module_of_interest <- names(which.min(module_trait_pval[, 1]))
 module_color <- gsub('ME', '', module_of_interest)
 module_genes <- colnames(expr_data)[module_colors == module_color]
 
-gene_mm <- cor(expr_data, MEs, use = 'p')
-gene_gs <- cor(expr_data, traits[, 1], use = 'p')
-
-hub_genes <- module_genes[
-    abs(gene_mm[module_genes, module_of_interest]) > 0.8 &
-    abs(gene_gs[module_genes, 1]) > 0.2
-]
-cat('Hub genes in', module_color, 'module:', length(hub_genes), '\n')
-if (length(hub_genes) > 0) print(head(hub_genes, 20))
-
-connectivity <- intramodularConnectivity(adjacency(expr_data, power = soft_power), module_colors)
-top_hubs <- connectivity[module_genes, ]
-top_hubs <- top_hubs[order(top_hubs$kWithin, decreasing = TRUE), ]
-cat('\nTop 10 hub genes by intramodular connectivity:\n')
-print(head(top_hubs, 10))
+kME <- signedKME(expr_data, MEs)
+hub_ranking <- sort(kME[module_genes, paste0('kME', module_color)], decreasing = TRUE)
+cat('Top hub genes in', module_color, 'module by kME:\n')
+print(head(hub_ranking, 20))
 
 save(net, MEs, module_colors, module_trait_cor, module_trait_pval,
      file = 'wgcna_results.RData')

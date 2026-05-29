@@ -2,7 +2,7 @@
 
 ## Overview
 
-Infer transcription factor regulons from single-cell RNA-seq data using the pySCENIC three-step pipeline. Discovers co-expression modules between TFs and candidate targets with GRNBoost2, prunes these to retain only links supported by cis-regulatory motif enrichment (cisTarget), and scores regulon activity per cell with AUCell. Identifies master regulators of cell identity and enables TF-activity-based cell clustering.
+Infer transcription factor regulons from single-cell RNA-seq using the pySCENIC three-step pipeline. GRNBoost2 finds TF-target co-expression, cisTarget prunes it to direct targets by requiring the TF's motif to be enriched in their regulatory regions, and AUCell scores per-cell regulon activity. The load-bearing idea: the motif-pruning step is what turns undirected co-expression into directed, motif-supported regulation, and AUCell activity is a rank statistic, so regulon activity is distinct from TF expression (it can be high while the TF transcript is dropout-zero). Regulons are strong directed hypotheses, not proof of causal regulation. For paired scRNA+scATAC use multiomics-grn; for bulk data and TF protein-activity use grn-inference.
 
 ## Prerequisites
 
@@ -43,6 +43,11 @@ Tell your AI agent what you want to do:
 
 > "Binarize regulon activity and show the fraction of cells with active regulons per cluster."
 
+### Reproducibility and Comparison
+> "Run the GRN step with several seeds and keep only the regulon links that recur in most runs."
+
+> "Compare regulon activity between treated and control cells on one integrated SCENIC run."
+
 ### Visualization
 > "Create a heatmap of regulon activity across cell types."
 
@@ -59,16 +64,19 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **Dask compatibility** - Native Arboreto/GRNBoost2 is broken with dask >= 2.0; always use the arboreto_with_multiprocessing.py script bundled with pySCENIC
-- **Python version** - Use Python 3.10 in a dedicated conda environment to avoid dependency conflicts
-- **Subsample for speed** - Step 1 (GRNBoost2) is the bottleneck; subsample to 5000-10000 cells, then score regulons on the full dataset in Step 3
-- **Database matching** - Ranking databases must match genome build (hg38/mm10) and gene naming convention
-- **Loom format** - pySCENIC expects loom input; convert from h5ad using loompy
-- **Gene filtering** - Remove genes expressed in fewer than 3 cells before running
+- Motif pruning is the point - step 1 alone is co-expression; only the cisTarget step yields directed, motif-supported regulons. Do not call unpruned modules regulons.
+- Activity is not expression - AUCell reports whether the TF's target program is coordinately high-ranked in a cell, robust to dropout; report regulon AUC, not TF mRNA.
+- Dask compatibility - native arboreto/GRNBoost2 breaks on dask >= 2.x; use the arboreto_with_multiprocessing.py script bundled with pySCENIC.
+- Reproducibility - GRNBoost2 is stochastic; fix the seed, and for confident regulons run the GRN step many times and keep recurring links.
+- Database matching - ranking DB, motif2TF annotations, and gene IDs must all match species/assembly/symbol namespace; mismatches give empty regulons. Run ctx with both search-space DBs.
+- Compare within one run - raw AUC is population-relative; for cross-condition comparison run SCENIC once on the integrated object and check condition regulons are not batch artifacts.
+- QC first - remove doublets and tiny clusters before SCENIC; both inflate spurious regulons.
 
 ## Related Skills
 
-- multiomics-grn - Enhancer-driven GRNs from paired scRNA+scATAC with SCENIC+
-- coexpression-networks - Bulk co-expression analysis with WGCNA
-- single-cell/clustering - Cluster cells before regulon analysis
+- multiomics-grn - enhancer-driven eRegulons from paired scRNA+scATAC with SCENIC+
+- grn-inference - bulk GRN inference and VIPER TF protein-activity
+- coexpression-networks - undirected co-expression modules (what step 1 produces alone)
+- single-cell/clustering - cluster cells before regulon analysis
 - single-cell/preprocessing - QC and normalization of scRNA-seq inputs
+- single-cell/doublet-detection - remove doublets that inflate spurious regulons

@@ -10,13 +10,14 @@ Requires:
 # Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, seaborn 0.13+ | Verify API if version differs
 
 import os
+import sys
 import glob
 import pickle
 import subprocess
 import pandas as pd
 import numpy as np
 import loompy
-from pyscenic.utils import load_tf_names
+from pyscenic.utils import modules_from_adjacencies
 from pyscenic.prune import prune2df, df2regulons
 from pyscenic.aucell import aucell
 from pyscenic.rss import regulon_specificity_scores
@@ -29,41 +30,43 @@ DB_GLOB = '*.genes_vs_motifs.rankings.feather'
 NUM_WORKERS = 8
 
 
-def step1_grn_inference(loom_file, tf_file, output='adj.tsv', num_workers=8):
+def step1_grn_inference(loom_file, tf_file, output='adj.tsv', num_workers=8, seed=42):
     '''
     GRN inference with GRNBoost2.
-    Uses arboreto_with_multiprocessing.py to avoid dask >= 2.0 compatibility issues.
+    Uses the bundled cli/arboreto_with_multiprocessing.py to avoid dask >= 2.0 issues.
+    GRNBoost2 is stochastic; vary seed across runs and intersect for high-confidence links.
     '''
-    # Locate the bundled script
     import pyscenic
     scenic_dir = os.path.dirname(pyscenic.__file__)
-    arboreto_script = os.path.join(scenic_dir, 'arboreto_with_multiprocessing.py')
-
-    if not os.path.exists(arboreto_script):
-        arboreto_script = 'arboreto_with_multiprocessing.py'
+    arboreto_script = os.path.join(scenic_dir, 'cli', 'arboreto_with_multiprocessing.py')
 
     subprocess.run([
-        'python', arboreto_script,
+        sys.executable, arboreto_script,
         loom_file, tf_file,
         '--method', 'grnboost2',
         '--output', output,
         '--num_workers', str(num_workers),
-        '--seed', '42'
+        '--seed', str(seed)
     ], check=True)
     print(f'Step 1 complete: {output}')
     return output
 
 
-def step2_cistopic_pruning(adj_file, db_glob, motif_annotations, loom_file):
+def step2_cistarget_pruning(adj_file, db_glob, motif_annotations, loom_file):
     '''Prune co-expression modules by cis-regulatory motif enrichment.'''
     db_fnames = glob.glob(db_glob)
-    dbs = [FeatherRankingDatabase(fname) for fname in db_fnames]
+    dbs = [FeatherRankingDatabase(fname, name=fname) for fname in db_fnames]
     print(f'Loaded {len(dbs)} ranking databases')
 
     adjacencies = pd.read_csv(adj_file, sep='\t')
-    print(f'Loaded {len(adjacencies)} TF-target adjacencies')
+    ds = loompy.connect(loom_file)
+    expr_matrix = pd.DataFrame(ds[:, :], index=ds.ra.Gene, columns=ds.ca.CellID).T
+    ds.close()
 
-    df = prune2df(dbs, adjacencies, motif_annotations)
+    # prune2df needs MODULES, not the raw adjacencies DataFrame.
+    modules = list(modules_from_adjacencies(adjacencies, expr_matrix))
+    # rank_threshold=5000 matches the CLI default (prune2df's Python default is 1500).
+    df = prune2df(dbs, modules, motif_annotations, rank_threshold=5000)
     regulons = df2regulons(df)
 
     with open('regulons.pkl', 'wb') as f:
@@ -92,11 +95,12 @@ def step3_aucell_scoring(loom_file, regulons, auc_threshold=0.05, num_workers=8)
 
 def compute_rss(auc_mtx, cell_type_series):
     '''Regulon specificity scores per cell type.'''
+    # RSS is indexed by cell type (rows) x regulon (columns); iterate the index.
     rss = regulon_specificity_scores(auc_mtx, cell_type_series)
     rss.to_csv('rss_scores.csv')
 
-    for ct in rss.columns:
-        top = rss[ct].sort_values(ascending=False).head(5)
+    for ct in rss.index:
+        top = rss.loc[ct].sort_values(ascending=False).head(5)
         print(f'\n{ct}:')
         for reg, score in top.items():
             print(f'  {reg}: {score:.3f}')
@@ -109,7 +113,7 @@ if __name__ == '__main__':
     # adj_file = step1_grn_inference(LOOM_FILE, TF_FILE, num_workers=NUM_WORKERS)
 
     # Step 2: Regulon pruning
-    # regulons = step2_cistopic_pruning('adj.tsv', DB_GLOB, MOTIF_ANNOTATIONS, LOOM_FILE)
+    # regulons = step2_cistarget_pruning('adj.tsv', DB_GLOB, MOTIF_ANNOTATIONS, LOOM_FILE)
 
     # Step 3: AUCell scoring
     # with open('regulons.pkl', 'rb') as f:

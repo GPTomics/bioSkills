@@ -1,13 +1,13 @@
 ---
 name: bio-gene-regulatory-networks-scenic-regulons
-description: Infer gene regulatory networks and identify transcription factor regulons from single-cell RNA-seq data using pySCENIC. Discovers co-expression modules with GRNBoost2, prunes by cis-regulatory motif enrichment, and scores regulon activity per cell with AUCell. Use when identifying transcription factor regulons, scoring TF activity in single cells, or finding master regulators of cell identity.
+description: Infer transcription factor regulons from single-cell RNA-seq with pySCENIC by combining GRNBoost2 co-expression, cisTarget motif-enrichment pruning, and AUCell per-cell activity scoring. Covers the motif-pruning-as-directionality principle, regulon specificity scoring, run-to-run stability, and database/species matching. Use when identifying TF regulons, scoring TF activity per cell, finding master regulators of cell identity, or comparing regulon activity across conditions. For enhancer-driven multiomic GRNs see multiomics-grn; for bulk inference and VIPER protein-activity see grn-inference.
 tool_type: python
 primary_tool: pySCENIC
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, seaborn 0.13+
+Reference examples tested with: pySCENIC 0.12+, ctxcore 0.2+, arboreto 0.1.6+, scanpy 1.10+, loompy 3.0+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -16,240 +16,176 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+The motif-DB machinery lives in `ctxcore`; a ctxcore/feather-format version mismatch is the most common silent failure. pySCENIC is most reliable on a dedicated Python 3.10 environment.
+
 # SCENIC Regulons
 
-**"Identify transcription factor regulons from my scRNA-seq data"** → Run the pySCENIC three-step pipeline: infer co-expression modules with GRNBoost2, prune by cis-regulatory motif enrichment with cisTarget, and score regulon activity per cell with AUCell.
-- CLI: `pyscenic grn` → `pyscenic ctx` → `pyscenic aucell`
-- Python: `arboreto_with_multiprocessing.py` for GRN step (workaround for dask>=2.0)
+**"Identify transcription factor regulons and score TF activity from my scRNA-seq data"** -> Run the pySCENIC three-step pipeline: infer TF-target co-expression with GRNBoost2, prune to direct targets by cis-regulatory motif enrichment with cisTarget, then score per-cell regulon activity with AUCell.
+- CLI: `pyscenic grn` -> `pyscenic ctx` -> `pyscenic aucell`
+- Python: `arboreto_with_multiprocessing.py` for the GRN step (avoids the dask breakage)
 
-Infer transcription factor regulons from single-cell RNA-seq with the pySCENIC three-step pipeline: GRN inference, motif enrichment, and regulon activity scoring.
+## The Single Most Important Modern Insight -- Motif Pruning Is What Converts Co-expression into Directed Regulation
 
-## Pipeline Overview
+Step 1 (GRNBoost2) produces **undirected co-expression only** -- it is no better than WGCNA and inherits all of co-expression's confounding (indirect edges, batch, cell-cycle). The entire conceptual payload of SCENIC is **Step 2 (cisTarget)**: for each module it asks whether the candidate TF's binding motif is significantly enriched (NES >= 3.0) in the cis-regulatory space of the module's targets, and keeps only the targets in the motif's leading edge. This (a) imposes a mechanistic prior -- the TF can physically bind near its retained targets, (b) breaks the symmetry of co-expression into a TF -> target direction, and (c) discards indirect targets. **A "regulon" is by definition only the post-cisTarget TF plus its direct targets.** Modules that were never pruned are co-expression modules, and calling them regulons misuses the word.
 
-| Step | Tool | Description |
-|------|------|-------------|
-| 1. GRN inference | GRNBoost2 | Co-expression modules between TFs and targets |
-| 2. Regulon pruning | cisTarget | Filter by cis-regulatory motif enrichment |
-| 3. Activity scoring | AUCell | Score regulon activity per cell |
+The second non-obvious consequence is **AUCell: regulon activity is not TF expression.** AUCell ranks genes within each cell and computes the area under the recovery curve for the regulon's gene set, so activity can be high even when the TF's own mRNA is dropout-zero (TF transcripts are sparse). Showing TF *expression* in place of regulon AUC -- or "validating" activity by its correlation with TF expression -- misses the method's point and is circular. SCENIC regulons remain motif-supported co-expression: a strong, directed hypothesis worth a knockdown, not proof of causal regulation.
 
-## Known Issues
+## Pipeline Taxonomy
 
-### Arboreto / Dask Compatibility
+| Step | Tool | Produces | Key parameter | Watch out for |
+|------|------|----------|---------------|---------------|
+| 1. GRN | GRNBoost2 (or GENIE3) | TF-target co-expression adjacencies | `--seed`, `--num_workers` | stochastic; not reproducible without a fixed seed |
+| 2. Prune | cisTarget (ctxcore) | regulons (direct targets) | `--nes_threshold 3.0`, `--rank_threshold 5000` | feather DB + motif2TF version must match |
+| 3. Score | AUCell | per-cell regulon activity (AUC) | `--auc_threshold 0.05` | this is the top-fraction, NOT the binarization cut |
 
-Native Arboreto (GRNBoost2 backend) is broken with dask >= 2.0. Use the `arboreto_with_multiprocessing.py` script bundled with pySCENIC instead. This is the recommended approach for Step 1.
+## Decision Tree by Scenario
 
-### Python Version
-
-pySCENIC is tested on Python 3.10. Create a dedicated conda environment to avoid dependency conflicts:
-
-```bash
-conda create -n scenic python=3.10
-conda activate scenic
-pip install pyscenic loompy
-```
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| scRNA-seq, want TF regulons + per-cell activity | pySCENIC grn/ctx/aucell | the canonical workflow |
+| GRN step hangs / KilledWorker | `arboreto_with_multiprocessing.py` | arboreto's dask backend breaks on newer dask |
+| Need reproducible regulons | run GRN 10-100x, keep links recurring >80% | GRNBoost2/GENIE3 are stochastic |
+| Which regulons mark a cell type | Regulon Specificity Score (RSS) | JSD-based specificity, not just magnitude |
+| Paired scRNA + scATAC available | -> multiomics-grn (SCENIC+) | accessibility defines enhancers; eRegulons add the region layer |
+| Bulk RNA-seq / want protein activity | -> grn-inference (ARACNe + VIPER) | SCENIC is single-cell; VIPER reads TF activity from bulk |
+| Compare activity across conditions | run SCENIC once on the integrated object | raw AUC is population-relative; batch survives into regulons |
 
 ## Required Databases
 
-Download ranking databases and motif annotations from the cisTarget resources page (https://resources.aertslab.org/cistarget/):
+cisTarget needs three matched resources: ranking database(s), motif-to-TF annotations, and the TF list -- all the same species/assembly/symbol namespace. Download from `resources.aertslab.org/cistarget/`.
 
 ```bash
-# Human hg38 ranking databases (large files, ~1.5 GB each)
-# mc9nr = motif collection v9, nr = non-redundant
+# Human hg38 gene-based rankings (~1.5 GB each). Run ctx with BOTH search-space DBs
+# (500bp+100bp around TSS, and TSS +/-10kb) so the leading-edge logic pools them.
 wget https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg38/refseq_r80/mc9nr/gene_based/hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.genes_vs_motifs.rankings.feather
-
-# Motif-to-TF annotations
 wget https://resources.aertslab.org/cistarget/motif2tf/motifs-v9-nr.hgnc-m0.001-o0.0.tbl
+# The ranking-DB version (mc9nr / v10) and the motif2tf annotation version MUST match.
 ```
 
-## Step 1: GRN Inference with GRNBoost2
+## Step 1: GRN Inference (use the multiprocessing wrapper)
 
-```python
-import os
-import glob
-import pickle
-import pandas as pd
-import numpy as np
-from pyscenic.utils import load_tf_names
-from arboreto.utils import load_tf_names as arb_load_tf_names
+**Goal:** Infer TF-target co-expression adjacencies as candidate regulatory modules.
 
-# Load expression data (loom format is standard for SCENIC)
-import loompy
-ds = loompy.connect('filtered.loom')
-expr_matrix = pd.DataFrame(ds[:, :], index=ds.ra.Gene, columns=ds.ca.CellID).T
-ds.close()
-
-# Load TF list (human or mouse)
-tf_names = load_tf_names('allTFs_hg38.txt')
-```
-
-### Using arboreto_with_multiprocessing.py (Recommended)
+**Approach:** Run GRNBoost2 via the bundled multiprocessing script (single-node, stable) rather than the dask backend, and fix the seed so the stochastic boosting is reproducible.
 
 ```bash
-# Run from command line -- avoids dask compatibility issues entirely
+# arboreto's dask backend breaks on dask>=2.x (silent hangs, KilledWorker).
+# The bundled multiprocessing wrapper is the supported workaround.
 python arboreto_with_multiprocessing.py \
-    filtered.loom \
-    allTFs_hg38.txt \
-    --method grnboost2 \
-    --output adj.tsv \
-    --num_workers 8 \
-    --seed 42
+    filtered.loom allTFs_hg38.txt \
+    --method grnboost2 --output adj.tsv \
+    --num_workers 8 --seed 42
 ```
 
-### Python API (if dask < 2.0)
+## Step 2: Prune to Regulons by Motif Enrichment
+
+**Goal:** Keep only TF-target links whose target genes are enriched for the TF's binding motif -- the step that confers directness and direction.
+
+**Approach:** Load the ranking databases and motif2TF annotations, build candidate modules from the adjacencies, and run cisTarget pruning; targets surviving motif enrichment (NES >= 3.0) form the regulon.
 
 ```python
-from arboreto.algo import grnboost2
-
-adjacencies = grnboost2(expr_matrix, tf_names=tf_names, verbose=True)
-adjacencies.to_csv('adj.tsv', sep='\t', index=False)
-```
-
-## Step 2: Regulon Pruning with cisTarget
-
-**Goal:** Filter the raw co-expression modules to retain only TF-target links supported by cis-regulatory motif enrichment near target gene promoters.
-
-**Approach:** Load cisTarget ranking databases and motif annotations, run prune2df to test each TF's targets for upstream motif enrichment, then convert the pruned results into regulon objects.
-
-```python
+import glob, pickle, pandas as pd
+from pyscenic.utils import modules_from_adjacencies
 from pyscenic.prune import prune2df, df2regulons
 from ctxcore.rnkdb import FeatherRankingDatabase
 
-# Load ranking databases
-db_fnames = glob.glob('*.genes_vs_motifs.rankings.feather')
-dbs = [FeatherRankingDatabase(fname) for fname in db_fnames]
-
-# Load motif annotations
-motif_annotations_fname = 'motifs-v9-nr.hgnc-m0.001-o0.0.tbl'
-
 adjacencies = pd.read_csv('adj.tsv', sep='\t')
+expr = pd.read_csv('expr.csv', index_col=0)            # cells x genes
+modules = list(modules_from_adjacencies(adjacencies, expr))
 
-# Prune: only keep TF-target links supported by cis-regulatory motifs
-df = prune2df(dbs, adjacencies, motif_annotations_fname)
+dbs = [FeatherRankingDatabase(f, name=f) for f in glob.glob('*.genes_vs_motifs.rankings.feather')]
+# rank_threshold=5000 matches the CLI default (the prune2df Python default is 1500).
+df = prune2df(dbs, modules, 'motifs-v9-nr.hgnc-m0.001-o0.0.tbl', rank_threshold=5000)
+regulons = df2regulons(df)                              # TF + direct targets only
 
-regulons = df2regulons(df)
-
-with open('regulons.pkl', 'wb') as f:
-    pickle.dump(regulons, f)
-
-print(f'Found {len(regulons)} regulons')
-for reg in sorted(regulons, key=lambda r: -len(r))[:10]:
-    print(f'  {reg.name}: {len(reg)} targets')
+with open('regulons.pkl', 'wb') as fh:
+    pickle.dump(regulons, fh)
 ```
 
-### CLI Alternative (Steps 1-2)
+CLI equivalent for steps 1-2 (`pyscenic grn`, then `pyscenic ctx adj.tsv DB.feather --annotations_fname motifs.tbl --expression_mtx_fname filtered.loom -o reg.csv`). ctx verified defaults: `--rank_threshold 5000`, `--auc_threshold 0.05`, `--nes_threshold 3.0`, `--min_genes 20`. `--mask_dropouts` now defaults to False (matching R SCENIC); it changes the TF-target correlation sign that splits activating `(+)` from repressing `(-)` regulons, so report the setting used.
 
-```bash
-# Step 1: GRN inference
-pyscenic grn filtered.loom allTFs_hg38.txt -o adj.tsv --num_workers 8
+## Step 3: AUCell Per-Cell Activity
 
-# Step 2: cisTarget pruning
-pyscenic ctx adj.tsv \
-    hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.genes_vs_motifs.rankings.feather \
-    --annotations_fname motifs-v9-nr.hgnc-m0.001-o0.0.tbl \
-    --expression_mtx_fname filtered.loom \
-    --output reg.csv \
-    --num_workers 8
-```
+**Goal:** Score each regulon's activity in every cell, robustly to dropout.
 
-## Step 3: AUCell Activity Scoring
-
-**Goal:** Score the activity of each regulon in every individual cell to create a cell-by-regulon activity matrix for downstream analysis.
-
-**Approach:** Rank genes by expression within each cell, then use AUCell to compute the area under the recovery curve for each regulon's gene set, producing an AUC score that reflects regulon activity independent of expression magnitude.
+**Approach:** Rank genes within each cell, integrate the recovery curve over the top fraction (`auc_threshold`, default 0.05 = top 5%), and emit a cell-by-regulon AUC matrix.
 
 ```python
 from pyscenic.aucell import aucell
-import loompy
 
-ds = loompy.connect('filtered.loom')
-expr_matrix = pd.DataFrame(ds[:, :], index=ds.ra.Gene, columns=ds.ca.CellID).T
-ds.close()
-
-with open('regulons.pkl', 'rb') as f:
-    regulons = pickle.load(f)
-
-# Score regulon activity per cell using AUCell
-# auc_threshold: fraction of ranked genes to consider (default 0.05 = top 5%)
-auc_mtx = aucell(expr_matrix, regulons, auc_threshold=0.05, num_workers=8)
-
+# auc_threshold = top 5% of the ranking integrated for the AUC -- NOT a binarization cut.
+auc_mtx = aucell(expr, regulons, auc_threshold=0.05, num_workers=8)
 auc_mtx.to_csv('auc_matrix.csv')
-print(f'Scored {auc_mtx.shape[1]} regulons across {auc_mtx.shape[0]} cells')
 ```
 
-### CLI Alternative
+## Interpretation: Specificity and Binarization
 
-```bash
-pyscenic aucell filtered.loom reg.csv \
-    --output scenic_output.loom \
-    --num_workers 8
-```
+**Goal:** Surface the regulons that define each cell type and convert activity to on/off states for clustering.
 
-## Interpreting Results
-
-### Regulon Specificity Score (RSS)
+**Approach:** Use the Regulon Specificity Score (Jensen-Shannon divergence vs an idealized cell-type-specific distribution) for identity regulators, and binarize the AUC distribution (bimodal -> density threshold) for state heatmaps.
 
 ```python
 from pyscenic.rss import regulon_specificity_scores
-
-# RSS identifies regulons enriched in specific cell types
-# Requires cell type labels
-cell_types = pd.read_csv('cell_types.csv', index_col=0)['cell_type']
-rss = regulon_specificity_scores(auc_mtx, cell_types)
-
-# Top regulons per cell type
-for ct in rss.columns:
-    top_regs = rss[ct].sort_values(ascending=False).head(5)
-    print(f'\n{ct}:')
-    for reg, score in top_regs.items():
-        print(f'  {reg}: {score:.3f}')
-```
-
-### Binary Regulon Activity
-
-```python
 from pyscenic.binarization import binarize
 
-# Binarize AUC scores (on/off per cell)
-# Uses bimodal distribution fitting to set thresholds
-binary_mtx, thresholds = binarize(auc_mtx)
-
-# Fraction of cells with active regulon per cluster
-cluster_activity = binary_mtx.groupby(cell_types).mean()
+cell_types = pd.read_csv('cell_types.csv', index_col=0)['cell_type']
+rss = regulon_specificity_scores(auc_mtx, cell_types)     # high RSS = identity regulator
+binary_mtx, thresholds = binarize(auc_mtx)                # per-regulon on/off
 ```
 
-## Visualization
+RSS (rewards specificity) and a per-cluster AUC z-score (rewards magnitude) can disagree; prefer RSS for "which regulon marks this cluster."
 
-```python
-import scanpy as sc
-import matplotlib.pyplot as plt
-import seaborn as sns
+## Per-Method Failure Modes
 
-adata = sc.read_h5ad('clustered.h5ad')
-adata.obsm['X_aucell'] = auc_mtx.loc[adata.obs_names].values
+### Calling unpruned modules "regulons"
+**Trigger:** skipping ctx, or dropping the NES threshold to admit everything. **Mechanism:** without motif enrichment the output is co-expression, not direct regulation. **Symptom:** no motif DB/version reported; implausibly large "regulons." **Fix:** always run cisTarget; report DB + motif2TF versions and the search-space windows.
 
-# Regulon activity on UMAP
-sc.pl.umap(adata, color=['CEBPB(+)', 'SPI1(+)', 'PAX5(+)'], cmap='viridis')
+### Dask hang in the GRN step
+**Trigger:** native arboreto on dask>=2.x. **Mechanism:** scheduler incompatibility. **Symptom:** silent hang or KilledWorker. **Fix:** use `arboreto_with_multiprocessing.py` (single-node, stable).
 
-# Heatmap of top regulons per cell type
-top_regulons = rss.apply(lambda x: x.nlargest(3).index.tolist()).explode().unique()
-sns.clustermap(auc_mtx[top_regulons].groupby(cell_types).mean().T,
-               cmap='viridis', figsize=(10, 8), z_score=0)
-plt.savefig('regulon_heatmap.pdf', bbox_inches='tight')
-```
+### Species / assembly mismatch
+**Trigger:** mouse genes against an hg38 ranking DB, or HGNC vs MGI symbol mismatch. **Mechanism:** gene IDs do not map into the database. **Symptom:** near-empty regulon set. **Fix:** match expression IDs, ranking DB, and motif2TF to one species/assembly/namespace.
 
-## Performance Tips
+### Cross-condition AUC comparison without batch control
+**Trigger:** comparing raw AUC across separately-run SCENIC analyses or strong batches. **Mechanism:** AUC is relative to the population it was ranked within; batch-driven co-expression can pass motif enrichment by chance. **Symptom:** a "condition-specific regulator" that tracks the batch. **Fix:** run SCENIC once on the integrated object; sanity-check condition regulons against batch.
 
-| Tip | Details |
-|-----|---------|
-| Subsample for GRN | Use 5000-10000 cells for Step 1; regulons transfer to full dataset |
-| Use CLI for Step 1 | `arboreto_with_multiprocessing.py` avoids dask issues |
-| Parallelize | All three steps accept `--num_workers` |
-| Prefilter genes | Remove genes expressed in < 3 cells or < 1% of cells |
-| Loom format | Standard input format; convert from h5ad with `loompy` |
+### Over-reading _extended or _- regulons
+**Trigger:** using `_extended` regulons for direct-binding claims, or building a story on `(-)` repressor activity. **Mechanism:** `_extended` adds orthology/similarity-inferred (low-confidence) motif annotations; negative regulons are sparse and weakly enriched. **Symptom:** direct-regulation claims from low-confidence edges. **Fix:** default to high-confidence positive regulons; treat `_extended`/`(-)` as hypotheses.
+
+## Quantitative Thresholds
+
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| NES >= 3.0 (motif enrichment) | Aibar 2017 / iRegulon (Janky 2014) | recovery-curve enrichment cutoff defining a supported motif |
+| auc_threshold = 0.05 (top 5%) | pySCENIC default | fraction of the ranking integrated for the AUC |
+| GRN reruns: keep links recurring >80% of runs | Van de Sande 2020 | GRNBoost2/GENIE3 are stochastic; recurrence = high confidence |
+| min_genes = 20 per regulon | pySCENIC default | smaller target sets give unstable AUC |
+| >= a few hundred cells per cell type | practical | rare clusters and doublets inflate spurious regulons |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| "not a cisTarget Feather database in v1 or v2 format" | ctxcore/DB version mismatch | download current DB; align `ctxcore` version |
+| empty regulon set | species/assembly or symbol mismatch | match gene IDs to the DB namespace |
+| different regulons each run | unset seed in GRN step | fix `--seed`; run multiple seeds and intersect |
+| activity != TF expression confuses the reader | conflating regulon AUC with TF mRNA | report AUCell activity; that independence is the point |
+| ctx returns nothing | missing/mismatched `--annotations_fname` | supply matching motif2TF; check DB is gene-based (not region-based) |
+
+## References
+
+- Aibar S, et al. 2017. SCENIC: single-cell regulatory network inference and clustering. *Nat Methods* 14(11):1083-1086.
+- Van de Sande B, et al. 2020. A scalable SCENIC workflow for single-cell gene regulatory network analysis. *Nat Protoc* 15(7):2247-2276.
+- Moerman T, et al. 2019. GRNBoost2 and Arboreto. *Bioinformatics* 35(12):2159-2161.
+- Janky R, et al. 2014. iRegulon: cisTarget ranking-and-recovery framework. *PLoS Comput Biol* 10(7):e1003731.
+- Suo S, et al. 2018. Revealing critical regulators of cell identity (Regulon Specificity Score). *Cell Rep* 25(6):1436-1445.e3.
+- Huynh-Thu VA, et al. 2010. GENIE3. *PLoS ONE* 5(9):e12776.
 
 ## Related Skills
 
-- multiomics-grn - Enhancer-driven GRNs from paired scRNA+scATAC
-- coexpression-networks - Bulk co-expression network analysis with WGCNA
-- single-cell/clustering - Cluster cells before regulon analysis
-- single-cell/preprocessing - QC and normalization of scRNA-seq data
+- multiomics-grn - enhancer-driven eRegulons from paired scRNA+scATAC (SCENIC+)
+- grn-inference - bulk GRN inference and VIPER TF protein-activity (the Califano lineage)
+- coexpression-networks - undirected co-expression modules (what step 1 produces alone)
+- single-cell/clustering - cluster cells before regulon and RSS analysis
+- single-cell/preprocessing - QC, doublet removal, and normalization of scRNA-seq inputs
+- single-cell/doublet-detection - remove doublets that inflate spurious regulons

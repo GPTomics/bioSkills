@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build enhancer-driven gene regulatory networks by integrating single-cell RNA-seq and ATAC-seq data. SCENIC+ extends the SCENIC framework to discover eRegulons: triplets linking transcription factors to their target enhancers and downstream regulated genes. This enables identification of cis-regulatory programs driving cell identity.
+Build enhancer-driven gene regulatory networks (eGRNs) by integrating single-cell RNA-seq and ATAC-seq. SCENIC+ discovers eRegulons: triplets linking transcription factors to target enhancers and downstream genes. The core advance is that scATAC nominates the actual distal enhancers active in the cells, so an edge is a TF -> region -> gene triplet with the region as a validatable anchor. But every inference arrow leaks (motif != binding, accessible != this-TF, peak-gene correlation != control), the peak-to-gene linking step is confounded by cell-type composition, and metacell aggregation introduces pseudo-replication -- so an eGRN is a prioritized hypothesis list, not a wiring diagram. Method choice hinges on paired vs unpaired data and on whether the downstream goal is perturbation simulation (build a CellOracle base GRN here, simulate in perturbation-simulation).
 
 ## Prerequisites
 
@@ -47,7 +47,12 @@ Tell your AI agent what you want to do:
 > "Show activating vs repressive eRegulons for each cell type."
 
 ### FigR Alternative
-> "Run FigR on my Seurat multiome object to find TF-gene regulatory links."
+> "Run FigR on my Seurat multiome object to find TF-gene regulatory links via DORCs."
+
+### Unpaired or RNA-only
+> "I have separate scRNA-seq and scATAC-seq experiments, not paired. Integrate them with GLUE before inferring the GRN."
+
+> "I only have scRNA-seq. Build a GRN using a prebuilt CellOracle base GRN."
 
 ## What the Agent Will Do
 
@@ -61,15 +66,18 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **Memory requirements** - SCENIC+ needs significant RAM: 64 GB for 20K cells, 128 GB+ for 50K+ cells
-- **cisTopic topics** - Test multiple topic numbers (10-50) and select by coherence metrics
-- **Peak calling** - Use MACS3 with BEDPE format on the fragments file for the region universe
-- **Activating vs repressive** - eRegulons with (+) suffix have positive TF-target correlation; (-) suffix indicates repressive regulation
-- **FigR is lighter weight** - If SCENIC+ is too resource-intensive, FigR provides a simpler alternative for TF-gene regulatory inference from multiome data
+- Accessibility defines enhancers, not function - an eGRN edge means "TF motif in an accessible peak linked to a gene," a hypothesis to validate with ChIP/CRISPRi, not established regulation.
+- Watch the composition confound - genome-wide peak-gene correlation recovers cell-type co-markers; restrict to the distance window, use a matched null (Signac) or within-type correlation, and require a motif.
+- Metacell p-values are ranking scores - KNN-smoothed metacells are not independent; do not report their p-values as calibrated significance.
+- Use the current SCENIC+ Snakemake workflow - the manual-object API and pre-2024 tutorials are stale; consensus peak calling needs cell-type labels first.
+- Paired vs unpaired drives method choice - paired multiome -> SCENIC+/Pando/TRIPOD/FigR directly; unpaired -> integrate with GLUE first (links are capped by pairing accuracy); RNA-only -> CellOracle prebuilt base GRN.
+- Don't over-single-out a TF - motif families (GATA, ETS, bZIP) share motifs; report the family unless orthogonal evidence singles out a member.
+- Resource planning - SCENIC+ is RAM-heavy (~64 GB for 20K cells, 128 GB+ beyond); FigR/DIRECT-NET are lighter alternatives.
 
 ## Related Skills
 
 - scenic-regulons - RNA-only regulon inference with pySCENIC
+- perturbation-simulation - in silico TF perturbation built on a CellOracle base GRN
 - single-cell/scatac-analysis - scATAC-seq preprocessing with Signac and ArchR
-- atac-seq/atac-peak-calling - Peak calling for chromatin accessibility
-- chip-seq/motif-analysis - Motif enrichment for TF identification
+- atac-seq/atac-peak-calling - peak calling for chromatin accessibility
+- chip-seq/motif-analysis - motif enrichment and TF binding for validation

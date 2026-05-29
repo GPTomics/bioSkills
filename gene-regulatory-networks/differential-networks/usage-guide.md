@@ -2,7 +2,7 @@
 
 ## Overview
 
-Compare co-expression networks between biological conditions to identify rewired gene-gene regulatory relationships. Uses Fisher's z-transform to test whether correlations differ significantly between groups, revealing gained, lost, and reversed co-expression edges. Complements differential expression analysis by showing how gene relationships change, not just expression levels.
+Compare co-expression and regulatory networks between conditions to find rewired gene-gene relationships. DiffCorr tests correlation differences with Fisher's z (gained/lost/reversed edges); DiffCoEx finds rewired modules; DINGO/iDINGO test direct (partial-correlation) rewiring; CoDiNA compares many networks. The load-bearing insight: differential connectivity is NOT differential expression -- a gene can rewire its partners with no change in mean expression and be the key signal (Hudson's myostatin). The dominant pitfall is power: rewiring needs more samples than DE, and pairwise testing has a p^2/2 multiple-testing explosion, so most small-cohort "rewired hub" claims are underpowered noise.
 
 ## Prerequisites
 
@@ -42,6 +42,11 @@ Tell your AI agent what you want to do:
 
 > "Show me gained, lost, and reversed edges in the differential network."
 
+### Direct vs Module-Level Rewiring
+> "I want direct (not indirect) rewiring between conditions. Run DINGO on partial correlations."
+
+> "Find modules that rewire between conditions with DiffCoEx instead of testing every edge."
+
 ### Visualization
 > "Visualize the differential co-expression network colored by edge type."
 
@@ -59,17 +64,19 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **Sample size** - Need at least 15 per group for stable correlations; 20+ is recommended
-- **Gene filtering** - Restrict to top 2000-5000 variable genes to reduce multiple testing burden
-- **Effect size** - Filter for meaningful differences (absolute correlation change > 0.3) in addition to statistical significance
-- **DGCA archived** - DGCA was removed from CRAN in May 2024; install from GitHub via devtools if needed
-- **Complement with DE** - Differential network analysis reveals regulatory rewiring that DE analysis misses; a gene can be rewired without changing expression level
-- **Python alternative** - Use scipy and NetworkX for a pure Python approach if R is not available
+- Connectivity is not expression - report differential connectivity and DE separately; a non-DE gene can be the key rewired hub (Hudson's myostatin).
+- Power is the binding constraint - rewiring needs more samples than DE; below ~15-20 per group, results are mostly noise. Treat small-cohort findings as exploratory.
+- Tame the p^2/2 explosion - pre-filter to variable genes and apply strict FDR, or use module-level DiffCoEx to avoid per-edge testing entirely.
+- Marginal vs direct - DiffCorr gained edges are marginal (may reflect a shifted common driver); use DINGO partial correlations when directness matters.
+- FDR method - statsmodels `multipletests` defaults to Holm-Sidak; pass `method='fdr_bh'` for BH.
+- Effect-size filter - require absolute correlation change > 0.3 on top of significance to avoid trivial differences.
+- DGCA archived - removed from CRAN May 2024; install from GitHub if needed.
 
 ## Related Skills
 
-- coexpression-networks - Build WGCNA networks for individual conditions first
-- scenic-regulons - TF regulon inference from scRNA-seq with pySCENIC
-- differential-expression/deseq2-basics - DE analysis to complement network rewiring
-- pathway-analysis/go-enrichment - Functional enrichment of rewired gene sets
-- temporal-genomics/temporal-grn - Time-delayed regulatory inference from temporal data
+- coexpression-networks - build the per-condition networks being compared
+- grn-inference - VIPER differential protein activity between conditions
+- scenic-regulons - TF regulon activity differences as a complementary readout
+- differential-expression/de-results - differential expression of means (the orthogonal question)
+- pathway-analysis/go-enrichment - functional enrichment of rewired gene sets
+- temporal-genomics/temporal-grn - time-resolved network change across stages

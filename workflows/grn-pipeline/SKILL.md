@@ -27,7 +27,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Gene Regulatory Network Pipeline
 
-**"Infer gene regulatory networks from my single-cell data"** → Orchestrate pySCENIC regulon inference (GRNBoost2, cisTarget, AUCell), CellOracle perturbation simulation, and regulon-based cell type characterization.
+**"Infer gene regulatory networks from my single-cell data"** -> Orchestrate pySCENIC regulon inference (GRNBoost2, cisTarget, AUCell), CellOracle perturbation simulation, and regulon-based cell type characterization.
 
 Complete workflow from processed single-cell data to regulon discovery and perturbation simulation.
 
@@ -113,8 +113,8 @@ modules = [GeneSignature(name=tf, gene2weight=dict(zip(grp['target'], grp['impor
            if len(grp) >= 10]
 
 # Prune modules using motif enrichment
-# NES threshold 3.0: Standard; lower to 2.5 for more permissive
-df_motifs = prune2df(dbs, modules, motif_annotations, num_workers=8)
+# NES threshold 3.0 (default); rank_threshold=5000 matches the CLI (prune2df default is 1500).
+df_motifs = prune2df(dbs, modules, motif_annotations, rank_threshold=5000, num_workers=8)
 regulons = df2regulons(df_motifs)
 
 print(f'Discovered {len(regulons)} regulons')
@@ -231,54 +231,59 @@ cistarget_results = run_cistarget(
 
 ### Step 3: eGRN Construction
 
+**Goal:** Assemble eRegulons (TF -> enhancer -> gene triplets) from the multiome data.
+
+**Approach:** Current SCENIC+ runs topic modeling, motif enrichment, and eGRN construction through one Snakemake pipeline; the deprecated manual `create_SCENICPLUS_object`/`build_grn` API (and pre-2024 tutorials) should not be used. See gene-regulatory-networks/multiomics-grn for the full pipeline and the peak-to-gene caveats.
+
+```bash
+# Scaffold, edit the config (point at fragments, scRNA AnnData, cell-type labels, databases),
+# then run from inside the Snakemake directory.
+scenicplus init_snakemake --out_dir scenicplus_run
+# edit scenicplus_run/Snakemake/config/config.yaml
+cd scenicplus_run/Snakemake && snakemake --cores 16
+```
+
 ```python
-from scenicplus.scenicplus_class import create_SCENICPLUS_object
-from scenicplus.grn_builder.gsea_approach import build_grn
-
-scplus_obj = create_SCENICPLUS_object(
-    adata_rna=adata_rna,
-    cistopic_obj=cistopic_obj,
-    menr=cistarget_results
-)
-
-build_grn(
-    scplus_obj,
-    min_target_genes=10,
-    adj_pval_thr=0.1,
-    min_regions_per_gene=0
-)
-
-print(f'eGRNs: {len(scplus_obj.uns["eRegulon_AUC"].columns)} enhancer-driven regulons')
+# Read the resulting direct (high-confidence) eRegulon table (filename is config-/version-
+# dependent, so resolve it by glob).
+import glob, pandas as pd
+eregulons = pd.read_csv(glob.glob('scenicplus_run/**/eRegulon*direct*.tsv', recursive=True)[0], sep='\t')
+print(f'eRegulons: {eregulons["TF"].nunique()} enhancer-driven regulators')
 ```
 
 ## CellOracle Perturbation Simulation
 
+**Goal:** Predict the direction cells move under a TF knockout, as a hypothesis (direction, not calibrated magnitude).
+
+**Approach:** CellOracle needs a base GRN (a TF-target scaffold from motif scanning of accessible regions, not the pySCENIC adjacencies), then learns per-cluster weights, propagates a forced expression shift, and projects it onto the cell-state graph. See gene-regulatory-networks/perturbation-simulation for the base-GRN construction and the local-linear / direction-only caveats.
+
 ```python
 import celloracle as co
+import numpy as np
 
 oracle = co.Oracle()
-oracle.import_anndata_as_raw_count(
-    adata=adata,
-    cluster_column_name='cell_type',
-    embedding_name='X_umap'
-)
+oracle.import_anndata_as_raw_count(adata=adata, cluster_column_name='cell_type',
+                                   embedding_name='X_umap')
 
-# Import GRN (from pySCENIC adjacencies or SCENIC+ eGRNs)
-links = co.utility.load_links(adjacencies)
-oracle.addTFinfo_dictionary(links)
+# Base GRN = motif-scanned accessible regions (or a prebuilt CellOracle base GRN);
+# this is NOT the pySCENIC adjacencies. See multiomics-grn / perturbation-simulation.
+oracle.import_TF_data(TF_info_matrix=base_grn)
 
 oracle.perform_PCA()
-oracle.knn_imputation(k=30)
+k = int(0.025 * oracle.adata.n_obs)
+oracle.knn_imputation(n_pca_dims=50, k=k, balanced=True, b_sight=k * 8, b_maxl=k * 4)
 
-# Simulate TF knockout
+# Learn context-specific weights, then fit the simulation GRN.
+links = oracle.get_links(cluster_name_for_GRN_unit='cell_type', alpha=10)
+links.filter_links(p=0.001, weight='coef_abs', threshold_number=2000)
+oracle.get_cluster_specific_TFdict_from_Links(links_object=links)
+oracle.fit_GRN_for_simulation(alpha=10, use_cluster_specific_TFdict=True)
+
+# Simulate TF knockout (0.0) and project the shift onto the embedding.
 oracle.simulate_shift(perturb_condition={'MYC': 0.0}, n_propagation=3)
 oracle.estimate_transition_prob(n_neighbors=200, knn_random=True, sampled_fraction=1)
-
-# Perturbation score: magnitude of predicted shift
 oracle.calculate_embedding_shift(sigma_corr=0.05)
-
-# QC: shifts should match known biology (e.g., MYC KO reduces proliferation)
-gradient = oracle.gradient_fitting(n_jobs=8)
+shift = np.sqrt((oracle.adata.obsm['delta_embedding'] ** 2).sum(axis=1))
 ```
 
 ### QC Checkpoint: Perturbation
@@ -290,10 +295,13 @@ def validate_perturbation(oracle, perturbed_tf, expected_affected_cluster=None):
     - Transition probabilities should show directional shift
     - If expected_affected_cluster known, check it shows largest change
     '''
-    ps = oracle.perturbation_scores
-    mean_shift = ps.groupby(oracle.adata.obs['cell_type']).mean()
+    import numpy as np, pandas as pd
+    # Shift magnitude per cell from the simulated embedding shift (delta_embedding).
+    shift = np.sqrt((oracle.adata.obsm['delta_embedding'] ** 2).sum(axis=1))
+    mean_shift = pd.Series(shift, index=oracle.adata.obs_names).groupby(
+        oracle.adata.obs['cell_type'].values).mean()
 
-    print(f'Mean perturbation scores by cell type after {perturbed_tf} KO:')
+    print(f'Mean shift magnitude by cell type after {perturbed_tf} KO:')
     print(mean_shift.sort_values(ascending=False))
 
     if expected_affected_cluster:
@@ -335,7 +343,7 @@ def run_scenic_pipeline(adata_path, tf_list_path, db_paths, motif_annotations_pa
     dbs = [FeatherRankingDatabase(db) for db in db_paths]
     modules = [GeneSignature(name=tf, gene2weight=dict(zip(grp['target'], grp['importance'])))
                for tf, grp in adjacencies.groupby('TF') if len(grp) >= 10]
-    df_motifs = prune2df(dbs, modules, motif_annotations_path, num_workers=8)
+    df_motifs = prune2df(dbs, modules, motif_annotations_path, rank_threshold=5000, num_workers=8)
     regulons = df2regulons(df_motifs)
     print(f'Discovered {len(regulons)} regulons')
 
