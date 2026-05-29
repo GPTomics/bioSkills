@@ -1,95 +1,51 @@
-# Reference: RNASeqPower 1.42+ | Verify API if version differs
-# RNA-seq Power Analysis Examples
-# Demonstrates power calculations for sequencing experiments
+# Power analysis for RNA-seq: closed-form vs simulation, per-gene power
+# Reference: RNASeqPower 1.42+, PROPER 1.34+ | Verify API if version differs
+#
+# Demonstrates: closed-form NB power (both directions), why a single CV is only an
+# approximation, simulation-based marginal power at a target FDR, and the depth-vs-replicate
+# tradeoff. Observed/post-hoc power is deliberately NOT computed -- it is uninformative.
 
-library(RNASeqPower)
+suppressPackageStartupMessages(library(RNASeqPower))
 
-# =============================================================================
-# Basic Power Calculation
-# =============================================================================
+# ---------------------------------------------------------------------------
+# 1. Closed-form NB power -- solves for whichever of n / power is omitted
+# ---------------------------------------------------------------------------
+# depth = reads/gene; cv = biological coefficient of variation; effect = fold change
+cat('Power, n=3, 2-fold, CV=0.4:', round(rnapower(depth = 20, n = 3, cv = 0.4, effect = 2, alpha = 0.05), 3), '\n')
+cat('Power, n=6, 2-fold, CV=0.4:', round(rnapower(depth = 20, n = 6, cv = 0.4, effect = 2, alpha = 0.05), 3), '\n')
+cat('n for 80% power, 2-fold, CV=0.4:',
+    ceiling(rnapower(depth = 20, cv = 0.4, effect = 2, alpha = 0.05, power = 0.80)), 'per group\n')
 
-# Parameters explained:
-# - depth: average read count per gene (20 is typical for well-expressed genes)
-# - n: samples per group
-# - cv: coefficient of variation (biological variability)
-#   * Cell lines: 0.1-0.2
-#   * Inbred mice: 0.2-0.3
-#   * Human samples: 0.3-0.5
-# - effect: fold change to detect (2 = 2-fold change)
-# - alpha: significance level (0.05 standard)
-
-# Calculate power with 3 replicates to detect 2-fold change
-power_3rep <- rnapower(depth = 20, n = 3, cv = 0.4, effect = 2, alpha = 0.05)
-cat('Power with n=3:', round(power_3rep, 3), '\n')
-
-# Calculate power with 6 replicates
-power_6rep <- rnapower(depth = 20, n = 6, cv = 0.4, effect = 2, alpha = 0.05)
-cat('Power with n=6:', round(power_6rep, 3), '\n')
-
-# =============================================================================
-# Sample Size Estimation
-# =============================================================================
-
-# How many samples needed for 80% power to detect 2-fold change?
-# Returns NA for n, need to solve iteratively
-find_n_for_power <- function(target_power = 0.8, depth = 20, cv = 0.4,
-                              effect = 2, alpha = 0.05) {
-  for (n in 2:50) {
-    p <- rnapower(depth = depth, n = n, cv = cv, effect = effect, alpha = alpha)
-    if (p >= target_power) {
-      return(n)
-    }
-  }
-  return(NA)
+# Effect / CV sensitivity: a SINGLE CV gives one curve, but real dispersion varies with mean.
+for (cv in c(0.2, 0.4)) {
+  n <- ceiling(rnapower(depth = 20, cv = cv, effect = 1.5, alpha = 0.05, power = 0.80))
+  cat(sprintf('CV %.1f -> n=%d per group for 1.5-fold at 80%% power\n', cv, n))
 }
 
-n_needed <- find_n_for_power(target_power = 0.8, cv = 0.4, effect = 2)
-cat('Samples needed for 80% power (2-fold, CV=0.4):', n_needed, '\n')
-
-# =============================================================================
-# Effect Size Sensitivity Analysis
-# =============================================================================
-
-# What effect sizes can we detect with different sample sizes?
-effect_sizes <- c(1.25, 1.5, 2, 3, 4)
-sample_sizes <- c(3, 5, 8, 12)
-
-cat('\nPower table (CV=0.4, alpha=0.05, depth=20):\n')
-cat('Effect\t', paste(paste0('n=', sample_sizes), collapse = '\t'), '\n')
-
-for (effect in effect_sizes) {
-  powers <- sapply(sample_sizes, function(n) {
-    round(rnapower(depth = 20, n = n, cv = 0.4, effect = effect, alpha = 0.05), 2)
-  })
-  cat(paste0(effect, 'x\t'), paste(powers, collapse = '\t'), '\n')
+# ---------------------------------------------------------------------------
+# 2. Simulation-based MARGINAL power at a target FDR (the honest default)
+# ---------------------------------------------------------------------------
+# Closed-form uses one CV; PROPER simulates from an empirical mean-dispersion trend and
+# reports average power across the expression distribution at a controlled FDR.
+if (requireNamespace('PROPER', quietly = TRUE)) {
+  library(PROPER)
+  sim_opts <- RNAseq.SimOptions.2grp(ngenes = 20000, p.DE = 0.05,
+                                     lOD = 'cheung', lBaselineExpr = 'cheung')
+  sims <- runSims(Nreps = c(3, 5, 8, 12), sim.opts = sim_opts, nsims = 20, DEmethod = 'edgeR')
+  powr <- comparePower(sims, alpha.type = 'fdr', alpha.nominal = 0.05,
+                       stratify.by = 'expr', delta = log(1.5))   # delta is natural-log lfc in PROPER (not log2)
+  print(summaryPower(powr))   # marginal power per replicate number at FDR 0.05
+} else {
+  cat('\nInstall PROPER for simulation-based marginal power (the reported figure).\n')
 }
 
-# =============================================================================
-# CV Impact Analysis
-# =============================================================================
-
-# How does biological variability affect required samples?
-cv_values <- c(0.1, 0.2, 0.3, 0.4, 0.5)
-
-cat('\nSamples needed for 80% power to detect 2-fold change:\n')
-for (cv in cv_values) {
-  n <- find_n_for_power(target_power = 0.8, cv = cv, effect = 2)
-  cat(sprintf('CV = %.1f: n = %d per group\n', cv, n))
+# ---------------------------------------------------------------------------
+# 3. Depth vs replicates
+# ---------------------------------------------------------------------------
+# Past ~10-20M mapped reads, deeper sequencing adds little; replicates keep helping
+# (Liu, Zhou & White 2014, Bioinformatics 30:301).
+for (d in c(10, 20, 50, 100)) {
+  cat(sprintf('Depth %3d, n=4: power = %.3f\n', d,
+              rnapower(depth = d, n = 4, cv = 0.4, effect = 2, alpha = 0.05)))
 }
-
-# =============================================================================
-# Sequencing Depth vs Sample Size
-# =============================================================================
-
-# More samples or deeper sequencing?
-# Generally: more samples > deeper sequencing after ~20M reads
-
-depths <- c(10, 20, 50, 100)
-cat('\nPower with n=4, CV=0.4, effect=2 at different depths:\n')
-for (d in depths) {
-  p <- rnapower(depth = d, n = 4, cv = 0.4, effect = 2, alpha = 0.05)
-  cat(sprintf('Depth %d: power = %.3f\n', d, p))
-}
-
-cat('\n# Key insight: Doubling depth from 20 to 40 gives less benefit\n')
-cat('# than adding one more replicate (from n=4 to n=5)\n')
+cat('# Adding a replicate beats doubling depth once depth is adequate.\n')

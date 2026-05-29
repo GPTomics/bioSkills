@@ -127,14 +127,14 @@ Best for: Well-defined populations, lower dimensions
 ## Statistical Considerations
 
 ### Differential Abundance
-- Need biological replicates (n ≥ 3)
+- Need biological replicates (n >= 3)
 - Uses edgeR (count-based)
 - Reports fold change in frequency
 
 ### Differential State
 - Tests marker expression within clusters
 - Uses limma
-- Adjust for multiple testing (clusters × markers)
+- Adjust for multiple testing (clusters x markers)
 
 ## Common Issues
 
@@ -149,7 +149,7 @@ Best for: Well-defined populations, lower dimensions
 - Try different resolution
 
 ### No significant results
-- Check sample size (n ≥ 3)
+- Check sample size (n >= 3)
 - Verify biological effect expected
 - Adjust thresholds carefully
 
@@ -166,14 +166,17 @@ Best for: Well-defined populations, lower dimensions
 
 ## Tips
 
-- **Panel file**: Essential for correct channel-to-marker mapping
-- **Cofactor**: Use 5 for CyTOF, 150 for conventional flow
-- **Batch effects**: Include batch in metadata if samples were processed separately
-- **Replicates**: Minimum 3 biological replicates per condition for statistical testing
-- **Marker classes**: Separate lineage (type) from functional (state) markers
+- **Unit of inference**: the sample/subject, not the cell, is the experimental unit - diffcyt aggregates cells to per-sample-per-cluster counts/medians before testing; a per-cell test is invalid.
+- **Order is irreversible**: compensate before transform; remove margin events before density-based QC; remove doublets before clustering. None of these is fixable downstream.
+- **Two normalization layers**: EQ-bead drift correction runs first on raw counts (CyTOF); CytoNorm cross-batch harmonization runs last (after clustering). Do not conflate them.
+- **Panel file**: Essential for correct channel-to-marker mapping; marker_class drives everything (type clusters, state is tested).
+- **Cofactor**: Use 5 for CyTOF, ~150 for conventional/spectral fluorescence.
+- **Batch effects**: model batch in the diffcyt design; reserve normalization for visualization. Fully confounded batch (batch == condition) cannot be rescued.
+- **Embeddings**: UMAP/tSNE are for visualization only - never gate on them or read biology off blob distances.
+- **Replicates**: Minimum 2-3 biological replicates per condition for valid statistics.
 
 ## References
 
 - CATALYST: doi:10.1101/218826
-- diffcyt: doi:10.1038/s41467-017-00707-4
+- diffcyt: doi:10.1038/s42003-019-0415-5
 - FlowSOM: doi:10.1002/cyto.a.22625

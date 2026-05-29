@@ -1,6 +1,7 @@
-# Reference: R stats (base), edgeR 4.0+, ggplot2 3.5+, limma 3.58+ | Verify API if version differs
+# Reference: diffcyt 1.22+, CATALYST 1.26+, edgeR 4.0+, limma 3.58+ | Verify API if version differs
 library(CATALYST)
 library(diffcyt)
+library(SummarizedExperiment)
 
 # Load clustered data
 sce <- readRDS('sce_clustered.rds')
@@ -15,12 +16,15 @@ design <- createDesignMatrix(ei(sce), cols_design = 'condition')
 # Create contrast (Treatment vs Control)
 contrast <- createContrast(c(0, 1))
 
-# Differential abundance
+# Differential abundance via the CATALYST-integrated diffcyt wrapper
+# (sample is the unit: diffcyt aggregates cells to per-sample-per-cluster counts)
 cat('\nRunning differential abundance analysis...\n')
-res_DA <- testDA_edgeR(sce, design, contrast, cluster_id = 'meta20')
+res_DA <- diffcyt(sce, clustering_to_use = 'meta20',
+                  analysis_type = 'DA', method_DA = 'diffcyt-DA-edgeR',
+                  design = design, contrast = contrast)
 
-# Results
-da_results <- as.data.frame(rowData(res_DA))
+# Results (rowData of the inner result object; p_adj is BH across clusters)
+da_results <- as.data.frame(rowData(res_DA$res))
 da_results <- da_results[order(da_results$p_adj), ]
 
 cat('\nSignificant clusters (FDR < 0.05):\n')

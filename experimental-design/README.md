@@ -2,40 +2,56 @@
 
 ## Overview
 
-Skills for planning sequencing experiments, calculating power and sample sizes, and designing studies to minimize batch effects.
+Skills for designing genomics experiments so that statistical inference is valid by construction: choosing the experimental unit, randomizing and blocking, balancing technical variation, powering the study, sizing the sample, and controlling error rates across thousands of tests. The category covers the discovery/high-dimensional-omics regime (FDR, genes/peaks/cells); for the confirmatory/regulated-trial regime (FWER, closed testing, regulated sample size) see clinical-biostatistics.
 
-**Tool type:** r | **Primary tools:** RNASeqPower, ssizeRNA, qvalue, sva
+**Tool type:** r | **Primary tools:** designit, RNASeqPower, ssizeRNA, qvalue, sva
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| power-analysis | Statistical power calculations for RNA-seq, ATAC-seq experiments |
-| sample-size | Sample size estimation for differential expression studies |
-| multiple-testing | FDR, Bonferroni, and q-value correction methods |
-| batch-design | Experimental design to minimize and correct batch effects |
+| randomization-blocking | Experimental unit, pseudoreplication, randomization, blocking, factorial/split-plot/nested designs |
+| batch-design | Balancing technical variation against biology; no-rescue theorem; correction-method choice; SVA detection |
+| power-analysis | Per-gene negative-binomial power for sequencing assays; simulation; depth-vs-replicate; post-hoc-power fallacy |
+| sample-size | Minimum biological replicates at a target power and FDR; pilot dispersions; scRNA-seq donors-vs-cells |
+| multiple-testing | FDR vs FWER; BH/BY dependence; q-value/pi0; local FDR; IHW; independent filtering; GWAS threshold |
 
 ## Example Prompts
 
-- "How many samples do I need for my RNA-seq experiment to detect 2-fold changes?"
-- "Calculate power for my ATAC-seq study with 4 replicates per group"
-- "Help me assign 24 samples to 3 sequencing batches without confounding"
-- "Which multiple testing correction should I use for my differential expression results?"
-- "What's the minimum effect size I can detect with 6 samples per group?"
+- "What is my experimental unit, and is my n the number of mice or the number of cells?"
+- "Help me assign 24 samples to 3 sequencing batches so batch is orthogonal to condition."
+- "All my tumors were sequenced in one run and normals in another; can ComBat fix this?"
+- "How many biological replicates for RNA-seq to detect 1.5-fold changes at 80% power, FDR 0.05?"
+- "Should I sequence deeper or add samples on a fixed budget?"
+- "How many donors versus cells for a scRNA-seq disease-versus-control comparison?"
+- "Should I use BH, BY, or q-value when my test statistics are correlated?"
+- "Use IHW with mean expression to gain power over plain Benjamini-Hochberg."
+- "A reviewer says my study is underpowered because observed power was 0.3; how do I respond?"
+- "Is it valid to filter out low-count genes before testing to boost power?"
 
 ## Requirements
 
 ```r
 # R/Bioconductor
 install.packages('BiocManager')
-BiocManager::install(c('RNASeqPower', 'ssizeRNA', 'qvalue', 'sva', 'limma'))
+BiocManager::install(c('RNASeqPower', 'ssizeRNA', 'PROPER', 'qvalue', 'IHW', 'sva', 'RUVSeq', 'OSAT', 'limma', 'edgeR', 'DESeq2'))
 
-# Optional
-install.packages('designit')
+# CRAN
+install.packages(c('designit', 'lme4', 'lmerTest', 'pwr'))
+
+# powsimR for scRNA-seq power (GitHub; pin a commit)
+# remotes::install_github('bvieth/powsimR')
+```
+
+```bash
+# Python equivalents
+pip install statsmodels scipy numpy pandas
 ```
 
 ## Related Skills
 
-- **differential-expression** - Run differential expression after proper design
-- **single-cell** - scRNA-seq experimental design considerations
-- **read-qc** - Quality control to validate experimental success
+- **clinical-biostatistics** - Confirmatory/regulated-trial power, sample size, and multiplicity (FWER, closed testing)
+- **differential-expression** - Runs the DE test and executes batch correction (ComBat-seq, RUVSeq, SVA)
+- **single-cell** - scRNA-seq preprocessing, pseudobulk aggregation, and batch integration
+- **machine-learning** - Model validation and data leakage, of which batch confounding is one source
+- **read-qc** - Quality control that verifies an experiment's design succeeded

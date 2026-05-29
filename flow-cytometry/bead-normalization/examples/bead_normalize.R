@@ -1,5 +1,5 @@
-# Reference: flowCore 2.14+, ggplot2 3.5+ | Verify API if version differs
-library(flowCore)
+# Reference: ggplot2 3.5+, dplyr 1.1+ | Verify API if version differs
+# Self-contained bead-normalization simulation. For real CyTOF use CATALYST::normCytof().
 library(ggplot2)
 library(dplyr)
 
@@ -150,7 +150,10 @@ ggsave(file.path(output_dir, 'distribution_comparison.png'), p3, width = 8, heig
 # === 6. REMOVE BEADS AND EXPORT ===
 cat('\nExporting normalized data...\n')
 
-final_data <- all_data[!detected_beads, c('Time', 'CD45_normalized', 'CD3_normalized')]
+# recompute the bead mask on the merged frame: merge() reordered rows, so the
+# pre-merge `detected_beads` index no longer aligns - use the columns that traveled with it
+merged_beads <- all_data$Ce140 > bead_threshold & all_data$Eu151 > bead_threshold
+final_data <- all_data[!merged_beads, c('Time', 'CD45_normalized', 'CD3_normalized')]
 colnames(final_data) <- c('Time', 'CD45', 'CD3')
 
 write.csv(final_data, file.path(output_dir, 'normalized_cells.csv'), row.names = FALSE)

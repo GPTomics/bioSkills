@@ -1,121 +1,59 @@
-# Reference: R stats (base), statsmodels 0.14+ | Verify API if version differs
-# Multiple Testing Correction Examples
-# Demonstrates different correction methods and when to use them
+# Multiple testing: FDR vs FWER, dependence (BH vs BY), q-value/pi0, local FDR, IHW
+# Reference: R stats (base), qvalue 2.34+, IHW 1.30+ | Verify API if version differs
+#
+# Demonstrates the error-rate choices that matter in genomics discovery and the levers
+# (pi0, covariate weighting) that buy back power. Python statsmodels note: the DEFAULT
+# method is 'hs' (Holm-Sidak), NOT BH -- always pass method= explicitly.
 
-# =============================================================================
-# Generate Example P-values
-# =============================================================================
+set.seed(20260528)
+n_genes <- 10000; n_de <- 500
+pvalues <- c(rbeta(n_de, 0.3, 5), runif(n_genes - n_de))   # 5% true DE (small p), rest null
+is_de  <- c(rep(TRUE, n_de), rep(FALSE, n_genes - n_de))
 
-set.seed(42)
-n_genes <- 10000
-n_true_de <- 500  # 5% truly DE
+# ---------------------------------------------------------------------------
+# 1. FWER (Bonferroni/Holm) vs FDR (BH) vs FDR-under-dependence (BY)
+# ---------------------------------------------------------------------------
+methods <- c(none = NA, bonferroni = 'bonferroni', holm = 'holm', BH = 'BH', BY = 'BY')
+tab <- data.frame(method = names(methods), significant = NA_integer_, true_pos = NA_integer_,
+                  false_pos = NA_integer_)
+for (i in seq_along(methods)) {
+  padj <- if (is.na(methods[i])) pvalues else p.adjust(pvalues, method = methods[i])
+  sig <- padj < 0.05
+  tab[i, c('significant', 'true_pos', 'false_pos')] <- c(sum(sig), sum(sig & is_de), sum(sig & !is_de))
+}
+tab$realized_fdr <- round(tab$false_pos / pmax(tab$significant, 1), 3)
+print(tab, row.names = FALSE)
+# BH is the discovery default (valid under independence/PRDS); BY is conservative but valid
+# under arbitrary/negative dependence.
 
-# Simulate p-values
-# True nulls: uniform(0,1)
-# True positives: beta distribution skewed toward 0
-pvalues <- c(
-  rbeta(n_true_de, 0.3, 5),      # True DE genes (small p-values)
-  runif(n_genes - n_true_de)     # True nulls (uniform)
-)
-is_true_de <- c(rep(TRUE, n_true_de), rep(FALSE, n_genes - n_true_de))
+# ---------------------------------------------------------------------------
+# 2. q-value: estimate pi0 (true-null proportion) for more power; local FDR per feature
+# ---------------------------------------------------------------------------
+if (requireNamespace('qvalue', quietly = TRUE)) {
+  library(qvalue)
+  qobj <- qvalue(pvalues)
+  cat(sprintf('\nq-value: pi0 = %.3f, discoveries at q<0.05 = %d\n',
+              qobj$pi0, sum(qobj$qvalues < 0.05)))
+  # qobj$lfdr is the local FDR: posterior P(null | statistic) for EACH feature.
+}
 
-cat('Simulated', n_genes, 'genes with', n_true_de, 'truly DE\n')
-cat('Significant at p < 0.05:', sum(pvalues < 0.05), '\n\n')
+# ---------------------------------------------------------------------------
+# 3. IHW: weight hypotheses by an independent covariate (must be null-independent)
+# ---------------------------------------------------------------------------
+if (requireNamespace('IHW', quietly = TRUE)) {
+  library(IHW)
+  mean_expr <- rgamma(n_genes, shape = 2, rate = 0.5)        # covariate independent of null p
+  res <- ihw(pvalues, mean_expr, alpha = 0.05)
+  cat(sprintf('IHW discoveries at FDR 0.05 = %d (vs BH = %d)\n',
+              rejections(res), sum(p.adjust(pvalues, 'BH') < 0.05)))
+}
 
-# =============================================================================
-# Bonferroni Correction
-# =============================================================================
+# ---------------------------------------------------------------------------
+# 4. Python equivalent (mind the default method)
+# ---------------------------------------------------------------------------
+# from statsmodels.stats.multitest import multipletests
+# rej, padj, _, _ = multipletests(pvalues, alpha=0.05, method='fdr_bh')   # BH -- NOT the default
+# rej, padj, _, _ = multipletests(pvalues, alpha=0.05, method='fdr_by')   # BY under dependence
 
-# Most conservative - controls family-wise error rate (FWER)
-# FWER = P(at least one false positive)
-# Use for: small targeted studies, confirmatory analyses
-
-p_bonf <- p.adjust(pvalues, method = 'bonferroni')
-sig_bonf <- sum(p_bonf < 0.05)
-
-cat('=== Bonferroni Correction ===\n')
-cat('Threshold: p <', 0.05/n_genes, '\n')
-cat('Significant genes:', sig_bonf, '\n')
-cat('True positives:', sum(p_bonf < 0.05 & is_true_de), '\n')
-cat('False positives:', sum(p_bonf < 0.05 & !is_true_de), '\n\n')
-
-# =============================================================================
-# Benjamini-Hochberg FDR
-# =============================================================================
-
-# Standard for genomics - controls false discovery rate
-# FDR = E[false positives / total positives]
-# More powerful than Bonferroni when many true positives exist
-
-p_bh <- p.adjust(pvalues, method = 'BH')
-sig_bh <- sum(p_bh < 0.05)
-
-cat('=== Benjamini-Hochberg FDR ===\n')
-cat('Significant at FDR < 0.05:', sig_bh, '\n')
-cat('True positives:', sum(p_bh < 0.05 & is_true_de), '\n')
-cat('False positives:', sum(p_bh < 0.05 & !is_true_de), '\n')
-cat('Observed FDR:', round(sum(p_bh < 0.05 & !is_true_de) / sig_bh, 3), '\n\n')
-
-# =============================================================================
-# q-value Method
-# =============================================================================
-
-# More powerful than BH by estimating pi0 (proportion true nulls)
-# Directly estimates FDR for each feature
-
-library(qvalue)
-qobj <- qvalue(pvalues)
-qvalues <- qobj$qvalues
-sig_qval <- sum(qvalues < 0.05)
-
-cat('=== q-value Method ===\n')
-cat('Estimated pi0 (true null proportion):', round(qobj$pi0, 3), '\n')
-cat('Significant at q < 0.05:', sig_qval, '\n')
-cat('True positives:', sum(qvalues < 0.05 & is_true_de), '\n')
-cat('False positives:', sum(qvalues < 0.05 & !is_true_de), '\n\n')
-
-# =============================================================================
-# Method Comparison
-# =============================================================================
-
-cat('=== Method Comparison ===\n')
-comparison <- data.frame(
-  Method = c('None (p < 0.05)', 'Bonferroni', 'BH FDR', 'q-value'),
-  Significant = c(sum(pvalues < 0.05), sig_bonf, sig_bh, sig_qval),
-  TruePos = c(sum(pvalues < 0.05 & is_true_de),
-              sum(p_bonf < 0.05 & is_true_de),
-              sum(p_bh < 0.05 & is_true_de),
-              sum(qvalues < 0.05 & is_true_de)),
-  FalsePos = c(sum(pvalues < 0.05 & !is_true_de),
-               sum(p_bonf < 0.05 & !is_true_de),
-               sum(p_bh < 0.05 & !is_true_de),
-               sum(qvalues < 0.05 & !is_true_de))
-)
-comparison$Sensitivity <- round(comparison$TruePos / n_true_de, 3)
-comparison$FDR <- round(comparison$FalsePos / comparison$Significant, 3)
-
-print(comparison, row.names = FALSE)
-
-# =============================================================================
-# Method Selection Guide
-# =============================================================================
-
-cat('\n=== When to Use Each Method ===\n')
-cat('Bonferroni:\n')
-cat('  - Small, targeted gene panels (<100 genes)\n')
-cat('  - Confirmatory/validation studies\n')
-cat('  - When ANY false positive is unacceptable\n\n')
-
-cat('Benjamini-Hochberg:\n')
-cat('  - Standard genome-wide DE analysis\n')
-cat('  - Exploratory studies\n')
-cat('  - When some false positives are acceptable\n\n')
-
-cat('q-value:\n')
-cat('  - Large-scale studies with many true positives\n')
-cat('  - Maximum power needed\n')
-cat('  - When pi0 < 0.9 (many true effects expected)\n\n')
-
-cat('GWAS:\n')
-cat('  - Use genome-wide threshold p < 5e-8\n')
-cat('  - Bonferroni for ~1 million independent tests\n')
+# GWAS: genome-wide significance ~5e-8 (Dudbridge & Gusnanto 2008 derived ~7.2e-8);
+# the GWAS test machinery lives in population-genetics/association-testing.

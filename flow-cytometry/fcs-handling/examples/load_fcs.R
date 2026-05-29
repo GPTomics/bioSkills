@@ -1,4 +1,4 @@
-# Reference: flowCore 2.14+, scanpy 1.10+ | Verify API if version differs
+# Reference: flowCore 2.14+, CytoML 2.14+ | Verify API if version differs
 library(flowCore)
 
 # Public flow cytometry data sources:

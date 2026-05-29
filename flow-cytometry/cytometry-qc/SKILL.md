@@ -1,382 +1,162 @@
 ---
 name: bio-flow-cytometry-cytometry-qc
-description: Comprehensive quality control for flow cytometry and CyTOF data. Covers flow rate stability, signal drift, margin events, dead cell exclusion, and batch QC. Use when assessing acquisition quality or identifying problematic samples before analysis.
+description: Quality control for flow, spectral, and mass cytometry - time-based anomaly cleaning (flowAI, flowCut, PeacoQC, flowClean), margin/boundary event removal, signal-drift detection, dead-cell exclusion, CyTOF Gaussian/DNA/event-length checks, instrument calibration/standardization (MESF, CS&T, peak-2), and batch-level outlier flagging. Use when assessing acquisition quality, choosing a cleaning tool, ordering QC relative to compensation, deciding margin removal before density-based steps, or flagging problematic samples before clustering or differential analysis.
 tool_type: r
 primary_tool: flowAI
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: flowCore 2.14+, ggplot2 3.5+
+Reference examples tested with: flowAI 1.32+, PeacoQC 1.12+, flowCore 2.14+, flowDensity 1.36+, CATALYST 1.26+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+Counterintuitive defaults to confirm: flowAI checks are FR/FS/FM (FM = dynamic range, not
+"flow"); PeacoQC `MAD`/`IT_limit` are LESS strict when HIGHER. Verify with `?flow_auto_qc`
+and `?PeacoQC` before tuning.
 
 # Cytometry QC
 
-**"Run quality control on my flow cytometry data"** → Assess acquisition quality by checking flow rate stability, signal drift, margin events, and dead cell frequencies to identify problematic samples.
-- R: `flowAI::flow_auto_qc()` for automated anomaly detection
+**"Run quality control on my cytometry data"** -> Detect and remove acquisition artifacts (flow-rate instability, signal drift, margin events, dead cells, CyTOF doublets) on the Time axis, then flag outlier samples.
+- R (flow/spectral): `flowAI::flow_auto_qc()`, `PeacoQC::PeacoQC()` (+ `RemoveMargins()`)
+- R (mass): `CATALYST::normCytof()` beads + Gaussian/DNA/event-length gating
 
-## Automated QC with flowAI
+## The Single Most Important Modern Insight -- The Time Parameter Is the Master QC Axis, and Order Matters
+
+Nearly every acquisition artifact - clogs, bubbles, flow-rate surges, electronics warm-up, CyTOF sensitivity decay, oxide buildup - manifests as a CHANGE IN SIGNAL versus the Time channel. flowAI, flowCut, flowClean, and PeacoQC are all, at heart, Time-vs-signal anomaly detectors; a missing or mis-scaled `$TIMESTEP` silently degrades or breaks all of them. Just as important is the ORDER: compensation/unmixing -> transform -> margin removal -> time-based QC -> debris/doublet/dead-cell gating -> batch normalization. Margin (boundary) events piled at a detector min/max form spurious high-density ridges that fool density-based cleaning and density gates, so they must be stripped BEFORE any density step; and time-based QC on untransformed data misbehaves because the density structure the algorithms rely on lives on the transformed scale.
+
+## Cleaning-Tool Taxonomy
+
+| Tool | Citation | Mechanism | When to use / caveat |
+|------|----------|-----------|----------------------|
+| flowAI | Monaco 2016 *Bioinformatics* 32:2473 | 3 checks: flow rate (FR), signal acquisition (FS), dynamic range (FM) | classic; known AGGRESSIVE - can remove normal data |
+| PeacoQC | Emmaneel 2022 *Cytometry A* 101:325 | per-channel density peaks + MAD + isolation tree | only tool validated across flow + mass + spectral; QC engine of CytoPipeline |
+| flowCut | Meskas 2023 *Cytometry A* 103:71 | segments Time, removes low-density/deviant segments | less aggressive than flowAI; flags whole files |
+| flowClean | Fletez-Brant 2016 *Cytometry A* 89:461 | tracks subset frequency in centered-log-ratio space | floor ~30,000 events; writes a "GoodVsBad" parameter to gate on |
+
+## Run flowAI (with the correct API)
+
+**Goal:** Auto-clean a sample for flow-rate, signal-acquisition, and dynamic-range anomalies.
+
+**Approach:** `flow_auto_qc()` returns a flowFrame of high-quality events when `output=1`; FM is the dynamic-range check; supply `timeCh` for concatenated/clock-reset files. flowAI is the time-based QC step - run it after compensation/transform/margin removal (per the ordering above), not on a raw uncompensated frame.
 
 ```r
 library(flowAI)
-library(flowCore)
 
-# Load FCS file
-ff <- read.FCS('sample.fcs')
-
-# Run automated QC
-# Checks: flow rate, signal stability, dynamic range
-qc_result <- flow_auto_qc(
-    ff,
-    folder_results = 'qc_output/',
-    fcs_QC = TRUE,       # Export QC'd FCS
-    html_report = TRUE,  # Generate HTML report
-    mini_report = TRUE   # Also make summary
-)
-
-# Get cleaned data
-ff_clean <- qc_result$fcs
-
-# QC metrics
-cat('Original events:', nrow(ff), '\n')
-cat('After QC:', nrow(ff_clean), '\n')
-cat('Removed:', nrow(ff) - nrow(ff_clean), '(',
-    round((1 - nrow(ff_clean)/nrow(ff)) * 100, 1), '%)\n')
+ff_clean <- flow_auto_qc(ff,
+                         remove_from = 'all',          # FR + FS + FM
+                         output = 1,                    # 1 = HQ events only; 2 = add QC param; 3 = bad-event IDs
+                         ChExcludeFS = c('FSC', 'SSC'), # scatter excluded from the signal check
+                         second_fractionFR = 0.1,
+                         folder_results = 'qc_output')
+cat('kept', nrow(ff_clean), 'of', nrow(ff), 'events\n')
 ```
 
-## Flow Rate Stability
+## Margins First, Then PeacoQC
+
+**Goal:** Remove boundary events, then clean unstable time/peak structure across all channels.
+
+**Approach:** `RemoveMargins()` strips detector-min/max events; then `PeacoQC()` - remember higher `MAD`/`IT_limit` = LESS strict.
 
 ```r
-# Check for acquisition issues via flow rate
-check_flow_rate <- function(ff, time_channel = 'Time') {
-    expr <- exprs(ff)
-    time <- expr[, time_channel]
+library(PeacoQC)
 
-    # Bin by time
-    n_bins <- 50
-    bins <- cut(time, breaks = n_bins, labels = FALSE)
-
-    # Events per bin (flow rate proxy)
-    events_per_bin <- table(bins)
-    flow_rate <- as.numeric(events_per_bin)
-
-    # Calculate metrics
-    cv <- sd(flow_rate) / mean(flow_rate) * 100
-
-    # Detect anomalies (>2 SD from mean)
-    z_scores <- abs(scale(flow_rate))
-    anomalies <- which(z_scores > 2)
-
-    list(
-        mean_rate = mean(flow_rate),
-        cv_percent = cv,
-        anomaly_bins = anomalies,
-        stable = cv < 20 && length(anomalies) < 3
-    )
-}
-
-flow_qc <- check_flow_rate(ff)
-cat('Flow rate CV:', round(flow_qc$cv_percent, 1), '%\n')
-cat('Stable:', flow_qc$stable, '\n')
+ff_nm <- RemoveMargins(ff, channels = c('FSC-A', 'SSC-A'))   # do this BEFORE density QC
+res <- PeacoQC(ff_nm, channels = marker_channels,
+               MAD = 6, IT_limit = 0.55,                     # defaults; higher = less strict (counterintuitive)
+               save_fcs = FALSE, plot = TRUE)
+ff_clean <- res$FinalFF
 ```
 
-## Signal Drift Detection
+## Dead-Cell, Drift, and CyTOF Checks
+
+**Goal:** Exclude dead cells, detect per-channel drift, and apply CyTOF-specific gates.
+
+**Approach:** Viability dye threshold (bimodal); per-time-bin median slope for drift; for CyTOF use DNA intercalator + Gaussian/event-length; EQ-bead-median-vs-Time is the primary CyTOF drift readout (see bead-normalization).
 
 ```r
-# Detect signal drift over acquisition time
-detect_signal_drift <- function(ff, channels, time_channel = 'Time') {
-    expr <- exprs(ff)
-    time <- expr[, time_channel]
+expr <- exprs(ff)
+# dead cells take up more viability dye -> cut at the bimodal density VALLEY (data-driven), not a fixed quantile
+dead_cut <- flowDensity::deGate(ff, channel = 'Live_Dead')
+live <- expr[, 'Live_Dead'] < dead_cut
 
-    n_bins <- 20
-    bins <- cut(time, breaks = n_bins, labels = FALSE)
-
-    drift_results <- lapply(channels, function(ch) {
-        bin_medians <- tapply(expr[, ch], bins, median, na.rm = TRUE)
-
-        # Linear trend
-        trend <- lm(bin_medians ~ seq_along(bin_medians))
-        slope <- coef(trend)[2]
-        r_squared <- summary(trend)$r.squared
-
-        # Percent change over acquisition
-        pct_change <- (tail(bin_medians, 1) - head(bin_medians, 1)) / head(bin_medians, 1) * 100
-
-        list(
-            channel = ch,
-            slope = slope,
-            r_squared = r_squared,
-            percent_change = pct_change,
-            drift_detected = abs(pct_change) > 10 && r_squared > 0.5
-        )
-    })
-
-    names(drift_results) <- channels
-    drift_results
+# CyTOF single-cell gates
+if ('Event_length' %in% colnames(expr)) {
+    keep <- expr[, 'Event_length'] >= 10 & expr[, 'Event_length'] <= 75   # confirm range per instrument
 }
-
-marker_channels <- c('CD45', 'CD3', 'CD4', 'CD8')
-drift <- detect_signal_drift(ff, marker_channels)
-for (ch in names(drift)) {
-    if (drift[[ch]]$drift_detected) {
-        cat('DRIFT DETECTED:', ch, '(', round(drift[[ch]]$percent_change, 1), '%)\n')
-    }
-}
+dna <- grep('Ir191|Ir193', colnames(expr), value = TRUE)             # intercalator-positive = nucleated
 ```
 
-## Margin Events Removal
+## Calibration and Standardization (cross-study comparability)
+
+A discovery analyst often skips this, but cross-experiment/cross-site MFI comparison is meaningless without it (Maecker & Trotter 2006 *Cytometry A* 69:1037):
+- **MESF / MEF / ERF** beads express intensity in molecules-of-equivalent-fluorochrome - comparable across instruments and time (NIST/ISAC standard; PE/Pacific Blue use ERF surrogates).
+- **Quantibrite PE** (defined PE molecules/bead, ~1:1 conjugation) converts MFI to antibodies-bound-per-cell / receptor density (bead values are LOT-dependent).
+- **CS&T / 8-peak rainbow beads** for daily QC (laser delay, area scaling, linearity).
+- **Peak-2 / voltration**: run a dim particle across PMT voltages, pick the CV-vs-voltage inflection = minimum voltage for optimal resolution. This is why MIFlowCyt mandates reporting voltages.
+
+## Batch-Level Outlier Flagging
+
+**Goal:** Flag samples whose event count, flow stability, or marker medians deviate from the batch.
+
+**Approach:** Per-file metrics + MAD-based bounds; track an anchor/reference sample if present.
 
 ```r
-# Remove events at detector saturation limits
-remove_margin_events <- function(ff, channels = NULL) {
-    expr <- exprs(ff)
-
-    if (is.null(channels)) {
-        channels <- colnames(expr)
-    }
-
-    # Get channel ranges from FCS parameters
-    params <- parameters(ff)
-
-    margin_mask <- rep(FALSE, nrow(expr))
-
-    for (ch in channels) {
-        if (ch %in% colnames(expr)) {
-            # Get max range from parameters
-            idx <- match(ch, params@data$name)
-            if (!is.na(idx)) {
-                max_val <- params@data$range[idx]
-                # Events at max or min are margin events
-                margin_mask <- margin_mask | (expr[, ch] >= max_val * 0.99) | (expr[, ch] <= 0)
-            }
-        }
-    }
-
-    cat('Margin events:', sum(margin_mask), '(', round(mean(margin_mask) * 100, 2), '%)\n')
-    ff[!margin_mask, ]
-}
-
-ff_no_margin <- remove_margin_events(ff, c('FSC-A', 'SSC-A'))
+qc <- do.call(rbind, lapply(fcs_files, function(f) {
+  ff <- read.FCS(f); e <- exprs(ff)
+  data.frame(file = basename(f), events = nrow(ff),
+             med_signal = median(apply(e, 2, median)))
+}))
+qc$outlier <- abs(qc$events - median(qc$events)) > 3 * mad(qc$events)
 ```
 
-## Dead Cell Exclusion
+## Per-Method Failure Modes
 
-```r
-# Exclude dead cells using viability marker
-exclude_dead_cells <- function(ff, viability_channel, threshold = NULL) {
-    expr <- exprs(ff)
-    viability <- expr[, viability_channel]
+### Density QC on un-margin-removed data
+**Trigger:** PeacoQC/flowClean before `RemoveMargins`. **Mechanism:** axis pile-ups are false high-density ridges. **Symptom:** real events removed near the boundary, or margins kept. **Fix:** remove margins first.
 
-    if (is.null(threshold)) {
-        # Auto-threshold using bimodal distribution
-        # Dead cells have higher viability dye uptake
-        threshold <- quantile(viability, 0.9)
-    }
+### flowAI over-removal
+**Trigger:** default flowAI on a low-rate or short acquisition. **Mechanism:** FR check flags normal slow segments. **Symptom:** large unexplained event loss. **Fix:** raise `second_fractionFR`; inspect the HTML report; consider flowCut/PeacoQC.
 
-    live_mask <- viability < threshold
+### QC on untransformed/uncompensated data
+**Trigger:** running QC on raw linear values. **Mechanism:** high-intensity tail dominates density. **Symptom:** misplaced anomaly calls. **Fix:** compensate + transform first.
 
-    cat('Total events:', length(live_mask), '\n')
-    cat('Live cells:', sum(live_mask), '(', round(mean(live_mask) * 100, 1), '%)\n')
-    cat('Dead cells:', sum(!live_mask), '(', round(mean(!live_mask) * 100, 1), '%)\n')
+### Time axis missing/reset
+**Trigger:** concatenated files, some sorters. **Mechanism:** no usable Time. **Symptom:** flow-rate check fails or is meaningless. **Fix:** `timeCh=` or reconstruct; otherwise skip time-based checks.
 
-    ff[live_mask, ]
-}
+## Quantitative Thresholds
 
-# Example with zombie dye
-ff_live <- exclude_dead_cells(ff, 'Zombie-Aqua')
-```
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| flowClean floor ~30,000 events | Fletez-Brant 2016 *Cytometry A* 89:461 | below this the CLR frequency tracking under-detects |
+| PeacoQC `MAD=6`, `IT_limit=0.55` | Emmaneel 2022 *Cytometry A* 101:325 | defaults; HIGHER = less strict |
+| dead cells > ~10-30% | community | sample-handling flag, not a hard cutoff - report, don't auto-exclude the sample |
+| CyTOF retune ~ daily / per long run | instrument practice (flagged) | sensitivity decays from cone fouling/plasma drift |
 
-## CyTOF-Specific QC
+## Common Errors
 
-```r
-# CyTOF-specific quality metrics
-cytof_qc <- function(ff) {
-    expr <- exprs(ff)
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `flow_auto_qc` returns unexpected object | assuming `$fcs`/report list | `output=1` returns a flowFrame; set `output` explicitly |
+| margins not removed by PeacoQC | expecting it built-in | call `RemoveMargins()` separately, first |
+| tuning MAD up removes more | sign confusion | higher MAD/IT_limit = LESS strict |
+| flowClean output unchanged | it appends a parameter | gate on the "GoodVsBad" column |
 
-    # Event length check (cell size proxy)
-    if ('Event_length' %in% colnames(expr)) {
-        event_length <- expr[, 'Event_length']
+## References
 
-        # Typical single cells: 15-45
-        good_length <- event_length >= 15 & event_length <= 45
-        cat('Event length filter:', sum(good_length), '/', length(good_length),
-            '(', round(mean(good_length) * 100, 1), '%)\n')
-    }
-
-    # DNA intercalator check (nucleated cells)
-    dna_channels <- grep('(Ir191|Ir193|DNA)', colnames(expr), value = TRUE)
-    if (length(dna_channels) > 0) {
-        dna_signal <- rowMeans(expr[, dna_channels, drop = FALSE])
-
-        # Cells should have DNA signal
-        has_dna <- dna_signal > quantile(dna_signal, 0.1)
-        cat('DNA+ events:', sum(has_dna), '(', round(mean(has_dna) * 100, 1), '%)\n')
-    }
-
-    # Gaussian parameters (if present)
-    gauss_channels <- grep('(Center|Offset|Width|Residual)', colnames(expr), value = TRUE)
-    if (length(gauss_channels) > 0) {
-        cat('Gaussian parameters available for additional QC\n')
-    }
-}
-
-cytof_qc(ff)
-```
-
-## Batch QC Summary
-
-**Goal:** Generate a per-sample QC summary table for an entire experiment batch, flagging outlier samples that may need exclusion.
-
-**Approach:** Loop through FCS files, compute event counts, flow rate CV, and median signal intensity for each, then flag samples with abnormal event counts or unstable flow rates.
-
-```r
-library(dplyr)
-
-# Generate QC summary for batch of files
-batch_qc_summary <- function(fcs_files) {
-    results <- lapply(fcs_files, function(f) {
-        ff <- read.FCS(f)
-
-        # Basic metrics
-        n_events <- nrow(ff)
-
-        # Flow rate CV
-        flow_qc <- check_flow_rate(ff)
-
-        # Signal range check
-        expr <- exprs(ff)
-        signal_channels <- grep('(FSC|SSC)', colnames(expr), value = TRUE, invert = TRUE)
-        median_signals <- apply(expr[, signal_channels, drop = FALSE], 2, median)
-
-        data.frame(
-            file = basename(f),
-            events = n_events,
-            flow_rate_cv = flow_qc$cv_percent,
-            flow_stable = flow_qc$stable,
-            median_signal = mean(median_signals, na.rm = TRUE)
-        )
-    })
-
-    summary_df <- do.call(rbind, results)
-
-    # Flag outliers
-    summary_df$outlier <- with(summary_df,
-        events < median(events) * 0.5 |
-        events > median(events) * 2 |
-        flow_rate_cv > 30
-    )
-
-    summary_df
-}
-
-# Run batch QC
-fcs_files <- list.files('data/', pattern = '\\.fcs$', full.names = TRUE)
-qc_summary <- batch_qc_summary(fcs_files)
-print(qc_summary)
-
-# Flag problematic samples
-cat('\nSamples with QC issues:\n')
-print(qc_summary[qc_summary$outlier, ])
-```
-
-## Visualization
-
-```r
-library(ggplot2)
-
-# Flow rate plot
-plot_flow_rate <- function(ff, time_channel = 'Time') {
-    expr <- exprs(ff)
-    time <- expr[, time_channel]
-
-    n_bins <- 100
-    bins <- cut(time, breaks = n_bins, labels = FALSE)
-    events_per_bin <- table(bins)
-
-    plot_data <- data.frame(
-        bin = as.numeric(names(events_per_bin)),
-        events = as.numeric(events_per_bin)
-    )
-
-    ggplot(plot_data, aes(x = bin, y = events)) +
-        geom_line() +
-        geom_smooth(method = 'loess', color = 'red', se = FALSE) +
-        theme_bw() +
-        labs(title = 'Flow Rate Over Acquisition', x = 'Time Bin', y = 'Events per Bin')
-}
-
-# Signal stability plot
-plot_signal_stability <- function(ff, channel, time_channel = 'Time') {
-    expr <- exprs(ff)
-
-    n_bins <- 50
-    bins <- cut(expr[, time_channel], breaks = n_bins, labels = FALSE)
-    bin_stats <- tapply(expr[, channel], bins, function(x) {
-        c(median = median(x), q25 = quantile(x, 0.25), q75 = quantile(x, 0.75))
-    })
-
-    plot_data <- data.frame(
-        bin = seq_along(bin_stats),
-        median = sapply(bin_stats, '[', 'median'),
-        q25 = sapply(bin_stats, '[', 'q25'),
-        q75 = sapply(bin_stats, '[', 'q75')
-    )
-
-    ggplot(plot_data, aes(x = bin)) +
-        geom_ribbon(aes(ymin = q25, ymax = q75), alpha = 0.3) +
-        geom_line(aes(y = median), color = 'blue') +
-        theme_bw() +
-        labs(title = paste('Signal Stability:', channel), x = 'Time Bin', y = 'Intensity')
-}
-
-# Generate QC plots
-p1 <- plot_flow_rate(ff)
-ggsave('qc_flow_rate.png', p1, width = 10, height = 4)
-
-p2 <- plot_signal_stability(ff, 'CD45')
-ggsave('qc_signal_stability.png', p2, width = 10, height = 4)
-```
-
-## QC Report Generation
-
-```r
-# Generate comprehensive QC report
-generate_qc_report <- function(ff, output_file = 'qc_report.txt') {
-    sink(output_file)
-
-    cat('=== FLOW CYTOMETRY QC REPORT ===\n\n')
-    cat('File:', description(ff)$`$FIL`, '\n')
-    cat('Date:', description(ff)$`$DATE`, '\n')
-    cat('Total events:', nrow(ff), '\n\n')
-
-    cat('--- Flow Rate ---\n')
-    flow_qc <- check_flow_rate(ff)
-    cat('CV:', round(flow_qc$cv_percent, 1), '%\n')
-    cat('Status:', ifelse(flow_qc$stable, 'PASS', 'FAIL'), '\n\n')
-
-    cat('--- Signal Channels ---\n')
-    expr <- exprs(ff)
-    for (ch in colnames(expr)[1:min(10, ncol(expr))]) {
-        cat(ch, ': median =', round(median(expr[, ch]), 1), '\n')
-    }
-
-    sink()
-    cat('Report saved to', output_file, '\n')
-}
-
-generate_qc_report(ff)
-```
+- Monaco 2016 *Bioinformatics* 32(16):2473-2480 — flowAI.
+- Emmaneel 2022 *Cytometry A* 101(4):325-338 — PeacoQC.
+- Meskas 2023 *Cytometry A* 103(1):71-81 — flowCut.
+- Fletez-Brant 2016 *Cytometry A* 89(5):461-471 — flowClean.
+- Fienberg 2012 *Cytometry A* 81(6):467-475 — cisplatin viability reagent (CyTOF live/dead).
+- Maecker & Trotter 2006 *Cytometry A* 69(9):1037-1042 — controls, instrument setup, peak-2.
+- Lee 2008 *Cytometry A* 73(10):926-930 — MIFlowCyt reporting (voltages, clones, config).
 
 ## Related Skills
 
-Workflow order: cytometry-qc → doublet-detection → bead-normalization → clustering
-
-- compensation-transformation - Data preprocessing before QC
-- doublet-detection - Run after QC: remove doublet events
-- bead-normalization - Run after doublet removal: correct signal drift
-- clustering-phenotyping - Analysis after all preprocessing
+- compensation-transformation - Compensate/transform before time-based QC
+- doublet-detection - Singlet discrimination after QC
+- bead-normalization - EQ-bead drift correction for CyTOF (QC's normalization arm)
+- clustering-phenotyping - Cluster only QC-passed events
+- experimental-design/batch-design - Anchor/reference-sample design for batch QC
