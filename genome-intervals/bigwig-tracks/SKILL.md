@@ -1,350 +1,223 @@
 ---
 name: bio-genome-intervals-bigwig-tracks
-description: Create and read bigWig browser tracks for visualizing continuous genomic data. Convert bedGraph to bigWig, extract signal values, and generate coverage tracks using UCSC tools and pyBigWig. Use when preparing coverage tracks for genome browsers or extracting signal at specific regions.
+description: Reads, queries, and writes bigWig indexed binary signal tracks (coverage, fold-change, conservation, methylation-rate) with pyBigWig (Python) and the UCSC Kent tools (bedGraphToBigWig, bigWigToBedGraph, bigWigInfo, bigWigSummary, bigWigAverageOverBed) and deepTools (multiBigwigSummary, computeMatrix, bigwigCompare). Covers the central trap that a wide query returns a precomputed zoom-level summary (by default the mean, which annihilates narrow peaks) not per-base data, when exact=True/values() is mandatory, the NaN-not-zero gap-handling fork, choosing mean vs max vs sum vs coverage by biological question, and the sorted-bedGraph plus chrom.sizes build requirement. Use when extracting signal at regions, computing mean signal per gene/peak, building a browser track from bedGraph, comparing tracks, or building TSS/gene-body metaprofiles.
 tool_type: mixed
 primary_tool: pyBigWig
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: bedtools 2.31+, numpy 1.26+, pandas 2.2+, samtools 1.19+
+Reference examples tested with: pyBigWig 0.3.22+, numpy 1.26+, ucsc-bedgraphtobigwig/ucsc-tools 469+, deeptools 3.5+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- CLI: `<tool> --version` (or `bigWigInfo` with no args for usage) then `<tool> --help` to confirm flags
+- Python: `pip show pyBigWig` then `help(pyBigWig.bigWigFile.stats)` to check signatures
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+Building any bigWig needs a chrom.sizes file (`name<TAB>length`) and a coordinate-sorted bedGraph; pyBigWig's numpy return path requires numpy present at compile time. If code throws an error, introspect the installed tool and adapt rather than retrying.
 
 # BigWig Tracks
 
-**"Read and create BigWig files"** -> Access indexed binary signal tracks for efficient region queries and genome browser display.
-- Python: `pyBigWig.open('file.bw')` (pyBigWig)
-- CLI: `bigWigToBedGraph`, `bedGraphToBigWig` (UCSC tools)
+**"Get the signal from my bigWig over these regions / build a browser track."** -> Query an indexed binary signal track, choosing the summary statistic and exactness that match the biological question, or build one from a sorted bedGraph + chrom.sizes.
+- CLI: `bigWigAverageOverBed in.bw regions.bed out.tab`, `bigWigSummary in.bw chr s e N -type=max`, `bedGraphToBigWig in.sorted.bedGraph chrom.sizes out.bw`, `bigWigInfo in.bw`
+- Python: `bw=pyBigWig.open('x.bw')`, `bw.stats(chr,s,e,type='max',exact=True)`, `bw.values(chr,s,e,numpy=True)`, `bw.intervals(chr,s,e)` (pyBigWig)
 
-BigWig is an indexed binary format for continuous genomic data. Efficient for genome browsers and programmatic access.
+## The Single Most Important Modern Insight -- A Wide Query Returns a Zoom-Level Summary, Not the Underlying Data
 
-## Why BigWig?
+bigWig is fast (Kent 2010) because it stores, alongside base-resolution values, a ladder of precomputed zoom levels holding per-bin sum/sumSquared/min/max/nBasesCovered. A B+ tree resolves the chromosome, an R-tree (cirTree) finds the data blocks in O(log n), per-block zlib keeps it ~10x smaller than bedGraph, and **the zoom ladder answers a wide region in near-constant time by reading a precomputed summary instead of the base data.** That speed is bought with two stacked approximations, both ON by default, and a third trap at the moment the signal is reduced to a single number:
 
-| Format | Size | Random Access | Browser Support |
-|--------|------|---------------|-----------------|
-| bedGraph | Large | No | Limited |
-| bigWig | ~10x smaller | Yes (indexed) | Excellent |
+1. **WHICH statistic.** Over one wide bin `mean` (the default) dilutes a narrow tall feature toward background: a 200 bp ChIP summit of 500 in a 1 Mb sea of 1 averages to ~1.1 -- indistinguishable from background, while `type='max'` returns 500. **Same file, same coordinates, opposite conclusions, decided by the named statistic.** `mean` is faithful for broad features (domains, gene-body coverage) and a lie for narrow ones. `max`=peak height, `sum`=total amount (scales with width), `coverage`=fraction of bases with any data (ignores magnitude), `std`=variability.
+2. **WHERE the number comes from.** `exact=False` (the pyBigWig default, and what `bigWigSummary` and every zoomed-out browser do) computes from the nearest zoom level, not base data. Fine for exploration and broad features; **`exact=True` (or `values()`) is mandatory whenever a number enters a result** -- a per-region average in a table, a threshold call, anything a reviewer recomputes. Plausible-but-zoom-approximated is the worst failure: it does not error, it rounds the biology.
+3. **NaN is NOT zero.** Uncovered positions are no-data, surfaced as `NaN` in `values()` and as gaps between `intervals()` runs -- never 0. On a region 30% covered at signal 10: `np.mean` -> **NaN** (poisons), `np.nanmean` -> **10** (covered-only, = `bigWigAverageOverBed` `mean` column), gaps-as-zero (`np.nan_to_num().mean()`, deepTools `--missingDataAsZero`, the `mean0` column) -> **3.0**. A >3x swing in the headline number, and which is correct is **biological**: coverage/read-depth tracks -> gaps are zero (`mean0`); rate/ratio tracks (methylation %, log2FC, conservation) -> gaps are undefined (`mean`/`nanmean`).
 
-## Convert bedGraph to bigWig (CLI)
+Name the biological question first; the statistic, the `exact` flag, and the gap-handling then follow deterministically. Left on default, all three conspire to hand back a fast, confident, wrong answer.
 
-### Installation
+## Tool Taxonomy
 
-```bash
-# UCSC tools
-conda install -c bioconda ucsc-bedgraphtobigwig ucsc-bigwigtobedgraph
+| Tool | Role | Mechanism | When |
+|------|------|-----------|------|
+| pyBigWig | Python read/write | C-extension over libBigWig; `stats`/`values`/`intervals`/`addEntries` | inside a Python pipeline; custom per-region extraction; writing a bigWig |
+| bigWigAverageOverBed | mean signal per BED region | one row per feature; `name,size,covered,sum,mean0,mean` | the right tool for "average signal per gene/peak"; gives both mean0 and mean |
+| bigWigSummary | region -> N equal bins | reads zoom levels (like `exact=False`); `-type=mean/min/max/std/coverage` | quick binned profile at the command line |
+| bigWigInfo | header/stats sanity check | version, zoom-level count, basesCovered, min/max/mean without parsing data | first thing to run on an unfamiliar file |
+| bedGraphToBigWig / wigToBigWig | build bigWig | needs sorted input + chrom.sizes | converting a coverage bedGraph/WIG to a track |
+| bigWigToBedGraph / bigWigToWig | bigWig -> text | `-chrom/-start/-end` for a sub-region | exact arithmetic; inspecting values as text |
+| multiBigwigSummary | score matrix across many bigWigs | mean per bin over genome `bins` or a `BED-file` | track correlation/PCA (-> `plotCorrelation`/`plotPCA`) |
+| computeMatrix | signal across many regions | `reference-point` (TSS/peak center) or `scale-regions` (gene body) | metaprofiles/heatmaps (-> `plotHeatmap`/`plotProfile`) |
+| bigwigCompare | combine two bigWigs bin-by-bin | `--operation log2/ratio/subtract/...` `--pseudocount` | a log2(IP/input) or (treat-control) track |
 
-# Or download directly
-wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bedGraphToBigWig
-chmod +x bedGraphToBigWig
-```
+## Decision Tree by Scenario
 
-### Basic Conversion
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Mean signal per gene/peak (one number per BED row) | `bigWigAverageOverBed` | purpose-built; pick `mean` (covered-only) vs `mean0` (gaps as zero) deliberately |
+| Peak height / "is there a binding event here?" | `stats(type='max')` or `bigWigSummary -type=max` | `mean` dilutes a narrow peak to background |
+| Total signal over an exon/gene (an amount) | `stats(type='sum')` or the `sum` column | extensive quantity; do not use `mean` for a total |
+| A number going into a table/threshold | `stats(..., exact=True)` or `values()` | the default `exact=False` reads zoom levels, not base data |
+| Per-base values for plotting/analysis | `values(numpy=True)` | one number per base; `nan` for gaps -> `np.nanmean`, never `np.mean` |
+| "Is this region even assayed/mappable?" | `stats(type='coverage')` | fraction with data; a different axis from magnitude |
+| Compare many tracks (correlation/PCA) | `multiBigwigSummary` -> `plotCorrelation`/`plotPCA` | mean per bin; bin size matters |
+| Metaprofile/heatmap over TSS or gene bodies | `computeMatrix reference-point`/`scale-regions` -> `plotHeatmap`/`plotProfile` | match anchored-point vs whole-body mode |
+| A ratio/difference track | `bigwigCompare --operation log2 --pseudocount` | pseudocount only meaningful for log2/ratio |
+| Build a normalized coverage track from a BAM | -> chip-seq/chipseq-visualization or atac-seq/footprinting (deepTools `bamCoverage`) | generation is upstream; library-size normalization lives there |
+| Render the track in a browser figure | -> data-visualization/genome-tracks | pyGenomeTracks/IGV; zoom-out IS the summary trap made visual |
+| Discrete features (peaks/genes), not signal | bigBed, not bigWig | continuous-vs-interval; one interval per base defeats the format |
 
-```bash
-# Sort bedGraph first (required)
-sort -k1,1 -k2,2n coverage.bedGraph > coverage.sorted.bedGraph
-
-# Convert to bigWig
-bedGraphToBigWig coverage.sorted.bedGraph chrom.sizes output.bw
-
-# chrom.sizes format: chr<TAB>size
-# chr1	248956422
-# chr2	242193529
-```
-
-### Get Chromosome Sizes
-
-```bash
-# From FASTA index
-cut -f1,2 reference.fa.fai > chrom.sizes
-
-# Download from UCSC
-wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes
-
-# From BAM header
-samtools view -H alignments.bam | grep @SQ | sed 's/@SQ\tSN:\|LN://g' > chrom.sizes
-```
-
-### Full Workflow
+## Inspect a File Before Trusting It
 
 ```bash
-# Generate bedGraph from BAM
-bedtools genomecov -ibam alignments.bam -bg > coverage.bedGraph
-
-# Sort bedGraph
-sort -k1,1 -k2,2n coverage.bedGraph > coverage.sorted.bedGraph
-
-# Convert to bigWig
-bedGraphToBigWig coverage.sorted.bedGraph hg38.chrom.sizes coverage.bw
-
-# Clean up intermediate files
-rm coverage.bedGraph coverage.sorted.bedGraph
+bigWigInfo coverage.bw                  # version, # zoom levels, basesCovered, min/max/mean/std
+bigWigInfo -chroms coverage.bw          # chrom names + lengths (the file carries its own chrom list)
 ```
 
-## Read BigWig with pyBigWig (Python)
+A zero or low zoom-level count means a zoomed-out browser will read base data slowly (or, with `maxZooms=0`, IGV breaks). `basesCovered` far below the genome size means most positions are no-data (NaN), which makes the `mean`-vs-`mean0` choice below load-bearing.
 
-### Installation
+## Mean Signal per Region (the most common task)
+
+**Goal:** Compute one signal number per gene/peak, choosing covered-only vs gaps-as-zero by the track's biology.
+
+**Approach:** Use the purpose-built `bigWigAverageOverBed` (BED needs a unique name column) and read the right output column -- `mean` (covered bases only) for rate/ratio tracks, `mean0` (uncovered counted as zero) for coverage/depth tracks.
 
 ```bash
-pip install pyBigWig
+# BED4+ with a UNIQUE name in column 4; output columns: name size covered sum mean0 mean
+bigWigAverageOverBed coverage.bw genes.bed signal_per_gene.tab
+# -> read $6 (mean, covered-only) for methylation/log2FC; $5 (mean0, gaps=0) for read depth
 ```
 
-### Open and Inspect
+The pyBigWig equivalent, when the extraction is inside a Python pipeline -- note `exact=True` because these numbers enter a result, and an explicit gap decision:
 
 ```python
 import pyBigWig
-
-# Open file
-bw = pyBigWig.open('coverage.bw')
-
-# File info
-print(f'Chromosomes: {bw.chroms()}')
-print(f'Header: {bw.header()}')
-
-# Check if file is bigWig (not bigBed)
-print(f'Is bigWig: {bw.isBigWig()}')
-
-# Close when done
-bw.close()
-```
-
-### Extract Values
-
-```python
-import pyBigWig
+import numpy as np
 
 bw = pyBigWig.open('coverage.bw')
+GAPS_ARE_ZERO = False   # True for read-depth/coverage tracks; False for rate/ratio (methylation, log2FC)
 
-# Get values for a region (returns numpy array)
-values = bw.values('chr1', 1000000, 1001000)
-print(f'Mean: {values.mean():.2f}')
-print(f'Max: {values.max():.2f}')
-
-# Get specific intervals with values
-intervals = bw.intervals('chr1', 1000000, 1001000)
-# Returns: [(start, end, value), ...]
-for start, end, val in intervals:
-    print(f'{start}-{end}: {val}')
-
-# Statistics for region
-stats = bw.stats('chr1', 1000000, 1001000, type='mean')
-print(f'Mean coverage: {stats[0]:.2f}')
-
-# Available stat types: mean, min, max, coverage, std, sum
-max_val = bw.stats('chr1', 1000000, 1001000, type='max')
-coverage = bw.stats('chr1', 1000000, 1001000, type='coverage')
-
-bw.close()
+def region_signal(chrom, start, end):
+    v = bw.values(chrom, start, end, numpy=True)                         # per-base, nan for gaps
+    if GAPS_ARE_ZERO:
+        return float(np.nan_to_num(v).mean())                           # mean0: gaps counted as 0 (= bigWigAverageOverBed mean0)
+    return np.nanmean(v) if not np.all(np.isnan(v)) else float('nan')    # covered-only (= bigWigAverageOverBed mean); stats(type='mean') is also covered-only, NOT mean0
 ```
 
-### Binned Statistics
+## Peak Height vs Total vs Coverage (statistic = question)
 
 ```python
 import pyBigWig
+bw = pyBigWig.open('chip.bw')
+region = ('chr1', 1_000_000, 2_000_000)
 
+peak  = bw.stats(*region, type='max', exact=True)[0]        # binding-event height; mean would dilute it
+total = bw.stats(*region, type='sum', exact=True)[0]        # total signal (amount; scales with width)
+assayed = bw.stats(*region, type='coverage', exact=True)[0] # FRACTION of bases with any data (0..1), ignores magnitude
+profile = bw.stats(*region, type='max', nBins=1000)         # 1000-bin max profile; nBins keeps narrow features visible
+```
+
+`stats()` returns a list of length `nBins` (default 1). `type` is one of `mean`(default)/`max`/`min`/`coverage`/`std`/`sum`. Use `max` with `nBins>1` to see narrow features across a wide window; a single-bin `mean` over a megabase buries every peak.
+
+## Per-Base Values (NaN is not zero)
+
+```python
+import pyBigWig
+import numpy as np
 bw = pyBigWig.open('coverage.bw')
 
-# Get mean values in 100bp bins across region
-region_start, region_end = 1000000, 2000000
-n_bins = 1000  # 100bp bins
-
-binned = bw.stats('chr1', region_start, region_end, type='mean', nBins=n_bins)
-# Returns list of n_bins values
-
+v = bw.values('chr1', 1_000_000, 1_001_000, numpy=True)   # list by default; numpy=True -> ndarray, nan for gaps
+covered_mean = np.nanmean(v)                               # ignores gaps (= bigWigAverageOverBed mean)
+depth_mean = np.nan_to_num(v).mean()                       # gaps counted as zero (= mean0); only for depth tracks
+raw = bw.intervals('chr1', 1_000_000, 1_001_000)          # [(start,end,value),...] the unresampled stored runs
 bw.close()
 ```
 
-### Extract for BED Regions
+## Build a Valid bigWig
 
-**Goal:** Extract mean bigWig signal values for a set of genomic regions defined in a BED file.
+**Goal:** Turn a coverage bedGraph into an indexed, browser-ready bigWig.
 
-**Approach:** Open the bigWig file with pyBigWig, iterate through BED intervals, query the mean signal per region, and collect results into a pandas DataFrame.
+**Approach:** Coordinate-sort the bedGraph, supply a chrom.sizes whose names and lengths match the bedGraph exactly, and run `bedGraphToBigWig` (which builds the index + zoom levels).
+
+```bash
+sort -k1,1 -k2,2n coverage.bedGraph > coverage.sorted.bedGraph   # bedGraphToBigWig REQUIRES sorted, non-overlapping input
+cut -f1,2 reference.fa.fai > chrom.sizes                          # or fetchChromSizes hg38 > chrom.sizes
+bedGraphToBigWig coverage.sorted.bedGraph chrom.sizes coverage.bw
+```
+
+Writing directly with pyBigWig -- `addHeader` (ordered chrom list) MUST precede `addEntries`, and entries must be added in sorted (chrom, start) order matching the header:
 
 ```python
 import pyBigWig
-import pybedtools
-
-bw = pyBigWig.open('coverage.bw')
-bed = pybedtools.BedTool('regions.bed')
-
-# Get mean signal per region
-results = []
-for interval in bed:
-    chrom, start, end = interval.chrom, interval.start, interval.end
-    mean_signal = bw.stats(chrom, start, end, type='mean')[0]
-    results.append({
-        'chrom': chrom,
-        'start': start,
-        'end': end,
-        'name': interval.name,
-        'signal': mean_signal if mean_signal else 0
-    })
-
-bw.close()
-
-# Convert to DataFrame
-import pandas as pd
-df = pd.DataFrame(results)
-print(df)
+bw = pyBigWig.open('out.bw', 'w')
+bw.addHeader([('chr1', 248956422)])   # ordered (name,length); maxZooms default 10; maxZooms=0 disables zoom and breaks IGV
+bw.addEntries(['chr1'], [0], ends=[100], values=[1.5])           # mode (a) variable intervals
+# mode (b) variableStep: bw.addEntries('chr1', [0,100], values=[1.5,2.3], span=20)
+# mode (c) fixedStep:    bw.addEntries('chr1', 0, values=[1.5,2.3], span=20, step=30)
+bw.close()                            # close() builds the R-tree index + zoom ladder
 ```
 
-## Create BigWig with pyBigWig
-
-```python
-import pyBigWig
-
-# Create new bigWig
-bw = pyBigWig.open('output.bw', 'w')
-
-# Add header (chromosome sizes)
-bw.addHeader([('chr1', 248956422), ('chr2', 242193529)])
-
-# Add entries (must be sorted by position)
-# Method 1: Individual entries
-bw.addEntries(['chr1', 'chr1'], [0, 100], ends=[100, 200], values=[1.5, 2.3])
-
-# Method 2: Chromosome at a time (more efficient)
-bw.addEntries('chr1', [0, 100, 200], ends=[100, 200, 300], values=[1.5, 2.3, 3.1])
-
-# Method 3: Fixed-width spans (most efficient for dense data)
-bw.addEntries('chr2', 0, values=[1.0, 2.0, 3.0, 4.0], span=100, step=100)
-# Creates: chr2:0-100=1.0, chr2:100-200=2.0, chr2:200-300=3.0, chr2:300-400=4.0
-
-bw.close()
-```
-
-## deepTools for BigWig Operations
-
-### Installation
+## Compare and Profile Tracks (deepTools)
 
 ```bash
-conda install -c bioconda deeptools
-```
-
-### Generate Normalized BigWig from BAM
-
-```bash
-# RPKM normalization
-bamCoverage -b alignments.bam -o coverage.bw --normalizeUsing RPKM
-
-# CPM normalization
-bamCoverage -b alignments.bam -o coverage.bw --normalizeUsing CPM
-
-# BPM (bins per million) - like TPM for ChIP-seq
-bamCoverage -b alignments.bam -o coverage.bw --normalizeUsing BPM
-
-# With bin size and smoothing
-bamCoverage -b alignments.bam -o coverage.bw \
-    --binSize 10 \
-    --normalizeUsing CPM \
-    --smoothLength 30
-
-# Extend reads to fragment length
-bamCoverage -b alignments.bam -o coverage.bw \
-    --extendReads 200 \
-    --normalizeUsing CPM
-```
-
-### Compare BigWig Files
-
-```bash
-# Log2 ratio of two bigWig files
-bigwigCompare -b1 treatment.bw -b2 control.bw -o log2ratio.bw --ratio log2
-
-# Subtract
-bigwigCompare -b1 treatment.bw -b2 control.bw -o diff.bw --ratio subtract
-
-# Mean of multiple files
-bigwigAverage -b file1.bw file2.bw file3.bw -o average.bw
-```
-
-### Summarize BigWig Over Regions
-
-```bash
-# Matrix for heatmap (signal around regions)
-computeMatrix reference-point -S signal.bw -R regions.bed \
-    -b 2000 -a 2000 -o matrix.gz
-
-# Plot heatmap
+bigwigCompare -b1 treat.bw -b2 control.bw -o log2ratio.bw --operation log2 --pseudocount 1   # NOT --ratio (older flag name)
+multiBigwigSummary BED-file -b a.bw b.bw -o scores.npz --BED regions.bed                      # then plotCorrelation/plotPCA
+computeMatrix reference-point -S signal.bw -R tss.bed -b 2000 -a 2000 -o matrix.gz            # anchored on TSS
 plotHeatmap -m matrix.gz -o heatmap.png
-
-# Summary statistics per region
-multiBigwigSummary BED-file -b sample1.bw sample2.bw -o results.npz --BED regions.bed
 ```
 
-## Convert BigWig to bedGraph
+Both `bigwigCompare` and `multiBigwigSummary` use mean-per-bin, so the zoom-level dilution caveat above applies; `computeMatrix --missingDataAsZero` is the same NaN-vs-zero fork inside deepTools.
 
-```bash
-# Using UCSC tool
-bigWigToBedGraph input.bw output.bedGraph
+## Per-Method Failure Modes
 
-# Extract specific region
-bigWigToBedGraph input.bw output.bedGraph -chrom=chr1 -start=1000000 -end=2000000
-```
+### Wide mean read as the peak
+**Trigger:** `bw.stats(chrom, start, end)` (default `type='mean'`) over a region wide relative to the feature. **Mechanism:** the mean dilutes a narrow tall peak toward background. **Symptom:** "no signal here" that a browser zoom-in contradicts. **Fix:** use `type='max'` (or `nBins>1`, or `values()`) for narrow features.
 
-## Common Patterns
+### exact=False leaks zoom approximations into a result
+**Trigger:** shipping default-`exact` `stats()` numbers into a table/threshold. **Mechanism:** the value is computed from the nearest zoom level, not base data, at up to 16x coarser granularity. **Symptom:** plausible numbers a reviewer cannot reproduce. **Fix:** pass `exact=True` (or use `values()`/`bigWigAverageOverBed`) whenever a number enters a result.
 
-### ChIP-seq Signal Track
+### Averaging NaN as zero (or poisoning to NaN)
+**Trigger:** `np.mean(bw.values(...))` over a track with gaps, or `mean0` on a rate track. **Mechanism:** `np.mean` poisons to NaN; `nan_to_num`/`mean0`/`--missingDataAsZero` averages real gaps as zeros. **Symptom:** a >3x swing or a NaN where a number was expected. **Fix:** decide biologically -- coverage track -> `mean0`/zero; rate/ratio track -> `mean`/`np.nanmean`.
 
-```bash
-# Generate normalized track
-bamCoverage -b chip.bam -o chip.bw \
-    --normalizeUsing CPM \
-    --extendReads 200 \
-    --binSize 10
+### addEntries before addHeader (or out of order)
+**Trigger:** writing entries before the header, or in non-sorted order. **Mechanism:** the chrom list and offsets must exist and be ordered before data is appended. **Symptom:** runtime error or a corrupt file. **Fix:** `addHeader([(chrom,length),...])` first, add entries in (chrom, start) order matching the header; `close()` to finalize.
 
-# Generate input-subtracted track
-bigwigCompare -b1 chip.bw -b2 input.bw -o chip_minus_input.bw --ratio subtract
-```
+### chrom.sizes / naming mismatch on build
+**Trigger:** `bedGraphToBigWig` with a chrom.sizes from a different assembly or naming (`chr1` vs `1`). **Mechanism:** the builder validates intervals against chrom lengths. **Symptom:** `chromosome not found`, or silently dropped/truncated intervals. **Fix:** derive chrom.sizes from the same reference (`cut -f1,2 ref.fa.fai`); harmonize naming; sort first.
 
-### RNA-seq Coverage
+### Forcing peaks into a bigWig (or dense signal into bigBed)
+**Trigger:** storing called peaks as a bigWig. **Mechanism:** bigWig is continuous signal; discrete features with per-feature metadata belong in bigBed. **Symptom:** lost boundaries/names, or an enormous one-interval-per-base file. **Fix:** signal -> bigWig; intervals/features -> bigBed.
 
-```bash
-# Strand-specific coverage
-bamCoverage -b rnaseq.bam -o forward.bw --filterRNAstrand forward
-bamCoverage -b rnaseq.bam -o reverse.bw --filterRNAstrand reverse
-```
+## Quantitative Thresholds
 
-### Extract Signal for Analysis
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| `exact=True` when a number enters a result | pyBigWig design | default `exact=False` reads zoom levels (up to ~16x coarser than data); fine for exploration only |
+| Zoom ladder: smallest bin ~16x mean interval size, each level 4x the previous | Kent 2010 convention | the resolution at which a wide query is answered; `bigWigInfo -zooms` shows the actual levels |
+| Index < ~1% of data; ~10x smaller than bedGraph | Kent 2010 | order-of-magnitude; exact ratio is data-dependent (sparse vs dense) |
+| bedGraph must be sorted `-k1,1 -k2,2n`, non-overlapping | bedGraphToBigWig requirement | signal is a function (one value per base); unsorted/overlapping input errors out |
+| computeMatrix flank `-b/-a` 2000-3000 bp at TSS | metaprofile convention | captures promoter-proximal signal; widen for distal features; state the value used |
+| bin size (e.g. 10-50 bp) | resolution vs file size | finer bins preserve narrow features but enlarge the file; state the bin when reading values back |
 
-```python
-import pyBigWig
-import pandas as pd
+## Common Errors
 
-def extract_signal(bw_path, bed_path, stat='mean'):
-    '''Extract bigWig signal for BED regions.'''
-    import pybedtools
-    bw = pyBigWig.open(bw_path)
-    bed = pybedtools.BedTool(bed_path)
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Region reads flat but browser shows a peak | wide `mean` query diluted the peak | use `type='max'`, more bins, or zoom to feature resolution |
+| Per-region numbers a reviewer cannot reproduce | `exact=False` zoom approximation | re-extract with `exact=True` / `bigWigAverageOverBed` |
+| `np.mean` returns NaN | gaps in the track (NaN, not 0) | `np.nanmean`, or `np.nan_to_num` if gaps are biologically zero |
+| `mean` and `mean0` differ a lot in `bigWigAverageOverBed` | track is sparsely covered | pick the column by biology (depth -> mean0; rate -> mean) |
+| `bedGraphToBigWig` errors / drops intervals | unsorted input or chrom-name/length mismatch | `sort -k1,1 -k2,2n`; match chrom.sizes to the reference |
+| IGV will not render zoom-out | bigWig built with `maxZooms=0` | rebuild with zoom levels (default 10) |
+| `bigwigCompare` rejects `--ratio` | flag renamed | use `--operation log2` |
 
-    results = []
-    for interval in bed:
-        val = bw.stats(interval.chrom, interval.start, interval.end, type=stat)[0]
-        results.append({
-            'chrom': interval.chrom,
-            'start': interval.start,
-            'end': interval.end,
-            'name': interval.name if interval.name else '.',
-            'signal': val if val is not None else 0
-        })
+## References
 
-    bw.close()
-    return pd.DataFrame(results)
-
-# Usage
-df = extract_signal('coverage.bw', 'peaks.bed', stat='mean')
-print(df)
-```
+- Kent WJ, Zweig AS, Barber G, Hinrichs AS, Karolchik D. 2010. BigWig and BigBed: enabling browsing of large distributed datasets. *Bioinformatics* 26:2204-2207.
+- Ramirez F, Ryan DP, Gruning B, Bhardwaj V, Kilpert F, Richter AS, Heyne S, Dundar F, Manke T. 2016. deepTools2: a next generation web server for deep-sequencing data analysis. *Nucleic Acids Res* 44:W160-W165.
+- pyBigWig (Devon Ryan / deepTools project) - C-extension wrapping libBigWig; no journal paper, see https://github.com/deeptools/pyBigWig
+- UCSC Kent utilities (bedGraphToBigWig, bigWigInfo, bigWigSummary, bigWigAverageOverBed) - https://github.com/ucscGenomeBrowser/kent; cite Kent 2010 for the format.
 
 ## Related Skills
 
-- coverage-analysis - Generate bedGraph input
-- chip-seq/chipseq-visualization - ChIP-seq signal tracks
-- alignment-files/bam-statistics - BAM to coverage
-- interval-arithmetic - Region operations
+- bedgraph-handling - The text bedGraph this skill converts to/from, and exact-arithmetic alternative
+- coverage-analysis - Generates the per-base depth/bedGraph that becomes a bigWig
+- bed-file-basics - The region BED files passed to bigWigAverageOverBed/computeMatrix
+- chip-seq/chipseq-visualization - Generates normalized tracks (bamCoverage) and renders computeMatrix metaprofiles
+- atac-seq/footprinting - Consumes bigWig signal over motif sites
+- data-visualization/genome-tracks - Renders the bigWig in a browser figure (where zoom-out is the summary trap made visual)

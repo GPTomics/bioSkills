@@ -435,4 +435,4 @@ fi
 - genome-annotation/ncrna-annotation - Infernal/Rfam and tRNAscan-SE detail
 - genome-annotation/annotation-qc - BUSCO genome-vs-proteome, OMArk, CheckM2 gates
 - genome-assembly/assembly-qc - Pre-annotation assembly quality checks
-- genome-intervals/gtf-gff-handling - GFF3/GTF parsing and manipulation
+- genome-intervals/gtf-gff-handling - GFF3/GTF hierarchy traversal, AGAT sanitizing/validation, coordinate conversion, and seqid-consistency checks on the merged annotation

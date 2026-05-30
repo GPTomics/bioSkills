@@ -1,336 +1,194 @@
 ---
 name: bio-genome-intervals-proximity-operations
-description: Find nearest features, search within windows, and extend intervals using closest, window, flank, and slop operations. Use when performing TSS proximity analysis, assigning enhancers to genes, defining promoter regions, or finding nearby genomic features.
+description: Performs proximity operations on genomic intervals with bedtools (closest, window, flank, slop) and pybedtools - nearest-feature queries with signed/strand-aware distance, fixed-radius window searches, strand-aware promoter construction, and interval extension. Covers the closest -d/-D a/b/ref/-t/-k/-io/-iu/-id flags, the -D ref strand sign-flip, silent chromosome-end clipping in slop/flank, -t all tie double-counting, and the critical distinction between a geometry answer (nearest TSS) and a biology answer (which gene an element regulates). Use when assigning peaks or variants to genes, defining promoters from a gene model, building distance-to-TSS distributions, finding features within a window, or extending intervals - and when deciding whether nearest-gene is a fair prior (GWAS locus) or a trap (distal enhancer).
 tool_type: mixed
 primary_tool: bedtools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: bedtools 2.31+
+Reference examples tested with: bedtools 2.31+, pybedtools 0.10+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- CLI: `bedtools --version` then `bedtools <subcommand> --help` to confirm flags
+- Python: `pip show pybedtools` then `help(pybedtools.BedTool.closest)` to check signatures
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+`flank` and `slop` REQUIRE a chrom-sizes (`genome.txt`, two columns: chrom<TAB>length) file via `-g`; `closest` requires both inputs coordinate-sorted (`sort -k1,1 -k2,2n`). If code throws an error, introspect the installed tool and adapt rather than retrying.
 
 # Proximity Operations
 
-**"Find nearest features or extend intervals"** -> Identify the closest genomic feature to each interval, or expand intervals by a fixed flank size.
-- CLI: `bedtools closest -a peaks.bed -b genes.bed`, `bedtools slop -b 1000`
-- Python: `a.closest(b)`, `a.slop(b=1000, g=genome)` (pybedtools)
+**"Which gene is nearest to each peak, and is that the gene it regulates?"** -> Compute interval geometry (nearest feature, signed distance, window membership, strand-aware promoters) with bedtools, then decide honestly whether geometry answers the biological question.
+- CLI: `bedtools closest -D b -t first -a peaks.bed -b genes.bed`, `bedtools window -w 50000`, `bedtools slop -s -l 2000 -r 200 -g genome.txt`
+- Python: `peaks.closest(genes.sort(), D='b', t='first')`, `peaks.window(genes, w=50000)`, `tss.slop(g='genome.txt', s=True, l=2000, r=200)` (pybedtools)
 
-Operations for finding nearby features and extending intervals using bedtools and pybedtools.
+## The Single Most Important Modern Insight -- closest Answers a GEOMETRY Question Misread as a BIOLOGY Question
 
-## Closest - Find Nearest Feature
+`bedtools closest` answers "what is the nearest annotated TSS?" - a coordinate fact. The user almost always wants "which gene does this element regulate?" - a biology claim. For distal regulatory elements these disagree the **majority of the time**. In the CRISPRi-FlowFISH gold standard (Fulco 2019 *Nat Genet* 51:1664), assigning each tested distal element to the **closest expressed gene gave only ~47% precision and ~37% recall** - the nearest gene was the wrong target most of the time, and the method missed nearly two-thirds of real links. Enhancers routinely skip intervening genes: the canonical case is the obesity-associated *FTO* intron regulating **IRX3 ~500 kb away**, not *FTO* (Smemo 2014 *Nature* 507:371). Do the bedtools arithmetic flawlessly here, then route real enhancer->gene linking to activity/contact/QTL methods (ABC: Fulco 2019, Nasser 2021; PCHi-C; eQTL-coloc) at atac-seq/enhancer-gene-linking - never present "nearest gene" as a regulatory call for a distal element.
 
-### CLI
+The deeper twist - **two regimes, opposite advice, identical command:**
+- **Enhancer -> target (closest is a TRAP).** Distal ATAC/H3K27ac peaks, enhancer GWAS variants: nearest gene is wrong most of the time. Use as a candidate generator, validate with ABC/PCHi-C/eQTL.
+- **GWAS locus -> gene (closest is a fair PRIOR).** For a fine-mapped, colocalized credible-set SNP, the nearest **protein-coding** gene is right ~50-65% of the time - a strong, hard-to-beat baseline for which gene a locus implicates. Route to causal-genomics for the rigorous version, but nearest-coding-gene is a defensible first pass.
+
+Conflating the two regimes is the real error. The discriminator: is the question the *target of an enhancer* (distrust nearest) or *the gene under a GWAS peak* (nearest is a fine first pass)?
+
+## Operation Taxonomy
+
+| Operation | What it computes | Strand-aware? | Needs genome file? |
+|-----------|------------------|---------------|--------------------|
+| closest | For each A, the nearest B (+ optional signed distance) | optional (`-s`/`-S`, `-D a`/`-D b`) | no |
+| window | For each A, all B within +-W bp (fuzzy intersect) | optional (`-sw`/`-sm`/`-Sm`) | no |
+| slop | Grow each interval by N bp, keeping it one feature | optional (`-s`) | yes (`-g`) |
+| flank | Emit the regions BESIDE each interval, dropping the body | optional (`-s`) | yes (`-g`) |
+
+`closest`/`window` are queries (A vs B); `slop`/`flank` are transforms (A only, + genome file). The slop-vs-flank distinction trips people: `slop -b 1000` makes a peak 2 kb wider (one feature); `flank -b 1000` returns only the left/right neighboring 1 kb regions and discards the peak itself (two features). `window -w 0` is approximately `intersect`.
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Nearest gene to a promoter-proximal mark (H3K4me3, Pol II, CAGE) | `closest -D b -io -t first` | the peak really is at the gene it marks; closest is honest here |
+| Distal enhancer / ATAC peak -> which gene? | `closest`/`window` as candidates, then -> atac-seq/enhancer-gene-linking | nearest is wrong the majority of the time (ABC/PCHi-C/eQTL link it) |
+| GWAS credible-set SNP -> implicated gene | `closest` to nearest **protein-coding** gene, then -> causal-genomics/colocalization-analysis | nearest-coding-gene is a ~50-65% prior; a fair first pass |
+| All candidate genes near an element | `window -w 50000` (or TAD-scale) | honest "candidate set", not a single call |
+| Build promoters from a gene model | collapse to TSS, then `slop -s -l UP -r DOWN -g` | a promoter is an imposed definition, strand-aware, from the TSS |
+| Distance-to-TSS distribution | `closest -D b -d` then plot signed distance | a distribution beats a binary "promoter vs distal" threshold |
+| Upstream-only / downstream-only nearest | `closest -D b -iu` / `-id` | direction must be strand-relative (`-D b`), never `-D ref` |
+| Peak-set GO enrichment from proximity | -> GREAT/rGREAT (regulatory-domain model) | avoids the `-t all` double-counting and distal mis-assignment |
+| Regions flanking a feature (splice/boundary context) | `flank -s -b N -g` | the regions outside the feature, strand-aware |
+| Peaks not yet called | -> chip-seq/peak-calling, atac-seq/atac-peak-calling | this skill operates on existing intervals |
+
+## closest - Nearest Feature with Signed, Strand-Aware Distance
+
+Default: for each A, report the single nearest B; **on ties, report ALL tied B** (`-t all` is the default - the double-counting trap below). Both inputs must be sorted. When A's chromosome has no B feature, bedtools prints `none` for B columns and **`-1`** for distance - filter this sentinel before any numeric summary.
 
 ```bash
-# Find nearest gene to each peak
-bedtools closest -a peaks.bed -b genes.bed > peaks_with_nearest.bed
+# Nearest gene, signed distance by the GENE's strand, ignore overlaps, one row per peak
+bedtools sort -i peaks.bed > peaks.sorted.bed
+bedtools sort -i genes.bed  > genes.sorted.bed
+bedtools closest -a peaks.sorted.bed -b genes.sorted.bed -D b -io -t first > nearest.bed
+#                                                         ^^^^ sign by gene strand (biology, not coordinates)
+#                                                              ^^^ closest non-overlapping gene
+#                                                                  ^^^^^^^^ resolve ties deterministically (document this)
 
-# Report distance to nearest feature
-bedtools closest -a peaks.bed -b genes.bed -d > with_distance.bed
-
-# Ignore overlapping features (find next nearest)
-bedtools closest -a peaks.bed -b genes.bed -io > nearest_non_overlap.bed
-
-# Ignore features on different strands
-bedtools closest -a peaks.bed -b genes.bed -s > same_strand.bed
-
-# Ignore features on same strand (opposite strand only)
-bedtools closest -a peaks.bed -b genes.bed -S > opposite_strand.bed
-
-# Only upstream features (5' direction relative to A strand)
-bedtools closest -a peaks.bed -b genes.bed -D a -iu > upstream_only.bed
-
-# Only downstream features
-bedtools closest -a peaks.bed -b genes.bed -D a -id > downstream_only.bed
-
-# Report multiple ties
-bedtools closest -a peaks.bed -b genes.bed -t all > all_ties.bed
-
-# First tie only
-bedtools closest -a peaks.bed -b genes.bed -t first > first_tie.bed
+# k=3 nearest with unsigned distance (k>1 intentionally multiplies rows)
+bedtools closest -a peaks.sorted.bed -b genes.sorted.bed -k 3 -d > top3.bed
 ```
-
-### Python
 
 ```python
 import pybedtools
 
-a = pybedtools.BedTool('peaks.bed')
-b = pybedtools.BedTool('genes.bed')
-
-# Basic closest
-result = a.closest(b)
-
-# With distance
-result = a.closest(b, d=True)
-
-# Ignore overlaps
-result = a.closest(b, io=True)
-
-# Same strand only
-result = a.closest(b, s=True)
-
-# Report all ties
-result = a.closest(b, t='all')
-
-result.saveas('closest.bed')
+peaks = pybedtools.BedTool('peaks.bed').sort()
+genes = pybedtools.BedTool('genes.bed').sort()
+near = peaks.closest(genes, D='b', io=True, t='first')      # -D b -io -t first
+near = near.filter(lambda x: int(x.fields[-1]) != -1)        # drop the no-feature sentinel
+near.saveas('nearest.bed')
 ```
 
-## Window - Find Features Within Distance
+Key flags: `-d` unsigned distance (overlaps = 0); `-D ref` signed by coordinate only (strand-agnostic - see Failure Modes); `-D a`/`-D b` signed by A's / B's strand; `-t all|first|last`; `-k N` k-nearest; `-io` ignore overlapping B; `-iu`/`-id` ignore upstream/downstream (require `-D`); `-fu`/`-fd` first upstream/downstream; `-s`/`-S` same/opposite strand; `-N` require different names; `-mdb each|all` and `-names`/`-filenames` for multiple `-b` files.
 
-### CLI
+## window - Features Within a Search Radius
+
+`window` reports all B within a window around each A (default 1000 bp each side). Use it for the honest "candidate genes near this element" framing.
 
 ```bash
-# Find genes within 10kb of peaks
-bedtools window -a peaks.bed -b genes.bed -w 10000 > genes_within_10kb.bed
-
-# Asymmetric window (5kb upstream, 2kb downstream of A)
-bedtools window -a peaks.bed -b genes.bed -l 5000 -r 2000 > asymmetric.bed
-
-# Same strand only
-bedtools window -a peaks.bed -b genes.bed -w 10000 -sm > same_strand.bed
-
-# Strand-aware window (upstream/downstream relative to strand)
-bedtools window -a peaks.bed -b genes.bed -l 5000 -r 2000 -sw > strand_aware.bed
+# All genes within 50 kb of each peak, counted per peak
+bedtools window -a peaks.bed -b genes.bed -w 50000 -c > peak_gene_counts.bed
 ```
 
-### Python
+Flags: `-w N` symmetric (default 1000); `-l N`/`-r N` asymmetric (coordinate left/right); `-sw` define `-l`/`-r` BY STRAND; `-sm`/`-Sm` keep only same/opposite-strand B; `-u` boolean (A once if any B); `-c` count of B per A; `-v` A with no B in window. `-sw` controls *where the window is*; `-sm`/`-Sm` control *which B count* - distinct concerns.
+
+## slop / flank - Extend or Find Adjacent Regions (genome file REQUIRED)
+
+Both need `-g genome.txt` precisely so they can clip at chromosome boundaries - extension past coordinate 0 or past chrom length is **silently truncated** (start floored at 0, end capped). Flags: `-b N` both sides; `-l N`/`-r N` per side (coordinate unless `-s`); `-s` strand-aware (on a `-`-strand feature `-l` adds to the END, so `-l` always means "upstream of the feature"); `-pct` treat N as a fraction of feature length; `-header` echo input header.
+
+### Build Strand-Aware Promoters from a Gene Model
+
+**Goal:** Produce a promoter BED (TSS -2000 / +200 bp, strand-aware) that is correct for both strands - the right way to define "promoter", which is a choice imposed on a TSS, not an annotated feature.
+
+**Approach:** Collapse genes to their TSS first (start for `+`, end-1 for `-`), THEN `slop -s` so "upstream" tracks strand. Running `slop -b 2000` on a gene BODY is the wrong promoter (it grows the whole gene, ignores strand).
+
+```bash
+# 1) TSS BED from a BED6 gene model (strand-aware single base)
+awk -v OFS='\t' '{ if ($6=="+") print $1,$2,$2+1,$4,$5,$6; else print $1,$3-1,$3,$4,$5,$6 }' genes.bed > tss.bed
+
+# 2) Promoter = TSS -2000 / +200, strand-aware (-l is always the upstream side under -s)
+bedtools slop -i tss.bed -g genome.txt -s -l 2000 -r 200 > promoters.bed
+```
 
 ```python
 import pybedtools
 
-a = pybedtools.BedTool('peaks.bed')
-b = pybedtools.BedTool('genes.bed')
+UP = 2000   # bp upstream of TSS; common core-promoter convention, NOT a fact -- report it and tune per assay
+DOWN = 200  # bp downstream of TSS; asymmetric on purpose (+1 nucleosome / 5'UTR sit downstream)
 
-# Symmetric window
-result = a.window(b, w=10000)
-
-# Asymmetric window
-result = a.window(b, l=5000, r=2000)
-
-# Same strand
-result = a.window(b, w=10000, sm=True)
-
-result.saveas('window.bed')
-```
-
-## Slop - Extend Interval Boundaries
-
-### CLI
-
-```bash
-# Extend both ends by 100bp (requires genome file)
-bedtools slop -i peaks.bed -g genome.txt -b 100 > extended.bed
-
-# Extend 5' end by 500bp, 3' end by 100bp
-bedtools slop -i peaks.bed -g genome.txt -l 500 -r 100 > asymmetric.bed
-
-# Strand-aware extension (upstream/downstream)
-bedtools slop -i peaks.bed -g genome.txt -l 500 -r 100 -s > strand_aware.bed
-
-# Extend by percentage
-bedtools slop -i peaks.bed -g genome.txt -b 0.5 -pct > extend_50pct.bed
-
-# Header passthrough
-bedtools slop -i peaks.bed -g genome.txt -b 100 -header > with_header.bed
-```
-
-### Python
-
-```python
-import pybedtools
-
-bed = pybedtools.BedTool('peaks.bed')
-
-# Symmetric extension
-result = bed.slop(g='genome.txt', b=100)
-
-# Asymmetric extension
-result = bed.slop(g='genome.txt', l=500, r=100)
-
-# Strand-aware
-result = bed.slop(g='genome.txt', l=500, r=100, s=True)
-
-# Percentage
-result = bed.slop(g='genome.txt', b=0.5, pct=True)
-
-result.saveas('extended.bed')
-```
-
-## Flank - Get Flanking Regions
-
-### CLI
-
-```bash
-# Get 100bp flanks on both sides (not original interval)
-bedtools flank -i peaks.bed -g genome.txt -b 100 > flanks.bed
-
-# Get upstream flank only
-bedtools flank -i peaks.bed -g genome.txt -l 100 -r 0 > upstream.bed
-
-# Get downstream flank only
-bedtools flank -i peaks.bed -g genome.txt -l 0 -r 100 > downstream.bed
-
-# Strand-aware flanking
-bedtools flank -i peaks.bed -g genome.txt -l 500 -r 0 -s > upstream_strand.bed
-
-# Percentage of interval size
-bedtools flank -i peaks.bed -g genome.txt -b 0.5 -pct > flank_50pct.bed
-```
-
-### Python
-
-```python
-import pybedtools
-
-bed = pybedtools.BedTool('peaks.bed')
-
-# Both flanks
-result = bed.flank(g='genome.txt', b=100)
-
-# Upstream only (left)
-result = bed.flank(g='genome.txt', l=100, r=0)
-
-# Strand-aware upstream
-result = bed.flank(g='genome.txt', l=500, r=0, s=True)
-
-result.saveas('flanks.bed')
-```
-
-## Shift - Move Intervals
-
-### CLI
-
-```bash
-# Shift all intervals downstream by 100bp
-bedtools shift -i peaks.bed -g genome.txt -s 100 > shifted.bed
-
-# Shift upstream (negative)
-bedtools shift -i peaks.bed -g genome.txt -s -100 > shifted_up.bed
-
-# Shift by percentage
-bedtools shift -i peaks.bed -g genome.txt -s 0.5 -pct > shift_50pct.bed
-
-# Shift with chromosome-specific values
-bedtools shift -i peaks.bed -g genome.txt -s 100 -p 200 > shifted.bed  # plus strand +100, minus +200
-```
-
-### Python
-
-```python
-import pybedtools
-
-bed = pybedtools.BedTool('peaks.bed')
-
-# Shift downstream
-result = bed.shift(g='genome.txt', s=100)
-
-# Shift upstream
-result = bed.shift(g='genome.txt', s=-100)
-
-result.saveas('shifted.bed')
-```
-
-## Common Patterns
-
-### Find Peaks Within 10kb of TSS
-
-```bash
-# Get TSS from genes (assumes BED6+ with strand)
-awk -v OFS='\t' '{
-    if ($6 == "+") print $1, $2, $2+1, $4, $5, $6;
-    else print $1, $3-1, $3, $4, $5, $6;
-}' genes.bed > tss.bed
-
-# Find peaks within 10kb of TSS
-bedtools window -a peaks.bed -b tss.bed -w 10000 > peaks_near_tss.bed
-```
-
-### Create Promoter Regions
-
-```bash
-# 2kb upstream, 500bp downstream of TSS (strand-aware)
-bedtools flank -i tss.bed -g genome.txt -l 2000 -r 0 -s | \
-    bedtools slop -i stdin -g genome.txt -l 0 -r 500 -s > promoters.bed
-
-# Or simpler with slop from TSS
-bedtools slop -i tss.bed -g genome.txt -l 2000 -r 500 -s > promoters.bed
-```
-
-### Find Nearest Gene Within 100kb
-
-```python
-import pybedtools
-
-peaks = pybedtools.BedTool('peaks.bed')
 genes = pybedtools.BedTool('genes.bed')
-
-# Find closest gene
-closest = peaks.closest(genes, d=True)
-
-# Filter to within 100kb
-within_100kb = closest.filter(lambda x: abs(int(x.fields[-1])) <= 100000)
-within_100kb.saveas('peaks_with_nearby_genes.bed')
+tss = genes.each(lambda f: pybedtools.create_interval_from_list([f[0], str(f.start) if f.strand == '+' else str(f.end - 1), str(f.start + 1) if f.strand == '+' else str(f.end), f.name, f.score, f.strand])).saveas()
+promoters = tss.slop(g='genome.txt', s=True, l=UP, r=DOWN).saveas('promoters.bed')
 ```
 
-### Enhancer-Gene Assignment
+`flank` shares the flag vocabulary but emits the regions BESIDE each feature and drops the original (two intervals per input, used for splice/boundary context):
 
-**Goal:** Link putative enhancers to potential target genes based on genomic proximity within a defined distance window.
-
-**Approach:** Use bedtools window with a large symmetric window (e.g., 1Mb) to find all TSS sites near each enhancer, producing an enhancer-gene pair list for downstream regulatory analysis.
-
-```python
-import pybedtools
-
-enhancers = pybedtools.BedTool('enhancers.bed')
-tss = pybedtools.BedTool('tss.bed')
-
-# Find all genes within 1Mb window
-assignments = enhancers.window(tss, w=1000000)
-
-# Convert to DataFrame for analysis
-df = assignments.to_dataframe()
+```bash
+bedtools flank -i exons.bed -g genome.txt -s -b 1000 > exon_flanks.bed   # 1 kb each side, strand-aware
 ```
 
-## Genome File Format
+## Per-Method Failure Modes
 
-```
-# genome.txt format: chromosome<TAB>size
-chr1	248956422
-chr2	242193529
-chr3	198295559
-...
+### -D ref silently mis-signs minus-strand genes
+**Trigger:** using `closest -D ref` and interpreting the sign as upstream/downstream. **Mechanism:** `-D ref` signs by genomic coordinate only (lower = negative); for a `-`-strand gene the TSS is at the HIGHER coordinate, so "upstream" runs to higher coordinates and the coordinate sign is inverted relative to biology. **Symptom:** half the genes (the `-`-strand ones) are folded the wrong way; symmetric QC (TSS-enrichment plot) still looks fine, but any "enhancers preferentially upstream" claim washes out or inverts. **Fix:** use `-D b` (sign by the gene's strand) for any upstream/downstream biology; reserve `-D ref` for pure left/right genomic distance.
 
-# Create from FASTA index
-cut -f1,2 reference.fa.fai > genome.txt
+### slop on a gene body is not a promoter
+**Trigger:** `slop -b 2000` (or `-l 2000 -r 0` without `-s`) on a gene-body BED, called "the promoter". **Mechanism:** it grows the window around the whole gene, not the TSS, and without `-s` adds the "upstream" side to the wrong (3') end on `-`-strand genes. **Symptom:** a 100 kb gene becomes a 104 kb "promoter"; every `-`-strand promoter is shifted into the gene body. **Fix:** collapse to TSS first, then `slop -s -l UP -r DOWN`.
 
-# Download UCSC chromosome sizes
-wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes
-```
+### slop/flank clip silently at chromosome ends
+**Trigger:** fixed-width windows near contig starts / telomeres. **Mechanism:** slop/flank truncate at 0 and chrom length with no warning. **Symptom:** a TSS 800 bp from a contig start yields a 1000-bp (not 2000-bp) upstream window - quietly asymmetric, biasing per-window normalization (reads/kb, motif density); flank can drop a region entirely, breaking a 2:1 feature->flank assumption. **Fix:** after slop verify `end-start == requested width`; after flank verify the per-feature flank count; treat chrom-end features as edge cases.
 
-## Key Parameters
+### -t all double-counts ties into inflated enrichment
+**Trigger:** letting default `-t all` rows flow into a per-gene tally, `wc -l` peak count, or GO/hypergeometric enrichment. **Mechanism:** a peak equidistant to two TSSs emits two rows; ties concentrate NON-randomly at bidirectional (head-to-head) promoters and gene-dense regions. **Symptom:** association counts inflated exactly where biology is most interesting; broken independence inflates significance. **Fix:** `-t first` (deterministic but arbitrary - document it) OR `-t all` then aggregate counting distinct PEAKS not rows; for enrichment prefer GREAT/rGREAT, whose regulatory-domain model exists to avoid this artifact.
 
-| Operation | Parameter | Description |
-|-----------|-----------|-------------|
-| closest -d | Distance | Report distance in last column |
-| closest -io | Ignore overlap | Skip overlapping features |
-| closest -D | Direction | Report signed distance (a/b/ref) |
-| window -w | Window | Symmetric window size |
-| window -l/-r | Left/Right | Asymmetric window |
-| slop -b | Both | Extend both ends |
-| slop -s | Strand | Strand-aware extension |
-| flank -l/-r | Left/Right | Flank size by side |
+### closest on unsorted input
+**Trigger:** `closest` on a BED that was filtered/edited and not re-sorted. **Mechanism:** closest assumes coordinate-sorted input. **Symptom:** wrong nearest feature or an error. **Fix:** `bedtools sort` (or `.sort()` in pybedtools) both A and B first.
+
+## Quantitative Thresholds
+
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Promoter TSS -2000 / +200 bp (strand-aware) | common convention | a CHOICE, not a fact; asymmetric because core-promoter elements sit upstream and the +1 nucleosome / 5'UTR downstream. Report it; "% promoter-proximal" is sensitive to it |
+| GREAT basal domain 5 kb up / 1 kb down, extension <=1 Mb | McLean 2010 *Nat Biotechnol* 28:495 | the principled "proximity++": asymmetric basal domain + extension to the neighbor, a far better proximity heuristic than raw closest |
+| ChIPseeker default promoter +-3 kb | tool default | shows the convention spans an order of magnitude (+-500 bp to +-10 kb across tools) |
+| ABC candidate window 5 Mb | Fulco 2019 | activity-by-contact scores all elements within 5 Mb of a gene's promoter - "distal" is tens of kb to megabases |
+| Nearest gene precision/recall ~47% / ~37% (enhancers) | Fulco 2019 CRISPRi-FlowFISH | the empirical ceiling on nearest-gene for distal-enhancer targeting |
+| Nearest protein-coding gene ~50-65% right (GWAS loci) | fine-mapping/coloc literature | the GWAS-regime baseline; strong, hard to beat, but imperfect |
+| Distal flag |dist| > ~50-100 kb | field convention | beyond promoter scale; flag for ABC/PCHi-C/eQTL validation rather than trusting nearest |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Nearest-gene call wrong for an enhancer | geometry != regulation for distal elements | treat as candidate; route to atac-seq/enhancer-gene-linking (ABC/PCHi-C/eQTL) |
+| Upstream/downstream asymmetry washes out or inverts | `-D ref` mis-signs `-`-strand genes | use `-D b` |
+| Promoter window includes the whole gene | `slop -b` on a gene body, not the TSS | collapse to TSS, then `slop -s -l UP -r DOWN` |
+| Per-gene counts inflated near bidirectional promoters | `-t all` rows counted as peaks | `-t first` or aggregate by distinct peak; or use GREAT |
+| Asymmetric "fixed-width" windows near contig ends | silent slop/flank clipping | verify `end-start`; treat chrom-end features as edge cases |
+| `none` / `-1` rows poison a mean distance | no B feature on that chromosome | filter the `-1` sentinel before summarizing |
+| Wrong nearest feature, or closest errors | unsorted input | `bedtools sort` both A and B |
+| Empty output | `chr1` vs `1` naming mismatch between A, B, genome file | harmonize chromosome naming across all files |
+
+## References
+
+- Quinlan AR, Hall IM. 2010. BEDTools: a flexible suite of utilities for comparing genomic features. *Bioinformatics* 26:841-842.
+- Dale RK, Pedersen BS, Quinlan AR. 2011. Pybedtools: a flexible Python library for manipulating genomic datasets and annotations. *Bioinformatics* 27:3423-3424.
+- Fulco CP, Nasser J, Jones TR, et al. 2019. Activity-by-contact model of enhancer-promoter regulation from thousands of CRISPR perturbations. *Nat Genet* 51:1664-1669.
+- Nasser J, Bergman DT, Fulco CP, et al. 2021. Genome-wide enhancer maps link risk variants to disease genes. *Nature* 593:238-243.
+- Smemo S, Tena JJ, Kim KH, et al. 2014. Obesity-associated variants within FTO form long-range functional connections with IRX3. *Nature* 507:371-375.
+- McLean CY, Bristor D, Hiller M, et al. 2010. GREAT improves functional interpretation of cis-regulatory regions. *Nat Biotechnol* 28:495-501.
 
 ## Related Skills
 
-- bed-file-basics - BED format fundamentals
-- interval-arithmetic - intersect, subtract, merge
-- gtf-gff-handling - Extract TSS from annotations
-- chip-seq/peak-annotation - Peak annotation
+- bed-file-basics - BED coordinate systems and the sort/conversion this skill depends on
+- gtf-gff-handling - Extract TSS and gene models from GTF/GFF for promoter construction
+- interval-arithmetic - intersect/merge/subtract; window -w 0 is approximately intersect
+- chip-seq/peak-annotation - Assigns peaks to genes via the same closest-TSS logic and caveats
+- atac-seq/enhancer-gene-linking - The real enhancer->gene science (ABC, contact, peak-gene correlation) this skill routes distal calls to
+- atac-seq/footprinting - Uses strand-aware windows over motif/TSS sites
+- data-visualization/genome-tracks - Render the promoter/proximity intervals built here

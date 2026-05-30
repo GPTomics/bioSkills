@@ -1,75 +1,70 @@
 # BigWig Tracks - Usage Guide
 
 ## Overview
-BigWig is an indexed binary format for continuous genomic data like coverage, ChIP-seq signal, or conservation scores. It is efficient for genome browsers and programmatic access. This skill covers creating bigWig files from bedGraph and extracting values with pyBigWig.
+bigWig is an indexed, compressed, multi-resolution binary container for continuous genomic signal -- coverage, fold-change, conservation (phyloP/phastCons), methylation rate, or signal p-value. It is fast because it answers a wide query from precomputed zoom-level summaries rather than from the base data, which makes the choice of summary statistic the defining expert nuance: a wide `mean` annihilates narrow tall peaks while staying faithful to broad domains, so the same region can read flat zoomed-out and obviously peaked zoomed-in. This skill covers querying a bigWig correctly with pyBigWig and the UCSC Kent tools, picking the right statistic and exactness for the biological question, handling no-data (NaN, not zero), and building a valid track from a sorted bedGraph plus a chrom.sizes file.
 
 ## Prerequisites
 ```bash
-# UCSC tools (CLI conversion)
-conda install -c bioconda ucsc-bedgraphtobigwig ucsc-bigwigtobedgraph
+# pyBigWig (Python read/write; numpy support for array values)
+pip install pyBigWig numpy
 
-# pyBigWig (Python read/write)
-pip install pyBigWig
+# UCSC Kent tools (CLI build/query)
+conda install -c bioconda ucsc-bedgraphtobigwig ucsc-bigwigtobedgraph ucsc-bigwiginfo ucsc-bigwigsummary ucsc-bigwigaverageoverbed
 
-# deepTools (advanced bigWig operations)
+# deepTools (compare, correlate, metaprofiles)
 conda install -c bioconda deeptools
 ```
 
+Building any bigWig also needs a chrom.sizes file (`cut -f1,2 reference.fa.fai > chrom.sizes`).
+
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Convert my bedGraph coverage to bigWig for the genome browser"
-- "Extract signal values from my bigWig file for specific regions"
-- "Create a normalized bigWig track from my BAM file"
+- "Get the mean signal from my bigWig for each peak in peaks.bed"
+- "What is the peak height in chr1:1,000,000-2,000,000 -- the mean looks flat"
+- "Build a browser-ready bigWig from my coverage bedGraph"
+- "Compare my treatment and control bigWigs as a log2 ratio track"
+- "Make a TSS metaprofile heatmap from my signal bigWig"
 
 ## Example Prompts
 
-### Creating BigWig Files
-> "Convert my coverage.bedGraph to bigWig format"
-> "Create a normalized bigWig track from my ChIP-seq BAM"
-> "Generate a CPM-normalized bigWig from alignments.bam"
+### Extracting Signal Correctly
+> "Compute mean signal per gene from coverage.bw over genes.bed. This is a read-depth track, so treat uncovered bases as zero, and use exact values, not zoom approximations, since the numbers go in a table."
+> "Get the peak height (not the mean) in chr3:5M-6M from my ChIP bigWig -- a single mean over that window dilutes the summit away."
+> "Extract per-base values for chr1:1,000,000-1,001,000 from my methylation bigWig and average only the covered positions (no-data is undefined, not zero)."
 
-### Extracting Signal
-> "Get the mean signal from my bigWig file for each peak in peaks.bed"
-> "Extract coverage values for the region chr1:1000000-1100000"
-> "Calculate average signal across all promoters from my bigWig"
+### Building and Converting
+> "Sort coverage.bedGraph and convert it to bigWig using hg38 chrom.sizes; verify with bigWigInfo."
+> "Write a bigWig from these (chrom, start, end, value) intervals with pyBigWig, adding the header before the entries."
+> "Convert my bigWig back to bedGraph for just chr1:1M-2M."
 
-### Comparison and Analysis
-> "Compare signal between two bigWig files across my regions of interest"
-> "Generate a matrix of signal values for heatmap visualization"
-> "Calculate fold change between treatment and control bigWig files"
-
-### Format Conversion
-> "Convert my bigWig back to bedGraph format"
-> "Create a bigWig from my BAM file using deepTools"
+### Comparing and Profiling
+> "Make a log2(IP/input) track from chip.bw and input.bw with a pseudocount."
+> "Compute a correlation matrix across my four replicate bigWigs over a regions BED and plot a PCA."
+> "Build a reference-point matrix of signal 2 kb around every TSS and plot a heatmap and profile."
 
 ## What the Agent Will Do
-1. Prepare chromosome sizes file if needed
-2. Sort bedGraph if converting from bedGraph
-3. Create bigWig using appropriate tool
-4. Verify output is valid and indexed
-5. Extract or summarize signal if requested
-
-## Key Concepts
-
-### Why BigWig over bedGraph?
-
-| Feature | bedGraph | bigWig |
-|---------|----------|--------|
-| File size | Large | ~10x smaller |
-| Random access | Sequential only | Indexed |
-| Browser support | Basic | Full |
-| Query speed | Slow | Fast |
+1. Name the biological question first -- peak height, total amount, level, or assayed fraction -- to fix the summary statistic.
+2. Run `bigWigInfo` to check zoom levels, coverage, and chrom naming before trusting any query.
+3. Choose `max`/`sum`/`mean`/`coverage` accordingly and pass `exact=True` (or use `values()`/`bigWigAverageOverBed`) when a number enters a result.
+4. Decide gap handling biologically: coverage/depth tracks count gaps as zero (`mean0`); rate/ratio tracks treat gaps as undefined (`mean`/`np.nanmean`).
+5. For builds, sort the bedGraph, supply a matching chrom.sizes, and add the header before entries.
+6. For comparison/profiling, route to deepTools (`bigwigCompare`, `multiBigwigSummary`, `computeMatrix`).
 
 ## Tips
-- bedGraph must be sorted by chromosome and position before conversion
-- Chromosome names in bedGraph must match exactly with chrom.sizes file
-- Use `bamCoverage` from deepTools for direct BAM to normalized bigWig
-- pyBigWig can query specific regions without loading the entire file
-- Always provide chromosome sizes when creating bigWig files
-- Use `bigWigInfo` to verify bigWig file properties
+- A wide query is a summary, not the underlying data: `mean` (the default) hides narrow peaks; use `max` for peaks, `sum` for totals, `coverage` for assayed-fraction.
+- `exact=False` is the pyBigWig default and reads zoom levels -- pass `exact=True` whenever a reviewer might recompute the number.
+- No-data is NaN, not 0: `np.mean` poisons to NaN; pick `np.nanmean` (covered-only) or `np.nan_to_num().mean()` (gaps as zero) by the track's biology.
+- `bigWigAverageOverBed` is the purpose-built per-region tool; its `mean` vs `mean0` columns are the same NaN-vs-zero decision.
+- "I scanned the track and saw nothing" is not evidence of absence unless the scan was finer than the feature width -- zoom-out erases sharp signal.
+- bedGraph must be sorted (`sort -k1,1 -k2,2n`) and non-overlapping before `bedGraphToBigWig`, and chrom.sizes must match the reference naming exactly.
+- Use `bamCoverage` (deepTools) to generate a normalized track from a BAM -- that lives upstream in chip-seq/atac-seq.
+- Signal -> bigWig; discrete features (peaks, genes) -> bigBed.
 
-## Resources
-- [pyBigWig GitHub](https://github.com/deeptools/pyBigWig)
-- [UCSC Tools](http://hgdownload.soe.ucsc.edu/admin/exe/)
-- [deepTools Documentation](https://deeptools.readthedocs.io/)
-- [bigWig Format](https://genome.ucsc.edu/goldenPath/help/bigWig.html)
+## Related Skills
+
+- bedgraph-handling - The text bedGraph this skill converts to/from, and exact-arithmetic alternative
+- coverage-analysis - Generates the per-base depth/bedGraph that becomes a bigWig
+- bed-file-basics - The region BED files passed to bigWigAverageOverBed/computeMatrix
+- chip-seq/chipseq-visualization - Generates normalized tracks (bamCoverage) and renders computeMatrix metaprofiles
+- atac-seq/footprinting - Consumes bigWig signal over motif sites
+- data-visualization/genome-tracks - Renders the bigWig in a browser figure

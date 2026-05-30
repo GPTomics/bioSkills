@@ -1,482 +1,191 @@
 ---
 name: bio-genome-intervals-interval-arithmetic
-description: Core interval arithmetic operations including intersect, subtract, merge, complement, map, and groupby using bedtools and pybedtools. Use when finding overlapping regions, removing overlaps, combining adjacent intervals, or transferring annotations between interval files.
+description: Performs set operations on genomic intervals - intersect (-wa/-wb/-wo/-wao/-loj/-c/-v/-u), subtract (-A), merge (-d, -c/-o), complement, cluster, multiinter, unionbedg, map, and groupby - with bedtools (CLI) and pybedtools/pyranges/bioframe (Python). Covers the sorted-input contract and the -sorted chromosome-order footgun, reciprocal/fractional overlap (-f/-F/-r/-e) and the A-vs-B asymmetry, -split for spliced/BED12/BAM features, and jaccard/fisher as mechanics only. Use when finding overlapping or unique regions between BED/peak/feature files, building consensus peaksets, removing blacklisted regions, transferring annotation values onto intervals, or computing interval-set similarity; route overlap-significance testing to overlap-significance.
 tool_type: mixed
 primary_tool: bedtools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: bedtools 2.31+
+Reference examples tested with: bedtools 2.31+, pybedtools 0.10+, pyranges 0.1+ (or 1.0+ - see note), bioframe 0.7+.
 
 Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `bedtools --version` then `bedtools <subcommand> --help` to confirm flags
 - Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+pyranges has a major-version API split: pyranges 0.x and the 1.0 rewrite (package `pyranges1`) differ in method names and return shapes. Verify with `import pyranges; pyranges.__version__` before pasting v0 idioms. If code throws an error, introspect the installed package and adapt rather than retrying.
 
 # Interval Arithmetic
 
-**"Perform set operations on genomic intervals"** -> Intersect, subtract, merge, or complement BED/GFF intervals to identify overlapping or unique regions.
-- CLI: `bedtools intersect -a file1.bed -b file2.bed`, `bedtools merge`, `bedtools subtract`
-- Python: `a.intersect(b)`, `a.subtract(b)`, `a.merge()` (pybedtools)
+**"Which of my peaks overlap promoters, and how do I combine/subtract/annotate interval sets?"** -> Apply exact, deterministic set operations to sorted interval files, guarding the preconditions (prior `sort`, the `-sorted` chromosome-order contract, `-split`) that otherwise corrupt the answer.
+- CLI: `bedtools intersect -a a.bed -b b.bed -u`, `bedtools merge`, `bedtools subtract`, `bedtools map -c 4 -o mean`
+- Python: `a.intersect(b, u=True)`, `a.merge()` (pybedtools); `pr_a.overlap(pr_b)` (pyranges); `bf.overlap(df1, df2)` (bioframe)
 
-Core set operations on genomic intervals using bedtools (CLI) and pybedtools (Python).
+## The Single Most Important Modern Insight -- The Arithmetic Is Exact; the Danger Is the Silent Preconditions
 
-## Intersect - Find Overlapping Regions
+The set operations themselves are exact and deterministic - bedtools, pyranges, and bioframe compute identical geometry on the same 0-based half-open intervals. The bugs are never in the arithmetic; they hide in four preconditions that fail quietly, returning a plausible wrong answer with exit code 0:
 
-### CLI
+1. **`merge`, `map`, `closest`, `groupby` require prior `sort`.** `merge` only collapses records that are adjacent *in file order* - on unsorted input, overlapping intervals survive un-merged and downstream counts are wrong, with no warning.
+2. **`-sorted` requires sorted input in a shared chromosome order.** It swaps `intersect`'s in-memory interval tree for a low-memory chromosome sweep. Modern bedtools (>=~2.25) detects unsorted or differently-ordered `-sorted` input and errors out (exit 1: `... is not sorted` / `chromomsome sort ordering ... is inconsistent`); older versions silently swept past overlaps and under-reported. Pass `-g genome.txt` to pin the expected chromosome order (reproducible, and it catches the subtler missing-chromosome cases). The mismatch that stays SILENT on every version is a chromosome-NAME difference (`chr1` vs `1`), which returns an empty result with no error.
+3. **`-split` changes whether the count is exons or the spanning envelope.** A BED12 record or spliced BAM read (CIGAR `N`) spans introns; without `-split` bedtools intersects the whole intron-spanning envelope, silently inflating RNA-seq overlaps. With `-split` it intersects only the blocks (exons).
+4. **A raw overlap count is not association.** Long features, clustered features, and uneven coverage all inflate it; the number means nothing without a null. bedtools `fisher` is a weak analytic screen, not the answer - route rigorous significance to overlap-significance.
+
+## Tool Taxonomy
+
+| Tool | Role | Mechanism | When |
+|------|------|-----------|------|
+| bedtools | CLI interval algebra (reference implementation) | streaming sweep on sorted input; in-memory tree otherwise | shell pipelines, large files, reproducible one-liners |
+| pybedtools | Python wrapper over bedtools | shells out to the bedtools binary; BedTool objects, flags as kwargs | inside a Python script; need exact bedtools parity; chaining with pandas |
+| pyranges | pure-Python vectorized engine | native NumPy/pandas PyRanges; no bedtools dependency | large in-memory joins, no bedtools install, dataframe-native; mind the v0/v1 split |
+| bioframe | functions on a plain pandas DataFrame | vectorized pandas merges; columns `chrom/start/end` | data already in pandas / the cooler-Hi-C ecosystem |
+
+All three Python engines compute the same overlaps; the porting bugs are about default strand handling and return shape (pyranges `overlap` vs `join` vs `intersect`; bioframe `overlap` with `how=`), not geometry.
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Quick overlap on the command line | `bedtools intersect -u` | no Python overhead; reproducible one-liner |
+| Inside a pandas/Python pipeline | pybedtools or pyranges/bioframe | stays in-process; pyranges/bioframe need no bedtools binary |
+| Whole-genome-scale intersect | `intersect -sorted -g genome.txt` | low-memory sweep; modern bedtools errors on a sort/order mismatch, `-g` pins the expected chromosome order |
+| Spliced reads / BED12 vs exons | add `-split` | otherwise the intron-spanning envelope is intersected (RNA-seq inflation) |
+| Are two SV/CNV calls the same event? | `-f 0.5 -r` (50% reciprocal) | one-sided fractions let a giant interval swallow a tiny one |
+| Transfer/aggregate B values onto A | `bedtools map -c COL -o OP` | columnar alternative to `intersect -wo \| groupby` |
+| Build consensus peakset from replicates | `cat \| sort \| merge -d N` | collapses replicate peaks within N bp |
+| Multi-sample shared-region map | `multiinter` / `unionbedg` | presence/absence (intervals) or stacked signal matrix |
+| Is the overlap more than chance? | -> overlap-significance | raw count is length/coverage-confounded; needs a permutation null |
+| Peaks not yet called | -> chip-seq/peak-calling or atac-seq/atac-peak-calling | this category operates on existing intervals |
+
+## Intersect - the Workhorse
+
+The output-mode flags do not change *what overlaps*; they change *what gets printed* (the #1 source of confusion). Full flag semantics are in usage-guide.md.
 
 ```bash
-# Find overlapping intervals (report A entries that overlap B)
-bedtools intersect -a peaks.bed -b genes.bed > overlapping.bed
-
-# Report original A intervals (default behavior)
-bedtools intersect -a peaks.bed -b genes.bed > peaks_in_genes.bed
-
-# Report overlapping portion only
-bedtools intersect -a peaks.bed -b genes.bed > overlap_regions.bed
-
-# Report both A and B fields
-bedtools intersect -a peaks.bed -b genes.bed -wa -wb > with_gene_info.bed
-
-# Write original A entries that overlap B (-u for unique)
-bedtools intersect -a peaks.bed -b genes.bed -u > peaks_overlapping_genes.bed
-
-# Report A entries that do NOT overlap B
-bedtools intersect -a peaks.bed -b genes.bed -v > peaks_not_in_genes.bed
-
-# Require minimum overlap fraction (50% of A must overlap)
-bedtools intersect -a peaks.bed -b genes.bed -f 0.5 > min_50pct.bed
-
-# Reciprocal overlap (both A and B must have 50% overlap)
-bedtools intersect -a peaks.bed -b genes.bed -f 0.5 -r > reciprocal_50pct.bed
-
-# Count overlaps
-bedtools intersect -a peaks.bed -b genes.bed -c > with_counts.bed
-
-# Multiple B files
-bedtools intersect -a peaks.bed -b genes.bed promoters.bed enhancers.bed -names genes promoters enhancers > multi.bed
+bedtools intersect -a peaks.bed -b genes.bed -u            # whole A, once, if it overlaps >=1 B
+bedtools intersect -a peaks.bed -b genes.bed -v            # A features with NO overlap (set difference)
+bedtools intersect -a peaks.bed -b genes.bed -c            # per-A count of B hits (0 if none)
+bedtools intersect -a peaks.bed -b genes.bed -wa -wb       # whole A + whole B, one line per pair ("join")
+bedtools intersect -a peaks.bed -b genes.bed -loj          # left outer join: every A, NULL B if none
+bedtools intersect -a peaks.bed -b genes.bed -wo           # A+B+bp-of-overlap, only A with overlap
+bedtools intersect -a peaks.bed -b genes.bed -wao          # like -wo but A-with-no-overlap kept (B=., overlap=0)
 ```
-
-### Python
 
 ```python
 import pybedtools
 
 a = pybedtools.BedTool('peaks.bed')
 b = pybedtools.BedTool('genes.bed')
-
-# Basic intersection
-result = a.intersect(b)
-
-# Keep original A entries that overlap
-result = a.intersect(b, u=True)
-
-# Report both A and B
-result = a.intersect(b, wa=True, wb=True)
-
-# Non-overlapping (inverse)
-result = a.intersect(b, v=True)
-
-# Minimum overlap fraction
-result = a.intersect(b, f=0.5)
-
-# Reciprocal overlap
-result = a.intersect(b, f=0.5, r=True)
-
-# Count overlaps
-result = a.intersect(b, c=True)
-
-# Save result
-result.saveas('output.bed')
+a.intersect(b, u=True)            # flags become kwargs
+a.intersect(b, wa=True, wb=True)
+a.intersect(b, c=True)
 ```
 
-## Subtract - Remove Overlapping Regions
-
-### CLI
+## Subtract, Merge, Complement, Cluster
 
 ```bash
-# Remove portions of A that overlap B
-bedtools subtract -a regions.bed -b exclude.bed > remaining.bed
-
-# Remove entire A interval if ANY overlap with B
-bedtools subtract -a regions.bed -b exclude.bed -A > non_overlapping.bed
-
-# Require minimum overlap before removal
-bedtools subtract -a regions.bed -b exclude.bed -f 0.5 > subtract_50pct.bed
+bedtools subtract -a a.bed -b b.bed             # clip the overlapping portions out of A (A can fragment)
+bedtools subtract -a a.bed -b b.bed -A          # drop the ENTIRE A feature if any part overlaps B
+bedtools sort -i a.bed | bedtools merge -d 0    # collapse overlapping + book-ended; -d 0 is the default
+bedtools sort -i a.bed | bedtools merge -c 4,5 -o distinct,sum   # summarize columns while merging
+bedtools complement -i a.bed -g genome.txt      # the gaps: genome NOT covered by A (genome file required)
+bedtools sort -i a.bed | bedtools cluster -d 0  # assign a cluster id to overlapping/adjacent features
 ```
 
-### Python
+Valid `-o` operations: `sum, min, max, absmin, absmax, mean, median, mode, antimode, stdev, sstdev, collapse, distinct, count, count_distinct, first, last`. `merge -d 0` merges overlapping and book-ended (touching) features but NOT a 1 bp gap; `-d 1` does.
 
-```python
-import pybedtools
+## Map - Transfer Values, and Groupby - Aggregate
 
-a = pybedtools.BedTool('regions.bed')
-b = pybedtools.BedTool('exclude.bed')
+**Goal:** Summarize a column of overlapping B features onto each A interval (e.g. mean signal per gene).
 
-# Basic subtraction (remove overlapping portions)
-result = a.subtract(b)
-
-# Remove entire interval if any overlap
-result = a.subtract(b, A=True)
-
-# Require minimum overlap
-result = a.subtract(b, f=0.5)
-
-result.saveas('remaining.bed')
-```
-
-## Merge - Combine Overlapping/Adjacent Intervals
-
-### CLI
+**Approach:** For each sorted A interval, `map` collects overlapping B features and applies an aggregation `-o` to a B column `-c`; `groupby` is the single-file SQL-style aggregator after an `intersect -wo`.
 
 ```bash
-# Merge overlapping intervals (input must be sorted)
-bedtools sort -i peaks.bed | bedtools merge > merged.bed
-
-# Merge intervals within N bp of each other
-bedtools sort -i peaks.bed | bedtools merge -d 100 > merged_100bp.bed
-
-# Report number of merged intervals
-bedtools sort -i peaks.bed | bedtools merge -c 1 -o count > merged_counts.bed
-
-# Aggregate columns (e.g., concatenate names, sum scores)
-bedtools sort -i peaks.bed | bedtools merge -c 4,5 -o collapse,sum > merged_agg.bed
-
-# Keep max score
-bedtools sort -i peaks.bed | bedtools merge -c 5 -o max > merged_max.bed
-
-# Strand-specific merge
-bedtools sort -i peaks.bed | bedtools merge -s > merged_stranded.bed
+bedtools map -a genes.bed -b scores.bedgraph -c 4 -o mean      # both inputs MUST be sorted
+bedtools intersect -a genes.bed -b peaks.bed -wo \
+  | bedtools groupby -g 1,2,3,4 -c 13 -o sum                   # group on A cols, sum the overlap-bp col
 ```
-
-### Python
 
 ```python
 import pybedtools
 
-bed = pybedtools.BedTool('peaks.bed')
-
-# Basic merge (auto-sorts)
-merged = bed.sort().merge()
-
-# Merge within distance
-merged = bed.sort().merge(d=100)
-
-# Count merged intervals
-merged = bed.sort().merge(c=1, o='count')
-
-# Aggregate columns (collapse names, sum scores)
-merged = bed.sort().merge(c='4,5', o='collapse,sum')
-
-# Strand-specific
-merged = bed.sort().merge(s=True)
-
-merged.saveas('merged.bed')
+genes = pybedtools.BedTool('genes.bed').sort()
+scores = pybedtools.BedTool('scores.bedgraph').sort()
+genes.map(scores, c=4, o='mean')
 ```
 
-## Complement - Get Uncovered Regions
-
-### CLI
+## Multi-Sample: Multiinter and Unionbedg
 
 ```bash
-# Get regions NOT covered by intervals (requires genome file)
-bedtools complement -i covered.bed -g genome.txt > uncovered.bed
-
-# genome.txt format: chr<TAB>size
-# chr1	248956422
-# chr2	242193529
-# ...
+bedtools multiinter -header -names s1 s2 s3 -i s1.bed s2.bed s3.bed   # which files cover each sub-interval
+bedtools unionbedg -header -names s1 s2 s3 -i s1.bg s2.bg s3.bg       # stack bedGraph signal into a matrix
 ```
 
-### Python
+`multiinter` is the interval presence/absence map (build a consensus by filtering its `num`/`list` columns); `unionbedg` is its signal-track analog.
 
-```python
-import pybedtools
+## Jaccard and Fisher - Mechanics Only
 
-bed = pybedtools.BedTool('covered.bed')
-genome = 'genome.txt'  # or dict: {'chr1': (0, 248956422), ...}
-
-# Get complement
-uncovered = bed.complement(g=genome)
-uncovered.saveas('uncovered.bed')
-
-# Using genome dict
-genome_dict = pybedtools.chromsizes('hg38')  # Built-in genome sizes
-uncovered = bed.complement(genome=genome_dict)
-```
-
-## Cluster - Group Overlapping Intervals
-
-### CLI
+`jaccard` is a single similarity scalar `|A n B| / |A u B|` in [0,1], useful for all-vs-all dataset clustering - it is NOT a significance test (no p-value). `fisher` builds a 2x2 table and returns a Fisher p, but it estimates the in-neither cell from a mean-interval-size/genome-size heuristic, ignores genome structure, and is prone to inflation - treat it as a fast triage screen only.
 
 ```bash
-# Assign cluster IDs to overlapping intervals
-bedtools sort -i peaks.bed | bedtools cluster > clustered.bed
-
-# Cluster within distance
-bedtools sort -i peaks.bed | bedtools cluster -d 100 > clustered_100bp.bed
+bedtools jaccard -a a.bed -b b.bed -g genome.txt        # both sorted; reports jaccard + n_intersections
+bedtools fisher  -a a.bed -b b.bed -g genome.txt         # weak analytic null; validate any low p by simulation
 ```
 
-### Python
+For a defensible enrichment p-value (size-preserving permutation in an accessible workspace, GAT/regioneR/LOLA/GREAT), route to overlap-significance.
 
-```python
-import pybedtools
+## Per-Method Failure Modes
 
-bed = pybedtools.BedTool('peaks.bed')
-clustered = bed.sort().cluster()
-clustered.saveas('clustered.bed')
-```
+### Merge without sorting first
+**Trigger:** `bedtools merge` (or `cluster`/`map`/`groupby`) on unsorted input. **Mechanism:** merge only collapses records adjacent in file order. **Symptom:** overlapping intervals survive un-merged; counts wrong, no error. **Fix:** `bedtools sort -i in.bed | bedtools merge`.
 
-## Multiinter - Find Multi-way Overlaps
+### `-sorted` on unsorted or differently-ordered input
+**Trigger:** `intersect -sorted` on unsorted input or files in different chromosome orders. **Mechanism:** the sweep walks both files in lockstep assuming a shared order. **Symptom:** modern bedtools (>=~2.25) errors out (`... is not sorted` / `chromomsome sort ordering ... is inconsistent`, exit 1); pre-2.25 returned a silently smaller set. **Fix:** sort every input identically and pass `-g genome.txt` to pin the order; on an old bedtools, suspect this when a result is surprisingly small.
 
-### CLI
+### Missing `-split` on spliced features
+**Trigger:** intersecting BED12 / spliced BAM without `-split`. **Mechanism:** the intron-spanning envelope is treated as solid. **Symptom:** intronic positions "overlap" exons; RNA-seq overlap inflated/smeared. **Fix:** add `-split` whenever an operand is BED12 or a spliced alignment and exon-level truth is required.
 
-```bash
-# Find regions covered by multiple files
-bedtools multiinter -i sample1.bed sample2.bed sample3.bed > multi_overlap.bed
+### `-f` vs `-F` swapped, or default 1 bp overlap
+**Trigger:** thresholding the wrong set, or no `-f` at all. **Mechanism:** `-f` is a fraction of A, `-F` a fraction of B (default `-f 1e-9` = any 1 bp); A and B play asymmetric roles. **Symptom:** a tiny peak "inside" a 2 Mb gene by one base; swapping `-a`/`-b` changes counts. **Fix:** threshold the *small* set; use `-r` for "same event" concordance.
 
-# With sample names
-bedtools multiinter -i sample1.bed sample2.bed sample3.bed \
-    -names s1 s2 s3 > multi_overlap.bed
+### complement/shuffle without a genome file
+**Trigger:** `complement` (or `closest`/`map` order assumptions) without `-g`. **Mechanism:** bedtools cannot know where chromosomes end. **Symptom:** error, or gaps/coordinates that run past chromosome ends. **Fix:** pass a correct `-g genome.txt` built from the same assembly.
 
-# Header output
-bedtools multiinter -i sample1.bed sample2.bed sample3.bed -header > multi_overlap.bed
-```
+### chrom-naming mismatch (`chr1` vs `1`)
+**Trigger:** BED uses `chr1`, genome/other file uses `1`. **Mechanism:** chromosomes never match. **Symptom:** empty/zero output, no error. **Fix:** harmonize naming across all inputs and the genome file.
 
-### Python
+## Quantitative Thresholds
 
-```python
-import pybedtools
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Overlap fraction `-f` (state explicitly) | analysis choice | default `-f 1e-9` (1 bp) is rarely the biological question; threshold the small set |
+| 50% reciprocal overlap (`-f 0.5 -r`) | SV/CNV field convention | "are these the same event"; one-sided lets a big interval swallow a small one |
+| Merge `-d` (e.g. 100 bp for replicate consensus) | replicate-merge convention | collapses near-coincident replicate peaks; tune per assay/resolution |
+| `merge -d 0` (default) | bedtools default | merges overlapping + book-ended, NOT a 1 bp gap (use `-d 1` for that) |
 
-beds = [pybedtools.BedTool(f) for f in ['s1.bed', 's2.bed', 's3.bed']]
-# Note: multiinter requires CLI workaround
-result = pybedtools.BedTool().multi_intersect(i=[b.fn for b in beds])
-```
+## Common Errors
 
-## Jaccard - Similarity Metric
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Empty intersect output | chrom naming mismatch (`chr1` vs `1`) | harmonize naming across files + genome.txt |
+| `merge` left overlaps behind | input not sorted | `sort` before `merge`/`cluster`/`map`/`groupby` |
+| `-sorted` errors or (old bedtools) returns too few | unsorted or mismatched chromosome order | sort all inputs identically; add `-g genome.txt` to pin order |
+| RNA-seq overlap looks inflated | missing `-split` on BED12/spliced BAM | add `-split` |
+| Negative start / past-chromosome-end | wrong/missing `-g genome.txt` | pass a correct chrom-sizes file |
+| pyranges AttributeError | 0.x vs 1.0 API mismatch | check `pyranges.__version__`; use matching method names |
 
-### CLI
+## References
 
-```bash
-# Calculate Jaccard similarity between two BED files
-bedtools jaccard -a sample1.bed -b sample2.bed
-
-# Output: intersection, union, jaccard, n_intersections
-```
-
-### Python
-
-```python
-import pybedtools
-
-a = pybedtools.BedTool('sample1.bed')
-b = pybedtools.BedTool('sample2.bed')
-
-result = a.jaccard(b)
-print(f"Jaccard index: {result['jaccard']}")
-print(f"Intersection: {result['intersection']} bp")
-print(f"Union: {result['union']} bp")
-```
-
-## Fisher's Exact Test
-
-### CLI
-
-```bash
-# Statistical test for overlap significance
-bedtools fisher -a peaks.bed -b genes.bed -g genome.txt
-```
-
-### Python
-
-```python
-import pybedtools
-
-a = pybedtools.BedTool('peaks.bed')
-b = pybedtools.BedTool('genes.bed')
-
-result = a.fisher(b, genome='genome.txt')
-print(result)  # Contains p-values and odds ratio
-```
-
-## Shuffle - Random Permutation
-
-### CLI
-
-```bash
-# Randomly shuffle intervals (for null hypothesis testing)
-bedtools shuffle -i peaks.bed -g genome.txt > shuffled.bed
-
-# Exclude certain regions
-bedtools shuffle -i peaks.bed -g genome.txt -excl blacklist.bed > shuffled.bed
-
-# Maintain chromosome distribution
-bedtools shuffle -i peaks.bed -g genome.txt -chrom > shuffled.bed
-```
-
-### Python
-
-```python
-import pybedtools
-
-bed = pybedtools.BedTool('peaks.bed')
-shuffled = bed.shuffle(g='genome.txt')
-shuffled.saveas('shuffled.bed')
-```
-
-## Map - Transfer Values Between Files
-
-**Goal:** Transfer and aggregate numeric values from overlapping intervals in file B onto each interval in file A.
-
-**Approach:** Use bedtools map to find all B intervals overlapping each A interval, then apply aggregation operations (mean, sum, count, collapse) on specified B columns to produce a single summary value per A interval.
-
-### CLI
-
-```bash
-# Map mean scores from B to A
-bedtools map -a genes.bed -b scores.bedGraph -c 4 -o mean > genes_with_scores.bed
-
-# Multiple operations at once
-bedtools map -a regions.bed -b data.bed -c 5,5,5 -o mean,min,max > multi_stats.bed
-
-# Count overlapping features
-bedtools map -a genes.bed -b peaks.bed -c 1 -o count > genes_with_peak_counts.bed
-
-# Collapse names of overlapping features
-bedtools map -a genes.bed -b peaks.bed -c 4 -o collapse > genes_with_peak_names.bed
-
-# Distinct values only
-bedtools map -a genes.bed -b annotations.bed -c 4 -o distinct > unique_annotations.bed
-```
-
-### Python
-
-```python
-import pybedtools
-
-a = pybedtools.BedTool('genes.bed')
-b = pybedtools.BedTool('scores.bedGraph')
-
-# Map mean scores
-result = a.map(b, c=4, o='mean')
-
-# Multiple operations
-result = a.map(b, c='5,5,5', o='mean,min,max')
-
-result.saveas('mapped.bed')
-```
-
-### Map Operations
-
-| Operation | Description |
-|-----------|-------------|
-| sum | Sum of values |
-| count | Number of overlapping features |
-| count_distinct | Number of distinct values |
-| min, max | Minimum/maximum value |
-| mean, median | Average values |
-| collapse | Comma-separated list |
-| distinct | Unique values only |
-| first, last | First/last overlapping value |
-
-## Groupby - Aggregate by Columns
-
-Group intervals and compute summary statistics.
-
-### CLI
-
-```bash
-# Sum scores by gene (column 4)
-bedtools groupby -i sorted.bed -g 4 -c 5 -o sum > gene_totals.bed
-
-# Group by chromosome and compute stats
-bedtools groupby -i sorted.bed -g 1 -c 2,3 -o min,max > chr_ranges.bed
-
-# Multiple grouping columns
-bedtools groupby -i sorted.bed -g 1,4 -c 5 -o mean > by_chr_gene.bed
-
-# Collapse names within groups
-bedtools groupby -i sorted.bed -g 1,2,3 -c 4 -o collapse > merged_names.bed
-
-# Count features per group
-bedtools groupby -i sorted.bed -g 1 -c 1 -o count > features_per_chr.bed
-
-# Use column ranges
-bedtools groupby -i sorted.bed -g 1-3 -c 5 -o sum > grouped.bed
-```
-
-### Python
-
-```python
-import pybedtools
-
-bed = pybedtools.BedTool('sorted.bed')
-
-# Group by column 4, sum column 5
-result = bed.groupby(g=4, c=5, o='sum')
-
-# Multiple operations
-result = bed.groupby(g=[1, 4], c=[5, 5], o=['mean', 'count'])
-
-result.saveas('grouped.bed')
-```
-
-**Note:** Input must be sorted by grouping columns.
-
-## Common Patterns
-
-### Find Peaks in Promoters
-
-```python
-import pybedtools
-
-peaks = pybedtools.BedTool('peaks.bed')
-promoters = pybedtools.BedTool('promoters.bed')
-
-# Peaks overlapping promoters
-peaks_in_promoters = peaks.intersect(promoters, u=True)
-print(f'{peaks_in_promoters.count()} peaks in promoters')
-```
-
-### Find Unique Regions in Sample
-
-```python
-import pybedtools
-
-sample_a = pybedtools.BedTool('sample_a.bed')
-sample_b = pybedtools.BedTool('sample_b.bed')
-
-# Regions unique to sample A
-unique_a = sample_a.intersect(sample_b, v=True)
-unique_a.saveas('unique_to_a.bed')
-```
-
-### Merge Replicates
-
-```bash
-# Concatenate and merge peaks from replicates
-cat rep1.bed rep2.bed rep3.bed | bedtools sort | bedtools merge -d 100 > consensus.bed
-```
-
-## Key Parameters
-
-| Operation | Key Flags | Description |
-|-----------|-----------|-------------|
-| intersect -u | Unique | Report A once if overlap |
-| intersect -v | Inverse | A that don't overlap B |
-| intersect -f | Fraction | Minimum overlap fraction |
-| intersect -r | Reciprocal | Both must meet -f threshold |
-| intersect -c | Count | Count overlapping B features |
-| subtract -A | All | Remove entire A if any overlap |
-| merge -d | Distance | Merge within N bp |
-| merge -c -o | Columns/Ops | Aggregate columns |
+- Quinlan AR, Hall IM. 2010. BEDTools: a flexible suite of utilities for comparing genomic features. *Bioinformatics* 26:841-842.
+- Dale RK, Pedersen BS, Quinlan AR. 2011. Pybedtools: a flexible Python library for manipulating genomic datasets and annotations. *Bioinformatics* 27:3423-3424.
+- Stovner EB, Sætrom P. 2020. PyRanges: efficient comparison of genomic intervals in Python. *Bioinformatics* 36:918-919.
+- Open2C, Abdennur N, Fudenberg G, Flyamer IM, Galitsyna AA, Goloborodko A, Imakaev M, Venev SV. 2024. Bioframe: operations on genomic intervals in pandas dataframes. *Bioinformatics* 40:btae088.
 
 ## Related Skills
 
-- bed-file-basics - BED format and creation
-- proximity-operations - closest, window, flank, slop
-- coverage-analysis - coverage calculations
-- chip-seq/peak-calling - peak file operations
+- bed-file-basics - BED format, coordinate systems, and the conversions this skill depends on
+- overlap-significance - Whether an overlap count exceeds a matched null (permutation, GAT/regioneR/LOLA/GREAT)
+- proximity-operations - closest, window, flank, slop for adjacency rather than membership
+- coverage-analysis - per-base depth and bedGraph signal feeding map/unionbedg
+- gtf-gff-handling - exon/feature models whose `-split` behavior this skill depends on
+- chip-seq/peak-calling - source of the peak BED files these operations consume
+- atac-seq/consensus-peakset - replicate merge via merge/multiinter
