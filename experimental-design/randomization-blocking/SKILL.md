@@ -12,10 +12,7 @@ Reference examples tested with: designit 0.5+, lme4 1.1-35+, lmerTest 3.1+, pwr 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-If code throws an error, introspect the installed package and adapt the example to the
-actual API rather than retrying. designit is an R6 package whose `BatchContainer$new()`,
-`optimize_design()`, and `*_score_generator()` signatures evolve between releases; confirm
-against the installed vignette (`vignette(package = 'designit')`) before relying on argument names.
+If code throws an error, introspect the installed package and adapt the example to the actual API rather than retrying. designit is an R6 package whose `BatchContainer$new()`, `optimize_design()`, and `*_score_generator()` signatures evolve between releases; confirm against the installed vignette (`vignette(package = 'designit')`) before relying on argument names.
 
 # Randomization and Blocking
 

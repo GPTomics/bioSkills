@@ -7,17 +7,13 @@ primary_tool: ascat
 
 ## Version Compatibility
 
-Reference examples tested with: ASCAT 3.1+, Sequenza 3.0+ (sequenza-utils 3.0+),
-FACETS 0.6+ (snp-pileup), PureCN 2.6+, R 4.3+, Python 3.10+.
+Reference examples tested with: ASCAT 3.1+, Sequenza 3.0+ (sequenza-utils 3.0+), FACETS 0.6+ (snp-pileup), PureCN 2.6+, R 4.3+, Python 3.10+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('ASCAT')` / `'sequenza'` / `'facets'` / `'PureCN'`, then `?function`
 - CLI: `sequenza-utils --version`, `snp-pileup --help`
 
-Sequenza 3.0 depends on the `copynumber` Bioconductor package, REMOVED from Bioconductor
-3.18+ (2023). Install a maintained fork (`ShixiangWang/copynumber` or `igordot/copynumber`)
-before Sequenza will load. ASCAT's GC-correction function was renamed across 2.x->3.x
-(`ascat.GCcorrect` -> `ascat.correctLogR`) — verify against the installed version.
+Sequenza 3.0 depends on the `copynumber` Bioconductor package, REMOVED from Bioconductor 3.18+ (2023). Install a maintained fork (`ShixiangWang/copynumber` or `igordot/copynumber`) before Sequenza will load. ASCAT's GC-correction function was renamed across 2.x->3.x (`ascat.GCcorrect` -> `ascat.correctLogR`) — verify against the installed version.
 
 # Allele-Specific Copy Number
 
@@ -28,16 +24,7 @@ before Sequenza will load. ASCAT's GC-correction function was renamed across 2.x
 
 ## The Identifiability Problem — Why This Is Hard
 
-Purity and ploidy are **not identifiable from depth alone**. The same log-ratio profile is
-explained equally well by many (purity, ploidy) pairs: a homozygous deletion at 30% purity
-looks identical to a heterozygous deletion at 60% purity; an entire profile can be
-reinterpreted at 2x ploidy with halved purity. Every allele-specific caller breaks this
-degeneracy by adding BAF — allelic imbalance constrains which solution is real. The
-consequence: the likelihood surface is **multimodal**, the fit can lock onto an
-integer-multiple of the true ploidy, and a single point estimate must never be trusted
-without inspecting the fit diagnostic (ASCAT sunrise plot, Sequenza cellularity/ploidy
-contour, FACETS dipLogR). A real published example: the same tumor scored ploidy 4.27 by
-FACETS (WGS) and 2.42 by ASCAT (SNP array).
+Purity and ploidy are **not identifiable from depth alone**. The same log-ratio profile is explained equally well by many (purity, ploidy) pairs: a homozygous deletion at 30% purity looks identical to a heterozygous deletion at 60% purity; an entire profile can be reinterpreted at 2x ploidy with halved purity. Every allele-specific caller breaks this degeneracy by adding BAF — allelic imbalance constrains which solution is real. The consequence: the likelihood surface is **multimodal**, the fit can lock onto an integer-multiple of the true ploidy, and a single point estimate must never be trusted without inspecting the fit diagnostic (ASCAT sunrise plot, Sequenza cellularity/ploidy contour, FACETS dipLogR). A real published example: the same tumor scored ploidy 4.27 by FACETS (WGS) and 2.42 by ASCAT (SNP array).
 
 ## Caller Taxonomy
 
@@ -66,9 +53,7 @@ FACETS (WGS) and 2.42 by ASCAT (SNP array).
 
 **Goal:** Fit purity, ploidy, and integer allele-specific CN for a panel or WES pair.
 
-**Approach:** Pile up read counts at common SNPs with `snp-pileup`, then run the two-pass
-FACETS workflow — a high-`cval` purity run whose `dipLogR` seeds a low-`cval` sensitivity
-run for focal events.
+**Approach:** Pile up read counts at common SNPs with `snp-pileup`, then run the two-pass FACETS workflow — a high-`cval` purity run whose `dipLogR` seeds a low-`cval` sensitivity run for focal events.
 
 ```bash
 # Step 1: pileup at dbSNP common sites (normal first, then tumor)
@@ -97,11 +82,9 @@ plotSample(x = oo2, emfit = fit2)               # ALWAYS inspect this diagnostic
 
 ## Sequenza — Exome Tumor-Normal
 
-**Goal:** Estimate cellularity/ploidy and allele-specific CN from a WES pair, with
-explicit alternative solutions.
+**Goal:** Estimate cellularity/ploidy and allele-specific CN from a WES pair, with explicit alternative solutions.
 
-**Approach:** Build a `seqz` file from the BAMs, bin it, then run the extract/fit/results
-chain; inspect the cellularity/ploidy contour and the reported alternative solutions.
+**Approach:** Build a `seqz` file from the BAMs, bin it, then run the extract/fit/results chain; inspect the cellularity/ploidy contour and the reported alternative solutions.
 
 ```bash
 sequenza-utils bam2seqz -n normal.bam -t tumor.bam --fasta ref.fa \
@@ -121,8 +104,7 @@ sequenza.results(seqz, CP, 'sampleID', out.dir = 'sequenza_out')
 
 **Goal:** Fit purity (rho), ploidy (psi), and allele-specific CN genome-wide.
 
-**Approach:** Load logR/BAF, correct for GC (and optionally replication timing), segment
-with ASPCF, run the ASCAT fit, and read the sunrise plot.
+**Approach:** Load logR/BAF, correct for GC (and optionally replication timing), segment with ASPCF, run the ASCAT fit, and read the sunrise plot.
 
 ```r
 library(ASCAT)
@@ -140,9 +122,7 @@ ascat.output <- ascat.runAscat(ascat.bc, gamma = 1)   # gamma=1 for NGS; ~0.55 f
 
 **Goal:** Recover purity, ploidy, allele-specific CN, and LOH without a matched normal.
 
-**Approach:** Build a normal database (PoN) once, then run `runAbsoluteCN` with the tumor
-coverage and a VCF; PureCN uses the normal DB and a mapping-bias model in place of a
-matched normal.
+**Approach:** Build a normal database (PoN) once, then run `runAbsoluteCN` with the tumor coverage and a VCF; PureCN uses the normal DB and a mapping-bias model in place of a matched normal.
 
 ```r
 library(PureCN)
@@ -216,11 +196,7 @@ ret <- runAbsoluteCN(
 | FACETS vs ASCAT integer CN differ | Different segmentation (CBS vs ASPCF) at boundaries | Compare segment edges; arm-level calls usually agree, focal may not |
 | Tumor-only (PureCN) vs tumor-normal differ | Tumor-only has weaker purity constraint | Prefer the matched-normal fit when available |
 
-**Operational rule:** Report an allele-specific fit as confident only when (1) the fit
-diagnostic (sunrise/contour/dipLogR) shows clear, non-degenerate structure, (2) purity is
-above ~40%, (3) ploidy is consistent with the odd/even CN fraction and with clonal-SNV
-multiplicity, and (4) for ambiguous cases, the alternative solutions have been reviewed.
-A bare purity/ploidy number with no diagnostic inspection is not a result.
+**Operational rule:** Report an allele-specific fit as confident only when (1) the fit diagnostic (sunrise/contour/dipLogR) shows clear, non-degenerate structure, (2) purity is above ~40%, (3) ploidy is consistent with the odd/even CN fraction and with clonal-SNV multiplicity, and (4) for ambiguous cases, the alternative solutions have been reviewed. A bare purity/ploidy number with no diagnostic inspection is not a result.
 
 ## Quantitative Thresholds
 

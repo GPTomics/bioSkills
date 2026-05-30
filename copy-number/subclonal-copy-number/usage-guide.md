@@ -2,13 +2,7 @@
 
 ## Overview
 
-A tumor is a mixture of cell populations. When a copy-number change is present in only
-some cancer cells, bulk sequencing averages it into a non-integer state, and a long
-non-integer segment is a subclonal copy-number alteration, not noise. Resolving subclonal
-CN reveals the tumor's clonal architecture; calling whole-genome doubling explicitly is a
-prerequisite because it rescales every copy number. This skill covers Battenberg (phased
-clonal + subclonal CN), TITAN (HMM mixture of cell populations), whole-genome-doubling
-detection and timing, and MEDICC2 copy-number phylogenies.
+A tumor is a mixture of cell populations. When a copy-number change is present in only some cancer cells, bulk sequencing averages it into a non-integer state, and a long non-integer segment is a subclonal copy-number alteration, not noise. Resolving subclonal CN reveals the tumor's clonal architecture; calling whole-genome doubling explicitly is a prerequisite because it rescales every copy number. This skill covers Battenberg (phased clonal + subclonal CN), TITAN (HMM mixture of cell populations), whole-genome-doubling detection and timing, and MEDICC2 copy-number phylogenies.
 
 ## Prerequisites
 
@@ -18,9 +12,7 @@ R -e "BiocManager::install('TitanCNA')"
 conda install -c bioconda -c conda-forge medicc2         # pip alone misses the OpenFST dependency
 ```
 
-Inputs: tumour and matched-normal WGS (or WES for TITAN); allele-specific data (logR and
-BAF at heterozygous SNPs); a 1000 Genomes phasing/impute reference for Battenberg. For
-evolution analysis, multi-region or multi-sample data.
+Inputs: tumour and matched-normal WGS (or WES for TITAN); allele-specific data (logR and BAF at heterozygous SNPs); a 1000 Genomes phasing/impute reference for Battenberg. For evolution analysis, multi-region or multi-sample data.
 
 ## Quick Start
 
@@ -35,26 +27,21 @@ Tell the AI agent what to do:
 
 ### Subclonal calling
 
-> "Run Battenberg on this tumour-normal WGS pair and report which segments are subclonal,
-> with their major/minor states and cell fractions."
+> "Run Battenberg on this tumour-normal WGS pair and report which segments are subclonal, with their major/minor states and cell fractions."
 
-> "Run TITAN, sweep the number of clonal clusters from one to five, and select the
-> cluster count by model fit."
+> "Run TITAN, sweep the number of clonal clusters from one to five, and select the cluster count by model fit."
 
 ### Whole-genome doubling
 
-> "Decide whether this tumour is whole-genome-doubled using absolute allele-specific copy
-> number, and explain why a depth-only profile cannot answer this."
+> "Decide whether this tumour is whole-genome-doubled using absolute allele-specific copy number, and explain why a depth-only profile cannot answer this."
 
 > "Time whole-genome doubling for this tumour using mutation copy number."
 
 ### Evolution and reconciliation
 
-> "Build a whole-genome-doubling-aware copy-number phylogeny across my five regions with
-> MEDICC2."
+> "Build a whole-genome-doubling-aware copy-number phylogeny across my five regions with MEDICC2."
 
-> "Battenberg and TITAN disagree on whether a segment is subclonal. Walk through
-> reconciling them."
+> "Battenberg and TITAN disagree on whether a segment is subclonal. Walk through reconciling them."
 
 ## What the Agent Will Do
 
@@ -67,18 +54,12 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- A long non-integer segment is a subclonal CNA, not noise; use Battenberg or TITAN, not
-  a clonal-only caller.
-- Call whole-genome doubling explicitly before interpreting any copy number; missing it
-  halves every copy number and mis-times every mutation.
-- WGD calling needs absolute allele-specific copy number; depth alone cannot distinguish
-  a doubled genome from a non-doubled one.
-- Battenberg resolves subclones to ~3% of cells only at adequate WGS depth and purity;
-  treat low-depth subclonal calls as exploratory.
-- Mirrored subclonal allelic imbalance can look balanced in bulk BAF; phasing or
-  single-cell data is needed to detect it.
-- A single subclonal segment is a hypothesis; require multiple concordant segments at a
-  consistent cell fraction before declaring a subclone.
+- A long non-integer segment is a subclonal CNA, not noise; use Battenberg or TITAN, not a clonal-only caller.
+- Call whole-genome doubling explicitly before interpreting any copy number; missing it halves every copy number and mis-times every mutation.
+- WGD calling needs absolute allele-specific copy number; depth alone cannot distinguish a doubled genome from a non-doubled one.
+- Battenberg resolves subclones to ~3% of cells only at adequate WGS depth and purity; treat low-depth subclonal calls as exploratory.
+- Mirrored subclonal allelic imbalance can look balanced in bulk BAF; phasing or single-cell data is needed to detect it.
+- A single subclonal segment is a hypothesis; require multiple concordant segments at a consistent cell fraction before declaring a subclone.
 - Single-region sampling misses spatial subclones; use multi-region data for evolution.
 
 ## Related Skills

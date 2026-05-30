@@ -12,9 +12,7 @@ Reference examples tested with: diffcyt 1.22+, CATALYST 1.26+, edgeR 4.0+, limma
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-`testDA_edgeR`/`testDS_limma` are diffcyt functions operating on count/median objects from
-`calcCounts`/`calcMedians`; the CATALYST-integrated path is the `diffcyt()` wrapper on the SCE.
-Confirm the signature with `?diffcyt` before relying on it.
+`testDA_edgeR`/`testDS_limma` are diffcyt functions operating on count/median objects from `calcCounts`/`calcMedians`; the CATALYST-integrated path is the `diffcyt()` wrapper on the SCE. Confirm the signature with `?diffcyt` before relying on it.
 
 # Differential Analysis
 

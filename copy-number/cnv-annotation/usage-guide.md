@@ -2,13 +2,7 @@
 
 ## Overview
 
-CNV annotation adds biological and clinical context to copy number calls: which genes a
-segment overlaps, whether those genes are dosage-sensitive, whether the CNV is common in
-the population, and whether it carries known cancer drivers. The central principle is
-that overlap is not consequence: a CNV spanning a gene matters only if the gene is
-dosage-sensitive, the affected portion is functionally important, and (for focal events)
-the gene is a driver rather than a passenger. Annotated CNVs feed clinical classification
-(germline-cnv-interpretation) and driver analysis (recurrent-cnv).
+CNV annotation adds biological and clinical context to copy number calls: which genes a segment overlaps, whether those genes are dosage-sensitive, whether the CNV is common in the population, and whether it carries known cancer drivers. The central principle is that overlap is not consequence: a CNV spanning a gene matters only if the gene is dosage-sensitive, the affected portion is functionally important, and (for focal events) the gene is a driver rather than a passenger. Annotated CNVs feed clinical classification (germline-cnv-interpretation) and driver analysis (recurrent-cnv).
 
 ## Prerequisites
 
@@ -18,9 +12,7 @@ pip install pybedtools pandas pysam
 # R route: BiocManager::install(c('clusterProfiler', 'org.Hs.eg.db'))
 ```
 
-Inputs: CNV segments (CNVkit `.cns`, a BED, or a VCF); a gene model (GENCODE/RefSeq);
-optionally the ClinGen dosage map, COSMIC Cancer Gene Census, gnomAD-SV/DGV catalogs, and
-a ClinVar VCF. AnnotSV bundles most reference databases on first download.
+Inputs: CNV segments (CNVkit `.cns`, a BED, or a VCF); a gene model (GENCODE/RefSeq); optionally the ClinGen dosage map, COSMIC Cancer Gene Census, gnomAD-SV/DGV catalogs, and a ClinVar VCF. AnnotSV bundles most reference databases on first download.
 
 ## Quick Start
 
@@ -35,23 +27,19 @@ Tell the AI agent what to do:
 
 ### Gene and dosage annotation
 
-> "Annotate these CNV segments with overlapping genes, record what fraction of each gene
-> is covered, and tag genes with ClinGen haploinsufficiency and triplosensitivity scores."
+> "Annotate these CNV segments with overlapping genes, record what fraction of each gene is covered, and tag genes with ClinGen haploinsufficiency and triplosensitivity scores."
 
 > "Run AnnotSV on this CNV VCF in GRCh38 and explain how to read the ACMG rank."
 
 ### Driver vs passenger
 
-> "This focal amplification spans 30 genes. Identify the likely driver using the COSMIC
-> Cancer Gene Census and explain why the passengers should not all be reported."
+> "This focal amplification spans 30 genes. Identify the likely driver using the COSMIC Cancer Gene Census and explain why the passengers should not all be reported."
 
 ### Filtering and context
 
-> "Filter my CNV callset against gnomAD-SV using 50% reciprocal overlap and explain why
-> reciprocal overlap matters for benign filtering."
+> "Filter my CNV callset against gnomAD-SV using 50% reciprocal overlap and explain why reciprocal overlap matters for benign filtering."
 
-> "My CNVs are on GRCh37 and my gene model is GRCh38. Diagnose the build mismatch and
-> recommend a safe liftOver approach."
+> "My CNVs are on GRCh37 and my gene model is GRCh38. Diagnose the build mismatch and recommend a safe liftOver approach."
 
 ## What the Agent Will Do
 
@@ -65,18 +53,12 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- Overlap is not consequence: require dosage evidence (ClinGen HI/TS) and record
-  whole-gene-vs-partial status before calling a gene affected.
-- For focal amplifications, report the driver (recurrence peak + known oncogene), not
-  every gene the amplicon spans.
-- Always confirm CNVs and the gene model are on the same genome build; a mismatch
-  silently returns wrong genes.
-- Use reciprocal overlap (`-f 0.5 -r`) for population-frequency filtering so a tiny CNV
-  is not matched to a huge population CNV.
-- Parse ClinVar `CLNSIG` against its controlled vocabulary; SNV/indel pathogenicity does
-  not transfer to a CNV.
-- CNV-gene pathway enrichment is biased by gene-dense CNV-prone loci; treat it as
-  hypothesis-generating.
+- Overlap is not consequence: require dosage evidence (ClinGen HI/TS) and record whole-gene-vs-partial status before calling a gene affected.
+- For focal amplifications, report the driver (recurrence peak + known oncogene), not every gene the amplicon spans.
+- Always confirm CNVs and the gene model are on the same genome build; a mismatch silently returns wrong genes.
+- Use reciprocal overlap (`-f 0.5 -r`) for population-frequency filtering so a tiny CNV is not matched to a huge population CNV.
+- Parse ClinVar `CLNSIG` against its controlled vocabulary; SNV/indel pathogenicity does not transfer to a CNV.
+- CNV-gene pathway enrichment is biased by gene-dense CNV-prone loci; treat it as hypothesis-generating.
 
 ## Related Skills
 

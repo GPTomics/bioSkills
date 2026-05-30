@@ -13,8 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `blastn -version` then `blastn -help` to confirm flags
 - CLI: `makeblastdb -help` to confirm database build options
 
-If a flag is unrecognized or behavior changes, introspect with `-help` and adapt the
-example to match the installed version rather than retrying.
+If a flag is unrecognized or behavior changes, introspect with `-help` and adapt the example to match the installed version rather than retrying.
 
 # Local BLAST
 

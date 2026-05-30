@@ -7,17 +7,14 @@ primary_tool: gistic2
 
 ## Version Compatibility
 
-Reference examples tested with: GISTIC 2.0.23, R 4.3+ with CINSignatureQuantification 1.2+;
-Python 3.10+ with SigProfilerAssignment 0.1+ (optional, COSMIC CN signatures).
+Reference examples tested with: GISTIC 2.0.23, R 4.3+ with CINSignatureQuantification 1.2+; Python 3.10+ with SigProfilerAssignment 0.1+ (optional, COSMIC CN signatures).
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `gistic2 --help` (GISTIC 2.0 is a MATLAB-compiled binary; needs the MCR runtime)
 - R: `packageVersion('CINSignatureQuantification')`
 - Python: `pip show SigProfilerAssignment`
 
-GISTIC 2.0 has had no substantive release since ~2017; it is effectively frozen. It runs
-as a compiled binary against the MATLAB Compiler Runtime — there is no R or Python
-package. Verify the reference (`-refgene`) `.mat` file matches the genome build.
+GISTIC 2.0 has had no substantive release since ~2017; it is effectively frozen. It runs as a compiled binary against the MATLAB Compiler Runtime — there is no R or Python package. Verify the reference (`-refgene`) `.mat` file matches the genome build.
 
 # Recurrent and Driver Copy Number Alteration
 
@@ -28,24 +25,12 @@ package. Verify the reference (`-refgene`) `.mat` file matches the genome build.
 
 ## How GISTIC2 Works — and Its Limits
 
-GISTIC2 scores each genomic marker with a **G-score** = frequency of alteration x mean
-amplitude, separately for amplifications and deletions. Significance (**q-value**) comes
-from permuting events along the genome under the null that all are passengers.
-**Ziggurat deconstruction** decomposes each sample's profile into the additive
-arm-level and focal events that produced it, so the background rate is estimated
-separately for broad and focal alterations — without this, ubiquitous arm-level events
-swamp the focal signal. A **peel-off** procedure removes the contribution of each
-significant peak before testing the next, so one strong driver does not mask its neighbors.
+GISTIC2 scores each genomic marker with a **G-score** = frequency of alteration x mean amplitude, separately for amplifications and deletions. Significance (**q-value**) comes from permuting events along the genome under the null that all are passengers. **Ziggurat deconstruction** decomposes each sample's profile into the additive arm-level and focal events that produced it, so the background rate is estimated separately for broad and focal alterations — without this, ubiquitous arm-level events swamp the focal signal. A **peel-off** procedure removes the contribution of each significant peak before testing the next, so one strong driver does not mask its neighbors.
 
 Two postdoc-level caveats define how GISTIC2 output must be read:
 
-1. **q-values are cohort-size dependent.** Larger N manufactures more "significant"
-   peaks. A peak list from N=50 and one from N=500 are not comparable; recurrence
-   *frequency* is the portable quantity, not the q-value.
-2. **GISTIC2 is only as good as its input segmentation.** Oversegmented seg files produce
-   spurious narrow peaks. The seg file must also be correctly **centered** on diploid —
-   a mis-centered profile (WGD genome centered on tetraploid) inverts every call before
-   GISTIC even runs.
+1. **q-values are cohort-size dependent.** Larger N manufactures more "significant" peaks. A peak list from N=50 and one from N=500 are not comparable; recurrence *frequency* is the portable quantity, not the q-value.
+2. **GISTIC2 is only as good as its input segmentation.** Oversegmented seg files produce spurious narrow peaks. The seg file must also be correctly **centered** on diploid — a mis-centered profile (WGD genome centered on tetraploid) inverts every call before GISTIC even runs.
 
 ## Decision Tree
 
@@ -77,22 +62,13 @@ gistic2 \
     -rx 0
 ```
 
-Key flags: `-brlen 0.7` sets the focal/broad cutoff at 70% of a chromosome arm;
-`-conf 0.99` is the peak-boundary confidence — raising it above the 0.75 default yields a
-wider, more conservative peak with higher confidence the true driver gene lies inside it
-(the trade-off is more genes per peak); `-armpeel 1` peels arm-level events before focal testing;
-`-genegistic 1` runs the gene-level test; `-rx 0` keeps sex chromosomes. Output
-`amp_genes.txt` / `del_genes.txt` and `all_lesions.txt` list peaks, q-values, and genes.
+Key flags: `-brlen 0.7` sets the focal/broad cutoff at 70% of a chromosome arm; `-conf 0.99` is the peak-boundary confidence — raising it above the 0.75 default yields a wider, more conservative peak with higher confidence the true driver gene lies inside it (the trade-off is more genes per peak); `-armpeel 1` peels arm-level events before focal testing; `-genegistic 1` runs the gene-level test; `-rx 0` keeps sex chromosomes. Output `amp_genes.txt` / `del_genes.txt` and `all_lesions.txt` list peaks, q-values, and genes.
 
 ## Copy-Number Signatures
 
-**Goal:** Decompose the genome-wide copy-number pattern into mutational processes
-(HRD, chromothripsis, tandem duplication, ecDNA, whole-genome doubling).
+**Goal:** Decompose the genome-wide copy-number pattern into mutational processes (HRD, chromothripsis, tandem duplication, ecDNA, whole-genome doubling).
 
-**Approach:** Two competing 2022 frameworks exist. Steele et al (Nature 2022) defined 21
-pan-cancer CN signatures from a 48-channel feature matrix, now in COSMIC; Drews et al
-(Nature 2022) defined 17 signatures via the CINSignatures feature set. Quantify against
-one framework consistently; signatures require *absolute* (allele-specific) copy number.
+**Approach:** Two competing 2022 frameworks exist. Steele et al (Nature 2022) defined 21 pan-cancer CN signatures from a 48-channel feature matrix, now in COSMIC; Drews et al (Nature 2022) defined 17 signatures via the CINSignatures feature set. Quantify against one framework consistently; signatures require *absolute* (allele-specific) copy number.
 
 ```r
 library(CINSignatureQuantification)
@@ -104,10 +80,7 @@ res <- quantifyCNSignatures(segments, experimentName = 'cohort',
 activities <- getActivities(res)   # samples x signatures exposure matrix
 ```
 
-The critical caveat (Steele 2022): three signatures had to be discarded as
-oversegmentation artifacts and ten were linear combinations needing manual filtering.
-Signatures are sensitive to the upstream caller — Steele prescribes the caller per
-platform (SNP6 -> ASCAT penalty 70; shallow WGS -> ASCAT.sc) precisely for this reason.
+The critical caveat (Steele 2022): three signatures had to be discarded as oversegmentation artifacts and ten were linear combinations needing manual filtering. Signatures are sensitive to the upstream caller — Steele prescribes the caller per platform (SNP6 -> ASCAT penalty 70; shallow WGS -> ASCAT.sc) precisely for this reason.
 
 ## Failure Modes
 
@@ -170,11 +143,7 @@ platform (SNP6 -> ASCAT penalty 70; shallow WGS -> ASCAT.sc) precisely for this 
 | Drews vs Steele signatures disagree | Different feature definitions and reference sets | Pick one framework; do not mix exposures |
 | Peaks change with segmentation | Input over/under-segmented | Stabilize segmentation; re-run |
 
-**Operational rule:** Report a GISTIC peak as a candidate driver locus only when (1) the
-input segmentation is QC-passed and diploid-centered, (2) recurrence frequency (not just
-q-value) is substantial, and (3) the peak contains a gene with independent driver
-evidence. Signatures are reportable only from absolute CN with a single, platform-matched
-framework.
+**Operational rule:** Report a GISTIC peak as a candidate driver locus only when (1) the input segmentation is QC-passed and diploid-centered, (2) recurrence frequency (not just q-value) is substantial, and (3) the peak contains a gene with independent driver evidence. Signatures are reportable only from absolute CN with a single, platform-matched framework.
 
 ## Quantitative Thresholds
 

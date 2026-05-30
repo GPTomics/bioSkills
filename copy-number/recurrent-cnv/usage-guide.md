@@ -2,14 +2,7 @@
 
 ## Overview
 
-A copy number change in one tumor is an observation; one recurring across many tumors
-beyond chance is evidence of selection. GISTIC2 separates recurrent driver events from
-passengers by modeling a background rate and scoring each locus by frequency and
-amplitude (the G-score), with separate background estimation for focal and arm-level
-events. Copy-number signatures decompose the genome-wide alteration pattern into the
-mutational processes that generated it. This skill covers GISTIC2, driver-gene
-localization from recurrence peaks, and the Steele 2022 and Drews 2022 copy-number
-signature frameworks, including the caveats that make their output easy to misread.
+A copy number change in one tumor is an observation; one recurring across many tumors beyond chance is evidence of selection. GISTIC2 separates recurrent driver events from passengers by modeling a background rate and scoring each locus by frequency and amplitude (the G-score), with separate background estimation for focal and arm-level events. Copy-number signatures decompose the genome-wide alteration pattern into the mutational processes that generated it. This skill covers GISTIC2, driver-gene localization from recurrence peaks, and the Steele 2022 and Drews 2022 copy-number signature frameworks, including the caveats that make their output easy to misread.
 
 ## Prerequisites
 
@@ -20,9 +13,7 @@ R -e "BiocManager::install('CINSignatureQuantification')"   # Drews 2022 signatu
 pip install SigProfilerAssignment                            # Steele 2022 COSMIC CN
 ```
 
-Inputs: a pooled cohort segment file (6 columns: sample, chrom, start, end, num_markers,
-seg.mean), diploid-centered; for signatures, absolute allele-specific copy number from
-ASCAT/Sequenza/FACETS.
+Inputs: a pooled cohort segment file (6 columns: sample, chrom, start, end, num_markers, seg.mean), diploid-centered; for signatures, absolute allele-specific copy number from ASCAT/Sequenza/FACETS.
 
 ## Quick Start
 
@@ -37,24 +28,19 @@ Tell the AI agent what to do:
 
 ### Recurrence and drivers
 
-> "Pool these CNVkit segments into a cohort seg file and run GISTIC2 with high
-> peak-boundary confidence, then list focal amplification peaks and their candidate driver genes."
+> "Pool these CNVkit segments into a cohort seg file and run GISTIC2 with high peak-boundary confidence, then list focal amplification peaks and their candidate driver genes."
 
-> "This GISTIC peak is 3 Mb wide and contains 25 genes. Localize the likely driver using
-> the COSMIC Cancer Gene Census and explain why the peak gene may be a passenger."
+> "This GISTIC peak is 3 Mb wide and contains 25 genes. Localize the likely driver using the COSMIC Cancer Gene Census and explain why the peak gene may be a passenger."
 
 ### Focal vs broad
 
-> "Distinguish the focal driver events from arm-level passenger events in my cohort and
-> explain how Ziggurat deconstruction and arm-peeling make that separation."
+> "Distinguish the focal driver events from arm-level passenger events in my cohort and explain how Ziggurat deconstruction and arm-peeling make that separation."
 
 ### Signatures
 
-> "Quantify copy-number signatures for my cohort with the Drews CINSignatures framework
-> using absolute copy number from ASCAT."
+> "Quantify copy-number signatures for my cohort with the Drews CINSignatures framework using absolute copy number from ASCAT."
 
-> "Explain why three of the Steele 2022 copy-number signatures are oversegmentation
-> artifacts and how that affects my interpretation."
+> "Explain why three of the Steele 2022 copy-number signatures are oversegmentation artifacts and how that affects my interpretation."
 
 ## What the Agent Will Do
 
@@ -67,16 +53,12 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- GISTIC q-values fall as cohort size rises; compare recurrence frequency across cohorts,
-  not q-values.
-- The seg file must be diploid-centered before pooling; a mis-centered profile inverts
-  every call before GISTIC runs.
+- GISTIC q-values fall as cohort size rises; compare recurrence frequency across cohorts, not q-values.
+- The seg file must be diploid-centered before pooling; a mis-centered profile inverts every call before GISTIC runs.
 - Oversegmented input creates spurious narrow peaks; QC the segmentation first.
-- A wide GISTIC peak localizes a region, it does not nominate a gene; intersect with
-  known drivers, expression, and dependency data.
+- A wide GISTIC peak localizes a region, it does not nominate a gene; intersect with known drivers, expression, and dependency data.
 - Copy-number signatures require absolute allele-specific copy number, not relative log2.
-- Pick one signature framework (Steele/COSMIC or Drews/CINSignatures) and do not mix
-  exposures; both are caller-sensitive.
+- Pick one signature framework (Steele/COSMIC or Drews/CINSignatures) and do not mix exposures; both are caller-sensitive.
 - GISTIC 2.0 is a frozen MATLAB-compiled binary needing the MCR runtime; no package.
 
 ## Related Skills

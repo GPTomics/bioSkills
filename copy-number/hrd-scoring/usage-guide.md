@@ -2,14 +2,7 @@
 
 ## Overview
 
-Homologous recombination deficiency leaves characteristic copy-number scars. Three are
-quantified and summed into an HRD score: loss of heterozygosity (LOH segments > 15 Mb),
-large-scale state transitions (LST), and telomeric allelic imbalance (TAI). A high score
-predicts response to platinum chemotherapy and PARP inhibitors and underlies approved
-companion diagnostics. The decisive subtlety is that the score is a *scar*, a record of
-past HR deficiency, so it can remain high in a tumor that has since restored HR function
-(for example by a BRCA reversion mutation). This skill covers scarHRD scar computation,
-the whole-genome HRDetect and CHORD models, and the ploidy/purity caveats.
+Homologous recombination deficiency leaves characteristic copy-number scars. Three are quantified and summed into an HRD score: loss of heterozygosity (LOH segments > 15 Mb), large-scale state transitions (LST), and telomeric allelic imbalance (TAI). A high score predicts response to platinum chemotherapy and PARP inhibitors and underlies approved companion diagnostics. The decisive subtlety is that the score is a *scar*, a record of past HR deficiency, so it can remain high in a tumor that has since restored HR function (for example by a BRCA reversion mutation). This skill covers scarHRD scar computation, the whole-genome HRDetect and CHORD models, and the ploidy/purity caveats.
 
 ## Prerequisites
 
@@ -19,9 +12,7 @@ conda install -c bioconda sequenza-utils          # allele-specific input for sc
 # HRDetect / CHORD: install from their respective repositories (whole-genome data only)
 ```
 
-Inputs: allele-specific copy number (a Sequenza `.seqz` file or an ASCAT-style
-allele-specific segment table) from an adequately pure tumor, with a known ploidy.
-HRDetect and CHORD additionally need whole-genome somatic mutation calls.
+Inputs: allele-specific copy number (a Sequenza `.seqz` file or an ASCAT-style allele-specific segment table) from an adequately pure tumor, with a known ploidy. HRDetect and CHORD additionally need whole-genome somatic mutation calls.
 
 ## Quick Start
 
@@ -36,24 +27,19 @@ Tell the AI agent what to do:
 
 ### Computing the score
 
-> "Run scarHRD on this Sequenza .seqz file in GRCh38, report LOH, LST, TAI and the sum,
-> and confirm the score was computed with the correct ploidy."
+> "Run scarHRD on this Sequenza .seqz file in GRCh38, report LOH, LST, TAI and the sum, and confirm the score was computed with the correct ploidy."
 
-> "I have whole-genome sequencing for this tumor. Recommend HRDetect over the scar score
-> and explain what additional evidence it integrates."
+> "I have whole-genome sequencing for this tumor. Recommend HRDetect over the scar score and explain what additional evidence it integrates."
 
 ### Interpretation
 
-> "This tumor scores HRD-high but is BRCA wild-type. Work through whether this is a true
-> HR lesion elsewhere in the pathway or a false-high from whole-genome doubling."
+> "This tumor scores HRD-high but is BRCA wild-type. Work through whether this is a true HR lesion elsewhere in the pathway or a false-high from whole-genome doubling."
 
-> "An HRD-high patient progressed on a PARP inhibitor. Explain how a scar score can be
-> correct yet the tumor no longer HR-deficient."
+> "An HRD-high patient progressed on a PARP inhibitor. Explain how a scar score can be correct yet the tumor no longer HR-deficient."
 
 ### Method and assay
 
-> "My HRD score came from a targeted panel. Explain why I cannot compare it directly to
-> the Myriad myChoice GIS >= 42 cutoff."
+> "My HRD score came from a targeted panel. Explain why I cannot compare it directly to the Myriad myChoice GIS >= 42 cutoff."
 
 ## What the Agent Will Do
 
@@ -66,16 +52,11 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- The HRD score needs allele-specific copy number; total CN or relative log2 cannot give
-  LOH or TAI.
-- LST rises with ploidy; always compute the score with the correct ploidy so
-  whole-genome doubling does not inflate it.
-- A high score reflects *past* HR deficiency; BRCA reversion restores HR function but the
-  scars persist, so HRD-high is not a guarantee of drug response.
-- For whole-genome data, HRDetect and CHORD are more accurate because they add SNV and
-  rearrangement signature evidence.
-- Companion-diagnostic cutoffs (GIS >= 42) are validated per assay and are not portable
-  to a different panel or to WGS.
+- The HRD score needs allele-specific copy number; total CN or relative log2 cannot give LOH or TAI.
+- LST rises with ploidy; always compute the score with the correct ploidy so whole-genome doubling does not inflate it.
+- A high score reflects *past* HR deficiency; BRCA reversion restores HR function but the scars persist, so HRD-high is not a guarantee of drug response.
+- For whole-genome data, HRDetect and CHORD are more accurate because they add SNV and rearrangement signature evidence.
+- Companion-diagnostic cutoffs (GIS >= 42) are validated per assay and are not portable to a different panel or to WGS.
 - Allele-specific calling fails below ~30-40% purity; do not score low-purity samples.
 
 ## Related Skills

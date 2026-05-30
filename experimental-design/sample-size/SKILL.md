@@ -12,10 +12,7 @@ Reference examples tested with: ssizeRNA 1.3+, PROPER 1.34+, powsimR 1.2+ (GitHu
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-If code throws an error, introspect the installed package and adapt to the actual API.
-Notes: ssizeRNA provides `ssizeRNA_single()` (one mean/dispersion for all genes),
-`ssizeRNA_vary()` (genes vary), and `check.power()` (average power and true FDR for a given n);
-powsimR is GitHub-only with drifting signatures. Verify against the installed help before use.
+If code throws an error, introspect the installed package and adapt to the actual API. Notes: ssizeRNA provides `ssizeRNA_single()` (one mean/dispersion for all genes), `ssizeRNA_vary()` (genes vary), and `check.power()` (average power and true FDR for a given n); powsimR is GitHub-only with drifting signatures. Verify against the installed help before use.
 
 # Sample Size for Genomics Experiments
 

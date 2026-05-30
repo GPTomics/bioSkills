@@ -13,8 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
 - Python: `pip show <package>` then introspect signatures
 
-If a flag is unrecognized or behavior changes, introspect with `--help` and adapt
-the example to match the installed version rather than retrying.
+If a flag is unrecognized or behavior changes, introspect with `--help` and adapt the example to match the installed version rather than retrying.
 
 # Remote Homology
 

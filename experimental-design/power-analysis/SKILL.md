@@ -12,11 +12,7 @@ Reference examples tested with: RNASeqPower 1.42+, PROPER 1.34+, powsimR 1.2+ (G
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-If code throws an error, introspect the installed package and adapt to the actual API.
-Notes: `RNASeqPower::rnapower()` solves for whichever of `n` or `power` is omitted; PROPER is a
-multi-step pipeline (`RNAseq.SimOptions.2grp` -> `simRNAseq` -> `runSims` -> `comparePower`); powsimR is
-GitHub-only and its `estimateParam`/`Setup`/`simulateDE` signatures drift — pin a commit SHA for
-reproducible work. Verify each against the installed help before relying on argument names.
+If code throws an error, introspect the installed package and adapt to the actual API. Notes: `RNASeqPower::rnapower()` solves for whichever of `n` or `power` is omitted; PROPER is a multi-step pipeline (`RNAseq.SimOptions.2grp` -> `simRNAseq` -> `runSims` -> `comparePower`); powsimR is GitHub-only and its `estimateParam`/`Setup`/`simulateDE` signatures drift — pin a commit SHA for reproducible work. Verify each against the installed help before relying on argument names.
 
 # Power Analysis for Genomics Experiments
 

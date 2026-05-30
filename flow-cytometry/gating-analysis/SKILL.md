@@ -12,8 +12,7 @@ Reference examples tested with: flowWorkspace 4.14+, openCyto 2.14+, flowDensity
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-openCyto gating-method names drift across versions - confirm with `gt_list_methods()` on the
-installed package (e.g. `gate_flowclust_2d` vs `flowClust.2d`). Adapt rather than retrying.
+openCyto gating-method names drift across versions - confirm with `gt_list_methods()` on the installed package (e.g. `gate_flowclust_2d` vs `flowClust.2d`). Adapt rather than retrying.
 
 # Gating Analysis
 

@@ -2,11 +2,7 @@
 
 ## Overview
 
-Detect, interpret, and characterize copy number variants from whole-genome, exome, and
-targeted sequencing. Covers read-depth calling, copy-ratio segmentation, allele-specific
-copy number with tumor purity and ploidy, recurrent and driver CNV, clinical
-interpretation, homologous recombination deficiency, focal amplification architecture,
-and subclonal tumor evolution.
+Detect, interpret, and characterize copy number variants from whole-genome, exome, and targeted sequencing. Covers read-depth calling, copy-ratio segmentation, allele-specific copy number with tumor purity and ploidy, recurrent and driver CNV, clinical interpretation, homologous recombination deficiency, focal amplification architecture, and subclonal tumor evolution.
 
 **Tool type:** mixed | **Primary tools:** CNVkit, GATK4, ASCAT, Sequenza, FACETS, GISTIC2, scarHRD, AmpliconArchitect
 

@@ -1,155 +1,101 @@
-'''Off-target prediction for CRISPR guides'''
-# Reference: pandas 2.2+ | Verify API if version differs
+'''Prepare a Cas-OFFinder search, parse its output, and CFD-rank candidate off-targets.
 
+The CFD matrix is NOT hand-typed here: it is the published Doench 2016 table that ships
+with CRISPOR / the Doench code as mismatch_score.pkl + pam_scores.pkl. cfd_score loads
+those tables and takes the product of per-position mismatch penalties x the PAM penalty.
+CFD is a SpCas9/NGG relative ranker for comparing guides, NOT a calibrated cutting
+probability. The candidate list from Cas-OFFinder is a hypothesis set (predicted), not a
+verdict -- validate real risk with an empirical assay and amplicon deep-seq.
+'''
+# Reference: cas-offinder 3.0+, pandas 2.2+ | Verify API if version differs
+
+import pickle
 import pandas as pd
 
-
-# CFD score position-specific mismatch penalties (simplified)
-# Full matrix from Doench et al. 2016 Nature Biotechnology
-# Position 1 = PAM-proximal, Position 20 = PAM-distal
-CFD_POSITION_WEIGHTS = {
-    1: 0.3,   # PAM-proximal: mismatches severely reduce cutting
-    2: 0.35,
-    3: 0.4,
-    4: 0.45,
-    5: 0.5,
-    10: 0.6,
-    15: 0.75,
-    18: 0.85,
-    19: 0.9,
-    20: 0.95,  # PAM-distal: mismatches have less effect
-}
-
-# PAM variant penalties (SpCas9 prefers NGG)
-CFD_PAM_SCORES = {
-    'AGG': 0.26,  # NAG PAM has ~26% activity vs NGG
-    'CGG': 0.11,
-    'TGG': 0.02,
-    'GAG': 0.07,
-    'GCG': 0.03,
-    'GTG': 0.02,
-    'GGA': 0.01,
-    'GGC': 0.01,
-    'GGT': 0.01,
-}
+CFD_MISMATCH_PKL = 'mismatch_score.pkl'   # ships with CRISPOR / Doench 2016 code; do not fabricate
+CFD_PAM_PKL = 'pam_scores.pkl'
 
 
-def calculate_cfd_score(guide, off_target_seq):
-    '''Calculate CFD score for an off-target site
+def prepare_cas_offinder_input(guides, genome_dir, pam='NRG', guide_len=20,
+                               max_mismatches=4, dna_bulge=0, rna_bulge=0):
+    '''Build a Cas-OFFinder input file string.
 
-    CFD (Cutting Frequency Determination) predicts cleavage probability
-    relative to the on-target site.
-
-    Interpretation:
-    - 1.0: Perfect match (on-target)
-    - >0.5: High cleavage probability (concerning off-target)
-    - 0.1-0.5: Moderate probability
-    - <0.1: Low probability (likely acceptable)
+    pam 'NRG' also catches NAG/NGG off-targets. The query line is the guide bases plus N's
+    for the PAM positions, so its length equals the pattern length. A bulge line is emitted
+    only when a bulge size is requested (native support requires Cas-OFFinder >= 3.0.0).
+    max_mismatches: 4 balances speed/sensitivity; bulges/variants can rescue more-distant sites.
     '''
-    guide = guide.upper()
-    off_target = off_target_seq.upper()
-
-    score = 1.0
-
-    # Apply position-specific mismatch penalties
-    for i in range(min(20, len(guide), len(off_target))):
-        if guide[i] != off_target[i]:
-            pos = i + 1  # 1-based position
-            penalty = CFD_POSITION_WEIGHTS.get(pos, 0.5)
-            score *= penalty
-
-    # Apply PAM penalty if sequence includes PAM
-    if len(off_target) >= 23:
-        pam = off_target[20:23]
-        if pam != 'NGG' and pam in CFD_PAM_SCORES:
-            score *= CFD_PAM_SCORES[pam]
-
-    return score
-
-
-def count_mismatches(seq1, seq2):
-    '''Count mismatches between two sequences'''
-    return sum(1 for a, b in zip(seq1.upper(), seq2.upper()) if a != b)
-
-
-def prepare_cas_offinder_input(guides, genome_dir, max_mismatches=4):
-    '''Prepare input file for Cas-OFFinder
-
-    Args:
-        guides: List of 20nt guide sequences
-        genome_dir: Path to directory with genome .2bit or indexed fasta
-        max_mismatches: Search tolerance (4 is good balance)
-                       0-2: Only find very similar sites
-                       3-4: Standard search (recommended)
-                       5-6: Comprehensive but slow
-    '''
-    lines = [genome_dir, 'N' * 20 + 'NGG']
-    for guide in guides:
-        lines.append(f'{guide.upper()}NNN {max_mismatches}')
-    return '\n'.join(lines)
+    pattern = 'N' * guide_len + pam
+    lines = [genome_dir]
+    if dna_bulge or rna_bulge:
+        lines.append(f'{dna_bulge} {rna_bulge}')
+    lines.append(pattern)
+    pam_pad = 'N' * len(pam)
+    for g in guides:
+        lines.append(f'{g.upper()}{pam_pad} {max_mismatches}')
+    return '\n'.join(lines) + '\n'
 
 
 def parse_cas_offinder_output(filepath):
-    '''Parse Cas-OFFinder output file'''
-    columns = ['guide', 'chrom', 'position', 'sequence', 'strand', 'mismatches']
-    return pd.read_csv(filepath, sep='\t', header=None, names=columns)
+    '''Parse Cas-OFFinder output (no header line; positions are 0-based, Bowtie convention).
 
-
-def analyze_off_targets(guide, off_target_df):
-    '''Analyze off-targets for a single guide
-
-    Returns:
-        dict with specificity metrics and flagged sites
+    Column count depends on mode. No-bulge output has 6: pattern, chrom, position, site,
+    strand, mismatches. Bulge mode (Cas-OFFinder >= 3.0.0) has 8: bulge_type, pattern, site,
+    chrom, position, strand, mismatches, bulge_size. Dispatch on the observed width.
     '''
-    guide_ots = off_target_df[off_target_df['guide'] == guide].copy()
+    df = pd.read_csv(filepath, sep='\t', header=None, comment='#')
+    if df.shape[1] == 8:
+        df.columns = ['bulge_type', 'pattern', 'site', 'chrom', 'position', 'strand', 'mismatches', 'bulge_size']
+    else:
+        df.columns = ['pattern', 'chrom', 'position', 'site', 'strand', 'mismatches']
+    return df
 
-    # Calculate CFD for each off-target
-    guide_ots['cfd_score'] = guide_ots['sequence'].apply(
-        lambda seq: calculate_cfd_score(guide, seq)
-    )
 
-    # Aggregate specificity (higher = better)
-    # Formula: 1 / (1 + sum of CFD scores)
-    cfd_sum = guide_ots['cfd_score'].sum()
-    specificity = 1 / (1 + cfd_sum)
+def load_cfd_tables(mismatch_pkl=CFD_MISMATCH_PKL, pam_pkl=CFD_PAM_PKL):
+    with open(mismatch_pkl, 'rb') as f:
+        mismatch = pickle.load(f)
+    with open(pam_pkl, 'rb') as f:
+        pam = pickle.load(f)
+    return mismatch, pam
 
-    # Count by mismatch level
-    mm_counts = guide_ots.groupby('mismatches').size().to_dict()
 
-    # Flag high-risk off-targets (CFD > 0.5)
-    high_risk = guide_ots[guide_ots['cfd_score'] > 0.5]
+def cfd_score(guide, off_protospacer, off_pam, mismatch_table, pam_table):
+    '''CFD = product of per-position mismatch penalties x PAM penalty (Doench 2016 tables).
 
-    return {
-        'guide': guide,
-        'specificity_score': specificity,
-        'total_off_targets': len(guide_ots),
-        'mismatch_counts': mm_counts,
-        'high_risk_count': len(high_risk),
-        'high_risk_sites': high_risk.to_dict('records') if len(high_risk) > 0 else []
-    }
+    Keys follow the published convention: mismatch 'rX:dY,pos' (RNA base X vs DNA-complement
+    base Y at 1-based position), PAM the last two PAM bases. A matching position contributes 1.
+    '''
+    guide, off = guide.upper().replace('T', 'U'), off_protospacer.upper()
+    score = 1.0
+    for i, (g, o) in enumerate(zip(guide, off.replace('T', 'U')), 1):
+        if g != o:
+            comp = {'A': 'T', 'C': 'G', 'G': 'C', 'U': 'A'}[o]   # DNA base complementary to the off-target base
+            score *= mismatch_table.get(f'r{g}:d{comp},{i}', 1.0)
+    return score * pam_table.get(off_pam[-2:].upper(), 1.0)
+
+
+def aggregate_specificity(cfd_scores):
+    '''CRISPOR CFD specificity on a 0-100 scale: 100/(1 + sum(off-target CFDs)), CFDs on 0-1.
+
+    Equivalently 10000/(100 + 100*sum) -- the CRISPOR/Hsu aggregate folded for 0-1 inputs.
+    Higher = more specific (100 = no off-targets). Use to compare candidate GUIDES; >~80 is a
+    research heuristic, NOT a clinical safety pass.
+    '''
+    return 100.0 / (1.0 + sum(cfd_scores))
 
 
 if __name__ == '__main__':
-    # Example: Analyze off-targets for a guide
-    guide = 'ATCGATCGATCGATCGATCG'
+    guides = ['GGCCGACCTGTCGCTGACGC', 'CGCCAGCGTCAGCGACAGGT']
+    print('Cas-OFFinder input (NRG PAM, 2 nt DNA + RNA bulges, <=4 mismatches):')
+    print(prepare_cas_offinder_input(guides, '/path/to/genome_dir',
+                                     max_mismatches=4, dna_bulge=2, rna_bulge=2))
 
-    # Simulated off-target data (normally from Cas-OFFinder)
-    off_targets = [
-        {'sequence': 'ATCGATCGATCGATCGATCGAGG', 'mismatches': 0},  # On-target
-        {'sequence': 'ATCGATCGATCGATCGATCCAGG', 'mismatches': 1},  # 1 mismatch
-        {'sequence': 'ATCGATCGATCGATCGATTCAGG', 'mismatches': 2},  # 2 mismatches
-        {'sequence': 'ATCGATCGATCGAACGATCGAGG', 'mismatches': 2},  # 2 mismatches
-        {'sequence': 'ATCGATCGATCGTTCGATCGAGG', 'mismatches': 2},  # 2 mismatches
-    ]
-
-    print(f'Guide: {guide}')
-    print('\nOff-target CFD scores:')
-    for ot in off_targets:
-        cfd = calculate_cfd_score(guide, ot['sequence'])
-        print(f"  {ot['sequence']} ({ot['mismatches']} mm): CFD = {cfd:.3f}")
-
-    # Calculate aggregate specificity
-    cfd_sum = sum(calculate_cfd_score(guide, ot['sequence']) for ot in off_targets[1:])
-    specificity = 1 / (1 + cfd_sum)
-    print(f'\nAggregate specificity score: {specificity:.3f}')
-    print('(>0.9 = excellent, 0.7-0.9 = good, 0.5-0.7 = moderate, <0.5 = poor)')
+    # In practice: off_targets = parse_cas_offinder_output('output.txt'); load tables; score each site.
+    # Here, illustrate the aggregation math with per-site CFDs as the published table would return
+    # them (these are example values, not a fabricated matrix):
+    example_site_cfds = [0.71, 0.18, 0.04, 0.02]
+    spec = aggregate_specificity(example_site_cfds)
+    print(f'Aggregate specificity for the example candidate set: {spec:.1f} '
+          f'(compare among guides; >~80 = good for guide selection, not a safety verdict)')
+    print('Highest-CFD candidate (0.71) is a design-time concern -> nominate for empirical '
+          'validation (predicted -> detected -> validated); report the LoD with any "no off-target" claim.')

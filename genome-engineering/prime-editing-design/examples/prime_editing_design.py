@@ -1,190 +1,102 @@
-'''Design pegRNAs for prime editing experiments'''
+'''Build a PBS x RTT pegRNA panel for one nick and search for a PE3/PE3b nicking guide.
+
+Prime editing has no universal PBS/RTT optimum, so the deliverable is a PANEL to test or
+rank with a trained model (PRIDICT2.0 / DeepPrime), not a single pegRNA. This script
+enforces the hard rules a hand design gets wrong: prepend (never replace) the U6 5' G, and
+drop extensions whose first templated base is C (PrimeDesign's --filter_c1_extension). For
+real designs, prefer PrimeDesign with its exact inline notation; this illustrates the geometry.
+'''
 # Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio.Seq import Seq
 
-# Standard Cas9 scaffold sequence
-CAS9_SCAFFOLD = 'GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGC'
-
-# Optimal parameter ranges
-# PBS length: 13-17 nt (shorter = less stable, longer = more secondary structure)
-# RT template: 10-20 nt for substitutions, longer for insertions
-# Nick distance (PE3): 40-100 bp (too close = indels, too far = low efficiency)
-PBS_LENGTH_RANGE = (13, 17)
-RT_TEMPLATE_MIN = 10
-NICK_DISTANCE_OPTIMAL = (40, 100)
+PBS_LADDER = (10, 12, 14, 16)   # scan PBS lengths; optimum is locus-specific (GC/Tm), not fixed
+RTT_HOMOLOGY = (11, 16, 22)     # RTT = nick-to-edit + edit + 3' homology tail (~10-16 nt typical)
 
 
-def calculate_gc_content(seq):
-    return sum(1 for nt in seq.upper() if nt in 'GC') / len(seq)
+def prepend_u6_g(spacer):
+    '''U6 (Pol III) initiates best with a 5' G: prepend one, never replace the first base.'''
+    return spacer if spacer.startswith('G') else 'G' + spacer
 
 
-def estimate_melting_temp(seq):
-    '''Estimate Tm using simple 2+4 rule for short oligos'''
-    seq = seq.upper()
-    at = sum(1 for nt in seq if nt in 'AT')
-    gc = len(seq) - at
-    return 2 * at + 4 * gc
+def wallace_tm(seq):
+    '''Illustrative short-oligo Tm (2*AT + 4*GC). Real PBS tuning matches Tm across a panel.'''
+    at = sum(c in 'AT' for c in seq.upper())
+    return 2 * at + 4 * (len(seq) - at)
 
 
-def design_pegrna_substitution(target_seq, edit_pos, new_base, pbs_length=13, rt_length=15):
-    '''Design pegRNA for a single nucleotide substitution
+def build_pegrna_panel(target, nick, edit_pos, new_base):
+    '''Return a PBS x RTT panel of pegRNA 3' extensions for a substitution at edit_pos.
 
-    Args:
-        target_seq: ~100bp sequence centered on edit site
-        edit_pos: Position of nucleotide to change (0-indexed)
-        new_base: New nucleotide (A, C, G, or T)
-        pbs_length: Primer binding site length (13-17nt optimal)
-        rt_length: RT template length (10-20nt for substitutions)
-
-    Note: This assumes a PAM (NGG) is available near the edit site.
-    In practice, search for PAMs within ~30bp of edit for optimal efficiency.
+    target: forward strand; nick: forward-strand index of the nick (3 bp 5' of the PAM on
+    the protospacer strand); edit_pos: forward index to change; new_base: replacement.
+    The 3' extension is [RTT][PBS] (5'->3'): RTT = revcomp of the edited region 3' of the
+    nick; PBS = revcomp of the region 5' of the nick.
     '''
-    target_seq = target_seq.upper()
-
-    # Find nick position (typically 3bp upstream of PAM)
-    # For this example, assume nick is 3bp after edit position
-    nick_pos = edit_pos + 3
-
-    # Design spacer (20nt upstream of nick + 3bp for PAM)
-    spacer_start = nick_pos - 17
-    spacer = target_seq[spacer_start:spacer_start + 20]
-
-    # Design PBS (reverse complement of sequence upstream of nick)
-    pbs_region = target_seq[nick_pos - pbs_length:nick_pos]
-    pbs = str(Seq(pbs_region).reverse_complement())
-
-    # Design RT template with edit
-    rt_region = list(target_seq[nick_pos:nick_pos + rt_length])
-    edit_offset = edit_pos - nick_pos
-    if 0 <= edit_offset < len(rt_region):
-        rt_region[edit_offset] = new_base
-    rt_template = str(Seq(''.join(rt_region)).reverse_complement())
-
-    return {
-        'spacer': spacer,
-        'pbs': pbs,
-        'rt_template': rt_template,
-        'scaffold': CAS9_SCAFFOLD,
-        'pbs_length': pbs_length,
-        'pbs_gc': calculate_gc_content(pbs),
-        'pbs_tm': estimate_melting_temp(pbs),
-        'rt_length': rt_length,
-        'edit_type': 'substitution',
-        'original_base': target_seq[edit_pos],
-        'new_base': new_base
-    }
+    target = target.upper()
+    panel = []
+    for rtt_homology in RTT_HOMOLOGY:
+        rtt_len = (edit_pos - nick) + 1 + rtt_homology
+        flap = list(target[nick:nick + rtt_len])
+        off = edit_pos - nick
+        if not (0 <= off < len(flap)):
+            continue
+        flap[off] = new_base
+        rtt = str(Seq(''.join(flap)).reverse_complement())
+        starts_c = rtt.startswith('C')   # C at the +1 extension position lowers efficiency
+        for pbs_len in PBS_LADDER:
+            pbs = str(Seq(target[nick - pbs_len:nick]).reverse_complement())
+            extension = rtt + pbs
+            panel.append({'pbs_len': pbs_len, 'rtt_len': rtt_len, 'extension': extension,
+                          'pbs': pbs, 'pbs_tm': wallace_tm(pbs), 'flap_starts_with_c': starts_c})
+    return [p for p in panel if not p['flap_starts_with_c']]   # apply the c1 filter
 
 
-def optimize_pbs(nick_region, min_len=10, max_len=17):
-    '''Find optimal PBS length based on GC content and Tm
+def find_pe3_nick(target, peg_nick, edited=False, edit_pos=None):
+    '''Search the non-edited (complementary) strand for an ngRNA nick ~40-100 bp from the pegRNA nick.
 
-    Optimal PBS characteristics:
-    - Length: 13-17nt
-    - GC content: 40-60%
-    - Melting temperature: 45-65C
+    The pegRNA nicks the protospacer/PAM strand (forward here); a PE3/PE3b ngRNA must nick the
+    OPPOSITE strand, so its NGG protospacer lies on the reverse-complement strand -- searched here
+    by scanning the reverse complement and mapping each candidate nick back to forward coordinates.
+    edited=False -> PE3 (any nearby complementary-strand protospacer). edited=True -> PE3b (the ngRNA
+    protospacer must span the edit so it is created only after editing); only possible when the edit
+    makes/breaks a protospacer.
     '''
-    options = []
-    for length in range(min_len, max_len + 1):
-        pbs_region = nick_region[-length:]
-        pbs = str(Seq(pbs_region).reverse_complement())
-        gc = calculate_gc_content(pbs)
-        tm = estimate_melting_temp(pbs)
-
-        score = 1.0
-        if gc < 0.4 or gc > 0.6:
-            score -= 0.2
-        if tm < 45 or tm > 65:
-            score -= 0.2
-        if length < 13:
-            score -= 0.1
-
-        options.append({'length': length, 'sequence': pbs, 'gc': gc, 'tm': tm, 'score': score})
-
-    return sorted(options, key=lambda x: x['score'], reverse=True)
-
-
-def assemble_pegrna(spacer, rt_template, pbs, scaffold=CAS9_SCAFFOLD):
-    '''Assemble full pegRNA sequence
-
-    Order: 5'-[spacer]-[scaffold]-[RT template]-[PBS]-3'
-
-    For U6 promoter: If spacer doesn't start with G, consider adding one
-    (though this may affect targeting)
-    '''
-    full_seq = spacer + scaffold + rt_template + pbs
-    return {
-        'full_sequence': full_seq,
-        'length': len(full_seq),
-        'components': {
-            'spacer': spacer,
-            'scaffold': scaffold,
-            'rt_template': rt_template,
-            'pbs': pbs
-        }
-    }
-
-
-def design_pe3_nick(target_seq, pegrna_nick_pos, min_dist=40, max_dist=100):
-    '''Design PE3 second nicking guide
-
-    PE3 strategy: Second nick on non-edited strand improves efficiency
-    by biasing DNA repair toward the edited strand.
-
-    Optimal distance: 40-100bp from pegRNA nick site
-    - <40bp: Higher indel frequency
-    - >100bp: Reduced efficiency benefit
-    '''
-    candidates = []
-
-    # Search for PAM sites on opposite strand
-    for offset in range(min_dist, max_dist + 1):
-        # Downstream position
-        pos = pegrna_nick_pos + offset
-        if pos + 23 <= len(target_seq):
-            region = target_seq[pos:pos + 23]
-            if region[21:23] == 'GG':
-                candidates.append({
-                    'spacer': region[:20],
-                    'position': pos,
-                    'distance': offset,
-                    'strand': '+',
-                    'score': 1.0 - abs(offset - 70) / 100  # Prefer ~70bp
-                })
-
-    return sorted(candidates, key=lambda x: x['score'], reverse=True)[:5]
+    target = target.upper()
+    n = len(target)
+    rc = str(Seq(target).reverse_complement())
+    hits = []
+    for j in range(n - 22):
+        if rc[j + 21:j + 23] != 'GG':
+            continue
+        nick_fwd = n - 1 - (j + 17)                       # ngRNA nick (3 bp 5' of PAM) in forward coords
+        distance = abs(nick_fwd - peg_nick)
+        if not (40 <= distance <= 100):
+            continue
+        proto_lo, proto_hi = n - 1 - (j + 22), n - 1 - j  # forward span of the ngRNA protospacer+PAM
+        if edited and edit_pos is not None and not (proto_lo <= edit_pos <= proto_hi):
+            continue
+        hits.append({'spacer': rc[j:j + 20], 'position': nick_fwd, 'distance': distance,
+                     'mode': 'PE3b' if edited else 'PE3'})
+    hits.sort(key=lambda h: abs(h['distance'] - 70))   # sweet spot ~50-90 bp
+    return hits[:5]
 
 
 if __name__ == '__main__':
-    # Example: Design pegRNA for a point mutation
-    # Target: Correct a hypothetical A>G mutation
+    target = ('CTGACCTGTAGCAATTCGGCAGTCAGGTACCATGGCTAGCTAGGGCCTAGACTTCGATCCAGGTACGT'
+              'TACGGCATTCGATCGGATCCAAGTTCCGATCGATCGTAGCTAGCTAGCTAGGCTAGCATCGATCGTAG')
+    nick = 30          # forward-strand nick position (3 bp 5' of the PAM on the protospacer strand)
+    edit_pos = 36      # base to change
+    new_base = 'A'
 
-    target = 'ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGAGG'
-    edit_position = 40  # Position of the base to change
-    original = target[edit_position]
-    new_base = 'G' if original != 'G' else 'A'
+    print(f'Edit: {target[edit_pos]}->{new_base} at {edit_pos}; pegRNA nick at {nick}')
+    panel = build_pegrna_panel(target, nick, edit_pos, new_base)
+    print(f'\nPBS x RTT panel ({len(panel)} candidates after the c1 filter; rank with PRIDICT2.0/DeepPrime, then test):')
+    for p in panel[:6]:
+        print(f"  PBS={p['pbs_len']} (Tm~{p['pbs_tm']}) RTT={p['rtt_len']} ext={p['extension']}")
 
-    print(f'Designing pegRNA to change {original} -> {new_base} at position {edit_position}')
-    print(f'Target region: ...{target[edit_position-10:edit_position+10]}...')
-    print()
-
-    # Design pegRNA
-    pegrna = design_pegrna_substitution(target, edit_position, new_base)
-
-    print('pegRNA Components:')
-    print(f"  Spacer (20nt):     {pegrna['spacer']}")
-    print(f"  PBS ({pegrna['pbs_length']}nt):        {pegrna['pbs']} (GC: {pegrna['pbs_gc']:.0%}, Tm: {pegrna['pbs_tm']}C)")
-    print(f"  RT template:       {pegrna['rt_template']}")
-    print()
-
-    # Optimize PBS
-    nick_region = target[edit_position - 17:edit_position + 3]
-    pbs_options = optimize_pbs(nick_region)
-    print('PBS length optimization:')
-    for opt in pbs_options[:3]:
-        print(f"  {opt['length']}nt: {opt['sequence']} (GC: {opt['gc']:.0%}, Tm: {opt['tm']}C, Score: {opt['score']:.2f})")
-    print()
-
-    # Assemble full pegRNA
-    assembled = assemble_pegrna(pegrna['spacer'], pegrna['rt_template'], pegrna['pbs'])
-    print(f"Full pegRNA length: {assembled['length']}nt")
+    print('\nPE3 nicking-guide candidates (non-edited strand, ~40-100 bp away):')
+    for h in find_pe3_nick(target, nick):
+        print(f"  {h['mode']} spacer={h['spacer']} dist={h['distance']} pos={h['position']}")
+    print('\nReminders: prepend (not replace) the 5-prime G; add a PAM-disrupting + MMR-evading '
+          'silent edit; append a tevopreQ1 3-prime motif for expressed pegRNAs; report edit:indel purity.')

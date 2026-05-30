@@ -7,16 +7,13 @@ primary_tool: AmpliconArchitect
 
 ## Version Compatibility
 
-Reference examples tested with: AmpliconSuite-pipeline 1.3+, AmpliconArchitect 1.3+,
-AmpliconClassifier 1.2+, CNVkit 0.9.10+, Python 3.10+, samtools 1.19+.
+Reference examples tested with: AmpliconSuite-pipeline 1.3+, AmpliconArchitect 1.3+, AmpliconClassifier 1.2+, CNVkit 0.9.10+, Python 3.10+, samtools 1.19+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `AmpliconSuite-pipeline.py --help`, `amplicon_classifier.py --help`
-- AmpliconArchitect needs a `$AA_DATA_REPO` reference download and a Mosek license
-  (free for academic use); confirm both are configured before running
+- AmpliconArchitect needs a `$AA_DATA_REPO` reference download and a Mosek license (free for academic use); confirm both are configured before running
 
-Verify the reference build — AmpliconArchitect was historically hg19-centric; GRCh38
-support and data repos exist but the build must be set explicitly and consistently.
+Verify the reference build — AmpliconArchitect was historically hg19-centric; GRCh38 support and data repos exist but the build must be set explicitly and consistently.
 
 # Focal Amplification and ecDNA
 
@@ -34,9 +31,7 @@ support and data repos exist but the build must be set explicitly and consistent
 | HSR | Linear, integrated chromosomally | Stable inheritance | Chromosomal — segregates evenly, unlike ecDNA |
 | Linear/simple | Tandem or simple amplification | Modest copy gain | Often passenger-scale; lowest oncogenic concern |
 
-ecDNA is the highest-stakes call: because it lacks a centromere it segregates unequally,
-so copy number can surge under selection — a structural basis for resistance. Depth alone
-cannot distinguish ecDNA from an HSR; both look like a high-amplitude focal gain.
+ecDNA is the highest-stakes call: because it lacks a centromere it segregates unequally, so copy number can surge under selection — a structural basis for resistance. Depth alone cannot distinguish ecDNA from an HSR; both look like a high-amplitude focal gain.
 
 ## When to Suspect ecDNA
 
@@ -50,11 +45,7 @@ cannot distinguish ecDNA from an HSR; both look like a high-amplitude focal gain
 
 ## The AmpliconSuite Workflow
 
-AmpliconArchitect does not call amplifications from scratch — it reconstructs the
-architecture of the regions it is seeded with. The pipeline is: (1) call copy number and
-select high-CN focal seeds, (2) AmpliconArchitect builds the breakpoint graph and
-optimizes a balanced flow, (3) AmpliconClassifier labels each amplicon ecDNA / BFB / HSR /
-linear.
+AmpliconArchitect does not call amplifications from scratch — it reconstructs the architecture of the regions it is seeded with. The pipeline is: (1) call copy number and select high-CN focal seeds, (2) AmpliconArchitect builds the breakpoint graph and optimizes a balanced flow, (3) AmpliconClassifier labels each amplicon ecDNA / BFB / HSR / linear.
 
 ```bash
 # End-to-end: AmpliconSuite-pipeline runs CNVkit seeding, AmpliconArchitect, and
@@ -140,11 +131,7 @@ AmpliconSuite-pipeline.py -s sample_id -t 8 --bam tumor.bam --ref GRCh38 \
 | AA "unknown" on a clear amplicon | Complex structure beyond short-read resolution | Escalate to optical mapping / long-read |
 | BFB vs ecDNA ambiguous | Fold-back and circular signatures overlap | Inspect CN gradient (BFB) vs closed cycle (ecDNA) |
 
-**Operational rule:** A depth caller establishes *that* a region is amplified and *how
-much*; it never establishes the architecture. An ecDNA call requires an
-AmpliconArchitect breakpoint graph with a closed cycle and an AmpliconClassifier ecDNA
-label, and ideally orthogonal confirmation (FISH, single-cell, optical mapping). Seeds
-must be vetted focal high-CN regions, not raw or arm-level calls.
+**Operational rule:** A depth caller establishes *that* a region is amplified and *how much*; it never establishes the architecture. An ecDNA call requires an AmpliconArchitect breakpoint graph with a closed cycle and an AmpliconClassifier ecDNA label, and ideally orthogonal confirmation (FISH, single-cell, optical mapping). Seeds must be vetted focal high-CN regions, not raw or arm-level calls.
 
 ## Quantitative Thresholds
 

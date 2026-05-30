@@ -100,9 +100,7 @@ Per-cell edit-rate matrix can be integrated with standard scRNA-seq clustering. 
 
 **Approach:** Process fusion-sample BAM and deaminase-only-control BAM in parallel; use Bullseye (STAMP/DART), SAILOR (Yeo), or JACUSA2 (general) to call C-to-U (STAMP/DART) or A-to-I (TRIBE/HyperTRIBE) edit sites at edit rate >= 0.1 and coverage >= 10, requiring fusion-vs-control edit ratio > 3 as the specificity threshold.
 
-**Bullseye** (Meyer lab DART-seq pipeline) is a multi-script Perl pipeline (`parseBAM.pl`,
-`summarize_sites.pl`, `find_edit_site.pl`) rather than a single binary -- the conceptual
-flow is shown below; consult the Bullseye repo for the exact per-script invocations.
+**Bullseye** (Meyer lab DART-seq pipeline) is a multi-script Perl pipeline (`parseBAM.pl`, `summarize_sites.pl`, `find_edit_site.pl`) rather than a single binary -- the conceptual flow is shown below; consult the Bullseye repo for the exact per-script invocations.
 
 ```bash
 # Bullseye -- conceptual STAMP workflow (multi-step Perl scripts; verify against repo)
@@ -114,9 +112,7 @@ perl find_edit_site.pl --ip stamp.summary.tsv --ctrl control.summary.tsv \
     --edit_type c2t --threshold 0.1 --min_coverage 10 --out stamp_edits.bed
 ```
 
-**SAILOR** (Yeo lab) is a Snakemake-based pipeline, not a single CLI binary -- launch
-via the SAILOR Snakefile after editing the config (`config.yaml`) for input BAMs,
-background BAM, and reference FASTA.
+**SAILOR** (Yeo lab) is a Snakemake-based pipeline, not a single CLI binary -- launch via the SAILOR Snakefile after editing the config (`config.yaml`) for input BAMs, background BAM, and reference FASTA.
 
 ```bash
 # SAILOR -- conceptual; SAILOR ships as a Snakemake workflow.
