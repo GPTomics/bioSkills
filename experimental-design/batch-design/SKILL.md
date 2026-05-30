@@ -12,11 +12,7 @@ Reference examples tested with: designit 0.5+, OSAT 1.50+ (Bioconductor), sva 3.
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-If code throws an error, introspect the installed package and adapt to the actual API.
-Notes: OSAT uses `optimal.shuffle()` on a setup object (there is no bare `osat()` function);
-designit is R6 (`BatchContainer$new()`, `optimize_design()`, `*_score_generator()`) and its
-signatures drift between releases; `sva::ComBat_seq()` is for integer counts while `ComBat()`
-expects log-normalized values. Confirm each against the installed vignette before relying on it.
+If code throws an error, introspect the installed package and adapt to the actual API. Notes: OSAT uses `optimal.shuffle()` on a setup object (there is no bare `osat()` function); designit is R6 (`BatchContainer$new()`, `optimize_design()`, `*_score_generator()`) and its signatures drift between releases; `sva::ComBat_seq()` is for integer counts while `ComBat()` expects log-normalized values. Confirm each against the installed vignette before relying on it.
 
 # Batch Design
 
@@ -168,11 +164,7 @@ svobj <- sva(expr_normalized, mod, mod0, n.sv = n_sv)
 
 ## Reproducibility Metadata
 
-Record for every sample, because these become the batch/blocking variables: processing date,
-reagent and kit lot numbers, operator, instrument/flow-cell/lane and well/plate position, library
-prep batch, and any protocol deviations. Unrecorded technical variation cannot be modeled or
-balanced after the fact, and is a leakage source for any downstream machine-learning model
-(see machine-learning/model-validation).
+Record for every sample, because these become the batch/blocking variables: processing date, reagent and kit lot numbers, operator, instrument/flow-cell/lane and well/plate position, library prep batch, and any protocol deviations. Unrecorded technical variation cannot be modeled or balanced after the fact, and is a leakage source for any downstream machine-learning model (see machine-learning/model-validation).
 
 ## References
 

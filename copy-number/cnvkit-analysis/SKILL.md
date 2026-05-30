@@ -14,9 +14,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show cnvkit` then `python -c "import cnvlib; help(cnvlib.read)"`
 - R: `packageVersion('DNAcopy')` (CBS backend)
 
-If a command throws an unrecognized-argument or AttributeError, introspect the installed
-version and adapt the example rather than retrying. CNVkit segmentation methods (`hmm`,
-`hmm-tumor`, `hmm-germline`) depend on `pomegranate`; CBS depends on Bioconductor `DNAcopy`.
+If a command throws an unrecognized-argument or AttributeError, introspect the installed version and adapt the example rather than retrying. CNVkit segmentation methods (`hmm`, `hmm-tumor`, `hmm-germline`) depend on `pomegranate`; CBS depends on Bioconductor `DNAcopy`.
 
 # CNVkit Copy Number Analysis
 
@@ -65,14 +63,11 @@ cnvkit.py batch tumor.bam \
     --diagram --scatter
 ```
 
-`--access` restricts antitarget bins to mappable, non-gap genome (generate once with
-`cnvkit.py access reference.fa -o access.bed`). `--drop-low-coverage` is effectively
-mandatory for tumor, FFPE, or any sample with coverage dropout.
+`--access` restricts antitarget bins to mappable, non-gap genome (generate once with `cnvkit.py access reference.fa -o access.bed`). `--drop-low-coverage` is effectively mandatory for tumor, FFPE, or any sample with coverage dropout.
 
 ## Panel of Normals — The Reference Determines Call Quality
 
-A reference built from pooled normals is the single largest quality lever. Process is:
-build the reference from normals once, then run every tumor against it.
+A reference built from pooled normals is the single largest quality lever. Process is: build the reference from normals once, then run every tumor against it.
 
 ```bash
 # Build pooled reference from process-matched normals (same capture kit, same lab)
@@ -101,8 +96,7 @@ cnvkit.py call tumor.cns -o tumor.call.cns
 
 ## Segmentation Method Selection
 
-CNVkit's `segment` step is where the bias-variance trade-off is set. The default CBS is
-not always correct — see copy-ratio-segmentation for the full algorithm comparison.
+CNVkit's `segment` step is where the bias-variance trade-off is set. The default CBS is not always correct — see copy-ratio-segmentation for the full algorithm comparison.
 
 ```bash
 cnvkit.py segment tumor.cnr -m cbs -o tumor.cns          # default; precise on focal events
@@ -111,15 +105,11 @@ cnvkit.py segment tumor.cnr -m hmm-germline -o tumor.cns # germline, priors near
 cnvkit.py segment tumor.cnr -m haar -o tumor.cns         # fast, low-depth WGS
 ```
 
-Rule of thumb: CBS for panels/exomes with adequate depth (precise on small segments);
-`hmm-tumor` for impure or heterogeneous tumors where CBS over-fragments; `haar` for
-shallow WGS where CBS recall degrades.
+Rule of thumb: CBS for panels/exomes with adequate depth (precise on small segments); `hmm-tumor` for impure or heterogeneous tumors where CBS over-fragments; `haar` for shallow WGS where CBS recall degrades.
 
 ## Purity-Aware Integer Calling
 
-`call` converts segmented log2 ratios to copy-number states. The `clonal` method rescales
-by tumor purity before rounding to integers — without it, an impure tumor's true CN=4
-amplification rounds to CN=3 or CN=2.
+`call` converts segmented log2 ratios to copy-number states. The `clonal` method rescales by tumor purity before rounding to integers — without it, an impure tumor's true CN=4 amplification rounds to CN=3 or CN=2.
 
 ```bash
 # Threshold method (default): fixed log2 cutpoints, no purity correction
@@ -132,9 +122,7 @@ cnvkit.py call tumor.cns -m clonal --purity 0.65 --ploidy 2 -o tumor.call.cns
 cnvkit.py call tumor.cns -m clonal --purity 0.65 --vcf tumor.vcf.gz -o tumor.call.cns
 ```
 
-CNVkit can read BAF from a VCF and report a `baf` column, but it segments log2 and BAF
-*separately* and does not jointly fit purity from them. For a true joint allele-specific
-model (ASPCF, FACETS joint segmentation), use allele-specific-copy-number.
+CNVkit can read BAF from a VCF and report a `baf` column, but it segments log2 and BAF *separately* and does not jointly fit purity from them. For a true joint allele-specific model (ASPCF, FACETS joint segmentation), use allele-specific-copy-number.
 
 ## Failure Modes
 

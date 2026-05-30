@@ -1,175 +1,92 @@
-'''Design guides for cytosine and adenine base editing'''
+'''Scan base-editor guides: place the target base in the window, read bystanders + context.
+
+The job is product PURITY, not efficiency: report which bases in the window will edit and the
+sequence context of each, not a single efficiency number. The position-efficiency values are
+COARSE ILLUSTRATIVE GRADIENTS (not measurements) to show the peak-at-5-7 shape -- for a real
+genotype spectrum use BE-Hive/DeepBE, then validate by amplicon NGS. Numbering is PAM-distal:
+position 1 = 5' end of the spacer, position 20 = adjacent to the PAM.
+'''
 # Reference: biopython 1.83+ | Verify API if version differs
 
-from Bio.Seq import Seq
 import re
 
-# Editing window positions (1-indexed from PAM-distal end)
-# For 20nt spacer: position 1 is 5' end, position 20 is adjacent to PAM
-# Editing window for BE4max (CBE): positions 4-8
-# Editing window for ABE8e: positions 4-7 (narrower than CBE)
-CBE_WINDOW = (4, 8)
-ABE_WINDOW = (4, 7)
+CBE_WINDOW = (4, 8)   # activity gradient, peak ~5-7
+ABE_WINDOW = (4, 8)   # ABE7.10 tighter (~4-7); ABE8e WIDER (~3-11) -- editor-specific, re-check on a switch
 
-# Position-dependent editing efficiency
-# Based on published characterization data
-# 1.0 = maximum efficiency at that position
-CBE_POSITION_EFFICIENCY = {
-    1: 0.05, 2: 0.10, 3: 0.20,
-    4: 0.70, 5: 0.90, 6: 1.00,  # Peak at position 6
-    7: 0.85, 8: 0.50,
-    9: 0.20, 10: 0.10
-}
+# Illustrative activity gradient (shape only; NOT measured efficiency). Use BE-Hive for real outcomes.
+POSITION_GRADIENT = {3: 0.2, 4: 0.7, 5: 0.95, 6: 1.0, 7: 0.85, 8: 0.5, 9: 0.2}
 
-ABE_POSITION_EFFICIENCY = {
-    1: 0.02, 2: 0.05, 3: 0.15,
-    4: 0.60, 5: 0.95, 6: 1.00,  # Peak at positions 5-6
-    7: 0.70,
-    8: 0.20, 9: 0.05
-}
+# APOBEC1 (CBE) 5'-neighbor context preference: TC favored, GC strongly disfavored (Komor 2016).
+CBE_CONTEXT = {'T': 1.0, 'C': 0.8, 'A': 0.6, 'G': 0.4}
 
-# Sequence context preferences for CBE
-# 5' neighbor of target C affects efficiency
-CBE_CONTEXT_SCORES = {
-    'T': 1.0,   # TC: most preferred
-    'C': 0.8,   # CC: good
-    'A': 0.6,   # AC: moderate
-    'G': 0.4,   # GC: less efficient
-}
+STOP_CODONS_VIA_CBE = {'CAA': 'TAA', 'CAG': 'TAG', 'CGA': 'TGA'}   # C->T on the sense strand -> stop
 
 
-def find_cbe_targets(sequence, target_c_position):
-    '''Find guides that place a C in the CBE editing window
+def base_pair_change(ref, alt):
+    '''Write the edit as a base-pair change to pick the editor family (resolves strand confusion).'''
+    comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+    pair = f'{ref}*{comp[ref]} -> {alt}*{comp[alt]}'
+    if (ref, alt) in (('C', 'T'), ('G', 'A')):
+        return pair, 'CBE'
+    if (ref, alt) in (('A', 'G'), ('T', 'C')):
+        return pair, 'ABE'
+    if (ref, alt) == ('C', 'G'):
+        return pair, 'CGBE'
+    return pair, 'prime-editing (transversion outside base-editor chemistry)'
 
-    Args:
-        sequence: DNA sequence containing the target C
-        target_c_position: 0-indexed position of C to edit
 
-    Returns:
-        List of guide options sorted by bystander count
+def find_targets(sequence, target_pos, editor='CBE'):
+    '''Forward-strand NGG guides that place the base at target_pos in the editing window.
+
+    Also scan the reverse strand (CCN PAMs) in practice: a forward G is a C on the displaced
+    strand for a reverse guide. Returns guides with bystanders and per-base context.
     '''
-    sequence = sequence.upper()
-    guides = []
-
-    for pam_match in re.finditer(r'(?=(.GG))', sequence):
-        pam_pos = pam_match.start()
-        spacer_start = pam_pos - 20
-        if spacer_start < 0:
-            continue
-
-        # Position in spacer (1-indexed from 5' end)
-        c_pos_in_spacer = target_c_position - spacer_start + 1
-
-        if CBE_WINDOW[0] <= c_pos_in_spacer <= CBE_WINDOW[1]:
-            spacer = sequence[spacer_start:pam_pos]
-
-            # Find bystander Cs
-            bystanders = []
-            for i in range(CBE_WINDOW[0] - 1, CBE_WINDOW[1]):
-                if i < len(spacer) and spacer[i] == 'C':
-                    if (spacer_start + i) != target_c_position:
-                        bystanders.append(i + 1)
-
-            # Score sequence context
-            context_score = 0.5
-            if c_pos_in_spacer > 1:
-                neighbor = spacer[c_pos_in_spacer - 2]  # 5' neighbor
-                context_score = CBE_CONTEXT_SCORES.get(neighbor, 0.5)
-
-            guides.append({
-                'spacer': spacer,
-                'pam': sequence[pam_pos:pam_pos + 3],
-                'target_position': c_pos_in_spacer,
-                'efficiency': CBE_POSITION_EFFICIENCY.get(c_pos_in_spacer, 0.1),
-                'context_score': context_score,
-                'bystander_positions': bystanders,
-                'bystander_count': len(bystanders),
-                'strand': '+'
-            })
-
-    return sorted(guides, key=lambda x: (x['bystander_count'], -x['efficiency']))
-
-
-def find_abe_targets(sequence, target_a_position):
-    '''Find guides that place an A in the ABE editing window'''
-    sequence = sequence.upper()
-    guides = []
-
-    for pam_match in re.finditer(r'(?=(.GG))', sequence):
-        pam_pos = pam_match.start()
-        spacer_start = pam_pos - 20
-        if spacer_start < 0:
-            continue
-
-        a_pos_in_spacer = target_a_position - spacer_start + 1
-
-        if ABE_WINDOW[0] <= a_pos_in_spacer <= ABE_WINDOW[1]:
-            spacer = sequence[spacer_start:pam_pos]
-
-            bystanders = []
-            for i in range(ABE_WINDOW[0] - 1, ABE_WINDOW[1]):
-                if i < len(spacer) and spacer[i] == 'A':
-                    if (spacer_start + i) != target_a_position:
-                        bystanders.append(i + 1)
-
-            guides.append({
-                'spacer': spacer,
-                'pam': sequence[pam_pos:pam_pos + 3],
-                'target_position': a_pos_in_spacer,
-                'efficiency': ABE_POSITION_EFFICIENCY.get(a_pos_in_spacer, 0.1),
-                'bystander_positions': bystanders,
-                'bystander_count': len(bystanders),
-                'strand': '+'
-            })
-
-    return sorted(guides, key=lambda x: (x['bystander_count'], -x['efficiency']))
-
-
-def predict_editing_outcome(spacer, editor='CBE'):
-    '''Predict all bases that will be edited in the window
-
-    Returns list of predicted edits with efficiency scores
-    '''
-    edits = []
+    seq = sequence.upper()
     window = CBE_WINDOW if editor == 'CBE' else ABE_WINDOW
-    target_base = 'C' if editor == 'CBE' else 'A'
-    result_base = 'T' if editor == 'CBE' else 'G'
-    efficiency_map = CBE_POSITION_EFFICIENCY if editor == 'CBE' else ABE_POSITION_EFFICIENCY
+    base = 'C' if editor == 'CBE' else 'A'
+    guides = []
+    for m in re.finditer(r'(?=([ACGT]GG))', seq):
+        start = m.start() - 20
+        if start < 0:
+            continue
+        pos_in_spacer = target_pos - start + 1   # PAM-distal numbering (1 = 5' end)
+        if not (window[0] <= pos_in_spacer <= window[1] and seq[target_pos] == base):
+            continue
+        spacer = seq[start:m.start()]
+        bystanders = [i + 1 for i in range(window[0] - 1, window[1])
+                      if i < len(spacer) and spacer[i] == base and (start + i) != target_pos]
+        context = CBE_CONTEXT.get(spacer[pos_in_spacer - 2], 0.5) if (editor == 'CBE' and pos_in_spacer > 1) else None
+        guides.append({'spacer': spacer, 'pam': seq[m.start():m.start() + 3], 'target_position': pos_in_spacer,
+                       'gradient': POSITION_GRADIENT.get(pos_in_spacer, 0.05), 'bystanders': bystanders,
+                       'context_pref': context})
+    return sorted(guides, key=lambda g: (len(g['bystanders']), -g['gradient']))
 
-    for i in range(window[0] - 1, window[1]):
-        if i < len(spacer) and spacer[i] == target_base:
-            pos = i + 1
-            edits.append({
-                'position': pos,
-                'change': f'{target_base}>{result_base}',
-                'efficiency': efficiency_map.get(pos, 0.1)
-            })
 
-    return edits
+def find_cbe_stops(cds):
+    '''Find in-frame CAA/CAG/CGA codons a CBE could convert to a stop (CRISPR-STOP/iSTOP).
+
+    Prefer EARLY stops (NMD-competent, before functional domains); a base-editor KO is only
+    as complete as the editing, so verify protein.
+    '''
+    return [{'codon_index': i // 3, 'codon': cds[i:i + 3], 'stop': STOP_CODONS_VIA_CBE[cds[i:i + 3]]}
+            for i in range(0, len(cds) - 2, 3) if cds[i:i + 3] in STOP_CODONS_VIA_CBE]
 
 
 if __name__ == '__main__':
-    # Example: Design CBE guide for a C>T conversion
-    target_seq = 'ATCGATCGATCGATCGATCGCATCGATCGATCGATCGATCGATCGATCGAGG'
-    target_c_pos = 20  # Position of C to edit
+    print('Editor triage (write the edit as a base-pair change first):')
+    for ref, alt in [('C', 'T'), ('G', 'A'), ('A', 'G'), ('C', 'G'), ('A', 'T')]:
+        pair, editor = base_pair_change(ref, alt)
+        print(f'  {ref}->{alt}:  {pair}  -> {editor}')
 
-    print(f'Target sequence: {target_seq}')
-    print(f'Target C position: {target_c_pos} (base: {target_seq[target_c_pos]})')
-    print()
+    seq = 'GGCATCGATCGATCGATCGATCAGCTAGCATCGATCGATCGATCGATCGATCGGCATGCTAGCTAGCATCGTAGCTAGCTGACT'
+    target = next(i for i in range(20, len(seq)) if seq[i] == 'C' and find_targets(seq, i, 'CBE'))
+    print(f'\nCBE guides placing the C at sequence index {target} inside the editing window:')
+    for g in find_targets(seq, target, 'CBE')[:3]:
+        ctx = f", 5'-context pref {g['context_pref']:.1f}" if g['context_pref'] is not None else ''
+        flag = 'PURE (no bystanders)' if not g['bystanders'] else f"bystander C at {g['bystanders']}"
+        print(f"  {g['spacer']} PAM={g['pam']} target@pos{g['target_position']} "
+              f"(illustrative activity {g['gradient']:.2f}{ctx}) -> {flag}")
 
-    # Find CBE guides
-    cbe_guides = find_cbe_targets(target_seq, target_c_pos)
-
-    print(f'Found {len(cbe_guides)} CBE guide options:')
-    for i, g in enumerate(cbe_guides[:3], 1):
-        print(f"\n{i}. Spacer: {g['spacer']}")
-        print(f"   Target at position {g['target_position']} (efficiency: {g['efficiency']:.0%})")
-        print(f"   Context score: {g['context_score']:.1f}")
-        print(f"   Bystander Cs: {g['bystander_positions'] if g['bystander_positions'] else 'None'}")
-
-        # Predict editing outcome
-        edits = predict_editing_outcome(g['spacer'], 'CBE')
-        print(f'   Predicted edits:')
-        for e in edits:
-            is_target = '(TARGET)' if e['position'] == g['target_position'] else '(bystander)'
-            print(f"      Position {e['position']}: {e['change']} ({e['efficiency']:.0%}) {is_target}")
+    cds = 'ATGGCACAAGCTCGAGGCTAGCAGAAATAG'
+    print(f'\nCRISPR-STOP candidates (early CAA/CAG/CGA -> stop via CBE): {find_cbe_stops(cds)}')
+    print('Report the genotype spectrum (BE-Hive/DeepBE), then validate by NGS; rank by purity, not efficiency.')

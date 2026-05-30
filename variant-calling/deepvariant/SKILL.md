@@ -20,23 +20,11 @@ to match the actual API rather than retrying.
 
 ## How DeepVariant Works
 
-DeepVariant reframes variant calling as an image classification problem rather than a
-statistical genotyping problem. For each candidate variant site, the make_examples step
-encodes the local read pileup as a 100x221x6-channel image tensor. The six channels
-encode: read base identity, base quality, mapping quality, strand orientation, read
-support for the variant allele, and reference base mismatch. A convolutional neural
-network (CNN) then classifies each pileup image into one of three genotype classes:
-homozygous reference, heterozygous, or homozygous alternate.
+DeepVariant reframes variant calling as an image classification problem rather than a statistical genotyping problem. For each candidate variant site, the make_examples step encodes the local read pileup as a 100x221x6-channel image tensor. The six channels encode: read base identity, base quality, mapping quality, strand orientation, read support for the variant allele, and reference base mismatch. A convolutional neural network (CNN) then classifies each pileup image into one of three genotype classes: homozygous reference, heterozygous, or homozygous alternate.
 
-This image-based approach is why DeepVariant outperforms statistical callers in
-difficult genomic contexts such as homopolymer runs, tandem repeats, and low-complexity
-regions -- the CNN learns visual patterns in pileup geometry that heuristic filters
-miss. Separate models are trained for each sequencing platform because read error
-profiles differ substantially (e.g., Illumina substitution errors vs. ONT indel errors
-in homopolymers).
+This image-based approach is why DeepVariant outperforms statistical callers in difficult genomic contexts such as homopolymer runs, tandem repeats, and low-complexity regions -- the CNN learns visual patterns in pileup geometry that heuristic filters miss. Separate models are trained for each sequencing platform because read error profiles differ substantially (e.g., Illumina substitution errors vs. ONT indel errors in homopolymers).
 
-DeepVariant calls germline variants only. For somatic variant calling, use DeepSomatic,
-a separate tool from the same team.
+DeepVariant calls germline variants only. For somatic variant calling, use DeepSomatic, a separate tool from the same team.
 
 ## Installation
 
@@ -63,9 +51,7 @@ singularity pull docker://google/deepvariant:1.6.1
 | `ONT_R104` | ONT R10.4+ chemistry | Accuracy lower than HiFi model; R9.4 reads perform poorly with this model |
 | `HYBRID_PACBIO_ILLUMINA` | Mixed platforms | Emerging use case for samples with both HiFi and Illumina data |
 
-Model selection has a large effect on accuracy. Using the wrong model (e.g., WGS model
-on HiFi data) silently degrades results because the CNN expects platform-specific error
-patterns in the pileup images.
+Model selection has a large effect on accuracy. Using the wrong model (e.g., WGS model on HiFi data) silently degrades results because the CNN expects platform-specific error patterns in the pileup images.
 
 ## When to Use DeepVariant
 
@@ -99,8 +85,7 @@ docker run -v "${PWD}:/input" -v "${PWD}/output:/output" \
     --num_shards=16
 ```
 
-Always generate gVCFs (`--output_gvcf`) even for single samples -- they enable
-downstream joint calling without re-running DeepVariant.
+Always generate gVCFs (`--output_gvcf`) even for single samples -- they enable downstream joint calling without re-running DeepVariant.
 
 ## Step-by-Step Workflow
 
@@ -142,9 +127,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
 
 ## GPU Acceleration
 
-GPU acceleration primarily benefits the call_variants step (CNN inference). The
-make_examples and postprocess_variants steps are CPU-bound and benefit more from
-`--num_shards` parallelism.
+GPU acceleration primarily benefits the call_variants step (CNN inference). The make_examples and postprocess_variants steps are CPU-bound and benefit more from `--num_shards` parallelism.
 
 ```bash
 docker run --gpus all -v "${PWD}:/data" \
@@ -184,8 +167,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     --num_shards=16
 ```
 
-R10.4+ chemistry substantially reduces systematic indel errors in homopolymers compared
-to R9.4. For R9.4 data, consider Clair3 which has dedicated R9.4 models.
+R10.4+ chemistry substantially reduces systematic indel errors in homopolymers compared to R9.4. For R9.4 data, consider Clair3 which has dedicated R9.4 models.
 
 ## Exome/Targeted Sequencing
 
@@ -200,8 +182,7 @@ docker run -v "${PWD}:/data" google/deepvariant:1.6.1 \
     --num_shards=8
 ```
 
-The `--regions` flag is not strictly required but omitting it causes DeepVariant to
-scan the entire genome, wasting hours on off-target reads with minimal coverage.
+The `--regions` flag is not strictly required but omitting it causes DeepVariant to scan the entire genome, wasting hours on off-target reads with minimal coverage.
 
 ## Joint Calling with GLnexus
 
@@ -235,9 +216,7 @@ docker run -v "${PWD}:/data" quay.io/mlin/glnexus:v1.4.1 \
 | `DeepVariantWES` | Illumina exome gVCFs | Tuned for higher-depth, narrower-region calling |
 | `DeepVariant_unfiltered` | Keep all variant sites | Useful for research exploration; produces more false positives |
 
-GLnexus performance is driven by the call confidence distribution across sites, not
-cohort size per se. A cohort of 100 samples with clean 30x WGS merges faster than 20
-samples with noisy 10x data. GLnexus scales well to thousands of samples.
+GLnexus performance is driven by the call confidence distribution across sites, not cohort size per se. A cohort of 100 samples with clean 30x WGS merges faster than 20 samples with noisy 10x data. GLnexus scales well to thousands of samples.
 
 ## Output Quality Metrics
 
@@ -265,8 +244,7 @@ docker run -v "${PWD}:/data" jmcdani20/hap.py:latest \
 
 ## Comparison with Other Callers
 
-Benchmark numbers below are approximate, derived from GIAB HG002/HG003/HG004 truth
-sets on GRCh38. Exact values vary by sample, coverage, and version.
+Benchmark numbers below are approximate, derived from GIAB HG002/HG003/HG004 truth sets on GRCh38. Exact values vary by sample, coverage, and version.
 
 | Caller | SNP F1 | Indel F1 | Speed (30x WGS) | Notes |
 |--------|--------|----------|------------------|-------|
@@ -275,10 +253,7 @@ sets on GRCh38. Exact values vary by sample, coverage, and version.
 | Strelka2 | ~0.998 | ~0.960 | ~1-2 hrs CPU | Fastest; no longer actively maintained |
 | Clair3 | ~0.998 | ~0.980 | ~8 hrs (50x ONT) | Strong for long reads; active development |
 
-Caveat: DeepVariant models are trained and evaluated heavily on GIAB reference samples.
-Performance on underrepresented populations or complex structural variant regions may
-not match published benchmarks. Independent benchmarking on population-matched samples
-is recommended before clinical deployment.
+Caveat: DeepVariant models are trained and evaluated heavily on GIAB reference samples. Performance on underrepresented populations or complex structural variant regions may not match published benchmarks. Independent benchmarking on population-matched samples is recommended before clinical deployment.
 
 ## Resource Requirements
 
@@ -289,9 +264,7 @@ is recommended before clinical deployment.
 | PacBio HiFi 30x | 64 GB | ~3-5 hrs | ~1-2 hrs | Fewer but longer reads |
 | ONT 50x | 64 GB | ~6-8 hrs | ~2-3 hrs | Higher error rate means more candidate sites |
 
-GPU acceleration primarily benefits the call_variants step. For large cohorts,
-parallelizing across samples on CPU nodes may be more cost-effective than queuing
-for GPU access.
+GPU acceleration primarily benefits the call_variants step. For large cohorts, parallelizing across samples on CPU nodes may be more cost-effective than queuing for GPU access.
 
 ## Complete Workflow Script
 

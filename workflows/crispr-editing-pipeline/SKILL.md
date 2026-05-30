@@ -1,8 +1,8 @@
 ---
 name: bio-workflows-crispr-editing-pipeline
-description: End-to-end CRISPR experiment design from target selection to delivery-ready constructs. Covers guide RNA design, off-target assessment, and specialized editing strategies including knockouts, base editing, and HDR knockins. Use when designing complete CRISPR editing experiments for gene knockout, correction, or tagging.
+description: Orchestrates an end-to-end CRISPR editing experiment design from target gene to delivery-ready, validatable constructs. Sequences guide design, off-target assessment, edit-modality selection (knockout, base editing, prime editing, HDR knock-in), and template/donor design, with a QC checkpoint at each handoff. Use when designing a complete CRISPR experiment for knockout, point correction, or tagging and the order of operations, the modality decision, and the cross-cutting traps are needed rather than a single step. Defers each step's mechanics to the genome-engineering skills.
 tool_type: mixed
-primary_tool: crisprscan
+primary_tool: CRISPOR
 workflow: true
 depends_on:
   - genome-engineering/grna-design
@@ -11,438 +11,117 @@ depends_on:
   - genome-engineering/prime-editing-design
   - genome-engineering/hdr-template-design
 qc_checkpoints:
-  - after_grna_design: "Activity score >0.6, no poly-T runs, GC 40-70%"
-  - after_offtarget: "Specificity score >0.7, no coding off-targets with <3 mismatches"
-  - after_template: "Homology arms verified, PAM disrupted in donor"
+  - after_grna_design: "Context-valid on-target shortlist (CRISPOR: Rule Set 2 for U6/lentiviral, CRISPRscan for T7/embryo); reject TTTT and GC extremes; rank by predicted frameshift/out-of-frame fraction, not raw activity; carry 3-6 guides in an early constitutive NMD-competent exon"
+  - after_offtarget: "Escalate predicted -> detected -> validated; reject guides with a low-mismatch high-CFD off-target in a gene; variant-aware (gnomAD) for therapeutic guides; high-fidelity nuclease in the delivery format used"
+  - after_template: "Blocking (PAM/seed) mutation present AND codon-checked; edit within ~10 bp of the cut; donor format matches cell type (ssODN/lssDNA/dsDNA/AAV; HITI for post-mitotic); report edit:indel purity for base editing"
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, primer3-py 2.0+
+Reference examples tested with: BioPython 1.83+, pandas 2.2+, matplotlib 3.8+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt the example to match the actual API rather than retrying.
+
+This workflow coordinates the five genome-engineering skills; it does not re-implement their scoring. Real on-target ranking comes from CRISPOR (context-valid model), off-target nomination from Cas-OFFinder/CRISPRme, base-editor outcomes from BE-Hive, and prime-editing ranking from PRIDICT/DeepPrime -- the embedded code is illustrative orchestration only.
 
 # CRISPR Editing Pipeline
 
-**"Design a complete CRISPR editing experiment for my target gene"** -> Orchestrate guide RNA design, off-target assessment, and strategy-specific template design (knockout, base editing, HDR knock-in, or prime editing) to produce delivery-ready constructs.
+**"Design a complete CRISPR editing experiment for my target"** -> Run guide design -> off-target assessment -> edit-modality selection -> template/donor design -> validation, applying a QC checkpoint at each handoff and routing every mechanic to the relevant genome-engineering skill.
+- Python: orchestrate the stages; enumerate/filter candidate guides with `Bio.Seq`
+- CLI/web: CRISPOR (on-target + off-target), Cas-OFFinder/CRISPRme (off-target), BE-Hive, PRIDICT
 
-Complete workflow for CRISPR experiment design: from target gene to delivery-ready constructs with branching paths for different editing strategies.
+## The Single Most Important Modern Insight -- the pipeline is a chain of handoffs, each with a checkpoint, and the pivotal decision is the edit modality
+
+A CRISPR experiment fails most often not at one step but at a handoff where an unstated assumption carries through: a guide picked by on-target score that turns out non-specific, an "efficient" guide that never knocks out the protein, a base edit reported by efficiency that is a genotype soup, an HDR donor with no blocking mutation whose edit is silently re-cut. The workflow's job is to make each handoff explicit and gated. The pivotal branch is **which edit modality**: a transition (C->T/A->G) is usually a base-editing job; any other small precise edit is prime editing; a knockout is a plain nuclease; a large or non-transition insertion is HDR (or PE+integrase). Choosing the modality first reframes every downstream step. The cross-cutting traps the checkpoints exist to catch: **on-target activity != specificity** (two separate axes), **efficient editing != knockout** (frameshift fraction and NMD-competent exon biology decide it), **base-editor efficiency != purity** (bystanders), **a donor without a blocking mutation self-destructs** (re-cutting reads out as failed HDR), and **predicted != detected != validated** for off-targets.
+
+## Edit-Modality Decision Tree (the pivotal branch)
+
+| Goal / edit | Modality | Route to |
+|-------------|----------|----------|
+| Gene knockout (any frameshift) | nuclease + NHEJ | grna-design (rank by frameshift fraction) |
+| Knockout without a DSB / non-dividing / multiplex | base-editor premature stop or splice disruption | base-editing-design |
+| C*G->T*A or A*T->G*C transition | base editing (CBE/ABE) | base-editing-design |
+| C->G transversion | CGBE | base-editing-design |
+| Other transversion, small indel, combined edit | prime editing | prime-editing-design |
+| Small precise edit, no DSB tolerated | prime editing (PE) | prime-editing-design |
+| Tag / reporter / allele replacement (cycling cells) | HDR knock-in | hdr-template-design |
+| Large insertion / post-mitotic cells | HDR (AAV/HITI) or PE+integrase (PASTE/twinPE) | hdr-template-design / prime-editing-design |
 
 ## Workflow Overview
 
 ```
-Target Gene/Position
+Target gene / position
         |
         v
-[1. Guide RNA Design] --> CRISPRscan / Rule Set 2 / DeepCRISPR
-        |
+[1. Guide design] ----> CRISPOR (context-valid on-target) + outcome model (Bae/inDelphi)
+        |                CHECKPOINT: shortlist 3-6, frameshift-rich, early constitutive exon
         v
-[2. Off-Target Assessment] --> Cas-OFFinder + CFD scoring
-        |
+[2. Off-target assessment] ----> Cas-OFFinder (+bulges) / CRISPRme (variant-aware) + CFD
+        |                CHECKPOINT: no low-mm high-CFD off-target in a gene; predicted->detected->validated
         v
-    Decision Point: What type of edit?
+    DECISION: which edit modality?
         |
-    +---+-------------------+--------------------+
-    |                       |                    |
-    v                       v                    v
-[3a. Knockout]        [3b. Base Editing]   [3c. Knockin]
- Standard Cas9         CBE/ABE design       HDR template
- Frameshift            C>T or A>G           with homology arms
-        |                   |                    |
-        v                   v                    v
-    Final Constructs with Validation Primers
+    +----------+-------------+--------------+-------------+
+    v          v             v              v             v
+[3a. KO]   [3b. Base edit] [3c. Prime edit] [3d. HDR knock-in]
+ frameshift  window+purity   pegRNA panel     donor + codon-checked block
+        |          |              |              |
+        v          v              v              v
+[4. Validation] ----> amplicon deep-seq (CRISPResso2); report purity/indels; state LoD
 ```
 
-## Prerequisites
+## Stage 1 -- Guide Design (-> grna-design)
 
-```bash
-pip install crisprscan biopython pandas numpy matplotlib
+**Goal:** A shortlist of 3-6 specificity-checkable guides whose predicted repair outcome is frameshift-rich, in an early constitutive NMD-competent exon.
 
-conda install -c bioconda primer3-py cas-offinder
+**Approach:** Establish the delivery context (it sets the valid on-target model and the hard filters), enumerate PAMs on both strands, drop TTTT/GC-extreme guides, rank on-target with the context-valid model via CRISPOR (not a hand-rolled score), and rank knockout candidates by predicted frameshift/out-of-frame fraction (Bae/inDelphi). **Checkpoint:** carry 3-6 guides; do not commit on raw activity alone.
 
-# Python packages for scoring
-pip install crisprtools  # if available
-```
+## Stage 2 -- Off-Target Assessment (-> off-target-prediction)
 
-## Primary Path: Gene Knockout
+**Goal:** Reject promiscuous guides and, for therapeutics, establish an evidence-laddered specificity profile.
 
-### Step 1: Guide RNA Design
+**Approach:** Enumerate candidates with Cas-OFFinder including bulges and a relaxed PAM; rank by CFD; for a research knockout this in-silico pass is sufficient. For a therapeutic, run variant-aware nomination (CRISPRme vs gnomAD + individual), choose a high-fidelity nuclease in the delivery format used, and plan empirical discovery + amplicon validation. **Checkpoint:** on-target score does not predict specificity; treat predicted/detected/validated distinctly.
 
-```python
-from Bio import SeqIO
-from Bio.Seq import Seq
-import pandas as pd
-import re
+## Stage 3 -- Modality-Specific Design
 
-def find_guides(sequence, pam='NGG'):
-    '''Find all potential gRNA target sites with NGG PAM.'''
-    guides = []
-    seq_str = str(sequence).upper()
+**Goal:** Produce the construct(s) for the chosen modality.
 
-    # Forward strand: 20bp + NGG
-    for match in re.finditer(r'(?=([ATCG]{20}[ATCG]GG))', seq_str):
-        pos = match.start()
-        target = match.group(1)[:20]
-        pam_seq = match.group(1)[20:23]
-        guides.append({
-            'sequence': target,
-            'pam': pam_seq,
-            'position': pos,
-            'strand': '+',
-            'full_target': match.group(1)
-        })
+**Approach:** Branch by the decision tree. Knockout -> the frameshift-ranked guide. Base editing -> position the target base at the window peak, minimize bystanders, choose the editor variant, report the genotype spectrum (-> base-editing-design). Prime editing -> a PBS x RTT panel with PAM-disrupting/MMR-evading silent edits and a 3' motif, ranked by PRIDICT/DeepPrime (-> prime-editing-design). HDR -> the donor format for the cell type with a mandatory codon-checked blocking mutation and the cut within ~10 bp of the edit (-> hdr-template-design). **Checkpoint:** blocking mutation present and codon-checked; base-editing purity reported.
 
-    # Reverse strand: CCN + 20bp
-    for match in re.finditer(r'(?=(CC[ATCG][ATCG]{20}))', seq_str):
-        pos = match.start()
-        full = match.group(1)
-        target = str(Seq(full[3:23]).reverse_complement())
-        pam_seq = str(Seq(full[0:3]).reverse_complement())
-        guides.append({
-            'sequence': target,
-            'pam': pam_seq,
-            'position': pos,
-            'strand': '-',
-            'full_target': full
-        })
+## Stage 4 -- Validation
 
-    return pd.DataFrame(guides)
+**Goal:** Quantify the intended edit and its byproducts.
 
+**Approach:** Design genotyping/amplicon primers around the edit and quantify outcomes by amplicon deep sequencing (CRISPResso2 / BE-Analyzer) -- intended-edit rate, indels, and (for base/prime editing) product purity -- stating the limit of detection (-> crispr-screens/crispresso-editing). **Checkpoint:** report purity and LoD, not a lone efficiency number.
 
-def score_guide(guide_seq):
-    '''Score guide using Rule Set 2-like heuristics.'''
-    score = 0.5  # Base score
+## Common Errors (integration level)
 
-    # GC content (optimal: 40-70%)
-    gc = (guide_seq.count('G') + guide_seq.count('C')) / len(guide_seq)
-    if 0.4 <= gc <= 0.7:
-        score += 0.2
-    elif gc < 0.3 or gc > 0.8:
-        score -= 0.2
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Top guide has a near-perfect off-target | picked by on-target score alone | re-rank by specificity; on-target and specificity are separate axes |
+| Efficient editing, no knockout phenotype | in-frame indels / late-exon / compensation | rank by frameshift fraction; target an early constitutive exon; verify protein |
+| Base edit "80% efficient" but messy genotypes | bystanders in the window | report the spectrum; reposition or use a narrowed-window editor |
+| HDR gives only indels | donor lacks a blocking mutation | add a codon-checked PAM/seed block; the edit was re-cut |
+| "No off-targets" claimed | LoD not stated / reference-only | state the LoD; variant-aware for therapeutics |
 
-    # No poly-T (>4 T's is Pol III terminator)
-    if 'TTTT' in guide_seq:
-        score -= 0.3
+## References
 
-    # G at position 20 (adjacent to PAM) preferred
-    if guide_seq[-1] == 'G':
-        score += 0.1
-
-    # Avoid GG at positions 19-20
-    if guide_seq[-2:] == 'GG':
-        score -= 0.1
-
-    # Seed region (positions 12-20) GC
-    seed = guide_seq[11:20]
-    seed_gc = (seed.count('G') + seed.count('C')) / len(seed)
-    if 0.4 <= seed_gc <= 0.7:
-        score += 0.1
-
-    return min(1.0, max(0.0, score))
-
-
-# Example: Design guides for BRCA1 exon
-gene_seq = '''ATGGATTTATCTGCTCTTCGCGTTGAAGAAGTACAAAATGTCATTAATGCTATGCAGAAAATCTTAGAGT
-GTCCCATCTGTCTGGAGTTGATCAAGGAACCTGTCTCCACAAAGTGTGACCACATATTTTGCAAATTTTG'''
-
-guides = find_guides(gene_seq.replace('\n', ''))
-guides['activity_score'] = guides['sequence'].apply(score_guide)
-
-# Filter high-scoring guides
-# Activity score >0.6 is standard threshold for reliable editing
-good_guides = guides[guides['activity_score'] > 0.6].sort_values('activity_score', ascending=False)
-print(f'Found {len(good_guides)} high-scoring guides')
-print(good_guides[['sequence', 'position', 'strand', 'activity_score']].head(10))
-```
-
-### Step 2: Off-Target Assessment
-
-```python
-import subprocess
-from pathlib import Path
-
-def run_cas_offinder(guides_df, genome_fasta, output_dir, max_mismatches=4):
-    '''Run Cas-OFFinder for off-target detection.'''
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Write input file
-    input_file = output_dir / 'cas_offinder_input.txt'
-    with open(input_file, 'w') as f:
-        f.write(f'{genome_fasta}\n')
-        f.write('NNNNNNNNNNNNNNNNNNNNNGG\n')  # 20bp + NGG pattern
-        for _, row in guides_df.iterrows():
-            f.write(f"{row['sequence']}NNN {max_mismatches}\n")
-
-    # Run Cas-OFFinder
-    output_file = output_dir / 'offtargets.txt'
-    subprocess.run([
-        'cas-offinder', str(input_file), 'C', str(output_file)  # C for CPU
-    ], check=True)
-
-    # Parse results
-    offtargets = pd.read_csv(output_file, sep='\t', header=None,
-                              names=['pattern', 'chromosome', 'position', 'target',
-                                    'strand', 'mismatches'])
-    return offtargets
-
-
-def calculate_specificity_score(guide_seq, offtargets_df):
-    '''Calculate CFD-based specificity score.'''
-    # Simplified: penalize based on mismatch count and position
-    guide_offtargets = offtargets_df[offtargets_df['pattern'].str.contains(guide_seq[:10])]
-
-    if len(guide_offtargets) == 0:
-        return 1.0
-
-    # Weight by mismatch count (more mismatches = lower penalty)
-    penalty = 0
-    for _, ot in guide_offtargets.iterrows():
-        mm = ot['mismatches']
-        if mm == 0:  # Perfect match elsewhere (bad!)
-            penalty += 1.0
-        elif mm == 1:
-            penalty += 0.5
-        elif mm == 2:
-            penalty += 0.2
-        elif mm == 3:
-            penalty += 0.1
-        else:
-            penalty += 0.05
-
-    # Specificity score: higher is better
-    # Score >0.7 is generally acceptable
-    return max(0, 1 - penalty / 10)
-
-
-# Filter by off-target profile
-good_guides['specificity_score'] = good_guides['sequence'].apply(
-    lambda x: calculate_specificity_score(x, pd.DataFrame())  # placeholder
-)
-
-# Combined score
-good_guides['combined_score'] = (good_guides['activity_score'] * 0.5 +
-                                  good_guides['specificity_score'] * 0.5)
-final_guides = good_guides.sort_values('combined_score', ascending=False).head(5)
-```
-
-### Step 3a: Knockout Design (Frameshift)
-
-```python
-def design_knockout(guide_row, target_sequence):
-    '''Design knockout experiment with validation primers.'''
-    guide_seq = guide_row['sequence']
-    position = guide_row['position']
-
-    # Cas9 cuts 3bp upstream of PAM
-    cut_site = position + 17 if guide_row['strand'] == '+' else position + 6
-
-    # Validation primers flanking cut site (~200bp amplicon)
-    # 200bp amplicon is optimal for detecting indels by gel or Sanger
-    left_start = max(0, cut_site - 100)
-    right_end = min(len(target_sequence), cut_site + 100)
-
-    return {
-        'guide_sequence': guide_seq,
-        'pam': guide_row['pam'],
-        'cut_site': cut_site,
-        'expected_outcome': 'Frameshift indel',
-        'validation_amplicon_start': left_start,
-        'validation_amplicon_end': right_end
-    }
-
-ko_design = design_knockout(final_guides.iloc[0], gene_seq.replace('\n', ''))
-print('Knockout Design:')
-for k, v in ko_design.items():
-    print(f'  {k}: {v}')
-```
-
-### Step 3b: Base Editing Design (CBE/ABE)
-
-```python
-def design_base_edit(target_position, target_sequence, edit_type='CBE'):
-    '''Design base editing experiment.
-    CBE: C>T conversion (or G>A on opposite strand)
-    ABE: A>G conversion (or T>C on opposite strand)
-
-    Editing window: positions 4-8 in the protospacer (counting from PAM-distal)
-    '''
-    guides = find_guides(target_sequence)
-
-    suitable_guides = []
-    for _, guide in guides.iterrows():
-        guide_start = guide['position']
-        guide_end = guide_start + 20
-
-        # Check if target position falls in editing window (positions 4-8)
-        # Window position 4-8 is optimal for BE3/BE4 (CBE) and ABE7.10/ABE8
-        if guide['strand'] == '+':
-            window_start = guide_start + 3  # Position 4
-            window_end = guide_start + 8    # Position 8
-        else:
-            window_start = guide_end - 8
-            window_end = guide_end - 3
-
-        if window_start <= target_position <= window_end:
-            # Check if target base is appropriate
-            target_base = target_sequence[target_position].upper()
-            if edit_type == 'CBE' and target_base in ['C', 'G']:
-                suitable_guides.append(guide)
-            elif edit_type == 'ABE' and target_base in ['A', 'T']:
-                suitable_guides.append(guide)
-
-    return pd.DataFrame(suitable_guides)
-
-
-# Example: Design CBE to introduce stop codon
-# C>T at specific position can create TAG/TAA/TGA stop
-target_pos = 45  # Example position with C
-cbe_guides = design_base_edit(target_pos, gene_seq.replace('\n', ''), 'CBE')
-print(f'Found {len(cbe_guides)} CBE-compatible guides')
-```
-
-### Step 3c: Knockin Design (HDR Template)
-
-```python
-def design_hdr_template(guide_row, target_sequence, insert_sequence,
-                         homology_arm_length=800):
-    '''Design HDR donor template with homology arms.
-
-    Homology arm length: 800bp is standard for plasmid donors.
-    For ssODN, use 30-60bp arms.
-    '''
-    cut_site = guide_row['position'] + 17 if guide_row['strand'] == '+' else guide_row['position'] + 6
-
-    # Extract homology arms
-    # Arms flank the cut site
-    left_arm_start = max(0, cut_site - homology_arm_length)
-    left_arm = target_sequence[left_arm_start:cut_site]
-
-    right_arm_end = min(len(target_sequence), cut_site + homology_arm_length)
-    right_arm = target_sequence[cut_site:right_arm_end]
-
-    # Mutate PAM in donor to prevent re-cutting
-    # Change NGG to NGA or NAG (silent if possible)
-    guide_seq = guide_row['sequence']
-    pam_position_in_arms = cut_site - left_arm_start + 3
-
-    # Full donor: left_arm + insert + right_arm
-    donor = left_arm + insert_sequence + right_arm
-
-    return {
-        'guide_sequence': guide_seq,
-        'cut_site': cut_site,
-        'left_arm': left_arm,
-        'right_arm': right_arm,
-        'insert': insert_sequence,
-        'donor_template': donor,
-        'donor_length': len(donor),
-        'note': 'Remember to mutate PAM in donor to prevent re-cutting'
-    }
-
-
-# Example: Insert GFP tag
-gfp_sequence = 'ATGGTGAGCAAGGGCGAGGAG...'  # Truncated for example
-hdr_design = design_hdr_template(final_guides.iloc[0], gene_seq.replace('\n', ''), 'FLAG_TAG', 50)
-print('HDR Design:')
-print(f"  Left arm length: {len(hdr_design['left_arm'])}")
-print(f"  Right arm length: {len(hdr_design['right_arm'])}")
-print(f"  Total donor length: {hdr_design['donor_length']}")
-```
-
-## Visualization
-
-```python
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
-
-def plot_guide_landscape(guides_df, gene_length, exon_coords=None):
-    '''Visualize guide positions and scores along gene.'''
-    fig, axes = plt.subplots(2, 1, figsize=(14, 6), gridspec_kw={'height_ratios': [1, 2]})
-
-    # Top: Gene structure
-    ax1 = axes[0]
-    ax1.axhline(y=0.5, color='gray', linewidth=10, solid_capstyle='butt')
-
-    if exon_coords:
-        for start, end in exon_coords:
-            ax1.axhline(y=0.5, xmin=start/gene_length, xmax=end/gene_length,
-                       color='steelblue', linewidth=20, solid_capstyle='butt')
-
-    ax1.set_xlim(0, gene_length)
-    ax1.set_ylim(0, 1)
-    ax1.set_ylabel('Gene')
-    ax1.set_xticks([])
-    ax1.set_yticks([])
-
-    # Bottom: Guide scores
-    ax2 = axes[1]
-    colors = ['green' if s > 0.6 else 'orange' if s > 0.4 else 'red'
-              for s in guides_df['activity_score']]
-
-    ax2.scatter(guides_df['position'], guides_df['activity_score'],
-                c=colors, s=50, alpha=0.7)
-    ax2.axhline(y=0.6, color='green', linestyle='--', alpha=0.5, label='Threshold')
-    ax2.set_xlim(0, gene_length)
-    ax2.set_ylim(0, 1)
-    ax2.set_xlabel('Position (bp)')
-    ax2.set_ylabel('Activity Score')
-    ax2.legend()
-
-    plt.tight_layout()
-    plt.savefig('guide_landscape.pdf')
-    return fig
-
-
-# Plot
-plot_guide_landscape(guides, len(gene_seq.replace('\n', '')),
-                     exon_coords=[(0, 50), (70, 130)])
-```
-
-## Parameter Recommendations
-
-| Step | Parameter | Value | Rationale |
-|------|-----------|-------|-----------|
-| Guide design | Activity score | >0.6 | Standard threshold for reliable editing |
-| Guide design | GC content | 40-70% | Optimal for binding and Cas9 activity |
-| Off-target | Max mismatches | 4 | Catches most relevant off-targets |
-| Off-target | Specificity score | >0.7 | Acceptable off-target profile |
-| Base editing | Window | positions 4-8 | Optimal for BE3/BE4, ABE7.10 |
-| HDR | Homology arms | 800bp | Standard for plasmid donors |
-| HDR (ssODN) | Homology arms | 30-60bp | For single-strand oligo donors |
-
-## Troubleshooting
-
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| No high-scoring guides | GC-poor region | Expand search region, consider Cas12a |
-| Many off-targets | Repetitive sequence | Use high-fidelity Cas9 (eSpCas9, HiFi) |
-| Low HDR efficiency | NHEJ dominant | Add NHEJ inhibitors, use ssODN |
-| Base editing outside window | Guide position | Redesign with target in positions 4-8 |
-| Bystander edits | Multiple C/A in window | Design guides with single target base |
-
-## Output Files
-
-| File | Description |
-|------|-------------|
-| `guides_ranked.tsv` | All guides with activity and specificity scores |
-| `offtargets.txt` | Cas-OFFinder results |
-| `knockout_design.json` | KO guide and validation primers |
-| `base_edit_design.json` | CBE/ABE design with editing window |
-| `hdr_template.fasta` | Donor template sequence |
-| `guide_landscape.pdf` | Visualization of guide positions |
+- Doench JG, Fusi N, Sullender M, et al. (2016). Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. *Nat Biotechnol* 34(2):184-191.
+- Concordet JP, Haeussler M (2018). CRISPOR: intuitive guide selection for CRISPR/Cas9 genome editing experiments and screens. *Nucleic Acids Res* 46(W1):W242-W245.
+- Bae S, Park J, Kim JS (2014). Cas-OFFinder: a fast and versatile algorithm that searches for potential off-target sites of Cas9 RNA-guided endonucleases. *Bioinformatics* 30(10):1473-1475.
+- Clement K, Rees H, Canver MC, et al. (2019). CRISPResso2 provides accurate and rapid genome editing sequence analysis. *Nat Biotechnol* 37(3):224-226.
+- Paquet D, Kwart D, Chen A, et al. (2016). Efficient introduction of specific homozygous and heterozygous mutations using CRISPR/Cas9. *Nature* 533(7601):125-129.
 
 ## Related Skills
 
-- genome-engineering/grna-design - Detailed scoring algorithms
-- genome-engineering/off-target-prediction - Cas-OFFinder and CFD
-- genome-engineering/base-editing-design - CBE/ABE specifics
-- genome-engineering/prime-editing-design - pegRNA design
-- genome-engineering/hdr-template-design - Donor optimization
-- primer-design/primer-basics - Validation primer design
+- genome-engineering/grna-design - Guide design and outcome-aware knockout ranking
+- genome-engineering/off-target-prediction - Specificity assessment and the evidence ladder
+- genome-engineering/base-editing-design - CBE/ABE window, bystander purity, off-target classes
+- genome-engineering/prime-editing-design - pegRNA panel design and PE system selection
+- genome-engineering/hdr-template-design - Donor format and codon-checked blocking mutation
+- crispr-screens/crispresso-editing - Quantify and validate editing outcomes from amplicon reads
+- crispr-screens/library-design - Scale single-gene design to a pooled screen

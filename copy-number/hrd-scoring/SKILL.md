@@ -7,15 +7,13 @@ primary_tool: scarHRD
 
 ## Version Compatibility
 
-Reference examples tested with: R 4.3+ with scarHRD 0.1.1+, sequenza 3.0+ (allele-specific
-input); HRDetect / CHORD as their respective R packages where whole-genome data is available.
+Reference examples tested with: R 4.3+ with scarHRD 0.1.1+, sequenza 3.0+ (allele-specific input); HRDetect / CHORD as their respective R packages where whole-genome data is available.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('scarHRD')` then `?scar_score` to confirm arguments
 - scarHRD is GitHub-only (`sztup/scarHRD`); install with `remotes::install_github`
 
-scarHRD consumes allele-specific copy number — a Sequenza `.seqz` file or an
-ASCAT/allele-specific segment table. It cannot run on relative log2 copy ratio.
+scarHRD consumes allele-specific copy number — a Sequenza `.seqz` file or an ASCAT/allele-specific segment table. It cannot run on relative log2 copy ratio.
 
 # HRD Scoring
 
@@ -33,10 +31,7 @@ ASCAT/allele-specific segment table. It cannot run on relative log2 copy ratio.
 | LST | Chromosomal breaks between adjacent segments each >= 10 Mb, separated by < 3 Mb | Large-scale rearrangement burden |
 | TAI | Number of subtelomeric regions with allelic imbalance not crossing the centromere | Telomere-bounded allelic imbalance |
 
-The HRD score is the sum of the three (the "genomic instability score", GIS). Each
-component has a precise size rule — these thresholds (15 Mb, 10 Mb, 3 Mb) are not
-arbitrary; they were selected to correlate with BRCA1/BRCA2/RAD51C deficiency
-(Abkevich 2012, Popova 2012, Birkbak 2012).
+The HRD score is the sum of the three (the "genomic instability score", GIS). Each component has a precise size rule — these thresholds (15 Mb, 10 Mb, 3 Mb) are not arbitrary; they were selected to correlate with BRCA1/BRCA2/RAD51C deficiency (Abkevich 2012, Popova 2012, Birkbak 2012).
 
 ## Method Selection
 
@@ -46,16 +41,13 @@ arbitrary; they were selected to correlate with BRCA1/BRCA2/RAD51C deficiency
 | HRDetect | Whole-genome (SNV sig 3, SV signatures, HRD index, indel microhomology) | Most accurate; integrates substitution + rearrangement signatures | Needs WGS; not applicable to panels/WES |
 | CHORD | Whole-genome somatic mutation contexts | Distinguishes BRCA1- vs BRCA2-type deficiency | Needs WGS; somatic calls required |
 
-Decision: for a targeted panel or WES the genomic-scar score (scarHRD-style) is the only
-option and is the basis of approved companion diagnostics; for whole-genome data,
-HRDetect or CHORD are more accurate because they add mutational-signature evidence.
+Decision: for a targeted panel or WES the genomic-scar score (scarHRD-style) is the only option and is the basis of approved companion diagnostics; for whole-genome data, HRDetect or CHORD are more accurate because they add mutational-signature evidence.
 
 ## Computing Genomic Scars with scarHRD
 
 **Goal:** Compute LOH, LST, TAI, and the HRD sum from allele-specific copy number.
 
-**Approach:** Run scarHRD on a Sequenza `.seqz` file (or an allele-specific segment
-table); supply the genome build and ploidy so LST is correctly normalized.
+**Approach:** Run scarHRD on a Sequenza `.seqz` file (or an allele-specific segment table); supply the genome build and ploidy so LST is correctly normalized.
 
 ```r
 library(scarHRD)
@@ -77,17 +69,9 @@ print(hrd_seg)
 
 Three points separate a correct HRD interpretation from a naive one:
 
-1. **HRD is a scar, not a current state.** The score reflects HR deficiency that
-   *occurred* during tumor evolution. A tumor that has acquired a BRCA reversion mutation
-   — a real platinum/PARP-inhibitor resistance mechanism — still carries the scars and
-   still scores HRD-high. A high score is not a guarantee of current HR deficiency or of
-   drug response.
-2. **LST is ploidy-dependent.** Whole-genome doubling adds breakpoints and inflates the
-   LST count independently of HR status. The score must be computed with the correct
-   ploidy so LST is normalized; an uncorrected WGD tumor can score falsely high.
-3. **The score needs allele-specific input.** LOH and TAI are allelic-imbalance metrics —
-   they cannot be derived from total copy number or relative log2. Garbage allele-specific
-   input (low purity, sparse hets) gives a garbage score.
+1. **HRD is a scar, not a current state.** The score reflects HR deficiency that *occurred* during tumor evolution. A tumor that has acquired a BRCA reversion mutation — a real platinum/PARP-inhibitor resistance mechanism — still carries the scars and still scores HRD-high. A high score is not a guarantee of current HR deficiency or of drug response.
+2. **LST is ploidy-dependent.** Whole-genome doubling adds breakpoints and inflates the LST count independently of HR status. The score must be computed with the correct ploidy so LST is normalized; an uncorrected WGD tumor can score falsely high.
+3. **The score needs allele-specific input.** LOH and TAI are allelic-imbalance metrics — they cannot be derived from total copy number or relative log2. Garbage allele-specific input (low purity, sparse hets) gives a garbage score.
 
 ## Failure Modes
 
@@ -150,11 +134,7 @@ Three points separate a correct HRD interpretation from a naive one:
 | HRD-high tumor fails PARP-inhibitor | Scar persists after BRCA reversion | Screen for reversion mutations |
 | Panel and WGS scores disagree | Different assay resolution | Use the assay-validated cutoff for each |
 
-**Operational rule:** An HRD score is interpretable only when (1) the input is
-allele-specific copy number from an adequately pure sample, (2) LST is computed with the
-correct ploidy, (3) the assay-validated cutoff is used, and (4) the score is read as
-evidence of *past* HR deficiency, integrated with current HR-pathway status before
-predicting therapy response.
+**Operational rule:** An HRD score is interpretable only when (1) the input is allele-specific copy number from an adequately pure sample, (2) LST is computed with the correct ploidy, (3) the assay-validated cutoff is used, and (4) the score is read as evidence of *past* HR deficiency, integrated with current HR-pathway status before predicting therapy response.
 
 ## Quantitative Thresholds
 

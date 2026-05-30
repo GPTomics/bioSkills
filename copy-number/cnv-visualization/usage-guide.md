@@ -2,13 +2,7 @@
 
 ## Overview
 
-A copy number figure is an argument: the plot type, the y-axis quantity, and where the
-diploid baseline sits decide what a reader can conclude. This skill covers genome-wide
-and per-chromosome log2 scatter plots, B-allele-frequency tracks, ideograms, cohort
-heatmaps, circos views, and caller-native diagnostic plots, and, critically, when each
-view is the wrong one. The central rule: a depth-only log2 plot cannot show loss of
-heterozygosity or purity, and misleads outright if the baseline is centered on a
-non-diploid mode.
+A copy number figure is an argument: the plot type, the y-axis quantity, and where the diploid baseline sits decide what a reader can conclude. This skill covers genome-wide and per-chromosome log2 scatter plots, B-allele-frequency tracks, ideograms, cohort heatmaps, circos views, and caller-native diagnostic plots, and, critically, when each view is the wrong one. The central rule: a depth-only log2 plot cannot show loss of heterozygosity or purity, and misleads outright if the baseline is centered on a non-diploid mode.
 
 ## Prerequisites
 
@@ -18,9 +12,7 @@ conda install -c bioconda cnvkit          # for built-in scatter/diagram/heatmap
 # R route: install.packages('ggplot2'); BiocManager::install('karyoploteR')
 ```
 
-Inputs: caller output such as CNVkit `.cnr`/`.cns`, GATK `denoisedCR.tsv`/`modelFinal.seg`,
-or ASCAT/FACETS/Sequenza segment tables. For allele-specific tracks, a VCF of germline
-heterozygous SNP B-allele frequencies.
+Inputs: caller output such as CNVkit `.cnr`/`.cns`, GATK `denoisedCR.tsv`/`modelFinal.seg`, or ASCAT/FACETS/Sequenza segment tables. For allele-specific tracks, a VCF of germline heterozygous SNP B-allele frequencies.
 
 ## Quick Start
 
@@ -35,26 +27,21 @@ Tell the AI agent what to do:
 
 ### Single-sample figures
 
-> "Create a publication genome-wide log2 profile with colored segments for this CNVkit
-> output, rasterizing the per-bin points so the PDF stays small."
+> "Create a publication genome-wide log2 profile with colored segments for this CNVkit output, rasterizing the per-bin points so the PDF stays small."
 
-> "Plot a combined log2 and B-allele-frequency figure for this tumor and point out any
-> copy-neutral LOH regions."
+> "Plot a combined log2 and B-allele-frequency figure for this tumor and point out any copy-neutral LOH regions."
 
 ### Cohort and context
 
-> "Build a cohort CNV heatmap, and choose a bin size that keeps focal drivers like MYC
-> and ERBB2 visible rather than averaging them away."
+> "Build a cohort CNV heatmap, and choose a bin size that keeps focal drivers like MYC and ERBB2 visible rather than averaging them away."
 
 > "Make an ideogram showing which cytobands and genes this sample's CNVs overlap."
 
 ### Diagnosis
 
-> "My genome-wide plot shows almost everything as deleted. Decide whether this is real
-> or a diploid-baseline centering error, using the BAF track to check."
+> "My genome-wide plot shows almost everything as deleted. Decide whether this is real or a diploid-baseline centering error, using the BAF track to check."
 
-> "Inspect the ASCAT sunrise plot and FACETS diagnostic plot and tell me whether the
-> purity/ploidy fit is trustworthy."
+> "Inspect the ASCAT sunrise plot and FACETS diagnostic plot and tell me whether the purity/ploidy fit is trustworthy."
 
 ## What the Agent Will Do
 
@@ -67,17 +54,12 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- Pair every log2 plot with a BAF track when LOH, allele-specific gain, or whole-genome
-  doubling is in question; log2 alone cannot show them.
-- Anchor the diploid baseline to the caller's ploidy; centering on the data mode inverts
-  gain/loss calls in whole-genome-doubled tumors.
-- Label log2 axes "log2 copy ratio", not "copy number"; log2 amplitude shrinks with
-  decreasing purity and is not comparable across samples.
-- For cohort heatmaps, match the bin size to the question: Mb bins for arm-level events,
-  gene-level or GISTIC-peak bins for focal drivers.
+- Pair every log2 plot with a BAF track when LOH, allele-specific gain, or whole-genome doubling is in question; log2 alone cannot show them.
+- Anchor the diploid baseline to the caller's ploidy; centering on the data mode inverts gain/loss calls in whole-genome-doubled tumors.
+- Label log2 axes "log2 copy ratio", not "copy number"; log2 amplitude shrinks with decreasing purity and is not comparable across samples.
+- For cohort heatmaps, match the bin size to the question: Mb bins for arm-level events, gene-level or GISTIC-peak bins for focal drivers.
 - Rasterize per-bin scatter points (keep segments vector) so publication PDFs stay small.
-- Always inspect caller-native diagnostic plots (ASCAT sunrise, Sequenza contour, FACETS
-  plotSample) before trusting downstream calls.
+- Always inspect caller-native diagnostic plots (ASCAT sunrise, Sequenza contour, FACETS plotSample) before trusting downstream calls.
 
 ## Related Skills
 

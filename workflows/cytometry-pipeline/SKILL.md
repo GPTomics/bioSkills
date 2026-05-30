@@ -23,8 +23,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 - Python: `pip show <package>` then `help(module.function)` to check signatures
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt rather than retrying. Each stage defers depth to its component skill.
+If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt rather than retrying. Each stage defers depth to its component skill.
 
 # Flow Cytometry Pipeline
 

@@ -2,14 +2,7 @@
 
 ## Overview
 
-Segmentation turns a noisy per-bin read-depth profile into clean copy-number segments,
-and it has two error-prone stages. First, normalization must remove GC, mappability, and
-replication-timing bias so the only remaining variation is copy number; GC correction
-alone leaves the replication-timing "wave artifact" behind. Second, the segmentation
-algorithm (CBS, HMM, HaarSeg, fused lasso) must partition the profile, and the choice has
-a predictable, depth- and event-size-dependent bias. This skill covers bias correction,
-algorithm selection, parameter tuning, and the diploid-baseline trap that can invert
-every call.
+Segmentation turns a noisy per-bin read-depth profile into clean copy-number segments, and it has two error-prone stages. First, normalization must remove GC, mappability, and replication-timing bias so the only remaining variation is copy number; GC correction alone leaves the replication-timing "wave artifact" behind. Second, the segmentation algorithm (CBS, HMM, HaarSeg, fused lasso) must partition the profile, and the choice has a predictable, depth- and event-size-dependent bias. This skill covers bias correction, algorithm selection, parameter tuning, and the diploid-baseline trap that can invert every call.
 
 ## Prerequisites
 
@@ -19,9 +12,7 @@ pip install numpy pandas statsmodels            # GC loess normalization
 R -e "BiocManager::install('QDNAseq')"          # optional: GC/mappability normalization
 ```
 
-Inputs: a per-bin depth or copy-ratio table (chrom, position, depth or log2), optionally
-with GC content and mappability per bin; for bias removal beyond GC, a matched normal or
-a panel of normals.
+Inputs: a per-bin depth or copy-ratio table (chrom, position, depth or log2), optionally with GC content and mappability per bin; for bias removal beyond GC, a matched normal or a panel of normals.
 
 ## Quick Start
 
@@ -36,26 +27,21 @@ Tell the AI agent what to do:
 
 ### Normalization and segmentation
 
-> "Normalize this WGS depth profile for GC bias, then segment with CBS using DNAcopy and
-> a noise-scaled undo threshold to avoid oversegmentation."
+> "Normalize this WGS depth profile for GC bias, then segment with CBS using DNAcopy and a noise-scaled undo threshold to avoid oversegmentation."
 
-> "My exome panel still shows a wavy baseline after GC correction. Explain why a panel of
-> normals is needed and what bias GC correction cannot remove."
+> "My exome panel still shows a wavy baseline after GC correction. Explain why a panel of normals is needed and what bias GC correction cannot remove."
 
 ### Algorithm choice
 
-> "I have 3x shallow WGS. Decide between CBS, HMM, and HaarSeg and justify the choice
-> with the depth-dependent precision/recall trade-off."
+> "I have 3x shallow WGS. Decide between CBS, HMM, and HaarSeg and justify the choice with the depth-dependent precision/recall trade-off."
 
 > "My focal amplifications are being blurred by HMM segmentation. Recommend a fix."
 
 ### Diagnosis
 
-> "My segmentation shattered into hundreds of micro-segments. Diagnose oversegmentation
-> and tune the parameters."
+> "My segmentation shattered into hundreds of micro-segments. Diagnose oversegmentation and tune the parameters."
 
-> "Every call in this whole-genome-doubled tumor has the wrong sign. Diagnose the
-> diploid-baseline centering trap."
+> "Every call in this whole-genome-doubled tumor has the wrong sign. Diagnose the diploid-baseline centering trap."
 
 ## What the Agent Will Do
 
@@ -69,16 +55,11 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- GC correction does not remove the replication-timing wave artifact; only a matched
-  normal or panel of normals does.
-- For hybrid capture, per-probe capture bias is the dominant effect; a panel of normals
-  is essential, not optional.
-- CBS is precise on focal events but its recall collapses below ~5x depth; HMM and
-  HaarSeg are depth-robust but blur small segments.
-- Oversegmentation propagates into every downstream analysis, including copy-number
-  signatures; tighten alpha and undo.SD or denoise the input.
-- Never depth-center an aneuploid or whole-genome-doubled genome; anchor the diploid
-  baseline with an allele-specific ploidy estimate.
+- GC correction does not remove the replication-timing wave artifact; only a matched normal or panel of normals does.
+- For hybrid capture, per-probe capture bias is the dominant effect; a panel of normals is essential, not optional.
+- CBS is precise on focal events but its recall collapses below ~5x depth; HMM and HaarSeg are depth-robust but blur small segments.
+- Oversegmentation propagates into every downstream analysis, including copy-number signatures; tighten alpha and undo.SD or denoise the input.
+- Never depth-center an aneuploid or whole-genome-doubled genome; anchor the diploid baseline with an allele-specific ploidy estimate.
 - Segment per chromosome arm so CBS does not bridge centromere/telomere gaps.
 - Fix random seeds for HMM; Baum-Welch EM only finds local optima.
 

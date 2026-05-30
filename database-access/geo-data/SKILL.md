@@ -13,8 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show biopython geoparse` then introspect signatures
 - R: `packageVersion('GEOquery')`
 
-If the GSE structure doesn't match expectations (missing fields, malformed series matrix),
-re-fetch from FTP directly and inspect the SOFT or MINiML file as source of truth.
+If the GSE structure doesn't match expectations (missing fields, malformed series matrix), re-fetch from FTP directly and inspect the SOFT or MINiML file as source of truth.
 
 # GEO Data
 

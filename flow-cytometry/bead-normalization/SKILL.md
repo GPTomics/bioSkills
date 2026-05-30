@@ -12,8 +12,7 @@ Reference examples tested with: CATALYST 1.26+, CytoNorm 2.0+, flowCore 2.14+.
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-`normCytof()` returns a LIST (`$data`, `$beads`, `$removed`, ...), not a flowFrame; `beads="dvs"`
-encodes EQ masses 140,151,153,165,175. Confirm with `?normCytof` before relying on slot names.
+`normCytof()` returns a LIST (`$data`, `$beads`, `$removed`, ...), not a flowFrame; `beads="dvs"` encodes EQ masses 140,151,153,165,175. Confirm with `?normCytof` before relying on slot names.
 
 # Bead Normalization
 

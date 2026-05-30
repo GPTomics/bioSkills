@@ -11,12 +11,9 @@ Reference examples tested with: GATK 4.5+ (gatk4), Python 3.10+ (gcnv conda env)
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `gatk --version` then `gatk <ToolName> --help` to confirm arguments
-- gCNV requires a working `gatkcondaenv` (theano/tensorflow stack) — `gatk` will report
-  if the Python environment is missing
+- gCNV requires a working `gatkcondaenv` (theano/tensorflow stack) — `gatk` will report if the Python environment is missing
 
-GATK 4.5+ gCNV inference defaults are tuned for whole-exome data; whole-genome runs
-generally need parameter changes. If a tool reports an unrecognized argument, check the
-help for that exact GATK version rather than retrying.
+GATK 4.5+ gCNV inference defaults are tuned for whole-exome data; whole-genome runs generally need parameter changes. If a tool reports an unrecognized argument, check the help for that exact GATK version rather than retrying.
 
 # GATK CNV Workflows
 
@@ -27,13 +24,7 @@ help for that exact GATK version rather than retrying.
 
 ## Critical: What GATK Somatic CNV Does NOT Provide
 
-`ModelSegments` + `CallCopyRatioSegments` produce **copy-ratio segments** and a
-**minor-allele fraction** per segment, and the "call" is a simple t-test emitting
-`+` / `-` / `0`. This is **not** integer allele-specific copy number, **not** tumor
-purity, and **not** ploidy. Practitioners routinely assume parity with ASCAT/FACETS and
-there is none. For integer allele-specific CN, purity, ploidy, LOH state, or
-whole-genome-doubling status, use allele-specific-copy-number (ASCAT, Sequenza, FACETS,
-or PureCN — PureCN can even reuse the GATK `ModelSegments` segmentation as input).
+`ModelSegments` + `CallCopyRatioSegments` produce **copy-ratio segments** and a **minor-allele fraction** per segment, and the "call" is a simple t-test emitting `+` / `-` / `0`. This is **not** integer allele-specific copy number, **not** tumor purity, and **not** ploidy. Practitioners routinely assume parity with ASCAT/FACETS and there is none. For integer allele-specific CN, purity, ploidy, LOH state, or whole-genome-doubling status, use allele-specific-copy-number (ASCAT, Sequenza, FACETS, or PureCN — PureCN can even reuse the GATK `ModelSegments` segmentation as input).
 
 ## Somatic vs Germline — Choosing the Workflow
 
@@ -97,8 +88,7 @@ gatk ModelSegments --denoised-copy-ratios tumor.denoisedCR.tsv \
 gatk CallCopyRatioSegments -I segments/tumor.cr.seg -O segments/tumor.called.seg
 ```
 
-`AnnotateIntervals` (step 1) and supplying `--annotated-intervals` to the PoN are
-frequently skipped — they enable explicit GC-bias correction and are recommended.
+`AnnotateIntervals` (step 1) and supplying `--annotated-intervals` to the PoN are frequently skipped — they enable explicit GC-bias correction and are recommended.
 
 ## Germline gCNV Pipeline
 
@@ -132,9 +122,7 @@ gatk PostprocessGermlineCNVCalls \
     --output-denoised-copy-ratios sample0.denoisedCR.tsv
 ```
 
-Case mode (`--run-mode CASE`) scores a new sample against the cohort `*-model` shards;
-it must use the **identical** `filtered.interval_list` and the **same scatter count** as
-the cohort run, or it fails or produces incomparable calls.
+Case mode (`--run-mode CASE`) scores a new sample against the cohort `*-model` shards; it must use the **identical** `filtered.interval_list` and the **same scatter count** as the cohort run, or it fails or produces incomparable calls.
 
 ## Failure Modes
 

@@ -13,8 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `datasets --version`, `dataformat --version`
 - Subcommand help: `datasets <subcommand> --help`
 
-If a subcommand or flag is unrecognized, run `datasets --help` and adapt. The CLI is
-under active development; major releases (v15 -> v16) added subcommands and renamed flags.
+If a subcommand or flag is unrecognized, run `datasets --help` and adapt. The CLI is under active development; major releases (v15 -> v16) added subcommands and renamed flags.
 
 # NCBI Datasets CLI
 

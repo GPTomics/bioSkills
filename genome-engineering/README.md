@@ -2,38 +2,41 @@
 
 ## Overview
 
-Design CRISPR guides, predict off-targets, and create templates for genome editing experiments including Cas9/Cas12a knockouts, prime editing, base editing, and HDR knock-ins.
+Design CRISPR edits and their safety checks: guide RNAs for knockout, off-target prediction, base editing (CBE/ABE), prime editing (pegRNAs), and HDR donor templates for knock-ins. The category covers the design side -- before the experiment -- and routes data analysis after the experiment to crispr-screens.
 
-**Tool type:** mixed | **Primary tools:** crisprscan, Cas-OFFinder, PrimeDesign, primer3-py
+**Tool type:** mixed | **Primary tools:** CRISPOR, Cas-OFFinder, PrimeDesign, BE-Hive, primer3-py
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| grna-design | Design guide RNAs with activity scoring using CRISPRscan, CHOPCHOP |
-| off-target-prediction | Predict off-target sites with Cas-OFFinder, CFD scores |
-| prime-editing-design | Design pegRNAs for prime editing with PrimeDesign |
-| base-editing-design | Design CBE/ABE guides with BE-Designer, BE-Hive |
-| hdr-template-design | Design HDR donor templates with primer3-py |
+| grna-design | Design and outcome-rank sgRNAs for Cas9/Cas12a knockout (context-valid on-target scoring, frameshift/exon biology) |
+| off-target-prediction | Nominate and assess off-targets (Cas-OFFinder/CFD, variant-aware, empirical assays, high-fidelity nucleases) |
+| base-editing-design | Design CBE/ABE guides for transitions by window/bystander purity, editor variant, and the three off-target classes |
+| prime-editing-design | Design pegRNA panels and choose the PE2/PE3b/PE5max/PE7 system (PBS/RTT, MMR evasion, epegRNA) |
+| hdr-template-design | Design knock-in donors (ssODN/lssDNA/dsDNA/AAV) with a codon-checked blocking mutation |
 
 ## Example Prompts
 
-- "Design guides to knock out BRCA1"
-- "Find the best sgRNAs targeting exon 3 of TP53"
-- "Check off-target sites for my guide sequence ATCGATCGATCGATCGATCG"
-- "Design a pegRNA to correct the G551D mutation in CFTR"
-- "Create a base editing guide for the C282Y mutation"
-- "Design an HDR template to add a GFP tag to MYC"
+- "Design guides to knock out BRCA1 and rank them by frameshift outcome"
+- "Check off-target sites for my guide, including bulges, and tell me if it's therapeutic-grade"
+- "I want a G-to-A correction -- base, prime, or HDR, and why?"
+- "Design a pegRNA panel to correct the G551D mutation in CFTR"
+- "Design a base-editing guide to install a stop codon without a double-strand break"
+- "Design an HDR donor to add a GFP tag to MYC, with a blocking mutation"
 
 ## Requirements
 
 ```bash
-pip install crisprscan primer3-py biopython
-# Cas-OFFinder: download from http://www.rgenome.net/cas-offinder/
+pip install biopython primer3-py pandas
+# CRISPOR (web/CLI) for context-valid on-target + off-target nomination
+# Cas-OFFinder: standalone binary (https://github.com/snugel/cas-offinder) + a reference genome FASTA
+# PrimeDesign: Docker (pinellolab/primedesign); BE-Hive / PRIDICT / DeepPrime: web or clone
 ```
 
 ## Related Skills
 
-- **crispr-screens** - Analyze pooled CRISPR screens after editing
-- **primer-design** - General PCR primer design with primer3
-- **variant-calling** - Detect edits in sequencing data
+- **crispr-screens** - Analyze pooled screens and amplicon editing outcomes after the experiment
+- **primer-design** - General PCR/genotyping primer design
+- **variant-calling** - Detect and annotate edits in sequencing data
+- **genome-intervals** - Exon/feature coordinates to restrict guide placement

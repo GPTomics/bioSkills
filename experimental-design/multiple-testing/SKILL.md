@@ -14,10 +14,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 - Python: `pip show <package>` then `help(module.function)` to check signatures
 
-If code throws an error, introspect the installed package and adapt to the actual API.
-Note: `statsmodels.stats.multitest.multipletests` defaults to `method='hs'` (Holm-Sidak, an FWER
-method), NOT Benjamini-Hochberg — always pass `method='fdr_bh'`/`'fdr_by'`/`'bonferroni'`/`'holm'`
-explicitly.
+If code throws an error, introspect the installed package and adapt to the actual API. Note: `statsmodels.stats.multitest.multipletests` defaults to `method='hs'` (Holm-Sidak, an FWER method), NOT Benjamini-Hochberg — always pass `method='fdr_bh'`/`'fdr_by'`/`'bonferroni'`/`'holm'` explicitly.
 
 # Multiple Testing Correction
 

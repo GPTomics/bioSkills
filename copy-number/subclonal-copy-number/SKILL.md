@@ -7,17 +7,14 @@ primary_tool: battenberg
 
 ## Version Compatibility
 
-Reference examples tested with: R 4.3+ with Battenberg 2.2.10+ and TitanCNA 1.40+,
-MEDICC2 1.0+, Python 3.10+; impute2/Beagle phasing reference panels.
+Reference examples tested with: R 4.3+ with Battenberg 2.2.10+ and TitanCNA 1.40+, MEDICC2 1.0+, Python 3.10+; impute2/Beagle phasing reference panels.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('Battenberg')` / `'TitanCNA')` then `?function`
 - CLI: `medicc2 --help`
-- Battenberg is GitHub-only (`Wedge-lab/battenberg`) and needs a 1000 Genomes
-  impute/phasing reference and allele-counter; confirm reference data is installed
+- Battenberg is GitHub-only (`Wedge-lab/battenberg`) and needs a 1000 Genomes impute/phasing reference and allele-counter; confirm reference data is installed
 
-Battenberg and TITAN both consume allele-specific data (logR + BAF at heterozygous SNPs);
-they cannot run on relative copy ratio alone.
+Battenberg and TITAN both consume allele-specific data (logR + BAF at heterozygous SNPs); they cannot run on relative copy ratio alone.
 
 # Subclonal Copy Number and Tumor Evolution
 
@@ -36,11 +33,7 @@ they cannot run on relative copy ratio alone.
 | Cancer cell fraction (CCF) | Fraction of cancer cells carrying the event |
 | Mirrored subclonal allelic imbalance | Different subclones lose opposite haplotypes of the same region |
 
-Battenberg fits a clonal allele-specific profile (ASCAT internally), then where a segment
-fits poorly as a single integer state, it models it as a mixture of two states with a
-subclonal fraction. TITAN uses an HMM whose states span multiple clonal clusters,
-jointly estimating per-cluster cellular prevalence. Both need haplotype phasing —
-subclonal allelic imbalance is only resolvable when SNPs are phased.
+Battenberg fits a clonal allele-specific profile (ASCAT internally), then where a segment fits poorly as a single integer state, it models it as a mixture of two states with a subclonal fraction. TITAN uses an HMM whose states span multiple clonal clusters, jointly estimating per-cluster cellular prevalence. Both need haplotype phasing — subclonal allelic imbalance is only resolvable when SNPs are phased.
 
 ## Tool Selection
 
@@ -53,27 +46,17 @@ subclonal allelic imbalance is only resolvable when SNPs are phased.
 
 ## Whole-Genome Doubling — Detection and Timing
 
-Whole-genome doubling (WGD) is a discrete, common (~30% of advanced cancers) evolutionary
-event, and it must be called explicitly because it changes how every copy number is read.
+Whole-genome doubling (WGD) is a discrete, common (~30% of advanced cancers) evolutionary event, and it must be called explicitly because it changes how every copy number is read.
 
-- **Detection:** A tumor has undergone WGD if more than ~50% of the autosomal genome has a
-  major (more frequent) allele copy number >= 2. WGD tumors have median ploidy ~3.3
-  versus ~2.1 for non-WGD.
-- **Relative vs absolute:** Depth gives *relative* copy number; WGD calling needs
-  *absolute* allele-specific copy number (BAF anchors ploidy). A depth-only profile cannot
-  distinguish a WGD genome from a non-WGD genome — this is the identifiability problem of
-  allele-specific-copy-number in another guise.
-- **Timing:** WGD is timeable relative to point mutations. Mutations that arose before WGD
-  are carried at multiple copies (mutation copy number ~2); mutations after WGD sit at one
-  copy. This dates WGD within the tumor's mutational history.
+- **Detection:** A tumor has undergone WGD if more than ~50% of the autosomal genome has a major (more frequent) allele copy number >= 2. WGD tumors have median ploidy ~3.3 versus ~2.1 for non-WGD.
+- **Relative vs absolute:** Depth gives *relative* copy number; WGD calling needs *absolute* allele-specific copy number (BAF anchors ploidy). A depth-only profile cannot distinguish a WGD genome from a non-WGD genome — this is the identifiability problem of allele-specific-copy-number in another guise.
+- **Timing:** WGD is timeable relative to point mutations. Mutations that arose before WGD are carried at multiple copies (mutation copy number ~2); mutations after WGD sit at one copy. This dates WGD within the tumor's mutational history.
 
 ## Calling Subclonal CN with Battenberg
 
 **Goal:** Fit clonal and subclonal allele-specific copy number genome-wide.
 
-**Approach:** Generate phased allele counts against a 1000 Genomes reference, run the
-Battenberg pipeline; segments that fit poorly as one integer state are split into a
-two-state subclonal mixture with a cellular fraction.
+**Approach:** Generate phased allele counts against a 1000 Genomes reference, run the Battenberg pipeline; segments that fit poorly as one integer state are split into a two-state subclonal mixture with a cellular fraction.
 
 ```r
 library(Battenberg)
@@ -102,10 +85,7 @@ battenberg(
 
 **Goal:** Jointly infer copy number, LOH, and the cellular prevalence of clonal clusters.
 
-**Approach:** TITAN needs both allele counts (het SNPs) and corrected read depth. Load
-the allele counts; correct tumour/normal read depth for GC and mappability bias; overlay
-the resulting logR onto the het positions and log-transform; filter; then run the EM and
-sweep the cluster number — model selection picks the best.
+**Approach:** TITAN needs both allele counts (het SNPs) and corrected read depth. Load the allele counts; correct tumour/normal read depth for GC and mappability bias; overlay the resulting logR onto the het positions and log-transform; filter; then run the EM and sweep the cluster number — model selection picks the best.
 
 ```r
 library(TitanCNA)
@@ -190,11 +170,7 @@ results <- viterbiClonalCN(data, conv)
 | Many low-fraction subclonal segments | Depth/purity too low | Trust only clonal CN; flag subclonal as exploratory |
 | Subclonal CN vs SNV-based CCF disagree | CN and SNV subclones need not coincide | Integrate both; they answer different questions |
 
-**Operational rule:** Report subclonal copy number as confident only when (1) depth and
-purity support it, (2) WGD status is established from absolute allele-specific CN, (3)
-multiple concordant segments support a subclone at a consistent fraction, and (4) for
-evolution claims, multi-region data and a copy-number phylogeny are used. A single
-subclonal segment is a hypothesis, not a subclone.
+**Operational rule:** Report subclonal copy number as confident only when (1) depth and purity support it, (2) WGD status is established from absolute allele-specific CN, (3) multiple concordant segments support a subclone at a consistent fraction, and (4) for evolution claims, multi-region data and a copy-number phylogeny are used. A single subclonal segment is a hypothesis, not a subclone.
 
 ## Quantitative Thresholds
 

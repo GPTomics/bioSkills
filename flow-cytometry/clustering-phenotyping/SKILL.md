@@ -12,8 +12,7 @@ Reference examples tested with: CATALYST 1.26+, FlowSOM 2.10+, flowCore 2.14+; R
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-`Rphenograph` is GitHub-only (`remotes::install_github('JinmiaoChenLab/Rphenograph')`) and returns
-a list - membership is `igraph::membership(out[[2]])`, not a vector. Adapt rather than retrying.
+`Rphenograph` is GitHub-only (`remotes::install_github('JinmiaoChenLab/Rphenograph')`) and returns a list - membership is `igraph::membership(out[[2]])`, not a vector. Adapt rather than retrying.
 
 # Clustering and Phenotyping
 

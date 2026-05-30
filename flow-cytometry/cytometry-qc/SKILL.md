@@ -12,9 +12,7 @@ Reference examples tested with: flowAI 1.32+, PeacoQC 1.12+, flowCore 2.14+, flo
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-Counterintuitive defaults to confirm: flowAI checks are FR/FS/FM (FM = dynamic range, not
-"flow"); PeacoQC `MAD`/`IT_limit` are LESS strict when HIGHER. Verify with `?flow_auto_qc`
-and `?PeacoQC` before tuning.
+Counterintuitive defaults to confirm: flowAI checks are FR/FS/FM (FM = dynamic range, not "flow"); PeacoQC `MAD`/`IT_limit` are LESS strict when HIGHER. Verify with `?flow_auto_qc` and `?PeacoQC` before tuning.
 
 # Cytometry QC
 

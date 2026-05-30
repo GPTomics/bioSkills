@@ -1,192 +1,105 @@
-'''Design HDR donor templates for CRISPR knock-ins'''
+'''Design an HDR ssODN with a MANDATORY codon-checked blocking mutation, plus junction primers.
+
+The single most important rule: a donor with no blocking mutation is self-destructing -- the
+corrected allele keeps an intact PAM, Cas9 re-cuts it, and the indel reads out as "HDR failed."
+This script disrupts the PAM synonymously (verified against a codon table) so the edit survives,
+emits both ssODN strands (the Richardson non-target-strand/asymmetric rule is a prior to TEST,
+not a law), and designs genotyping primers with primer3-py. primer3 designs PRIMERS, not arms.
+'''
 # Reference: biopython 1.83+, primer3-py 2.0+ | Verify API if version differs
 
 from Bio.Seq import Seq
+from Bio.Data import CodonTable
+import primer3
 
-# Common protein tags for knock-ins
-TAGS = {
-    'FLAG': 'GATTACAAGGATGACGATGACAAG',           # 24bp, 8aa
-    '3xFLAG': 'GATTACAAGGATGACGATGACAAGGATTACAAGGATGACGATGACAAGGATTACAAGGATGACGATGACAAG',
-    'HA': 'TACCCATACGATGTTCCAGATTACGCT',          # 27bp, 9aa
-    'V5': 'GGTAAGCCTATCCCTAACCCTCTCCTCGGTCTCGATTCTACG',  # 42bp, 14aa
-    'MYC': 'GAACAAAAACTCATCTCAGAAGAGGATCTG',      # 30bp, 10aa
-    '6xHIS': 'CATCACCATCACCATCAC',                # 18bp, 6aa
-}
-
-# Flexible linkers
-LINKERS = {
-    'GS': 'GGCAGC',                    # Short GS linker
-    'GSGS': 'GGCAGCGGCAGC',            # Medium linker
-    'GSGSG': 'GGCAGCGGCAGCGGC',        # Longer linker
-}
-
-# Optimal homology arm lengths
-# ssODN: 30-60 nt each side (total ~120-200 nt)
-# dsDNA: 200-800 bp each side for larger insertions
-# Asymmetric: PAM-distal arm can be longer (improves HDR)
-SSODN_ARM_LENGTH = (30, 60)
-DSDNA_ARM_LENGTH = (200, 800)
+FWD = CodonTable.standard_dna_table.forward_table   # codon -> amino acid (stop codons absent)
+SSODN_ARM = 50          # per-arm nt; 30-60 workable, total stays under the ~200 nt synthesis ceiling
+EDIT_TO_CUT_MAX = 10    # HDR incorporation falls sharply beyond ~10 bp (Paquet 2016)
 
 
-def design_ssodn(target_seq, cut_site, insert_seq='', left_arm=50, right_arm=50):
-    '''Design single-stranded oligodeoxynucleotide donor
+def aa(codon):
+    return FWD.get(codon.upper(), '*')   # '*' for stop / unknown
 
-    Args:
-        target_seq: Genomic sequence around cut site
-        cut_site: Position where Cas9 cuts (0-indexed)
-        insert_seq: Sequence to insert
-        left_arm: Left homology arm length (30-60nt optimal)
-        right_arm: Right homology arm length (30-60nt optimal)
 
-    Total length should be 100-200nt for efficient synthesis.
-    Longer oligos have higher error rates and cost.
+def synonymous_swap(codon, pos_in_codon):
+    '''Return a synonymous codon differing at pos_in_codon (to break a PAM), or None if impossible.'''
+    for base in 'ACGT':
+        if base == codon[pos_in_codon]:
+            continue
+        cand = codon[:pos_in_codon] + base + codon[pos_in_codon + 1:]
+        if aa(cand) == aa(codon) and aa(codon) != '*':
+            return cand
+    return None
+
+
+def block_pam_synonymously(donor, pam_start, cds_offset):
+    '''Disrupt an NGG PAM with a synonymous change so the edited allele cannot be re-cut.
+
+    pam_start: index of the PAM's N in `donor`; cds_offset: index where the reading frame begins.
+    Targets the 2nd or 3rd PAM base (the GG); returns (blocked_donor, description) or (donor, reason).
     '''
-    left = target_seq[cut_site - left_arm:cut_site]
-    right = target_seq[cut_site:cut_site + right_arm]
-
-    ssodn = left + insert_seq + right
-    ssodn_rc = str(Seq(ssodn).reverse_complement())
-
-    return {
-        'sense': ssodn,
-        'antisense': ssodn_rc,
-        'total_length': len(ssodn),
-        'left_arm_length': left_arm,
-        'right_arm_length': right_arm,
-        'insert_length': len(insert_seq),
-        'note': 'Test both sense and antisense - efficiency varies by locus'
-    }
+    for g in (pam_start + 2, pam_start + 1):   # prefer the 3rd PAM base, then the 2nd
+        if donor[g] != 'G':
+            continue
+        codon_i = cds_offset + 3 * ((g - cds_offset) // 3)
+        codon = donor[codon_i:codon_i + 3]
+        if len(codon) < 3:
+            continue
+        swapped = synonymous_swap(codon, g - codon_i)
+        if swapped:
+            return donor[:codon_i] + swapped + donor[codon_i + 3:], f'silent PAM block at codon {codon}->{swapped}'
+    return donor, 'no synonymous PAM block found -- introduce silent SEED-region mutations instead'
 
 
-def design_asymmetric_ssodn(target_seq, cut_site, insert_seq, pam_side='right'):
-    '''Design ssODN with asymmetric homology arms
-
-    Asymmetric arms can improve HDR efficiency by ~2-3 fold.
-    The PAM-distal arm should be longer (resected first during repair).
-
-    PAM-proximal: 30-40nt
-    PAM-distal: 60-90nt
-    '''
-    if pam_side == 'right':
-        left_arm, right_arm = 70, 35  # PAM-distal longer
-    else:
-        left_arm, right_arm = 35, 70
-
-    return design_ssodn(target_seq, cut_site, insert_seq, left_arm, right_arm)
-
-
-def design_tag_insertion(target_seq, cut_site, tag_name, add_linker=True):
-    '''Design ssODN for protein tagging
-
-    Common use: Add epitope tag for immunoprecipitation or imaging.
-    Position cut site at the codon boundary where tag will be inserted.
-    '''
-    tag = TAGS.get(tag_name.upper(), tag_name)
-
-    if add_linker:
-        insert = LINKERS['GSGS'] + tag  # Linker before tag
-    else:
-        insert = tag
-
-    return design_ssodn(target_seq, cut_site, insert)
+def design_ssodn(target, cut, edit_pos, new_base, pam_start, cds_offset, arm=SSODN_ARM):
+    '''Build an ssODN donor with the edit and a codon-checked blocking mutation; return both strands.'''
+    if abs(edit_pos - cut) > EDIT_TO_CUT_MAX:
+        return {'error': f'edit is {abs(edit_pos - cut)} bp from the cut (>{EDIT_TO_CUT_MAX}); '
+                         'choose a closer-cutting guide or switch to base/prime editing'}
+    if cut < arm or cut + arm > len(target):
+        return {'error': f'need >={arm} bp of flank on both sides of the cut'}
+    edited = target[:edit_pos] + new_base + target[edit_pos + 1:]
+    blocked, block_note = block_pam_synonymously(edited, pam_start, cds_offset)
+    sense = blocked[cut - arm:cut + arm]
+    return {'sense': sense, 'antisense': str(Seq(sense).reverse_complement()), 'length': len(sense),
+            'blocking': block_note,
+            'note': 'TEST both strands (Richardson rule is a prior, not a law); add 2-3 phosphorothioate '
+                    'caps per end; for >50 bp inserts use lssDNA, not a longer oligo'}
 
 
-def design_point_mutation(target_seq, mutation_pos, new_base, arm_length=50):
-    '''Design ssODN for a point mutation
-
-    Centers the mutation in the ssODN for optimal incorporation.
-    Consider also mutating the PAM to prevent re-cutting.
-    '''
-    mutant = list(target_seq)
-    mutant[mutation_pos] = new_base
-    mutant_seq = ''.join(mutant)
-
-    left_start = mutation_pos - arm_length
-    right_end = mutation_pos + arm_length + 1
-
-    ssodn = mutant_seq[max(0, left_start):right_end]
-
-    return {
-        'sequence': ssodn,
-        'length': len(ssodn),
-        'mutation_position': min(arm_length, mutation_pos),
-        'change': f'{target_seq[mutation_pos]}>{new_base}'
-    }
-
-
-def add_pam_mutation(donor_seq, pam_position):
-    '''Add silent mutation to disrupt PAM and prevent re-cutting
-
-    After HDR, the PAM (NGG) should be mutated to prevent Cas9
-    from cutting the corrected allele.
-
-    Strategy: Change NGG -> NGA (most common silent option)
-    '''
-    donor = list(donor_seq)
-
-    # Check we have NGG at expected position
-    if pam_position + 2 < len(donor):
-        if donor[pam_position + 1] == 'G' and donor[pam_position + 2] == 'G':
-            donor[pam_position + 2] = 'A'  # GG -> GA
-
-    return ''.join(donor)
-
-
-def design_dsdna_donor(target_seq, cut_site, insert_seq, arm_length=500):
-    '''Design double-stranded DNA donor for larger insertions
-
-    For insertions >50bp, dsDNA donors are more efficient.
-    Can be delivered as PCR product or plasmid.
-
-    Arm length: 200-800bp recommended for high efficiency
-    '''
-    left_arm = target_seq[cut_site - arm_length:cut_site]
-    right_arm = target_seq[cut_site:cut_site + arm_length]
-
-    donor = left_arm + insert_seq + right_arm
-
-    return {
-        'full_sequence': donor,
-        'total_length': len(donor),
-        'left_arm': left_arm,
-        'right_arm': right_arm,
-        'left_arm_length': arm_length,
-        'right_arm_length': arm_length,
-        'insert': insert_seq
-    }
+def junction_primers(donor, product_min=90, product_max=150):
+    '''Design genotyping primers across the insertion junction with primer3-py.'''
+    res = primer3.bindings.design_primers(
+        {'SEQUENCE_ID': 'hdr_junction', 'SEQUENCE_TEMPLATE': donor},
+        {'PRIMER_OPT_SIZE': 20, 'PRIMER_MIN_SIZE': 18, 'PRIMER_MAX_SIZE': 24,
+         'PRIMER_OPT_TM': 60.0, 'PRIMER_PRODUCT_SIZE_RANGE': [[product_min, product_max]]})
+    return {'left': res.get('PRIMER_LEFT_0_SEQUENCE'), 'right': res.get('PRIMER_RIGHT_0_SEQUENCE'),
+            'pairs_returned': res.get('PRIMER_PAIR_NUM_RETURNED', 0)}
 
 
 if __name__ == '__main__':
-    # Example: Design ssODN for FLAG tag insertion
-    # Simulated target sequence around cut site
-    target = 'A' * 100 + 'ATGATCGATCGATCGATCGATCGAGG' + 'T' * 100
-    cut_site = 110  # Position where Cas9 will cut
+    # In-frame coding target (cds_offset=0). Search for an NGG PAM that (a) sits where a
+    # synonymous block is possible and (b) leaves >=arm flank on both sides of its cut.
+    target = ('ATGGCCGAGACCAAGTTCGACGAGCTGAAGGCCTACATCGAGAAGCTGGGCGAGAAGGGCTTCGAC'
+              'GAGGTGAAGCTGTACGGCGACGAGCTGAAGTTCTACGGCGAGAAGCTGTTCGAGAAGCTGTTCTAA')
+    cds_offset = 0
+    chosen = None
+    for i in range(SSODN_ARM, len(target) - SSODN_ARM - 3):
+        if target[i + 1:i + 3] == 'GG':                 # NGG PAM at i
+            blocked, note = block_pam_synonymously(target, i, cds_offset)
+            if blocked != target:
+                chosen = (i, i - 3, note); break          # SpCas9 cut ~3 bp 5' of the PAM
+    pam_start, cut, _ = chosen
+    edit_pos = cut                                        # install the edit at the cut (within 10 bp)
+    new_base = 'A' if target[edit_pos] != 'A' else 'C'
 
-    print('HDR Template Design Examples')
-    print('=' * 50)
+    print(f'Blockable NGG PAM at {pam_start}, cut at {cut}, edit {target[edit_pos]}->{new_base} at {edit_pos}')
+    print('HDR ssODN (codon-checked blocking mutation is mandatory):')
+    donor = design_ssodn(target, cut, edit_pos, new_base, pam_start, cds_offset)
+    for k, v in donor.items():
+        print(f'  {k}: {v}')
 
-    # 1. FLAG tag insertion
-    print('\n1. FLAG tag insertion:')
-    flag_donor = design_tag_insertion(target, cut_site, 'FLAG')
-    print(f"   Sense ssODN length: {flag_donor['total_length']}nt")
-    print(f"   Arms: {flag_donor['left_arm_length']}nt | {flag_donor['insert_length']}nt insert | {flag_donor['right_arm_length']}nt")
-
-    # 2. Point mutation
-    print('\n2. Point mutation (A->G):')
-    mutation_donor = design_point_mutation(target, 115, 'G')
-    print(f"   ssODN length: {mutation_donor['length']}nt")
-    print(f"   Change: {mutation_donor['change']}")
-
-    # 3. Asymmetric arms
-    print('\n3. Asymmetric arm design:')
-    asym_donor = design_asymmetric_ssodn(target, cut_site, TAGS['HA'])
-    print(f"   Total length: {asym_donor['total_length']}nt")
-    print(f"   Left arm: {asym_donor['left_arm_length']}nt (PAM-distal)")
-    print(f"   Right arm: {asym_donor['right_arm_length']}nt (PAM-proximal)")
-
-    # 4. dsDNA donor
-    print('\n4. dsDNA donor for GFP insertion:')
-    gfp_seq = 'ATG' + 'N' * 714 + 'TAA'  # ~720bp GFP CDS
-    dsdna = design_dsdna_donor(target, cut_site, gfp_seq, arm_length=500)
-    print(f"   Total length: {dsdna['total_length']}bp")
-    print(f"   Homology arms: {dsdna['left_arm_length']}bp each")
+    full = target[:edit_pos] + new_base + target[edit_pos + 1:]
+    print('\nJunction genotyping primers (primer3-py):')
+    print(' ', junction_primers(full))
+    print('\nIf edit-to-cut > 10 bp, or the cell is post-mitotic, reconsider: base/prime editing, or HITI.')

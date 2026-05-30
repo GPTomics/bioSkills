@@ -13,9 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show requests pandas`
 - API surface: confirm endpoint URLs match https://www.uniprot.org/help/api
 
-The REST API JSON schema is stable within a release; major schema changes are documented
-at https://www.uniprot.org/release-notes. The 2022 migration broke the legacy
-`https://www.uniprot.org/uniprot/...` endpoints.
+The REST API JSON schema is stable within a release; major schema changes are documented at https://www.uniprot.org/release-notes. The 2022 migration broke the legacy `https://www.uniprot.org/uniprot/...` endpoints.
 
 # UniProt Access
 

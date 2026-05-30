@@ -12,9 +12,7 @@ Reference examples tested with: flowCore 2.14+, flowStats 4.14+, flowWorkspace 4
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
-Notes that bite: `estimateLogicle()` lives in flowWorkspace (not flowCore). `flowCore::spillover()`
-on a flowFrame returns a LIST of keyword matrices (index `[[1]]`); `flowStats::spillover()` on
-single-stain controls returns the matrix DIRECTLY (not a list) - do not index it with `$`.
+Notes that bite: `estimateLogicle()` lives in flowWorkspace (not flowCore). `flowCore::spillover()` on a flowFrame returns a LIST of keyword matrices (index `[[1]]`); `flowStats::spillover()` on single-stain controls returns the matrix DIRECTLY (not a list) - do not index it with `$`.
 
 If code throws an error, introspect the installed package and adapt rather than retrying.
 

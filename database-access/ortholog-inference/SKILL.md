@@ -13,8 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show requests pandas`
 - API surface: confirm endpoint URLs and JSON schema match the current API docs
 
-If endpoints return 404 or unexpected JSON, check release notes for the resource;
-schema migrations happen with each major version (Ensembl release is the biggest moving target).
+If endpoints return 404 or unexpected JSON, check release notes for the resource; schema migrations happen with each major version (Ensembl release is the biggest moving target).
 
 # Ortholog Inference (Database Access)
 
@@ -129,8 +128,7 @@ def oma_orthologs(uniprot_acc):
 
 ### eggNOG (5/6)
 
-Base URL: `http://eggnog6.embl.de/api/` (web API; lighter than running eggNOG-mapper).
-Most heavy lifting still uses **eggNOG-mapper** locally (Cantalapiedra et al. 2021 *Mol Biol Evol* 38:5825) — for batch protein-set annotation, mapper > API.
+Base URL: `http://eggnog6.embl.de/api/` (web API; lighter than running eggNOG-mapper). Most heavy lifting still uses **eggNOG-mapper** locally (Cantalapiedra et al. 2021 *Mol Biol Evol* 38:5825) — for batch protein-set annotation, mapper > API.
 
 For ad hoc lookup: search the eggNOG web interface for an orthogroup ID, then download the member set.
 
@@ -155,8 +153,7 @@ KEGG license: commercial use requires a paid license; academic use is free for w
 
 ### PANTHER
 
-Base URL: `http://pantherdb.org/services/oai/pantherdb/` (note the unusual base).
-Has a curated, smaller scope than OrthoDB but with experimental evidence.
+Base URL: `http://pantherdb.org/services/oai/pantherdb/` (note the unusual base). Has a curated, smaller scope than OrthoDB but with experimental evidence.
 
 ### HomoloGene (deprecated)
 

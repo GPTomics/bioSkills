@@ -13,8 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show requests pandas networkx`
 - API surface: confirm endpoint URLs match each resource's current docs
 
-STRING URL is version-pinned (`version-12-0` as of 2024); older URLs (`version-11-5`) were deprecated 2023.
-The Cytoscape/Cytoscape.js ecosystem uses different version semantics; check the docs for the targeted version.
+STRING URL is version-pinned (`version-12-0` as of 2024); older URLs (`version-11-5`) were deprecated 2023. The Cytoscape/Cytoscape.js ecosystem uses different version semantics; check the docs for the targeted version.
 
 # Interaction Databases
 

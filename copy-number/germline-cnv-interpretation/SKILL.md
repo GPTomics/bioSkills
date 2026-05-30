@@ -7,17 +7,13 @@ primary_tool: ClassifyCNV
 
 ## Version Compatibility
 
-Reference examples tested with: ClassifyCNV 1.1+, AnnotSV 3.4+, Python 3.10+ with
-pandas 2.2+; bedtools 2.31+.
+Reference examples tested with: ClassifyCNV 1.1+, AnnotSV 3.4+, Python 3.10+ with pandas 2.2+; bedtools 2.31+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `python ClassifyCNV.py --help`, `AnnotSV --version`
-- Update the bundled ClinGen/dosage databases — ClassifyCNV ships an `update_clingen.sh`;
-  dosage curation changes, and a stale database silently mis-scores.
+- Update the bundled ClinGen/dosage databases — ClassifyCNV ships an `update_clingen.sh`; dosage curation changes, and a stale database silently mis-scores.
 
-This skill is for **constitutional/germline** CNVs only. Somatic tumor CNVs use a
-different framework (AMP/ASCO/CAP and OncoKB tiers) — do not apply ACMG/ClinGen
-constitutional scoring to a tumor.
+This skill is for **constitutional/germline** CNVs only. Somatic tumor CNVs use a different framework (AMP/ASCO/CAP and OncoKB tiers) — do not apply ACMG/ClinGen constitutional scoring to a tumor.
 
 # Germline CNV Interpretation
 
@@ -36,22 +32,9 @@ constitutional scoring to a tumor.
 | -0.90 to -0.98 | Likely benign |
 | <= -0.99 | Benign |
 
-Evidence is grouped into sections (the loss and gain rubrics each have five). For
-copy-number **loss**: Section 1 — does the CNV contain protein-coding or functionally
-important elements; Section 2 — overlap with established haploinsufficient genes/regions
-(strong positive) or established benign regions (strong negative); Section 3 — number of
-protein-coding genes; Section 4 — detailed case/literature evidence (case-control, prior
-probands, phenotype specificity); Section 5 — inheritance (de novo with confirmed
-parentage is strong positive; inherited from an unaffected parent is negative). The
-**gain** rubric is structured the same way but keyed to triplosensitivity and the
-distinct evidence base for duplications.
+Evidence is grouped into sections (the loss and gain rubrics each have five). For copy-number **loss**: Section 1 — does the CNV contain protein-coding or functionally important elements; Section 2 — overlap with established haploinsufficient genes/regions (strong positive) or established benign regions (strong negative); Section 3 — number of protein-coding genes; Section 4 — detailed case/literature evidence (case-control, prior probands, phenotype specificity); Section 5 — inheritance (de novo with confirmed parentage is strong positive; inherited from an unaffected parent is negative). The **gain** rubric is structured the same way but keyed to triplosensitivity and the distinct evidence base for duplications.
 
-The decisive postdoc-level point: **a tool can only score the evidence it is given.**
-ClassifyCNV and AnnotSV automate Sections 1-3 (gene content, dosage-region overlap,
-population frequency) well; Sections 4-5 (de novo status, segregation, literature)
-require the interpreter to supply points. An unsupervised tool run therefore
-systematically lands CNVs in VUS — the absence of family/literature evidence is not
-neutral, it is unscored.
+The decisive postdoc-level point: **a tool can only score the evidence it is given.** ClassifyCNV and AnnotSV automate Sections 1-3 (gene content, dosage-region overlap, population frequency) well; Sections 4-5 (de novo status, segregation, literature) require the interpreter to supply points. An unsupervised tool run therefore systematically lands CNVs in VUS — the absence of family/literature evidence is not neutral, it is unscored.
 
 ## Classification Workflow
 
@@ -68,8 +51,7 @@ neutral, it is unscored.
 
 **Goal:** Score the automatable ACMG/ClinGen sections for a set of constitutional CNVs.
 
-**Approach:** Provide CNVs as a BED with an explicit DEL/DUP type; ClassifyCNV applies the
-2019 rubric against the bundled ClinGen databases and emits a per-CNV scoresheet.
+**Approach:** Provide CNVs as a BED with an explicit DEL/DUP type; ClassifyCNV applies the 2019 rubric against the bundled ClinGen databases and emits a per-CNV scoresheet.
 
 ```bash
 # Input BED: chrom, start, end, type  (type = DEL or DUP)
@@ -166,11 +148,7 @@ AnnotSV -SVinputFile constitutional_cnvs.vcf -genomeBuild GRCh38 \
 | Two interpreters disagree on a VUS | Section 4-5 evidence weighted differently | Use the ClinGen calculator; document each criterion |
 | De novo deletion still VUS | Section 5 points not added | Add confirmed-de-novo points |
 
-**Operational rule:** A clinical CNV classification is final only when (1) the CNV is
-confirmed constitutional, (2) databases and builds are current and consistent, (3) the
-automatable Sections 1-3 are scored by a tool, and (4) the interpreter has scored
-Sections 4-5 from case-specific evidence. Document each criterion and its points; the
-ClinGen web calculator is the reference tally.
+**Operational rule:** A clinical CNV classification is final only when (1) the CNV is confirmed constitutional, (2) databases and builds are current and consistent, (3) the automatable Sections 1-3 are scored by a tool, and (4) the interpreter has scored Sections 4-5 from case-specific evidence. Document each criterion and its points; the ClinGen web calculator is the reference tally.
 
 ## Quantitative Thresholds
 

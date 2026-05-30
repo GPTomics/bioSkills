@@ -13,9 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show pybiomart`
 - R: `packageVersion('biomaRt')`
 
-The BioMart XML query format is stable across Ensembl releases; the underlying mart names
-and attribute IDs can change between Ensembl releases. For published work, pin the Ensembl
-release via `useEnsembl(version=110)`.
+The BioMart XML query format is stable across Ensembl releases; the underlying mart names and attribute IDs can change between Ensembl releases. For published work, pin the Ensembl release via `useEnsembl(version=110)`.
 
 # BioMart Queries
 

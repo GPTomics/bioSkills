@@ -7,16 +7,14 @@ primary_tool: matplotlib
 
 ## Version Compatibility
 
-Reference examples tested with: matplotlib 3.8+, pandas 2.2+, numpy 1.26+, seaborn 0.13+,
-CNVkit 0.9.10+, GATK 4.5+; R 4.3+ with ggplot2 3.5+.
+Reference examples tested with: matplotlib 3.8+, pandas 2.2+, numpy 1.26+, seaborn 0.13+, CNVkit 0.9.10+, GATK 4.5+; R 4.3+ with ggplot2 3.5+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show matplotlib pandas` then `help(function)` for signatures
 - R: `packageVersion('ggplot2')` then `?function_name`
 - CLI: `cnvkit.py version`, `gatk --version`
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example rather than retrying.
+If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt the example rather than retrying.
 
 # CNV Visualization
 
@@ -39,8 +37,7 @@ package and adapt the example rather than retrying.
 | Circos | Genome-wide CNV + SV breakpoints together | CNV-SV co-localization | Fine amplitude detail |
 | Caller-native (GATK/ASCAT/FACETS) | Did the caller fit correctly? | Model fit, segment confidence | — (diagnostic, not publication) |
 
-The decision rule: if the biological question involves LOH, allele-specific gain, or
-whole-genome doubling, a log2-only plot is insufficient — pair it with a BAF track.
+The decision rule: if the biological question involves LOH, allele-specific gain, or whole-genome doubling, a log2-only plot is insufficient — pair it with a BAF track.
 
 ## CNVkit Built-in Plots
 
@@ -58,8 +55,7 @@ Passing `-v` with a VCF adds a B-allele-frequency panel — use it whenever LOH 
 
 **Goal:** Render a publication genome-wide CNV profile with colored segments.
 
-**Approach:** Map per-bin log2 to cumulative genomic coordinates, plot bins as faint
-points, overlay segment medians as colored horizontal lines, mark chromosome boundaries.
+**Approach:** Map per-bin log2 to cumulative genomic coordinates, plot bins as faint points, overlay segment medians as colored horizontal lines, mark chromosome boundaries.
 
 ```python
 import pandas as pd
@@ -105,11 +101,9 @@ def plot_genome_profile(cnr_file, cns_file, output=None, gain=0.3, loss=-0.3):
 
 ## Combined log2 + B-Allele-Frequency Panel
 
-**Goal:** Show total copy number and allelic imbalance together so CN-neutral LOH and
-allele-specific gains are visible.
+**Goal:** Show total copy number and allelic imbalance together so CN-neutral LOH and allele-specific gains are visible.
 
-**Approach:** Stack two axes — log2 on top, BAF below. Mirror BAF about 0.5 so allelic
-imbalance reads as deviation from the center line.
+**Approach:** Stack two axes — log2 on top, BAF below. Mirror BAF about 0.5 so allelic imbalance reads as deviation from the center line.
 
 ```python
 import numpy as np
@@ -138,15 +132,13 @@ def plot_log2_baf(cnr_file, baf_df, output=None):
     return fig
 ```
 
-A copy-neutral LOH region shows log2 ~ 0 but BAF splitting away from 0.5 — invisible on
-any log2-only plot.
+A copy-neutral LOH region shows log2 ~ 0 but BAF splitting away from 0.5 — invisible on any log2-only plot.
 
 ## Cohort Heatmap
 
 **Goal:** Show recurrent CNV patterns across a cohort.
 
-**Approach:** Resample every sample's segments onto a common genomic bin grid, stack into
-a samples-by-bins matrix, render with a diverging colormap centered at zero.
+**Approach:** Resample every sample's segments onto a common genomic bin grid, stack into a samples-by-bins matrix, render with a diverging colormap centered at zero.
 
 ```python
 import seaborn as sns
@@ -187,10 +179,7 @@ gatk PlotModeledSegments --denoised-copy-ratios tumor.denoisedCR.tsv \
     --sequence-dictionary reference.dict --output-prefix tumor -O plots/
 ```
 
-ASCAT (`ascat.runAscat` ASPCF and sunrise plots), Sequenza (`sequenza.results`
-chromosome view and the cellularity/ploidy contour), and FACETS (`plotSample`) emit
-diagnostic plots — always inspect these to confirm the purity/ploidy fit before trusting
-downstream calls. They are diagnostic, not publication, figures.
+ASCAT (`ascat.runAscat` ASPCF and sunrise plots), Sequenza (`sequenza.results` chromosome view and the cellularity/ploidy contour), and FACETS (`plotSample`) emit diagnostic plots — always inspect these to confirm the purity/ploidy fit before trusting downstream calls. They are diagnostic, not publication, figures.
 
 ## Failure Modes
 
@@ -212,8 +201,7 @@ downstream calls. They are diagnostic, not publication, figures.
 
 **Symptom:** A real amplification looks weaker than a passenger gain in a purer sample; cross-sample amplitude comparisons are meaningless.
 
-**Fix:** For cross-sample or absolute claims, plot integer copy number from a
-purity-corrected caller, not raw log2. Label log2 axes "log2 copy ratio".
+**Fix:** For cross-sample or absolute claims, plot integer copy number from a purity-corrected caller, not raw log2. Label log2 axes "log2 copy ratio".
 
 ### Cohort heatmap binning erases focal events
 

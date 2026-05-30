@@ -7,16 +7,14 @@ primary_tool: bedtools
 
 ## Version Compatibility
 
-Reference examples tested with: bedtools 2.31+, AnnotSV 3.4+, Python 3.10+ with
-pybedtools 0.9+, pandas 2.2+, pysam 0.22+; R 4.3+ with clusterProfiler 4.10+.
+Reference examples tested with: bedtools 2.31+, AnnotSV 3.4+, Python 3.10+ with pybedtools 0.9+, pandas 2.2+, pysam 0.22+; R 4.3+ with clusterProfiler 4.10+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `bedtools --version`, `AnnotSV --version`
 - Python: `pip show pybedtools pandas pysam`
 - R: `packageVersion('clusterProfiler')`
 
-If code throws an error, introspect the installed package and adapt the example. AnnotSV
-output column names change between major versions — verify against the installed version.
+If code throws an error, introspect the installed package and adapt the example. AnnotSV output column names change between major versions — verify against the installed version.
 
 # CNV Annotation
 
@@ -38,33 +36,21 @@ output column names change between major versions — verify against the install
 | Is there pathogenic small-variant content? | ClinVar | Coincident SNV/indel pathogenicity |
 | One-shot comprehensive annotation + ranking | AnnotSV | Aggregates most of the above |
 
-For constitutional CNV *classification* (assigning pathogenic/VUS/benign), the annotated
-output feeds the ACMG/ClinGen points framework — see germline-cnv-interpretation. For
-cohort-level recurrence and driver-peak identification, see recurrent-cnv.
+For constitutional CNV *classification* (assigning pathogenic/VUS/benign), the annotated output feeds the ACMG/ClinGen points framework — see germline-cnv-interpretation. For cohort-level recurrence and driver-peak identification, see recurrent-cnv.
 
 ## The Core Distinction: Overlap Is Not Consequence
 
-A CNV overlapping a gene does not necessarily change that gene's dosage in a way that
-matters. Three refinements separate annotation from interpretation:
+A CNV overlapping a gene does not necessarily change that gene's dosage in a way that matters. Three refinements separate annotation from interpretation:
 
-1. **Whole-gene vs partial overlap.** A deletion spanning an entire gene removes one copy
-   (clean haploinsufficiency test). A deletion removing only the last two exons creates a
-   truncated allele — a different, often more damaging, consequence. Always record the
-   fraction of each gene covered and whether coding exons or only introns/UTRs are hit.
-2. **Dosage sensitivity.** Most genes tolerate single-copy loss. ClinGen HI/TS scores
-   (3 = sufficient evidence for dosage sensitivity, 0 = no evidence, 30 = gene associated
-   with an autosomal-recessive phenotype, 40 = dosage sensitivity unlikely) indicate which
-   genes' loss/gain is actually consequential.
-3. **Driver vs passenger in focal events.** A focal amplification carries many genes; the
-   driver is the one under selection, typically at the recurrence peak across a cohort
-   (GISTIC) and a known oncogene. Annotating all 30 genes as "amplified" overstates.
+1. **Whole-gene vs partial overlap.** A deletion spanning an entire gene removes one copy (clean haploinsufficiency test). A deletion removing only the last two exons creates a truncated allele — a different, often more damaging, consequence. Always record the fraction of each gene covered and whether coding exons or only introns/UTRs are hit.
+2. **Dosage sensitivity.** Most genes tolerate single-copy loss. ClinGen HI/TS scores (3 = sufficient evidence for dosage sensitivity, 0 = no evidence, 30 = gene associated with an autosomal-recessive phenotype, 40 = dosage sensitivity unlikely) indicate which genes' loss/gain is actually consequential.
+3. **Driver vs passenger in focal events.** A focal amplification carries many genes; the driver is the one under selection, typically at the recurrence peak across a cohort (GISTIC) and a known oncogene. Annotating all 30 genes as "amplified" overstates.
 
 ## Gene Overlap with bedtools
 
 **Goal:** Find genes overlapping each CNV segment, recording overlap extent.
 
-**Approach:** Convert segments to BED, intersect with a gene model, keep both feature
-sets (`-wo` reports the overlap length) so partial vs whole-gene overlap is recoverable.
+**Approach:** Convert segments to BED, intersect with a gene model, keep both feature sets (`-wo` reports the overlap length) so partial vs whole-gene overlap is recoverable.
 
 ```bash
 # Segments to BED (CNVkit .cns example; columns chrom/start/end/log2)
@@ -76,11 +62,9 @@ bedtools intersect -a sample.cnv.bed -b gencode.genes.bed -wo > cnv_gene_overlap
 
 ## Comprehensive Annotation with AnnotSV
 
-**Goal:** Annotate CNVs against genes, dosage maps, population frequency, and clinical
-databases in one pass, with a built-in pathogenicity ranking.
+**Goal:** Annotate CNVs against genes, dosage maps, population frequency, and clinical databases in one pass, with a built-in pathogenicity ranking.
 
-**Approach:** Export CNVs to VCF or BED and run AnnotSV; it returns a "full" line per
-gene plus a "split" summary, with an ACMG-aligned rank (1-5).
+**Approach:** Export CNVs to VCF or BED and run AnnotSV; it returns a "full" line per gene plus a "split" summary, with an ACMG-aligned rank (1-5).
 
 ```bash
 AnnotSV \
@@ -93,17 +77,13 @@ AnnotSV \
 # ClinVar, DECIPHER, and an ACMG-class rank per SV.
 ```
 
-AnnotSV's rank is a useful triage signal, not a final classification — confirm against
-the ClinGen points framework for clinical reporting.
+AnnotSV's rank is a useful triage signal, not a final classification — confirm against the ClinGen points framework for clinical reporting.
 
 ## Dosage-Sensitivity and Driver Annotation
 
-**Goal:** Tag each affected gene with its dosage sensitivity and, for tumors, its driver
-role, so passengers can be separated from drivers.
+**Goal:** Tag each affected gene with its dosage sensitivity and, for tumors, its driver role, so passengers can be separated from drivers.
 
-**Approach:** Join the gene-overlap table to the ClinGen dosage map (HI/TS scores) and to
-the COSMIC Cancer Gene Census; flag CNVs whose direction matches a known mechanism
-(oncogene amplified, tumor suppressor deleted).
+**Approach:** Join the gene-overlap table to the ClinGen dosage map (HI/TS scores) and to the COSMIC Cancer Gene Census; flag CNVs whose direction matches a known mechanism (oncogene amplified, tumor suppressor deleted).
 
 ```python
 import pandas as pd
@@ -135,9 +115,7 @@ def annotate_dosage_and_drivers(overlap_tsv, clingen_dosage, cgc_file):
 
 **Goal:** Remove common, presumed-benign CNVs before clinical interpretation.
 
-**Approach:** Reciprocal-overlap match each CNV against a population SV catalog
-(gnomAD-SV, DGV); a CNV with high reciprocal overlap to a common population CNV of the
-same type is likely benign.
+**Approach:** Reciprocal-overlap match each CNV against a population SV catalog (gnomAD-SV, DGV); a CNV with high reciprocal overlap to a common population CNV of the same type is likely benign.
 
 ```bash
 # 50% reciprocal overlap (-f 0.5 -r): same-type, similar-extent population match.
@@ -151,9 +129,7 @@ bedtools intersect -a sample.cnv.bed -b gnomad_sv.bed -f 0.5 -r -wa -wb \
 
 **Goal:** Test whether genes in amplified (or deleted) regions are enriched for pathways.
 
-**Approach:** Extract genes by CNV direction, map to Entrez IDs, run GO/KEGG enrichment.
-Caveat: CNVs are large and gene-dense, so enrichment is biased toward whatever pathways
-cluster in CNV-prone genomic regions — interpret as hypothesis-generating.
+**Approach:** Extract genes by CNV direction, map to Entrez IDs, run GO/KEGG enrichment. Caveat: CNVs are large and gene-dense, so enrichment is biased toward whatever pathways cluster in CNV-prone genomic regions — interpret as hypothesis-generating.
 
 ```r
 library(clusterProfiler)

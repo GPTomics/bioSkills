@@ -7,16 +7,13 @@ primary_tool: DNAcopy
 
 ## Version Compatibility
 
-Reference examples tested with: R 4.3+ with DNAcopy 1.76+, Python 3.10+ with numpy 1.26+,
-pandas 2.2+; QDNAseq 1.38+ (optional, GC/mappability normalization).
+Reference examples tested with: R 4.3+ with DNAcopy 1.76+, Python 3.10+ with numpy 1.26+, pandas 2.2+; QDNAseq 1.38+ (optional, GC/mappability normalization).
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('DNAcopy')` then `?segment` to confirm arguments
 - Python: `pip show numpy pandas`
 
-If code throws an error, introspect the installed package and adapt the example. CBS lives
-in Bioconductor `DNAcopy`; HMM segmentation is provided by caller-specific backends
-(CNVkit uses `pomegranate`; HaarSeg has its own R/Python packages).
+If code throws an error, introspect the installed package and adapt the example. CBS lives in Bioconductor `DNAcopy`; HMM segmentation is provided by caller-specific backends (CNVkit uses `pomegranate`; HaarSeg has its own R/Python packages).
 
 # Copy-Ratio Segmentation
 
@@ -37,11 +34,7 @@ Raw read depth confounds copy number with three systematic biases:
 | Replication timing | Late-replicating DNA is under-represented — the "wave artifact" | Matched normal or PoN; GC correction alone does NOT remove it |
 | Capture efficiency | Per-probe hybridization varies 10-100x (hybrid capture) | Panel of normals — the dominant bias for exomes/panels |
 
-The key postdoc-level point: **GC correction alone is insufficient.** The wave artifact in
-cancer WGS is driven by replication timing, a biological signal GC normalization cannot
-flatten. Only a matched normal or a panel of normals removes it. This is why a CNVkit flat
-reference (GC-only) produces systematic false focal calls and why GATK tangent
-normalization exists.
+The key postdoc-level point: **GC correction alone is insufficient.** The wave artifact in cancer WGS is driven by replication timing, a biological signal GC normalization cannot flatten. Only a matched normal or a panel of normals removes it. This is why a CNVkit flat reference (GC-only) produces systematic false focal calls and why GATK tangent normalization exists.
 
 ## Stage 2: Segmentation Algorithm Taxonomy
 
@@ -53,13 +46,7 @@ normalization exists.
 | Fused lasso (flasso) | L1-penalized piecewise-constant fit | Smooth; tunable sparsity | Penalty hard to set; can over-smooth focal events |
 | ASPCF | Allele-specific piecewise-constant fit | Joint logR+BAF segmentation (ASCAT) | Needs BAF; see allele-specific-copy-number |
 
-**Quantitative benchmark (Zhang et al 2024, Brief Bioinform):** the cited precision/recall
-numbers (CBS ~42% recall at 3x; HMM ~81% recall at 3x; CBS ~96% precision vs HMM ~76% on
-5 kb focal segments under a Poisson model) summarise that paper's reported direction of
-the trade-off. Verify the exact figures against the published tables before quoting them
-in print; the qualitative trade-off (depth-vs-event-size, CBS-vs-HMM) is robust across
-recent benchmarks but the precise percentages depend on the simulation model
-(Poisson vs over-dispersed negative-binomial). There is no universally correct choice.
+**Quantitative benchmark (Zhang et al 2024, Brief Bioinform):** the cited precision/recall numbers (CBS ~42% recall at 3x; HMM ~81% recall at 3x; CBS ~96% precision vs HMM ~76% on 5 kb focal segments under a Poisson model) summarise that paper's reported direction of the trade-off. Verify the exact figures against the published tables before quoting them in print; the qualitative trade-off (depth-vs-event-size, CBS-vs-HMM) is robust across recent benchmarks but the precise percentages depend on the simulation model (Poisson vs over-dispersed negative-binomial). There is no universally correct choice.
 
 ## Decision Tree
 
@@ -76,8 +63,7 @@ recent benchmarks but the precise percentages depend on the simulation model
 
 **Goal:** Remove GC-content bias from a per-bin depth profile.
 
-**Approach:** Fit a loess curve of depth versus GC content, divide each bin by its fitted
-value, log2-transform. This corrects GC but not replication timing — use a normal for that.
+**Approach:** Fit a loess curve of depth versus GC content, divide each bin by its fitted value, log2-transform. This corrects GC but not replication timing — use a normal for that.
 
 ```python
 import numpy as np
@@ -94,16 +80,13 @@ def gc_correct(bins):
     return df
 ```
 
-For exomes and panels, a panel of normals (per-bin median of normals, or PCA denoising)
-is preferred over GC-only correction because it also removes capture and
-replication-timing bias.
+For exomes and panels, a panel of normals (per-bin median of normals, or PCA denoising) is preferred over GC-only correction because it also removes capture and replication-timing bias.
 
 ## Segmentation — CBS with DNAcopy
 
 **Goal:** Segment a normalized log2 profile into copy-number regions.
 
-**Approach:** Build a CNA object, smooth single-bin outliers, run CBS, then merge
-adjacent segments whose means differ by less than a noise-scaled threshold (`sdundo`).
+**Approach:** Build a CNA object, smooth single-bin outliers, run CBS, then merge adjacent segments whose means differ by less than a noise-scaled threshold (`sdundo`).
 
 ```r
 library(DNAcopy)
@@ -182,10 +165,7 @@ write.table(seg$output, 'tumor.segments.tsv', sep = '\t',
 | Both agree on arms, differ on focal boundaries | Different breakpoint resolution | Arm calls are robust; treat focal boundaries as approximate |
 | Segmentation differs run-to-run | HMM local optima, or unfixed random seed | Fix seeds; use multiple HMM initializations |
 
-**Operational rule:** Match the algorithm to depth and event size — CBS for adequate-depth
-focal work, HMM/HaarSeg for shallow or broad. Confirm the diploid baseline against an
-allele-specific ploidy estimate before any sign-dependent interpretation. Report
-arm-level segments with confidence; treat focal boundaries as algorithm-dependent.
+**Operational rule:** Match the algorithm to depth and event size — CBS for adequate-depth focal work, HMM/HaarSeg for shallow or broad. Confirm the diploid baseline against an allele-specific ploidy estimate before any sign-dependent interpretation. Report arm-level segments with confidence; treat focal boundaries as algorithm-dependent.
 
 ## Quantitative Thresholds
 
