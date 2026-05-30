@@ -1,94 +1,46 @@
-#!/usr/bin/env python3
-'''Demonstrate proximity operations with pybedtools.'''
-# Reference: bedtools 2.31+ | Verify API if version differs
+'''Proximity operations with pybedtools, done honestly.
+
+Geometry (nearest TSS) is not biology (which gene an element regulates). For distal
+elements nearest-gene is wrong the majority of the time (Fulco 2019); this script
+computes the geometry correctly and flags distal hits for contact/QTL validation.
+'''
+# Reference: pybedtools 0.10+, bedtools 2.31+ | Verify API if version differs
 
 import pybedtools
 
-# Create sample data
-peaks_str = '''chr1\t1000\t1100\tpeak1\t100\t+
-chr1\t5000\t5200\tpeak2\t150\t+
-chr1\t20000\t20500\tpeak3\t200\t-
-chr2\t3000\t3100\tpeak4\t120\t+'''
+DISTAL_FLAG = 50000   # bp; |dist| beyond this is beyond promoter scale -> route to ABC/PCHi-C/eQTL, do not trust nearest
 
-genes_str = '''chr1\t500\t2000\tgeneA\t0\t+
-chr1\t8000\t15000\tgeneB\t0\t+
-chr1\t18000\t25000\tgeneC\t0\t-
-chr2\t1000\t5000\tgeneD\t0\t+'''
+peaks_str = 'chr1\t1000\t1100\tpeak1\t100\t+\nchr1\t5000\t5200\tpeak2\t150\t+\nchr1\t20000\t20500\tpeak3\t200\t-\nchr2\t3000\t3100\tpeak4\t120\t+'
+genes_str = 'chr1\t500\t2000\tgeneA\t0\t+\nchr1\t8000\t15000\tgeneB\t0\t+\nchr1\t18000\t25000\tgeneC\t0\t-\nchr2\t1000\t5000\tgeneD\t0\t+'
+genome_str = 'chr1\t50000\nchr2\t50000'
 
-# Create genome file for slop/flank
-genome_str = '''chr1\t50000
-chr2\t50000'''
+peaks = pybedtools.BedTool(peaks_str, from_string=True).sort()
+genes = pybedtools.BedTool(genes_str, from_string=True).sort()
+with open('test_genome.txt', 'w') as fh:
+    fh.write(genome_str)
 
-peaks = pybedtools.BedTool(peaks_str, from_string=True)
-genes = pybedtools.BedTool(genes_str, from_string=True)
+print('=== Nearest gene per peak: -D b (sign by gene strand), -io, -t first ===')
+near = peaks.closest(genes, D='b', io=True, t='first')
+for iv in near:
+    f = iv.fields
+    dist = int(f[-1])
+    if dist == -1:
+        continue
+    tag = 'DISTAL -> validate with ABC/PCHi-C/eQTL' if abs(dist) > DISTAL_FLAG else 'promoter-scale'
+    print(f'  {f[3]} -> {f[9]} signed_dist={dist} ({tag})')
 
-# Write genome file
-with open('test_genome.txt', 'w') as f:
-    f.write(genome_str)
+print('=== Candidate genes within a TAD-scale window (honest candidate set, counted) ===')
+counts = peaks.window(genes, w=DISTAL_FLAG, c=True)
+for iv in counts:
+    print(f'  {iv.fields[3]}: {iv.fields[-1]} candidate gene(s) within {DISTAL_FLAG} bp')
 
-print('=== Input Data ===')
-print('Peaks:')
-for p in peaks:
-    print(f'  {p.name}: {p.chrom}:{p.start}-{p.end}')
-print('\nGenes:')
-for g in genes:
-    print(f'  {g.name}: {g.chrom}:{g.start}-{g.end}')
+print('=== Strand-aware promoters from TSS (collapse to TSS FIRST, then slop -s) ===')
+tss = genes.each(lambda f: pybedtools.create_interval_from_list([f[0], str(f.start) if f.strand == '+' else str(f.end - 1), str(f.start + 1) if f.strand == '+' else str(f.end), f.name, f.score, f.strand])).saveas()
+promoters = tss.slop(g='test_genome.txt', s=True, l=2000, r=200)
+for iv in promoters:
+    print(f'  {iv.name} ({iv.strand}): promoter {iv.chrom}:{iv.start}-{iv.end} width={iv.end - iv.start}')
 
-# Closest operation
-print('\n=== Closest Gene to Each Peak ===')
-closest = peaks.closest(genes, d=True)
-for interval in closest:
-    fields = interval.fields
-    peak_name = fields[3]
-    gene_name = fields[9]
-    distance = fields[-1]
-    print(f'  {peak_name} -> {gene_name} (distance: {distance})')
-
-# Window operation
-print('\n=== Genes Within 5kb of Peaks ===')
-window_result = peaks.window(genes, w=5000)
-for interval in window_result:
-    fields = interval.fields
-    peak_name = fields[3]
-    gene_name = fields[9]
-    print(f'  {peak_name} near {gene_name}')
-
-# Slop operation (extend intervals)
-print('\n=== Extended Peaks (+500bp each side) ===')
-extended = peaks.slop(g='test_genome.txt', b=500)
-for original, ext in zip(peaks, extended):
-    print(f'  {original.name}: {original.start}-{original.end} -> {ext.start}-{ext.end}')
-
-# Flank operation (get flanking regions, not original)
-print('\n=== Upstream Flanks (500bp) ===')
-flanks = peaks.flank(g='test_genome.txt', l=500, r=0, s=True)
-for original, flank in zip(peaks, flanks):
-    print(f'  {original.name} ({original.strand}): upstream flank {flank.start}-{flank.end}')
-
-# Find peaks within distance of gene TSS
-print('\n=== Create TSS and Find Nearby Peaks ===')
-# Extract TSS from genes
-tss_intervals = []
-for gene in genes:
-    if gene.strand == '+':
-        tss_intervals.append((gene.chrom, gene.start, gene.start + 1, gene.name, 0, gene.strand))
-    else:
-        tss_intervals.append((gene.chrom, gene.end - 1, gene.end, gene.name, 0, gene.strand))
-tss = pybedtools.BedTool(tss_intervals)
-
-print('TSS positions:')
-for t in tss:
-    print(f'  {t.name}: {t.chrom}:{t.start}')
-
-peaks_near_tss = peaks.window(tss, w=3000)
-print('\nPeaks within 3kb of TSS:')
-for interval in peaks_near_tss:
-    fields = interval.fields
-    print(f'  {fields[3]} near {fields[9]} TSS')
-
-# Cleanup
 import os
 os.remove('test_genome.txt')
 pybedtools.cleanup()
-
-print('\n=== Done ===')
+print('=== Done ===')

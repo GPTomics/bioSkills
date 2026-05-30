@@ -1,4 +1,4 @@
-# Reference: bedtools 2.31+, samtools 1.19+ | Verify API if version differs
+# Reference: pyBigWig 0.3.22+ | Verify API if version differs
 import pyBigWig
 import argparse
 import sys
@@ -9,7 +9,7 @@ def bigwig_to_bedgraph(input_bw, output_bg, chrom=None, start=None, end=None):
 
     with open(output_bg, 'w') as f:
         if chrom:
-            intervals = bw.intervals(chrom, start, end)
+            intervals = bw.intervals(chrom, start, end) if start is not None and end is not None else bw.intervals(chrom)
             if intervals:
                 for s, e, v in intervals:
                     f.write(f'{chrom}\t{s}\t{e}\t{v}\n')

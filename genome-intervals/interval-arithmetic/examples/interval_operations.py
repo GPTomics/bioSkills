@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-'''Demonstrate core interval arithmetic operations with pybedtools.'''
-# Reference: bedtools 2.31+ | Verify API if version differs
+'''Core interval arithmetic with pybedtools, plus the engine-equivalence note for pyranges/bioframe.'''
+# Reference: pybedtools 0.10+, bedtools 2.31+ | Verify API if version differs
 
 import pybedtools
 
-# Create sample BED files
+MERGE_DIST = 100   # merge intervals within 100 bp into one (replicate-merge convention)
+
 peaks_str = '''chr1\t100\t200\tpeak1\t100\t+
 chr1\t300\t400\tpeak2\t200\t+
 chr1\t500\t600\tpeak3\t150\t+
@@ -17,70 +18,40 @@ chr2\t50\t150\tgeneC\t0\t+'''
 peaks = pybedtools.BedTool(peaks_str, from_string=True)
 genes = pybedtools.BedTool(genes_str, from_string=True)
 
-print('=== Original Data ===')
-print(f'Peaks: {peaks.count()} intervals')
-print(f'Genes: {genes.count()} intervals')
+print('peaks:', peaks.count(), 'genes:', genes.count())
 
-# Intersect - find overlapping regions
-print('\n=== Intersect (overlapping portions) ===')
-overlap = peaks.intersect(genes)
-for i in overlap:
-    print(f'  {i.chrom}:{i.start}-{i.end}')
+print('\n=== intersect -u (whole A once if it overlaps any B) ===')
+for i in peaks.intersect(genes, u=True):
+    print(' ', i.name, f'{i.chrom}:{i.start}-{i.end}')
 
-# Intersect -u (report A entries that overlap B)
-print('\n=== Intersect -u (peaks overlapping genes) ===')
-peaks_in_genes = peaks.intersect(genes, u=True)
-for i in peaks_in_genes:
-    print(f'  {i.chrom}:{i.start}-{i.end} ({i.name})')
+print('\n=== intersect -v (A with no overlap) ===')
+for i in peaks.intersect(genes, v=True):
+    print(' ', i.name)
 
-# Intersect -v (report A entries that DON'T overlap B)
-print('\n=== Intersect -v (peaks NOT overlapping genes) ===')
-peaks_outside = peaks.intersect(genes, v=True)
-for i in peaks_outside:
-    print(f'  {i.chrom}:{i.start}-{i.end} ({i.name})')
+print('\n=== intersect -wa -wb (join) ===')
+for i in peaks.intersect(genes, wa=True, wb=True):
+    print(' ', i.fields[3], 'overlaps', i.fields[9])
 
-# Intersect -wa -wb (report both A and B fields)
-print('\n=== Intersect -wa -wb (with gene info) ===')
-with_info = peaks.intersect(genes, wa=True, wb=True)
-for i in with_info:
-    fields = i.fields
-    print(f'  Peak: {fields[3]} overlaps Gene: {fields[9]}')
+print('\n=== subtract (clip) vs subtract -A (drop whole A) ===')
+print('  clipped:', [f'{i.chrom}:{i.start}-{i.end}' for i in peaks.subtract(genes)])
+print('  dropped-any-overlap:', [i.name for i in peaks.subtract(genes, A=True)])
 
-# Subtract
-print('\n=== Subtract (remove gene regions from peaks) ===')
-subtracted = peaks.subtract(genes)
-for i in subtracted:
-    print(f'  {i.chrom}:{i.start}-{i.end}')
+print('\n=== merge requires prior sort ===')
+for i in peaks.sort().merge(d=MERGE_DIST, c='4,5', o='distinct,sum'):
+    print(' ', i.fields)
 
-# Merge
-print('\n=== Merge (combine nearby intervals) ===')
-# Create overlapping intervals for merge demo
-merge_str = '''chr1\t100\t200
-chr1\t150\t250
-chr1\t240\t300
-chr1\t500\t600'''
-to_merge = pybedtools.BedTool(merge_str, from_string=True)
-merged = to_merge.sort().merge()
-print('Before merge:')
-for i in to_merge:
-    print(f'  {i.chrom}:{i.start}-{i.end}')
-print('After merge:')
-for i in merged:
-    print(f'  {i.chrom}:{i.start}-{i.end}')
+print('\n=== map: aggregate a B column onto each sorted A interval ===')
+for i in genes.sort().map(peaks.sort(), c=5, o='mean'):
+    print(' ', i.name, '->', i.fields[-1])
 
-# Merge with distance tolerance
-merged_d100 = to_merge.sort().merge(d=100)
-print('After merge with d=100:')
-for i in merged_d100:
-    print(f'  {i.chrom}:{i.start}-{i.end}')
+print('\n=== jaccard is a similarity scalar, NOT a significance test ===')
+j = peaks.jaccard(genes)
+print(f"  jaccard={j['jaccard']:.4f} intersection={j['intersection']}bp union={j['union']}bp")
 
-# Jaccard similarity
-print('\n=== Jaccard Similarity ===')
-jaccard = peaks.jaccard(genes)
-print(f"  Intersection: {jaccard['intersection']} bp")
-print(f"  Union: {jaccard['union']} bp")
-print(f"  Jaccard index: {jaccard['jaccard']:.4f}")
+# Engine equivalence: pyranges and bioframe compute IDENTICAL geometry on the same
+# 0-based half-open intervals. Porting bugs are about default strand handling and
+# return shape (pyranges overlap vs join vs intersect; bioframe overlap how=), not
+# the arithmetic. Check pyranges.__version__ for the v0/v1 API split before porting.
 
-# Cleanup temp files
 pybedtools.cleanup()
-print('\n=== Done ===')
+print('\n=== done ===')

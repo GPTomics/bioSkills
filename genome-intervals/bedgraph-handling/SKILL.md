@@ -1,335 +1,210 @@
 ---
-name: bio-bedgraph-handling
-description: Create, manipulate, and convert bedGraph files for genome browser visualization. Covers bedGraph format, conversion to/from bigWig, normalization, and signal processing. Use when handling coverage and signal tracks from ChIP-seq, ATAC-seq, or RNA-seq.
+name: bio-genome-intervals-bedgraph-handling
+description: Generates, normalizes, and converts bedGraph signal tracks (4-column chrom/start/end/value, 0-based half-open) with bedtools genomecov, deepTools bamCoverage/bamCompare/bigwigCompare, bedtools unionbedg, and UCSC bedGraphToBigWig. Covers why a raw coverage bedGraph is not comparable across samples until normalized, the CPM/RPKM/BPM/RPGC normalization menu and the conserved-total assumption that makes them wrong under a global perturbation, the strict sorted-non-overlapping-chrom.sizes bedGraphToBigWig contract that silently corrupts a bigWig, effective-genome-size selection, and bin-size aliasing. Use when building or normalizing a coverage/signal track from a BAM, comparing tracks across samples or conditions, converting bedGraph to a browser-ready bigWig, or diagnosing a track that looks plausible but reports wrong heights.
 tool_type: mixed
-primary_tool: pyBigWig
+primary_tool: deeptools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: bedtools 2.31+, samtools 1.19+
+Reference examples tested with: deeptools 3.5+, bedtools 2.31+, ucsc-bedgraphtobigwig 445+, pyBigWig 0.3.22+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Python: `pip show <package>` then `help(module.function)` to check signatures
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+bedGraphToBigWig has a hard, under-advertised input contract: the bedGraph must be `LC_COLLATE=C`-sorted by chrom then start, contain non-overlapping intervals, and ship with a chrom.sizes derived from the exact assembly the reads were aligned to. deepTools effective-genome-size tables are occasionally updated between releases - re-check the installed version's table. If code throws an error, introspect the installed tool and adapt the example to match the actual API rather than retrying.
 
 # bedGraph Handling
 
-**"Work with bedGraph signal tracks"** -> Create, manipulate, and convert bedGraph files for displaying coverage or signal intensity on genome browsers.
-- CLI: `bedtools genomecov -bg` to generate, `bedGraphToBigWig` to convert
-- Python: `pyBigWig`, `pybedtools`
+**"Make me a coverage/signal track I can compare across samples and load in a browser"** -> Generate a per-bin signal track, normalize it onto a common scale (or decide a spike-in is required), then convert the text bedGraph to an indexed bigWig under the strict sort/overlap/chrom.sizes contract.
+- CLI: `bamCoverage -b s.bam -o s.bw --normalizeUsing RPGC --effectiveGenomeSize <N>`; `bedtools genomecov -ibam s.bam -bga`; `LC_COLLATE=C sort -k1,1 -k2,2n in.bdg | bedGraphToBigWig /dev/stdin chrom.sizes out.bw`
+- Python: `pyBigWig.open('s.bw')` to read/extract; `bw.intervals(chrom, start, end)` returns the bedGraph rows
 
-bedGraph is a text format for displaying continuous-valued data on genome browsers. Common for coverage, signal intensity, and scores.
+## The Single Most Important Modern Insight -- A Raw Coverage bedGraph Is a Library-Size Artifact, and the Wrong Normalization Is Worse Than None
 
-## bedGraph Format
+Column 4 of a raw coverage bedGraph is not biology - it is sequencing depth. Two libraries of *identical* biology sequenced to different depths produce different heights, so any cross-sample statement ("more signal at this promoter in treatment") on un-normalized tracks is a category error. The modern path skips the text intermediate entirely: **deepTools bamCoverage takes BAM -> normalized bigWig in one step**, because bigWig is indexed, binary, random-access and bedGraph is flat text. Three load-bearing moves:
 
-```
-track type=bedGraph name="Sample" description="Coverage"
-chr1    0       100     1.5
-chr1    100     200     2.3
-chr1    200     300     0.8
-```
+1. **Every library-size normalization (CPM/RPKM/BPM/RPGC=1x) assumes total signal is conserved across samples.** They all just rescale each library to a common total (per-million reads, or to 1x genome coverage). That model is correct when signal only *redistributes* locally - the usual case - and **actively wrong** when the perturbation changes *global* levels (histone-mark KD, BET-bromodomain inhibitor, global pol-II collapse). A genuine 3-fold global increase becomes, after CPM/RPGC, *no change* - the extra signal is spread thin and rescaled away. The model is unfalsifiable from the normalized data: forcing both libraries to the same total defines away any global difference. **Library-size normalization assumes the very thing under measurement does not happen.**
+2. **There is no computational rescue for a global change after the fact.** The only fix is an external ruler decided AT THE BENCH - a spike-in of fixed foreign chromatin per cell (ChIP-Rx, Orlando 2014; defined reference epigenome, Bonhoure 2014) - scaled by the spike-in reads, not the sample reads. The wet-lab decision had to be made before sequencing; with no spike-in, the global scale is unrecoverable. The mechanics live in chip-seq/spike-in-normalization; the *decision* (could this perturbation change global levels?) belongs here, up front.
+3. **bedGraph is scratch; bigWig is the artifact.** The text bedGraph is the last human-readable checkpoint - `awk '$4 > 1000'` to find blacklist pileups, confirm the sort/overlap invariants - before opaque binary. Inspect it, then ship bigWig. Never distribute a bedGraph as a final product: it is unindexed, so a browser reads the whole file to render any region.
 
-Four columns: chrom, start, end, value (0-based, half-open)
+## Normalization Taxonomy
 
-## Create bedGraph from BAM
+| Method | What it assumes | When to use | When WRONG |
+|--------|-----------------|-------------|------------|
+| None | nothing (raw counts) | single-sample inspection only | any cross-sample comparison - depth confounds it |
+| CPM | total mapped reads is the right denominator; total signal conserved | depth-only normalization; quick cross-sample on a common assay | a few high-coverage bins dominate (composition skew); global change |
+| RPKM | as CPM plus bin length matters; total signal conserved | legacy default; depth + bin-length normalized | composition skew; global change; superseded by BPM for tracks |
+| BPM (TPM-analog) | sum over all bins fixed at 1e6; total signal conserved | composition-aware cross-sample default; robust to a few dominant bins | global change (still a conserved-total rescale) |
+| RPGC (1x) | mean genome-wide coverage = 1x; correct effective-genome-size; total signal conserved | field-standard ChIP/ATAC browser viewing; most interpretable height | wrong effective-genome-size (linear scaling error); global change |
+| spike-in (external) | spike-in amount is constant per cell (a ruler that does not move) | global-level change plausible or under test | nothing computational - requires a bench step before sequencing |
 
-### Using bedtools genomecov
+All five library-size methods share one axiom: **total signal is conserved**. The decision is not which library-size method, it is whether library-size normalization is legitimate at all (see Decision Tree).
 
-```bash
-bedtools genomecov -ibam sample.bam -bg > sample.bedgraph
-bedtools genomecov -ibam sample.bam -bg -split > sample.bedgraph
-bedtools genomecov -ibam sample.bam -bg -scale 1.5 > sample.scaled.bedgraph
-```
+## Decision Tree by Scenario
 
-### Strand-Specific
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| One BAM -> browser track, local redistribution | `bamCoverage --normalizeUsing RPGC --effectiveGenomeSize <N>` | one-step BAM->normalized bigWig; RPGC is the interpretable ChIP/ATAC standard |
+| Cross-sample, composition skew likely | `bamCoverage --normalizeUsing BPM` | bins-per-million fixes the per-bin sum; robust to dominant bins |
+| Global-level change plausible (KD/KO of a chromatin modifier, BET inhibitor) | spike-in -> chip-seq/spike-in-normalization | library-size normalization erases the global change by construction |
+| RNA-seq coverage track | `bamCoverage --filterRNAstrand` or `genomecov -bga -split` | `-split`/strand handling so spliced reads do not paint introns |
+| ChIP/ATAC track | add `--extendReads` (and `--centerReads` for footprints) | a read is a fragment END; raw read-end coverage is double-humped and wrong |
+| Treatment vs input from raw BAMs | `bamCompare -b1 chip.bam -b2 input.bam --operation log2` | normalizes depth THEN does the arithmetic |
+| Two already-normalized bigWigs | `bigwigCompare --operation log2` | arithmetic only - feeding un-normalized tracks manufactures a fake change |
+| Stack N samples into a value matrix | `bedtools unionbedg -header -names ...` | union interval partition; feed the matrix to R/Python for testing |
+| Sample-relatedness QC | `multiBigwigSummary bins` -> `plotCorrelation`/`plotPCA` | genome-wide value matrix for correlation/PCA |
+| Need exact per-base arithmetic (not a browser) | keep bedGraph (`genomecov -bga`) | bedGraph is exact text; bigWig is binned/lossy |
+| Convert finished bedGraph -> bigWig | `LC_COLLATE=C sort` then `bedGraphToBigWig` + matched chrom.sizes | the strict contract; inspect the text first |
 
-```bash
-bedtools genomecov -ibam sample.bam -bg -strand + > sample.plus.bedgraph
-bedtools genomecov -ibam sample.bam -bg -strand - > sample.minus.bedgraph
-```
+## Generate a Normalized Track with bamCoverage (the modern default)
 
-### 5' End Coverage (ChIP-seq)
+**Goal:** Turn one BAM into a normalized, browser-ready bigWig in a single command.
 
-```bash
-bedtools genomecov -ibam sample.bam -bg -5 > sample.5prime.bedgraph
-```
-
-### Normalize by Library Size (CPM)
-
-```bash
-total_reads=$(samtools view -c -F 260 sample.bam)
-scale=$(echo "scale=10; 1000000 / $total_reads" | bc)
-
-bedtools genomecov -ibam sample.bam -bg -scale $scale > sample.cpm.bedgraph
-```
-
-## Sort bedGraph
-
-bedGraph must be sorted for conversion to bigWig.
+**Approach:** Let bamCoverage bin, normalize, and write bigWig directly; pick the normalization from the taxonomy, supply the effective-genome-size for RPGC, extend reads for ChIP/ATAC, and exclude chrX/chrM (and any spike-in contigs) from the scale-factor calculation.
 
 ```bash
-sort -k1,1 -k2,2n sample.bedgraph > sample.sorted.bedgraph
-LC_ALL=C sort -k1,1 -k2,2n sample.bedgraph > sample.sorted.bedgraph
+BIN_SIZE=25                  # bp; smaller = finer + noisier + bigger. Match to feature width (sharp TF/ATAC 10-25; broad marks 50-200)
+EFFGENOME=2913022398         # GRCh38 non-N length (faCount); use ONLY if multimappers were kept (see Effective Genome Size)
+
+bamCoverage -b sample.bam -o sample.bw \
+  --binSize $BIN_SIZE --normalizeUsing RPGC --effectiveGenomeSize $EFFGENOME \
+  --extendReads --ignoreForNormalization chrX chrM -p 8
 ```
 
-## Convert bedGraph to bigWig
+Defaults to verify: `--binSize 50`, `--normalizeUsing None`, `--scaleFactor 1.0`, `--extendReads` off, `--centerReads` off. For single-end ChIP supply the fragment length (`--extendReads 200`); paired-end infers it. `--scaleFactor` with `--scaleFactorsMethod None` is the hook for a bench-derived spike-in factor. `--outFileFormat bedgraph` writes the text form when the raw numbers are needed.
 
-### Using UCSC bedGraphToBigWig
+## Generate with bedtools genomecov (text, flexible, no normalization)
+
+`-bg` collapses equal-coverage runs but **omits zero-coverage regions**; `-bga` additionally tiles zeros (use when downstream tools need explicit 0s). `-split` is mandatory for RNA-seq so spliced reads do not paint introns. `-scale 1000000/<nreads>` is a crude manual RPM; deepTools is preferred for real normalization.
 
 ```bash
+bedtools genomecov -ibam sample.bam -bga -split > sample.bedgraph
+```
+
+## Convert bedGraph -> bigWig (the silent-corruption trap)
+
+**Goal:** Produce a valid bigWig from a finished bedGraph without shipping a file that loads but lies.
+
+**Approach:** C-locale-sort, guarantee non-overlapping intervals, derive chrom.sizes from the exact aligned-to FASTA, inspect the text, then convert.
+
+```bash
+samtools faidx ref.fa && cut -f1,2 ref.fa.fai > chrom.sizes   # chrom.sizes from the SAME FASTA the reads aligned to
+LC_COLLATE=C sort -k1,1 -k2,2n sample.bedgraph > sample.sorted.bedgraph   # C locale: locale-aware sort triggers "is not case-sensitive sorted"
 bedGraphToBigWig sample.sorted.bedgraph chrom.sizes sample.bw
-fetchChromSizes hg38 > hg38.chrom.sizes
-bedGraphToBigWig sample.sorted.bedgraph hg38.chrom.sizes sample.bw
 ```
 
-### Generate chrom.sizes
+If concatenation/merging introduced overlaps, collapse with an explicit aggregation BEFORE converting - and note `max` vs `mean` vs `sum` are different signals, there is no safe default:
 
 ```bash
-samtools faidx reference.fa
-cut -f1,2 reference.fa.fai > chrom.sizes
-fetchChromSizes hg38 > hg38.chrom.sizes
-mysql --user=genome --host=genome-mysql.soe.ucsc.edu -A -e \
-    "select chrom, size from hg38.chromInfo" > hg38.chrom.sizes
+bedtools merge -i sample.sorted.bedgraph -d 0 -c 4 -o max > sample.nonoverlap.bedgraph
 ```
 
-### Clip to Chromosome Boundaries
+bigWig round-trips losslessly: `bigWigToBedGraph sample.bw out.bedgraph` (optionally `-chrom=chr1 -start=1000 -end=2000`).
+
+## Multi-Sample Arithmetic
+
+**Goal:** Compare two tracks (treatment/input, two conditions) without letting a depth difference masquerade as biology.
+
+**Approach:** From raw BAMs use bamCompare, which normalizes depth THEN applies the operation; only use bigwigCompare on bigWigs that are *already* on a common scale.
 
 ```bash
-bedClip sample.bedgraph chrom.sizes sample.clipped.bedgraph
-bedGraphToBigWig sample.clipped.bedgraph chrom.sizes sample.bw
+bamCompare -b1 chip.bam -b2 input.bam -o log2ratio.bw \
+  --operation log2 --pseudocount 1 --binSize 25 --scaleFactorsMethod readCount
 ```
 
-## Convert bigWig to bedGraph
+`--operation` (NOT `--ratio`) chooses log2/ratio/subtract/add/mean/reciprocal_ratio/first/second; default `log2`. `--scaleFactorsMethod readCount` (the default) scales by library size; `--scaleFactorsMethod SES` (signal-extraction scaling, Diaz 2012) instead estimates the factor from the shared background bins and is more robust than readCount for SHARP/punctate marks and TF ChIP where enrichment is a small genomic fraction; it DEGRADES for broad marks (H3K27me3/H3K9me3) where the diffuse enrichment cannot be cleanly separated from background, so use readCount (or spike-in) there. `--pseudocount` (default 1) prevents divide-by-zero in log2/ratio but pulls low-coverage bins toward 0 - a log2 track's apparent dynamic range is partly a pseudocount+bin-size artifact, do not read fold-changes off a browser track as measured. `bigwigCompare --skipZeroOverZero` drops bins that are 0 in both rather than flooding the output with `log2(1)=0`. Stack many samples and QC relatedness:
 
 ```bash
-bigWigToBedGraph sample.bw sample.bedgraph
-bigWigToBedGraph sample.bw sample.chr1.bedgraph -chrom=chr1
-bigWigToBedGraph sample.bw sample.region.bedgraph -chrom=chr1 -start=1000 -end=2000
+bedtools unionbedg -i s1.bdg s2.bdg s3.bdg -header -names s1 s2 s3 > matrix.txt   # inputs must be coordinate-sorted
+multiBigwigSummary bins -b s1.bw s2.bw s3.bw -o scores.npz && plotCorrelation -in scores.npz --corMethod spearman --whatToPlot heatmap -o corr.png
 ```
 
-## Merge bedGraph Files
-
-### Using bedtools unionbedg
-
-```bash
-bedtools unionbedg -i sample1.bedgraph sample2.bedgraph sample3.bedgraph \
-    -header -names sample1 sample2 sample3 > merged.bedgraph
-```
-
-### Average Across Samples
-
-```bash
-bedtools unionbedg -i sample1.bedgraph sample2.bedgraph sample3.bedgraph | \
-    awk '{sum=0; for(i=4;i<=NF;i++) sum+=$i; print $1,$2,$3,sum/(NF-3)}' OFS='\t' \
-    > average.bedgraph
-```
-
-## Mathematical Operations
-
-### bedtools map for Region Statistics
-
-```bash
-bedtools map -a regions.bed -b sample.bedgraph -c 4 -o mean > region_means.bed
-bedtools map -a regions.bed -b sample.bedgraph -c 4 -o sum > region_sums.bed
-bedtools map -a regions.bed -b sample.bedgraph -c 4 -o max > region_max.bed
-```
-
-### Subtract Background
-
-```bash
-bedtools unionbedg -i treatment.bedgraph input.bedgraph | \
-    awk '{diff=$4-$5; if(diff<0) diff=0; print $1,$2,$3,diff}' OFS='\t' \
-    > subtracted.bedgraph
-```
-
-### Log Transform
-
-```bash
-awk '{print $1,$2,$3,log($4+1)/log(2)}' OFS='\t' sample.bedgraph > sample.log2.bedgraph
-```
-
-### Smooth Signal
-
-```bash
-bedtools slop -i sample.bedgraph -g chrom.sizes -b 50 | \
-    bedtools merge -i - -c 4 -o mean > smoothed.bedgraph
-```
-
-## Python with pyBigWig
-
-### Write bedGraph
-
-```python
-import pyBigWig
-
-bw = pyBigWig.open('output.bedgraph', 'w')
-bw.addHeader([('chr1', 248956422), ('chr2', 242193529)])
-
-chroms = ['chr1', 'chr1', 'chr1']
-starts = [0, 100, 200]
-ends = [100, 200, 300]
-values = [1.5, 2.3, 0.8]
-bw.addEntries(chroms, starts, ends=ends, values=values)
-bw.close()
-```
-
-### Read bigWig to bedGraph Format
+## Read/Extract Signal with pyBigWig
 
 ```python
 import pyBigWig
 
 bw = pyBigWig.open('sample.bw')
-
-for chrom, size in bw.chroms().items():
-    intervals = bw.intervals(chrom)
-    if intervals:
-        for start, end, value in intervals:
-            print(f'{chrom}\t{start}\t{end}\t{value}')
-
+mean_over_region = bw.stats('chr1', 1_000_000, 1_010_000, type='mean')[0]   # binned summary, not per-base
+rows = bw.intervals('chr1', 1_000_000, 1_010_000)   # the underlying bedGraph rows: (start, end, value)
 bw.close()
 ```
 
-### Convert bigWig Region to bedGraph
+`bw.stats()`/`bw.values()` return what the bin resolution preserved, not a faithful per-base record - coarse bins silently change the values read back.
 
-```python
-import pyBigWig
+## Effective Genome Size (the two-table trap)
 
-bw = pyBigWig.open('sample.bw')
-intervals = bw.intervals('chr1', 1000000, 2000000)
+`--effectiveGenomeSize` feeds the RPGC scale factor and depends on the read-filtering regime. deepTools ships two tables that answer different questions:
 
-with open('region.bedgraph', 'w') as f:
-    for start, end, value in intervals:
-        f.write(f'chr1\t{start}\t{end}\t{value}\n')
+| Build | Non-N length (faCount; multimappers KEPT) |
+|-------|--------------------------------------------|
+| GRCh38 | 2,913,022,398 |
+| GRCh37 | 2,864,785,220 |
+| GRCm38 (mm10) | 2,652,783,500 |
+| dm6 | 142,573,017 |
+| WBcel235 (C. elegans) | 100,286,401 |
 
-bw.close()
-```
+When reads were instead **filtered to unique alignments / a MAPQ filter applied** (the common ChIP/ATAC case), use the read-length-dependent unique-k-mer value: GRCh38 is 2,701,495,711 (50 bp), 2,805,636,231 (100 bp), 2,862,010,428 (150 bp). The two GRCh38 numbers differ ~7% at short read length. RPGC scales linearly in this value, so the error cancels for *within-study* ratios but surfaces as a spurious constant fold-difference on cross-study integration (a public track, a collaborator's bigWig, a track made last year at a different read length). For non-model organisms there is no table - estimate it (`faCount` for non-N length, or unique-k-mers on the assembly).
 
-## deepTools for Normalization
+## Per-Method Failure Modes
 
-### bamCoverage (BAM to bedGraph/bigWig)
+### Comparing un-normalized tracks across samples
+**Trigger:** browser-comparing or quantifying raw coverage bedGraphs/bigWigs. **Mechanism:** column 4 scales with library size. **Symptom:** the deeper library looks like it has "more signal" everywhere. **Fix:** normalize during bamCoverage; never compare `--normalizeUsing None` tracks.
 
-```bash
-bamCoverage -b sample.bam -o sample.bw --normalizeUsing RPKM
-bamCoverage -b sample.bam -o sample.bw --normalizeUsing CPM
-bamCoverage -b sample.bam -o sample.bw --normalizeUsing BPM
-bamCoverage -b sample.bam -o sample.bedgraph --outFileFormat bedgraph --normalizeUsing CPM
-```
+### Conserved-total assumption under a global change
+**Trigger:** CPM/RPKM/BPM/RPGC on a perturbation that shifts global levels (chromatin-modifier KD/KO, BET inhibitor). **Mechanism:** every library-size method forces total signal to a constant. **Symptom:** a real global increase reads as no change; tracks look identical. **Fix:** spike-in decided at the bench -> chip-seq/spike-in-normalization. No computational rescue exists.
 
-### bamCompare (Treatment vs Control)
+### Unsorted / overlapping input -> corrupt bigWig
+**Trigger:** `bedGraphToBigWig` on non-C-sorted or overlapping input, or chrom.sizes from the wrong assembly. **Mechanism:** the contract is enforced inconsistently - some violations error, others build a bigWig that loads and shows wrong heights or silently drops chromosomes. **Symptom:** `is not case-sensitive sorted`, `overlapping regions`, `end coordinate bigger than`, or a silently wrong/incomplete track. **Fix:** `LC_COLLATE=C sort`; `bedtools merge -c 4 -o max/mean/sum`; chrom.sizes from the exact aligned-to FASTA; harmonize `chr1` vs `1`.
 
-```bash
-bamCompare -b1 treatment.bam -b2 input.bam -o log2ratio.bw --scaleFactorsMethod readCount
-bamCompare -b1 treatment.bam -b2 input.bam -o subtracted.bw --ratio subtract
-```
+### Effective-genome-size drift
+**Trigger:** grabbing the round 2.9e9 GRCh38 value regardless of multimapper filtering, or reusing a value across read lengths/assemblies. **Mechanism:** RPGC scales linearly in the value; the two tables differ ~7%. **Symptom:** invisible within a study; a spurious constant fold-difference on cross-study integration. **Fix:** match the value to the read length AND filtering regime; estimate it for non-model organisms.
 
-### bigwigCompare
+### Bin-size aliasing
+**Trigger:** a bin wider than ~half the feature, or comparing tracks built at different binSizes. **Mechanism:** binSize is a low-pass filter chosen once; a feature narrower than ~2 bins is averaged down or straddles a boundary (a phase artifact - replicates disagree by bin alignment). **Symptom:** sharp peaks shrink or split; bin-for-bin ratios meaningless at boundaries. **Fix:** match binSize to feature width (sharp TF/ATAC 10-25 bp, broad marks 50-200 bp); compared tracks MUST share binSize. `--smoothLength` is cosmetic, it cannot recover discarded information.
 
-```bash
-bigwigCompare -b1 treatment.bw -b2 input.bw -o ratio.bw --ratio log2
-bigwigCompare -b1 sample1.bw -b2 sample2.bw -o diff.bw --ratio subtract
-```
+### ChIP/ATAC track without extendReads
+**Trigger:** bamCoverage/genomecov on ChIP/ATAC without `--extendReads`. **Mechanism:** a read marks a fragment END, not the fragment. **Symptom:** double-humped peaks with a central dip; biased boundaries and quantification. **Fix:** `--extendReads` (paired-end infers; single-end supply the fragment length). RNA-seq mirror trap: without `-split` spliced reads paint introns.
 
-## Filtering and Subsetting
+## Quantitative Thresholds
 
-### Filter by Value
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| binSize default 50 bp; sharp TF/ATAC 10-25 bp, broad marks 50-200 bp | deepTools default + feature-width matching | binSize is a low-pass filter; finer is noisier/bigger, coarser aliases sharp features |
+| GRCh38 effGenome 2,913,022,398 (multimappers kept) | deepTools faCount table | non-N genome length for the RPGC denominator |
+| GRCh38 effGenome 2.70-2.86e9 by read length (unique alignments) | deepTools unique-k-mer table | ~7% below the non-N value; use when MAPQ/uniqueness-filtered |
+| pseudocount default 1 (log2/ratio) | deepTools default | prevents divide-by-zero; biases low-coverage bins toward 0 |
+| single-end fragment length ~200 bp (`--extendReads 200`) | typical sonicated ChIP fragment | wrong value distorts peak width; paired-end infers it |
+| compared tracks must share binSize | signal-processing constraint | different grids make bin-for-bin ratios meaningless |
 
-```bash
-awk '$4 >= 1.0' sample.bedgraph > high_signal.bedgraph
-awk '$4 > 0' sample.bedgraph > nonzero.bedgraph
-```
+## Common Errors
 
-### Extract Regions
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `is not case-sensitive sorted` | locale-aware sort | `LC_COLLATE=C sort -k1,1 -k2,2n` (works on a login node, fails in the scheduler when `$LC_*` differ) |
+| `overlapping regions in bedGraph file` | concatenated/merged tracks | `bedtools merge -c 4 -o max/mean/sum` (choose the aggregation deliberately) |
+| `end coordinate N bigger than ...` | chrom.sizes from a different assembly/patch | derive chrom.sizes from the exact aligned-to FASTA (`samtools faidx` + `cut -f1,2`) |
+| Whole chromosomes missing from the bigWig, no error | `chr1` vs `1` / `MT` vs `chrM` naming mismatch | harmonize naming across bedGraph and chrom.sizes |
+| Track line breaks sort/conversion | `track type=bedGraph ...` header row | remove the track line before sort/bedGraphToBigWig |
+| RPGC normalization fails | `--effectiveGenomeSize` not supplied | pass the correct value for the build, read length, and filtering |
+| Spliced reads paint introns | no `-split` (genomecov) / wrong RNA mode | `genomecov -bga -split` or bamCoverage `--filterRNAstrand` |
 
-```bash
-bedtools intersect -a sample.bedgraph -b regions.bed > subset.bedgraph
-```
+## References
 
-### Remove Specific Chromosomes
-
-```bash
-grep -v "^chrM" sample.bedgraph | grep -v "_random" > filtered.bedgraph
-awk '$1 ~ /^chr[0-9XY]+$/' sample.bedgraph > standard_chroms.bedgraph
-```
-
-## Aggregate to Bins
-
-### Fixed-Size Bins
-
-```bash
-bedtools makewindows -g chrom.sizes -w 1000 > bins.bed
-bedtools map -a bins.bed -b sample.bedgraph -c 4 -o mean > binned.bedgraph
-```
-
-### Gene Bodies
-
-```bash
-bedtools map -a genes.bed -b sample.bedgraph -c 4 -o mean > gene_signal.bed
-```
-
-## Quality Control
-
-### Check for Overlapping Intervals
-
-```bash
-bedtools merge -i sample.bedgraph -c 4 -o collapse | \
-    awk 'index($4,",") > 0' | head
-```
-
-### Verify Sorted Order
-
-```bash
-sort -c -k1,1 -k2,2n sample.bedgraph && echo "Sorted" || echo "Not sorted"
-```
-
-### Check Value Range
-
-```bash
-awk 'NR==1 {min=$4; max=$4} {if($4<min) min=$4; if($4>max) max=$4}
-     END {print "Min:", min, "Max:", max}' sample.bedgraph
-```
-
-## Complete Pipeline
-
-**Goal:** Generate a CPM-normalized bigWig track from a BAM file in a single automated workflow.
-
-**Approach:** Count total mapped reads with samtools, compute a CPM scale factor, generate a scaled bedGraph with bedtools genomecov, sort and clip to chromosome boundaries, then convert to bigWig format.
-
-```bash
-#!/bin/bash
-BAM=$1
-NAME=$(basename $BAM .bam)
-CHROM_SIZES=$2
-
-total_reads=$(samtools view -c -F 260 $BAM)
-scale=$(echo "scale=10; 1000000 / $total_reads" | bc)
-
-bedtools genomecov -ibam $BAM -bg -scale $scale > ${NAME}.bedgraph
-
-sort -k1,1 -k2,2n ${NAME}.bedgraph > ${NAME}.sorted.bedgraph
-
-bedClip ${NAME}.sorted.bedgraph $CHROM_SIZES ${NAME}.clipped.bedgraph
-
-bedGraphToBigWig ${NAME}.clipped.bedgraph $CHROM_SIZES ${NAME}.bw
-
-rm ${NAME}.bedgraph ${NAME}.sorted.bedgraph ${NAME}.clipped.bedgraph
-
-echo "Created ${NAME}.bw (CPM normalized)"
-```
-
-## Track Header for UCSC
-
-```bash
-echo 'track type=bedGraph name="Sample" description="CPM normalized" visibility=full color=0,0,255 altColor=255,0,0 autoScale=on graphType=bar' > track.bedgraph
-cat sample.bedgraph >> track.bedgraph
-```
+- Ramírez F, Ryan DP, Grüning B, et al. 2016. deepTools2: a next generation web server for deep-sequencing data analysis. *Nucleic Acids Res* 44:W160-W165.
+- Kent WJ, Zweig AS, Barber G, Hinrichs AS, Karolchik D. 2010. BigWig and BigBed: enabling browsing of large distributed datasets. *Bioinformatics* 26:2204-2207.
+- Quinlan AR, Hall IM. 2010. BEDTools: a flexible suite of utilities for comparing genomic features. *Bioinformatics* 26:841-842.
+- Orlando DA, Chen MW, Brown VE, et al. 2014. Quantitative ChIP-Seq normalization reveals global modulation of the epigenome. *Cell Reports* 9:1163-1170.
+- Bonhoure N, Bounova G, Bernasconi D, et al. 2014. Quantifying ChIP-seq data: a spiking method providing an internal reference for sample-to-sample normalization. *Genome Res* 24:1157-1168.
+- Diaz A, Park K, Lim DA, Song JS. 2012. Normalization, bias correction, and peak calling for ChIP-seq. *Stat Appl Genet Mol Biol* 11:Article 9.
 
 ## Related Skills
 
-- coverage-analysis - Generate coverage from alignments
-- bigwig-tracks - Work with bigWig format
-- chip-seq/chipseq-visualization - Visualize signal tracks
-- alignment-files/sam-bam-basics - BAM file processing
+- coverage-analysis - Per-base depth generation and distribution-vs-mean diagnostics feeding bedGraph tracks
+- bigwig-tracks - Reading, extracting, and writing the bigWig deliverable this skill produces
+- chip-seq/spike-in-normalization - The bench-decided external-reference scaling when a global change makes library-size normalization wrong
+- chip-seq/chipseq-visualization - Render the normalized signal tracks built here
+- atac-seq/footprinting - Consumes high-resolution coverage/bigWig signal over motif sites
+- data-visualization/genome-tracks - Render the bedGraph/bigWig tracks for figures

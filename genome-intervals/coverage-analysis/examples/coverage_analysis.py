@@ -1,89 +1,76 @@
 #!/usr/bin/env python3
-'''Demonstrate coverage analysis with pybedtools.'''
-# Reference: bedtools 2.31+, numpy 1.26+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
+'''Interpret a coverage distribution: median, breadth curve, and evenness from a mosdepth dist file.'''
+# Reference: mosdepth 0.3+, numpy 1.26+ | Verify API if version differs
+# The point of this script: stop reporting a number, start reporting a curve.
+# mosdepth global.dist.txt rows are: chrom, depth, proportion_of_bases_at_least_this_depth
+# (the 'total' chrom is the whole-genome cumulative curve).
 
-import pybedtools
-import subprocess
+import numpy as np
 
-# Create sample BED data for demonstration
-regions_str = '''chr1\t100\t500\tregion1\t0\t+
-chr1\t1000\t1500\tregion2\t0\t-
-chr2\t200\t600\tregion3\t0\t+'''
+BREADTH_THRESHOLDS = [1, 10, 20, 30]   # depths to report breadth at; 20x ~ germline SNV callability floor
+SKEW_FLAG = 1.2                        # mean/median above this signals a right-skewed (tailed) distribution
 
-reads_str = '''chr1\t150\t250\tread1\t0\t+
-chr1\t200\t300\tread2\t0\t+
-chr1\t250\t350\tread3\t0\t+
-chr1\t300\t400\tread4\t0\t+
-chr1\t1100\t1200\tread5\t0\t-
-chr2\t250\t350\tread6\t0\t+
-chr2\t300\t400\tread7\t0\t+'''
 
-genome_str = '''chr1\t2000
-chr2\t1000'''
+def read_global_dist(path, chrom='total'):
+    rows = [line.split() for line in open(path) if line.split()[0] == chrom]
+    depths = np.array([int(r[1]) for r in rows])
+    cum_ge = np.array([float(r[2]) for r in rows])
+    order = np.argsort(depths)
+    return depths[order], cum_ge[order]
 
-regions = pybedtools.BedTool(regions_str, from_string=True)
-reads = pybedtools.BedTool(reads_str, from_string=True)
 
-# Write genome file
-with open('test_genome.txt', 'w') as f:
-    f.write(genome_str)
+def median_from_cumulative(depths, cum_ge):
+    below_half = depths[cum_ge >= 0.5]
+    return int(below_half.max()) if below_half.size else 0
 
-print('=== Input Data ===')
-print(f'Regions: {regions.count()} intervals')
-print(f'Reads: {reads.count()} intervals')
 
-# Coverage: how much of each region is covered by reads
-print('\n=== Coverage per Region ===')
-coverage = regions.coverage(reads)
-print('Format: chrom, start, end, name, score, strand, overlaps, bases_covered, region_length, fraction')
-for interval in coverage:
-    print(f'  {interval}')
+def mean_from_cumulative(depths, cum_ge):
+    per_depth = -np.diff(np.append(cum_ge, 0.0))   # fraction of bases exactly at each depth
+    return float(np.sum(depths * per_depth))
 
-# Extract just the important info
-print('\n=== Coverage Summary ===')
-for interval in regions.coverage(reads):
-    fields = interval.fields
-    region_name = fields[3]
-    overlapping_reads = int(fields[6])
-    bases_covered = int(fields[7])
-    region_length = int(fields[8])
-    fraction = float(fields[9])
-    print(f'  {region_name}: {overlapping_reads} reads, {bases_covered}/{region_length} bases ({fraction:.1%} covered)')
 
-# Coverage with counts only
-print('\n=== Read Counts per Region ===')
-counts = regions.coverage(reads, counts=True)
-for interval in counts:
-    fields = interval.fields
-    print(f'  {fields[3]}: {fields[6]} overlapping reads')
+def breadth_at(depths, cum_ge, threshold):
+    at = cum_ge[depths == threshold]
+    return float(at[0]) if at.size else float(cum_ge[depths >= threshold].max() if (depths >= threshold).any() else 0.0)
 
-# Generate coverage bedGraph from BED intervals
-print('\n=== Coverage bedGraph (from reads) ===')
-reads_sorted = reads.sort()
-bedgraph = reads_sorted.genome_coverage(bg=True, g='test_genome.txt')
-print('First few lines:')
-for i, interval in enumerate(bedgraph):
-    if i >= 5:
-        print('  ...')
-        break
-    print(f'  {interval.chrom}\t{interval.start}\t{interval.end}\t{interval.fields[3]}')
 
-# Mean coverage per region
-print('\n=== Mean Coverage per Region ===')
-mean_cov = regions.coverage(reads, mean=True)
-for interval in mean_cov:
-    fields = interval.fields
-    print(f'  {fields[3]}: mean coverage = {float(fields[6]):.2f}x')
+def evenness_cv(depths, cum_ge):
+    per_depth = -np.diff(np.append(cum_ge, 0.0))
+    mean = np.sum(depths * per_depth)
+    var = np.sum(((depths - mean) ** 2) * per_depth)
+    return float(np.sqrt(var) / mean) if mean else float('nan')
 
-# Identify low-coverage regions
-print('\n=== Low Coverage Regions (<50% covered) ===')
-low_cov = regions.coverage(reads).filter(lambda x: float(x.fields[9]) < 0.5)
-for interval in low_cov:
-    print(f'  {interval.fields[3]}: {float(interval.fields[9]):.1%} covered')
 
-# Cleanup
-import os
-os.remove('test_genome.txt')
-pybedtools.cleanup()
+def report(path):
+    depths, cum_ge = read_global_dist(path)
+    median = median_from_cumulative(depths, cum_ge)
+    mean = mean_from_cumulative(depths, cum_ge)
+    cv = evenness_cv(depths, cum_ge)
+    print(f'median depth: {median}x   mean depth: {mean:.1f}x   CV: {cv:.2f}')
+    if median and mean / median > SKEW_FLAG:
+        print(f'WARNING: mean/median = {mean/median:.2f} > {SKEW_FLAG} -- right-skewed; mean overstates typical depth (check dups/repeats/rDNA)')
+    print('breadth curve:')
+    for t in BREADTH_THRESHOLDS:
+        print(f'  >= {t:2d}x: {breadth_at(depths, cum_ge, t):.1%}')
 
-print('\n=== Done ===')
+
+def demo():
+    '''Synthetic 'total' dist: even ~30x library with a small right tail.'''
+    lines = []
+    rng = np.random.default_rng(0)
+    sample = np.clip(rng.poisson(30, 200000), 0, None)
+    sample = np.append(sample, rng.integers(800, 1200, 400))   # rDNA-style right tail inflating the mean
+    maxd = int(sample.max())
+    n = sample.size
+    for d in range(maxd + 1):
+        prop = float(np.mean(sample >= d))
+        lines.append(f'total\t{d}\t{prop:.6f}\n')
+    open('demo.mosdepth.global.dist.txt', 'w').writelines(lines)
+    return 'demo.mosdepth.global.dist.txt'
+
+
+if __name__ == '__main__':
+    import sys
+    path = sys.argv[1] if len(sys.argv) > 1 else demo()
+    print(f'=== {path} ===')
+    report(path)

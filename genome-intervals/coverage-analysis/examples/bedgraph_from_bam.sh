@@ -1,10 +1,16 @@
 #!/bin/bash
-# Reference: bedtools 2.31+, numpy 1.26+, pandas 2.2+, samtools 1.19+ | Verify API if version differs
-# Generate coverage bedGraph from BAM files
+# Reference: mosdepth 0.3+, bedtools 2.31+, samtools 1.19+ | Verify API if version differs
+# Coverage analysis: breadth-first (mosdepth), per-contig glance (samtools), and a bedGraph track (bedtools).
+# Mark duplicates BEFORE running this -- depth on an un-deduped BAM is a vanity number.
 
 # Usage: ./bedgraph_from_bam.sh alignments.bam [output_prefix]
 BAM="${1:-alignments.bam}"
 PREFIX="${2:-coverage}"
+
+MIN_MAPQ=20        # drop multimappers/repeat reads; repeat coverage intentionally collapses (no neutral choice)
+WINDOW=500         # mosdepth window size in bp; coarser = smaller output, finer = more resolution
+CALLABLE_MIN=4     # min depth to call a base CALLABLE; tune to the variant caller
+EXCESSIVE=150      # HIGH/excessive-depth ceiling; flags rDNA/artifact pileups
 
 if [[ ! -f "$BAM" ]]; then
     echo "Usage: $0 <bam_file> [output_prefix]"
@@ -12,64 +18,33 @@ if [[ ! -f "$BAM" ]]; then
     exit 1
 fi
 
-echo "Processing: $BAM"
-echo "Output prefix: $PREFIX"
+echo "=== mosdepth: median + breadth curve (the modern default) ==="
+mosdepth --by "$WINDOW" -Q "$MIN_MAPQ" "$PREFIX" "$BAM"
+echo "Wrote ${PREFIX}.mosdepth.summary.txt and ${PREFIX}.mosdepth.global.dist.txt"
+echo "Per-chrom + total mean depth:"
+cat "${PREFIX}.mosdepth.summary.txt"
 
-# Basic bedGraph (per-base coverage, non-zero only)
-echo -e "\n=== Generating basic bedGraph ==="
-bedtools genomecov -ibam "$BAM" -bg > "${PREFIX}.bedGraph"
-echo "Created: ${PREFIX}.bedGraph"
-echo "Lines: $(wc -l < "${PREFIX}.bedGraph")"
+echo -e "\n=== Breadth from the cumulative distribution (proportion >= depth) ==="
+# global.dist.txt columns: chrom, depth, proportion_of_bases_at_least_this_depth ('total' = whole genome)
+for D in 1 10 20 30; do
+    awk -v d="$D" '$1=="total" && $2==d {printf "  breadth >= %2dx: %.1f%%\n", d, $3*100}' "${PREFIX}.mosdepth.global.dist.txt"
+done
+echo "  (median = the depth where proportion crosses 0.5)"
+awk '$1=="total" && $3>=0.5 {m=$2} END {print "  median depth: " m "x"}' "${PREFIX}.mosdepth.global.dist.txt"
 
-# bedGraph with zeros (all positions)
-echo -e "\n=== Generating bedGraph with zeros ==="
-bedtools genomecov -ibam "$BAM" -bga > "${PREFIX}.with_zeros.bedGraph"
-echo "Created: ${PREFIX}.with_zeros.bedGraph"
-echo "Lines: $(wc -l < "${PREFIX}.with_zeros.bedGraph")"
+echo -e "\n=== mosdepth --quantize: callable-region BED ==="
+# bins: [0,1)=NO_COVERAGE, [1,CALLABLE_MIN)=LOW, [CALLABLE_MIN,EXCESSIVE)=CALLABLE, [EXCESSIVE,inf)=HIGH
+mosdepth --quantize "0:1:${CALLABLE_MIN}:${EXCESSIVE}:" "${PREFIX}.callable" "$BAM"
+echo "Wrote ${PREFIX}.callable.quantized.bed.gz"
 
-# Normalized bedGraph (CPM - counts per million)
-echo -e "\n=== Generating CPM-normalized bedGraph ==="
-TOTAL=$(samtools view -c "$BAM")
-echo "Total reads: $TOTAL"
-SCALE=$(echo "scale=10; 1000000/$TOTAL" | bc)
-echo "Scale factor: $SCALE"
-bedtools genomecov -ibam "$BAM" -bg -scale "$SCALE" > "${PREFIX}.cpm.bedGraph"
-echo "Created: ${PREFIX}.cpm.bedGraph"
+echo -e "\n=== samtools coverage: per-contig depth + breadth glance ==="
+# 'coverage' column is BREADTH (% bases >=1x); 'meandepth' is depth
+samtools coverage "$BAM"
 
-# Coverage histogram (genome-wide)
-echo -e "\n=== Generating coverage histogram ==="
-bedtools genomecov -ibam "$BAM" > "${PREFIX}.histogram.txt"
-echo "Created: ${PREFIX}.histogram.txt"
-
-# Summary statistics
-echo -e "\n=== Coverage Statistics ==="
-awk '$1 == "genome" {
-    depth[NR] = $2;
-    frac[NR] = $5;
-    sum += $2 * $5;
-}
-END {
-    print "Mean depth: " sum "x";
-    # Find median (cumulative fraction >= 0.5)
-    cumsum = 0;
-    for (i in depth) {
-        cumsum += frac[i];
-        if (cumsum >= 0.5) {
-            print "Median depth: " depth[i] "x";
-            break;
-        }
-    }
-}' "${PREFIX}.histogram.txt"
-
-# Fraction of genome covered
-echo -e "\n=== Genome Coverage ==="
-awk '$1 == "genome" && $2 > 0 {sum += $5}
-     END {print "Fraction covered (>0x): " sum * 100 "%"}' "${PREFIX}.histogram.txt"
-awk '$1 == "genome" && $2 >= 10 {sum += $5}
-     END {print "Fraction covered (>=10x): " sum * 100 "%"}' "${PREFIX}.histogram.txt"
-awk '$1 == "genome" && $2 >= 30 {sum += $5}
-     END {print "Fraction covered (>=30x): " sum * 100 "%"}' "${PREFIX}.histogram.txt"
+echo -e "\n=== bedtools genomecov: bedGraph track (zeros included) ==="
+bedtools genomecov -ibam "$BAM" -bga > "${PREFIX}.bedGraph"   # -bga marks zero-coverage gaps; -bg omits them
+echo "Wrote ${PREFIX}.bedGraph ($(wc -l < "${PREFIX}.bedGraph") lines)"
+echo "  (for short-insert/amplicon data use -pc for fragment coverage; for RNA-seq add -split)"
 
 echo -e "\n=== Done ==="
-echo "Files created:"
-ls -la ${PREFIX}*
+ls -la "${PREFIX}"*

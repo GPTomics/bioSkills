@@ -1,59 +1,44 @@
 #!/bin/bash
-# Reference: bcftools 1.19+, bedtools 2.31+, pandas 2.2+ | Verify API if version differs
-# Validate BED file format and content
+# Reference: bedtools 2.31+ | Verify API if version differs
+# Validate a BED file and audit the two silent failures (chrom naming, CRLF).
 
 BED_FILE="${1:-input.bed}"
+PARTNER="${2:-}"   # optional second file to check chrom-naming compatibility against
 
 echo "Validating: $BED_FILE"
-echo "========================"
 
-# Check if file exists
 if [[ ! -f "$BED_FILE" ]]; then
-    echo "ERROR: File not found"
+    echo "ERROR: file not found"
     exit 1
 fi
 
-# Count lines
-LINES=$(wc -l < "$BED_FILE")
-echo "Total lines: $LINES"
-
-# Check column count
-echo -e "\nColumn counts:"
+# Field count must be identical on every line (positional columns).
+echo "Field counts (expect one value):"
 awk -F'\t' '{print NF}' "$BED_FILE" | sort | uniq -c
 
-# Check for invalid coordinates (start >= end)
-INVALID=$(awk -F'\t' '$2 >= $3' "$BED_FILE" | wc -l)
-if [[ $INVALID -gt 0 ]]; then
-    echo -e "\nWARNING: $INVALID intervals with start >= end:"
-    awk -F'\t' '$2 >= $3' "$BED_FILE" | head -5
-else
-    echo -e "\nNo invalid intervals (start >= end): OK"
+# Inverted (start >= end) or negative coordinates -- bedtools also errors on these.
+awk -F'\t' '$2 < 0 || $2 >= $3' "$BED_FILE" | head -5 | grep -q . \
+    && echo "WARNING: negative or inverted intervals present" \
+    || echo "Coordinates OK (no negative/inverted)"
+
+# CRLF audit: a trailing ^M corrupts the last field silently in tolerant parsers.
+grep -q $'\r' "$BED_FILE" \
+    && echo "WARNING: CRLF line endings -- fix with dos2unix or sed 's/\\r\$//'" \
+    || echo "Line endings OK (no CRLF)"
+
+# Chromosome names -- compare against a partner file before any cross-file operation.
+echo "Chromosomes:"
+cut -f1 "$BED_FILE" | sort -u
+if [[ -n "$PARTNER" && -f "$PARTNER" ]]; then
+    SHARED=$(comm -12 <(cut -f1 "$BED_FILE" | sort -u) <(cut -f1 "$PARTNER" | sort -u) | wc -l)
+    [[ "$SHARED" -eq 0 ]] \
+        && echo "WARNING: zero shared chromosomes with $PARTNER (chr1 vs 1 mismatch?) -- intersect will be empty" \
+        || echo "Shares $SHARED chromosome name(s) with $PARTNER"
 fi
 
-# Check for negative coordinates
-NEGATIVE=$(awk -F'\t' '$2 < 0 || $3 < 0' "$BED_FILE" | wc -l)
-if [[ $NEGATIVE -gt 0 ]]; then
-    echo -e "\nWARNING: $NEGATIVE intervals with negative coordinates"
+# Sortedness: -sorted ops assume lexicographic order matching the partner/genome file.
+if diff -q <(bedtools sort -i "$BED_FILE" 2>/dev/null) "$BED_FILE" > /dev/null 2>&1; then
+    echo "File is sorted (lexicographic)"
 else
-    echo -e "No negative coordinates: OK"
+    echo "File is NOT lexicographically sorted (bedtools sort -i $BED_FILE)"
 fi
-
-# Check if sorted
-if bedtools sort -i "$BED_FILE" 2>/dev/null | diff -q - <(cat "$BED_FILE") > /dev/null 2>&1; then
-    echo "File is sorted: OK"
-else
-    echo "File is NOT sorted (consider: bedtools sort -i $BED_FILE)"
-fi
-
-# Check chromosome naming
-echo -e "\nChromosomes found:"
-cut -f1 "$BED_FILE" | sort -u | head -10
-
-# Summary statistics
-echo -e "\nInterval size statistics:"
-awk -F'\t' '{print $3-$2}' "$BED_FILE" | \
-    awk 'BEGIN{min=999999999; max=0; sum=0; n=0}
-         {if($1<min)min=$1; if($1>max)max=$1; sum+=$1; n++}
-         END{print "  Min: "min"\n  Max: "max"\n  Mean: "sum/n"\n  Count: "n}'
-
-echo -e "\nValidation complete"
