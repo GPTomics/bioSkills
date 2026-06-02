@@ -1,328 +1,233 @@
 ---
 name: bio-hi-c-analysis-hic-differential
-description: Compare Hi-C contact matrices between conditions to identify differential chromatin interactions. Compute log2 fold changes, statistical significance, and visualize differential contact maps. Use when comparing Hi-C contacts between conditions.
+description: Compares Hi-C contact maps between conditions across the right scale -- differential bin-pair contacts (multiHiCcompare, diffHic), differential A/B compartments (dcHiC), differential TAD boundaries (delta insulation), and differential loops (diffloop, DiffHiChIP) -- with distance-stratified between-sample normalization, replicate-aware NB-GLM FDR, HiCRep SCC reproducibility gating, and CNV correction for cancer/aneuploid samples. Use when comparing Hi-C between treatment and control, finding differential contacts/compartments/boundaries/loops, normalizing two maps of unequal depth, choosing a replicate-aware test, gating replicates with SCC, or correcting copy-number artifacts before a tumor-vs-normal comparison.
 tool_type: python
 primary_tool: cooltools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: cooler 0.9+, cooltools 0.6+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+, statsmodels 0.14+
+Reference examples tested with: cooler 0.10+, cooltools 0.7+, bioframe 0.7+, multiHiCcompare 1.20+, diffHic 1.34+, dcHiC (2022 release), hicrep (Bioconductor) 1.26+, edgeR 4.0+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Note: cooltools provides the Python feature-extraction parts (expected, eigenvectors, insulation, pileups) but NO turnkey two-condition test -- the differential statistics live in R/Bioconductor (multiHiCcompare, diffHic, dcHiC, hicrep). The `get.scc` signature changed between the TaoYang-dev and current Bioconductor/qunhualilab releases; verify with `?get.scc` before calling. A `.mcool` is multi-resolution: pass a single-resolution URI (`file.mcool::/resolutions/10000`), not the bare file.
+
 # Hi-C Differential Analysis
 
-**"Compare Hi-C contacts between my conditions"** -> Compute log2 fold-change contact maps, identify statistically significant differential interactions, and visualize changes in 3D genome organization.
-- Python: `cooltools` for expected values, custom differential analysis with `scipy.stats`
+**"What changed in 3D genome organization between my conditions?"** -> Equalize the two maps with a distance-stratified between-sample normalization, then test at the SCALE of the question (compartment, TAD boundary, loop, or bin-pair) with a replicate-aware method, not pixel-wise log2 subtraction.
+- Python (features): `cooltools.expected_cis(clr)`, `cooltools.eigs_cis(clr)`, `cooltools.insulation(clr)`
+- R (bin-pair test): `make_hicexp(...) |> cyclic_loess() |> hic_exactTest() |> results()` (multiHiCcompare)
+- R (compartments): `Rscript dchicf.r --pcatype cis|select|analyze` (dcHiC)
 
-Compare Hi-C contact matrices between conditions.
+## The Single Most Important Modern Insight -- balancing makes a matrix self-consistent, NOT cross-comparable
 
-## Required Imports
+ICE/KR/SCALE balancing equalizes the marginals WITHIN one map (it removes per-bin visibility bias). It says nothing about whether map A and map B are on the same footing. Two balanced maps still differ in (a) total sequencing depth and (b) cis/trans ratio, and a naive `log2(A/B)` is dominated by those two nuisances plus the shared distance-decay P(s) -- with biology buried underneath. "I balanced both, so I can subtract them" is the single most common error in differential Hi-C. The fix is a BETWEEN-sample, DISTANCE-STRATIFIED normalization (multiHiCcompare's cyclic loess on the M-D plot, or diffHic's trended loess offsets) before any difference is interpretable.
+
+The M-D plot is the RNA-seq MA-plot's distance-aware cousin: M = log2(IF1/IF2), but plotted against genomic DISTANCE D instead of mean abundance. The loess fit is done PER distance stratum because both bias and variance depend on distance -- a sparser library loses long-range pairs faster, so the depth bias is itself distance-dependent and a single global size-factor cannot fix it. After normalization M should center on 0 at every D; a residual M-trend at large D means normalization failed at long range. Inspect `MD_hicexp()` -- do not trust the call set blind.
+
+## Differential-Method Taxonomy (scale-matched -- one tool cannot do all four)
+
+| Method | Scale / object | Mechanism | Replicates | When |
+|--------|----------------|-----------|------------|------|
+| multiHiCcompare | bin-pair contacts | cyclic-loess M-D normalization + edgeR exactTest/GLM | >=2 for FDR | multi-group, joint normalization, covariates |
+| diffHic | bin-pair contacts | squareCounts -> trended/CNV loess offsets -> edgeR NB-GLM | >=2 (required) | replicate-rich, CNV correction, full edgeR machinery |
+| dcHiC | A/B compartment (Mb) | sign/PC-consistent eigenvectors -> quantile-norm -> Mahalanobis | works at 1, better with reps | quantitative compartment SHIFTS across samples |
+| delta insulation | TAD boundary (sub-Mb) | difference of Crane-style insulation scores per condition | reps for significance | boundary strengthening/loss, not bin-pair counts |
+| diffloop / DiffHiChIP | loops (anchored) | edgeR NB on anchored counts; IHW by distance (DiffHiChIP) | YES for FDR | Hi-C/HiChIP/ChIA-PET loop sets, long-range power |
+| Selfish | regions (n=1) | Gaussian-pyramid self-similarity, distance-controlled | none (descriptive) | replicate-poor 2-map ranking, no honest FDR |
+| FIND | bin-pair (n=1) | spatial Poisson process over the 2D neighborhood | none (descriptive) | neighborhood-aware 2-map ranking |
+| HiCRep SCC | whole-matrix similarity | stratum-adjusted correlation (NOT a per-feature test) | n/a (pairwise) | replicate QC gate + coarse condition distance |
+
+Using a bin-pair tool (multiHiCcompare/diffHic) to "find compartment changes" is a category error: compartments are an eigenvector property of the whole chromosome, not a sum of independent bin-pairs, so the result is a noisy bin-pair list, not coherent compartment calls. Match the tool to the scale of the question.
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| First question for any comparison | HiCRep SCC (within- vs between-condition) | gate reproducibility before any call |
+| Differential contacts, >=2 reps/condition | multiHiCcompare (cyclic_loess + edgeR) or diffHic | distance-stratified norm + replicate-aware FDR |
+| Differential contacts, n=1 vs n=1 | Selfish or FIND, DESCRIPTIVE only | no replicates -> no honest FDR |
+| Differential A/B compartments | dcHiC (cis -> select -> analyze) | sign-consistent eigenvectors + Mahalanobis shifts |
+| Differential TAD boundaries | delta insulation (cooltools insulation per condition) -> stats | boundaries are local insulation depth, not counts |
+| Differential loops (Hi-C) | diffloop or DiffHiChIP on per-condition loop calls | anchored count test with distance modeling |
+| Differential loops (HiChIP / PLAC) | -> hichip-plac-loops then DiffHiChIP | peak-biased data needs anchored null |
+| Tumor vs normal / aneuploid | CNV-correct FIRST (diffHic normalizeCNV / OneD) | CNV masquerades as differential contacts |
+| Two maps, unequal depth, quick look | downsample to equal valid pairs, then M-D normalize | depth fix only; still distance-stratify |
+| Call the per-condition features in Python | -> compartment-analysis, tad-detection, loop-calling | cooltools extracts; bring to R for the test |
+| Annotate the differential anchors/boundaries | -> chip-seq/peak-annotation, genome-intervals/overlap-significance | overlap with TF peaks / enrichment test |
+
+## Replicate QC Gate with HiCRep SCC (do this FIRST)
+
+**Goal:** Decide whether replicates are reproducible enough that a differential call is meaningful at all.
+
+**Approach:** Plain Pearson on Hi-C always looks reproducible -- the shared P(s) decay alone drives r > 0.9 even between unrelated maps. HiCRep's SCC stratifies by distance (removing the decay) and smooths for sparsity, then variance-weights the strata. Compute SCC for within-condition replicate pairs and between-condition pairs; within must clearly exceed between or there is nothing to call.
+
+```r
+library(hicrep)
+
+# Current Bioconductor/qunhualilab interface: dat is a 4-column table
+# (mid1, mid2, IF_A, IF_B); resol = bin size; max = max distance considered.
+# Verify with ?get.scc -- the older TaoYang-dev interface is get.scc(mat1, mat2, resol, h, lbr, ubr).
+scc_out <- get.scc(dat_repA_vs_repB, resol = 50000, max = 5000000)
+scc_out$scc   # stratum-adjusted correlation coefficient in [-1, 1]
+```
+
+A differential claim is only meaningful when within-condition SCC clearly exceeds between-condition SCC. If they overlap, the "differential" signal is replicate noise.
+
+## Differential Bin-Pair Contacts with multiHiCcompare
+
+**Goal:** Find individual bin-pairs whose contact frequency changes between conditions, with a calibrated FDR from replicate variance.
+
+**Approach:** Build a Hi-C experiment from per-replicate sparse upper-triangular tables, normalize jointly across all samples with cyclic loess on the M-D plot, then run edgeR's exact test (2 groups) or GLM (covariates). Filtering on mean abundance happens at `make_hicexp` time -- it is independent of the contrast, so it shrinks the multiple-testing burden without inflating FDR.
+
+```r
+library(multiHiCcompare)
+
+# Each replicate is a 4-column sparse table: chr, region1(bp), region2(bp), IF
+# chr coded 1-22, 23=X, 24=Y.
+hicexp <- make_hicexp(c1_r1, c1_r2, c2_r1, c2_r2,
+                      groups = c(0, 0, 1, 1),
+                      zero.p = 0.8,                 # drop bin-pairs >80% zero across samples
+                      A.min  = 5,                   # drop bin-pairs with low mean IF (independent filter)
+                      filter = TRUE,
+                      remove.regions = hg19_cyto)   # blacklist centromeres/telomeres
+hicexp <- cyclic_loess(hicexp, span = NA)           # span=NA -> GCV chooses the loess span
+hicexp <- hic_exactTest(hicexp)                     # 2-group; use hic_glm(hicexp, design) for covariates
+res <- results(hicexp)                              # chr, region1, region2, D, logFC, logCPM, p.value, p.adj
+sig <- topDirs(hicexp, logfc_cutoff = 1, logcpm_cutoff = 1, p.adj_cutoff = 0.1, return_df = 'pairedbed')
+MD_hicexp(hicexp)                                   # diagnostic: M should center on 0 at every D
+```
+
+diffHic is the alternative when full edgeR control is wanted: `squareCounts` -> `filterDirect` -> `normOffsets(type='loess')` -> `asDGEList` -> `estimateDisp` -> `glmQLFit` -> `glmQLFTest`. Same NB-GLM engine as edgeR/csaw; requires biological replicates for dispersion.
+
+## Differential A/B Compartments with dcHiC
+
+**Goal:** Detect compartment changes between conditions, including graded shifts that never cross the A/B boundary, with cross-sample-comparable eigenvectors.
+
+**Approach:** Everyone computes PC1, but PC1's sign is arbitrary per chromosome per sample and sometimes the compartment signal is in PC2 -- naive multi-sample comparison silently compares flipped or mismatched axes. dcHiC anchors the sign (GC/gene-density) and selects the correct PC, quantile-normalizes the scores, then uses a multivariate Mahalanobis distance per bin to flag outliers across all samples. Run as a staged CLI; the input file lists `<matrix> <bed> <replicate_prefix> <experiment_prefix>` per replicate (no dashes/dots in prefixes).
+
+```bash
+# Staged CLI (dchicf.r). cis = per-sample compartments; select = pick PC per chr;
+# analyze = differential PCA (Mahalanobis); viz = IGV-style browser.
+Rscript dchicf.r --file input.txt --pcatype cis    --dirovwt T --cthread 2 --pthread 4
+Rscript dchicf.r --file input.txt --pcatype select --dirovwt T --genome hg38
+Rscript dchicf.r --file input.txt --pcatype analyze --dirovwt T --diffdir cond1_vs_cond2
+Rscript dchicf.r --file input.txt --pcatype viz    --diffdir cond1_vs_cond2 --genome hg38
+# Differential calls land in DifferentialResult/<diffdir>/fdr_result/ ; optional: --pcatype subcomp (HMM) and dloop.
+```
+
+For a quick Python eyeball of compartment switching (NOT a replicate-aware test -- use dcHiC for that), difference the phased E1 from cooltools per condition and flag sign flips. State it as exploratory.
+
+## Differential TAD Boundaries via Delta Insulation
+
+**Goal:** Find boundaries that strengthen, weaken, or appear/disappear between conditions.
+
+**Approach:** Boundary changes are about local insulation DEPTH, not bin-pair counts, so compute the Crane-style insulation score per condition with cooltools at a fixed window, then difference the scores; attach significance with replicate insulation profiles. The window must match the bin size (typically 5-25x the bin).
 
 ```python
-import cooler
 import cooltools
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.colors import TwoSlopeNorm
-from scipy import stats
-import bioframe
-```
 
-## Load Two Conditions
-
-```python
-# Load balanced cooler files at same resolution
-clr1 = cooler.Cooler('condition1.mcool::resolutions/10000')
-clr2 = cooler.Cooler('condition2.mcool::resolutions/10000')
-
-print(f'Condition 1: {clr1.info["sum"]:,} contacts')
-print(f'Condition 2: {clr2.info["sum"]:,} contacts')
-```
-
-## Compute Log2 Fold Change
-
-```python
-def log2_fold_change(clr1, clr2, region, pseudocount=1):
-    '''Compute log2(condition2/condition1) for a region'''
-    mat1 = clr1.matrix(balance=True).fetch(region)
-    mat2 = clr2.matrix(balance=True).fetch(region)
-
-    # Add pseudocount and compute log2 ratio
-    log2fc = np.log2((mat2 + pseudocount) / (mat1 + pseudocount))
-    log2fc[np.isinf(log2fc)] = np.nan
-
-    return log2fc
-
-region = 'chr1:50000000-60000000'
-log2fc = log2_fold_change(clr1, clr2, region)
-print(f'Log2FC range: {np.nanmin(log2fc):.2f} to {np.nanmax(log2fc):.2f}')
-```
-
-## Plot Differential Contact Map
-
-```python
-fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-# Condition 1
-mat1 = clr1.matrix(balance=True).fetch(region)
-im1 = axes[0].imshow(np.log2(mat1 + 1), cmap='Reds', vmin=-10, vmax=-3)
-axes[0].set_title('Condition 1')
-plt.colorbar(im1, ax=axes[0])
-
-# Condition 2
-mat2 = clr2.matrix(balance=True).fetch(region)
-im2 = axes[1].imshow(np.log2(mat2 + 1), cmap='Reds', vmin=-10, vmax=-3)
-axes[1].set_title('Condition 2')
-plt.colorbar(im2, ax=axes[1])
-
-# Log2 fold change (diverging colormap)
-norm = TwoSlopeNorm(vmin=-2, vcenter=0, vmax=2)
-im3 = axes[2].imshow(log2fc, cmap='coolwarm', norm=norm)
-axes[2].set_title('Log2(Cond2/Cond1)')
-plt.colorbar(im3, ax=axes[2])
-
-plt.tight_layout()
-plt.savefig('differential_hic.png', dpi=150)
-```
-
-## Split View Comparison
-
-```python
-def plot_split_view(mat1, mat2, title=''):
-    '''Upper triangle: condition1, Lower triangle: condition2'''
-    combined = np.triu(mat1) + np.tril(mat2, k=-1)
-
-    fig, ax = plt.subplots(figsize=(8, 8))
-    im = ax.imshow(np.log2(combined + 1), cmap='Reds', vmin=-10, vmax=-3)
-    ax.axline((0, 0), slope=1, color='black', linewidth=0.5)
-    ax.set_title(f'{title}\nUpper: Cond1, Lower: Cond2')
-    plt.colorbar(im, ax=ax)
-    return fig
-
-mat1 = clr1.matrix(balance=True).fetch(region)
-mat2 = clr2.matrix(balance=True).fetch(region)
-fig = plot_split_view(mat1, mat2)
-plt.savefig('split_view.png', dpi=150)
-```
-
-## Depth Normalization
-
-```python
-def depth_normalize(clr, target_depth=None):
-    '''Normalize matrix to target sequencing depth'''
-    total = clr.info['sum']
-    if target_depth is None:
-        return 1.0
-    return target_depth / total
-
-# Normalize both samples to same depth
-target = min(clr1.info['sum'], clr2.info['sum'])
-scale1 = depth_normalize(clr1, target)
-scale2 = depth_normalize(clr2, target)
-
-mat1_norm = clr1.matrix(balance=True).fetch(region) * scale1
-mat2_norm = clr2.matrix(balance=True).fetch(region) * scale2
-```
-
-## Statistical Testing (Per-Pixel)
-
-**Goal:** Identify individual contact pixels that are statistically significantly different between two conditions using biological replicates.
-
-**Approach:** For each pixel position, collect values across replicates in both conditions, apply a per-pixel t-test or Mann-Whitney U test, then correct for multiple testing with FDR.
-
-```python
-def differential_test(matrices1, matrices2, method='ttest'):
-    '''
-    Test for differential contacts between replicates.
-    matrices1/2: lists of numpy arrays (replicates)
-    '''
-    n1, n2 = len(matrices1), len(matrices2)
-    shape = matrices1[0].shape
-
-    pvalues = np.ones(shape)
-    log2fc = np.zeros(shape)
-
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            vals1 = [m[i, j] for m in matrices1 if not np.isnan(m[i, j])]
-            vals2 = [m[i, j] for m in matrices2 if not np.isnan(m[i, j])]
-
-            if len(vals1) >= 2 and len(vals2) >= 2:
-                if method == 'ttest':
-                    _, p = stats.ttest_ind(vals1, vals2)
-                elif method == 'mannwhitneyu':
-                    _, p = stats.mannwhitneyu(vals1, vals2, alternative='two-sided')
-                pvalues[i, j] = p
-                log2fc[i, j] = np.log2((np.mean(vals2) + 1) / (np.mean(vals1) + 1))
-
-    return log2fc, pvalues
-
-# Example with replicates
-rep1_cond1 = [clr.matrix(balance=True).fetch(region) for clr in condition1_reps]
-rep1_cond2 = [clr.matrix(balance=True).fetch(region) for clr in condition2_reps]
-
-log2fc, pvalues = differential_test(rep1_cond1, rep1_cond2)
-```
-
-## FDR Correction
-
-```python
-from statsmodels.stats.multitest import multipletests
-
-# Flatten p-values, apply FDR
-pval_flat = pvalues.flatten()
-valid_mask = ~np.isnan(pval_flat)
-pval_valid = pval_flat[valid_mask]
-
-_, pval_adj, _, _ = multipletests(pval_valid, method='fdr_bh')
-
-# Reshape back
-pval_adj_full = np.full_like(pval_flat, np.nan)
-pval_adj_full[valid_mask] = pval_adj
-pvalues_adj = pval_adj_full.reshape(pvalues.shape)
-
-# Significant differential contacts
-sig_mask = (pvalues_adj < 0.05) & (np.abs(log2fc) > 1)
-print(f'Significant differential contacts: {sig_mask.sum()}')
-```
-
-## Differential at Distance Bins
-
-```python
-def differential_by_distance(log2fc_matrix, max_dist=100):
-    '''Summarize differential contacts by genomic distance'''
-    n = log2fc_matrix.shape[0]
-    results = []
-
-    for d in range(max_dist):
-        diag = np.diag(log2fc_matrix, d)
-        valid = diag[~np.isnan(diag)]
-        if len(valid) > 0:
-            results.append({
-                'distance': d,
-                'mean_log2fc': np.mean(valid),
-                'std_log2fc': np.std(valid),
-                'n_contacts': len(valid),
-            })
-
-    return pd.DataFrame(results)
-
-dist_df = differential_by_distance(log2fc)
-plt.figure(figsize=(10, 4))
-plt.errorbar(dist_df['distance'], dist_df['mean_log2fc'],
-             yerr=dist_df['std_log2fc']/np.sqrt(dist_df['n_contacts']),
-             alpha=0.5)
-plt.axhline(0, color='black', linestyle='--')
-plt.xlabel('Distance (bins)')
-plt.ylabel('Mean log2 fold change')
-plt.title('Differential contacts by distance')
-plt.savefig('differential_by_distance.png', dpi=150)
-```
-
-## Compare Compartment Changes
-
-```python
-# Load compartment eigenvectors
-view_df = bioframe.make_viewframe(clr1.chromsizes)
-
-_, eig1 = cooltools.eigs_cis(clr1, view_df=view_df, n_eigs=1)
-_, eig2 = cooltools.eigs_cis(clr2, view_df=view_df, n_eigs=1)
-
-# Merge and find switches
-merged = eig1.merge(eig2, on=['chrom', 'start', 'end'], suffixes=('_1', '_2'))
-merged['E1_diff'] = merged['E1_2'] - merged['E1_1']
-merged['compartment_1'] = np.where(merged['E1_1'] > 0, 'A', 'B')
-merged['compartment_2'] = np.where(merged['E1_2'] > 0, 'A', 'B')
-merged['switched'] = merged['compartment_1'] != merged['compartment_2']
-
-print(f"Compartment switches: {merged['switched'].sum()}")
-print(merged[merged['switched']][['chrom', 'start', 'end', 'E1_1', 'E1_2']].head(10))
-```
-
-## Compare TAD Boundaries
-
-```python
-# Compute insulation for both
-ins1 = cooltools.insulation(clr1, window_bp=[200000], ignore_diags=2)
+ins1 = cooltools.insulation(clr1, window_bp=[200000], ignore_diags=2)   # window ~5-25x bin size
 ins2 = cooltools.insulation(clr2, window_bp=[200000], ignore_diags=2)
-
-# Get boundaries
-bounds1 = set(ins1[ins1['is_boundary_200000']]['start'])
-bounds2 = set(ins2[ins2['is_boundary_200000']]['start'])
-
-shared = bounds1 & bounds2
-only_cond1 = bounds1 - bounds2
-only_cond2 = bounds2 - bounds1
-
-print(f'Shared boundaries: {len(shared)}')
-print(f'Condition 1 specific: {len(only_cond1)}')
-print(f'Condition 2 specific: {len(only_cond2)}')
+merged = ins1.merge(ins2, on=['chrom', 'start', 'end'], suffixes=('_1', '_2'))
+merged['delta_insulation'] = merged['log2_insulation_score_200000_2'] - merged['log2_insulation_score_200000_1']
 ```
 
-## Differential Loop Analysis
+GENOVA and FAN-C also compute the insulation score for differencing; significance is added separately (paired test across replicate insulation tracks).
 
-```python
-# Call loops in both conditions
-dots1 = cooltools.dots(clr1, expected=expected1, view_df=view_df, max_loci_separation=2000000)
-dots2 = cooltools.dots(clr2, expected=expected2, view_df=view_df, max_loci_separation=2000000)
+## CNV Correction Before Cancer Comparisons
 
-def loops_overlap(l1, l2, tolerance=20000):
-    return (l1['chrom1'] == l2['chrom1'] and
-            abs(l1['start1'] - l2['start1']) < tolerance and
-            abs(l1['start2'] - l2['start2']) < tolerance)
+**Goal:** Avoid calling copy-number differences as 3D-structure differences in tumor-vs-normal data.
 
-# Find differential loops
-shared_loops = []
-cond1_specific = []
-for _, l1 in dots1.iterrows():
-    found = False
-    for _, l2 in dots2.iterrows():
-        if loops_overlap(l1, l2):
-            shared_loops.append(l1)
-            found = True
-            break
-    if not found:
-        cond1_specific.append(l1)
+**Approach:** Contact count scales with copy number, and balancing assumes equal visibility -- so ICE on aneuploid data SHIFTS contacts between amplified and deleted regions instead of removing the artifact, lighting up enormous spurious "differential interaction" blocks. Either regress out the marginal (1D) coverage log-ratio as a covariate (diffHic `marginCounts` + `normalizeCNV`, or OneD's 1D GAM), OR call CNV first (HiNT/HiCnv) and interpret rearrangement blocks separately. Never run vanilla balanced-matrix differential on cancer data.
 
-print(f'Shared loops: {len(shared_loops)}')
-print(f'Condition 1 specific: {len(cond1_specific)}')
+```r
+library(diffHic)
+
+margins <- marginCounts(data)              # 1D marginal coverage per bin (a RangedSummarizedExperiment)
+nb.off  <- normalizeCNV(data, margins)     # 2D loess on (abundance, marginal log-ratio) -> GLM offsets; matches margins internally
+y <- asDGEList(data)
+y$offset <- nb.off                         # attach the CNV offsets; asDGEList does not carry them automatically
+# then estimateDisp -> glmQLFit -> glmQLFTest as usual
 ```
 
-## Export Differential Results
+## Per-Method Failure Modes
 
-```python
-# Save log2FC matrix
-np.save('log2fc_matrix.npy', log2fc)
+### Naive log2 of two balanced maps
+**Trigger:** `log2((mat2+1)/(mat1+1))` on two balanced coolers of different depth. **Mechanism:** balancing is within-map only; depth + cis/trans + P(s) differences dominate. **Symptom:** a smooth distance-dependent gradient in the "differential" map, strongest off-diagonal. **Fix:** distance-stratified between-sample normalization (multiHiCcompare cyclic_loess / diffHic loess offsets) before differencing.
 
-# Save significant differential contacts as BED-like
-sig_contacts = []
-for i in range(log2fc.shape[0]):
-    for j in range(i, log2fc.shape[1]):
-        if sig_mask[i, j]:
-            sig_contacts.append({
-                'bin1': i,
-                'bin2': j,
-                'log2fc': log2fc[i, j],
-                'pvalue': pvalues_adj[i, j],
-            })
+### Pooling distances into one FDR
+**Trigger:** one BH correction over all bin-pairs regardless of distance. **Mechanism:** counts and variance span 2-3 orders of magnitude across distance; short-range is high-count/low-variance, long-range is sparse. **Symptom:** almost all hits are short-range; >500 kb changes vanish. **Fix:** distance-stratified testing; IHW weighting by distance (DiffHiChIP) recovers long-range loops.
 
-pd.DataFrame(sig_contacts).to_csv('differential_contacts.csv', index=False)
+### No-replicate FDR
+**Trigger:** n=1 vs n=1 reported with a p-value/FDR. **Mechanism:** dispersion needs within-condition variability; with n=1 there is none, so any FDR is fabricated. **Symptom:** thousands of "significant" hits that do not replicate. **Fix:** n>=2 (ideally 3) + diffHic/multiHiCcompare; for n=1 use Selfish/FIND DESCRIPTIVELY only.
 
-# Save compartment switches
-merged[merged['switched']].to_csv('compartment_switches.csv', index=False)
-```
+### Plain Pearson "reproducibility"
+**Trigger:** reporting raw matrix Pearson/Spearman as a QC number. **Mechanism:** shared P(s) decay inflates r > 0.9 even between unrelated maps. **Symptom:** everything looks reproducible, including failed libraries. **Fix:** HiCRep SCC (stratum-adjusted); compare within- vs between-condition.
+
+### CNV read as structure
+**Trigger:** tumor-vs-normal on vanilla balanced matrices. **Mechanism:** count scales with copy number; balancing worsens it by shifting contacts. **Symptom:** huge block-shaped "differential" regions aligned to known CNVs. **Fix:** CNV-correct (diffHic normalizeCNV / OneD) or call CNV first and interpret separately.
+
+### Wrong scale for the question
+**Trigger:** a bin-pair tool used to find "compartment changes". **Mechanism:** compartments are a whole-chromosome eigenvector property, not a sum of bin-pairs. **Symptom:** a scattered bin-pair list with no coherent A/B structure. **Fix:** dcHiC for compartments; delta insulation for boundaries; diffloop for loops.
+
+## Quantitative Thresholds
+
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Replicates n>=2 (ideally 3) per condition | NB dispersion estimation | within-condition variance is required for an honest FDR |
+| Within-condition SCC > between-condition SCC | replicate QC gate | if they overlap, "differential" signal is replicate noise |
+| `zero.p = 0.8` (drop >80% zero) | multiHiCcompare default | sparse long-range pairs break NB and waste FDR budget |
+| `A.min = 5` mean-IF filter | multiHiCcompare independent filter | filter independent of contrast preserves FDR validity |
+| Bin-pair / loop FDR <= 0.1 | genome-wide multiple testing | millions of bin-pairs need FDR control, not raw p |
+| Long-range threshold ~500 kb | DiffHiChIP 2025 benchmark | distance-aware IHW recovers >500 kb loops flat tests miss |
+| Insulation window 5-25x bin size | insulation-score scale | window much smaller than this is noisy; much larger blurs boundaries |
+| Compartment resolution 100kb-1Mb | compartment scale | A/B is chromosome-scale; finer bins mix in TAD/loop structure |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Differential map is a smooth distance gradient | naive log2 of balanced maps, no between-sample norm | cyclic_loess / diffHic loess offsets first |
+| All hits short-range, no long-range | distances pooled into one FDR | distance-stratified test; IHW by distance |
+| Thousands of "significant" n=1 hits | no replicates -> no real dispersion | n>=2; Selfish/FIND descriptive for n=1 |
+| Block-shaped diff regions over known CNVs | CNV not corrected on cancer data | diffHic normalizeCNV / OneD before testing |
+| `get.scc` argument error | TaoYang-dev vs Bioconductor signature skew | `?get.scc`; 4-col `dat` + `resol` + `max` (current) |
+| dcHiC fails on prefixes | dashes/dots in replicate/experiment names | use underscores only in prefix columns |
+| Compartment call is sign-scrambled | comparing raw PC1 across samples | dcHiC anchors sign + selects the right PC |
+| Empty cooltools result | chrom naming mismatch (`chr1` vs `1`) | harmonize names across cooler, fasta, tracks |
+
+## References
+
+- Stansfield JC, Cresswell KG, Dozmorov MG. 2019. multiHiCcompare: joint normalization and comparative analysis of complex Hi-C experiments. *Bioinformatics* 35(17):2916-2923. doi:10.1093/bioinformatics/bty950
+- Stansfield JC, Cresswell KG, Vladimirov VI, Dozmorov MG. 2018. HiCcompare: an R-package for joint normalization and comparison of HI-C datasets. *BMC Bioinformatics* 19:279. doi:10.1186/s12859-018-2288-x
+- Lun ATL, Smyth GK. 2015. diffHic: a Bioconductor package to detect differential genomic interactions in Hi-C data. *BMC Bioinformatics* 16:258. doi:10.1186/s12859-015-0683-0
+- Chakraborty A, Wang JG, Ay F. 2022. dcHiC detects differential compartments across multiple Hi-C datasets. *Nat Commun* 13:6827. doi:10.1038/s41467-022-34626-6
+- Roayaei Ardakany A, Ay F, Lonardi S. 2019. Selfish: discovery of differential chromatin interactions via a self-similarity measure. *Bioinformatics* 35(14):i145-i153. doi:10.1093/bioinformatics/btz362
+- Djekidel MN, Chen Y, Zhang MQ. 2018. FIND: difFerential chromatin INteractions Detection using a spatial Poisson process. *Genome Res* 28(3):412-422. doi:10.1101/gr.212266.116
+- Lareau CA, Aryee MJ. 2018. diffloop: a computational framework for identifying and analyzing differential DNA loops from sequencing data. *Bioinformatics* 34(4):672-674. doi:10.1093/bioinformatics/btx623
+- Bhattacharyya S, Salgado Figueroa D, Georgopoulos K, Ay F. 2025. DiffHiChIP: identifying differential chromatin contacts from HiChIP data. *Cell Rep Methods* 5(11):101214. doi:10.1016/j.crmeth.2025.101214
+- Yang T, Zhang F, Yardimci GG, Song F, Hardison RC, Noble WS, Yue F, Li Q. 2017. HiCRep: assessing the reproducibility of Hi-C data using a stratum-adjusted correlation coefficient. *Genome Res* 27(11):1939-1949. doi:10.1101/gr.220640.117
+- Vidal E, le Dily F, Quilez J, Stadhouders R, Cuartero Y, Graf T, Marti-Renom MA, Beato M, Filion GJ. 2018. OneD: increasing reproducibility of Hi-C samples with abnormal karyotypes. *Nucleic Acids Res* 46(8):e49. doi:10.1093/nar/gky064
+- Imakaev M, Fudenberg G, McCord RP, Naumova N, Goloborodko A, Lajoie BR, Dekker J, Mirny LA. 2012. Iterative correction of Hi-C data reveals hallmarks of chromosome organization. *Nat Methods* 9:999-1003. doi:10.1038/nmeth.2148
+- Open2C, Abdennur N, et al. 2024. Cooltools: enabling high-resolution Hi-C analysis in Python. *PLoS Comput Biol* 20(5):e1012067. doi:10.1371/journal.pcbi.1012067
 
 ## Related Skills
 
-- hic-data-io - Load Hi-C matrices
-- matrix-operations - Normalize matrices
-- compartment-analysis - Call compartments
-- tad-detection - Call TADs for comparison
-- loop-calling - Call loops for comparison
+- compartment-analysis - Per-condition A/B eigenvectors that dcHiC differences
+- tad-detection - Per-condition insulation scores for delta-insulation boundary tests
+- loop-calling - Per-condition loop calls fed to diffloop/DiffHiChIP
+- matrix-operations - Balancing and expected/O-E that precede any comparison
+- hichip-plac-loops - Peak-anchored loop calls and DiffHiChIP for HiChIP/PLAC-seq
+- hic-data-io - Load and convert the cooler files this skill compares
+- hic-visualization - Render differential maps and split-view comparisons
+- chip-seq/peak-annotation - Annotate differential anchors/boundaries with TF peaks
+- genome-intervals/overlap-significance - Permutation test for differential-feature enrichment
+- differential-expression/de-results - The edgeR/FDR mental model reused here (MA-plot, independent filtering, IHW)
