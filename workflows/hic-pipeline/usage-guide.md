@@ -42,16 +42,18 @@ Tell your AI agent what you want to do:
 
 ## What the Workflow Does
 
-1. **Alignment** - Map Hi-C read pairs
-2. **Pairs** - Filter and deduplicate
-3. **Matrix** - Generate contact matrix
-4. **Balance** - ICE normalization
-5. **Compartments** - A/B eigenvector
-6. **TADs** - Insulation score boundaries
-7. **Loops** - Dot calling
+1. **Alignment** - Map Hi-C read pairs with bwa-mem2 -SP5M (mates aligned independently)
+2. **Pairs** - Classify, filter, and deduplicate; judge library quality from long-range cis
+3. **Matrix** - Build a cooler and zoomify to a multi-resolution .mcool
+4. **Balance** - ICE normalization (required before any analysis)
+5. **Compartments** - A/B eigenvector at 100kb, sign-phased by GC
+6. **TADs** - Insulation-score boundaries across a window sweep at 10kb
+7. **Loops** - Dot calling at 10kb IF the map is deep enough; else APA on known anchors
 
 ## Tips
 
-- **Resolution**: 100kb for compartments, 10kb for TADs, 5-10kb for loops
-- **Sequencing depth**: 500M-1B reads for comprehensive analysis
-- **QC**: Check cis/trans ratio and duplicate rate
+- **Depth dictates the feature**: compartments are cheap, TAD boundaries need a moderate map, de-novo loops need billions of contacts (~5B in Rao 2014). Decide the resolution from the depth, not the other way around.
+- **Resolution to feature**: 100kb-1Mb for compartments, 10-40kb for TADs, 5-10kb for loops (1-2kb for Micro-C).
+- **Phasing is not optional**: the compartment eigenvector sign is arbitrary until oriented by a GC or gene-density track.
+- **QC**: the long-range cis (>=20kb) fraction is the one-number library readout; trans is a noise floor whose threshold is genome-size-dependent. High duplicate rate = low complexity (not fixable by sequencing deeper).
+- **Protein-directed assays branch out**: HiChIP, PLAC-seq, and Capture Hi-C need FitHiChIP/MAPS/CHiCAGO (hi-c-analysis/hichip-plac-loops), not generic dot calling.
