@@ -66,9 +66,9 @@ channel,name,full_name,keep,segment
 ## Pipeline Steps
 
 ### 1. Data Preprocessing
-- Extract images from MCD files
-- Hot pixel filtering
-- Optional: spillover correction
+- Extract images from MCD files (ion counts, not intensities)
+- Hot pixel filtering on raw counts
+- NNLS spillover compensation (CATALYST), before segmentation when spatial analysis is the endpoint
 
 ### 2. Cell Segmentation
 - Cellpose: Deep learning, good for varied morphologies
@@ -81,14 +81,18 @@ channel,name,full_name,keep,segment
 - Neighbor relationships
 
 ### 4. Clustering & Phenotyping
-- Arcsinh transformation (cofactor 5)
-- Leiden/FlowSOM clustering
-- Annotate based on marker expression
+- Arcsinh transformation (cofactor 1 for IMC single-cell means, not the suspension-CyTOF 5)
+- Leiden/FlowSOM clustering, or a marker-dictionary classifier (Astir)
+- Annotate based on marker expression; treat impossible double-positives as segmentation artifacts
 
 ### 5. Spatial Analysis
-- Neighborhood enrichment
+- Neighborhood enrichment, per image, against an explicitly chosen null
 - Co-occurrence statistics
-- Ligand-receptor interactions
+- Cellular neighborhoods (sweep the window size)
+
+### 6. Differential Analysis
+- Aggregate to per-patient summaries; the patient is the experimental unit, not the cell
+- Compare composition (scCODA / mixed models) and spatial features across conditions with FDR
 
 ## Segmentation Parameters
 
@@ -127,8 +131,8 @@ channel,name,full_name,keep,segment
 - Check if cells are too sparse
 
 ### Batch effects
-- Use batch-aware methods (Harmony, scVI)
-- Include multiple ROIs per condition
+- Use batch-aware methods (Harmony, scVI) for clustering
+- Include multiple patients per condition (ROIs from one patient are not independent replicates)
 
 ## Output Files
 
@@ -147,8 +151,8 @@ channel,name,full_name,keep,segment
 - **Segmentation**: Start with default Cellpose diameter (20), adjust based on cell size
 - **Hot pixels**: Filter before segmentation to avoid artifacts
 - **Panel file**: Map channels to markers and flag which to use for segmentation
-- **Multiple ROIs**: Include multiple regions per condition for statistical power
-- **Batch effects**: Use Harmony or scVI if combining data from different runs
+- **Statistical unit**: The patient is the replicate, not the cell or the ROI; aggregate to patients before testing across conditions (cell-level tests manufacture significance)
+- **Batch effects**: Randomize acquisition order against condition and include batch as a covariate; use Harmony or scVI for clustering only, not for the across-patient test
 
 ## References
 

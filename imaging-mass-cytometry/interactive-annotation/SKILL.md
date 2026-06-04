@@ -1,13 +1,13 @@
 ---
 name: bio-imaging-mass-cytometry-interactive-annotation
-description: Interactive cell type annotation for IMC data. Covers napari-based annotation, marker-guided labeling, training data generation, and annotation validation. Use when manually annotating cell types for training classifiers or validating automated phenotyping results.
+description: Interactive cell annotation and image QC for IMC/MIBI using napari, napari-imc, Mantis Viewer, and cytomapper, covering the pixels-to-cell-table bridge, overlaying masks to catch segmentation/spillover artifacts, inter-annotator variability as the accuracy ceiling, contrast-as-threshold, and building class-balanced ground-truth label sets. Use when manually labeling cells, generating training data for a classifier, QC-ing segmentation on the image, confirming clusters are spatially real, or choosing an annotation viewer.
 tool_type: python
 primary_tool: napari
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+
+Reference examples tested with: napari 0.4.18+, napari-imc 0.7+, numpy 1.26+, scikit-learn 1.4+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -15,290 +15,144 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Notes specific to this skill: core napari cannot open `.mcd` -- the `napari-imc` plugin reads raw Fluidigm/Standard BioTools files in machine coordinates. napari `add_labels` edits integer masks (segmentation QC); `add_points` with a `features` table holds per-cell categorical labels. Mantis Viewer is a standalone Electron app from CANDELbio/Parker Institute (NOT the Bodenmiller group). napari has no journal paper -- cite the Zenodo DOI.
+
 # Interactive Annotation
 
-**"Manually annotate cell types in my IMC data"** -> Interactively label cells using napari visualization with marker overlays for training classifiers or validating automated phenotyping results.
-- Python: `napari.Viewer()` with label layer for interactive annotation
+**"Manually annotate cell types in my IMC data"** -> Look at the image with masks overlaid to label cells, generate ground truth, and catch the artifacts a cell table hides.
+- Python: `napari.Viewer` with `napari-imc` (raw `.mcd`), `add_labels`/`add_points`
+- R: `cytomapper::cytomapperShiny` (gate then see the gate on tissue)
 
-## Napari-Based Annotation
+## The Single Most Important Modern Insight -- annotation is the pixels-to-cell-table bridge, and the image vetoes the table
+
+The IMC pipeline collapses a multi-GB pixel stack into a cell-by-marker table via a segmentation mask and mean-intensity extraction, and that table has thrown away three things only the image still contains: whether the mask boundary matches a real cell, where a marker's signal physically sits (its spillover provenance), and morphology/context. None of these surface as an outlier in the table -- a merged CD3+CD20+ "cell" looks like a plausible rare double-positive, not an error -- so the table is seductive precisely because it is tidy and statistical. Annotation is the only QC step that lets pixels veto the table. The expert habit is distrust of any cell-table claim (a cluster, a double-positive population, a rare type) until it has been seen on the image with its mask overlaid. Three concrete bridge operations follow: overlay the mask on the DNA + summed-membrane channels and walk the image (the irreplaceable segmentation QC); paint clusters back onto tissue, where a real cluster forms coherent structures (a tumor nest, a T-cell zone) and an artifact cluster scatters as salt-and-pepper haze along the boundary between two real clusters (spatial incoherence is the tell); and gate in image space, not only expression space, because a biaxial gate drawn on the table is a thresholding decision made blind to the pixels. Two hard limits frame all of it: manual labels are not ground truth (expert-vs-expert concordance is only ~86%, and a substantial share of disagreements reflect genuinely ambiguous cells, so chasing >90% classifier accuracy is chasing noise above human agreement), and the display contrast limit IS a positivity threshold, so auto-scaling per image silently moves what counts as "positive" field to field.
+
+## Viewer Landscape
+
+| Tool | Stack | What it is for |
+|------|-------|----------------|
+| napari + napari-imc | Python | open raw `.mcd`, overlay channels + masks + annotation layers, scriptable |
+| napari-steinpose | napari plugin | human-in-the-loop Cellpose segmentation inside napari |
+| Mantis Viewer | Electron (CANDELbio/Parker) | dedicated ground-truth label + region/population curation on huge images |
+| cytomapper / cytomapperShiny | R/Bioconductor | gate on up to ~24 markers and see the gated cells painted on tissue |
+| cytoviewer | R/Bioconductor | interactive image + mask overlay colored by cell metadata |
+| TissUUmaps 3 | browser/WebGL | whole-slide QC of marker/point overlays at 10^7+ points |
+| QuPath | Java | whole-slide pathology; map clusters/cells back to tissue for validation |
+
+## Decision Tree by Scenario
+
+| Task | Tool | Why |
+|------|------|-----|
+| Open and inspect a raw `.mcd` | napari + napari-imc | only it reads IMC in machine coordinates |
+| Generate ground-truth labels for a classifier | Mantis Viewer or napari points | built for population curation across large images |
+| Gate a population and confirm it on tissue | cytomapperShiny | the gate-then-see-on-tissue loop |
+| Whole-slide point-overlay QC | TissUUmaps | scales to 10^7 points |
+| Segmentation mask QC/edit | napari `add_labels` / napari-steinpose | paint/fill integer masks |
+| Confirm a cluster is real | paint cluster back on tissue (any viewer) | spatial incoherence = artifact |
+
+## Open Raw IMC and Overlay the Mask
+
+**Goal:** Put the raw channels, the segmentation mask, and an annotation layer in one canvas.
+
+**Approach:** Use napari-imc for the `.mcd`, overlay the mask outlines on DNA + a summed membrane channel, and add a labels or points layer for annotation. Fix the contrast limits explicitly so "positive" means the same thing across fields.
 
 ```python
 import napari
-import numpy as np
-from skimage import io
-import pandas as pd
 
-# Load IMC image stack
-image_stack = io.imread('imc_image.tiff')  # (C, H, W)
-segmentation_mask = io.imread('cell_segmentation.tiff')
-
-# Create napari viewer
 viewer = napari.Viewer()
-
-# Add channels as separate layers for visualization
-channel_names = ['CD45', 'CD3', 'CD68', 'panCK', 'DNA']
-for i, name in enumerate(channel_names):
-    viewer.add_image(image_stack[i], name=name, visible=False, colormap='gray', blending='additive')
-
-# Add segmentation
-viewer.add_labels(segmentation_mask, name='Cells')
-
-# Add annotation layer (start empty)
-annotation_layer = viewer.add_labels(
-    np.zeros_like(segmentation_mask),
-    name='Cell_Types'
-)
-
-# Define cell types
-cell_type_mapping = {1: 'T_cell', 2: 'Macrophage', 3: 'Epithelial', 4: 'Stromal', 5: 'Other'}
+viewer.open('slide.mcd', plugin='napari-imc')          # reads acquisitions + panoramas
+viewer.add_labels(cell_masks, name='masks')            # outlines to audit boundaries
+# fix contrast (a display limit IS a positivity threshold) -- record it in the protocol
+viewer.add_image(dna, name='DNA', contrast_limits=[0, 20], colormap='gray', blending='additive')
+napari.run()
 ```
 
-## Marker-Guided Annotation
+## Paint Clusters Back onto Tissue
+
+**Goal:** Decide whether a data-driven cluster is real biology or an artifact.
+
+**Approach:** Color the mask by cluster and look: a real cluster forms coherent spatial structures; an artifact cluster scatters along the boundary between two real clusters.
 
 ```python
-def create_marker_overlay(image_stack, channel_indices, colors):
-    '''Create RGB overlay of selected markers for easier annotation.'''
-    h, w = image_stack.shape[1:]
-    overlay = np.zeros((h, w, 3), dtype=np.float32)
+import numpy as np
 
-    for idx, color in zip(channel_indices, colors):
-        channel = image_stack[idx].astype(np.float32)
-        channel = (channel - channel.min()) / (channel.max() - channel.min() + 1e-8)
-        for c, weight in enumerate(color):
-            overlay[:, :, c] += channel * weight
-
-    overlay = np.clip(overlay, 0, 1)
-    return overlay
-
-# Create T cell overlay (CD3=green, CD45=blue)
-t_cell_overlay = create_marker_overlay(
-    image_stack,
-    channel_indices=[0, 1],  # CD45, CD3
-    colors=[[0, 0, 1], [0, 1, 0]]  # Blue, Green
-)
-
-# Create tumor overlay (panCK=red)
-tumor_overlay = create_marker_overlay(
-    image_stack,
-    channel_indices=[3],  # panCK
-    colors=[[1, 0, 0]]  # Red
-)
-
-# Add overlays to viewer
-viewer.add_image(t_cell_overlay, name='T_cell_markers', visible=True)
-viewer.add_image(tumor_overlay, name='Tumor_markers', visible=False)
+def cluster_label_image(masks, cell_ids, cluster_of_cell):
+    # paint each cell's cluster id back onto its mask; view in napari and demand spatial
+    # coherence (nests/zones/sheets). Salt-and-pepper haze along a boundary = artifact.
+    out = np.zeros_like(masks)
+    lut = dict(zip(cell_ids, cluster_of_cell))
+    for cid, cl in lut.items():
+        out[masks == cid] = cl + 1
+    return out
 ```
 
-## Training Data Generation
+## Build a Class-Balanced Ground-Truth Set
+
+**Goal:** Produce a training set that learns rare types and generalizes across batches.
+
+**Approach:** Tissue is wildly imbalanced (hundreds vs tens-of-thousands of cells per class), so deliberately over-sample rare types when choosing what to label, and spread annotation across multiple patients/compartments -- label breadth beats label depth. Aim for hundreds-to-low-thousands of confident cells per class.
 
 ```python
-def extract_training_data(image_stack, segmentation_mask, annotation_mask, channel_names):
-    '''Extract mean marker intensities per cell with annotations.'''
-    from skimage.measure import regionprops_table
+import numpy as np
 
-    cells = []
-    for cell_id in np.unique(segmentation_mask):
-        if cell_id == 0:
-            continue
-
-        cell_mask = segmentation_mask == cell_id
-        annotation = annotation_mask[cell_mask]
-        annotation = annotation[annotation > 0]
-
-        if len(annotation) == 0:
-            continue
-
-        cell_type = int(np.median(annotation))
-
-        cell_data = {'cell_id': cell_id, 'cell_type': cell_type}
-        for i, name in enumerate(channel_names):
-            cell_data[name] = np.mean(image_stack[i][cell_mask])
-
-        cells.append(cell_data)
-
-    return pd.DataFrame(cells)
-
-# After manual annotation in napari
-annotation_data = annotation_layer.data
-training_df = extract_training_data(image_stack, segmentation_mask, annotation_data, channel_names)
-training_df.to_csv('training_annotations.csv', index=False)
-print(f'Annotated {len(training_df)} cells')
-print(training_df['cell_type'].value_counts())
+def sample_cells_to_annotate(cell_ids, cell_types, per_class=300, rng=None):
+    # over-sample rare classes toward a target count; annotating random fields lets rare
+    # types stay unlearnably sparse
+    rng = rng or np.random.default_rng(0)
+    picks = []
+    for ct in np.unique(cell_types):
+        pool = cell_ids[cell_types == ct]
+        picks.append(rng.choice(pool, size=min(per_class, len(pool)), replace=False))
+    return np.concatenate(picks)
 ```
 
-## Semi-Automated Annotation
+## Per-Trap Failure Modes
 
-**Goal:** Propagate a small set of manual cell type annotations to all unannotated cells using marker expression similarity.
+### Trusting a table double-positive
+**Trigger:** a CD3+CD20+ population from the cell table. **Mechanism:** under-segmentation or lateral spillover makes a chimeric vector that looks like a plausible rare type. **Symptom:** a "novel doublet lineage". **Fix:** overlay mask + both channels on those exact cells; two abutting nuclei means a segmentation artifact.
 
-**Approach:** Train a k-nearest-neighbors classifier on manually annotated cells' marker intensities, predict labels for remaining cells, and report classification confidence to flag uncertain assignments for review.
+### Per-image auto-contrast while annotating
+**Trigger:** letting the viewer auto-scale each field. **Mechanism:** the contrast limit is a positivity threshold; auto-scaling moves it per field. **Symptom:** "positive" drifts image to image; inconsistent labels. **Fix:** fix and record contrast limits; apply the same transform to every annotator and image.
 
-```python
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
+### Chasing >90% classifier accuracy
+**Trigger:** treating manual labels as ground truth. **Mechanism:** expert-vs-expert concordance is ~86%, and many disagreements reflect genuinely ambiguous cells. **Symptom:** overfitting to one annotator's noise. **Fix:** use multi-annotator consensus for the evaluation set; report inter-annotator agreement as the ceiling.
 
-def propagate_annotations(training_df, all_cells_df, marker_columns):
-    '''Use annotated cells to classify unannotated cells.'''
-    X_train = training_df[marker_columns].values
-    y_train = training_df['cell_type'].values
+### Annotating one ROI deeply
+**Trigger:** labeling many cells in a single field. **Mechanism:** batch/staining variation between images is a top failure mode. **Symptom:** the classifier generalizes only to that ROI. **Fix:** spread annotation across patients/images and compartments; breadth over depth.
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
+## Quantitative Thresholds
 
-    knn = KNeighborsClassifier(n_neighbors=5)
-    knn.fit(X_train_scaled, y_train)
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Inter-annotator concordance ~86% | Amitay 2023 *Nat Commun* 14:4302 | the realistic accuracy ceiling; many disagreements are genuinely ambiguous |
+| Hundreds-to-low-thousands confident cells/class | Amitay 2023; Shaban 2024 | enough to train; rare classes and inter-image variation bind, not total count |
+| Over-sample rare classes + Poisson-resample augmentation | Amitay 2023 *Nat Commun* 14:4302 | tissue is imbalanced; signal is ion counts |
+| Labels NOT harvested from clustering | annotation hygiene | clustering-derived labels re-import the double-positive artifact |
 
-    unannotated = all_cells_df[~all_cells_df['cell_id'].isin(training_df['cell_id'])]
-    X_test = scaler.transform(unannotated[marker_columns].values)
+## Common Errors
 
-    predictions = knn.predict(X_test)
-    probabilities = knn.predict_proba(X_test)
-    confidence = np.max(probabilities, axis=1)
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `.mcd` will not open in napari | core napari has no IMC reader | install and use the `napari-imc` plugin |
+| Annotation layer behaves unexpectedly | wrong layer type | `add_labels` for masks, `add_points` (with `features`) for per-cell labels |
+| Cluster looks tight but is biologically odd | spillover/segmentation artifact | paint it on tissue; demand spatial coherence |
+| Rare cell type unlearnable | random-field annotation | deliberately over-sample rare types; augment |
+| Classifier plateaus below expectation | exceeding inter-annotator agreement | accept the ~86% ceiling; consensus-label the evaluation set |
 
-    unannotated = unannotated.copy()
-    unannotated['predicted_type'] = predictions
-    unannotated['confidence'] = confidence
+## References
 
-    return unannotated
-
-marker_cols = ['CD45', 'CD3', 'CD68', 'panCK']
-predictions = propagate_annotations(training_df, all_cells_df, marker_cols)
-
-high_conf = predictions[predictions['confidence'] > 0.8]
-print(f'{len(high_conf)} cells classified with high confidence')
-```
-
-## Annotation Validation
-
-```python
-def validate_annotations(annotation_df, image_stack, segmentation_mask, channel_names, output_dir):
-    '''Generate validation plots for manual review.'''
-    import matplotlib.pyplot as plt
-    from pathlib import Path
-
-    Path(output_dir).mkdir(exist_ok=True)
-
-    cell_types = annotation_df['cell_type'].unique()
-
-    for ct in cell_types:
-        cells = annotation_df[annotation_df['cell_type'] == ct]
-        n_sample = min(20, len(cells))
-        sample_cells = cells.sample(n_sample)
-
-        fig, axes = plt.subplots(n_sample, len(channel_names), figsize=(2*len(channel_names), 2*n_sample))
-
-        for i, (_, cell) in enumerate(sample_cells.iterrows()):
-            cell_mask = segmentation_mask == cell['cell_id']
-            bbox = get_bounding_box(cell_mask, padding=10)
-
-            for j, ch_name in enumerate(channel_names):
-                ax = axes[i, j] if n_sample > 1 else axes[j]
-                crop = image_stack[j][bbox[0]:bbox[1], bbox[2]:bbox[3]]
-                ax.imshow(crop, cmap='gray')
-                ax.axis('off')
-                if i == 0:
-                    ax.set_title(ch_name)
-
-        plt.suptitle(f'Cell Type: {ct} (n={len(cells)})')
-        plt.tight_layout()
-        plt.savefig(f'{output_dir}/validation_type_{ct}.png', dpi=150)
-        plt.close()
-
-def get_bounding_box(mask, padding=10):
-    rows = np.any(mask, axis=1)
-    cols = np.any(mask, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]]
-    cmin, cmax = np.where(cols)[0][[0, -1]]
-    rmin = max(0, rmin - padding)
-    cmin = max(0, cmin - padding)
-    rmax = min(mask.shape[0], rmax + padding)
-    cmax = min(mask.shape[1], cmax + padding)
-    return rmin, rmax, cmin, cmax
-
-validate_annotations(training_df, image_stack, segmentation_mask, channel_names, 'validation/')
-```
-
-## Napari Plugin Interface
-
-```python
-from magicgui import magicgui
-from napari.types import LabelsData
-
-@magicgui(call_button='Apply Annotation')
-def annotate_selected(viewer: napari.Viewer, cell_type: int = 1):
-    '''Annotate selected cells with specified type.'''
-    labels_layer = viewer.layers['Cells']
-    annotation_layer = viewer.layers['Cell_Types']
-
-    selected = labels_layer.selected_label
-    if selected > 0:
-        mask = labels_layer.data == selected
-        annotation_layer.data[mask] = cell_type
-        annotation_layer.refresh()
-        print(f'Annotated cell {selected} as type {cell_type}')
-
-@magicgui(call_button='Export Annotations')
-def export_annotations(viewer: napari.Viewer, filename: str = 'annotations.csv'):
-    '''Export current annotations to CSV.'''
-    annotation_layer = viewer.layers['Cell_Types']
-    segmentation_layer = viewer.layers['Cells']
-
-    annotations = []
-    for cell_id in np.unique(segmentation_layer.data):
-        if cell_id == 0:
-            continue
-        cell_mask = segmentation_layer.data == cell_id
-        cell_type = annotation_layer.data[cell_mask]
-        cell_type = cell_type[cell_type > 0]
-        if len(cell_type) > 0:
-            annotations.append({'cell_id': cell_id, 'cell_type': int(np.median(cell_type))})
-
-    pd.DataFrame(annotations).to_csv(filename, index=False)
-    print(f'Exported {len(annotations)} annotations to {filename}')
-
-# Add widgets to viewer
-viewer.window.add_dock_widget(annotate_selected)
-viewer.window.add_dock_widget(export_annotations)
-```
-
-## Batch Annotation Workflow
-
-```python
-def batch_annotation_session(image_files, seg_files, existing_annotations=None):
-    '''Set up batch annotation session for multiple images.'''
-    viewer = napari.Viewer()
-
-    all_annotations = existing_annotations or {}
-
-    for img_file, seg_file in zip(image_files, seg_files):
-        image_stack = io.imread(img_file)
-        seg_mask = io.imread(seg_file)
-
-        sample_name = Path(img_file).stem
-
-        for layer in list(viewer.layers):
-            viewer.layers.remove(layer)
-
-        for i, name in enumerate(channel_names):
-            viewer.add_image(image_stack[i], name=name, visible=False)
-
-        viewer.add_labels(seg_mask, name='Cells')
-
-        if sample_name in all_annotations:
-            viewer.add_labels(all_annotations[sample_name], name='Cell_Types')
-        else:
-            viewer.add_labels(np.zeros_like(seg_mask), name='Cell_Types')
-
-        viewer.title = f'Annotating: {sample_name}'
-        input('Press Enter when done annotating this image...')
-
-        all_annotations[sample_name] = viewer.layers['Cell_Types'].data.copy()
-
-    return all_annotations
-```
+- napari contributors. 2019. napari: a multi-dimensional image viewer for Python. Zenodo. doi:10.5281/zenodo.3555620. — no journal paper exists; cite the Zenodo DOI.
+- Amitay Y, Bussi Y, Feinstein B, Bagon S, Milo I, Keren L. 2023. CellSighter: a neural network to classify cells in highly multiplexed images. *Nat Commun* 14:4302. — inter-annotator concordance; ground-truth and augmentation.
+- Shaban M, et al. 2024. MAPS: pathologist-level cell type annotation from tissue images through machine learning. *Nat Commun* 15:28. — annotation scale and class imbalance.
+- Geuenich MJ, Hou J, Lee S, et al. 2021. Automated assignment of cell identity from single-cell multiplexed imaging and proteomic data. *Cell Syst* 12(12):1173-1186.e5. — marker-prior labels as expert annotation.
+- Bankhead P, Loughrey MB, Fernandez JA, et al. 2017. QuPath: Open source software for digital pathology image analysis. *Sci Rep* 7:16878. — whole-slide validation.
+- Pielawski N, Andersson A, Avenel C, et al. 2023. TissUUmaps 3: Improvements in interactive visualization, exploration, and quality assessment of large-scale spatial omics data. *Heliyon* 9(5):e15306. — whole-slide point QC.
+- Chevrier S, Crowell HL, Zanotelli VRT, et al. 2018. Compensation of Signal Spillover in Suspension and Imaging Mass Cytometry. *Cell Syst* 6(5):612-620.e5. — channel spillover (distinct from lateral spillover caught visually).
 
 ## Related Skills
 
-- cell-segmentation - Generate cell masks for annotation
-- phenotyping - Automated phenotyping as alternative
-- spatial-analysis - Use annotations for spatial analysis
-- quality-metrics - QC annotated data
+- cell-segmentation - mask overlay is the irreplaceable segmentation QC
+- phenotyping - annotation supplies labels/priors and confirms clusters are real
+- quality-metrics - the image catches artifacts that table statistics cannot
+- data-preprocessing - contrast/transform choices mirror preprocessing thresholds
+- spatial-analysis - spatial coherence of a painted cluster validates it

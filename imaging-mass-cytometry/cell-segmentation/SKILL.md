@@ -1,13 +1,13 @@
 ---
 name: bio-imaging-mass-cytometry-cell-segmentation
-description: Cell segmentation from multiplexed tissue images. Covers deep learning (Cellpose, Mesmer) and classical approaches for nuclear and whole-cell segmentation. Use when extracting single-cell data from IMC or MIBI images after preprocessing.
+description: Segment single cells from multiplexed IMC/MIBI tissue images using Mesmer/DeepCell, Cellpose, or ilastik+CellProfiler, covering whole-cell vs nuclear segmentation, the summed-membrane-channel decision, nuclear-expansion bias, lateral spillover, resolution-floor parameters, and downstream-proxy evaluation. Use when delineating cells after preprocessing, choosing a segmentation model, building a cell mask for quantification, diagnosing impossible double-positive populations, or troubleshooting over/under-segmentation.
 tool_type: python
-primary_tool: cellpose
+primary_tool: deepcell
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: Cellpose 3.0+, anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, steinbock 0.16+
+Reference examples tested with: steinbock 0.16+, DeepCell 0.12+ (Mesmer), Cellpose 3.0+, numpy 1.26+, scikit-image 0.22+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -16,226 +16,149 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Notes specific to this skill: Mesmer expects `(batch, y, x, 2)` with channel 0 = nuclear, channel 1 = membrane, and `image_mpp` set to the TRUE acquisition resolution (~1.0 for IMC) -- it was trained at `model_mpp ~= 0.5` and rescales the input, so a wrong mpp degrades everything. Cellpose `cyto` trains at 30-px and `nuclei` at 17-px diameter; steinbock feeds nuclear-first (reversed vs native Cellpose). Recent steinbock cellpose containers default to the `cpsam` (Cellpose-SAM) model -- pin the version.
+
 # Cell Segmentation for IMC
 
-**"Segment cells from my IMC images"** -> Identify individual cell boundaries in multiplexed imaging data using deep learning (Cellpose) or watershed-based approaches for single-cell extraction.
-- Python: `cellpose.models.Cellpose()` for deep learning segmentation
-- CLI: `steinbock segment` for pipeline-based segmentation
+**"Segment cells from my IMC images"** -> Draw a per-cell boundary mask so that averaging the channels inside each mask yields single-cell expression.
+- Python: `deepcell.applications.Mesmer().predict(...)`, `cellpose.models`
+- CLI: `steinbock segment deepcell`, `steinbock segment cellpose`
 
-## Cellpose Segmentation
+## The Single Most Important Modern Insight -- segmentation is the largest irreversible error source, not a preprocessing step
+
+A single-cell table is literally `for each mask_id: mean(pixels_in_mask, every_channel)`, so the mask defines the support of every measurement and no downstream step -- clustering, batch correction, differential abundance -- can recover a cell the mask merged or split. Two failure modes, and their asymmetry dictates how to tune. Under-segmentation (two cells in one mask) produces LOUD, catchable artifacts: a mask spanning a T cell and a macrophage reports CD3+CD68+, so biologically-impossible co-expression is a segmentation diagnosis until proven otherwise, not a discovery. Over-segmentation (one cell fragmented) is the QUIET, dangerous error: each fragment still looks like a plausible cell, but counts inflate and spatial-neighborhood statistics corrupt without obvious tells. Tuning a watershed or threshold until masks "look clean" usually trades the loud error for the quiet one, which is worse for spatial work. A second, independent problem rides on top: lateral (spatial) spillover -- real signal from a neighbor's membrane bleeding across the shared boundary at ~1 um resolution -- produces the same impossible-co-expression signature even with flawless masks and perfect channel compensation, so the two are confounded and must be addressed separately (REDSEA after segmentation; channel compensation before aggregation).
+
+## Methods Landscape
+
+| Tool / model | Class | Input it consumes | Strength | Fails when |
+|--------------|-------|-------------------|----------|------------|
+| Mesmer / DeepCell (Greenwald 2022) | deep, trained on TissueNet (incl. IMC/MIBI) | 2-ch: nuclear + summed membrane | purpose-built for multiplexed tissue; the IMC default | summed membrane channel is weak/patchy; wrong `image_mpp` |
+| Cellpose / `cpsam` (Stringer 2021; Pachitariu 2025) | deep, flow-field / SAM backbone | 1-2 ch (cyto +- nuclear) | generalist; `cpsam` needs no diameter | default models carry a non-IMC size prior; wrong `diameter` |
+| StarDist (Schmidt 2018) | star-convex polygon regression | single nuclear ch | excellent for crowded round nuclei | nuclear-only; breaks on irregular/elongated cells |
+| ilastik + CellProfiler (Berg 2019; McQuin 2018) | random-forest pixels -> watershed | painted nucleus/cyto/background | transparent, tunable, no GPU; original IMC pipeline | semantic not instance; seed-threshold-sensitive; manual tuning |
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Whole-cell phenotyping with a good broadly-expressed membrane marker set | Mesmer whole-cell, `image_mpp` = true resolution | TissueNet includes this modality; first choice for IMC/MIBI |
+| Membrane staining weak/patchy/cell-type-specific | Nuclei (StarDist/Mesmer-nuclear) + small constrained expansion | a poor membrane sum systematically under-segments types lacking a marker |
+| Only nuclear/intracellular markers needed (TFs, Ki-67) | Nuclear segmentation, quantify directly | nuclear markers barely suffer lateral spillover -- sidesteps the boundary problem |
+| Mesmer struggles on the tissue | Cellpose / `cpsam`, optionally retrain (Cellpose 2.0) | a panel-specific learned prior beats a wrong generalist prior |
+| Legacy / no-GPU / need full transparency | ilastik -> CellProfiler watershed | the original Bodenmiller pipeline; fully tunable |
+| Impossible co-expression appears after any path | re-tune and/or REDSEA before clustering | the rate is the headline under-segmentation/spillover metric |
+
+## Whole-Cell Segmentation with Mesmer
+
+**Goal:** Produce whole-cell instance masks for surface-marker phenotyping.
+
+**Approach:** Stack nuclear and summed-membrane channels as `(batch, y, x, 2)` and pass the true acquisition resolution as `image_mpp`. Mesmer internally rescales to its training resolution, so the mpp is load-bearing, not cosmetic.
 
 ```python
-from cellpose import models, io
 import numpy as np
-import tifffile
-
-# Load image
-img = tifffile.imread('processed.tiff')
-
-# Extract nuclear channel (e.g., DNA1)
-nuclear_channel = img[0]  # Adjust index based on panel
-
-# Initialize Cellpose model
-model = models.Cellpose(model_type='nuclei', gpu=True)
-
-# Run segmentation
-masks, flows, styles, diams = model.eval(
-    nuclear_channel,
-    diameter=30,  # Average nucleus diameter in pixels
-    flow_threshold=0.4,
-    cellprob_threshold=0.0
-)
-
-# masks contains integer labels for each cell
-print(f'Cells segmented: {masks.max()}')
-```
-
-## Whole-Cell Segmentation with Cellpose
-
-```python
-# Use membrane marker for whole-cell
-membrane_channel = img[1]  # e.g., CD45
-
-# Combine nuclear and membrane for cyto model
-model = models.Cellpose(model_type='cyto2', gpu=True)
-
-# Create 2-channel input [membrane, nuclear]
-img_input = np.stack([membrane_channel, nuclear_channel])
-
-masks, flows, styles, diams = model.eval(
-    img_input,
-    channels=[1, 2],  # [membrane, nuclear]
-    diameter=50,
-    flow_threshold=0.4
-)
-```
-
-## Mesmer (DeepCell)
-
-```python
 from deepcell.applications import Mesmer
 
-# Initialize Mesmer
+nuclear = img[dna_idx]                       # DNA/Ir channel
+membrane = build_membrane(img, membrane_idx) # broadly-expressed membrane sum (see below)
+stack = np.stack([nuclear, membrane], axis=-1)[np.newaxis, ...]  # (1, y, x, 2)
+
 app = Mesmer()
-
-# Prepare input: (batch, H, W, 2) - [nuclear, membrane]
-img_input = np.stack([nuclear_channel, membrane_channel], axis=-1)
-img_input = np.expand_dims(img_input, axis=0)
-
-# Segment
-predictions = app.predict(
-    img_input,
-    image_mpp=1.0,  # Microns per pixel
-    compartment='whole-cell'  # or 'nuclear'
-)
-
-masks = predictions[0, :, :, 0]
+masks = app.predict(stack, image_mpp=1.0, compartment='whole-cell')[0, ..., 0]  # ~1.0 for IMC
 ```
 
-## steinbock Segmentation
+## Build the Summed Membrane Channel
+
+**Goal:** Construct channel 2 so whole-cell masks are not biased against cell types lacking a marker.
+
+**Approach:** Sum BROADLY-expressed membrane markers chosen to cover every cell type present (not only the types of interest), because a cell-type-specific sum is bright on some types and dark on others, systematically under-segmenting the dark ones.
+
+```python
+def build_membrane(img, membrane_idx):
+    # sum pan-membrane markers covering ALL populations (e.g. pan-cytokeratin for
+    # epithelium, CD45 for immune, E-cadherin, Na/K-ATPase) -- inspect the result
+    # before trusting whole-cell masks; a patchy sum collapses into nuclear-like masks
+    return img[membrane_idx].sum(axis=0)
+```
+
+## Orchestrate via steinbock
 
 ```bash
-# Using steinbock with Cellpose
-steinbock segment cellpose \
-    --img processed \
-    --model cyto2 \
-    --channelwise \
-    --nuclear-channel 0 \
-    --membrane-channel 1 \
-    -o masks
+# Mesmer/DeepCell (nuclear-first); membrane channels are aggregated per the panel column
+steinbock segment deepcell --minmax -o masks
 
-# Using steinbock with DeepCell
-steinbock segment deepcell \
-    --img processed \
-    --nuclear-channel 0 \
-    --membrane-channel 1 \
-    -o masks
+# Cellpose container (current default model is cpsam; channel order is reversed vs native)
+steinbock segment cellpose --minmax -o masks
+
+# aggregate per-cell mean intensities (mean is the default and the right phenotyping choice)
+steinbock measure intensities -o intensities
 ```
 
-## Extract Single-Cell Data
+## Nuclear Segmentation with Constrained Expansion (fallback)
 
-**Goal:** Convert a segmented cell mask and multi-channel image stack into a per-cell expression matrix suitable for downstream phenotyping and spatial analysis.
+**Goal:** Approximate whole cells when membrane staining is absent, without the bias of free dilation.
 
-**Approach:** Iterate over regionprops of the label mask, compute mean intensity per channel within each cell's pixels, and collect morphological features (area, centroid, eccentricity) into a structured DataFrame.
+**Approach:** Segment nuclei, then expand with a small radius under a competitive/watershed constraint so pixels are owned by exactly one cell. Fixed isotropic dilation is a cell-type-correlated bias (under-captures macrophages, over-captures small cells) and free dilation double-counts boundary pixels into two masks.
 
 ```python
-from skimage import measure
-import pandas as pd
+from skimage.segmentation import expand_labels, watershed
 
-def extract_single_cell_data(img, masks, channel_names):
-    '''Extract mean intensity per cell per channel'''
-
-    # Region properties
-    props = measure.regionprops(masks)
-
-    # Cell info
-    cell_data = []
-    intensities = []
-
-    for prop in props:
-        # Basic properties
-        cell_info = {
-            'cell_id': prop.label,
-            'area': prop.area,
-            'centroid_x': prop.centroid[1],
-            'centroid_y': prop.centroid[0],
-            'eccentricity': prop.eccentricity
-        }
-        cell_data.append(cell_info)
-
-        # Mean intensity per channel
-        cell_mask = masks == prop.label
-        cell_intensities = [img[c][cell_mask].mean() for c in range(len(channel_names))]
-        intensities.append(cell_intensities)
-
-    cell_df = pd.DataFrame(cell_data)
-    intensity_df = pd.DataFrame(intensities, columns=channel_names)
-
-    return cell_df, intensity_df
-
-cell_info, intensities = extract_single_cell_data(img, masks, channel_names)
-print(f'Extracted data for {len(cell_info)} cells')
+# expand_labels grows each label into background but stops at the midline between
+# labels (no overlap), so each pixel is assigned once -- a partition, unlike free dilation
+expanded = expand_labels(nuclear_masks, distance=3)   # ~3 px at 1 um; report the radius
+assert expanded.max() == nuclear_masks.max()          # no cells created/destroyed
 ```
 
-## Quality Control
+## Per-Tool Failure Modes
 
-```python
-import matplotlib.pyplot as plt
+### Mesmer -- wrong image_mpp
+**Trigger:** leaving the default mpp on 1 um IMC. **Mechanism:** Mesmer rescales the image to its ~0.5 um training resolution; a wrong mpp rescales cells to the wrong learned size. **Symptom:** systematic over/under-segmentation across the whole image. **Fix:** pass `image_mpp` = true acquisition resolution (~1.0 IMC, ~0.5 or finer MIBI).
 
-def qc_segmentation(img, masks, nuclear_channel_idx=0):
-    '''Visualize segmentation quality'''
+### Cellpose -- auto-diameter on tiny cells
+**Trigger:** auto-diameter on ~5-px IMC nuclei. **Mechanism:** `cyto` rescales to a 30-px target; at single-digit diameters the rescale factor is large and unstable. **Symptom:** merged or fragmented masks. **Fix:** set `diameter` from known cell size in pixels, or use `cpsam` (no diameter dependence).
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+### Generalist model -- wrong size prior
+**Trigger:** default Cellpose `cyto`/`cyto3` on IMC, trusted blindly. **Mechanism:** at ~5 px of evidence the learned PRIOR, not the image, draws the boundary, and a non-IMC prior is wrong. **Symptom:** plausible-looking but systematically biased masks. **Fix:** prefer Mesmer (TissueNet includes IMC/MIBI) or fine-tune Cellpose on the panel; evaluate on downstream proxies.
 
-    # Nuclear channel
-    axes[0].imshow(img[nuclear_channel_idx], cmap='gray')
-    axes[0].set_title('Nuclear Channel')
+### Channel compensation in the wrong order
+**Trigger:** REDSEA before segmentation, or channel compensation after aggregation. **Mechanism:** channel spillover is pixel-level (must be corrected before the per-cell average); lateral spillover is defined on segmented neighbors (must be corrected after). **Symptom:** residual impossible co-expression. **Fix:** pixel-compensate -> segment -> aggregate -> REDSEA.
 
-    # Segmentation masks
-    axes[1].imshow(masks, cmap='tab20')
-    axes[1].set_title(f'Segmentation ({masks.max()} cells)')
+## Quantitative Thresholds
 
-    # Overlay
-    axes[2].imshow(img[nuclear_channel_idx], cmap='gray')
-    axes[2].contour(masks, colors='red', linewidths=0.5)
-    axes[2].set_title('Overlay')
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| `image_mpp` ~= 1.0 (IMC) | Greenwald 2022; Mesmer `model_mpp` ~0.5 | match acquisition resolution to the rescaler |
+| Cellpose `cyto` 30 px / `nuclei` 17 px | Stringer 2021 | the trained-diameter targets the model rescales to |
+| Nuclear expansion ~3 px @ 1 um | ImcSegmentationPipeline convention | approximates a thin cytoplasm without crossing into neighbors |
+| Lymphocyte ~5-7 px @ 1 um/px | Giesen 2014 | the resolution floor that makes size priors load-bearing |
+| Impossible-co-expression rate | Bai 2021 | per-slide under-segmentation/lateral-spillover monitor; not an F1 substitute |
 
-    for ax in axes:
-        ax.axis('off')
+## Common Errors
 
-    plt.tight_layout()
-    plt.savefig('segmentation_qc.png', dpi=150)
-    plt.close()
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| CD3+CD68+ "hybrid" cluster | under-segmentation or lateral spillover | treat as QC failure; re-tune + REDSEA before clustering |
+| Whole-cell masks collapse to nuclei | weak/patchy summed membrane channel | broaden the membrane sum or fall back to nuclei + expansion |
+| Same pixel counted in two cells | free dilation expansion | use `expand_labels`/watershed (exclusive ownership); assert label count unchanged |
+| Macrophages under-captured | fixed isotropic nuclear dilation | constrained expansion; accept and report the bias; don't cross-compare with whole-cell data |
+| Native Cellpose channel args do nothing in steinbock | steinbock reverses channel order | configure channels via the steinbock panel column, not native `--chan` semantics |
+| High IoU but wrong biology | optimizing a pixel-overlap metric | accept on downstream proxies (impossible-co-expression rate, count/density sanity, positive-fraction stability); audit dense regions |
 
-    # Statistics
-    props = measure.regionprops(masks)
-    areas = [p.area for p in props]
+## References
 
-    print(f'Cells: {len(props)}')
-    print(f'Area: mean={np.mean(areas):.1f}, median={np.median(areas):.1f}')
-
-qc_segmentation(img, masks)
-```
-
-## Expand Nuclei to Cells
-
-```python
-from skimage.segmentation import expand_labels
-
-# If only nuclear segmentation available, expand to approximate cells
-nuclear_masks = masks  # From nuclear segmentation
-expanded_masks = expand_labels(nuclear_masks, distance=10)
-
-print(f'Expanded masks from nuclei')
-```
-
-## Save Results
-
-```python
-import tifffile
-
-# Save masks as labeled image
-tifffile.imwrite('cell_masks.tiff', masks.astype(np.uint16))
-
-# Save single-cell data
-cell_info.to_csv('cell_info.csv', index=False)
-intensities.to_csv('cell_intensities.csv', index=False)
-
-# Create combined AnnData
-import anndata as ad
-
-adata = ad.AnnData(X=intensities.values)
-adata.var_names = channel_names
-adata.obs = cell_info
-
-# Add spatial coordinates
-adata.obsm['spatial'] = cell_info[['centroid_x', 'centroid_y']].values
-
-adata.write('imc_segmented.h5ad')
-```
+- Giesen C, Wang HAO, Schapiro D, et al. 2014. Highly multiplexed imaging of tumor tissues with subcellular resolution by mass cytometry. *Nat Methods* 11(4):417-422. — IMC ~1 um resolution floor.
+- Berg S, Kutra D, Kroeger T, et al. 2019. ilastik: interactive machine learning for (bio)image analysis. *Nat Methods* 16(12):1226-1232. — pixel classification stage.
+- McQuin C, Goodman A, Chernyshev V, et al. 2018. CellProfiler 3.0: Next-generation image processing for biology. *PLoS Biol* 16(7):e2005970. — watershed instance segmentation.
+- Schmidt U, Weigert M, Broaddus C, Myers G. 2018. Cell Detection with Star-Convex Polygons. *MICCAI 2018*, LNCS 11071:265-273. — StarDist nuclear baseline.
+- Stringer C, Wang T, Michaelos M, Pachitariu M. 2021. Cellpose: a generalist algorithm for cellular segmentation. *Nat Methods* 18(1):100-106. — Cellpose diameters.
+- Pachitariu M, Rariden M, Stringer C. 2025. Cellpose-SAM: superhuman generalization for cellular segmentation. *bioRxiv* doi:10.1101/2025.04.28.651001. — the cpsam SAM-backbone model (preprint).
+- Greenwald NF, Miller G, Moen E, et al. 2022. Whole-cell segmentation of tissue images with human-level performance using large-scale data annotation and deep learning. *Nat Biotechnol* 40(4):555-565. — Mesmer/DeepCell, TissueNet, image_mpp.
+- Bai Y, Zhu B, Rovira-Clave X, et al. 2021. Adjacent Cell Marker Lateral Spillover Compensation and Reinforcement for Multiplexed Images. *Front Immunol* 12:652631. — REDSEA boundary compensation; lateral spillover signature.
+- Windhager J, Zanotelli VRT, Schulz D, et al. 2023. An end-to-end workflow for multiplexed image processing and analysis. *Nat Protoc* 18(11):3565-3613. — steinbock segmentation/measurement.
 
 ## Related Skills
 
-- data-preprocessing - Prepare images before segmentation
-- phenotyping - Classify segmented cells
-- spatial-analysis - Analyze cell spatial relationships
+- data-preprocessing - channel spillover compensation precedes segmentation
+- phenotyping - consumes the single-cell mask and intensities; double-positives diagnose segmentation
+- spatial-analysis - over-segmentation corrupts neighborhood statistics
+- quality-metrics - segmentation QC metrics and the impossible-co-expression monitor
+- interactive-annotation - overlay masks on channels to audit boundaries

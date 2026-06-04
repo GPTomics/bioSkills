@@ -30,7 +30,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | microbiome-pipeline | 16S amplicon to differential taxa with DADA2 and ALDEx2 |
 | crispr-screen-pipeline | FASTQ to hit genes via MAGeCK counting and analysis |
 | metabolomics-pipeline | Raw MS to differential metabolites via XCMS and pathway mapping |
-| imc-pipeline | Imaging mass cytometry to spatial cell analysis |
+| imc-pipeline | Imaging mass cytometry from MCD to spatial neighborhoods and patient-level differential analysis |
 | cytometry-pipeline | FCS files to differential populations via CATALYST/diffcyt |
 | multi-omics-pipeline | Multi-omics integration via MOFA2/mixOmics |
 | tcr-pipeline | TCR/BCR repertoire from FASTQ to clonotype diversity |

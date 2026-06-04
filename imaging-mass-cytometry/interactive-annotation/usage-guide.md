@@ -1,56 +1,64 @@
 # Interactive Annotation - Usage Guide
 
 ## Overview
-Interactive annotation enables expert-guided cell type labeling in IMC images for training classifiers, validating automated results, and identifying rare populations.
+
+Labels cells and QCs segmentation by looking at the image with masks overlaid. The load-bearing point: annotation is the bridge between the raw pixel image and the single-cell table, and it is the only QC step that can catch the segmentation, spillover, and morphology artifacts that summary statistics on the cell table structurally cannot show. Manual labels are not ground truth (expert-vs-expert concordance is only ~86%), and the display contrast limit is a positivity threshold in disguise.
 
 ## Prerequisites
+
 ```bash
-pip install napari napari-imc scikit-learn
-# For GUI support
+pip install napari napari-imc scikit-learn numpy
+# GUI backend
 pip install pyqt5
+
+# R viewers (optional): BiocManager::install(c('cytomapper', 'cytoviewer'))
+# Mantis Viewer is a separate Electron app (CANDELbio / Parker Institute)
 ```
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Set up napari for interactive cell annotation"
-- "Create training data for a cell type classifier"
-- "Validate my automated phenotyping results"
+- "Open my .mcd in napari with the segmentation mask overlaid"
+- "Paint my clusters back onto the tissue and tell me which are artifacts"
+- "Build a class-balanced training set across my patients"
+- "Set up per-cell type annotation with fixed contrast limits"
+- "Check whether my CD3+CD20+ cells are merged segments on the image"
 
 ## Example Prompts
 
-### Annotation Setup
-> "Load my IMC image and segmentation mask in napari for annotation"
+### Setup
+> "Load this .mcd and the cell mask in napari, overlay outlines on DNA and a summed membrane channel, and fix the contrast so positivity is consistent."
 
-> "Create marker overlays for cell type annotation in napari"
+### Cluster validation
+> "Color my masks by Leiden cluster and tell me which clusters scatter as salt-and-pepper haze along boundaries -- those are the artifact clusters."
 
-### Manual Labeling
-> "Set up napari to label CD8 T cells, macrophages, and tumor cells"
+### Ground truth
+> "I need to train CellSighter. How many cells per class should I label, how do I handle my rare tumor population, and across how many patients?"
 
-> "Create a labels layer for interactive cell type annotation"
-
-### Classifier Training
-> "Train a cell type classifier from my manual annotations"
-
-> "Propagate my annotations to unlabeled cells using a random forest"
-
-### Validation
-> "Generate gallery plots showing cells from each annotated type"
-
-> "Review low-confidence predictions from my classifier"
+### Artifact check
+> "Overlay the mask and the CD3 and CD20 channels on my suspected double-positive cells and tell me if the two signals come from two abutting nuclei."
 
 ## What the Agent Will Do
-1. Load multichannel IMC image and segmentation mask
-2. Create marker overlays for visual guidance
-3. Set up napari with labels layer for annotation
-4. Enable interactive cell labeling with keyboard shortcuts
-5. Export annotations as labeled mask or CSV
-6. Optionally train classifier and propagate to unlabeled cells
+
+1. Open the raw `.mcd` with napari-imc and overlay mask outlines on nuclear + summed-membrane channels at fixed contrast limits.
+2. Paint data-driven clusters back onto tissue and flag spatially-incoherent clusters as artifacts.
+3. Set up per-cell annotation (points layer with categorical labels) or mask QC (labels layer).
+4. Build a class-balanced ground-truth set, over-sampling rare types across multiple patients.
+5. Route high-uncertainty cells (Astir probability, CellSighter score) back for human review.
 
 ## Tips
-- Define clear cell type criteria before starting annotation
-- Napari shortcuts: 1-9 switch labels, P for paint, F for fill, E for erase
-- Keep DNA channel always visible as nuclear reference
-- Annotate at least 50-100 cells per type for classifier training
-- Include edge cases and ambiguous cells in training data
-- Take breaks during long sessions to maintain consistency
-- Save work frequently and document annotation decisions
+
+- Distrust any cluster, double-positive, or rare type until it has been seen on the image with its mask.
+- Core napari cannot open `.mcd`; install the napari-imc plugin.
+- Fix and record contrast limits -- auto-scaling per image silently moves the positivity threshold.
+- Annotate on tissue with neighbors visible, not from a biaxial/UMAP scatter that strips context.
+- Do not chase classifier accuracy above the ~86% inter-annotator ceiling; use consensus labels for evaluation.
+- Channel-spillover compensation does not handle lateral (neighbor) spillover -- catch that visually.
+
+## Related Skills
+
+- cell-segmentation - mask overlay is the irreplaceable segmentation QC
+- phenotyping - annotation supplies labels/priors and confirms clusters are real
+- quality-metrics - the image catches artifacts that table statistics cannot
+- data-preprocessing - contrast/transform choices mirror preprocessing thresholds
+- spatial-analysis - spatial coherence of a painted cluster validates it
