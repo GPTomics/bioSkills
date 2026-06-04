@@ -1,60 +1,63 @@
 # Quality Metrics - Usage Guide
 
 ## Overview
-Quality metrics assess IMC data quality at acquisition, preprocessing, and segmentation levels to catch issues before downstream analysis.
+
+Gates IMC/MIBI data quality across pixel, channel, image, slide, and batch levels before analysis. The load-bearing point: QC is multi-level and every metric is blind at some level -- per-image SNR cannot see the failures that actually kill experiments (a dead antibody, an unbalanced batch, cells clustering by slide rather than phenotype). Counts are Poisson, dim is not failed, and IMC has no EQ-bead drift normalizer, so the discipline is to drop bad channels/ROIs/slides before analysis, not normalize after.
 
 ## Prerequisites
+
 ```bash
-pip install numpy scipy scikit-image pandas matplotlib
+# Python
+pip install numpy scikit-learn scanpy anndata matplotlib
+
+# R / Bioconductor (spillover QC)
+# BiocManager::install(c('CATALYST', 'spillR'))
 ```
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Calculate QC metrics for my IMC acquisition"
-- "Check signal-to-noise ratio for all channels"
-- "Generate a QC report for my experiment"
+- "Compute cell-level SNR and tell me which channels failed versus which are just dim"
+- "Read my spillover matrix and flag unacceptable crosstalk"
+- "Check whether my cells cluster by patient instead of cell type"
+- "Decide which ROIs to drop for striping or tissue loss"
+- "Tell me if a marker is statistically indistinguishable from an empty channel"
 
 ## Example Prompts
 
-### Signal Quality
-> "Calculate signal-to-noise ratio for each channel in my IMC image"
+### Channel QC
+> "Fit a two-component mixture to each marker's per-cell counts and tell me which antibodies fail to separate positive from negative. Compare each to my 80ArAr channel."
 
-> "Check which channels have low SNR in my data"
+### Spillover
+> "My collagen channel is very bright. Which channels are at risk from its oxide and abundance-sensitivity spillover, and is the panel acceptable given my co-expression structure?"
 
-### Channel Correlation
-> "Calculate pairwise channel correlations to detect spillover"
+### Drift and batch
+> "I acquired over three weeks. How do I detect sensitivity drift without EQ beads, and how do I check for sample-of-origin clustering?"
 
-> "Check for unexpected correlations between my markers"
-
-### Tissue Quality
-> "Calculate tissue coverage and fragmentation metrics"
-
-> "Check my image for acquisition artifacts like hot pixels or striping"
-
-### Batch QC
-> "Compare QC metrics across all samples in my experiment"
-
-> "Flag outlier samples based on SNR and coverage"
-
-### Comprehensive QC
-> "Generate a full QC report for my IMC dataset"
-
-> "Run quality control checks before starting analysis"
+### Gating decisions
+> "Walk my ROIs and decide which to drop for striping, folding, or DNA dropout, and which regions to mask."
 
 ## What the Agent Will Do
-1. Load preprocessed IMC images
-2. Calculate signal-to-noise ratio per channel
-3. Compute pairwise channel correlations
-4. Assess tissue coverage and fragmentation
-5. Detect acquisition artifacts (hot pixels, striping, saturation)
-6. Compare metrics across samples for batch effects
-7. Generate QC summary report with pass/fail status
+
+1. Compute cell-level SNR via a two-component Gaussian mixture and compare each channel to a known-empty channel.
+2. Read the spillover matrix by mass signature (M+-1 abundance, M+16 oxide, named-mass impurity), judging acceptability against co-expression.
+3. Detect image-level artifacts (striping, folding, DNA/Ir dropout, saturation) and decide drop vs mask.
+4. Monitor drift via the Ir/background channel across the slide and use an anchor reference sample for batch correction.
+5. Embed cells and check for sample-of-origin clustering before any analysis; gate failures rather than normalizing them away.
 
 ## Tips
-- Run QC before any downstream analysis
-- SNR thresholds: >5 excellent, 3-5 good, 1.5-3 acceptable, <1.5 poor
-- Unexpected high correlations (>0.7) may indicate spillover
-- Tissue coverage <30% may affect spatial analysis reliability
-- Define QC thresholds before looking at data to avoid bias
-- Document all QC decisions and excluded samples
-- Consider reacquisition for samples failing QC
+
+- A 1-2 count difference can be real biology -- do not borrow fluorescence SNR intuition.
+- Dim is not failed; failure is inseparability of positive and negative populations, judged against an empty channel.
+- High pixel correlation is not spillover; read the single-stain matrix and diagnose by mass signature.
+- Compensation cannot rescue a saturated channel or separate real co-expression from leak; fix it in panel design.
+- IMC has no in-line EQ-bead drift normalizer; use pre-tune criteria, watch the Ir channel, and anchor every batch with a reference sample.
+- Always state thresholds in dual counts; many "standard" cutoffs are conventions, and some (in-line drift norm) do not exist.
+
+## Related Skills
+
+- data-preprocessing - hot-pixel removal, denoising, and NNLS spillover compensation
+- cell-segmentation - segmentation QC and the impossible-co-expression monitor
+- phenotyping - failed channels and batch corrupt cell-type calls
+- differential-analysis - batch as a covariate when comparing across conditions
+- flow-cytometry/cytometry-qc - suspension bead normalization and channel QC background

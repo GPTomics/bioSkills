@@ -1,316 +1,165 @@
 ---
 name: bio-imaging-mass-cytometry-quality-metrics
-description: Quality metrics for IMC data including signal-to-noise, channel correlation, tissue integrity, and acquisition QC. Use when assessing data quality before analysis or troubleshooting problematic acquisitions.
-tool_type: python
-primary_tool: numpy
+description: Quality control for IMC/MIBI data across pixel, channel, image, slide, and batch levels, covering Poisson-count SNR (cell-level Gaussian-mixture and empty-channel comparison), spillover-matrix QC (the three physical sources), drift and the missing EQ-bead analog, acquisition artifacts, and sample-of-origin batch effects. Use when deciding whether to keep or drop a channel, ROI, or slide, distinguishing a dim antibody from a failed one, reading a spillover matrix, or diagnosing batch-driven clustering before analysis.
+tool_type: mixed
+primary_tool: CATALYST
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scipy 1.12+
+Reference examples tested with: numpy 1.26+, scikit-learn 1.4+, scanpy 1.10+, CATALYST 1.28+ (R), spillR 1.0+ (R)
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
-# Quality Metrics
+Notes specific to this skill: IMC values are integer ion (dual) counts, so SNR must respect Poisson statistics, not fluorescence intuition; biology lives in 1-2 count differences. There is no EQ-bead in-line drift normalizer for ablated tissue. CATALYST `normCytof` is for SUSPENSION bead normalization, not IMC images -- do not apply it to image data. Compensate raw pixels before transformation.
 
-**"Assess quality of my IMC acquisition"** -> Evaluate IMC data quality through signal-to-noise ratios, channel correlations, tissue integrity scores, and acquisition-specific QC metrics.
-- Python: `numpy`/`scipy` for SNR calculation and channel correlation analysis
+# IMC Quality Metrics
 
-## Signal-to-Noise Ratio
+**"Assess the quality of my IMC acquisition"** -> Gate the data at the level each failure lives at -- pixel, channel, image, slide, batch -- before analysis, not by normalizing after.
+- Python: `numpy`/`scikit-learn` for SNR, artifacts, batch diagnosis
+- R: `CATALYST::plotSpillmat`, `spillR` for spillover QC
+
+## The Single Most Important Modern Insight -- QC is multi-level, and every metric is blind at some level
+
+IMC/MIBI QC is not one number. The data live in a Poisson ion-count regime where "noise" has a defined statistical meaning, and the failures that actually destroy an experiment -- a dead antibody, an unbalanced batch, cells that cluster by which slide they came from rather than by phenotype -- are panel/staining/batch problems that are invisible to per-image SNR. So a single metric is always blind at some level, and the discipline is to gate (drop a channel, ROI, or slide) before analysis rather than normalize after, because correction moves a distribution but never creates the positive/negative separation that staining never produced. Three corollaries a postdoc internalizes. (1) Counts are Poisson: a real floor-abundance epitope genuinely yields a few counts, so "2 counts" is signal or noise depending on dwell, area, and the aggregation level -- SNR grows as sqrt(N) when pixels are pooled into a cell. (2) Dim is not failed: a correctly-titrated antibody to a sparse antigen is supposed to be dim; failure is INSEPARABILITY of positive and negative populations, judged against a known-empty channel, not low absolute intensity. (3) IMC has no EQ-bead drift normalizer -- ablated fixed tissue cannot be spiked with calibration beads, so the only honest cross-batch yardstick is an anchor reference sample included in every run (Casanova 2025), and the absence of an in-line standard is itself expert knowledge.
+
+## Multi-Level QC Framework
+
+| Level | What to measure | Characteristic failure | Blind to |
+|-------|-----------------|------------------------|----------|
+| Pixel | hot pixels, shot noise, dynamic range | detector spikes; Poisson noise on dim signal | whether the channel is biologically real |
+| Channel (marker) | cell-level SNR, spillover in/out, vs empty channel | dead antibody, crosstalk, oxide/+-1 leak | spatial artifacts, batch |
+| Image / ROI | mean intensity, cell coverage, ablation completeness | failed ablation, folding, off-target ROI | cross-sample comparability |
+| Slide / acquisition | detector drift over time, tune (Lu duals) | within-run sensitivity decay, mis-tune | between-slide offset |
+| Batch / cohort | sample-of-origin clustering, lot effects | the cohort clusters by batch not biology | nothing -- the top level |
+
+## Decision Tree by Scenario
+
+| Observation | Decision | Basis |
+|-------------|----------|-------|
+| Cell-level positive/negative mixture won't separate; signal ~ empty/80ArAr channel | DROP (failed antibody) | inseparability, not intensity |
+| Low absolute counts but clean separation, pattern matches biology + control tissue | KEEP (dim-but-real); use at aggregated levels | dim != failed |
+| High signal, low SNR (everything "positive") | DROP or re-titrate | non-specific binding |
+| Heavy +16 oxide or impurity from a co-expressed partner | DROP or re-mass the panel | unrescuable by compensation |
+| Striping / incomplete-ablation banding | DROP the ROI | physical failure, not correctable noise |
+| DNA/Ir dropout over a region | MASK the region, keep the rest | non-ablation/tissue loss |
+| Tune fails (Lu duals below panel criterion) | RE-TUNE / re-acquire | instrument not in spec |
+| Cells cluster by slide/patient not phenotype | batch-correct; if it won't mix, the contrast is confounded | sample-of-origin effect |
+
+## Cell-Level SNR (the decision-relevant number)
+
+**Goal:** Judge marker adequacy at the unit of analysis (the cell), in a count-aware way.
+
+**Approach:** Fit a two-component Gaussian mixture to per-cell mean counts (on non-transformed counts) and take mean(positive)/mean(negative); a failed antibody is one whose components do not separate, regardless of brightness. Compare the distribution to a known-empty channel as the operational "did this antibody work" test.
 
 ```python
 import numpy as np
-from scipy import ndimage
-from skimage import io
+from sklearn.mixture import GaussianMixture
 
-def calculate_snr(image, mask=None):
-    '''Calculate signal-to-noise ratio for an image channel.'''
-    if mask is None:
-        mask = image > np.percentile(image, 10)
+def cell_snr(per_cell_counts):
+    # two-component mixture on raw per-cell means: separation, not brightness, defines success
+    gm = GaussianMixture(n_components=2, random_state=0).fit(per_cell_counts.reshape(-1, 1))
+    pos, neg = np.sort(gm.means_.ravel())[::-1]
+    return pos / neg if neg > 0 else np.inf
 
-    signal = np.mean(image[mask])
-    noise = np.std(image[~mask])
-
-    if noise == 0:
-        return np.inf
-
-    snr = signal / noise
-    return snr
-
-def calculate_snr_all_channels(image_stack, channel_names, tissue_mask=None):
-    '''Calculate SNR for all channels in stack.'''
-    results = {}
-    for i, name in enumerate(channel_names):
-        snr = calculate_snr(image_stack[i], tissue_mask)
-        results[name] = snr
-    return results
-
-image_stack = io.imread('imc_image.tiff')
-channel_names = ['CD45', 'CD3', 'CD68', 'panCK', 'DNA']
-snr_values = calculate_snr_all_channels(image_stack, channel_names)
-
-for ch, snr in snr_values.items():
-    status = 'PASS' if snr > 3 else 'WARN' if snr > 1.5 else 'FAIL'
-    print(f'{ch}: SNR = {snr:.2f} [{status}]')
+def matches_empty(channel_counts, empty_channel_counts, q=95, tol=2.0):
+    # compare the POSITIVE tail (q-th percentile), not the median: a real-but-sparse marker
+    # carries its signal in the tail while a failed channel's tail sits at the empty floor.
+    # True -> indistinguishable from 80ArAr / an unconjugated lanthanide -> the honest "failed" test
+    return np.percentile(channel_counts, q) - np.percentile(empty_channel_counts, q) <= tol
 ```
 
-## Channel Correlation
+## Spillover Matrix QC
+
+**Goal:** Decide whether a panel's crosstalk is acceptable before compensating.
+
+**Approach:** Generate the matrix from single-stain controls and read whole rows, not just neighbors -- spillover has three physically distinct sources with different mass signatures and different fixes. Acceptability is co-expression-dependent: the same percentage is fine between unrelated markers and fatal between co-expressed ones.
+
+```r
+library(CATALYST)
+
+sce <- readSCEfromTXT('spillover/')         # single-metal-spotted slides; filenames carry the metal
+sce <- prepData(sce, transform = TRUE, cofactor = 5)
+sce <- assignPrelim(sce); sce <- applyCutoffs(estCutoffs(sce))
+sm  <- computeSpillmat(sce)
+plotSpillmat(sce, sm)                        # inspect M+-1 (abundance), M+16 (oxide), and
+                                             # any bright off-diagonal at a NON-adjacent mass (impurity)
+```
+
+## Batch / Sample-of-Origin QC
+
+**Goal:** Catch the dominant real-world failure -- cells clustering by slide/patient rather than phenotype -- which no per-image metric reports.
+
+**Approach:** Embed cells and color by patient, slide, day, and antibody lot; if cells separate by sample, there is a batch problem. Diagnose before correcting, and correct at the batch layer with an anchor reference sample.
 
 ```python
-def calculate_channel_correlation(image_stack, channel_names):
-    '''Calculate pairwise correlation between channels.'''
-    n_channels = image_stack.shape[0]
-    flat_data = image_stack.reshape(n_channels, -1)
+import scanpy as sc
 
-    corr_matrix = np.corrcoef(flat_data)
-
-    import pandas as pd
-    corr_df = pd.DataFrame(corr_matrix, index=channel_names, columns=channel_names)
-    return corr_df
-
-def flag_unexpected_correlations(corr_df, expected_pairs=None, threshold=0.7):
-    '''Flag unexpected high correlations (possible spillover).'''
-    issues = []
-
-    if expected_pairs is None:
-        expected_pairs = []
-
-    for i, ch1 in enumerate(corr_df.columns):
-        for j, ch2 in enumerate(corr_df.columns):
-            if i >= j:
-                continue
-
-            corr = corr_df.loc[ch1, ch2]
-            pair = (ch1, ch2)
-            is_expected = pair in expected_pairs or (ch2, ch1) in expected_pairs
-
-            if corr > threshold and not is_expected:
-                issues.append({'channel_1': ch1, 'channel_2': ch2, 'correlation': corr, 'expected': is_expected})
-
-    return pd.DataFrame(issues)
-
-corr_matrix = calculate_channel_correlation(image_stack, channel_names)
-print('Channel correlations:')
-print(corr_matrix.round(2))
-
-expected = [('CD3', 'CD45')]
-issues = flag_unexpected_correlations(corr_matrix, expected)
-if len(issues) > 0:
-    print('\nUnexpected high correlations:')
-    print(issues)
+sc.pp.pca(adata); sc.pp.neighbors(adata); sc.tl.umap(adata)
+sc.pl.umap(adata, color=['patient', 'slide', 'acquisition_day', 'antibody_lot'])
+# separation by these = batch, not biology; a dead/unbalanced channel cannot be normalized into life
 ```
 
-## Tissue Integrity
+## Per-Source Failure Modes
 
-```python
-def assess_tissue_integrity(dna_channel, min_coverage=0.3):
-    '''Assess tissue coverage and integrity from DNA channel.'''
-    threshold = np.percentile(dna_channel, 50)
-    tissue_mask = dna_channel > threshold
+### "2 counts is noise"
+**Trigger:** discarding low-count channels by fluorescence intuition. **Mechanism:** at 1 um^2/~1 ms dwell a floor-abundance epitope yields a few counts; biology lives in 1-2 count differences. **Symptom:** real dim markers dropped. **Fix:** judge adequacy at the aggregation level analyzed; SNR scales sqrt(N) with pooled pixels; mean expression > ~7 is effectively noise-immune.
 
-    total_pixels = dna_channel.size
-    tissue_pixels = np.sum(tissue_mask)
-    coverage = tissue_pixels / total_pixels
+### Pixel correlation read as spillover
+**Trigger:** flagging high pixel-channel Pearson correlation as spillover. **Mechanism:** co-expressed real markers correlate too; spillover is a directional, mass-structured leak. **Symptom:** false spillover calls, missed real ones. **Fix:** read the single-stain spillover matrix; diagnose by mass signature (+-1, +16, named impurity mass), not correlation.
 
-    labeled, n_fragments = ndimage.label(tissue_mask)
-    fragment_sizes = ndimage.sum(tissue_mask, labeled, range(1, n_fragments + 1))
+### Compensating a saturated or co-expressed channel
+**Trigger:** trusting compensation on very bright donors or co-expressed pairs. **Mechanism:** the matrix is linear only in the linear range and cannot separate real co-expression from leak. **Symptom:** over/under-shoot; subtracted real biology. **Fix:** keep total per-pair spillover low by panel design; use NNLS (CATALYST) or flag-and-replace (spillR); the real fix is upstream mass assignment.
 
-    largest_fragment = np.max(fragment_sizes) if len(fragment_sizes) > 0 else 0
-    fragmentation = 1 - (largest_fragment / tissue_pixels) if tissue_pixels > 0 else 1
+### Per-image QC declared sufficient
+**Trigger:** passing per-image SNR and skipping cross-sample QC. **Mechanism:** FFPE/ischemia/lot variation shifts baselines by batch. **Symptom:** unsupervised analysis groups by sample-of-origin. **Fix:** UMAP/ridgeline by patient/slide/day/lot; include anchor samples; correct at the batch layer.
 
-    return {
-        'coverage': coverage,
-        'n_fragments': n_fragments,
-        'fragmentation': fragmentation,
-        'intact': coverage > min_coverage and fragmentation < 0.5
-    }
+## Quantitative Thresholds
 
-dna_channel = image_stack[channel_names.index('DNA')]
-integrity = assess_tissue_integrity(dna_channel)
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Mean expression > ~7 ~ noise-immune | Lu 2023 *Nat Commun* 14:1601 | below it shot noise perturbs per-cell values |
+| Abundance sensitivity (M+-1) < 0.3% (Tb) | Han 2018 *Nat Protoc* 13:2121 | TOF peak-tail spec; tuning target, not guarantee |
+| Oxide (M+16) < 3% (La) | Han 2018 *Nat Protoc* 13:2121 | plasma-oxide spec; worst for abundant structural markers |
+| Isotopic impurity up to ~4% at a named mass | Han 2018 *Nat Protoc* 13:2121 | not predictable from mass proximity -- read the lot |
+| Tune ~ Lu >= 1500 dual counts | panel-specific convention | a pass criterion, stated in dual counts (unit matters) |
+| Pixel foreground (Otsu) signal < 2/image -> flag | steinbock/IMCDataAnalysis | image-level marker filter |
 
-print(f"Tissue coverage: {integrity['coverage']:.1%}")
-print(f"Fragments: {integrity['n_fragments']}")
-print(f"Fragmentation: {integrity['fragmentation']:.2f}")
-print(f"Status: {'PASS' if integrity['intact'] else 'FAIL'}")
-```
+Where the field has NO accepted threshold (itself expert knowledge): a universal SNR cutoff for a "good marker"; a single spillover percentage defining an "acceptable panel" (acceptability is co-expression-dependent); an in-line pixel-level drift-normalization standard equivalent to EQ beads; a fixed hot-pixel count threshold (DIMR/KNN are adaptive precisely because a fixed cutoff fails across brightnesses).
 
-## Acquisition QC
+## Common Errors
 
-```python
-def check_acquisition_artifacts(image_stack, channel_names):
-    '''Check for common acquisition artifacts.'''
-    results = []
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Dropped a real sparse marker | judged by absolute intensity | drop on inseparability + match-to-empty + wrong spatial pattern |
+| Spillover "fixed" but double-positives persist | compensated co-expressed/saturated channel | re-mass the panel; NNLS/spillR; compensate raw pixels |
+| Cohort clusters by patient | unaddressed batch | anchor reference sample; diagnose before correcting |
+| Threshold "1500" or "2" ambiguous | unit omitted | always state dual counts; thresholds are panel/instrument-specific |
+| Striped ROI "denoised" | physical ablation failure treated as noise | drop the ROI |
+| Indium nuclear signal taken as a marker (MIBI) | In localizes to nuclei | treat as artifact unless validated; use 197Au + background masking |
 
-    for i, name in enumerate(channel_names):
-        channel = image_stack[i]
+## References
 
-        saturated = np.sum(channel >= channel.max() * 0.99) / channel.size
-        if saturated > 0.01:
-            results.append({'channel': name, 'issue': 'saturation', 'severity': saturated})
-
-        hot_pixels = np.sum(channel > np.percentile(channel, 99.9) * 2) / channel.size
-        if hot_pixels > 0.001:
-            results.append({'channel': name, 'issue': 'hot_pixels', 'severity': hot_pixels})
-
-        dead_regions = np.sum(channel == 0) / channel.size
-        if dead_regions > 0.05:
-            results.append({'channel': name, 'issue': 'dead_regions', 'severity': dead_regions})
-
-        row_means = np.mean(channel, axis=1)
-        row_cv = np.std(row_means) / np.mean(row_means)
-        if row_cv > 0.3:
-            results.append({'channel': name, 'issue': 'striping', 'severity': row_cv})
-
-    return pd.DataFrame(results)
-
-artifacts = check_acquisition_artifacts(image_stack, channel_names)
-if len(artifacts) > 0:
-    print('Artifacts detected:')
-    print(artifacts)
-else:
-    print('No major artifacts detected')
-```
-
-## Dynamic Range
-
-```python
-def assess_dynamic_range(channel, percentiles=(1, 99)):
-    '''Assess if channel uses full dynamic range.'''
-    low, high = np.percentile(channel, percentiles)
-    channel_range = high - low
-    max_possible = channel.max()
-
-    utilized = channel_range / max_possible if max_possible > 0 else 0
-
-    return {
-        'range_low': low,
-        'range_high': high,
-        'range_utilized': utilized,
-        'adequate': utilized > 0.1
-    }
-
-for i, name in enumerate(channel_names):
-    dr = assess_dynamic_range(image_stack[i])
-    status = 'OK' if dr['adequate'] else 'LOW'
-    print(f"{name}: {dr['range_utilized']:.1%} range used [{status}]")
-```
-
-## Segmentation Quality Metrics
-
-```python
-def segmentation_qc(segmentation_mask, image_stack, channel_names):
-    '''QC metrics for cell segmentation.'''
-    from skimage.measure import regionprops
-
-    props = regionprops(segmentation_mask)
-    n_cells = len(props)
-
-    if n_cells == 0:
-        return {'error': 'No cells found'}
-
-    areas = [p.area for p in props]
-    eccentricities = [p.eccentricity for p in props]
-
-    area_cv = np.std(areas) / np.mean(areas)
-    very_small = np.sum(np.array(areas) < np.percentile(areas, 5)) / n_cells
-    very_large = np.sum(np.array(areas) > np.percentile(areas, 95)) / n_cells
-    elongated = np.sum(np.array(eccentricities) > 0.9) / n_cells
-
-    return {
-        'n_cells': n_cells,
-        'mean_area': np.mean(areas),
-        'area_cv': area_cv,
-        'pct_very_small': very_small,
-        'pct_very_large': very_large,
-        'pct_elongated': elongated,
-        'quality': 'GOOD' if area_cv < 0.5 and elongated < 0.1 else 'REVIEW'
-    }
-
-seg_mask = io.imread('cell_segmentation.tiff')
-seg_qc = segmentation_qc(seg_mask, image_stack, channel_names)
-print(f"Cells: {seg_qc['n_cells']}")
-print(f"Mean area: {seg_qc['mean_area']:.1f} pixels")
-print(f"Quality: {seg_qc['quality']}")
-```
-
-## Batch QC Summary
-
-**Goal:** Generate a consolidated quality report across all acquisitions in a batch to identify samples requiring re-acquisition or exclusion.
-
-**Approach:** For each image, compute SNR, tissue integrity, segmentation metrics, and artifact counts, then aggregate into a summary table with pass/fail calls based on combined threshold criteria.
-
-```python
-def batch_qc_report(image_files, seg_files, channel_names, output_file):
-    '''Generate QC report for batch of images.'''
-    all_results = []
-
-    for img_file, seg_file in zip(image_files, seg_files):
-        image_stack = io.imread(img_file)
-        seg_mask = io.imread(seg_file)
-
-        result = {'sample': Path(img_file).stem}
-
-        snr_values = calculate_snr_all_channels(image_stack, channel_names)
-        result['mean_snr'] = np.mean(list(snr_values.values()))
-        result['min_snr'] = min(snr_values.values())
-
-        dna_idx = channel_names.index('DNA') if 'DNA' in channel_names else 0
-        integrity = assess_tissue_integrity(image_stack[dna_idx])
-        result['tissue_coverage'] = integrity['coverage']
-
-        seg_qc = segmentation_qc(seg_mask, image_stack, channel_names)
-        result['n_cells'] = seg_qc.get('n_cells', 0)
-
-        artifacts = check_acquisition_artifacts(image_stack, channel_names)
-        result['n_artifacts'] = len(artifacts)
-
-        result['pass_qc'] = (result['min_snr'] > 1.5 and result['tissue_coverage'] > 0.3 and result['n_artifacts'] == 0)
-
-        all_results.append(result)
-
-    results_df = pd.DataFrame(all_results)
-    results_df.to_csv(output_file, index=False)
-
-    print(f"QC Summary: {results_df['pass_qc'].sum()}/{len(results_df)} samples passed")
-    return results_df
-```
-
-## Visualization
-
-```python
-import matplotlib.pyplot as plt
-
-def plot_qc_summary(image_stack, channel_names, output_file):
-    '''Generate QC summary visualization.'''
-    n_channels = len(channel_names)
-
-    fig, axes = plt.subplots(2, n_channels, figsize=(3*n_channels, 6))
-
-    for i, name in enumerate(channel_names):
-        channel = image_stack[i]
-
-        axes[0, i].imshow(channel, cmap='viridis')
-        axes[0, i].set_title(name)
-        axes[0, i].axis('off')
-
-        axes[1, i].hist(channel.flatten(), bins=100, log=True)
-        axes[1, i].set_xlabel('Intensity')
-        axes[1, i].set_ylabel('Count')
-
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=150)
-    plt.close()
-
-plot_qc_summary(image_stack, channel_names, 'qc_summary.png')
-```
+- Giesen C, Wang HAO, Schapiro D, et al. 2014. Highly multiplexed imaging of tumor tissues with subcellular resolution by mass cytometry. *Nat Methods* 11(4):417-422. — IMC origin; ~50 copies/um^2 detection floor.
+- Chevrier S, Crowell HL, Zanotelli VRT, et al. 2018. Compensation of Signal Spillover in Suspension and Imaging Mass Cytometry. *Cell Syst* 6(5):612-620.e5. — spillover sources, single-stain beads, less accurate at high ion load, CATALYST.
+- Han G, Spitzer MH, Bendall SC, Fantl WJ, Nolan GP. 2018. Metal-isotope-tagged monoclonal antibodies for high-dimensional mass cytometry. *Nat Protoc* 13(10):2121-2148. — M+-1/M+16/impurity specs and panel design.
+- Finck R, Simonds EF, Jager A, et al. 2013. Normalization of mass cytometry data with bead standards. *Cytometry A* 83A(5):483-494. — EQ four-element bead normalization (suspension).
+- Ijsselsteijn ME, Somarakis A, Lelieveldt BPF, Hollt T, de Miranda NFCC. 2021. Semi-automated background removal limits data loss and normalizes imaging mass cytometry data. *Cytometry A* 99(12):1187-1197. — sample-of-origin clustering, FFPE/ischemia variation.
+- Baranski A, Milo I, Greenbaum S, et al. 2021. MAUI: An image processing pipeline for Multiplexed Mass Based Imaging. *PLoS Comput Biol* 17(4):e1008887. — MIBI artifacts, gold/indium, 1-2 count biology.
+- Lu P, Oetjen KA, Bender DE, et al. 2023. IMC-Denoise: a content aware denoising pipeline to enhance Imaging Mass Cytometry. *Nat Commun* 14:1601. — Poisson noise model, mean>7 noise-immune.
+- Guazzini M, Reisach AG, Weichwald S, Seiler C. 2024. spillR: spillover compensation in mass cytometry data. *Bioinformatics* 40(6):btae337. — flag-and-replace compensation, preserves correlations.
+- Windhager J, Zanotelli VRT, Schulz D, et al. 2023. An end-to-end workflow for multiplexed image processing and analysis. *Nat Protoc* 18(11):3565-3613. — image/cell-level QC and SNR conventions.
+- Casanova C, et al. 2025. Standardization of Suspension and Imaging Mass Cytometry Single-Cell Readouts for Clinical Decision Making. *Cytometry A* 107(6):390-403. — anchor/reference samples for batch-level drift correction.
 
 ## Related Skills
 
-- data-preprocessing - Clean data before QC
-- cell-segmentation - Segmentation affects QC metrics
-- interactive-annotation - Manual review of QC failures
-- phenotyping - Analysis after QC passes
+- data-preprocessing - hot-pixel removal, denoising, and NNLS spillover compensation
+- cell-segmentation - segmentation QC and the impossible-co-expression monitor
+- phenotyping - failed channels and batch corrupt cell-type calls
+- differential-analysis - batch as a covariate when comparing across conditions
+- flow-cytometry/cytometry-qc - suspension bead normalization and channel QC background

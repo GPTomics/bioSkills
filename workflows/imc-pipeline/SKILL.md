@@ -9,6 +9,7 @@ depends_on:
   - imaging-mass-cytometry/cell-segmentation
   - imaging-mass-cytometry/phenotyping
   - imaging-mass-cytometry/spatial-analysis
+  - imaging-mass-cytometry/differential-analysis
   - imaging-mass-cytometry/interactive-annotation
   - imaging-mass-cytometry/quality-metrics
 ---
@@ -50,70 +51,50 @@ Raw MCD/TIFF Files ──> Image Processing ──> Cell Masks
                     Cell Types + Spatial Neighborhoods
 ```
 
+## Decisions Threaded Through This Pipeline
+
+Four reframes govern every stage and are detailed in the depended-on skills: IMC pixels are integer ion COUNTS (arcsinh cofactor 1, not the suspension-CyTOF 5), and spillover is spatial so it must be NNLS-compensated before segmentation; segmentation is the largest irreversible error source, so impossible double-positives are a QC alarm, not biology; a spatial interaction is a hypothesis test whose null silently decides whether the result is real or a density artifact; and the experimental unit is the patient, not the cell, so cross-condition tests aggregate to patients before testing.
+
 ## Complete steinbock Workflow
 
 ### Step 1: Setup and Preprocessing
 
 ```bash
-# Initialize steinbock project
-steinbock preprocess imc \
-    --mcd data/*.mcd \
-    --panel panel.csv \
-    --output raw/
+# generate the panel template; edit the keep column before extracting
+steinbock preprocess imc panel
 
-# Hot pixel filtering
-steinbock preprocess imc hotpixel \
-    --input raw/ \
-    --output img/ \
-    --threshold 50
+# extract per-channel TIFFs (keep-filtered, panel-ordered) with hot-pixel removal
+# (--hpf is a signed 8-neighbor difference; 50 is a count, tune to dynamic range)
+steinbock preprocess imc images --hpf 50
 
-# Create nuclear and membrane channels
-steinbock preprocess mosaic \
-    --input img/ \
-    --channels panel.csv \
-    --output mosaics/
+# channel spillover is compensated with NNLS (CATALYST/cytomapper, R) on the pixel images
+# BEFORE segmentation when spatial analysis is the endpoint -- see data-preprocessing
 ```
 
 ### Step 2: Cell Segmentation
 
 ```bash
-# Using Cellpose
-steinbock segment cellpose \
-    --input img/ \
-    --panel panel.csv \
-    --channel DNA1 DNA2 \
-    --output masks/ \
-    --diameter 20
+# Mesmer/DeepCell whole-cell (nuclear-first); membrane channels aggregated via the panel column.
+# Pass the true acquisition resolution so Mesmer's internal rescaler is correct (~1.0 um IMC).
+steinbock segment deepcell --minmax -o masks
 
-# Alternative: Using Mesmer
-steinbock segment mesmer \
-    --input img/ \
-    --panel panel.csv \
-    --nuclear DNA1 DNA2 \
-    --membrane CD45 \
-    --output masks/
+# Alternative: Cellpose container (current default model cpsam; channel order reversed vs native)
+steinbock segment cellpose --minmax -o masks
 ```
 
 ### Step 3: Single-cell Quantification
 
 ```bash
-# Extract intensities
-steinbock measure intensities \
-    --input img/ \
-    --masks masks/ \
-    --panel panel.csv \
-    --output intensities/
+# Extract per-cell MEAN intensities (mean is the default and the right phenotyping aggregator;
+# sum confounds cell size with expression)
+steinbock measure intensities -o intensities
 
-# Measure cell properties (area, etc.)
-steinbock measure regionprops \
-    --masks masks/ \
-    --output regionprops/
+# Measure cell properties (area, centroid, eccentricity)
+steinbock measure regionprops -o regionprops
 
-# Extract neighbor relationships
-steinbock measure neighbors \
-    --masks masks/ \
-    --output neighbors/ \
-    --distance 15
+# Build the spatial neighbor graph (expansion within a max distance; match the graph to the
+# biological claim -- contact vs proximity -- in spatial-analysis)
+steinbock measure neighbors --type expansion --dmax 15 -o neighbors
 ```
 
 ## Complete Python Workflow
@@ -144,8 +125,10 @@ adata.obs['cell_id'] = intensities.index
 adata.obsm['spatial'] = regionprops[['centroid_y', 'centroid_x']].values
 
 # === 3. PREPROCESSING ===
-# Arcsinh transform (cofactor 5 for IMC)
-adata.X = np.arcsinh(adata.X / 5)
+# Arcsinh transform: cofactor 1 for IMC single-cell means (Hunter 2024), NOT the
+# suspension-CyTOF cofactor 5, which over-compresses IMC's lower-count means
+adata.layers['counts'] = adata.X.copy()
+adata.X = np.arcsinh(adata.X / 1)
 
 # Scale for clustering
 sc.pp.scale(adata, max_value=10)
@@ -207,20 +190,20 @@ plt.savefig('spatial_celltypes.png', dpi=150, bbox_inches='tight')
 sq.pl.nhood_enrichment(adata, cluster_key='cell_type')
 plt.savefig('neighborhood_enrichment.png', dpi=150, bbox_inches='tight')
 
-# === 9. DIFFERENTIAL ANALYSIS ===
-# Compare conditions
-adata.obs['condition'] = adata.obs['image_id'].map({
-    'image1': 'Control', 'image2': 'Control',
-    'image3': 'Treatment', 'image4': 'Treatment'
-})
+# === 9. DIFFERENTIAL ANALYSIS (patient is the unit, NOT the cell) ===
+import statsmodels.formula.api as smf
 
-# Cell type proportions
-proportions = adata.obs.groupby(['image_id', 'condition', 'cell_type']).size().unstack(fill_value=0)
-proportions = proportions.div(proportions.sum(axis=1), axis=0)
+# aggregate to per-image proportions, then test across PATIENTS -- a cell-level or per-image
+# test over correlated cells is pseudoreplication and reports p~0 for trivial effects.
+# obs must carry patient and condition columns; see differential-analysis for scCODA
+# (compositional) and the spatial differential path.
+counts = adata.obs.groupby(['patient', 'condition', 'image_id', 'cell_type']).size().unstack(fill_value=0)
+image_prop = counts.div(counts.sum(axis=1), axis=0).reset_index()
+target = 'Tumor'   # an actual cell_type column from cluster_annotations above (single-word for the formula)
+res = smf.mixedlm(f'{target} ~ condition', image_prop, groups=image_prop['patient']).fit()  # patient random effect
+print(res.summary())
 
-# Save results
 adata.write('imc_analysis.h5ad')
-proportions.to_csv('cell_type_proportions.csv')
 print('Analysis complete!')
 ```
 
@@ -234,8 +217,8 @@ library(CATALYST)
 # Read steinbock output
 spe <- read_steinbock('steinbock_output/')
 
-# Transform
-assay(spe, 'exprs') <- asinh(counts(spe) / 5)
+# Transform (cofactor 1 for IMC single-cell means, not 5)
+assay(spe, 'exprs') <- asinh(counts(spe) / 1)
 
 # Cluster
 spe <- runDR(spe, features = rownames(spe), exprs_values = 'exprs', dr = 'UMAP')
@@ -280,10 +263,10 @@ sc.pp.neighbors(adata, use_rep='X_scvi')
 
 ### Tumor Microenvironment Analysis
 ```python
-# Spatial interactions with tumor
-tumor_cells = adata[adata.obs['cell_type'] == 'Tumor'].obs_names
-sq.gr.ligrec(adata, cluster_key='cell_type', source_groups=['Tumor'],
-             target_groups=['T cells', 'Macrophages'])
+# Spatial cell-cell co-location around tumor (per-image, then aggregate to patient).
+# Note: sq.gr.ligrec keys ligand-receptor pairs on gene symbols from OmniPath, so it is
+# usually empty on a ~40-marker antibody panel -- prefer neighborhood enrichment for IMC.
+sq.gr.nhood_enrichment(adata, cluster_key='cell_type')   # see spatial-analysis for the null caveat
 ```
 
 ## Related Skills
@@ -292,6 +275,7 @@ sq.gr.ligrec(adata, cluster_key='cell_type', source_groups=['Tumor'],
 - imaging-mass-cytometry/cell-segmentation - Cellpose/Mesmer details
 - imaging-mass-cytometry/phenotyping - Cluster annotation
 - imaging-mass-cytometry/spatial-analysis - Spatial statistics
+- imaging-mass-cytometry/differential-analysis - Patient-level cross-condition testing
 - imaging-mass-cytometry/interactive-annotation - Manual cell labeling
 - imaging-mass-cytometry/quality-metrics - QC metrics
 - single-cell/clustering - Clustering methods

@@ -1,42 +1,55 @@
-'''Cell segmentation with Cellpose'''
-# Reference: cellpose 3.0+, anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, steinbock 0.16+ | Verify API if version differs
-from cellpose import models
+'''Whole-cell IMC segmentation with Mesmer, plus the impossible-co-expression QC monitor.
+
+The monitor is the decision-grade output: the fraction of cells co-expressing a
+biologically mutually-exclusive marker pair (e.g. CD3 and CD20) is the headline
+under-segmentation / lateral-spillover metric -- far more informative than F1/IoU,
+which has no tissue ground truth.
+'''
+# Reference: deepcell 0.12+ (Mesmer), numpy 1.26+, scikit-image 0.22+, tifffile 2024+ | Verify API if version differs
 import numpy as np
-import tifffile
 from skimage import measure
+from skimage.segmentation import expand_labels
+import tifffile
 
-# Load preprocessed image
-img = tifffile.imread('processed.tiff')
-print(f'Image shape: {img.shape}')
+img = tifffile.imread('compensated.tiff').astype(np.float32)  # (channels, y, x), spillover-compensated
+DNA_IDX = 0
+MEMBRANE_IDS = [1, 2, 3]   # broadly-expressed membrane markers covering ALL cell types present
 
-# Channel indices (adjust for your panel)
-NUCLEAR_CH = 0  # e.g., DNA1
-MEMBRANE_CH = 1  # e.g., CD45
+def build_membrane(stack, ids):
+    # sum pan-membrane markers so no cell type is dark in channel 2; a cell-type-specific
+    # sum systematically under-segments the types lacking a marker
+    return stack[ids].sum(axis=0)
 
-# Initialize Cellpose
-model = models.Cellpose(model_type='cyto2', gpu=False)
+def segment_mesmer(stack, mpp=1.0):
+    from deepcell.applications import Mesmer
+    mem = build_membrane(stack, MEMBRANE_IDS)
+    two_channel = np.stack([stack[DNA_IDX], mem], axis=-1)[np.newaxis, ...]  # (1, y, x, 2)
+    # image_mpp is the TRUE acquisition resolution; Mesmer rescales to its ~0.5 um training
+    # resolution, so a wrong mpp degrades every mask
+    return Mesmer().predict(two_channel, image_mpp=mpp, compartment='whole-cell')[0, ..., 0]
 
-# Prepare input
-nuclear = img[NUCLEAR_CH]
-membrane = img[MEMBRANE_CH]
-img_input = np.stack([membrane, nuclear])
+def nuclear_fallback(nuclear_masks, distance=3):
+    # exclusive expansion (stops at the midline between labels) -- a partition, not free
+    # dilation; ~3 px at 1 um. Report the radius; accept the macrophage-undercapture bias.
+    expanded = expand_labels(nuclear_masks, distance=distance)
+    assert expanded.max() == nuclear_masks.max(), 'expansion must not create/destroy cells'
+    return expanded
 
-# Segment
-print('Running segmentation...')
-masks, flows, styles, diams = model.eval(
-    img_input,
-    channels=[1, 2],
-    diameter=40,  # Typical IMC cell diameter in pixels (~10um at 1um/px). Adjust per tissue type.
-    flow_threshold=0.4  # Cellpose default; lower (0.1-0.3) for more cells, higher (0.5-0.8) for stringency.
-)
+def impossible_coexpression_rate(stack, masks, marker_a, marker_b, pct=75):
+    # fraction of cells positive for both members of a mutually-exclusive pair; positivity
+    # is per-cell mean above the cohort's pct-th percentile (a sanity gate, not a real call)
+    props = measure.regionprops(masks)
+    a = np.array([stack[marker_a][p.coords[:, 0], p.coords[:, 1]].mean() for p in props])
+    b = np.array([stack[marker_b][p.coords[:, 0], p.coords[:, 1]].mean() for p in props])
+    pos_a = a > np.percentile(a, pct)
+    pos_b = b > np.percentile(b, pct)
+    return float((pos_a & pos_b).mean())
 
+masks = segment_mesmer(img)
 print(f'Segmented {masks.max()} cells')
 
-# Extract basic statistics
-props = measure.regionprops(masks)
-areas = [p.area for p in props]
-print(f'Cell area: mean={np.mean(areas):.1f}, median={np.median(areas):.1f}')
+cd3_idx, cd20_idx = 4, 5
+rate = impossible_coexpression_rate(img, masks, cd3_idx, cd20_idx)
+print(f'CD3+CD20+ rate: {rate:.3f}  (elevated -> suspect under-segmentation / lateral spillover)')
 
-# Save
 tifffile.imwrite('cell_masks.tiff', masks.astype(np.uint16))
-print('Saved masks to cell_masks.tiff')

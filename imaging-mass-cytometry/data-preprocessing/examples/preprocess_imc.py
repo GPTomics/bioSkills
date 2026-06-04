@@ -1,41 +1,43 @@
-'''IMC data preprocessing'''
-# Reference: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, scipy 1.12+, steinbock 0.16+ | Verify API if version differs
+'''IMC data preprocessing: count-aware hot-pixel removal and cofactor-1 arcsinh.
+
+Demonstrates the count-statistics-correct operations for IMC. The hot-pixel filter
+mirrors steinbock --hpf (signed 8-neighbor difference, replace spikes with the neighbor
+maximum) -- NOT a median filter, which would zero out the isolated single-positive
+pixels that are frequently real signal in a Poisson/zero-inflated regime.
+'''
+# Reference: numpy 1.26+, scipy 1.12+, tifffile 2024+ | Verify API if version differs
 import numpy as np
-import tifffile
 from scipy import ndimage
-from pathlib import Path
+import tifffile
 
 def remove_hot_pixels(img, threshold=50):
-    '''Remove hot pixels using median filter comparison'''
-    filtered = ndimage.median_filter(img, size=3)
-    diff = np.abs(img.astype(float) - filtered.astype(float))
-    hot = diff > threshold
-    result = img.copy()
-    result[hot] = filtered[hot]
-    return result
+    # 8-neighbor maximum; a pixel exceeding every neighbor by > threshold (an absolute
+    # COUNT difference, not a universal constant -- raise for high-dynamic-range markers)
+    # is a spike and is replaced by the neighbor max. Valleys are never filled, so real
+    # bright edges and sparse single-positive pixels survive.
+    footprint = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
+    neighbor_max = ndimage.maximum_filter(img, footprint=footprint)
+    spikes = img - neighbor_max > threshold
+    out = img.copy()
+    out[spikes] = neighbor_max[spikes]
+    return out
 
-def percentile_normalize(img, low=1, high=99):
-    '''Normalize to percentiles'''
-    p_low = np.percentile(img, low)
-    p_high = np.percentile(img, high)
-    if p_high > p_low:
-        return np.clip((img - p_low) / (p_high - p_low), 0, 1)
-    return img * 0
+def arcsinh_cofactor1(cell_means):
+    # cofactor 1 for IMC single-cell means (Hunter 2024 Cytometry A 105:36); the
+    # suspension-CyTOF cofactor 5 over-compresses IMC's lower-count cell means
+    return np.arcsinh(cell_means / 1.0)
 
-# Load image
-img = tifffile.imread('acquisition.tiff')
-print(f'Image shape: {img.shape}')  # (C, H, W)
+def zscore_cohort(expr, cohort_mean, cohort_std):
+    # z-score against COHORT-WIDE statistics, not per-image, so scales stay comparable
+    # across samples; per-image scaling destroys cross-sample comparability
+    return (expr - cohort_mean) / np.where(cohort_std == 0, 1.0, cohort_std)
 
-# Process each channel
-processed = []
-for c in range(img.shape[0]):
-    channel = img[c]
-    channel = remove_hot_pixels(channel)
-    channel = percentile_normalize(channel)
-    processed.append(channel)
+img = tifffile.imread('acquisition.tiff').astype(np.float32)  # (channels, y, x) ion counts
+print(f'Image shape: {img.shape}')
 
-processed = np.stack(processed).astype(np.float32)
+cleaned = np.stack([remove_hot_pixels(img[c]) for c in range(img.shape[0])])
+tifffile.imwrite('cleaned.tiff', cleaned)
 
-# Save
-tifffile.imwrite('processed.tiff', processed)
-print('Saved processed image')
+# pixel maps are for localization/QC only; quantification happens on per-cell summed
+# counts after segmentation, then arcsinh(cofactor 1) and cohort z-score
+print('Hot-pixel-filtered stack written; compensate (NNLS) and segment before quantifying.')

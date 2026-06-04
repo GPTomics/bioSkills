@@ -164,7 +164,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
 | **crispr-screens** | 8 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, base/prime editing |
 | **metabolomics** | 8 | XCMS, MetaboAnalystR, lipidr, MS-DIAL | Peak detection, annotation, normalization, pathway mapping, lipidomics, targeted |
-| **imaging-mass-cytometry** | 6 | steinbock, squidpy, napari | IMC preprocessing, segmentation, spatial analysis, annotation, QC |
+| **imaging-mass-cytometry** | 7 | steinbock, CATALYST, deepcell, squidpy, napari, diffcyt | IMC preprocessing, NNLS spillover compensation, segmentation, phenotyping, spatial analysis, patient-level differential analysis, annotation, QC |
 | **flow-cytometry** | 8 | flowCore, CATALYST, CytoML | FCS handling, compensation, gating, clustering, differential, QC |
 | **reporting** | 5 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
 | **experimental-design** | 5 | designit, RNASeqPower, ssizeRNA, qvalue, sva | Randomization/blocking, pseudoreplication, power analysis, sample size, multiple testing (FDR), batch design |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 529 skills across 63 categories**
+**Total: 530 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 529 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 530 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

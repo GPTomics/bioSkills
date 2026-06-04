@@ -1,55 +1,63 @@
 # Cell Segmentation - Usage Guide
 
 ## Overview
-Cell segmentation identifies individual cells in multiplexed images, providing cell masks essential for downstream single-cell analysis.
+
+Delineates single cells in multiplexed IMC/MIBI images so that averaging channels inside each mask yields a single-cell expression table. The load-bearing point: segmentation is the single largest, irreversible source of error in the experiment -- under-segmentation fabricates impossible double-positive cell types while over-segmentation quietly miscounts cells and corrupts spatial statistics, and both are confounded with lateral signal spillover across cell boundaries.
 
 ## Prerequisites
+
 ```bash
-pip install cellpose deepcell scikit-image napari
-# For GPU acceleration (optional)
-pip install cellpose[gpu]
+# steinbock orchestrates DeepCell/Mesmer and Cellpose
+pip install steinbock deepcell cellpose scikit-image numpy tifffile
+
+# Docker container alternative
+docker pull ghcr.io/bodenmillergroup/steinbock
 ```
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Segment cells in my IMC images using Cellpose"
-- "Run Mesmer segmentation on my tissue images"
-- "Create cell masks from nuclear and membrane channels"
+- "Segment whole cells with Mesmer using my DNA and membrane channels"
+- "Build a membrane channel that covers all my cell types"
+- "Fall back to nuclear segmentation plus expansion -- my membrane staining is poor"
+- "Check my segmentation for impossible double-positive cells"
+- "Run steinbock cellpose segmentation and extract per-cell mean intensities"
 
 ## Example Prompts
 
-### Cellpose Segmentation
-> "Segment cells using Cellpose with my DNA channel as nuclear marker"
+### Whole-cell segmentation
+> "Run Mesmer whole-cell segmentation on this IMC image. My resolution is 1 um/pixel -- set image_mpp correctly."
 
-> "Run Cellpose cyto2 model on my IMC image with diameter 30 pixels"
+### Membrane-channel decision
+> "Which markers should I sum into the membrane channel so I don't under-segment my B cells and macrophages?"
 
-### Mesmer/DeepCell Segmentation
-> "Use Mesmer to segment my tissue image with nuclear and membrane channels"
+### Fallback
+> "My only good membrane marker is CD45 and it only stains immune cells. What is the least-biased way to get whole-cell masks?"
 
-> "Run DeepCell whole-cell segmentation on my multiplexed image"
-
-### Parameter Tuning
-> "Adjust Cellpose flow threshold to reduce oversegmentation"
-
-> "Optimize cell diameter parameter for my tissue type"
-
-### Quality Control
-> "Overlay my segmentation mask on the original image for QC"
-
-> "Check my segmentation for oversegmentation and undersegmentation"
+### Evaluation
+> "I have a CD3+CD20+ cluster. Is it real, and how do I tell if it is a segmentation artifact?"
 
 ## What the Agent Will Do
-1. Load preprocessed multichannel image
-2. Select appropriate nuclear channel (DNA/Ir-191/193 or histone markers)
-3. Optionally select membrane channel (CD45, Na/K-ATPase)
-4. Run deep learning model (Cellpose or Mesmer)
-5. Post-process masks (remove small objects, fill holes)
-6. Save segmentation mask as labeled image
+
+1. Choose a segmenter from the decision tree (Mesmer first for whole-cell; nuclei+expansion when membrane staining is weak; ilastik+CellProfiler for transparency).
+2. Build the nuclear and summed-membrane inputs, covering all cell types in the membrane sum.
+3. Run segmentation with the true `image_mpp`/`diameter`, then aggregate per-cell MEAN intensities.
+4. Apply lateral-spillover compensation (REDSEA) after segmentation when membrane double-positives are heavy.
+5. Evaluate on downstream proxies -- impossible-co-expression rate, count/density sanity, positive-fraction stability across segmenters -- not F1/IoU alone.
 
 ## Tips
-- Measure average cell diameter from representative cells for Cellpose
-- Cellpose models: nuclei (nuclear only), cyto/cyto2 (whole cell)
-- Mesmer is trained specifically on tissue images with better tissue context
-- flow_threshold (0.4 default) controls cell separation
-- cellprob_threshold (0.0 default) controls detection sensitivity
-- Always visually QC segmentation overlaid on original image
+
+- A biologically-impossible co-expressing population is a segmentation diagnosis until proven otherwise.
+- Pass the TRUE acquisition resolution to Mesmer's `image_mpp` (~1.0 IMC); the default rescales cells to the wrong size.
+- Set Cellpose `diameter` deliberately at IMC scale, or use `cpsam` which removes the diameter dependence.
+- Use exclusive (watershed/`expand_labels`) expansion, never free dilation -- free dilation double-counts boundary pixels.
+- Channel compensation goes before aggregation (on pixels); lateral-spillover REDSEA goes after segmentation (on cells).
+- F1/IoU on sparse annotations is optimistic and off-target; audit dense regions, not easy ones.
+
+## Related Skills
+
+- data-preprocessing - channel spillover compensation precedes segmentation
+- phenotyping - consumes the single-cell mask and intensities; double-positives diagnose segmentation
+- spatial-analysis - over-segmentation corrupts neighborhood statistics
+- quality-metrics - segmentation QC metrics and the impossible-co-expression monitor
+- interactive-annotation - overlay masks on channels to audit boundaries
