@@ -2,57 +2,72 @@
 
 ## Overview
 
-Identify tumor neoantigens from somatic mutations for personalized cancer immunotherapy using pVACtools.
+Identify tumor neoantigens from somatic variants with pVACtools, with the methodological discipline the field actually requires: binding prediction is the easy part, and the analysis must center the downstream attrition (clonality, HLA loss-of-heterozygosity, expression, proximal-variant phasing, agretopicity/foreignness quality, and validation tiers), because a binding-only pipeline has single-digit-percent positive predictive value.
 
 ## Prerequisites
 
 ```bash
-conda create -n pvactools python=3.8
+# pVACtools (current 7.x; dependencies are heavy - use a dedicated env)
+conda create -n pvactools python=3.11
 conda activate pvactools
-pip install pvactools
-pvactools download_iedb_tools
+pip install pvactools vatools
+pvacseq install_vep_plugin $VEP_PLUGINS   # installs Wildtype + Frameshift
+# Ensembl VEP, a local IEDB install, and an HLA typer (OptiType/arcasHLA/HLA-HD) are also needed.
 ```
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Find neoantigens from my somatic VCF"
-- "Predict vaccine targets from this tumor's mutations"
-- "Prioritize neoantigens for my patient's HLA type"
+- "Find neoantigens from my VEP-annotated somatic VCF for this patient's HLA"
+- "Rank these neoantigens by tumor-specific quality, not just IC50"
+- "Drop candidates on HLA alleles the tumor lost (LOHHLA)"
+- "Incorporate proximal germline variants by phasing before prediction"
 
 ## Example Prompts
 
-### Basic Analysis
+### End-to-End Calling
 
-> "Run neoantigen prediction on my annotated VCF"
+> "Run VEP with the Wildtype and Frameshift plugins, annotate expression, then run pVACseq with my class I alleles"
 
-> "Find strong-binding mutant peptides in this tumor"
+> "Call fusion-derived neoantigens from my Arriba output with pVACfuse"
 
-### Prioritization
+### Prioritization and Quality
 
-> "Rank neoantigens by immunogenicity"
+> "Compute agretopicity (DAI) correctly as the WT/MT binding ratio and flag anchor-position mutations"
 
-> "Find clonal neoantigens with high expression"
+> "Rank candidates by cancer cell fraction and foreignness, and mark subclonal ones"
 
-### Personalized
+### Tumor-Specific Pitfalls
 
-> "Use my patient's HLA type for neoantigen prediction"
+> "Which candidates are presented by an allele lost to HLA LOH?"
 
-> "Design a personalized cancer vaccine from these mutations"
+> "These are frameshift neoantigens - how should I weight them given the MS-validation gap?"
 
 ## What the Agent Will Do
 
-1. Verify VCF is VEP-annotated with amino acid changes
-2. Run pVACseq with patient HLA alleles
-3. Filter by binding affinity threshold
-4. Calculate agretopicity scores
-5. Prioritize by VAF and expression
-6. Return ranked neoantigen candidates
+1. Confirm the VCF is VEP-annotated with Wildtype + Frameshift plugins and a protein FASTA
+2. Annotate expression and read counts (VAtools) so the filters are not silent pass-throughs
+3. Phase proximal somatic/germline variants and supply the phased VCF
+4. Run pVACseq with the patient HLA and sane VAF/coverage/expression filters
+5. Run LOHHLA and drop candidates on lost alleles; estimate purity/CCF for clonality
+6. Rank by quality (agretopicity, foreignness, expression, clonality) and re-tier in pVACview
+7. Frame the output as a tier-1 hypothesis list for MS and functional validation
 
 ## Tips
 
-- **VEP annotation** - Required for amino acid change information
-- **HLA typing** - Use patient-specific alleles (6 alleles typical)
-- **Binding threshold** - IC50 <500nM standard; <50nM for strong binders
-- **Clonality** - VAF >10% indicates clonal (present in most tumor cells)
-- **Expression** - Unexpressed genes won't present neoantigens
+- **VEP plugins** - Wildtype + Frameshift (NOT Downstream, which was dropped in pVACtools 2.0)
+- **Binding is the easy part** - spend effort on clonality, LOH, expression, and quality features
+- **HLA LOH** - run LOHHLA and remove candidates on deleted alleles; it fails silently if skipped
+- **Clonality** - use cancer cell fraction (purity + copy number), not raw VAF
+- **Phasing** - supply `--phased-proximal-variants-vcf` or the predicted peptides are ones the tumor never makes
+- **Predicted != presented != immunogenic** - the in-silico list is the input to validation, not the answer
+- **Frameshifts/fusions** - high-value, high-foreignness, but under-validated and rarely seen by MS
+
+## Related Skills
+
+- immunoinformatics/mhc-binding-prediction - the binding step (the solved, low-leverage part)
+- immunoinformatics/mhc-class-ii-prediction - class II neoantigens for CD4 help
+- immunoinformatics/immunogenicity-scoring - quality ranking of the candidate list
+- clinical-databases/hla-typing - the genotype substrate
+- variant-calling/variant-calling - upstream somatic calls
+- workflows/neoantigen-pipeline - end-to-end orchestration

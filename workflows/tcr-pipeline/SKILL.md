@@ -74,3 +74,4 @@ vdjtools PlotFancyVJUsage vdjtools/clones.txt usage/
 - tcr-bcr-analysis/mixcr-analysis - Detailed MiXCR usage
 - tcr-bcr-analysis/vdjtools-analysis - Diversity metrics
 - tcr-bcr-analysis/repertoire-visualization - Plots
+- immunoinformatics/tcr-epitope-binding - annotate clonotype specificity by clustering + lookup (de-novo prediction for unseen epitopes does not work)

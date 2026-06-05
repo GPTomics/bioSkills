@@ -1,6 +1,6 @@
 ---
 name: bio-immunoinformatics-mhc-binding-prediction
-description: Predict peptide-MHC class I and II binding affinity using MHCflurry and NetMHCpan neural network models. Identify potential T-cell epitopes from protein sequences. Use when predicting MHC binding for vaccine design or neoantigen identification.
+description: Predict peptide-MHC class I binding and natural presentation with MHCflurry, NetMHCpan-4.1, and MixMHCpred to nominate candidate CD8 T-cell epitopes. Covers the binding-affinity (BA) vs eluted-ligand (EL/presentation) distinction, why %Rank beats raw nM for cross-allele work, the MS abundance bias that misranks low-expression neoantigens, allele-coverage inequity, and length bias. Use when scanning a protein or peptide set for class I epitopes, scoring neoantigen candidates, or choosing a binding predictor. For CD4/HLA class II see mhc-class-ii-prediction.
 tool_type: python
 primary_tool: mhcflurry
 ---
@@ -16,245 +16,148 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Notes specific to this skill: MHCflurry 2.2.0+ switched its backend from TensorFlow to PyTorch (Python 3.10+) — confirm `mhcflurry-downloads fetch` succeeded and the backend imports before scoring. NetMHCpan-4.1 and MixMHCpred are standalone academic binaries, not pip-installable; the IEDB REST API wraps NetMHCpan if a local install is unavailable. Tool versions move fast — re-verify supported-allele lists and default %Rank thresholds against current docs.
+
 # MHC Binding Prediction
 
-**"Predict which peptides bind to MHC"** -> Predict peptide-MHC class I and II binding affinity using neural network models to identify potential T-cell epitopes from protein sequences.
-- Python: `mhcflurry.Class1PresentationPredictor().predict()` for MHC-I
-- CLI: `netMHCpan` for alternative MHC-I/II predictions
+**"Predict which peptides bind/are presented by MHC class I"** -> Score peptide-HLA class I binding affinity and natural-presentation likelihood to nominate candidate CD8 epitopes.
+- Python: `mhcflurry.Class1PresentationPredictor.load().predict()` (pip-installable, forgiving allele parser)
+- CLI: `netMHCpan` (field default; EL score by default, `-BA` adds affinity) or `MixMHCpred` (MS-deconvolution, EL-only)
 
-## MHCflurry Setup
+## The Single Most Important Modern Insight -- a strong predicted binder is a candidate for the next experiment, not an epitope
 
-**Goal:** Install MHCflurry and download pre-trained prediction models.
+Binding to MHC is necessary but nowhere near sufficient for immunogenicity. The real path is a funnel: expression -> proteasomal processing -> TAP transport and loading -> stable surface display -> a cognate T cell that survived thymic selection and activates. Binding prediction addresses essentially one stage. Each downstream stage discards a large fraction of binders, so the precision of "predicted binder -> validated epitope" is low even when the binding model itself is excellent. Two operational corollaries follow. First, never report a presentation score to a collaborator as an "immunogenicity" or "epitope" probability — that is a different, far weaker prediction (immunoinformatics/immunogenicity-scoring). Second, the modern EL/MS models that now define the field learned natural presentation from mass-spec immunopeptidomes, which over-represent peptides from highly expressed proteins; the model therefore partly learns "comes from an abundant protein" as a proxy for "is presented." That bias is exactly backwards for neoantigen discovery, where the targets are mutated and often lowly expressed, living in the under-detected tail the model systematically under-ranks.
 
-**Approach:** Install via pip and fetch model weights for class I pan-allele or specific allele predictions.
+## Tool Taxonomy (Class I)
 
-```bash
-# Install MHCflurry
-pip install mhcflurry
+| Tool | Citation | Score type | Form | Use when |
+|------|----------|-----------|------|----------|
+| NetMHCpan-4.1 | Reynisson 2020 | EL (default) + BA (`-BA`) | standalone/web/IEDB | Field default; broadest allele coverage; presentation discovery |
+| MHCflurry 2.0 | O'Donnell 2020 | BA + processing + presentation | pip Python | Scripting, messy allele strings, integrated presentation score |
+| MixMHCpred 3.0 | Tadros 2025 | EL only (MS motifs) | standalone | MS-grounded presentation; cross-allele/species extrapolation study |
+| NetMHC-4.0 | Andreatta 2016 | BA only | standalone/web | Legacy reproducibility; allele-specific, data-rich common alleles |
+| MHCnuggets | Shao 2020 | BA (IC50) | pip Python | High-throughput TCGA-scale screens; rare-allele transfer learning |
 
-# Download prediction models
-mhcflurry-downloads fetch
+## BA vs EL -- the conceptual axis that determines which score to read
 
-# Download models for specific alleles
-mhcflurry-downloads fetch models_class1_pan
-```
+BA (binding affinity) models train on in-vitro competitive-binding IC50 assays and measure only whether the groove can hold the peptide thermodynamically. EL (eluted-ligand / presentation) models train on mass-spec immunopeptidomics — peptides actually eluted from MHC on real cells — so the label implicitly folds in processing, transport, editing, and surface stability. Read BA for "could this bind the groove if delivered there"; read EL/presentation for "is this likely naturally presented," which is the default and recommended output of NetMHCpan-4.1, MHCflurry's presentation predictor, and MixMHCpred. IEDB codifies the split: `netmhcpan_ba` = recommended-binding, `netmhcpan_el` = recommended-epitope. Pick by intent.
 
-## MHCflurry Python API
+## Decision Tree by Scenario
 
-**Goal:** Predict peptide-MHC binding affinity and presentation scores for a set of peptides.
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Quick scriptable scan, messy allele names | MHCflurry presentation predictor | pip-installable, normalizes `A*02:01`/`A0201`/`HLA-A0201` |
+| Maximal accuracy / broadest alleles | NetMHCpan-4.1 EL | Field default; concurrent MS motif deconvolution |
+| Neoantigen candidate scoring | EL/presentation + expression check | EL under-ranks low-expression mutants (abundance bias) |
+| "Can it physically bind" (engineered/delivered peptide) | BA mode (`-BA`, MHCflurry affinity) | Question is thermodynamic, not presentation |
+| Rare / non-European allele | NetMHCpan-4.1, but verify training support | Pan-models extrapolate; confidence drops off the manifold |
+| Cross-allele ranking in a multi-HLA patient | %Rank, never raw nM | nM scales differ per allele; nM cutoffs are allele-biased |
 
-**Approach:** Load the Class1PresentationPredictor and call predict() with peptide-allele pairs to obtain IC50, percentile rank, and presentation scores.
+## Predict Presentation with MHCflurry
+
+**Goal:** Score peptides against a patient genotype and report the best-presenting allele per peptide.
+
+**Approach:** Load the presentation predictor; pass `alleles` as a sample->genotype dict so the model reports `best_allele`, `affinity` (nM), `affinity_percentile` (%Rank), and `presentation_score` (0-1, higher = more likely presented). Supply real `n_flanks`/`c_flanks` only if the genomic context is known.
 
 ```python
 from mhcflurry import Class1PresentationPredictor
 
-# Load predictor (includes binding and processing scores)
 predictor = Class1PresentationPredictor.load()
-
-# Predict for single allele
-result = predictor.predict(
+df = predictor.predict(
     peptides=['SIINFEKL', 'GILGFVFTL', 'NLVPMVATV'],
-    alleles=['HLA-A*02:01', 'HLA-A*02:01', 'HLA-A*02:01']
+    alleles={'patient1': ['HLA-A*02:01', 'HLA-A*24:02', 'HLA-B*07:02']},
+    include_affinity_percentile=True,   # required: %Rank column is off by default
+    verbose=0,
 )
-
-# Result columns:
-# - mhcflurry_affinity: Predicted IC50 (nM)
-# - mhcflurry_affinity_percentile: Percentile rank
-# - mhcflurry_presentation_score: Combined binding + processing
-
-print(result)
+# columns: peptide, sample_name, affinity, best_allele, processing_score,
+#          presentation_score, and affinity_percentile (only with the flag above)
+# affinity nM: LOWER is stronger. presentation_score: HIGHER is more likely presented.
 ```
 
-## Interpret Binding Predictions
+## Interpret with %Rank, Not Raw nM
 
-**Goal:** Classify peptide-MHC binding strength from predicted IC50 values.
+**Goal:** Classify binding strength in a way that is comparable across alleles.
 
-**Approach:** Apply standard affinity thresholds (strong <50nM, moderate <500nM, weak <5000nM) to categorize binding.
+**Approach:** Threshold on %Rank (percentile of the score against random peptides for that same allele), not on absolute IC50. The 500 nM convention is allele-biased — it over-calls permissive alleles and under-calls restrictive ones, skewing a multi-HLA patient's epitope list toward a subset of the genotype.
 
 ```python
-def interpret_binding(ic50_nm):
-    '''Interpret MHC binding affinity
-
-    IC50 thresholds (commonly used):
-    - <50 nM: Strong binder (high confidence epitope)
-    - 50-500 nM: Moderate binder (potential epitope)
-    - 500-5000 nM: Weak binder (unlikely epitope)
-    - >5000 nM: Non-binder
-
-    Percentile rank (recommended):
-    - <0.5%: Strong binder
-    - 0.5-2%: Moderate binder
-    - >2%: Weak/non-binder
-    '''
-    if ic50_nm < 50:
+def classify_by_percentile(affinity_percentile):
+    '''Class I %Rank cutoffs (NetMHCpan convention). LOWER percentile = stronger.
+    Strong binder <= 0.5%; weak binder <= 2.0%. Use %Rank for any cross-allele
+    comparison; raw nM is only meaningful within a single allele.'''
+    if affinity_percentile <= 0.5:
         return 'strong'
-    elif ic50_nm < 500:
-        return 'moderate'
-    elif ic50_nm < 5000:
+    elif affinity_percentile <= 2.0:
         return 'weak'
-    else:
-        return 'non-binder'
+    return 'non-binder'
 ```
 
-## Batch Prediction
+## Scan a Protein for Class I Epitopes
 
-**Goal:** Predict binding for all peptide-allele combinations in a batch.
+**Goal:** Enumerate candidate epitopes across a protein for a patient genotype.
 
-**Approach:** Iterate over peptide-allele pairs, call MHCflurry for each combination, and concatenate results into a single DataFrame.
-
-```python
-from mhcflurry import Class1PresentationPredictor
-import pandas as pd
-
-def predict_binding_batch(peptides, alleles):
-    '''Predict binding for multiple peptides and alleles
-
-    Args:
-        peptides: List of peptide sequences
-        alleles: List of HLA alleles (4-digit format)
-
-    Returns:
-        DataFrame with predictions for all combinations
-    '''
-    predictor = Class1PresentationPredictor.load()
-
-    # Create all combinations
-    results = []
-    for peptide in peptides:
-        for allele in alleles:
-            pred = predictor.predict(
-                peptides=[peptide],
-                alleles=[allele]
-            )
-            pred['peptide'] = peptide
-            pred['allele'] = allele
-            results.append(pred)
-
-    return pd.concat(results, ignore_index=True)
-
-
-# Example usage
-peptides = ['SIINFEKL', 'GILGFVFTL', 'NLVPMVATV', 'YMLDLQPETT']
-alleles = ['HLA-A*02:01', 'HLA-A*03:01', 'HLA-B*07:02']
-
-predictions = predict_binding_batch(peptides, alleles)
-print(predictions[['peptide', 'allele', 'mhcflurry_affinity', 'mhcflurry_affinity_percentile']])
-```
-
-## Scan Protein Sequence
-
-**Goal:** Identify all potential MHC-I epitopes within a protein by scanning overlapping peptide windows.
-
-**Approach:** Generate all k-mers (8-11aa) from the protein, predict binding for each against target alleles, and retain those below the 2% percentile rank cutoff.
+**Approach:** Tile 8-11mers (9mers dominate real ligands), score all windows in one batched call, keep windows under the 2% weak-binder cutoff. See examples/mhc_binding.py for the full tiling-and-rank script.
 
 ```python
-def scan_protein_for_epitopes(protein_seq, alleles, peptide_lengths=[8, 9, 10, 11]):
-    '''Scan protein for potential MHC epitopes
-
-    MHC-I typically binds 8-11mer peptides
-    Most common: 9-mers
-
-    Returns all peptides with predicted binding
-    '''
+def scan_protein(protein_seq, genotype, lengths=(8, 9, 10, 11)):
     from mhcflurry import Class1PresentationPredictor
-
     predictor = Class1PresentationPredictor.load()
-
-    epitopes = []
-    for length in peptide_lengths:
-        for i in range(len(protein_seq) - length + 1):
-            peptide = protein_seq[i:i + length]
-
-            for allele in alleles:
-                pred = predictor.predict(peptides=[peptide], alleles=[allele])
-
-                if pred['mhcflurry_affinity_percentile'].values[0] < 2.0:
-                    epitopes.append({
-                        'peptide': peptide,
-                        'position': i + 1,
-                        'length': length,
-                        'allele': allele,
-                        'affinity_nM': pred['mhcflurry_affinity'].values[0],
-                        'percentile': pred['mhcflurry_affinity_percentile'].values[0]
-                    })
-
-    return pd.DataFrame(epitopes)
+    peptides = [protein_seq[i:i + k] for k in lengths for i in range(len(protein_seq) - k + 1)]
+    df = predictor.predict(peptides=peptides, alleles={'patient': list(genotype)},
+                           include_affinity_percentile=True, verbose=0)
+    return df[df['affinity_percentile'] <= 2.0].sort_values('affinity_percentile')
 ```
 
-## MHC Class II Prediction
+## Per-Method Failure Modes
 
-**Goal:** Predict MHC class II binding for longer peptides (13-25aa) relevant to CD4+ T-cell responses.
+### Pan-model extrapolation on rare alleles
+**Trigger:** scoring an allele with little/no training support (much of HLA-C, many non-European alleles). **Mechanism:** pan-models emit a confident %Rank for any allele sequence — there is no built-in "I don't know." **Symptom:** a flat/mushy predicted motif; calls that don't validate. **Fix:** check the allele is in the trained/supported list and that close pseudosequence neighbors had real ligands; downgrade confidence when extrapolating.
 
-**Approach:** Query the IEDB NetMHCIIpan API since MHCflurry focuses on class I; submit peptide-allele pairs and parse results.
+### EL abundance bias misranks neoantigens
+**Trigger:** ranking mutated, low-expression peptides by EL/presentation score alone. **Mechanism:** MS immunopeptidomes over-represent abundant proteins; EL partly learns expression as a presentation proxy. **Symptom:** housekeeping-gene peptides float to the top; real low-expression neoantigens sink. **Fix:** combine EL with measured expression (TPM) and judge within-target, not against the proteome.
 
-```python
-def predict_mhc_ii(peptides, alleles):
-    '''Predict MHC class II binding
+### Placeholder flanks corrupt the processing score
+**Trigger:** passing dummy `n_flanks`/`c_flanks` to get a presentation/processing number. **Mechanism:** the processing model reads flanking context; wrong flanks inject noise. **Symptom:** processing_score that tracks nothing biological. **Fix:** supply the true genomic flanks, or omit flanks and read affinity/EL only.
 
-    MHC-II binds longer peptides (13-25 aa)
-    Binding core is ~9aa but flanking regions matter
+### Allele in the list != well-trained on that allele
+**Trigger:** trusting a number because the allele appears in `-listMHC`/`supported_alleles`. **Mechanism:** coverage is not training support. **Fix:** treat coverage and data depth as separate questions.
 
-    Note: MHCflurry focuses on class I
-    For class II, use NetMHCIIpan or IEDB tools
-    '''
-    # NetMHCIIpan via IEDB API
-    import requests
+## Quantitative Thresholds
 
-    url = 'http://tools-cluster-interface.iedb.org/tools_api/mhcii/'
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Class I strong binder <= 0.5% Rank | NetMHCpan-4.1 default (`-rth 0.5`) | Percentile normalizes per-allele score scales |
+| Class I weak binder <= 2.0% Rank | NetMHCpan-4.1 default (`-rlt 2.0`) | Standard recall/precision balance for candidate lists |
+| Peptide length 8-11mers (9 dominant) | Immunopeptidome composition | 9mers dominate training; non-9mers thinner evidence |
+| IC50 <= 500 nM "strong" (legacy) | Pre-pan-allele convention | Allele-biased; AVOID for cross-allele work, use %Rank |
+| 2-field (4-digit) HLA resolution | IMGT/HLA, groove determinants | Higher fields are synonymous/intronic; serotype is insufficient |
+| Evaluate by PPV@top-N, not bare AUC | Zhao & Sher 2018; imbalance | True ligands ~1 in 10,000+; AUC is computed on an unreal balance |
 
-    results = []
-    for peptide in peptides:
-        for allele in alleles:
-            params = {
-                'method': 'netmhciipan_ba',
-                'sequence_text': peptide,
-                'allele': allele,
-                'length': '15'
-            }
+## Common Errors
 
-            response = requests.post(url, data=params)
-            # Parse response...
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Epitope list skewed to one HLA in a patient | Thresholded on nM not %Rank | Use affinity_percentile / %Rank |
+| MHCflurry import/backend error | TF->PyTorch backend change (2.2.0+) | Use Python 3.10+; re-run `mhcflurry-downloads fetch` |
+| Confident number on an untrained allele | Pan-model extrapolation | Verify supported allele + training depth |
+| Low-expression neoantigen under-ranked | EL/MS abundance bias | Integrate expression; rank within-target |
+| Reporting presentation as "immunogenicity" | Conflating funnel stages | Defer to immunogenicity-scoring; caveat the report |
+| Class II call trusted like class I | Different maturity regime | Use mhc-class-ii-prediction; treat II as hypothesis |
 
-    return results
-```
+## References
 
-## Common HLA Alleles
-
-**Goal:** Define population-representative HLA allele sets for broad epitope coverage analysis.
-
-**Approach:** Use curated lists of the most frequent HLA-A and HLA-B alleles covering ~85% of the Caucasian population.
-
-```python
-# Most common HLA-A alleles (cover ~85% of population)
-COMMON_HLA_A = [
-    'HLA-A*02:01',  # ~30% Caucasian
-    'HLA-A*01:01',  # ~15%
-    'HLA-A*03:01',  # ~13%
-    'HLA-A*24:02',  # ~10%
-    'HLA-A*11:01',  # ~8%
-]
-
-# Most common HLA-B alleles
-COMMON_HLA_B = [
-    'HLA-B*07:02',
-    'HLA-B*08:01',
-    'HLA-B*44:02',
-    'HLA-B*15:01',
-    'HLA-B*35:01',
-]
-
-def get_patient_alleles(hla_typing_result):
-    '''Parse HLA typing result
-
-    Patients have 2 alleles per locus (one from each parent)
-    Format: HLA-A*02:01, HLA-A*24:02
-    '''
-    # Typically 6 alleles: 2 HLA-A, 2 HLA-B, 2 HLA-C
-    return hla_typing_result.split(',')
-```
+- Reynisson B, Alvarez B, Paul S, Peters B, Nielsen M. 2020. NetMHCpan-4.1 and NetMHCIIpan-4.0: improved predictions of MHC antigen presentation by concurrent motif deconvolution and integration of MS MHC eluted ligand data. *Nucleic Acids Research* 48(W1):W449-W454.
+- O'Donnell TJ, Rubinsteyn A, Laserson U. 2020. MHCflurry 2.0: improved pan-allele prediction of MHC class I-presented peptides by incorporating antigen processing. *Cell Systems* 11(1):42-48.e7.
+- Tadros DM, Racle J, Gfeller D, et al. 2025. Predicting MHC-I ligands across alleles and species: how far can we go? *Genome Medicine* 17:25.
+- Andreatta M, Nielsen M. 2016. Gapped sequence alignment using artificial neural networks: application to the MHC class I system (NetMHC-4.0). *Bioinformatics* 32(4):511-517.
+- Shao XM, Bhattacharya R, Huang J, et al. 2020. High-throughput prediction of MHC class I and II neoantigens with MHCnuggets. *Cancer Immunology Research* 8(3):396-408.
+- Zhao W, Sher X. 2018. Systematically benchmarking peptide-MHC binding predictors: from synthetic to naturally processed epitopes. *PLOS Computational Biology* 14(11):e1006457.
+- Trolle T, Metushi IG, Greenbaum JA, et al. 2015. Automated benchmarking of peptide-MHC class I binding predictions. *Bioinformatics* 31(13):2174-2181.
 
 ## Related Skills
 
-- immunoinformatics/neoantigen-prediction - Tumor neoantigen discovery
-- immunoinformatics/epitope-prediction - B-cell epitope prediction
-- clinical-databases/hla-typing - Determine patient HLA type
+- immunoinformatics/mhc-class-ii-prediction - CD4/HLA class II binding (the harder, less-reliable regime; open groove, register, DQ pairing)
+- immunoinformatics/neoantigen-prediction - applies class I binding to tumor mutations; where the EL abundance bias bites
+- immunoinformatics/immunogenicity-scoring - the separate, weaker prediction of T-cell response (binding != immunogenicity)
+- immunoinformatics/epitope-prediction - T-cell epitope mapping reduces to MHC presentation; B-cell epitopes are a different problem
+- clinical-databases/hla-typing - determine the patient genotype that conditions every prediction

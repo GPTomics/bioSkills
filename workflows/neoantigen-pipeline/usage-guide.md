@@ -89,6 +89,7 @@ Tell your AI agent what you want to do:
 ## Related Skills
 
 - immunoinformatics/mhc-binding-prediction - MHCflurry parameters
+- immunoinformatics/mhc-class-ii-prediction - Class II (CD4) neoantigens for vaccine help
 - immunoinformatics/neoantigen-prediction - pVACtools details
 - immunoinformatics/immunogenicity-scoring - Ranking algorithms
 - clinical-databases/hla-typing - HLA typing + HLA-LOH detection
