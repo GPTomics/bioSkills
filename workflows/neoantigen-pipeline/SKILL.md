@@ -7,6 +7,7 @@ workflow: true
 depends_on:
   - clinical-databases/hla-typing
   - immunoinformatics/mhc-binding-prediction
+  - immunoinformatics/mhc-class-ii-prediction
   - immunoinformatics/neoantigen-prediction
   - immunoinformatics/immunogenicity-scoring
   - immunoinformatics/epitope-prediction
@@ -33,6 +34,10 @@ package and adapt the example to match the actual API rather than retrying.
 **"Predict neoantigens from my tumor sequencing data"** -> Orchestrate HLA typing (OptiType), somatic variant calling, pVACtools neoantigen prediction, MHC binding scoring, and immunogenicity-based candidate ranking for personalized cancer immunotherapy.
 
 Complete workflow from somatic variants to ranked neoantigen vaccine candidates for personalized cancer immunotherapy.
+
+## Key Judgment -- binding is the easy part; PPV lives downstream
+
+A binding-only pipeline has single-digit-percent positive predictive value (TESLA; Wells 2020 Cell 183:818). The load-bearing steps are downstream of binding: correct full-resolution HLA typing (wrong allele = confident garbage), HLA loss-of-heterozygosity (run LOHHLA and DROP candidates on a lost allele — it invalidates predictions silently), proximal-variant phasing (supply `--phased-proximal-variants-vcf` or the mutant peptide is wrong), cancer cell fraction for clonality (clonal beats subclonal; use purity + copy number, not raw VAF), expression, and quality features (agretopicity, foreignness). Treat the ranked output as a tier-1 hypothesis list for immunopeptidomics MS and functional T-cell validation, not a final answer. Add MHC class II (CD4) neoantigens for vaccine help (see immunoinformatics/mhc-class-ii-prediction). Note on DAI below: agretopicity is most often the WT/MT binding ratio; whichever form is used, an anchor-position mutation inflates it without changing the TCR-facing surface, and a barely-presented WT makes it unstable — pair it with anchor evaluation.
 
 ## Workflow Overview
 
@@ -111,9 +116,10 @@ vep --input_file somatic.vcf \
     --pick --fork 4
 
 # Add expression data (optional but recommended)
+# Positionals: <vcf> <expression_file> {kallisto,stringtie,cufflinks,custom} {gene,transcript}
 vcf-expression-annotator somatic.vep.vcf \
-    expression.tsv gene \
-    -s tumor_sample \
+    expression.tsv custom gene \
+    -s tumor_sample --id-column gene_id --expression-column tpm \
     -o somatic.vep.expression.vcf
 ```
 
@@ -237,8 +243,9 @@ predictor = Class1PresentationPredictor.load()
 peptides = ['SIINFEKL', 'GILGFVFTL', 'NLVPMVATV']
 alleles = ['HLA-A*02:01', 'HLA-B*07:02']
 
-results = predictor.predict(peptides=peptides, alleles=alleles, verbose=0)
-print(results[['peptide', 'allele', 'mhcflurry_presentation_score', 'mhcflurry_affinity']])
+results = predictor.predict(peptides=peptides, alleles=alleles,
+                            include_affinity_percentile=True, verbose=0)
+print(results[['peptide', 'best_allele', 'presentation_score', 'affinity', 'affinity_percentile']])
 ```
 
 ## Visualization
@@ -310,9 +317,10 @@ plt.savefig('neoantigen_summary.pdf')
 
 ## Related Skills
 
-- immunoinformatics/mhc-binding-prediction - MHCflurry parameters
-- immunoinformatics/neoantigen-prediction - pVACtools details
-- immunoinformatics/immunogenicity-scoring - Ranking algorithms
+- immunoinformatics/mhc-binding-prediction - MHCflurry parameters; BA vs EL, %Rank vs nM, abundance bias
+- immunoinformatics/mhc-class-ii-prediction - class II (CD4) neoantigens for vaccine help
+- immunoinformatics/neoantigen-prediction - pVACtools details; LOHHLA, phasing, clonality
+- immunoinformatics/immunogenicity-scoring - rank within patient (don't threshold); fitness-model quality
 - immunoinformatics/epitope-prediction - B-cell epitopes
 - clinical-databases/hla-typing - HLA typing (T1K is the 2024-2026 all-rounder; OptiType for class I; arcasHLA for RNA-seq); check HLA-LOH via LOHHLA / DASH which abolishes neoantigen presentation in ~17% pan-cancer (~30%+ HNSCC / NSCLC / cervical)
 - clinical-databases/tumor-mutational-burden - TMB-H pan-tumor ICI biomarker; check before neoantigen-vaccine candidate selection

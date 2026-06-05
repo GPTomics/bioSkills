@@ -1,142 +1,77 @@
-'''MHC binding prediction with MHCflurry'''
+'''MHC class I binding/presentation prediction with MHCflurry.
+
+Scores peptides against a patient genotype, classifies by %Rank (not raw nM,
+which is allele-biased), and tiles a protein into candidate epitopes. The
+Class1PresentationPredictor returns columns: peptide, sample_name, affinity (nM),
+best_allele, processing_score, presentation_score; the affinity_percentile (%Rank)
+column is only added when predict(..., include_affinity_percentile=True). Lower
+affinity nM = stronger; lower affinity_percentile = stronger; higher
+presentation_score = more likely naturally presented.
+'''
 # Reference: mhcflurry 2.1+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
+from mhcflurry import Class1PresentationPredictor
 
 
-def predict_mhc_binding(peptides, alleles):
-    '''Predict MHC class I binding using MHCflurry
+def classify_by_percentile(affinity_percentile):
+    '''Class I %Rank cutoffs (NetMHCpan convention). %Rank is comparable across
+    alleles; raw nM is not. Strong <= 0.5%, weak <= 2.0%.'''
+    if affinity_percentile <= 0.5:
+        return 'strong'
+    if affinity_percentile <= 2.0:
+        return 'weak'
+    return 'non-binder'
 
-    MHCflurry outputs:
-    - mhcflurry_affinity: Predicted IC50 in nM
-    - mhcflurry_affinity_percentile: Percentile rank among random peptides
-    - mhcflurry_presentation_score: Combined binding + processing
 
-    Interpretation:
-    - IC50 < 50 nM: Strong binder
-    - IC50 50-500 nM: Moderate binder
-    - Percentile < 0.5%: Strong binder
-    - Percentile 0.5-2%: Moderate binder
+def predict_presentation(peptides, genotype, predictor=None):
+    '''Batched presentation prediction for one patient genotype.
+
+    genotype: list of HLA class I alleles, e.g. ['HLA-A*02:01', 'HLA-B*07:02'].
+    Reports the best-presenting allele per peptide.
     '''
-    try:
-        from mhcflurry import Class1PresentationPredictor
-        predictor = Class1PresentationPredictor.load()
-
-        results = []
-        for peptide in peptides:
-            for allele in alleles:
-                pred = predictor.predict(peptides=[peptide], alleles=[allele])
-                results.append({
-                    'peptide': peptide,
-                    'allele': allele,
-                    'affinity_nM': pred['mhcflurry_affinity'].values[0],
-                    'percentile': pred['mhcflurry_affinity_percentile'].values[0],
-                    'presentation': pred['mhcflurry_presentation_score'].values[0]
-                })
-
-        return pd.DataFrame(results)
-    except ImportError:
-        print('MHCflurry not installed. Install with: pip install mhcflurry')
-        return None
+    predictor = predictor or Class1PresentationPredictor.load()
+    df = predictor.predict(peptides=list(peptides), alleles={'patient': list(genotype)},
+                           include_affinity_percentile=True, verbose=0)
+    df['call'] = df['affinity_percentile'].apply(classify_by_percentile)
+    return df
 
 
-def classify_binding(affinity_nm):
-    '''Classify binding strength by IC50
-
-    Standard thresholds used in literature:
-    - Strong: <50 nM (high-affinity binder)
-    - Moderate: 50-500 nM (potential epitope)
-    - Weak: 500-5000 nM (unlikely functional)
-    - Non-binder: >5000 nM
-    '''
-    if affinity_nm < 50:
-        return 'Strong'
-    elif affinity_nm < 500:
-        return 'Moderate'
-    elif affinity_nm < 5000:
-        return 'Weak'
-    else:
-        return 'Non-binder'
+def scan_protein(protein_seq, genotype, lengths=(8, 9, 10, 11), percentile_cutoff=2.0):
+    '''Tile a protein into 8-11mers (9mers dominate real ligands), score all
+    windows in one batched call, return windows at/under the weak-binder cutoff.'''
+    predictor = Class1PresentationPredictor.load()
+    windows = [(protein_seq[i:i + k], i + 1, k) for k in lengths for i in range(len(protein_seq) - k + 1)]
+    peptides = [w[0] for w in windows]
+    pos = {w[0]: (w[1], w[2]) for w in windows}
+    df = predictor.predict(peptides=peptides, alleles={'patient': list(genotype)},
+                           include_affinity_percentile=True, verbose=0)
+    df['position'] = df['peptide'].map(lambda p: pos[p][0])
+    df['length'] = df['peptide'].map(lambda p: pos[p][1])
+    df['call'] = df['affinity_percentile'].apply(classify_by_percentile)
+    return df[df['affinity_percentile'] <= percentile_cutoff].sort_values('affinity_percentile')
 
 
-def scan_protein(protein_seq, alleles, lengths=[8, 9, 10, 11], percentile_threshold=2.0):
-    '''Scan protein for potential MHC epitopes
-
-    MHC class I typically binds 8-11 amino acid peptides.
-    9-mers are most common.
-
-    Args:
-        percentile_threshold: Include peptides with rank below this
-                             2.0% is standard cutoff for potential binders
-    '''
-    try:
-        from mhcflurry import Class1PresentationPredictor
-        predictor = Class1PresentationPredictor.load()
-
-        epitopes = []
-        for length in lengths:
-            for i in range(len(protein_seq) - length + 1):
-                peptide = protein_seq[i:i + length]
-
-                for allele in alleles:
-                    pred = predictor.predict(peptides=[peptide], alleles=[allele])
-                    percentile = pred['mhcflurry_affinity_percentile'].values[0]
-
-                    if percentile < percentile_threshold:
-                        epitopes.append({
-                            'peptide': peptide,
-                            'position': i + 1,
-                            'length': length,
-                            'allele': allele,
-                            'affinity_nM': pred['mhcflurry_affinity'].values[0],
-                            'percentile': percentile,
-                            'binding': classify_binding(pred['mhcflurry_affinity'].values[0])
-                        })
-
-        return pd.DataFrame(epitopes).sort_values('percentile')
-    except ImportError:
-        print('MHCflurry not installed')
-        return None
-
-
-# Common HLA alleles for population-level analysis
-COMMON_ALLELES = {
-    'HLA-A': ['HLA-A*02:01', 'HLA-A*01:01', 'HLA-A*03:01', 'HLA-A*24:02', 'HLA-A*11:01'],
-    'HLA-B': ['HLA-B*07:02', 'HLA-B*08:01', 'HLA-B*44:02', 'HLA-B*15:01', 'HLA-B*35:01'],
-}
+def rank_neoantigen_candidates(df, expression_tpm):
+    '''Guard against EL/MS abundance bias: presentation models over-rank peptides
+    from abundant proteins, so a lowly expressed neoantigen can be real yet
+    under-ranked. Join measured expression and judge within-target rather than
+    trusting the presentation score against the proteome. expression_tpm maps
+    peptide -> source-gene TPM.'''
+    df = df.copy()
+    df['expression_tpm'] = df['peptide'].map(expression_tpm).fillna(0.0)
+    df['expressed'] = df['expression_tpm'] >= 1.0
+    return df.sort_values(['expressed', 'affinity_percentile'], ascending=[False, True])
 
 
 if __name__ == '__main__':
-    print('MHC Binding Prediction Example')
-    print('=' * 50)
+    known_epitopes = ['GILGFVFTL', 'NLVPMVATV', 'SIINFEKL']  # flu M1, CMV pp65, ovalbumin
+    genotype = ['HLA-A*02:01', 'HLA-A*03:01', 'HLA-B*07:02']
 
-    # Test peptides (known epitopes)
-    peptides = [
-        'SIINFEKL',   # Ovalbumin, strong HLA-A*02:01 binder (mouse)
-        'GILGFVFTL',  # Influenza M1, HLA-A*02:01 epitope
-        'NLVPMVATV',  # CMV pp65, HLA-A*02:01 epitope
-    ]
-    alleles = ['HLA-A*02:01', 'HLA-A*03:01']
+    predictor = Class1PresentationPredictor.load()
+    calls = predict_presentation(known_epitopes, genotype, predictor)
+    calls[['peptide', 'best_allele', 'affinity', 'affinity_percentile', 'presentation_score', 'call']]
 
-    print('\nPredicting binding for known epitopes...')
-    results = predict_mhc_binding(peptides, alleles)
-
-    if results is not None:
-        results['binding'] = results['affinity_nM'].apply(classify_binding)
-        print(results.to_string(index=False))
-
-        # Protein scan example
-        print('\n' + '=' * 50)
-        print('Scanning short protein for epitopes...')
-        test_protein = 'MSIINFEKLAAAGIAGFVFTLVSSAYNLVPMVATVQTLNF'
-
-        epitopes = scan_protein(test_protein, ['HLA-A*02:01'], lengths=[9])
-        if epitopes is not None and len(epitopes) > 0:
-            print(f'\nFound {len(epitopes)} potential epitopes:')
-            print(epitopes[['peptide', 'position', 'affinity_nM', 'binding']].head(10).to_string(index=False))
-    else:
-        # Simulated results if MHCflurry not available
-        print('\nSimulated results (MHCflurry not installed):')
-        for pep in peptides:
-            for allele in alleles:
-                print(f'  {pep} + {allele}: ~100-500 nM (moderate binder)')
+    test_protein = 'MSIINFEKLAAAGILGFVFTLVSSAYNLVPMVATVQTLNF'
+    hits = scan_protein(test_protein, ['HLA-A*02:01'], lengths=(9,))
+    hits[['peptide', 'position', 'best_allele', 'affinity_percentile', 'call']].head(10)

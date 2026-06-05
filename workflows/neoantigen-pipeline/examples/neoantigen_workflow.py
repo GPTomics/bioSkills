@@ -60,8 +60,9 @@ def run_hla_typing(tumor_bam, output_dir):
 def annotate_vcf_with_expression(vcf_path, expression_path, sample_id, output_path):
     '''Add gene expression values to VCF using vcf-expression-annotator.'''
     subprocess.run([
-        'vcf-expression-annotator', vcf_path, expression_path, 'gene',
-        '-s', sample_id, '-o', output_path
+        'vcf-expression-annotator', vcf_path, expression_path, 'custom', 'gene',
+        '-s', sample_id, '--id-column', 'gene_id', '--expression-column', 'tpm',
+        '-o', output_path
     ], check=True)
     return output_path
 

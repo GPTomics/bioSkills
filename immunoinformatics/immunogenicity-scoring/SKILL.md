@@ -1,275 +1,154 @@
 ---
 name: bio-immunoinformatics-immunogenicity-scoring
-description: Score and prioritize neoantigens and epitopes for immunogenicity using multi-factor models combining MHC binding, processing, expression, and sequence features. Rank candidates for vaccine design. Use when prioritizing epitopes for vaccine development or identifying the most immunogenic neoantigens.
+description: Rank and prioritize neoantigen/epitope candidates by likely T-cell response using NeoFox feature annotation, PRIME2.0, BigMHC-IM, the Łuksza/Balachandran fitness model (agretopicity + foreignness), and pVACtools tiering. Encodes the field's hard truths that immunogenicity is the least-solved layer (dedicated scores ~AUROC 0.6-0.7, modest PPV), that scores are valid only for RANKING within one patient (never absolute go/no-go or cross-patient), that DAI has anchor-inflation and WT-denominator traps, and that stacking weak correlated scores into one number is a red flag. Use when ordering a candidate list for a vaccine. Binding lives in mhc-binding-prediction; calling in neoantigen-prediction.
 tool_type: python
-primary_tool: mhcflurry
+primary_tool: NeoFox
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: MHCflurry 2.1+, numpy 1.26+, pandas 2.2+
+Reference examples tested with: NeoFox 1.0+, pVACtools 4.1+, pandas 2.2+, numpy 1.26+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Notes specific to this skill: NeoFox annotates ~16 published features (it does not rank candidates automatically); PRIME 2.x requires MixMHCpred v3.0+ on PATH; BigMHC has separate `-m el` and `-m im` heads. ImmunoBERT is a PRESENTATION model, not an immunogenicity predictor — do not use it here. PRIME2.0 is the *Cell Systems* 2023 paper (the *Cell Reports Medicine* 2021 paper is PRIME v1). Re-verify tool versions and the supported-allele lists before scoring.
+
 # Immunogenicity Scoring
 
-**"Rank my neoantigen candidates by immunogenicity"** -> Score and prioritize epitopes using multi-factor models combining MHC binding, proteasomal processing, expression level, and sequence foreignness for vaccine candidate selection.
-- Python: `mhcflurry` for binding + processing predictions, custom scoring pipeline
+**"Rank my neoantigen candidates by how likely a T cell responds"** -> Annotate presentation + recognition features and order candidates within a patient; never assign an absolute immunogenicity verdict.
+- Python: `NeoFox` to compute the published feature panel; `PRIME` / `BigMHC -m im` for recognition scores
+- CLI: pVACtools aggregate-report tiering as the auditable, rule-based default ranking
 
-## Multi-Factor Scoring
+## The Single Most Important Modern Insight -- this is the least-solved layer; rank within a patient, never threshold
 
-**Goal:** Calculate a composite immunogenicity score from multiple weighted factors (binding, agretopicity, processing, expression, clonality, foreignness).
+Binding/presentation is genuinely good (AUROC high-0.9s); immunogenicity is not close. Predicting whether a displayed peptide provokes a T-cell response requires knowing whether a cognate TCR exists in this patient's repertoire, whether that clone survived thymic negative selection (escaped tolerance), and whether it activates in a suppressive tumor microenvironment — none observable from sequence. Dedicated immunogenicity tools land around AUROC 0.6-0.7 on their own test sets and worse on independent data; in TESLA the dedicated in-silico immunogenicity scores correlated poorly with validated immunogenicity, while presentation strength, binding stability, abundance/expression, agretopicity, and foreignness carried the signal. Two operational rules follow. First, immunogenicity scores are calibrated within a context (a tool, an allele, often a patient's HLA), so they are legitimate for ordering one patient's candidate list and illegitimate for absolute go/no-go or cross-patient/cross-allele comparison. Second, a confident single composite number is a red flag: stacking weak, correlated, IEDB-bias-trained scores into one value launders the bias at higher apparent precision. The honest deliverable is an ordered, feature-annotated shortlist with its uncertainty stated out loud.
 
-**Approach:** Score each factor on a 0-1 scale, then combine via weighted sum with domain-informed weights.
+## Why "Best Binder" Lost to "Best Quality"
+
+The best-binder heuristic fails on a tolerance argument: a peptide that binds MHC superbly but closely resembles a self-peptide the thymus presented has had its cognate T cells deleted, so display does not help. A moderate binder that looks strikingly un-self may have a full, un-tolerized repertoire. The modern requirement is conjunctive — a useful neoantigen must be both PRESENTED (binding) AND FOREIGN enough (different from self) to have escaped tolerance. The Łuksza/Balachandran fitness model formalizes this: quality = amplitude (how much better the mutant is presented than its WT, a DAI-like term) x recognition potential R (resemblance to known immunogenic foreign epitopes). This is why agretopicity and foreignness, not raw affinity, recur in every validated analysis.
+
+## Tool Taxonomy
+
+| Tool | Citation | What it scores | Note |
+|------|----------|----------------|------|
+| NeoFox | Lang 2021 | ~16 features at once (DAI, foreignness, dissimilarity, PRIME, PHBR, ...) | Annotates, does NOT rank — the right division of labor |
+| pVACtools tiering | Hundal 2020 | Rule-based tiers + within-tier sort | Auditable default; quarantines anchor/subclonal traps |
+| PRIME2.0 | Gfeller 2023 | Class I immunogenicity (presentation x TCR-recognition) | Strong; needs MixMHCpred v3.0+ |
+| BigMHC-IM | Albert 2023 | Class I immunogenicity (transfer-learned) | High precision; pan-allelic |
+| IEDB immunogenicity | Calis 2013 | Class I (AA + position) | Weak, allele-pooled, no self-comparison; one feature only |
+| DeepImmuno | Li 2021 | Class I CNN | 9/10mer only; limited alleles |
+| fitness model (foreignness) | Łuksza 2017; Balachandran 2017 | Quality = amplitude x recognition | The conceptual backbone |
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Default: rank a patient's candidates | NeoFox features -> pVACtools tiering -> human curation | Transparent features + auditable tiers, not a black-box score |
+| Need a single recognition score | PRIME2.0 or BigMHC-IM | Best-validated class I; report alongside features, not alone |
+| "Is this one immunogenic, yes/no?" | Reframe to ranking | No honest tool gives an absolute verdict |
+| CD4 / class II immunogenicity | Flag as a frontier (TLimmuno2 etc.) | Class II immunogenicity is even less solved |
+| Final shortlist for synthesis | Feature-annotated table + expression/clonality filters | Presentation + abundance carry most real signal (TESLA) |
+
+## Annotate Features, Then Rank Within Patient
+
+**Goal:** Order one patient's candidates without collapsing fragile features into a single over-trusted number.
+
+**Approach:** Compute the feature panel (NeoFox), apply the non-negotiable expression/clonality filters first, then sort by presentation + abundance + quality features, keeping the features visible side by side for human curation. Cross-patient comparison is invalid.
 
 ```python
 import pandas as pd
-import numpy as np
 
-def calculate_immunogenicity_score(peptide_data):
-    '''Calculate composite immunogenicity score
-
-    Factors considered:
-    1. MHC binding affinity (IC50)
-    2. Agretopicity (MT vs WT binding ratio)
-    3. Proteasomal processing
-    4. TAP transport
-    5. Expression level
-    6. Clonality (VAF for neoantigens)
-    7. Self-similarity (avoid tolerance)
-
-    Each factor scored 0-1, then weighted and combined.
-    '''
-    scores = {}
-
-    # 1. Binding affinity (lower IC50 = better)
-    # Transform to 0-1: 1 at 0nM, 0 at 5000nM
-    ic50 = peptide_data.get('ic50_nM', 500)
-    scores['binding'] = 1 - min(ic50 / 5000, 1)
-
-    # 2. Agretopicity (MT binds better than WT)
-    # Ratio of WT/MT IC50, capped at 10
-    agretopicity = peptide_data.get('agretopicity', 1.0)
-    scores['agretopicity'] = min(agretopicity / 10, 1)
-
-    # 3. Processing score (from MHCflurry)
-    processing = peptide_data.get('processing_score', 0.5)
-    scores['processing'] = processing
-
-    # 4. Expression (log scale, capped)
-    expression = peptide_data.get('expression_tpm', 10)
-    scores['expression'] = min(np.log10(expression + 1) / 3, 1)
-
-    # 5. Clonality (for neoantigens)
-    vaf = peptide_data.get('vaf', 0.5)
-    scores['clonality'] = vaf
-
-    # 6. Self-similarity (lower = better, less tolerance)
-    self_sim = peptide_data.get('self_similarity', 0.5)
-    scores['foreignness'] = 1 - self_sim
-
-    # Weighted combination
-    weights = {
-        'binding': 0.25,
-        'agretopicity': 0.20,
-        'processing': 0.10,
-        'expression': 0.15,
-        'clonality': 0.15,
-        'foreignness': 0.15
-    }
-
-    total = sum(scores[k] * weights[k] for k in weights)
-
-    return total, scores
+def rank_within_patient(df, expr_col='gene_expression', vaf_col='rna_vaf'):
+    '''Filter (not score) on expression/clonality first, then order by presentation,
+    abundance, and quality. Returns a feature-annotated table for human curation, not
+    a verdict. Scores are within-patient only - never compare across patients/alleles.'''
+    keep = df[(df[expr_col] >= 1.0) & (df[vaf_col] >= 0.25)].copy()
+    sort_cols = ['presentation_rank', 'gene_expression', 'agretopicity', 'foreignness']
+    ascending = [True, False, False, False]
+    cols = [c for c in sort_cols if c in keep.columns]
+    asc = [a for c, a in zip(sort_cols, ascending) if c in keep.columns]
+    return keep.sort_values(cols, ascending=asc)
 ```
 
-## Processing Prediction
+## Compute Agretopicity (DAI) Defensively
 
-**Goal:** Predict proteasomal cleavage and TAP transport probability for candidate peptides.
+**Goal:** Use the mutant-vs-WT binding gain without falling into its two traps.
 
-**Approach:** Use MHCflurry's Class1ProcessingPredictor to score peptide processing likelihood.
+**Approach:** Agretopicity (ratio, IC50_WT / IC50_MT; the DAI family — Duan 2014 uses the difference form) rewards a mutant that binds while WT does not. Trap 1: an anchor-position mutation inflates it without changing the TCR-facing surface (quarantine via the Anchor tier). Trap 2: when WT binds very poorly, the denominator explodes and the ratio is dominated by prediction noise — a value of 200 on a barely-estimable WT is not 100x more meaningful than a value of 2.
 
 ```python
-from mhcflurry import Class1ProcessingPredictor
-
-def predict_processing_score(peptides):
-    '''Predict proteasomal cleavage and TAP transport
-
-    Processing score reflects probability that peptide will be:
-    1. Cleaved from protein by proteasome
-    2. Transported by TAP into ER
-    3. Loaded onto MHC
-
-    Higher processing score = more likely to be presented
-    '''
-    predictor = Class1ProcessingPredictor.load()
-
-    results = []
-    for peptide in peptides:
-        # Need surrounding sequence context for processing
-        # In practice, extract from protein context
-        pred = predictor.predict(peptides=[peptide])
-        results.append({
-            'peptide': peptide,
-            'processing_score': pred['processing_score'].values[0]
-        })
-
-    return pd.DataFrame(results)
+def defensive_dai(df, wt='wt_ic50', mt='mt_ic50', anchor='mutation_at_anchor', wt_cap=5000):
+    '''Flag anchor-inflated and denominator-unstable DAI rather than trusting the number.'''
+    out = df.copy()
+    out['dai'] = out[wt] / out[mt]
+    out['dai_anchor_artifact'] = out[anchor]                 # surface unchanged -> DAI is artifact
+    out['dai_unstable'] = out[wt] > wt_cap                   # WT barely presented -> ratio is noise
+    out['dai_trustworthy'] = ~out['dai_anchor_artifact'] & ~out['dai_unstable']
+    return out
 ```
 
-## Self-Similarity Assessment
+## Per-Method Failure Modes
 
-**Goal:** Determine whether a candidate peptide resembles self-peptides, indicating potential T-cell tolerance.
+### Treating a score as a verdict
+**Trigger:** "score > X means immunogenic" or comparing scores across patients. **Mechanism:** scores are calibrated within tool/allele/patient. **Symptom:** false confidence; cross-patient mis-ranking. **Fix:** rank within a patient; state uncertainty; never threshold absolutely.
 
-**Approach:** Compute pairwise sequence identity against a proteome peptide set and flag high-similarity matches.
+### The composite-score illusion
+**Trigger:** summing/modeling DAI + foreignness + dissimilarity + hydrophobicity + PRIME into one number. **Mechanism:** components are weak, correlated (several measure "un-selfness"), and trained on ill-defined negatives. **Symptom:** an authoritative-looking 3-decimal number hiding fragile assumptions. **Fix:** keep features side by side; use auditable tiers; let a human weigh axes.
 
-```python
-def calculate_self_similarity(peptide, proteome_peptides, threshold=0.8):
-    '''Check if peptide is similar to self-peptides
+### DAI anchor inflation / denominator instability
+**Trigger:** trusting a high DAI. **Mechanism:** anchor mutation changes binding not TCR surface; tiny WT binding blows up the ratio. **Symptom:** top-ranked candidates that are anchor artifacts or noise. **Fix:** inspect mutation position and actual WT binding; quarantine via Anchor tier.
 
-    High similarity to self-peptides suggests:
-    - T-cells may be tolerized (deleted during development)
-    - Lower likelihood of immune response
+### Negative-set blindness
+**Trigger:** trusting a new tool's headline AUROC. **Mechanism:** IEDB "negatives" conflate proven-non-immunogenic with untested; redrawing realistic negatives collapses performance. **Symptom:** great benchmark, poor real-world PPV. **Fix:** ask how negatives were defined before reading the number.
 
-    Threshold 0.8 = 80% identity considered "self-like"
-    '''
-    def sequence_identity(seq1, seq2):
-        if len(seq1) != len(seq2):
-            return 0
-        matches = sum(1 for a, b in zip(seq1, seq2) if a == b)
-        return matches / len(seq1)
+### CD4/class II blind spot
+**Trigger:** optimizing a vaccine purely on class I immunogenicity. **Mechanism:** CD4 help drives durable efficacy but class II immunogenicity is a frontier. **Symptom:** optimizing the better-measured half of a two-armed problem. **Fix:** flag class II as unproven; include CD4 epitopes via mhc-class-ii-prediction.
 
-    max_similarity = 0
-    most_similar = None
+## Quantitative Thresholds
 
-    for self_peptide in proteome_peptides:
-        sim = sequence_identity(peptide, self_peptide)
-        if sim > max_similarity:
-            max_similarity = sim
-            most_similar = self_peptide
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Dedicated immunogenicity AUROC ~0.6-0.7 | TESLA; tool benchmarks | The honest performance ceiling; weak prior, not verdict |
+| Gene TPM >= 1, RNA VAF >= 0.25 | pVACtools defaults | Unexpressed/low-VAF peptides are not displayed (filter first) |
+| Subclonal at DNA VAF <= purity/4 | pVACtools | Clonal targets beat subclonal (McGranahan 2016) |
+| Presentation + abundance carry the signal | Wells 2020 (TESLA) | Most predictive power is upstream of recognition scores |
+| Rank within patient only | Score calibration | Cross-patient/allele comparison is invalid |
+| Agretopicity ratio (amplitude); DAI difference | Łuksza 2017; Duan 2014 | Inspect position + WT binding; anchor inflation and denominator instability |
 
-    return {
-        'similarity': max_similarity,
-        'is_self_like': max_similarity >= threshold,
-        'closest_self': most_similar
-    }
-```
+## Common Errors
 
-## Hydrophobicity at Position 2
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Absolute "immunogenic: yes/no" claim | Thresholded a within-context score | Reframe as within-patient ranking |
+| Over-trusted single composite | Stacked weak correlated scores | Keep features visible; audit with tiers |
+| High-DAI artifacts at top | Anchor mutation / unstable WT denominator | Defensive DAI; Anchor tier |
+| Used ImmunoBERT as immunogenicity | It is a presentation model | Use PRIME/BigMHC-IM/Calis for recognition |
+| Great AUROC, poor validation | Ill-defined negative set | Interrogate negatives; demand functional validation |
+| Class II candidates over-trusted | CD4 immunogenicity is a frontier | Flag uncertainty; treat as unproven |
 
-**Goal:** Assess MHC anchor residue quality by checking hydrophobicity at key positions.
+## References
 
-**Approach:** Check whether position 2 and C-terminal residues fall within the hydrophobic amino acid set preferred by HLA-A*02:01-like alleles.
-
-```python
-def check_anchor_hydrophobicity(peptide):
-    '''Check hydrophobicity at MHC anchor positions
-
-    For HLA-A*02:01 and similar alleles:
-    - Position 2: Prefers hydrophobic (L, I, V, M)
-    - Position 9 (C-terminus): Prefers hydrophobic (L, V, I)
-
-    Strong anchors improve binding stability.
-    '''
-    hydrophobic = set('LIVMFYW')
-
-    pos2 = peptide[1] if len(peptide) > 1 else ''
-    pos_last = peptide[-1]
-
-    return {
-        'pos2_hydrophobic': pos2 in hydrophobic,
-        'pos_last_hydrophobic': pos_last in hydrophobic,
-        'anchor_score': (pos2 in hydrophobic) + (pos_last in hydrophobic)
-    }
-```
-
-## Rank Epitopes
-
-**Goal:** Rank epitopes by composite immunogenicity score and assign confidence tiers for prioritization.
-
-**Approach:** Score all candidates, sort by immunogenicity, and assign high/medium/low tiers based on percentile ranking.
-
-```python
-def rank_epitopes(epitope_df, top_n=20):
-    '''Rank epitopes by immunogenicity
-
-    Returns top candidates with scores and confidence tiers.
-
-    Confidence tiers:
-    - High: Top 5%, all factors favorable
-    - Medium: Top 20%, most factors favorable
-    - Low: Remaining, some factors favorable
-    '''
-    epitope_df = epitope_df.copy()
-
-    # Calculate scores
-    scores = []
-    factor_scores = []
-    for _, row in epitope_df.iterrows():
-        total, factors = calculate_immunogenicity_score(row.to_dict())
-        scores.append(total)
-        factor_scores.append(factors)
-
-    epitope_df['immunogenicity_score'] = scores
-    factor_df = pd.DataFrame(factor_scores)
-
-    # Combine
-    result = pd.concat([epitope_df, factor_df], axis=1)
-
-    # Rank
-    result = result.sort_values('immunogenicity_score', ascending=False)
-
-    # Assign tiers
-    n = len(result)
-    result['tier'] = 'low'
-    result.iloc[:int(n * 0.20), result.columns.get_loc('tier')] = 'medium'
-    result.iloc[:int(n * 0.05), result.columns.get_loc('tier')] = 'high'
-
-    return result.head(top_n)
-```
-
-## Compare Candidates
-
-**Goal:** Select a diverse set of vaccine candidates with broad HLA coverage and non-overlapping positions.
-
-**Approach:** Iterate through ranked candidates, selecting those with non-overlapping genomic positions to maximize epitope diversity.
-
-```python
-def compare_vaccine_candidates(candidates_df):
-    '''Compare and select vaccine candidates
-
-    Vaccine design typically selects:
-    - Multiple epitopes (5-20)
-    - Diverse HLA coverage
-    - High immunogenicity scores
-    - Non-overlapping sequences
-    '''
-    # Group by HLA coverage
-    hla_coverage = candidates_df.groupby('allele').size()
-
-    # Select diverse set
-    selected = []
-    used_positions = set()
-
-    for _, candidate in candidates_df.iterrows():
-        # Check for overlap with selected
-        pos = candidate.get('position', 0)
-        if not any(abs(pos - p) < 5 for p in used_positions):
-            selected.append(candidate)
-            used_positions.add(pos)
-
-        if len(selected) >= 20:
-            break
-
-    return pd.DataFrame(selected)
-```
+- Wells DK, van Buuren MM, Dang KK, et al. 2020. Key parameters of tumor epitope immunogenicity revealed through a consortium approach improve neoantigen prediction (TESLA). *Cell* 183(3):818-834.
+- Łuksza M, Riaz N, Makarov V, et al. 2017. A neoantigen fitness model predicts tumour response to checkpoint blockade immunotherapy. *Nature* 551:517-520.
+- Balachandran VP, Łuksza M, Zhao JN, et al. 2017. Identification of unique neoantigen qualities in long-term survivors of pancreatic cancer. *Nature* 551:512-516.
+- Calis JJA, Maybeno M, Greenbaum JA, et al. 2013. Properties of MHC class I presented peptides that enhance immunogenicity. *PLoS Computational Biology* 9(10):e1003266.
+- Schmidt J, Smith AR, Magnin M, et al. 2021. Prediction of neo-epitope immunogenicity reveals TCR recognition determinants (PRIME). *Cell Reports Medicine* 2(2):100194.
+- Gfeller D, Schmidt J, Croce G, et al. 2023. Improved predictions of antigen presentation and TCR recognition with MixMHCpred2.2 and PRIME2.0. *Cell Systems* 14(1):72-83.
+- Albert BA, Yang Y, Shao XM, et al. 2023. Deep neural networks predict class I MHC epitope presentation and transfer learn neoepitope immunogenicity (BigMHC). *Nature Machine Intelligence* 5(8):861-872.
+- Duan F, Duitama J, Al Seesi S, et al. 2014. Genomic and bioinformatic profiling of mutational neoepitopes reveals new rules to predict anticancer immunogenicity (DAI). *Journal of Experimental Medicine* 211(11):2231-2248.
+- Richman LP, Vonderheide RH, Rech AJ. 2019. Neoantigen dissimilarity to the self-proteome predicts immunogenicity and response to immune checkpoint blockade. *Cell Systems* 9(4):375-382.
+- Lang F, Riesgo-Ferreiro P, Löwer M, Sahin U, Schrörs B. 2021. NeoFox: annotating neoantigen candidates with neoantigen features. *Bioinformatics* 37(22):4246-4247.
+- Hundal J, Kiwala S, McMichael J, et al. 2020. pVACtools: a computational toolkit to identify and visualize cancer neoantigens. *Cancer Immunology Research* 8(3):409-420.
 
 ## Related Skills
 
-- immunoinformatics/mhc-binding-prediction - Binding affinity component
-- immunoinformatics/neoantigen-prediction - Input candidates
-- immunoinformatics/epitope-prediction - Epitope identification
+- immunoinformatics/neoantigen-prediction - produces the candidate list this skill ranks
+- immunoinformatics/mhc-binding-prediction - the presentation features that carry most of the signal
+- immunoinformatics/mhc-class-ii-prediction - CD4 immunogenicity, the under-served frontier
+- immunoinformatics/epitope-prediction - epitope candidates feeding the ranking
+- clinical-databases/somatic-signatures - clonal neoantigen burden as an ICI-response correlate

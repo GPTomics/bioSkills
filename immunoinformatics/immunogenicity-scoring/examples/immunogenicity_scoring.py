@@ -1,170 +1,59 @@
-'''Score and rank epitopes for immunogenicity'''
-# Reference: mhcflurry 2.1+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
+'''Rank neoantigen candidates within a patient with feature transparency.
+
+Immunogenicity is the least-solved layer: dedicated scores reach only ~AUROC 0.6-0.7
+and correlated poorly with validated immunogenicity in TESLA, where presentation
+strength, abundance, agretopicity, and foreignness carried the signal. So this script
+does NOT emit a single composite verdict. It filters on the non-negotiable
+expression/clonality gates, computes agretopicity defensively (flagging anchor
+inflation and WT-denominator instability), and orders candidates within one patient
+while keeping every feature visible. Scores are within-patient only; never compare
+across patients or alleles.
+'''
+# Reference: pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
-import numpy as np
 
 
-def calculate_immunogenicity_score(peptide_data):
-    '''Calculate composite immunogenicity score
-
-    Factors and typical weights:
-    - Binding affinity (25%): Lower IC50 = better
-    - Agretopicity (20%): MT/WT ratio for neoantigens
-    - Processing (10%): Proteasomal cleavage likelihood
-    - Expression (15%): Gene expression level
-    - Clonality (15%): VAF for tumor neoantigens
-    - Foreignness (15%): Dissimilarity to self
-
-    Score range: 0-1 (higher = more immunogenic)
-    '''
-    scores = {}
-
-    # Binding: transform IC50 to 0-1 (lower = better)
-    ic50 = peptide_data.get('ic50_nM', 500)
-    scores['binding'] = max(0, 1 - ic50 / 5000)
-
-    # Agretopicity: ratio capped at 10
-    agretopicity = peptide_data.get('agretopicity', 1.0)
-    scores['agretopicity'] = min(agretopicity / 10, 1)
-
-    # Processing: direct score 0-1
-    scores['processing'] = peptide_data.get('processing_score', 0.5)
-
-    # Expression: log-transform, cap at reasonable max
-    expression = peptide_data.get('expression_tpm', 10)
-    scores['expression'] = min(np.log10(expression + 1) / 3, 1)
-
-    # Clonality: direct VAF
-    scores['clonality'] = peptide_data.get('vaf', 0.5)
-
-    # Foreignness: 1 - self_similarity
-    self_sim = peptide_data.get('self_similarity', 0.5)
-    scores['foreignness'] = 1 - self_sim
-
-    # Weighted sum
-    weights = {
-        'binding': 0.25,
-        'agretopicity': 0.20,
-        'processing': 0.10,
-        'expression': 0.15,
-        'clonality': 0.15,
-        'foreignness': 0.15
-    }
-
-    total = sum(scores[k] * weights.get(k, 0) for k in scores)
-
-    return total, scores
+def filter_expression_clonality(df, tpm_min=1.0, vaf_min=0.25):
+    '''Filters, not scores: an unexpressed or low-VAF peptide is never displayed,
+    so it is gated out before ranking matters.'''
+    return df[(df['gene_tpm'] >= tpm_min) & (df['rna_vaf'] >= vaf_min)].copy()
 
 
-def rank_epitopes(epitope_df, top_n=20):
-    '''Rank epitopes by immunogenicity score'''
-    results = []
-
-    for _, row in epitope_df.iterrows():
-        total, factors = calculate_immunogenicity_score(row.to_dict())
-        result = row.to_dict()
-        result['immunogenicity_score'] = total
-        result.update({f'{k}_score': v for k, v in factors.items()})
-        results.append(result)
-
-    ranked = pd.DataFrame(results)
-    ranked = ranked.sort_values('immunogenicity_score', ascending=False)
-
-    # Assign confidence tiers
-    n = len(ranked)
-    ranked['tier'] = 'low'
-    ranked.loc[ranked.index[:max(1, int(n * 0.20))], 'tier'] = 'medium'
-    ranked.loc[ranked.index[:max(1, int(n * 0.05))], 'tier'] = 'high'
-
-    return ranked.head(top_n)
+def defensive_dai(df, wt='wt_ic50', mt='mt_ic50', anchor='mutation_at_anchor', wt_cap=5000):
+    '''DAI = IC50_WT / IC50_MT, with both traps flagged: anchor mutations inflate DAI
+    without changing the TCR-facing surface, and a barely-presented WT makes the ratio
+    numerical noise.'''
+    out = df.copy()
+    out['dai'] = out[wt] / out[mt]
+    out['dai_anchor_artifact'] = out[anchor]
+    out['dai_unstable'] = out[wt] > wt_cap
+    out['dai_trustworthy'] = ~out['dai_anchor_artifact'] & ~out['dai_unstable']
+    return out
 
 
-def check_anchor_residues(peptide, allele='HLA-A*02:01'):
-    '''Check MHC anchor residue preferences
-
-    HLA-A*02:01 preferences:
-    - Position 2: L, M, I, V, A (hydrophobic)
-    - Position C-terminus: V, L, I (hydrophobic)
-
-    Good anchors improve binding stability
-    '''
-    if len(peptide) < 2:
-        return {'anchor_score': 0}
-
-    pos2_preferred = set('LMIVA')
-    c_term_preferred = set('VLI')
-
-    pos2_good = peptide[1] in pos2_preferred
-    c_term_good = peptide[-1] in c_term_preferred
-
-    return {
-        'pos2_residue': peptide[1],
-        'pos2_preferred': pos2_good,
-        'c_term_residue': peptide[-1],
-        'c_term_preferred': c_term_good,
-        'anchor_score': int(pos2_good) + int(c_term_good)
-    }
-
-
-def summarize_ranking(ranked_df):
-    '''Summarize epitope ranking results'''
-    print('Immunogenicity Ranking Summary')
-    print('=' * 50)
-
-    print(f"\nTotal candidates: {len(ranked_df)}")
-    tier_counts = ranked_df['tier'].value_counts()
-    for tier in ['high', 'medium', 'low']:
-        if tier in tier_counts:
-            print(f"  {tier.capitalize()} confidence: {tier_counts[tier]}")
-
-    print(f"\nScore range: {ranked_df['immunogenicity_score'].min():.3f} - "
-          f"{ranked_df['immunogenicity_score'].max():.3f}")
-
-    print('\nTop 5 candidates:')
-    top5 = ranked_df.head(5)
-    for i, (_, row) in enumerate(top5.iterrows(), 1):
-        pep = row.get('peptide', 'N/A')
-        score = row['immunogenicity_score']
-        tier = row['tier']
-        print(f"  {i}. {pep}: {score:.3f} ({tier})")
+def rank_within_patient(df):
+    '''Order by presentation, abundance, then quality - the axes TESLA found carry the
+    signal - keeping features side by side for human curation rather than collapsing
+    them into one over-trusted number.'''
+    return df.sort_values(['presentation_rank', 'gene_tpm', 'foreignness'],
+                          ascending=[True, False, False])
 
 
 if __name__ == '__main__':
-    # Example epitope candidates
-    candidates = pd.DataFrame({
-        'peptide': ['SIINFEKL', 'GILGFVFTL', 'NLVPMVATV', 'YMLDLQPET', 'FLPSDFFPSV'],
-        'ic50_nM': [25, 85, 120, 450, 35],
-        'agretopicity': [5.2, 2.1, 1.5, 0.8, 3.8],
-        'processing_score': [0.85, 0.72, 0.65, 0.45, 0.78],
-        'expression_tpm': [150, 80, 200, 25, 120],
-        'vaf': [0.45, 0.35, 0.50, 0.15, 0.40],
-        'self_similarity': [0.3, 0.4, 0.2, 0.7, 0.35]
+    demo = pd.DataFrame({
+        'gene': ['TP53', 'KRAS', 'BRAF', 'EGFR', 'PIK3CA'],
+        'mt_peptide': ['HMTEVVRHC', 'VVVGADGVGK', 'LATEKSRWSG', 'KITDFGLAKL', 'STRDPLSEIT'],
+        'presentation_rank': [0.3, 0.8, 1.5, 0.6, 2.2],
+        'mt_ic50': [45, 120, 350, 90, 600],
+        'wt_ic50': [1500, 800, 360, 8000, 700],
+        'mutation_at_anchor': [False, False, True, False, False],
+        'foreignness': [0.7, 0.4, 0.2, 0.5, 0.3],
+        'gene_tpm': [25, 150, 80, 200, 12],
+        'rna_vaf': [0.45, 0.35, 0.30, 0.40, 0.15],
     })
 
-    print('Epitope Immunogenicity Scoring')
-    print('=' * 50)
-
-    print('\nInput candidates:')
-    print(candidates[['peptide', 'ic50_nM', 'agretopicity', 'expression_tpm']].to_string(index=False))
-
-    # Rank
-    ranked = rank_epitopes(candidates, top_n=10)
-
-    print('\n')
-    summarize_ranking(ranked)
-
-    # Show score breakdown for top candidate
-    print('\nScore breakdown for top candidate:')
-    top = ranked.iloc[0]
-    for col in ['binding_score', 'agretopicity_score', 'processing_score',
-                'expression_score', 'clonality_score', 'foreignness_score']:
-        if col in top:
-            print(f"  {col.replace('_score', '').capitalize()}: {top[col]:.3f}")
-
-    # Check anchors
-    print('\nAnchor residue analysis:')
-    for pep in candidates['peptide']:
-        anchors = check_anchor_residues(pep)
-        status = 'Good' if anchors['anchor_score'] == 2 else 'Partial' if anchors['anchor_score'] == 1 else 'Poor'
-        print(f"  {pep}: P2={anchors['pos2_residue']}, C-term={anchors['c_term_residue']} ({status})")
+    kept = filter_expression_clonality(demo)
+    scored = defensive_dai(kept)
+    ranked = rank_within_patient(scored)
+    ranked[['gene', 'presentation_rank', 'gene_tpm', 'dai', 'dai_trustworthy', 'foreignness']]
