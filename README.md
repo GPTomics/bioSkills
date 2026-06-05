@@ -157,7 +157,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **hi-c-analysis** | 9 | cooler, cooltools, pairtools, HiCExplorer, chromosight, FitHiChIP | Read-pair processing and library QC, cooler matrices, ICE/KR balancing and P(s) expected, A/B compartments, TADs, loops, visualization, differential comparison, protein-directed 3C (HiChIP/PLAC-seq/Capture Hi-C) |
 | **alternative-splicing** | 9 | rMATS-turbo, leafcutter, MAJIQ, SpliceAI, FRASER 2.0, FLAIR, IsoformSwitchAnalyzeR | Quantification, differential splicing, isoform switching/DTU, sashimi viz, splicing QC, single-cell splicing, splice variant prediction (SpliceAI), outlier detection (FRASER2/DROP), long-read splicing |
 | **chemoinformatics** | 20 | RDKit, GNINA, ADMETlab 3.0, DiffDock-L, Boltz-2, REINVENT 4, AiZynthFinder, chemprop, OpenFE | Molecular I/O + standardization, conformer generation, descriptors, similarity / shape / pharmacophore, scaffold analysis, reactions / retrosynthesis, QSAR + generative design, ADMET, classical + ML docking + pose validation, free-energy calculations, covalent / PROTAC design |
-| **liquid-biopsy** | 6 | ichorCNA, fgbio, VarDict, FinaleToolkit | cfDNA preprocessing, fragmentomics, tumor fraction, ctDNA mutations, longitudinal monitoring |
+| **liquid-biopsy** | 7 | ichorCNA, fgbio, VarDict, FinaleToolkit, MethylDackel | cfDNA preprocessing (UMI/duplex), analytical validation / limits of detection, ctDNA mutations + CHIP, fragmentomics, tumor fraction, methylation detection + tissue-of-origin, longitudinal monitoring / MRD |
 | **workflows** | 41 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics, time-course, eDNA, clinical trials |
 | **proteomics** | 9 | pyOpenMS, limma, DEqMS, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon processing, taxonomy, diversity, differential abundance |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | sklearn, shap, lifelines, scvi-tools | Biomarker discovery, model interpretation, survival analysis, atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 531 skills across 63 categories**
+**Total: 532 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 531 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 532 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

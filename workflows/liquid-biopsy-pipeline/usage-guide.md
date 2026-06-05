@@ -52,15 +52,18 @@ Tell your AI agent what you want to do:
 
 ## Tips
 - sWGS (0.1-1x) is for tumor fraction; panels are for mutations
-- ichorCNA detects >= 3% tumor fraction reliably
-- VarDict detects >= 0.5% VAF with UMI consensus
-- Always filter CHIP genes (DNMT3A, TET2, ASXL1, etc.)
+- ichorCNA detects >= 3% tumor fraction reliably; below that floor, route to fragmentomics or methylation
+- VarDict detects >= 0.5% VAF with UMI consensus; duplex consensus extends toward 0.1% and below
+- Detection limit is set by genome-equivalents sampled and error suppression, not sequencing depth; report LoD conditioned on input mass
+- CHIP is the dominant plasma false positive; sequence matched buffy-coat/WBC and subtract, do not rely on a gene list alone
 - Pre-analytical factors matter: use Streck tubes or process EDTA quickly
-- FinaleToolkit replicates DELFI patterns (DELFI is commercial, not software)
+- FinaleToolkit replicates DELFI patterns (DELFI is a methodology and company, not software)
 
 ## Related Skills
-- liquid-biopsy/cfdna-preprocessing - Preprocessing details
+- liquid-biopsy/cfdna-preprocessing - UMI/duplex consensus error suppression
+- liquid-biopsy/analytical-validation - molecule-counting limits of detection
+- liquid-biopsy/ctdna-mutation-detection - low-VAF calling and CHIP subtraction
 - liquid-biopsy/tumor-fraction-estimation - ichorCNA analysis
-- liquid-biopsy/ctdna-mutation-detection - Variant calling
 - liquid-biopsy/fragment-analysis - Fragmentomics
+- liquid-biopsy/methylation-based-detection - methylation detection and tissue-of-origin
 - liquid-biopsy/longitudinal-monitoring - Serial tracking
