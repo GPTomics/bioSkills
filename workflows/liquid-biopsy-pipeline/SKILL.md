@@ -7,7 +7,7 @@ primary_tool: ichorCNA
 
 ## Version Compatibility
 
-Reference examples tested with: BWA 0.7.17+, VarDict 1.8+, fgbio 2.1+, ichorCNA 0.5+, numpy 1.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+, scanpy 1.10+
+Reference examples tested with: BWA 0.7.17+, VarDict 1.8+, fgbio 2.1+, ichorCNA 0.6.0+, FinaleToolkit 0.7+, MethylDackel 0.6+, numpy 1.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -71,7 +71,7 @@ def check_preanalytical_quality(sample_metadata):
 # For UMI-tagged libraries (targeted panels)
 # fgbio pipeline
 
-# Extract UMIs
+# Extract UMIs. Read-structure is library-specific; see liquid-biopsy/cfdna-preprocessing.
 fgbio ExtractUmisFromBam \
     --input raw.bam \
     --output with_umis.bam \
@@ -89,13 +89,13 @@ fgbio GroupReadsByUmi \
     --strategy adjacency \
     --edits 1
 
-# Consensus calling
+# Consensus calling: keep the caller permissive (fgbio #1009), apply strictness at the filter
 fgbio CallMolecularConsensusReads \
     --input grouped.bam \
     --output consensus.bam \
-    --min-reads 2
+    --min-reads 1
 
-# Filter
+# Filter: this is the real quality gate
 fgbio FilterConsensusReads \
     --input consensus.bam \
     --output final.bam \
@@ -139,22 +139,23 @@ def verify_cfdna_quality(bam_path):
 
 ## Step 3a: Tumor Fraction Estimation (sWGS)
 
-```r
-# For shallow WGS data (0.1-1x coverage)
-library(ichorCNA)
+ichorCNA is a command-line script (`Rscript scripts/runIchorCNA.R`), NOT an importable `runIchorCNA()` function, and it is preceded by HMMcopy `readCounter` to bin the BAM. The ~3% tumor-fraction floor is an analytical limit of detection; below it, route to fragmentomics or methylation rather than trusting a low value (see liquid-biopsy/analytical-validation and liquid-biopsy/tumor-fraction-estimation).
 
-runIchorCNA(
-    WIG = 'sample.wig',
-    gcWig = 'gc_hg38_1mb.wig',
-    mapWig = 'map_hg38_1mb.wig',
-    normalPanel = 'pon_median.rds',
-    centromere = 'centromeres.txt',
-    outDir = 'ichor_results/',
-    id = 'sample_id',
-    normal = c(0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99),
-    ploidy = c(2, 3),
-    maxCN = 5
-)
+```bash
+# For shallow WGS data (0.1-1x coverage); GavinHaLab fork
+readCounter --window 1000000 --quality 20 \
+    --chromosome "chr1,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr20,chr21,chr22,chrX" \
+    sample.bam > sample.wig
+
+Rscript scripts/runIchorCNA.R \
+    --id sample_id --WIG sample.wig \
+    --gcWig gc_hg38_1000kb.wig --mapWig map_hg38_1000kb.wig \
+    --centromere GRCh38.GCA_000001405.2_centromere_acen.txt \
+    --normalPanel HD_ULP_PoN_1Mb_median.rds \
+    --normal "c(0.5,0.6,0.7,0.8,0.9)" --ploidy "c(2,3)" --maxCN 7 \
+    --estimateNormal TRUE --estimatePloidy TRUE --estimateScPrevalence TRUE \
+    --outDir ichor_results/
+# Tumor fraction = 1 - n in sample_id.params.txt
 ```
 
 ## Step 3b: Mutation Detection (Targeted Panel)
@@ -180,44 +181,44 @@ var2vcf_valid.pl \
 
 ## Step 4: CHIP Filtering
 
+Clonal hematopoiesis (CHIP) is the dominant false-positive source in plasma: ~81.6% of cfDNA variants in controls and ~53.2% in cancer patients trace to white blood cells (Razavi 2019 Nat Med 25:1928). A gene-list filter is a weak fallback; the definitive control is sequencing matched buffy-coat/WBC DNA and subtracting any variant present there. See liquid-biopsy/ctdna-mutation-detection.
+
 ```python
 CHIP_GENES = ['DNMT3A', 'TET2', 'ASXL1', 'PPM1D', 'JAK2', 'SF3B1', 'SRSF2', 'TP53']
 
-def filter_chip(variants_df, chip_genes=CHIP_GENES):
-    '''
-    Filter out clonal hematopoiesis variants.
-    Critical for elderly patients (>5% have CHIP).
-    '''
+def filter_chip(variants_df, wbc_variants=None, chip_genes=CHIP_GENES):
+    '''Subtract WBC-matched variants when available; else fall back to a CHIP gene list.'''
+    if wbc_variants is not None:
+        wbc_keys = set(zip(wbc_variants['chrom'], wbc_variants['pos'], wbc_variants['alt']))
+        in_wbc = variants_df.apply(lambda r: (r['chrom'], r['pos'], r['alt']) in wbc_keys, axis=1)
+        return variants_df[~in_wbc], variants_df[in_wbc]
+
     chip = variants_df[variants_df['gene'].isin(chip_genes)]
     somatic = variants_df[~variants_df['gene'].isin(chip_genes)]
-
-    print(f'Potential CHIP variants: {len(chip)}')
-    print(f'Likely somatic: {len(somatic)}')
-
     return somatic, chip
 ```
 
 ## Step 5: Fragmentomics Analysis (Optional)
 
+FinaleToolkit (MIT license, not DELFI software) exposes real hyphenated CLI subcommands and an underscored `finaletoolkit.frag` Python API; `delfi` GC-corrects the short/long ratio (raw ratios are dominated by GC and sequencing batch). DELFI is a methodology and a company, not a `pip install`-able tool.
+
+```bash
+# GC-corrected genome-wide DELFI profile and end-motif diversity.
+# delfi positionals: input chrom_sizes reference bins_file; GC correction is on by default; -R for non-hg19.
+finaletoolkit delfi consensus.bam hg38.chrom.sizes hg38.fa bins_100kb.bed -g gaps.bed -R -o sample.delfi.bed
+finaletoolkit end-motifs consensus.bam hg38.fa -o sample.end_motifs.tsv
+finaletoolkit mds sample.end_motifs.tsv
+```
+
 ```python
-import finaletoolkit as ft
+from finaletoolkit.frag import delfi  # see liquid-biopsy/fragment-analysis
 
-def run_fragmentomics(bam_path, output_prefix):
-    '''
-    DELFI-style fragmentation analysis.
-    Use FinaleToolkit (MIT license, not DELFI software).
-    '''
-    fragments = ft.read_fragments(bam_path)
-
-    profile = ft.calculate_fragmentation_profile(
-        fragments,
-        bin_size=5_000_000,
-        short_range=(100, 150),
-        long_range=(151, 220)
-    )
-
-    profile.to_csv(f'{output_prefix}_frag_profile.csv')
-    return profile
+def run_fragmentomics(bam_path, chrom_sizes, reference, bins_bed, gap_bed):
+    '''GC-corrected DELFI short/long profile (MDS comes from end_motifs().motif_diversity_score()).
+    Python positional order is (input, chrom_sizes, bins_file, reference_file) - note this differs
+    from the CLI order (input, chrom_sizes, reference, bins), so pass by keyword to be safe.'''
+    return delfi(bam_path, chrom_sizes=chrom_sizes, bins_file=bins_bed,
+                 reference_file=reference, gap_file=gap_bed)
 ```
 
 ## Step 6: Longitudinal Tracking
@@ -298,8 +299,10 @@ def run_liquid_biopsy_pipeline(sample_config):
 
 ## Related Skills
 
-- liquid-biopsy/cfdna-preprocessing - Preprocessing details
-- liquid-biopsy/tumor-fraction-estimation - ichorCNA analysis
-- liquid-biopsy/ctdna-mutation-detection - Variant calling
-- liquid-biopsy/fragment-analysis - Fragmentomics
-- liquid-biopsy/longitudinal-monitoring - Serial tracking
+- liquid-biopsy/cfdna-preprocessing - UMI/duplex consensus error suppression
+- liquid-biopsy/analytical-validation - molecule-counting limits of detection and honest LoD reporting
+- liquid-biopsy/ctdna-mutation-detection - low-VAF calling and CHIP subtraction
+- liquid-biopsy/tumor-fraction-estimation - ichorCNA tumor fraction from sWGS
+- liquid-biopsy/fragment-analysis - fragmentomics features
+- liquid-biopsy/methylation-based-detection - methylation detection and tissue-of-origin
+- liquid-biopsy/longitudinal-monitoring - serial MRD tracking

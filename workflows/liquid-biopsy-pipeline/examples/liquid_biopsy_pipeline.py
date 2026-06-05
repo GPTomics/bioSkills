@@ -2,7 +2,7 @@
 '''
 Complete liquid biopsy analysis pipeline.
 '''
-# Reference: bwa 0.7.17+, vardict 1.8+, fgbio 2.1+, ichorcna 0.5+, numpy 1.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+, scanpy 1.10+ | Verify API if version differs
+# Reference: bwa 0.7.17+, vardict 1.8+, fgbio 2.1+, ichorcna 0.6.0+, numpy 1.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
 
 import subprocess
 import pysam
@@ -56,7 +56,7 @@ def preprocess_cfdna(input_bam, output_bam, reference, work_dir):
         'fgbio', 'CallMolecularConsensusReads',
         '--input', str(grouped),
         '--output', str(consensus),
-        '--min-reads', '2'
+        '--min-reads', '1'
     ], check=True)
 
     subprocess.run([
