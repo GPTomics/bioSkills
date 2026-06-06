@@ -60,13 +60,17 @@ Tell your AI agent what you want to do:
 
 - 15-30x coverage recommended for reliable SV calling
 - Longer reads detect larger SVs and resolve complex rearrangements better
-- Provide tandem repeat annotation to Sniffles2 to improve accuracy
+- Provide a reference-matched tandem-repeat BED to Sniffles2 - it is the single biggest false-positive lever in repeats
+- cuteSV defaults are not platform-appropriate; use the ONT, HiFi, or CLR parameter set and enable --genotype (off by default)
+- Map with minimap2 >= 2.28 and keep -Y (soft-clipped supplementaries) so split reads retain breakpoint sequence
+- Benchmark with Truvari (bench then refine) and state the region set, tandem-repeat BED, and Truvari parameters
+- For tumor-normal somatic SVs use a paired caller (Severus/nanomonsv), not Sniffles --mosaic
 - Start with QUAL>=20, adjust based on validation
-- Use PBMM2 instead of minimap2 for PacBio HiFi data with pbsv
 
 ## Related Skills
 
 - variant-calling/structural-variant-calling - Short-read SV calling and consensus approach
-- long-read-sequencing/structural-variants - Long-read SV details
-- long-read-sequencing/long-read-alignment - Minimap2 alignment options
+- long-read-sequencing/structural-variants - Long-read SV details (Sniffles2 .snf, cuteSV per-platform params, Truvari)
+- long-read-sequencing/long-read-alignment - Minimap2 preset and -Y soft-clipping
+- long-read-sequencing/haplotype-phasing - Haplotag the BAM for phased/somatic SVs
 - variant-calling/vcf-manipulation - Merge SV calls across callers

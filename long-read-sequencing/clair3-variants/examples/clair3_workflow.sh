@@ -1,59 +1,38 @@
 #!/bin/bash
-# Reference: DeepVariant 1.6+, Entrez Direct 21.0+, bcftools 1.19+, minimap2 2.26+ | Verify API if version differs
-# Clair3 variant calling workflow for long reads
-
+# Reference: Clair3 2.0+, bcftools 1.19+, samtools 1.19+ | Verify API if version differs
+# Germline small-variant calling with Clair3. The MODEL must match the basecaller;
+# there is no auto-detection and a mismatch silently degrades calls.
 set -euo pipefail
 
-SAMPLE="sample"
-BAM="sample.bam"
-REFERENCE="reference.fasta"
-PLATFORM="ont"  # or "hifi"
-THREADS=32
+BAM=${1:?Usage: $0 <aln.bam> <ref.fa> <model_path> [platform] [threads] [sample]}
+REFERENCE=${2:?reference required}
+MODEL_PATH=${3:?model_path required - a SPECIFIC model folder, e.g. .../r1041_e82_400bps_sup_v500}
+PLATFORM=${4:-ont}        # ont | hifi | ilmn
+THREADS=${5:-16}
+SAMPLE=${6:-sample}
 
-# Model path (adjust for your installation)
-MODEL_PATH="${CONDA_PREFIX}/bin/models/${PLATFORM}"
+samtools quickcheck "$BAM" || { echo 'BAM invalid'; exit 1; }
 
-echo "=== Step 1: Input validation ==="
-samtools quickcheck ${BAM} && echo "BAM OK" || { echo "BAM invalid"; exit 1; }
-samtools view -H ${BAM} | head -5
-
-echo "=== Step 2: Run Clair3 ==="
+# --include_all_ctgs is mandatory for non-human / draft references, or output is empty.
+# --enable_phasing phases the final VCF (WhatsHap); --longphase_for_phasing swaps only the
+# internal phaser to LongPhase.
 run_clair3.sh \
-    --bam_fn=${BAM} \
-    --ref_fn=${REFERENCE} \
-    --threads=${THREADS} \
-    --platform=${PLATFORM} \
-    --model_path=${MODEL_PATH} \
-    --output=${SAMPLE}_clair3
+    --bam_fn="$BAM" \
+    --ref_fn="$REFERENCE" \
+    --threads="$THREADS" \
+    --platform="$PLATFORM" \
+    --model_path="$MODEL_PATH" \
+    --include_all_ctgs \
+    --output="${SAMPLE}_clair3"
 
 VCF="${SAMPLE}_clair3/merge_output.vcf.gz"
+bcftools index -t "$VCF"
 
-echo "=== Step 3: Index VCF ==="
-bcftools index -t ${VCF}
+echo 'Variant counts:'
+bcftools stats "$VCF" | grep '^SN'
 
-echo "=== Step 4: Variant statistics ==="
-echo "Total variants:"
-bcftools stats ${VCF} | grep "^SN"
-
-echo "=== Step 5: Filter high-quality variants ==="
-bcftools view -i 'QUAL>20 && GQ>30' ${VCF} -Oz -o ${SAMPLE}_hq.vcf.gz
-bcftools index -t ${SAMPLE}_hq.vcf.gz
-
-echo "High-quality variants:"
-bcftools stats ${SAMPLE}_hq.vcf.gz | grep "^SN"
-
-echo "=== Step 6: Separate SNPs and indels ==="
-bcftools view -v snps ${SAMPLE}_hq.vcf.gz -Oz -o ${SAMPLE}_snps.vcf.gz
-bcftools view -v indels ${SAMPLE}_hq.vcf.gz -Oz -o ${SAMPLE}_indels.vcf.gz
-
-bcftools index -t ${SAMPLE}_snps.vcf.gz
-bcftools index -t ${SAMPLE}_indels.vcf.gz
-
-echo "SNPs: $(bcftools view -H ${SAMPLE}_snps.vcf.gz | wc -l)"
-echo "Indels: $(bcftools view -H ${SAMPLE}_indels.vcf.gz | wc -l)"
-
-echo "=== Workflow complete ==="
-echo "Raw VCF: ${VCF}"
-echo "High-quality VCF: ${SAMPLE}_hq.vcf.gz"
-echo "SNPs: ${SAMPLE}_snps.vcf.gz"
-echo "Indels: ${SAMPLE}_indels.vcf.gz"
+# Benchmark with stratification (not just global F1) to expose ONT indel errors in
+# homopolymer/STR strata - the residual error mode that whole-genome F1 hides:
+#   hap.py giab_truth.vcf.gz "$VCF" -f giab_confident.bed -r "$REFERENCE" \
+#       --engine=vcfeval --stratification giab_strat.tsv -o bench/${SAMPLE}
+echo "Final VCF: $VCF"

@@ -1,368 +1,179 @@
 ---
-name: bio-basecalling
-description: "Convert raw Nanopore signal data (FAST5/POD5) to nucleotide sequences using Dorado basecaller. Covers model selection, GPU acceleration, modified base detection, and quality filtering. Use when processing raw Nanopore data before alignment. Note: Guppy is deprecated; use Dorado for all new analyses."
+name: bio-long-read-sequencing-basecalling
+description: Basecalls raw Oxford Nanopore signal (POD5/FAST5) into reads with Dorado, choosing the chemistry-matched model and accuracy tier (fast/hac/sup), requesting modified bases (5mCG_5hmCG, 6mA, m6A) at basecall time, and handling duplex, demultiplexing, trimming, and HERRO read correction. Covers why the model+version is an irreversible analysis decision, why methylation cannot be recovered later, and why downstream polish/variant models must match the basecaller. Use when converting POD5/FAST5 to reads, picking a Dorado model for R9/R10 or RNA004, enabling methylation calling, basecalling duplex, demultiplexing barcoded runs, or correcting reads for assembly.
 tool_type: cli
 primary_tool: dorado
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: samtools 1.19+
+Reference examples tested with: Dorado 1.0+, pod5 0.3+, samtools 1.19+, chopper 0.7+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+Results depend on inputs that outlive the binary version - record them:
+- The basecaller MODEL string (e.g. `dna_r10.4.1_e8.2_400bps_sup@v5.2.0`) sets the entire error profile and must be propagated to every downstream tool. Pin it.
+- Modified-base models carry a SECOND version (`..._sup@v5.0.0_5mCG_5hmCG@v3`); the mod version can lag the simplex version - check `dorado download --list`.
+- R9.4.1 and RNA002 models were removed from Dorado v1.0 defaults; legacy data needs an archived model path.
+
+If code throws an error, introspect the installed tool (`dorado --help`, `dorado basecaller --help`) and adapt the example to the actual API rather than retrying.
 
 # Nanopore Basecalling
 
-**"Basecall my Nanopore data"** -> Convert raw electrical signal (FAST5/POD5) into nucleotide sequences with quality scores, optionally detecting modified bases.
-- CLI: `dorado basecaller sup pod5/ > calls.bam` (recommended), `dorado basecaller sup,5mCG_5hmCG pod5/` (with modifications)
+**"Basecall my Nanopore data"** -> Convert raw signal (POD5) into reads with Dorado using the chemistry-matched model, deciding the accuracy tier and whether to call modifications now - because the model choice is baked irreversibly into the output.
+- CLI: `dorado basecaller sup pod5s/ > calls.bam` (simplex), `dorado basecaller sup,5mCG_5hmCG pod5s/ > calls.bam` (with methylation), `dorado duplex sup pod5s/ > duplex.bam` (duplex)
 
-Convert raw electrical signal from Nanopore sequencing into nucleotide sequences.
+PacBio note: PacBio "basecalling" (CCS -> HiFi reads) runs on-instrument/in SMRT Link; users receive HiFi BAMs already at Q20-Q30+. This skill is Oxford Nanopore / Dorado. HiFi assembly lives in genome-assembly/hifi-assembly.
 
-## Dorado (Recommended)
+## The Single Most Important Modern Insight -- There Is No "The Reads," Only "The Reads As Called By This Model"
 
-Dorado is ONT's current production basecaller, replacing Guppy. It offers better accuracy and speed.
+Basecalling is not fixed preprocessing that yields a neutral FASTQ. The model and version chosen are an analysis decision written permanently into the BAM, with three consequences a naive user misses:
 
-### Basic Basecalling
+1. **Methylation is a basecalling decision, not a later analysis step.** Modified bases are inferred from raw signal at basecall time by Remora models and emitted as MM/ML tags. A plain BAM/FASTQ with no MM/ML tags has thrown the signal away - mods CANNOT be recovered without re-basecalling from POD5. If methylation might ever matter, request it now (`sup,5mCG_5hmCG`) and KEEP the POD5. See nanopore-methylation.
+2. **Downstream polish/variant models must match the basecaller model+version.** medaka and Clair3 ship per-model weights (Clair3 `r1041_e82_400bps_sup_v500`; medaka the dotted `r1041_e82_400bps_sup_v5.2.0`). A mismatched model silently degrades accuracy with no error. Propagate the basecaller model name to every downstream step.
+3. **Mixing model versions across a cohort is a batch effect.** Different model versions have different identity and homopolymer-indel error profiles. Re-basecall the WHOLE cohort with ONE current model before joint or differential analysis.
 
-```bash
-dorado basecaller sup pod5_dir/ > calls.bam
-```
+## Dorado Subcommand Taxonomy
 
-### Choose Model
+Dorado (one GPU-first executable) replaced Guppy, which is end-of-life. Bonito is ONT's research/training basecaller (not production); Rerio hosts research-release models (niche mods, bacterial methylation).
 
-```bash
-dorado basecaller fast pod5_dir/ > calls.bam
-dorado basecaller hac pod5_dir/ > calls.bam
-dorado basecaller sup pod5_dir/ > calls.bam
-```
+| Subcommand | Purpose | Canonical invocation |
+|------------|---------|----------------------|
+| `basecaller` | simplex basecalling | `dorado basecaller hac pod5s/ > calls.bam` |
+| `duplex` | template+complement duplex | `dorado duplex sup pod5s/ > duplex.bam` |
+| `demux` | barcode classification/split | `dorado demux --kit-name SQK-NBD114-24 --output-dir out/ calls.bam` |
+| `trim` | standalone adapter/primer trim | `dorado trim reads.bam > trimmed.bam` |
+| `aligner` | minimap2 alignment (carries MM/ML) | `dorado aligner ref.mmi reads.bam > aln.bam` |
+| `correct` | HERRO single-read correction | `dorado correct reads.fastq > corrected.fasta` |
+| `summary` | sequencing-summary TSV from BAM | `dorado summary calls.bam > summary.tsv` |
+| `download` | model management | `dorado download --model <name>` / `--list` |
 
-### Model Speed vs Accuracy
+## Model Naming Scheme (load-bearing)
 
-| Model | Speed | Accuracy | Use Case |
-|-------|-------|----------|----------|
-| fast | Fastest | Lower | Quick preview |
-| hac | Medium | High | General use |
-| sup | Slowest | Highest | Publication quality |
+Format `{analyte}_{pore}_{chemistry}_{speed}@v{ver}` + optional mod suffix, e.g. `dna_r10.4.1_e8.2_400bps_sup@v5.2.0_5mCG_5hmCG@v3`.
 
-### Specific Model Version
+| Token | Meaning | Examples |
+|-------|---------|----------|
+| analyte | molecule | `dna`, `rna004` |
+| pore | flow-cell generation | `r10.4.1` (current), `r9.4.1` (legacy) |
+| chemistry | kit chemistry | `e8.2` (Kit 14) |
+| speed | translocation speed -> sampling rate | `400bps` (5 kHz DNA), `130bps` (RNA004, 4 kHz) |
+| tier | model size/accuracy | `fast`, `hac`, `sup` |
+| version | model version | `@v4.3.0`, `@v5.2.0`, `@v6.0.0` |
 
-```bash
-dorado download --model dna_r10.4.1_e8.2_400bps_sup@v5.1.0
-dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.1.0 pod5_dir/ > calls.bam
-```
+Passing the bare tier (`sup`) lets Dorado auto-detect chemistry from POD5 metadata and fetch the matching latest model; pin a version (`sup@v5.2.0`) or a full path for reproducibility. Append mods comma-separated (`sup,5mCG_5hmCG,6mA`); only one mod model per canonical base may be active.
 
-### List Available Models
+## Decision Tree by Scenario
 
-```bash
-dorado download --list
-```
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Any analysis (variant/assembly/methylation) | `sup` + matched model, pinned version | `fast`/`hac` error profile leaks into calls |
+| Live run / adaptive sampling / quick QC only | `fast` | speed; never for downstream analysis |
+| Routine work, compute-limited | `hac` | strong accuracy/compute balance (v5.2 closed much of the gap to sup) |
+| Methylation wanted now or maybe later | `sup,5mCG_5hmCG` (DNA), keep POD5 | mods are unrecoverable from a plain BAM -> nanopore-methylation |
+| Per-molecule accuracy, low input, phasing | `dorado duplex sup` | ~Q30 reads, but expect <10% duplex yield |
+| Diploid/phased T2T assembly from simplex | `dorado correct` (HERRO) before assembler | haplotype-aware Q22->Q40 -> genome-assembly/long-read-assembly |
+| Barcoded multiplexed run | basecall `--no-trim`, then `dorado demux` | trimming first strips barcodes before demux sees them |
+| Legacy R9.4.1 / RNA002 data | explicit archived model path | removed from Dorado v1.0 default downloads |
+| PacBio data | already HiFi; no Dorado step | CCS runs on-instrument -> genome-assembly/hifi-assembly |
 
-### Output FASTQ Instead of BAM
-
-```bash
-dorado basecaller sup pod5_dir/ --emit-fastq > calls.fastq
-```
-
-### Modified Base Detection
-
-```bash
-dorado basecaller sup,5mCG_5hmCG pod5_dir/ > calls_mods.bam
-dorado basecaller sup,5mCG pod5_dir/ > calls_5mc.bam
-dorado basecaller sup,6mA pod5_dir/ > calls_6ma.bam
-```
-
-### GPU Selection
-
-```bash
-dorado basecaller sup pod5_dir/ --device cuda:0 > calls.bam
-dorado basecaller sup pod5_dir/ --device cuda:0,1 > calls.bam
-dorado basecaller sup pod5_dir/ --device cpu > calls.bam
-```
-
-### Batch Size for Memory
+## Core Commands
 
 ```bash
-dorado basecaller sup pod5_dir/ --batchsize 64 > calls.bam
+# Simplex, super-accuracy, auto-detected chemistry-matched model (BAM is the default output)
+dorado basecaller sup pod5s/ > calls.bam
+
+# Pin the model version for reproducibility
+dorado basecaller dna_r10.4.1_e8.2_400bps_sup@v5.2.0 pod5s/ > calls.bam
+
+# Call methylation AT basecall time (CpG 5mC + 5hmC); KEEP pod5s/ - mods are unrecoverable later
+dorado basecaller sup,5mCG_5hmCG pod5s/ > calls.bam
+dorado basecaller sup,6mA pod5s/ > calls.bam               # all-context 6mA
+# RNA004 direct RNA (cDNA CANNOT call mods - PCR erases the signal):
+dorado basecaller rna004_130bps_sup@v5.1.0,m6A_DRACH pod5s/ > rna_mods.bam
+
+# FASTQ output and a per-read quality floor (relative filter, not a calibrated accuracy)
+dorado basecaller sup pod5s/ --emit-fastq --min-qscore 10 > calls.fastq
+
+# Duplex (needs raw POD5; cannot be recovered from simplex FASTQ); dx tag marks read types
+dorado duplex sup pod5s/ > duplex.bam
+
+# Demultiplex: basecall WITHOUT trimming, then demux (demux trims barcodes itself)
+dorado basecaller sup pod5s/ --no-trim > calls.bam
+dorado demux --kit-name SQK-NBD114-24 --output-dir demux/ calls.bam
+dorado demux --kit-name SQK-NBD114-24 --barcode-both-ends --output-dir demux/ calls.bam  # stringent
+
+# HERRO read correction for diploid/phased assembly (input FASTQ of HAC/SUP R10 reads >=10kb -> FASTA)
+dorado download --model herro-v1
+dorado correct reads.fastq > corrected.fasta
 ```
 
-### Duplex Calling
+POD5 is ONT's default raw format (faster random access than FAST5). Convert FAST5 first:
 
 ```bash
-dorado duplex sup pod5_dir/ > duplex.bam
+pod5 convert fast5 raw/*.fast5 --output pod5s/    # FAST5 is legacy; basecalling it directly is slow
+pod5 view pod5s/                                   # summary table (replaces deprecated `pod5 inspect reads`)
+pod5 merge pod5s/*.pod5 --output merged.pod5
 ```
 
-### Demultiplexing During Basecalling
-
-```bash
-dorado basecaller sup pod5_dir/ --kit-name SQK-NBD114-24 > calls.bam
-dorado demux calls.bam --output-dir demuxed/ --kit-name SQK-NBD114-24
-```
-
-### Trim Adapters
-
-```bash
-dorado basecaller sup pod5_dir/ --trim adapters > calls.bam
-dorado basecaller sup pod5_dir/ --no-trim > calls_untrimmed.bam
-```
-
-### Resume Interrupted Run
-
-```bash
-dorado basecaller sup pod5_dir/ --resume-from calls.bam > calls_complete.bam
-```
-
-## Guppy (Deprecated - Legacy Only)
-
-Guppy is deprecated and no longer receiving updates. Use Dorado for all new analyses. Guppy examples below are only for maintaining legacy pipelines.
-
-### Basic Basecalling
-
-```bash
-guppy_basecaller \
-    -i fast5_dir/ \
-    -s output_dir/ \
-    -c dna_r10.4.1_e8.2_400bps_sup.cfg \
-    --device cuda:0
-```
-
-### CPU Mode
-
-```bash
-guppy_basecaller \
-    -i fast5_dir/ \
-    -s output_dir/ \
-    -c dna_r10.4.1_e8.2_400bps_fast.cfg \
-    --num_callers 8 \
-    --cpu_threads_per_caller 4
-```
-
-### High Accuracy Model
-
-```bash
-guppy_basecaller \
-    -i fast5_dir/ \
-    -s output_dir/ \
-    -c dna_r10.4.1_e8.2_400bps_hac.cfg \
-    --device cuda:0
-```
-
-### Super Accuracy Model
-
-```bash
-guppy_basecaller \
-    -i fast5_dir/ \
-    -s output_dir/ \
-    -c dna_r10.4.1_e8.2_400bps_sup.cfg \
-    --device cuda:0
-```
-
-### List Available Configs
-
-```bash
-guppy_basecaller --print_workflows
-ls /opt/ont/guppy/data/*.cfg
-```
-
-### Modified Base Calling
-
-```bash
-guppy_basecaller \
-    -i fast5_dir/ \
-    -s output_dir/ \
-    -c dna_r10.4.1_e8.2_400bps_modbases_5mc_cg_sup.cfg \
-    --device cuda:0
-```
-
-### Barcoding During Basecalling
-
-```bash
-guppy_basecaller \
-    -i fast5_dir/ \
-    -s output_dir/ \
-    -c dna_r10.4.1_e8.2_400bps_sup.cfg \
-    --device cuda:0 \
-    --barcode_kits SQK-NBD114-24
-```
-
-### Output BAM
-
-```bash
-guppy_basecaller \
-    -i fast5_dir/ \
-    -s output_dir/ \
-    -c dna_r10.4.1_e8.2_400bps_sup.cfg \
-    --device cuda:0 \
-    --bam_out \
-    --index
-```
-
-## POD5 File Handling
-
-POD5 is the new format replacing FAST5.
-
-### Convert FAST5 to POD5
-
-```bash
-pod5 convert fast5 fast5_dir/*.fast5 --output pod5_dir/
-```
-
-### Merge POD5 Files
-
-```bash
-pod5 merge pod5_dir/*.pod5 --output merged.pod5
-```
-
-### Inspect POD5
-
-```bash
-pod5 inspect reads input.pod5
-pod5 inspect summary input.pod5
-```
-
-### Subset POD5
-
-```bash
-pod5 subset input.pod5 --output subset.pod5 --read-id-file read_ids.txt
-```
-
-## Quality Filtering
-
-### Filter with Chopper (After Basecalling)
-
-```bash
-gunzip -c calls.fastq.gz | chopper -q 10 -l 500 | gzip > filtered.fastq.gz
-```
-
-### Filter by Quality Score
-
-```bash
-gunzip -c calls.fastq.gz | \
-    awk 'BEGIN{OFS="\n"} {h=$0; getline seq; getline plus; getline qual;
-         split(h, a, " "); split(a[4], q, "=");
-         if(q[2] >= 10) print h, seq, plus, qual}' | \
-    gzip > q10_filtered.fastq.gz
-```
-
-### NanoFilt (Alternative)
-
-```bash
-gunzip -c calls.fastq.gz | NanoFilt -q 10 -l 500 | gzip > filtered.fastq.gz
-```
-
-## Basecalling QC
-
-### NanoPlot
-
-```bash
-NanoPlot --fastq calls.fastq.gz -o qc_report/ --plots hex dot
-NanoPlot --bam calls.bam -o qc_report/
-```
-
-### pycoQC (From Sequencing Summary)
-
-```bash
-pycoQC -f sequencing_summary.txt -o pycoqc_report.html
-```
-
-### Basic Stats
-
-```bash
-seqkit stats calls.fastq.gz
-
-awk 'NR%4==2 {sum+=length($0); count++} END {print "Reads:", count, "Mean length:", sum/count}' calls.fastq
-```
-
-## Model Selection Guide
-
-### R10.4.1 Chemistry (Current)
-
-| Model | Use |
-|-------|-----|
-| dna_r10.4.1_e8.2_400bps_fast | Quick analysis |
-| dna_r10.4.1_e8.2_400bps_hac | Routine work |
-| dna_r10.4.1_e8.2_400bps_sup | High accuracy |
-
-### R9.4.1 Chemistry (Legacy)
-
-| Model | Use |
-|-------|-----|
-| dna_r9.4.1_450bps_fast | Quick analysis |
-| dna_r9.4.1_450bps_hac | Routine work |
-| dna_r9.4.1_450bps_sup | High accuracy |
-
-## Complete Pipeline
-
-**Goal:** Run the full Nanopore basecalling pipeline from raw signal data through quality-filtered reads with a QC report.
-
-**Approach:** Convert FAST5 to POD5 if needed, basecall with Dorado, convert to FASTQ, filter with chopper, and generate NanoPlot QC.
-
-```bash
-#!/bin/bash
-INPUT=$1
-OUTPUT=$2
-MODEL=${3:-sup}
-
-mkdir -p $OUTPUT
-
-if [ -d "$INPUT/fast5" ]; then
-    echo "Converting FAST5 to POD5..."
-    pod5 convert fast5 $INPUT/fast5/*.fast5 --output $OUTPUT/pod5/
-    INPUT_DIR="$OUTPUT/pod5"
-else
-    INPUT_DIR="$INPUT"
-fi
-
-echo "Basecalling with $MODEL model..."
-dorado basecaller $MODEL $INPUT_DIR > $OUTPUT/calls.bam
-
-echo "Converting to FASTQ..."
-samtools fastq $OUTPUT/calls.bam | gzip > $OUTPUT/calls.fastq.gz
-
-echo "Filtering..."
-gunzip -c $OUTPUT/calls.fastq.gz | chopper -q 10 -l 500 | gzip > $OUTPUT/filtered.fastq.gz
-
-echo "QC report..."
-NanoPlot --fastq $OUTPUT/filtered.fastq.gz -o $OUTPUT/qc/
-
-echo "Done!"
-```
-
-## GPU Requirements
-
-| Model | VRAM Required | Speed (R10.4.1) |
-|-------|--------------|-----------------|
-| fast | 4 GB | ~450 bases/s |
-| hac | 8 GB | ~200 bases/s |
-| sup | 12 GB | ~50 bases/s |
-
-## Troubleshooting
-
-### Out of Memory
-
-```bash
-dorado basecaller sup pod5_dir/ --batchsize 32 > calls.bam
-```
-
-### Slow CPU Basecalling
-
-```bash
-dorado basecaller fast pod5_dir/ --device cpu > calls.bam
-```
-
-### Check GPU Usage
-
-```bash
-nvidia-smi -l 1
-watch -n 1 nvidia-smi
-```
+## Per-Method Failure Modes
+
+### Methylation gone forever
+**Trigger:** basecalling without a mod model, then wanting 5mC later. **Mechanism:** Remora infers mods from raw signal at basecall time; a plain BAM has only bases. **Symptom:** no MM/ML tags; modkit pileup returns nothing. **Fix:** re-basecall from POD5 with `sup,5mCG_5hmCG`; keep POD5 archives.
+
+### Barcodes land in unclassified
+**Trigger:** default `--trim all` basecall, then a separate `dorado demux`. **Mechanism:** trimming removes the barcode before demux can read it. **Symptom:** most reads in `unclassified.bam`, low classification rate. **Fix:** basecall `--no-trim`, then demux (it trims barcodes itself).
+
+### Silent accuracy loss downstream
+**Trigger:** polishing/calling with a medaka/Clair3 model that doesn't match the basecaller model+version. **Mechanism:** per-model neural weights expect a specific error profile. **Symptom:** no error, just quietly worse consensus/calls. **Fix:** propagate the basecaller model name; use `medaka tools resolve_model --auto_model`; pick the matching Clair3 model dir.
+
+### Duplex double-counting
+**Trigger:** treating every read in a duplex BAM as an independent molecule. **Mechanism:** a simplex parent and its duplex offspring both appear. **Symptom:** inflated coverage/allele counts. **Fix:** the `dx:i:-1` tag marks simplex parents of duplex reads - filter them when counting molecules (`dx:i:1` = duplex, `dx:i:0` = simplex-only).
+
+### Cohort batch effect
+**Trigger:** runs basecalled with different model versions joined for analysis. **Mechanism:** version-specific identity/indel error profiles confound a technical batch with biology. **Symptom:** spurious between-run differences. **Fix:** re-basecall the whole cohort with one model version.
+
+## Quantitative Thresholds
+
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| `sup` for any analysis | ONT model guidance | `fast`/`hac` error profiles contaminate variant/assembly/methylation calls |
+| R10.4.1 SUP modal accuracy ~Q20 (99%) | Sereika 2022 | dual-reader head fixes homopolymers; enables nanopore-only near-finished genomes |
+| Duplex read ~Q30; yield typically <10% of reads | community benchmarks | duplex is library-prep/loading-limited, not free accuracy |
+| A "Q20" base errs at ~Q12.5 empirically | Delahaye 2021 | nanopore qscores >Q10 are overconfident posteriors; use for relative filtering only |
+| HERRO input reads >=10 kbp, HAC/SUP R10 | Dorado correct docs | HERRO operates on 4096-bp chunks; shorter reads dropped |
+| `--min-qscore 10` as a permissive QC floor | convention | Q10 ~ 90% nominal; a starting filter, not a hard rule |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| "Failed to determine sequencing chemistry from data" | R9/RNA002 or non-standard kit; bare tier can't auto-resolve | pass an explicit model path; for legacy chemistry use an archived model |
+| No MM/ML tags in BAM | basecalled without a mod model | re-basecall from POD5 with `sup,5mCG_5hmCG` |
+| Most reads `unclassified` after demux | trimmed before demux | basecall `--no-trim`, then demux |
+| `--model sup` errors | model is the positional arg, not a flag | `dorado basecaller sup pod5s/` |
+| `dorado correct reads.bam` fails | input is FASTQ(.gz), output FASTA | `dorado correct reads.fastq > corrected.fasta` |
+| Out of GPU memory | batch too large for VRAM (sup is heaviest) | lower `--batchsize`; or drop to `hac` |
+| cDNA m6A calling returns nothing | PCR erased native modifications | use direct RNA (RNA004), not cDNA |
+
+## References
+
+- Sereika M, Kirkegaard RH, Karst SM, et al. 2022. Oxford Nanopore R10.4 long-read sequencing enables the generation of near-finished bacterial genomes from pure cultures and metagenomes without short-read or reference polishing. *Nat Methods* 19:823-826.
+- Stanojević D, Lin D, Nurk S, Florez de Sessions P, Šikić M. 2026. Telomere-to-telomere assembly using HERRO-corrected Nanopore simplex reads. *Nature* (online ahead of print). DOI 10.1038/s41586-026-10563-y.
+- Wick RR, Judd LM, Holt KE. 2019. Performance of neural network basecalling tools for Oxford Nanopore sequencing. *Genome Biol* 20:129.
+- Pagès-Gallego M, de Ridder J. 2023. Comprehensive benchmark and architectural analysis of deep learning models for nanopore sequencing basecalling. *Genome Biol* 24:71.
+- Delahaye C, Nicolas J. 2021. Sequencing DNA with nanopores: troubles and biases. *PLoS ONE* 16(10):e0257521.
+- Gamaarachchi H, Samarakoon H, et al. 2025. The enduring advantages of the SLOW5 file format for raw nanopore sequencing data. *GigaScience* giaf118.
 
 ## Related Skills
 
-- long-read-alignment - Align basecalled reads
-- long-read-qc - QC after basecalling
-- medaka-polishing - Polish using basecalled reads
-- structural-variants - SV detection from long reads
+- long-read-qc - Assess read length/quality and run health after basecalling
+- nanopore-methylation - Pile up the MM/ML tags this skill must request at basecall time
+- long-read-alignment - Map the reads; use `-y` to carry MM/ML tags through alignment
+- medaka-polishing - Consensus model that must match this basecaller model+version
+- clair3-variants - Variant model that must match this basecaller model+version
+- genome-assembly/long-read-assembly - Assemble the reads (HERRO-corrected for diploid/T2T)
+- genome-assembly/hifi-assembly - PacBio HiFi (basecalled on-instrument, not here)
+- epitranscriptomics/m6anet-analysis - ONT direct-RNA m6A from signal
+- workflows/longread-sv-pipeline - End-to-end basecall -> align -> SV call

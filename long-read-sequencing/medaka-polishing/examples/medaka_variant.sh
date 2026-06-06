@@ -1,34 +1,24 @@
 #!/bin/bash
-# Reference: bcftools 1.19+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
+# Reference: medaka 2.2+, bcftools 1.19+ | Verify API if version differs
+# Haploid consensus/variant calling for microbial, mitochondrial, or viral ONT samples.
+# In medaka v2, medaka_variant is the renamed haploid wrapper (was medaka_haploid_variant).
+# For DIPLOID/germline ONT calling, use Clair3 instead (medaka diploid was deprecated).
+set -euo pipefail
 
-READS="reads.fastq.gz"
-REFERENCE="reference.fa"
-OUTPUT_DIR="medaka_variants"
-THREADS=4
-MODEL="r1041_e82_400bps_sup_v5.0.0"
+READS=${1:?Usage: $0 <reads.fq.gz> <reference.fa> [output_dir] [threads]}
+REFERENCE=${2:?reference required}
+OUTPUT_DIR=${3:-medaka_variants}
+THREADS=${4:-8}
 
-# medaka v2.0+ uses medaka_variant for haploid samples
-medaka_variant \
-    -i $READS \
-    -r $REFERENCE \
-    -o $OUTPUT_DIR \
-    -m $MODEL \
-    -t $THREADS
+# Model auto-detected from the basecaller annotation; supply -m only if it cannot resolve.
+medaka_variant -i "$READS" -r "$REFERENCE" -o "$OUTPUT_DIR" -t "$THREADS"
 
-if [ -f "${OUTPUT_DIR}/medaka.annotated.vcf" ]; then
-    echo "Variant calling complete!"
+VCF="${OUTPUT_DIR}/medaka.annotated.vcf"
+[ -f "$VCF" ] || { echo 'Error: variant calling failed'; exit 1; }
 
-    echo ""
-    echo "Variant summary:"
-    bcftools stats ${OUTPUT_DIR}/medaka.annotated.vcf | grep "^SN"
+echo 'Variant summary:'
+bcftools stats "$VCF" | grep '^SN'
 
-    bcftools filter -i 'QUAL>20' ${OUTPUT_DIR}/medaka.annotated.vcf \
-        > ${OUTPUT_DIR}/medaka.filtered.vcf
-
-    echo ""
-    echo "Filtered variants (QUAL>20):"
-    bcftools stats ${OUTPUT_DIR}/medaka.filtered.vcf | grep "^SN"
-else
-    echo "Error: Variant calling failed"
-    exit 1
-fi
+# QUAL>20 is a permissive starting filter for haploid consensus variants, not a hard rule.
+bcftools filter -i 'QUAL>20' "$VCF" > "${OUTPUT_DIR}/medaka.filtered.vcf"
+echo "Filtered (QUAL>20): ${OUTPUT_DIR}/medaka.filtered.vcf"

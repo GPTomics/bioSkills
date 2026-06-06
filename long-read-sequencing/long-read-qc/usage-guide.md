@@ -1,67 +1,67 @@
 # Long-Read Quality Control - Usage Guide
 
 ## Overview
-Quality control for long-read data involves checking read length distribution, quality scores, and throughput. NanoPlot visualizes these metrics, while chopper filters reads by quality and length.
+Long-read QC assesses Oxford Nanopore and PacBio run quality and filters reads for the downstream goal. It differs fundamentally from short-read QC: there is no per-cycle quality plot, the headline metric is read N50 (length-weighted), and the reported per-read Qscore is an uncalibrated basecaller posterior - real accuracy (percent identity) requires aligning to a reference. Run-health metrics (pore activity, yield-over-time, translocation speed) come from the basecaller's sequencing_summary.txt, not the FASTQ. The right filter is intent-dependent: assembly preserves the long, low-quality reads and small replicons; variant calling filters almost nothing; HiFi is already Q20+ and is filtered on its rq tag. This skill covers NanoPlot, cramino, NanoComp, pycoQC/toulligQC, seqkit, chopper, and Filtlong, plus the chimera trap that fabricates SVs and the run-health red flags an expert reads.
 
 ## Prerequisites
 ```bash
-conda install -c bioconda nanoplot nanostat chopper seqkit
+conda install -c bioconda nanoplot nanocomp cramino chopper filtlong seqkit pycoqc
+# toulligQC, fastcat, Porechop_ABI optionally for ONT-native QC and adapter discovery
+# Keep the basecaller's sequencing_summary.txt for run-health QC
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Generate QC report for my Nanopore reads"
-- "Filter reads below Q10 and shorter than 1kb"
+- "Run NanoPlot QC on my Nanopore reads and report the read N50"
+- "Get the real percent identity of my reads against the reference"
+- "Check my run health from the sequencing summary"
+- "Filter my reads appropriately for assembly"
 
 ## Example Prompts
 
-### Generate QC Report
-> "Run NanoPlot on reads.fastq.gz and generate quality plots"
+### Run overview and real accuracy
+> "Give me an overview QC of my ONT FASTQ (length N50, yield), then align to the reference and tell me the real gap-compressed identity - I know the FASTQ Qscore overstates accuracy."
 
-> "Get read statistics for my ONT run using NanoStat"
+### Run health
+> "From my sequencing_summary.txt, tell me whether the run had pore death, translocation-speed drift, or a high unclassified-barcode fraction."
 
-### Filtering
-> "Filter my reads to keep only those with Q10+ quality and 1000bp+ length"
+### Intent-conditioned filtering
+> "Filter my deep Nanopore data for a bacterial assembly. Subsample by quality to about 100x and make sure you do not erase small plasmids with a length cut."
 
-> "Remove low-quality reads below Q15 from my HiFi dataset"
+### Comparing barcodes
+> "Compare read length, quality, and identity across my four barcodes and flag any outlier."
 
-### Combined Workflow
-> "Run QC on my Nanopore data, show me the statistics, then filter for assembly-quality reads"
+### Chimera check
+> "My SV calls have suspicious translocations. Check whether chimeric reads (internal adapters) could be the cause."
 
 ## What the Agent Will Do
-1. Run NanoStat to get summary statistics (mean quality, N50, total bases)
-2. Generate NanoPlot visualizations (length histogram, quality distribution)
-3. Apply filters based on your application requirements
-4. Report before/after statistics
-
-## Interpreting Results
-
-### Good Quality Indicators
-- Mean quality Q15+ (ONT SUP) or Q30+ (HiFi)
-- N50 > 10kb for most applications
-- High percentage of reads passing filters
-
-### Warning Signs
-- Bimodal quality distribution
-- Very short N50 compared to expected
-- Large fraction of low-quality reads
-
-## Filtering Guidelines
-
-| Application | Min Quality | Min Length |
-|-------------|-------------|------------|
-| Assembly | Q10 | 1000bp |
-| Variant calling | Q15 | 500bp |
-| Structural variants | Q10 | 1000bp |
-| Transcriptome | Q10 | 300bp |
+1. Summarize length distribution, read N50, and yield from the FASTQ (NanoPlot/seqkit).
+2. Align (or use an existing BAM) and report gap-compressed identity (cramino / NanoPlot --bam) as the real accuracy.
+3. Read run-health from the sequencing_summary.txt (pycoQC/toulligQC): pore activity, yield-over-time, translocation speed, barcode breakdown.
+4. Choose a filter conditioned on the downstream goal (assembly vs variant calling vs HiFi vs cDNA).
+5. For assembly, subsample by quality with Filtlong rather than a hard length cut.
+6. Flag run-health red flags and possible chimeras.
 
 ## Tips
-- Run QC before any downstream analysis to catch issues early
-- N50 is more informative than mean length for long reads
-- Bimodal quality distribution may indicate mixed flowcell performance
-- Use chopper for fast filtering; it's the successor to NanoFilt
-- Keep original reads - filtering is lossy
+- The FASTQ Qscore is an uncalibrated posterior; align to a reference for real percent identity.
+- Always keep the sequencing_summary.txt; pycoQC/toulligQC need it and FASTQ-only hand-off loses run-health forever.
+- For assembly, subsample by quality (Filtlong --target_bases) and never apply a hard length floor above your smallest replicon - the longest reads are the lowest-Q and small plasmids vanish.
+- For variant calling, filter almost nothing; the caller models per-base Q and wants depth.
+- HiFi is Q20+ already; filter on rq >= 0.99, not on Phred quality.
+- Chimeras (internal adapters) masquerade as SVs; check whether Dorado already trimmed/split, and use Porechop_ABI for unknown adapters.
+- NanoFilt and the rrwick Porechop are deprecated; use chopper and Porechop_ABI.
+
+## Related Skills
+
+- basecalling - Produces reads and the sequencing_summary.txt
+- long-read-alignment - Produces the BAM for real percent identity
+- structural-variants - Chimeras flagged here fabricate SVs
+- genome-assembly/long-read-assembly - Subsample by quality before assembling
+- read-qc/quality-reports - General short-read-oriented QC
+- sequence-io/sequence-statistics - FASTA/FASTQ summary statistics
 
 ## Resources
-- [NanoPlot GitHub](https://github.com/wdecoster/NanoPlot)
-- [chopper GitHub](https://github.com/wdecoster/chopper)
+- [NanoPack / NanoPlot](https://github.com/wdecoster/nanopack)
+- [cramino](https://github.com/wdecoster/cramino)
+- [pycoQC](https://github.com/a-slide/pycoQC)
+- [Filtlong](https://github.com/rrwick/Filtlong)

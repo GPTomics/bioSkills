@@ -1,30 +1,23 @@
 #!/bin/bash
-# Reference: bcftools 1.19+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
+# Reference: medaka 2.2+, seqkit 2.5+ | Verify API if version differs
+# Polish an ONT-only draft assembly with medaka. ONE pass, no Racon pre-step,
+# model auto-detected from the basecaller annotation in the reads.
+set -euo pipefail
 
-READS="reads.fastq.gz"
-DRAFT="draft_assembly.fa"
-OUTPUT_DIR="medaka_output"
-THREADS=4
-MODEL="r1041_e82_400bps_sup_v5.0.0"
+READS=${1:?Usage: $0 <reads.fq.gz> <draft.fa> [output_dir] [threads] [--bacteria]}
+DRAFT=${2:?draft assembly required}
+OUTPUT_DIR=${3:-medaka_output}
+THREADS=${4:-8}            # parallelizes alignment/batching; the net itself is GPU-bound
+BACTERIA=${5:-}           # pass --bacteria for native bacterial isolates (modified DNA)
 
-medaka_consensus \
-    -i $READS \
-    -d $DRAFT \
-    -o $OUTPUT_DIR \
-    -t $THREADS \
-    -m $MODEL
+# medaka is ONT-only. Do not run this on PacBio HiFi/CLR (no PacBio models exist).
+# The model is auto-detected from the reads; supply -m only if auto-detection fails,
+# and never copy a model name from an old tutorial onto new-chemistry data.
+medaka_consensus -i "$READS" -d "$DRAFT" -o "$OUTPUT_DIR" -t "$THREADS" $BACTERIA
 
-if [ -f "${OUTPUT_DIR}/consensus.fasta" ]; then
-    echo "Polishing complete!"
-    echo "Output: ${OUTPUT_DIR}/consensus.fasta"
+[ -f "${OUTPUT_DIR}/consensus.fasta" ] || { echo 'Error: polishing failed'; exit 1; }
 
-    echo ""
-    echo "Assembly statistics:"
-    echo "Draft:"
-    seqkit stats $DRAFT
-    echo "Polished:"
-    seqkit stats ${OUTPUT_DIR}/consensus.fasta
-else
-    echo "Error: Polishing failed"
-    exit 1
-fi
+echo 'Polishing complete. Draft vs polished length stats:'
+seqkit stats "$DRAFT" "${OUTPUT_DIR}/consensus.fasta"
+echo 'Validate the QV gain with reference-free Merqury on HELD-OUT k-mers,'
+echo 'not the reads polished with (see genome-assembly/assembly-polishing).'
