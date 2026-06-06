@@ -1,56 +1,30 @@
-'''LIME explanations for individual omics predictions'''
-# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+ | Verify API if version differs
+'''LIME is non-reproducible: the same prediction yields different top features per seed.
 
-import pandas as pd
+Runs end-to-end on synthetic data. Explaining ONE fixed prediction with LIME under
+several random seeds returns different top-feature sets, so a LIME ranking is not a
+stable finding. Use LIME only to eyeball one local prediction, never for global ranking.
+'''
+# Reference: numpy 1.26+, scikit-learn 1.4+, lime 0.2+ | Verify API if version differs
+
 import numpy as np
 from lime.lime_tabular import LimeTabularExplainer
-from sklearn.model_selection import train_test_split
+from sklearn.datasets import make_classification
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
 
-expr = pd.read_csv('expression.csv', index_col=0)
-meta = pd.read_csv('metadata.csv', index_col=0)
+X, y = make_classification(n_samples=400, n_features=30, n_informative=10, random_state=0)
+model = RandomForestClassifier(n_estimators=200, random_state=0).fit(X, y)
+instance = X[0]                                          # one fixed prediction to explain
 
-X = expr.T
-y = meta.loc[X.index, 'condition'].values
-class_names = np.unique(y).tolist()
+top_sets = []
+for seed in range(5):
+    # Same instance, same model -- only the LIME random seed changes.
+    explainer = LimeTabularExplainer(X, mode='classification',
+                                     discretize_continuous=True, random_state=seed)
+    exp = explainer.explain_instance(instance, model.predict_proba, num_features=5, num_samples=5000)
+    top_feats = tuple(sorted(idx for idx, _ in exp.local_exp[exp.available_labels()[0]][:5]))
+    top_sets.append(top_feats)
+    print(f'seed {seed}: top-5 features = {top_feats}')
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
-
-pipe = Pipeline([
-    ('scaler', StandardScaler()),
-    ('clf', RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1))
-])
-pipe.fit(X_train, y_train)
-
-# LIME needs training data for background distribution
-# mode='classification' for classifiers
-explainer = LimeTabularExplainer(
-    X_train.values,
-    feature_names=X_train.columns.tolist(),
-    class_names=class_names,
-    mode='classification',
-    discretize_continuous=True
-)
-
-# num_features=20: Number of features to show in explanation
-# Explain sample with highest disease probability
-probs = pipe.predict_proba(X_test)[:, 1]
-top_idx = np.argmax(probs)
-
-exp = explainer.explain_instance(
-    X_test.iloc[top_idx].values,
-    pipe.predict_proba,
-    num_features=20,
-    top_labels=1
-)
-
-exp.save_to_file(f'lime_explanation_sample{top_idx}.html')
-print(f'Saved LIME explanation for sample {top_idx} (p={probs[top_idx]:.3f})')
-
-# Extract as dataframe
-exp_list = exp.as_list(label=1)
-lime_df = pd.DataFrame(exp_list, columns=['feature_rule', 'weight'])
-lime_df.to_csv(f'lime_features_sample{top_idx}.csv', index=False)
-lime_df.head(10)
+distinct = len(set(top_sets))
+print(f'\n{distinct} distinct top-5 sets across 5 seeds for the SAME prediction.')
+print('LIME rankings are seed-dependent -- never use them as a stable importance measure.')

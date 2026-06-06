@@ -2,57 +2,66 @@
 
 ## Overview
 
-Explain machine learning predictions on omics data using SHAP values for global and local feature attribution, and LIME for model-agnostic explanations.
+Explain ML predictions on omics data with SHAP, LIME, and permutation importance, while respecting the boundaries that make attributions trustworthy: an attribution describes the model, not biology; the conditional-vs-interventional Shapley choice changes which correlated genes get credit; and a SHAP ranking is a debugging and hypothesis tool, never a validated biomarker panel.
 
 ## Prerequisites
 
 ```bash
-pip install shap lime scikit-learn xgboost matplotlib pandas
+pip install shap lime scikit-learn xgboost pandas
 ```
+
+Conceptual prerequisites: a model that already generalizes (interpreting an over-fit or batch-confounded model explains an artifact), a representative background dataset for interventional SHAP, and a co-expression module map for aggregating attributions over correlated genes.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Explain my classifier predictions with SHAP"
-- "Which genes are most important for my model's predictions?"
-- "Show me a SHAP summary plot for my classifier"
-- "Use LIME to explain individual predictions"
+- "Explain my classifier with interventional SHAP and a representative background"
+- "Use SHAP to check whether my model is keying on batch instead of biology"
+- "Aggregate SHAP over co-expression modules before ranking genes"
+- "Explain one prediction locally, clearly labeled as model-internal"
 
 ## Example Prompts
 
-### Global Feature Importance
+### Choosing the estimand
 
-> "I trained a random forest on gene expression data. Use SHAP to show me which genes are most important across all predictions."
+> "Which genes is my random forest actually keying on? Use interventional SHAP with a background, not the path-dependent default, and tell me the estimand."
 
-> "Create a SHAP beeswarm plot for my XGBoost classifier. Show the top 20 features."
+> "I want a descriptive view of which genes are informative here. Use path-dependent SHAP and explain why it is not the same as model reliance."
 
-### Individual Predictions
+### Debugging shortcuts
 
-> "Use SHAP to explain why my classifier predicted 'disease' for sample X. Show a waterfall plot."
+> "Use SHAP to check whether my classifier's top features are batch indicators or housekeeping genes tracking sequencing depth."
 
-> "Generate LIME explanations for the 5 samples with the highest prediction confidence."
+### Correlated genes
 
-### Feature Ranking
+> "My top SHAP genes are co-expressed. Aggregate the attributions over co-expression modules so I do not over-interpret the within-module order."
 
-> "Extract the mean absolute SHAP values for all features and save to a CSV file."
+### Local explanation
 
-### Interactions
-
-> "Create a SHAP dependence plot for BRCA1 to see how its expression level affects the prediction."
+> "Explain why the model predicted disease for sample 12 with a SHAP waterfall, and note it is background-relative and model-internal."
 
 ## What the Agent Will Do
 
-1. Load trained model and test data
-2. Create appropriate SHAP explainer (TreeExplainer for tree models)
-3. Calculate SHAP values for test samples
-4. Generate summary visualizations (beeswarm, bar)
-5. Save top features to file
+1. Confirm the model generalizes before interpreting it
+2. Choose the Shapley conditioning for the question (interventional for reliance, path-dependent for description) and state it
+3. Supply a representative background and report the attribution scale (log-odds vs probability)
+4. Aggregate attributions over correlated modules before ranking
+5. Use attribution to audit for batch/shortcut learning
+6. Route any "select a biomarker panel" request to biomarker-discovery with independent validation
 
 ## Tips
 
-- Use `explainer(X)` not `.shap_values(X)` for SHAP v0.47+
-- TreeExplainer is fastest for tree-based models (RF, XGBoost, LightGBM)
-- LIME is model-agnostic but slower; use for non-tree models
-- Beeswarm plots show both importance and direction of effect
-- For multi-class, SHAP values have an extra dimension for classes
-- SHAP values sum to the difference between prediction and expected value
+- A high-SHAP gene can be a correlate of a batch shortcut the model exploited -- attribution explains the model, not biology
+- `feature_perturbation='auto'` (shap 0.47+) silently flips the estimand on whether you pass `data=`; set it explicitly
+- Path-dependent SHAP can give a gene nonzero credit even if the model never uses it (correlation leak); interventional gives unused genes zero
+- The split of credit among correlated genes is mode-dependent and not identifiable from biology -- aggregate over modules before ranking
+- LIME is non-reproducible across seeds and kernel widths; use it only to eyeball one local prediction, never for global ranking
+- Permutation importance breaks under correlation the same way SHAP does; cluster features or use conditional permutation
+- The best, most trustworthy use of attribution is catching shortcut/batch learning, not selecting biomarkers
+
+## Related Skills
+
+- machine-learning/omics-classifiers - Train the model being explained; debug batch shortcuts
+- machine-learning/biomarker-discovery - Validated feature selection (SHAP ranking is not selection)
+- machine-learning/model-validation - Confirm the model generalizes before interpreting it
+- data-visualization/heatmaps-clustering - Visualize module-aggregated attributions

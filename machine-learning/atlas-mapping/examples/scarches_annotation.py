@@ -1,62 +1,42 @@
-'''scArches transfer learning for single-cell annotation'''
-# Reference: anndata 0.10+, scanpy 1.10+, scvi-tools 1.1+ | Verify API if version differs
+'''scArches scANVI label transfer with out-of-distribution gating (real-data template).
+
+Requires a saved reference scANVI model and a query h5ad. The non-obvious point:
+gate transferred labels on a weighted-kNN transfer uncertainty (does the cell
+belong?), NOT on the classifier softmax max (which only says which label). See
+ood_gating_demo.py for a synthetic, runnable version of the gating logic.
+'''
+# Reference: anndata 0.10+, scanpy 1.10+, scvi-tools 1.1+, scikit-learn 1.3+ | Verify API if version differs
 
 import scvi
 import scanpy as sc
-import pandas as pd
+import numpy as np
+from sklearn.neighbors import KNeighborsClassifier
 
-adata_ref = sc.read_h5ad('reference.h5ad')
-print(f'Reference: {adata_ref.n_obs} cells, {adata_ref.n_vars} genes')
-print(f'Cell types: {adata_ref.obs["cell_type"].nunique()}')
+adata_ref = sc.read_h5ad('reference_labeled.h5ad')
 
-# Train reference scVI model (skip if loading pre-trained)
+# Reference scANVI head from a trained scVI model. unlabeled_category is REQUIRED.
 scvi.model.SCVI.setup_anndata(adata_ref, layer='counts', batch_key='batch')
 ref_vae = scvi.model.SCVI(adata_ref, n_latent=30, n_layers=2)
 ref_vae.train(max_epochs=100, early_stopping=True)
+ref_scanvi = scvi.model.SCANVI.from_scvi_model(ref_vae, unlabeled_category='Unknown', labels_key='cell_type')
+ref_scanvi.train(max_epochs=20, n_samples_per_label=100)
 
-# Convert to scANVI for label transfer
-scvi.model.SCANVI.setup_anndata(adata_ref, layer='counts', batch_key='batch', labels_key='cell_type', unlabeled_category='Unknown')
-ref_scanvi = scvi.model.SCANVI.from_scvi_model(ref_vae, labels_key='cell_type', unlabeled_category='Unknown')
-ref_scanvi.train(max_epochs=50)
-ref_scanvi.save('reference_scanvi/')
-print('Saved reference scANVI model')
-
-# Load query data
 adata_query = sc.read_h5ad('query.h5ad')
-print(f'\nQuery: {adata_query.n_obs} cells')
-
-# Subset to reference genes (required)
-common_genes = adata_ref.var_names.intersection(adata_query.var_names)
-print(f'Common genes: {len(common_genes)}')
-adata_query = adata_query[:, adata_ref.var_names].copy()
-
-# Prepare and load query into scANVI
+# Mandatory gene alignment: zero-pads missing, reorders. Silent corruption if skipped.
 scvi.model.SCANVI.prepare_query_anndata(adata_query, ref_scanvi)
 query_scanvi = scvi.model.SCANVI.load_query_data(adata_query, ref_scanvi)
-
-# Surgical training: weight_decay=0.0 preserves reference model structure
-# max_epochs=100: Usually sufficient for surgery
+# weight_decay=0.0 keeps the shared latent fixed so queries stay cross-comparable.
 query_scanvi.train(max_epochs=100, plan_kwargs={'weight_decay': 0.0})
 
-# Transfer labels
-adata_query.obs['predicted_cell_type'] = query_scanvi.predict()
+adata_query.obs['predicted_label'] = query_scanvi.predict()
 adata_query.obsm['X_scANVI'] = query_scanvi.get_latent_representation()
 
-# Prediction confidence
-soft_preds = query_scanvi.predict(soft=True)
-adata_query.obs['prediction_confidence'] = soft_preds.max(axis=1)
+# OOD gate on the shared latent. HLCA (Sikkema 2023) sets uncertainty > 0.2 to Unknown.
+ref_latent = ref_scanvi.get_latent_representation()
+knn = KNeighborsClassifier(n_neighbors=15, weights='distance').fit(ref_latent, adata_ref.obs['cell_type'])
+uncertainty = 1.0 - knn.predict_proba(adata_query.obsm['X_scANVI']).max(axis=1)
+adata_query.obs['transfer_uncertainty'] = uncertainty
+adata_query.obs.loc[uncertainty > 0.2, 'predicted_label'] = 'Unknown'   # 0.2: HLCA default
 
-# confidence < 0.5: Uncertain prediction, may be novel or poor quality
-low_conf = adata_query.obs['prediction_confidence'] < 0.5
-print(f'\nLow-confidence cells: {low_conf.sum()} ({low_conf.mean():.1%})')
-
-print('\nPredicted cell type distribution:')
-print(adata_query.obs['predicted_cell_type'].value_counts())
-
-# Visualization
-sc.pp.neighbors(adata_query, use_rep='X_scANVI')
-sc.tl.umap(adata_query)
-sc.pl.umap(adata_query, color=['predicted_cell_type', 'prediction_confidence'], save='_transferred_labels.png')
-
-adata_query.write_h5ad('query_annotated.h5ad')
-print('\nSaved annotated query to query_annotated.h5ad')
+print(f'Flagged Unknown (OOD / novel): {(uncertainty > 0.2).mean():.1%}')
+print(adata_query.obs['predicted_label'].value_counts())
