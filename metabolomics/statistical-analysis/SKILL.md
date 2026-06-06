@@ -1,13 +1,13 @@
 ---
 name: bio-metabolomics-statistical-analysis
-description: Statistical analysis for metabolomics data. Covers preprocessing (log2 transformation, normalization), limma moderated testing with empirical Bayes, Welch's t-tests with BH correction, fold change estimation, and multivariate methods (PCA, PLS-DA, OPLS-DA). Use when identifying differentially abundant metabolites or building classification models.
+description: Decision-grade statistical analysis for metabolomics intensity tables. Covers transformation and scaling (Pareto vs unit-variance as a hidden hypothesis), unsupervised structure (PCA/HCA for QC), permutation-validated PLS-DA/OPLS-DA (R2 vs Q2, double CV, VIP as heuristic), univariate testing (Welch/Mann-Whitney/ANOVA/LMM with covariate adjustment), and dependence-aware multiple testing. Use when testing which metabolites differ, building or validating a discriminant model, choosing a scaling, or correcting many correlated tests. For sample-wise normalization/drift correction see metabolomics/normalization-qc; for ML classifiers and selection-inside-CV leakage see machine-learning/biomarker-discovery and machine-learning/model-validation; for pathway interpretation see metabolomics/pathway-mapping; for design/power/multiplicity regime see experimental-design/multiple-testing.
 tool_type: mixed
-primary_tool: limma
+primary_tool: ropls
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: limma 3.58+, ashr 2.2+, scipy 1.12+, statsmodels 0.14+, numpy 1.26+, pandas 2.1+, mixOmics 6.28+, ggplot2 3.5+
+Reference examples tested with: ropls 1.34+, scipy 1.12+, statsmodels 0.14+, numpy 1.26+, pandas 2.1+, matplotlib 3.8+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -18,111 +18,98 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metabolomics Statistical Analysis
 
-## Processing Pipeline
+**"Tell me which metabolites separate my groups"** -> run an honest univariate test with dependence-aware FDR AND a permutation-validated multivariate model, then reconcile the two.
+- R: `ropls::opls()` (PCA/PLS-DA/OPLS-DA + permutation), `wilcox.test()`/`lm()`/`lme4::lmer()`, `p.adjust(method='BH')`
+- Python: `scipy.stats.ttest_ind(equal_var=False)`/`mannwhitneyu`, `statsmodels` `multipletests(method='fdr_bh')`, `sklearn.cross_decomposition.PLSRegression` + `permutation_test_score`
 
-Standard pipeline: zero/missing handling -> log2 transformation -> normalization -> statistical testing. Fold change and statistical tests operate on log2-transformed, normalized but unscaled data. Pareto or auto-scaling distorts fold change magnitudes -- apply only for multivariate methods (PCA, PLS-DA).
+## The Single Most Important Modern Insight -- A Score Plot Is a Hypothesis, Not a Result
 
-### Zero and Missing Value Handling
+In metabolomics the regime is p >> n (hundreds-to-thousands of features, tens of samples) with strongly correlated features. In that regime any binary labelling of n points in >= n-1 dimensions is linearly separable with probability 1, so PLS-DA and OPLS-DA produce a clean two-cluster score plot even for randomly assigned labels. A beautiful score plot is the generic output of the algorithm and carries essentially zero information. Only a cross-validated Q2 benchmarked against a permutation null distinguishes signal from geometry (Westerhuis 2008; Ruiz-Perez 2020). Three corollaries reorganize the whole skill: (1) R2 is no evidence (it can be driven to 1 by adding components); only permutation-validated Q2 licenses a claim. (2) Scaling is a hidden hypothesis -- variance-driven methods weight a feature by the variance it is allowed to contribute, so Pareto vs unit-variance hands back a different VIP list and a different biological story (van den Berg 2006). (3) Features are not independent (pathways, adducts, isotopologues), so naive BH-independence is violated and one real signal lights up its whole correlated cluster.
 
-Metabolomics zeros fall into two categories requiring different treatment:
+## Transformation and Scaling -- the Decision That Changes Conclusions
 
-| Type | Meaning | Detection | Action |
-|------|---------|-----------|--------|
-| TPMV (technical) | Below detection limit | Random missingness within detected features | Impute: half-minimum per feature or KNN |
-| BPMV (biological) | Metabolite truly absent | Structured: all zeros in one group | Leave as-is or use two-part test |
+Transformation (nonlinear, per value: corrects heteroscedastic multiplicative MS noise and skew) and scaling (linear, per feature: sets relative weight) are distinct. Mean-centering is the universal first step. Choosing not to scale is the strongest prior of all -- it lets the most abundant metabolite drive PC1.
 
-Distinguishing them matters: imputing BPMVs introduces false signal, while ignoring TPMVs loses power. If zeros are concentrated in one experimental group, they are likely biological. If scattered randomly, they are likely technical.
+| Method | Per feature j | Effect | Use when |
+|--------|---------------|--------|----------|
+| Centering | subtract mean | offsets removed, variance unchanged | always (prerequisite for all below) |
+| Auto / unit-variance / "standard" | center, / SD_j | every metabolite equal weight | a priori all metabolites equally important; classic default -- but inflates near-LOD noise |
+| Pareto | center, / sqrt(SD_j) | between raw and UV | de facto metabolomics/NMR/OPLS-DA default; curbs dominance with less noise inflation than UV |
+| Range | center, / (max-min) | abundance dependence removed | clean data, few outliers (outlier-sensitive) |
+| Vast | UV x (mean/SD) | up-weights low-CV stable features | focus on robust/reproducible features with prior class info |
+| Level | center, / mean_j | relative (% change) | response as relative change (mean noisy at low abundance) |
+| Log / log10 | log(x) | multiplicative -> additive | concentrations spanning orders of magnitude (undefined at 0) |
+| glog | linear near 0, log for large x | variance-stabilizing | data with zeros / near-LOD values; preferred over plain log (needs transition param) |
+| Power (sqrt, cube-root) | x^(1/2) | mild stabilization | mild skew with zeros present |
 
-```python
-log2_data = np.log2(intensities.replace(0, np.nan))
-```
+van den Berg 2006: on real data autoscale and range recovered biologically meaningful loadings; Pareto is the pragmatic middle. Decision rule: transform first (if heteroscedastic -- usually yes for MS), then center, then scale; run at least Pareto AND UV, and if the top-VIP list or conclusion flips, the result is scaling-fragile and must be tempered.
 
-```r
-log2_matrix <- log2(intensity_matrix)
-log2_matrix[!is.finite(log2_matrix)] <- NA
-```
+## Decision Tree by Scenario
 
-For pseudocount approach: `log2(x + 1)` avoids NaN but compresses low-intensity fold changes. Prefer half-minimum imputation when the zero rate is low (<10%).
+| Goal / situation | Do | Why |
+|------------------|----|----|
+| First look, QC, batch/outlier check | PCA on scaled data; color scores by batch/injection order; Hotelling T2 ellipse | Unsupervised -> cannot overfit the grouping; pooled-QC samples must cluster tightly in the center, else analytical variance dominates |
+| Which single metabolites differ (2 groups) | Welch t-test (post-transform) or Mann-Whitney; BH FDR; report fold change + CI | Interpretable per-feature effect; FDR-controlled; effect size mandatory in p>>n |
+| 2 groups, paired/pre-post | Paired t-test or Wilcoxon signed-rank | Discards within-subject pairing if analyzed unpaired -> underpowered |
+| >2 groups | One-way ANOVA (+Tukey) or Kruskal-Wallis (+Dunn) | Match normality assumption |
+| Longitudinal / repeated measures | Linear mixed model (random intercept/slope per subject) | Handles unbalanced timepoints, missingness, within-subject correlation |
+| Covariate adjustment (age/sex/BMI/batch) | Per-feature linear model `y ~ group + covars` | Human metabolome is dominated by age/sex/BMI -- unadjusted, they masquerade as case/control signal (Thevenot 2015) |
+| A discriminant / predictive model | PLS-DA (`orthoI=0`) or OPLS-DA (`predI=1, orthoI=NA`) + permutation + double CV | Supervised; demands full validation (see checklist) |
+| Built-in feature selection | sparse PLS-DA `splsda()` (mixOmics) with `tune.splsda` | Selection must be inside CV -> hand off to machine-learning/biomarker-discovery |
+| Rank discriminant features | VIP from a permutation-validated model only; corroborate with univariate FDR | VIP > 1 is a heuristic, not a test (see failure modes) |
+| Confirm a biomarker | Independent validation cohort | Internal CV does not correct overfitting/forking-paths; discovery performance overestimates external |
 
-### Normalization
+## Scaling + PCA
 
-**Goal:** Remove systematic technical biases (injection volume, instrument drift, ionization efficiency) so observed differences reflect biology.
+**Goal:** Get the honest unsupervised first look that cannot chase the labels, with QC as the primary data-quality readout.
 
-**Approach:** Choose based on data characteristics. All methods assume the majority of features are not differentially abundant. Unlike proteomics where median centering is the default, metabolomics uses PQN because it is more robust to dominant high-abundance features common in MS-based metabolomics.
-
-| Method | When to use | Metabolomics note |
-|--------|-------------|-------------------|
-| PQN | **Default for untargeted LC-MS metabolomics** | More robust than TIC/median to dominant features |
-| QC-RSC (LOESS) | Multi-batch LC-MS with pooled QC samples | Gold standard for batch correction; metabolomics-specific |
-| VSN | High zero rate or heteroscedastic data | Handles zeros via arcsinh; replaces separate log2 step |
-| TIC | Quick exploration; NMR data | Distorted by dominant features; avoid for LC-MS |
-| Cyclic loess | Asymmetric DE (more up- than down-regulated) | Robust to assumption violations |
-| None | IS-corrected data; single-batch balanced design | Check PCA on raw log2 data first |
-
-PQN normalization: compute a reference spectrum (median across samples), divide each feature by the reference, take the median of quotients as the per-sample normalization factor.
-
-```python
-reference = log2_data.median(axis=1)
-quotients = log2_data.div(reference, axis=0)
-norm_factors = quotients.median(axis=0)
-normalized = log2_data.div(norm_factors, axis=1)
-```
+**Approach:** Transform if heteroscedastic, then PCA with an explicit scaling; inspect QC clustering, batch coloring, and Hotelling T2.
 
 ```r
-reference <- apply(log2_matrix, 1, median, na.rm = TRUE)
-quotients <- sweep(log2_matrix, 1, reference, '/')
-norm_factors <- apply(quotients, 2, median, na.rm = TRUE)
-normalized <- sweep(log2_matrix, 2, norm_factors, '/')
+library(ropls)
+# scaleC default is "standard" (unit-variance/autoscale), NOT Pareto -- set explicitly
+pca <- opls(t(feature_matrix), scaleC = 'pareto', fig.pdfC = 'none', info.txtC = 'none')
+scores <- getScoreMN(pca)               # samples x components
+getSummaryDF(pca)                       # R2X(cum) per component
+# Tight pooled-QC clustering in the center = trustworthy run; QC scatter = analytical variance dominates
 ```
 
-**When normalization hurts:** Drug studies and extreme phenotypes can cause global metabolic shifts affecting >50% of features, violating the "majority stable" assumption. This is more common in metabolomics than proteomics because metabolic networks are tightly coupled. Check PCA on raw log2 data first -- if dominant variation corresponds to the biological factor AND global shifts are expected, skip or attenuate normalization.
+## Permutation-Validated PLS-DA / OPLS-DA
 
-## Method Selection
+**Goal:** Decide whether group separation is real, not a geometry artifact, before reading any VIP or S-plot.
 
-| Scenario | Recommended | Rationale |
-|----------|-------------|-----------|
-| Small n (3-10/group), default | limma `eBayes(trend=TRUE, robust=TRUE)` | Borrows variance across features; adds ~10-20 effective df |
-| Large n (>10/group), Python-only | Welch's t-test + BH | Per-feature variance reliable; limma converges to ordinary t-test |
-| Non-normal after log transform | Wilcoxon rank-sum | Cannot reach p < 0.05 with n < 4/group |
-| Zero-inflated (many BPMVs) | Two-part test | Separately tests presence/absence and abundance |
-| Paired/repeated measures | Paired t-test or limma with blocking | `duplicateCorrelation()` in limma for repeated measures |
-| 3+ groups | Welch's ANOVA or limma F-test | Post-hoc: Games-Howell or Tukey HSD |
-
-Unlike proteomics, metabolomics has no analog to PSM/peptide counts, so DEqMS is not applicable. limma is the sole empirical Bayes option for metabolite-level testing.
-
-`trend=TRUE` is particularly important for metabolomics: features span 3-4 orders of magnitude in intensity and include chemically diverse compounds (polar metabolites, lipids, nucleotides), creating a stronger mean-variance relationship than typical proteomics data. `robust=TRUE` protects against hyper-variable outlier features common in metabolomics panels that mix chemical classes.
-
-## limma Workflow (R)
-
-**Goal:** Identify differentially abundant metabolites using moderated statistics that borrow information across all features.
-
-**Approach:** Build a linear model, apply empirical Bayes moderation with intensity-dependent variance trend, extract BH-corrected results.
+**Approach:** Fit with an explicit scaling, raise `permI` far above the default of 20, and read `pQ2`/`pR2Y` -- a model whose true Q2 sits inside the permutation cloud is indistinguishable from chance.
 
 ```r
-library(limma)
-
-design <- model.matrix(~0 + condition, data = sample_info)
-colnames(design) <- levels(factor(sample_info$condition))
-
-fit <- lmFit(normalized_matrix, design)
-contrast_matrix <- makeContrasts(Treatment - Control, levels = design)
-fit2 <- contrasts.fit(fit, contrast_matrix)
-fit2 <- eBayes(fit2, trend = TRUE, robust = TRUE)
-
-results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')
+library(ropls)
+group <- factor(sample_info$group)
+# OPLS-DA: 1 predictive + auto orthogonal; permI default 20 is too few for a reliable pQ2 -> >=1000
+oplsda <- opls(t(feature_matrix), group, predI = 1, orthoI = NA,
+               scaleC = 'pareto', permI = 1000, crossvalI = 7,
+               fig.pdfC = 'none', info.txtC = 'none')
+summ <- getSummaryDF(oplsda)            # R2X(cum), R2Y(cum), Q2(cum), pre, ort, pR2Y, pQ2
+vip_pred <- getVipVn(oplsda)            # predictive VIP (Galindo-Prieto 2014); orthoL=TRUE for orthogonal
+# Claim is licensed only if Q2 high AND pQ2 small. R2Y alone proves nothing.
 ```
 
-Results columns: `logFC`, `AveExpr`, `t`, `P.Value`, `adj.P.Val`, `B`. Note: adjusted p-values are in `adj.P.Val` (not `FDR` or `padj`). For batch effects, include batch in the design matrix (do NOT use `removeBatchEffect()` before testing -- that function is for visualization only):
+PLS-DA is `orthoI = 0`. OPLS-DA has identical predictive power to PLS-DA -- it is a coordinate rotation, not a better model; the orthogonal block often encodes a confounder (inspect what correlates with it). DQ2 (Westerhuis 2008b) is the discriminant-appropriate figure of merit when Q2 penalizes correct-side over-predictions.
 
-```r
-design <- model.matrix(~0 + condition + batch, data = sample_info)
-```
+## PLS-DA / OPLS-DA Validation Checklist
 
-## Welch's t-test Workflow (Python)
+1. Report the transformation + scaling used (it changes the loadings, VIPs, and story).
+2. Report R2X, R2Y, Q2 and the number of predictive + orthogonal components.
+3. Choose the number of components inside CV, not by eye on the training fit.
+4. Permutation test (>= 1000) of the full pipeline -> permutation p for Q2 (and R2Y). Permute every step that touched the labels.
+5. For honest generalization error use double (cross-model) CV or an untouched test set; single CV that also tuned the model is optimistic.
+6. Independent validation cohort for any biomarker claim.
+7. Read VIP / S-plot only from a validated model; corroborate with univariate FDR + effect size; report ranking stability across resamples.
+8. Put a PCA score plot beside the PLS-DA one -- separation only under supervision is the artifact signature.
 
-**Goal:** Perform the full differential abundance pipeline in Python when R/limma is unavailable.
+## Univariate Testing + Correct FDR
 
-**Approach:** Log2-transform raw intensities, run per-feature Welch's t-tests, apply BH correction. Add PQN normalization when systematic biases are suspected (see Processing Pipeline).
+**Goal:** Produce an interpretable, FDR-controlled per-metabolite answer with effect sizes.
+
+**Approach:** Match the test to the design, compute log2 fold change as a difference of group means on transformed data, then apply BH explicitly (defaults are not BH in either language).
 
 ```python
 import numpy as np
@@ -130,282 +117,109 @@ import pandas as pd
 from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 
-intensities = pd.read_csv('feature_table.tsv', sep='\t', index_col=0)
-metadata = pd.read_csv('sample_info.tsv', sep='\t')
-case_samples = metadata.loc[metadata['group'] == 'case', 'sample_id'].tolist()
-ctrl_samples = metadata.loc[metadata['group'] == 'control', 'sample_id'].tolist()
-
-log2_data = np.log2(intensities.replace(0, np.nan))
-
-pvalues, log2fcs = [], []
-for feature in log2_data.index:
-    case_vals = log2_data.loc[feature, case_samples].dropna().values.astype(float)
-    ctrl_vals = log2_data.loc[feature, ctrl_samples].dropna().values.astype(float)
-    if len(case_vals) >= 2 and len(ctrl_vals) >= 2:
-        _, pval = ttest_ind(case_vals, ctrl_vals, equal_var=False)  # Welch's -- scipy defaults to Student's
-        pvalues.append(pval)
-        log2fcs.append(case_vals.mean() - ctrl_vals.mean())
+logged = np.log2(intensities.replace(0, np.nan))   # transform before testing
+pvals, lfc = [], []
+for feat in logged.index:
+    a = logged.loc[feat, case].dropna().values
+    b = logged.loc[feat, ctrl].dropna().values
+    if len(a) >= 3 and len(b) >= 3:
+        pvals.append(ttest_ind(a, b, equal_var=False)[1])   # Welch: scipy defaults to Student
+        lfc.append(a.mean() - b.mean())                     # geometric-mean ratio on log scale
     else:
-        pvalues.append(np.nan)
-        log2fcs.append(np.nan)
-
-results = pd.DataFrame({'feature_id': log2_data.index, 'log2fc': log2fcs, 'pvalue': pvalues})
-results = results.dropna(subset=['pvalue'])
-_, results['padj'], _, _ = multipletests(results['pvalue'], method='fdr_bh')  # default is Holm-Sidak, not BH
-results['significant'] = results['padj'] < 0.05
+        pvals.append(np.nan); lfc.append(np.nan)
+res = pd.DataFrame({'feature': logged.index, 'log2fc': lfc, 'pval': pvals}).dropna(subset=['pval'])
+# statsmodels default is 'hs' (Holm-Sidak); R p.adjust default is 'holm' -- ALWAYS pass BH explicitly
+res['padj'] = multipletests(res['pval'], method='fdr_bh')[1]
 ```
 
-**Key details:**
-- `equal_var=False` selects Welch's t-test (scipy defaults to Student's with `equal_var=True`)
-- `multipletests` defaults to Holm-Sidak (FWER) -- always pass `method='fdr_bh'` explicitly for BH FDR
-- Fold change is computed as difference of group means in log2-space (geometric mean ratio), not `log2(mean_ratio)` which uses arithmetic means
-
-## Fold Change Calculation
-
-| Scenario | Test | Notes |
-|----------|------|-------|
-| 2 groups, n >= 5/group | Welch's t-test | Always prefer over Student's; unequal variance is the norm |
-| 2 groups, non-normal after log | Mann-Whitney U | Cannot reach p < 0.05 with n < 4/group |
-| 2 groups, n < 5/group | limma moderated t | `eBayes(trend=TRUE)` borrows variance across features |
-| Paired samples | Paired t-test | Pre/post, matched case-control |
-| 3+ groups | Welch's ANOVA | Post-hoc: Games-Howell or Dunn's test |
-
-**Approach:** Compute the difference of group means on log2-transformed data, which equals log2(geometric_mean_case / geometric_mean_control).
-
-```python
-log2fc = log2_data.loc[:, case_samples].mean(axis=1) - log2_data.loc[:, ctrl_samples].mean(axis=1)
-```
-
-```r
-log2fc <- rowMeans(normalized[, case_samples]) - rowMeans(normalized[, ctrl_samples])
-```
-
-Always compute fold change on log2-transformed, unscaled data. The naive alternative -- `log2(mean(case) / mean(control))` -- uses arithmetic means and can reverse fold change direction when group variances differ. The difference-of-log-means approach uses geometric means, consistent with limma and DESeq2.
-
-**MetaboAnalyst note:** MetaboAnalyst internally uses `log2(arithmetic_mean_ratio)` for fold change calculation. This diverges from the geometric mean approach and can produce different results, particularly for features with heterogeneous variance. The geometric mean method (difference of log means) is statistically more appropriate for log-normally distributed metabolomics data.
-
-### Fold Change Reporting
-
-Raw fold changes are noisy but unbiased. How to handle them depends on the downstream use:
-
-- **Pathway analysis (QEA/GSEA)**: Use raw fold changes for all features. MetaboAnalyst QEA ranks by effect size and relies on the full continuous distribution. Do not zero or threshold FCs before enrichment analysis.
-- **Effect size recovery** (which metabolites truly changed and by how much): Apply ashr shrinkage (R) for posterior mean estimates. Relevant for biomarker panels or clinical reporting.
-- **Meta-analysis across studies**: Use raw fold changes with standard errors as input. Shrinkage is study-specific and should not be applied before pooling.
-
-### Fold Change Shrinkage (ashr)
-
-ashr fits a mixture prior with a point mass at zero and estimates posterior means, smoothly shrinking uncertain effects toward zero while preserving well-supported ones:
-
-```r
-library(ashr)
-
-se <- sqrt(fit2$s2.post) * fit2$stdev.unscaled[, 1]
-shrunk <- ash(fit2$coefficients[, 1], se, mixcompdist = 'normal')
-
-shrunken_fc <- shrunk$result$PosteriorMean
-lfsr <- shrunk$result$lfsr
-```
-
-ashr is preferred over hard-thresholding (zeroing FCs at a p-value cutoff) because it shrinks smoothly based on per-feature uncertainty rather than applying an arbitrary step function at padj = 0.05. In Python, there is no mature equivalent -- use R with ashr when effect size accuracy is critical.
-
-### Minimum Fold Change Testing
-
-To test whether fold changes exceed a biologically meaningful threshold rather than just differ from zero, use `treat()` + `topTreat()` instead of post-hoc FC filtering with `topTable(lfc=...)`, which can inflate FDR:
-
-```r
-fit2 <- treat(fit2, lfc = log2(1.5))
-results <- topTreat(fit2, coef = 1, number = Inf)
-```
-
-## Common Pitfalls
-
-- **Not log-transforming raw intensities** -- parametric tests assume approximately normal distributions; raw MS intensities are right-skewed with mean-dependent variance
-- **Using Student's t-test** -- `scipy.stats.ttest_ind` defaults to `equal_var=True`; always set `equal_var=False` (Welch's) since treatment can affect both mean and variance
-- **statsmodels default is not BH** -- `multipletests` defaults to Holm-Sidak (FWER); always pass `method='fdr_bh'` for metabolomics FDR correction
-- **`removeBatchEffect()` before testing** -- this function is for visualization only; include batch as a covariate in the design matrix for statistical testing
-- **Post-hoc FC filtering** -- `topTable(lfc=...)` inflates FDR; use `treat()` + `topTreat()` for minimum-effect-size testing
-- **Normalizing when majority-stable fails** -- drug studies causing global metabolic shifts violate PQN/TIC/median assumptions; check PCA on raw log2 data first
-- **Imputing biological zeros** -- replacing BPMVs (metabolite truly absent in one group) with half-minimum creates false signal; use two-part tests instead
-- **MetaboAnalyst defaults** -- uses Student's t-test (not Welch's) and arithmetic mean FC (not geometric mean) by default; override or be aware when comparing results
+BH controls FDR under independence and PRDS; positively-correlated metabolomics features roughly satisfy PRDS, so BH is valid but conservative -- but closure-induced negative correlations (after total-area/PQN normalization) fall outside the clean case, where a permutation FDR sidesteps the dependence assumptions. The effective number of independent tests is far below the feature count (one compound = many adducts/isotopologues/fragments); use an effective-number-of-tests correction (Peluso 2021) rather than Bonferroni-on-features, and collapse features to compounds before counting "how many metabolites changed."
 
 ## Volcano Plot
 
-**Goal:** Visualize both statistical significance and effect size for all features in a single plot.
+**Goal:** Show significance and magnitude together for all features.
 
-**Approach:** Plot log2 fold change (x-axis) vs -log10 p-value (y-axis), highlighting features passing both thresholds.
+**Approach:** Plot log2 fold change vs -log10(p), with the FDR cutoff annotated (raw p on the axis is fine only if the FDR line is drawn).
 
 ```python
 import matplotlib.pyplot as plt
-
-results['sig_and_fc'] = (results['padj'] < 0.05) & (results['log2fc'].abs() > 1)
-colors = ['red' if s else 'gray' for s in results['sig_and_fc']]
-
-plt.figure(figsize=(8, 6))
-plt.scatter(results['log2fc'], -np.log10(results['pvalue']), c=colors, alpha=0.6, s=20)
-plt.axhline(-np.log10(0.05), linestyle='--', color='gray')
-plt.axvline(-1, linestyle='--', color='gray')
-plt.axvline(1, linestyle='--', color='gray')
-plt.xlabel('Log2 Fold Change')
-plt.ylabel('-log10(p-value)')
-plt.savefig('volcano_plot.png', dpi=150, bbox_inches='tight')
+hit = (res['padj'] < 0.05) & (res['log2fc'].abs() > 1)   # 2-fold + FDR 5%
+plt.scatter(res['log2fc'], -np.log10(res['pval']), c=np.where(hit, 'firebrick', 'gray'), s=12, alpha=0.6)
+plt.axhline(-np.log10(0.05), ls='--'); plt.axvline(1, ls='--'); plt.axvline(-1, ls='--')
+plt.xlabel('log2 fold change'); plt.ylabel('-log10(p)')
 ```
 
-```r
-library(ggplot2)
+## Per-Method Failure Modes
 
-results$sig_and_fc <- results$adj.P.Val < 0.05 & abs(results$logFC) > 1
+### Noise separation (the cardinal sin)
+- **Trigger:** Reporting a PLS-DA/OPLS-DA score plot as evidence of a group difference.
+- **Mechanism:** In p>>n any labelling is linearly separable; the algorithm always finds a covariance-maximizing direction, even for random labels.
+- **Symptom:** Clean two-cluster score plot, high R2Y, but Q2 low/negative or inside the permutation cloud; PCA shows no separation.
+- **Fix:** Permutation test (>=1000) of the full pipeline; require small pQ2; put the PCA plot beside it.
 
-ggplot(results, aes(x = logFC, y = -log10(adj.P.Val), color = sig_and_fc)) +
-    geom_point(alpha = 0.6) +
-    scale_color_manual(values = c('gray60', 'firebrick')) +
-    geom_hline(yintercept = -log10(0.05), linetype = 'dashed') +
-    geom_vline(xintercept = c(-1, 1), linetype = 'dashed') +
-    labs(x = 'Log2 Fold Change', y = '-Log10 Adjusted P-value') +
-    theme_bw()
-```
+### VIP misuse
+- **Trigger:** Selecting biomarkers by VIP > 1 from a single model fit.
+- **Mechanism:** VIPs are normalized so the mean squared VIP = 1 -- roughly half the features exceed 1 by construction; there is no null, no p-value, and the ranking is unstable under resampling in p>>n.
+- **Symptom:** Top-20 VIP list reshuffles when the model is re-bootstrapped; VIP-only hits fail to replicate.
+- **Fix:** Use VIP only from a permutation-validated model; require univariate FDR + effect-size concordance and resampling stability; use the OPLS-specific VIP so a high orthogonal-block VIP (the confounder) is not credited to disease.
 
-## PCA
+### Naive FDR under correlation
+- **Trigger:** BH or Bonferroni applied as if the features were independent.
+- **Mechanism:** Pathway co-regulation plus adducts/isotopologues/fragments make features strongly correlated; one signal lights up its whole cluster, and closure (after sample-wise normalization) injects negative correlations.
+- **Symptom:** A "200 significant metabolites" list that encodes a handful of independent signals; over-conservative threshold from Bonferroni-on-features.
+- **Fix:** Effective-number-of-tests or permutation FDR (Peluso 2021); collapse features to compounds before counting hits; report independent-signal counts.
 
-**Goal:** Explore overall sample variation and detect outliers or batch effects in an unsupervised manner.
+### Log with zeros / detection-rate confound
+- **Trigger:** Half-min (or zero) imputation followed by log, especially when detection rate differs between groups.
+- **Mechanism:** "Missing" is left-censored (MNAR); a constant imputed at the LOD then logged spikes the censored region, and a detection-rate difference masquerades as a concentration difference.
+- **Symptom:** Fake bimodality; a low-abundance "hit" that is really a difference in how often the metabolite was detected.
+- **Fix:** Report per-group detection rates with any low-abundance hit; prefer glog or a left-censored imputer (QRILC/GSimp) over impute-constant-then-log when detection differs (see metabolomics/normalization-qc).
 
-**Approach:** Perform PCA on the feature matrix and plot the first two principal components colored by experimental group.
+## Quantitative Thresholds
 
-```r
-library(pcaMethods)
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Q2 > 0.5 "good" | Triba 2015 (heuristic) | Predictive ability rule-of-thumb; not a hard cutoff -- many published models report Q2 < 0.5; report the value, not a verdict |
+| permI >= 1000 | Szymanska 2012 | Q2/DQ2 null distributions are skewed; the ropls default of 20 estimates only the granularity of the grid, not a usable pQ2 |
+| pQ2 < 0.05 | Westerhuis 2008 | Fraction of permuted models with Q2 >= true Q2; the actual evidence the separation is real |
+| crossvalI = 7 | ropls default | 7-fold CV; for very small n LOO is common but optimistic |
+| VIP > 1 | Galindo-Prieto 2014 | Above-average contributor; a ranking heuristic with no error control -- never a standalone selector |
+| BH FDR < 0.05 | Benjamini-Hochberg | Expected false-positive proportion among rejections; the metabolomics discovery default |
+| \|log2FC\| > 1 | convention | 2-fold; effect-size gate orthogonal to the p-value, mandatory in p>>n |
 
-pca_result <- pca(data, nPcs = 5, method = 'ppca')
+## Common Errors
 
-scores <- as.data.frame(scores(pca_result))
-scores$group <- groups
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Model "significant" yet noise | `permI = 20` (ropls default) | Set `permI >= 1000`; read `pQ2`/`pR2Y` from `getSummaryDF` |
+| Wrong scaling shipped silently | `scaleC` default is `"standard"` (UV), not Pareto | Set `scaleC = 'pareto'` (or the intended scaling) explicitly; report it |
+| PLS-DA vs OPLS-DA "function not found" | type is set by `orthoI`, not a separate function | `orthoI = 0` -> PLS; `orthoI = NA` -> OPLS; `predI = 1` for 2-class |
+| FDR is actually Holm | R `p.adjust` default is `'holm'` (FWER) | Pass `method = 'BH'` |
+| FDR is actually Holm-Sidak | statsmodels `multipletests` default is `'hs'` | Pass `method = 'fdr_bh'` |
+| Student instead of Welch | scipy `ttest_ind` default `equal_var=True` | Set `equal_var=False` (group variances differ, esp. near LOD) |
+| Reversed/unstable fold change | `log2(mean_ratio)` uses arithmetic means | Difference of log-means (geometric-mean ratio), consistent with limma/DESeq2 |
+| Optimistic CV error | feature selection done before CV | Re-fit selection inside every fold; see machine-learning/model-validation |
+| getVipVn gives orthogonal importance | `orthoL = TRUE` returns orthogonal VIP | Use default (predictive VIP) for discriminant ranking |
 
-ggplot(scores, aes(x = PC1, y = PC2, color = group)) +
-    geom_point(size = 3) +
-    stat_ellipse(level = 0.95) +
-    labs(x = paste0('PC1 (', round(pca_result@R2[1] * 100, 1), '%)'),
-         y = paste0('PC2 (', round(pca_result@R2[2] * 100, 1), '%)')) +
-    theme_bw()
+## References
 
-loadings <- as.data.frame(loadings(pca_result))
-top_pc1 <- loadings[order(abs(loadings$PC1), decreasing = TRUE)[1:20], ]
-```
-
-## PLS-DA
-
-**Goal:** Build a supervised classification model that maximizes separation between experimental groups.
-
-**Approach:** Fit a PLS-DA model with cross-validation to determine optimal components, then extract VIP scores to rank discriminatory features.
-
-```r
-library(mixOmics)
-
-plsda_result <- plsda(as.matrix(data), groups, ncomp = 3)
-
-perf_plsda <- perf(plsda_result, validation = 'Mfold', folds = 5, nrepeat = 50)
-plot(perf_plsda, col = color.mixo(5:7))
-
-ncomp_opt <- perf_plsda$choice.ncomp['BER', 'centroids.dist']
-
-final_plsda <- plsda(as.matrix(data), groups, ncomp = ncomp_opt)
-plotIndiv(final_plsda, group = groups, ellipse = TRUE, legend = TRUE)
-
-vip <- vip(final_plsda)
-top_vip <- sort(vip[, ncomp_opt], decreasing = TRUE)[1:20]
-```
-
-## sPLS-DA (Sparse)
-
-**Goal:** Perform feature selection simultaneously with classification to identify a minimal discriminatory feature set.
-
-**Approach:** Tune the number of features to retain per component via cross-validation, then fit a sparse PLS-DA model.
-
-```r
-tune_splsda <- tune.splsda(as.matrix(data), groups, ncomp = 3,
-                            validation = 'Mfold', folds = 5, nrepeat = 50,
-                            test.keepX = c(5, 10, 20, 50, 100))
-
-optimal_keepX <- tune_splsda$choice.keepX
-
-splsda_result <- splsda(as.matrix(data), groups, ncomp = ncomp_opt, keepX = optimal_keepX)
-
-selected_features <- selectVar(splsda_result, comp = 1)$name
-```
-
-## OPLS-DA
-
-**Goal:** Separate group-predictive variation from orthogonal (within-group) variation for cleaner class separation.
-
-**Approach:** Fit an OPLS-DA model using ropls, then use the S-plot to identify features with high predictive weight and correlation.
-
-```r
-library(ropls)
-
-oplsda <- opls(data, groups, predI = 1, orthoI = NA)
-plot(oplsda, typeVc = 'x-score')
-plot(oplsda, typeVc = 'x-loading')
-
-vip_scores <- getVipVn(oplsda)
-top_vip <- sort(vip_scores, decreasing = TRUE)[1:20]
-```
-
-## Random Forest
-
-**Goal:** Rank features by importance using a non-linear ensemble classifier.
-
-**Approach:** Train a Random Forest on the feature matrix, extract MeanDecreaseAccuracy to identify discriminatory features.
-
-```r
-library(randomForest)
-
-rf_model <- randomForest(x = data, y = groups, importance = TRUE, ntree = 500)
-importance <- importance(rf_model)
-top_features <- rownames(importance)[order(importance[, 'MeanDecreaseAccuracy'], decreasing = TRUE)[1:20]]
-varImpPlot(rf_model, n.var = 20)
-```
-
-## ROC Analysis
-
-**Goal:** Evaluate the diagnostic performance of candidate biomarker metabolites.
-
-**Approach:** Generate ROC curves and compute AUC for individual features using pROC.
-
-```r
-library(pROC)
-
-top_feature <- 'feature_123'
-roc_result <- roc(groups, data[, top_feature])
-plot(roc_result, main = paste('AUC =', round(auc(roc_result), 3)))
-
-biomarkers <- c('feature_1', 'feature_2', 'feature_3')
-for (feat in biomarkers) {
-    roc_i <- roc(groups, data[, feat])
-    cat(feat, ': AUC =', round(auc(roc_i), 3), '\n')
-}
-```
-
-## Heatmap
-
-**Goal:** Visualize abundance patterns of top differential features across all samples.
-
-**Approach:** Select top significant features, create an annotated heatmap with hierarchical clustering.
-
-```r
-library(pheatmap)
-
-top_features <- rownames(sig_features)[1:50]
-data_top <- data[, top_features]
-annotation_row <- data.frame(Group = groups)
-rownames(annotation_row) <- rownames(data)
-
-pheatmap(t(data_top), annotation_col = annotation_row,
-         scale = 'row', clustering_method = 'ward.D2',
-         filename = 'heatmap.png', width = 10, height = 12)
-```
+- van den Berg RA, Hoefsloot HCJ, Westerhuis JA, Smilde AK, van der Werf MJ. 2006. Centering, scaling, and transformations: improving the biological information content of metabolomics data. *BMC Genomics* 7:142.
+- Westerhuis JA, Hoefsloot HCJ, Smit S, Vis DJ, Smilde AK, et al. 2008. Assessment of PLSDA cross validation. *Metabolomics* 4:81-89.
+- Westerhuis JA, van Velzen EJJ, Hoefsloot HCJ, Smilde AK. 2008. Discriminant Q2 (DQ2) for improved discrimination in PLSDA models. *Metabolomics* 4:293-296.
+- Saccenti E, Hoefsloot HCJ, Smilde AK, Westerhuis JA, Hendriks MMWB. 2014. Reflections on univariate and multivariate analysis of metabolomics data. *Metabolomics* 10:361-374.
+- Broadhurst DI, Kell DB. 2006. Statistical strategies for avoiding false discoveries in metabolomics and related experiments. *Metabolomics* 2:171-196.
+- Thevenot EA, Roux A, Xu Y, Ezan E, Junot C. 2015. Analysis of the human adult urinary metabolome variations with age, body mass index, and gender by implementing a comprehensive workflow for univariate and OPLS statistical analyses. *J Proteome Res* 14:3322-3335.
+- Triba MN, Le Moyec L, Amathieu R, Goossens C, Bouchemal N, et al. 2015. PLS/OPLS models in metabolomics: the impact of permutation of dataset rows on the K-fold cross-validation quality parameters. *Mol BioSyst* 11:13-19.
+- Szymanska E, Saccenti E, Smilde AK, Westerhuis JA. 2012. Double-check: validation of diagnostic statistics for PLS-DA models in metabolomics studies. *Metabolomics* 8(Suppl 1):3-16.
+- Galindo-Prieto B, Eriksson L, Trygg J. 2014. Variable influence on projection (VIP) for orthogonal projections to latent structures (OPLS). *J Chemometr* 28:623-632.
+- Ruiz-Perez D, Guan H, Madhivanan P, Mathee K, Narasimhan G. 2020. So you think you can PLS-DA? *BMC Bioinformatics* 21(Suppl 1):2.
+- Peluso A, Glen R, Ebbels TMD. 2021. Multiple-testing correction in metabolome-wide association studies. *BMC Bioinformatics* 22:67.
+- Storey JD, Tibshirani R. 2003. Statistical significance for genomewide studies. *Proc Natl Acad Sci USA* 100:9440-9445.
 
 ## Related Skills
 
-- normalization-qc - Data preparation and batch correction
-- pathway-mapping - Functional interpretation of differential metabolites
-- multi-omics-integration/mixomics-analysis - Advanced multivariate methods
-- proteomics/differential-abundance - Analogous empirical Bayes concepts for proteomics
-- data-visualization/volcano-and-ma-plots - Volcano and MA plots with LFC shrinkage
-- data-visualization/heatmaps-clustering - Clustered heatmaps with annotation tracks
+- metabolomics/normalization-qc - Sample-wise normalization, drift/batch correction, missing-value imputation upstream of testing
+- metabolomics/pathway-mapping - Functional interpretation of differential metabolites
+- machine-learning/biomarker-discovery - Feature selection inside CV, stability, minimal-optimal vs all-relevant
+- machine-learning/model-validation - Leakage taxonomy, nested CV, calibration vs discrimination
+- experimental-design/multiple-testing - FDR vs FWER regime, discovery vs confirmatory
+- data-visualization/volcano-and-ma-plots - Volcano plot recipes

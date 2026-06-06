@@ -2,177 +2,92 @@
 
 ## Overview
 
-This workflow processes raw mass spectrometry data through peak detection, alignment, normalization, statistical analysis, and pathway interpretation.
+This workflow orchestrates an untargeted LC-MS metabolomics study from raw mzML to enriched pathways, chaining five component skills: xcms feature extraction, QC/drift/normalization, confidence-stratified annotation, permutation-validated statistics, and background-aware pathway mapping. It is a sequencer with honest handoffs -- each stage defers to its component skill for parameters and traps, and the workflow's job is to keep the failure modes from one stage from silently corrupting the next. Stable-isotope flux tracing is a separate branch (see metabolomics/isotope-tracing), not part of this pipeline.
 
 ## Prerequisites
 
 ```r
-BiocManager::install(c('xcms', 'CAMERA', 'MetaboAnalystR'))
-install.packages(c('metablastr', 'pheatmap'))
+BiocManager::install(c('xcms', 'CAMERA', 'MetaboAnalystR', 'ropls', 'pmp', 'imputeLCMD'))
 ```
+
+Conceptual prerequisites: pooled QC samples injected ~1 every 5-10 samples (drift correction is impossible without them); a sample-metadata table with condition, batch, and injection order; biological groups randomized across batches (a confounded design cannot be rescued by any algorithm); and an understanding that a feature table is a parameterized hypothesis, not raw truth.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Run the metabolomics pipeline on my mzML files"
-- "Process my LC-MS data and find differential metabolites"
-- "Analyze my lipidomics experiment"
+- "Run the full untargeted LC-MS metabolomics pipeline on my mzML files"
+- "Process my LC-MS data, correct for drift, and find differential metabolites"
+- "Take my feature table through QC, statistics, and pathway mapping"
+- "I have no compound IDs -- run mummichog pathway analysis on my m/z peaks"
 
 ## Example Prompts
 
-### Basic Analysis
-> "I have mzML files from an untargeted metabolomics study, run the full pipeline"
+### End-to-End
+> "I have centroided mzML files plus pooled QCs from an untargeted study; run xcms preprocessing, QC-correct, find differential metabolites, and map pathways."
 
-> "Process my LC-MS/MS data with XCMS and run differential analysis"
+> "Process my LC-MS data with the modern xcms 4.x API and report differential metabolites with honest annotation confidence."
 
-### Normalization and QC
-> "Apply QC-based batch correction to my metabolomics data"
+### QC and Normalization
+> "Correct injection-order drift against my QC samples and confirm it did not absorb biological signal."
 
-> "Normalize my metabolomics data and check sample quality with PCA"
+> "Filter my feature table by QC RSD and D-ratio, PQN-normalize, and impute the residual missing values by mechanism."
 
-### Pathway Analysis
-> "Find enriched metabolic pathways in my differential metabolites"
+### Statistics and Pathways
+> "Run a permutation-validated OPLS-DA and a univariate FDR analysis, then reconcile them."
 
-> "Annotate my significant features against HMDB and run pathway enrichment"
+> "My features have no compound IDs -- run mummichog pathway analysis using the full feature table as background."
+
+## What the Agent Will Do
+
+1. Stage 1 -- Extract features with xcms 4.x (`readMsExperiment` -> `findChromPeaks` -> `adjustRtime` -> regroup -> `fillChromPeaks` -> `featureValues`), aligning to pooled QC and flagging filled values.
+2. Stage 2 -- Filter junk features, correct within-batch drift (QCRSC), apply RSD/D-ratio filters, PQN-normalize, and impute the sparse residual holes by missingness mechanism.
+3. Stage 3 -- Annotate features and attach an MSI/Schymanski confidence level to each name, collapsing ion families first.
+4. Stage 4 -- Run a univariate test with BH FDR AND a permutation-validated OPLS-DA, then reconcile.
+5. Stage 5 -- Map identified compounds with ORA (assay-coverage background) or raw m/z with mummichog (full-table background), reporting coverage and confidence ceilings.
 
 ## When to Use This Pipeline
 
-- Untargeted metabolomics studies
-- LC-MS/MS metabolite profiling
-- Lipidomics analysis
-- Metabolic biomarker discovery
-- Treatment response studies
+- Untargeted LC-MS/MS metabolite profiling
+- Metabolic biomarker discovery and treatment-response studies
+- Lipidomics (adjust peak widths and annotation; see metabolomics/lipidomics)
+- Studies where the feature table must reach pathway interpretation honestly
+
+Not for: stable-isotope flux/fluxomics (see metabolomics/isotope-tracing) or absolute targeted quantification as the primary goal (see metabolomics/targeted-analysis).
 
 ## Required Inputs
 
-1. **Raw MS data** - mzML or mzXML format (converted from vendor formats)
-2. **Sample metadata** - CSV with sample names, conditions, batches
-3. **QC samples** - Pooled QC samples recommended
+1. Raw MS data -- centroided mzML/mzXML (convert vendor formats with ProteoWizard msConvert; centroid during conversion)
+2. Sample metadata -- CSV with sample, condition, batch, injection_order, and a sample_group column marking QCs
+3. Pooled QC samples -- bracketing the run and injected ~1 every 5-10 samples
 
 ## Sample Metadata Format
 
 ```csv
-sample,condition,batch,injection_order
-Sample1.mzML,Control,1,1
-Sample2.mzML,Control,1,2
-QC1.mzML,QC,1,3
-Sample3.mzML,Treatment,1,4
+sample,sample_group,condition,batch,injection_order
+QC1.mzML,QC,QC,1,1
+Sample1.mzML,Control,Control,1,2
+Sample2.mzML,Treatment,Treatment,1,3
+QC2.mzML,QC,QC,1,4
 ```
-
-## Pipeline Steps
-
-### 1. Peak Detection
-- Identifies chromatographic peaks in each sample
-- CentWave algorithm for LC-MS data
-- Adjust peakwidth based on chromatography
-
-### 2. Retention Time Alignment
-- Corrects RT drift between samples
-- Obiwarp or peak groups methods
-- Essential for feature matching
-
-### 3. Feature Grouping
-- Groups peaks across samples into features
-- Based on m/z and aligned RT
-- minFraction controls stringency
-
-### 4. Gap Filling
-- Recovers missing values
-- Integrates signal at expected locations
-- Reduces false missing values
-
-### 5. Normalization
-- Corrects systematic variation
-- Options: PQN (recommended default for untargeted LC-MS), median centering, cyclic loess, VSN
-- QC-RSC (LOESS on QC samples) for multi-batch correction
-
-### 6. Statistical Analysis
-- limma with `eBayes(trend=TRUE, robust=TRUE)` for intensity-dependent variance modeling
-- Handles missing values
-- Multiple testing correction (BH FDR)
-
-### 7. Annotation
-- Match m/z to databases (HMDB, KEGG, LipidMaps)
-- Consider adducts and isotopes
-- MS/MS matching for confidence
-
-### 8. Pathway Analysis
-- Map to KEGG pathways
-- Over-representation analysis
-- Metabolite set enrichment
-
-## Parameter Guidelines
-
-### Peak Detection (CentWave)
-| Parameter | UPLC | Standard LC | GC-MS |
-|-----------|------|-------------|-------|
-| peakwidth | 5-30 | 10-60 | 2-10 |
-| ppm | 15-25 | 25-50 | 10-20 |
-| snthresh | 10 | 10 | 5 |
-
-### Feature Grouping
-| Parameter | Typical | Stringent |
-|-----------|---------|-----------|
-| bw | 5-10 | 2-3 |
-| minFraction | 0.5 | 0.8 |
-| binSize | 0.025 | 0.01 |
-
-## Quality Control
-
-### QC Sample Strategy
-- Pool equal volumes from all samples
-- Inject QC every 5-10 samples
-- Use for batch correction and quality assessment
-
-### QC Metrics
-| Metric | Good | Acceptable | Poor |
-|--------|------|------------|------|
-| Features detected | >5000 | 2000-5000 | <2000 |
-| QC CV | <20% | 20-30% | >30% |
-| Blank ratio | >10x | 5-10x | <5x |
-
-## Common Issues
-
-### Few features detected
-- Adjust peak detection parameters
-- Check raw data quality
-- Lower snthresh carefully
-
-### Poor alignment
-- Check for RT drift pattern
-- Use more reference peaks
-- Consider subset alignment
-
-### High missing values
-- Reduce minFraction
-- Improve gap filling
-- Check sample quality
-
-### No significant features
-- Check experimental design
-- Consider effect sizes
-- Adjust FDR threshold
-
-## Output Files
-
-| File | Description |
-|------|-------------|
-| normalized_feature_matrix.csv | Processed feature intensities |
-| differential_metabolites.csv | Statistical results |
-| qc_pca.png | PCA quality check |
-| volcano_metabolites.png | Differential analysis plot |
-| pathway_overview.png | Enriched pathways |
 
 ## Tips
 
-- **QC samples**: Inject pooled QC every 5-10 samples for batch correction
-- **Peak detection**: Adjust peakwidth based on your chromatography (UPLC: 5-30, standard LC: 10-60)
-- **Missing values**: High missing values may indicate poor sample quality
-- **Annotation confidence**: MS/MS matching provides higher confidence than m/z alone
-- **mzML conversion**: Convert vendor files using ProteoWizard msConvert
+- Pooled QC samples are load-bearing: drift correction, RSD/D-ratio filtering, and PQN reference all depend on them. No QCs, no honest pipeline.
+- Validate drift correction on held-out QCs and dilution linearity, never on "QCs cluster tighter" -- that metric is exactly what an over-flexible spline games.
+- A clean PLS-DA/OPLS-DA score plot is the generic output of p>>n data; require Q2 high AND a small permutation p before believing separation.
+- Never promote a database hit to an identification: a name without an MSI level is incomplete, and pathway enrichment launders that uncertainty into confident biology.
+- The pathway background IS the null hypothesis: ORA needs the assay-coverage metabolome, mummichog needs the entire feature table.
+- Switch the front end to MS-DIAL (metabolomics/msdial-preprocessing) for MS2Dec deconvolution, GC-EI, or DIA/SWATH, then enter at Stage 2.
 
-## References
+## Related Skills
 
-- XCMS: doi:10.1021/ac051437y
-- MetaboAnalystR: doi:10.1093/bioinformatics/btaa123
-- xcms3 workflow: doi:10.3390/metabo10120504
+- metabolomics/xcms-preprocessing - Stage 1 feature extraction parameters and the feature-table-as-artifact framing
+- metabolomics/normalization-qc - Stage 2 drift correction, RSD/D-ratio filtering, PQN, mechanism-aware imputation
+- metabolomics/metabolite-annotation - Stage 3 MSI/Schymanski confidence levels
+- metabolomics/statistical-analysis - Stage 4 permutation-validated multivariate and dependence-aware FDR
+- metabolomics/pathway-mapping - Stage 5 ORA vs mummichog and background construction
+- metabolomics/msdial-preprocessing - Alternative front end entering at Stage 2
+- metabolomics/lipidomics - Lipid-specific peak widths and annotation
+- metabolomics/targeted-analysis - Absolute quantification branch
+- metabolomics/isotope-tracing - Separate stable-isotope flux branch, not a stage of this untargeted pipeline
+- multi-omics-integration/mofa-integration - Integrating the feature table with other omics layers

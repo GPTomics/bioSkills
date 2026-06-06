@@ -1,50 +1,48 @@
-# Reference: MSnbase 2.28+, scanpy 1.10+, xcms 4.0+ | Verify API if version differs
+# Reference: xcms 4.x+, MsExperiment 1.4+, faahKO 1.42+ | Verify API if version differs
+# End-to-end modern-API xcms preprocessing on the bundled faahKO test data:
+# raw -> peak detection -> alignment -> correspondence -> gap-filling -> feature table.
+# Output is written to tempdir() and removed; no artifacts are left in the repo.
+
 library(xcms)
-library(MSnbase)
+library(MsExperiment)
+library(faahKO)
 
-# Configuration
-raw_dir <- 'raw_data'
-output_file <- 'feature_table.csv'
+cdfs <- dir(system.file('cdf', package = 'faahKO'), full.names = TRUE, recursive = TRUE)[c(1, 2, 7, 8)]
+pd <- data.frame(sample_name = sub('.CDF', '', basename(cdfs), fixed = TRUE),
+                 sample_group = c('KO', 'KO', 'WT', 'WT'))
 
-# Load data
-raw_files <- list.files(raw_dir, pattern = '\\.mzML$', full.names = TRUE)
-raw_data <- readMSData(raw_files, mode = 'onDisk')
+raw <- readMsExperiment(spectraFiles = cdfs, sampleData = pd)
+cat('Loaded', length(cdfs), 'files\n')
 
-# Sample info (modify based on your experiment)
-pData(raw_data)$sample_group <- ifelse(grepl('ctrl', basename(raw_files)), 'Control', 'Treatment')
-
-cat('Loaded', length(raw_files), 'files\n')
-
-# Peak detection (CentWave)
-# peakwidth: Expected chromatographic peak width in seconds; typical 5-30 for LC-MS
-# ppm: Mass accuracy; use 5-15 for Orbitrap, 20-30 for TOF
-# snthresh: Signal-to-noise; 10 is standard, lower for weak signals
-cwp <- CentWaveParam(peakwidth = c(5, 30), ppm = 15, snthresh = 10, prefilter = c(3, 1000))
-xdata <- findChromPeaks(raw_data, param = cwp)
+# CentWave for centroided high-res data. faahKO is broad-peak conventional-HPLC LC-MS data,
+# so peakwidth runs broad (20-80 s); for UHPLC measure EIC base-widths and narrow it.
+# ppm reflects across-scan centroid scatter, not the spec mass accuracy.
+cwp <- CentWaveParam(ppm = 25, peakwidth = c(20, 80), snthresh = 10,
+                     prefilter = c(3, 1000), noise = 1000)
+xdata <- findChromPeaks(raw, param = cwp)
 cat('Peaks detected:', nrow(chromPeaks(xdata)), '\n')
 
-# RT alignment (Obiwarp)
-xdata <- adjustRtime(xdata, param = ObiwarpParam(binSize = 0.5))
-cat('RT aligned\n')
+# obiwarp needs no prior peaks; binSize here is the m/z profile bin (distinct from grouping binSize).
+xdata <- adjustRtime(xdata, param = ObiwarpParam(binSize = 0.6))
 
-# Correspondence (grouping)
-pdp <- PeakDensityParam(sampleGroups = pData(xdata)$sample_group, bw = 5, minFraction = 0.5)
+# Peak-density correspondence. bw should track residual post-alignment RT scatter;
+# minFraction 0.5 keeps features present in at least half of one group.
+pdp <- PeakDensityParam(sampleGroups = sampleData(xdata)$sample_group,
+                        bw = 30, minFraction = 0.5, binSize = 0.025)
 xdata <- groupChromPeaks(xdata, param = pdp)
 cat('Features:', nrow(featureDefinitions(xdata)), '\n')
 
-# Gap filling
+# Gap-filling fabricates intensities for absent compounds, so track the filled flag.
 xdata <- fillChromPeaks(xdata, param = ChromPeakAreaParam())
+filled_fraction <- mean(chromPeakData(xdata)$is_filled)
+cat('Fraction of filled peaks:', round(filled_fraction, 3), '\n')
 
-# Extract feature table
-features <- featureValues(xdata, method = 'maxint', value = 'into')
-feature_info <- as.data.frame(featureDefinitions(xdata))
+feat <- featureValues(xdata, value = 'into')
+defs <- as.data.frame(featureDefinitions(xdata))
+result <- data.frame(feature = rownames(feat), mz = defs$mzmed, rt = defs$rtmed, feat,
+                     row.names = NULL)
 
-result <- data.frame(
-    feature = rownames(features),
-    mz = feature_info$mzmed,
-    rt = feature_info$rtmed,
-    features
-)
-
-write.csv(result, output_file, row.names = FALSE)
-cat('Saved to', output_file, '\n')
+out <- file.path(tempdir(), 'feature_table.csv')
+write.csv(result, out, row.names = FALSE)
+cat('Wrote', nrow(result), 'features to', out, '\n')
+file.remove(out)
