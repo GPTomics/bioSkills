@@ -1,44 +1,48 @@
-'''L1-regularized logistic regression for sparse biomarker selection'''
-# Reference: matplotlib 3.8+, pandas 2.2+, scikit-learn 1.4+ | Verify API if version differs
+'''Elastic-net logistic signature, plus a batch-shortcut sanity check.
 
+Runs end-to-end on synthetic data. Part 1 fits a sparse elastic-net signature.
+Part 2 demonstrates the most important omics-classifier failure mode: when batch
+is confounded with the outcome, the classifier reaches a near-perfect AUC by
+learning the batch, which a batch-prediction check and a batch-aware split expose.
+'''
+# Reference: pandas 2.2+, scikit-learn 1.4+ | Verify API if version differs
+
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegressionCV
-from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.linear_model import LogisticRegression
 
-expr = pd.read_csv('expression.csv', index_col=0)
-meta = pd.read_csv('metadata.csv', index_col=0)
+rng = np.random.default_rng(0)
 
-X = expr.T
-y = meta.loc[X.index, 'condition'].values
+# --- Part 1: elastic-net signature ---
+X, y = make_classification(n_samples=300, n_features=500, n_informative=15, random_state=0)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, stratify=y, random_state=0)
+# saga supports elasticnet; standardize because the penalty is scale-sensitive.
+pipe = Pipeline([('s', StandardScaler()),
+                 ('c', LogisticRegression(penalty='elasticnet', solver='saga', l1_ratio=0.5,
+                                          C=0.1, max_iter=5000))])
+pipe.fit(X_tr, y_tr)
+n_sel = int((pipe.named_steps['c'].coef_[0] != 0).sum())
+print(f'Elastic-net selected {n_sel} of {X.shape[1]} features')
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+# --- Part 2: batch confounding has no computational rescue ---
+# The features contain ZERO biological signal. Batch is confounded with the label
+# (batches 0-2 mostly controls, 3-5 mostly cases) and adds a strong technical
+# offset. A high CV AUC here is pure artifact: there is nothing real to learn.
+n_per, n_batch = 40, 6
+batch = np.repeat(np.arange(n_batch), n_per)
+case_rate = np.where(batch < 3, 0.15, 0.85)            # label correlated with batch
+label = (rng.random(n_per * n_batch) < case_rate).astype(int)
+tech = rng.normal(batch[:, None] * 2.0, 1.0, (len(label), 100))         # batch offset, NO biology
+Xb = tech
 
-# L1 (lasso): Sparse solutions, good for biomarker discovery
-# L2 (ridge): Better for correlated features, keeps all
-# elasticnet: Mix of both (l1_ratio controls balance)
-logit = LogisticRegressionCV(
-    Cs=10,         # 10 regularization strengths to try
-    cv=5,          # 5-fold CV for tuning
-    penalty='l1',  # L1 for sparsity
-    solver='saga', # Required for L1
-    max_iter=1000, # Increase for convergence
-    random_state=42
-)
+clf = Pipeline([('s', StandardScaler()), ('c', LogisticRegression(max_iter=5000))])
+naive = cross_val_score(clf, Xb, label, cv=5, scoring='roc_auc')
+batch_pred = cross_val_score(clf, Xb, batch >= 3, cv=5, scoring='roc_auc')   # can we predict BATCH group?
 
-pipe = Pipeline([('scaler', StandardScaler()), ('clf', logit)])
-pipe.fit(X_train, y_train)
-
-y_pred = pipe.predict(X_test)
-y_prob = pipe.predict_proba(X_test)[:, 1]
-print(classification_report(y_test, y_pred))
-print(f'ROC-AUC: {roc_auc_score(y_test, y_prob):.3f}')
-print(f'Best C: {logit.C_[0]:.4f}')
-
-coefs = pd.Series(logit.coef_[0], index=X.columns)
-nonzero = coefs[coefs != 0].sort_values(key=abs, ascending=False)
-print(f'\nSelected {len(nonzero)} features with non-zero coefficients:')
-nonzero.to_csv('logistic_biomarkers.csv')
-nonzero.head(20)
+print(f'\nCV AUC on data with ZERO real signal: {naive.mean():.2f}  <- pure batch artifact')
+print(f'Batch predictability AUC:              {batch_pred.mean():.2f}  (1.00 = the red flag)')
+print('Confounded batch has no computational rescue (Soneson 2014) -- fix at the design stage.')

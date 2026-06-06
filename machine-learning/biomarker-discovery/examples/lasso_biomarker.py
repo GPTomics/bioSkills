@@ -1,63 +1,55 @@
-'''LASSO feature selection with stability analysis'''
+'''Leakage-safe selection and stability, demonstrated on synthetic p>>n data.
+
+Two teaching points run end-to-end on synthetic data:
+1. Selecting features on the FULL matrix before CV reports high AUC even when the
+   labels are pure noise; putting selection inside the CV fold does not.
+2. A signature is reported with a stability index, not on its own.
+'''
 # Reference: numpy 1.26+, pandas 2.2+, scikit-learn 1.4+ | Verify API if version differs
 
-import pandas as pd
 import numpy as np
-from sklearn.linear_model import LassoCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import StratifiedKFold
+import pandas as pd
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 
-expr = pd.read_csv('expression.csv', index_col=0)
-meta = pd.read_csv('metadata.csv', index_col=0)
+rng = np.random.default_rng(0)
+n, p = 80, 5000                                  # p >> n: 80 samples, 5000 'genes'
+X = pd.DataFrame(rng.normal(size=(n, p)), columns=[f'g{i}' for i in range(p)])
+y_noise = rng.integers(0, 2, n)                  # pure noise: no gene is truly associated
 
-X = expr.T
-y = meta.loc[X.index, 'condition'].values
+# WRONG: select top-20 on all data, then CV the classifier on those 20.
+top20 = SelectKBest(f_classif, k=20).fit(X, y_noise).get_support(indices=True)
+leaky = cross_val_score(LogisticRegression(max_iter=5000), X.iloc[:, top20], y_noise,
+                        cv=StratifiedKFold(10, shuffle=True, random_state=0), scoring='roc_auc')
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+# RIGHT: selection inside the Pipeline, re-fit per fold.
+pipe = Pipeline([('select', SelectKBest(f_classif, k=20)),
+                 ('clf', LogisticRegression(max_iter=5000))])
+honest = cross_val_score(pipe, X, y_noise, cv=StratifiedKFold(10, shuffle=True, random_state=0), scoring='roc_auc')
 
-# cv=5: Standard 5-fold CV balances bias-variance; use 10 for smaller datasets
-lasso = LassoCV(cv=5, random_state=42, n_jobs=-1)
-lasso.fit(X_scaled, y)
+print(f'AUC on PURE NOISE, selection-before-CV (WRONG): {leaky.mean():.2f}')   # inflated, ~0.7+
+print(f'AUC on PURE NOISE, selection-inside-CV (RIGHT): {honest.mean():.2f}')  # ~0.5 as it should be
 
-selected_mask = lasso.coef_ != 0
-print(f'LASSO selected {selected_mask.sum()} features at alpha={lasso.alpha_:.4f}')
+# --- Stability on a separate matrix with real signal in the first 5 genes.
+# --- Moderate p after a notional pre-filter so L1 can recover the signal. ---
+ns, ps = 120, 300
+Xs = pd.DataFrame(rng.normal(size=(ns, ps)), columns=[f'g{i}' for i in range(ps)])
+beta = np.zeros(ps); beta[:5] = 2.5
+logit = Xs.values @ beta + rng.normal(scale=1.0, size=ns)
+ys = (logit > np.median(logit)).astype(int)
 
-coefs = pd.DataFrame({
-    'feature': X.columns,
-    'coefficient': lasso.coef_,
-    'selected': selected_mask
-})
-coefs = coefs.sort_values('coefficient', key=abs, ascending=False)
-coefs.to_csv('lasso_features.csv', index=False)
+counts = np.zeros(ps); subsets = []
+for _ in range(100):
+    idx = rng.choice(ns, size=ns // 2, replace=False)          # n/2 subsampling
+    mask = LogisticRegression(penalty='l1', solver='liblinear', C=1.0,
+                              max_iter=2000).fit(Xs.iloc[idx], ys[idx]).coef_[0] != 0
+    counts += mask; subsets.append(mask.astype(int))
 
-# Stability selection via bootstrap
-# n_bootstrap=100: Sufficient for stable estimates; 500-1000 for publication-quality
-n_bootstrap = 100
-selection_counts = np.zeros(X.shape[1])
-
-print(f'\nRunning {n_bootstrap} bootstrap iterations...')
-for i in range(n_bootstrap):
-    idx = np.random.choice(len(X), size=len(X), replace=True)
-    X_boot = X_scaled[idx]
-    y_boot = y[idx]
-
-    # cv=3: Fewer folds for speed in bootstrap; repeated sampling provides stability
-    lasso_boot = LassoCV(cv=3, random_state=i, n_jobs=-1)
-    lasso_boot.fit(X_boot, y_boot)
-    selection_counts += (lasso_boot.coef_ != 0)
-
-# threshold=0.6: Feature selected in >60% of bootstraps is stable
-# Lower (0.5) for more features, higher (0.8) for stricter selection
-stability = selection_counts / n_bootstrap
-stable_mask = stability > 0.6
-
-stability_df = pd.DataFrame({
-    'feature': X.columns,
-    'selection_frequency': stability,
-    'stable': stable_mask
-}).sort_values('selection_frequency', ascending=False)
-
-print(f'Stable features (>60% selection): {stable_mask.sum()}')
-stability_df.to_csv('lasso_stability.csv', index=False)
-stability_df[stability_df['stable']].head(20)
+Z = np.array(subsets); k = Z.sum(axis=1)
+# Nogueira 2018 stability index: chance-corrected, 1 = identical, ~0 = random.
+stability = 1 - Z.var(axis=0, ddof=1).mean() / ((k.mean() / ps) * (1 - k.mean() / ps))
+stable = Xs.columns[counts / 100 > 0.6]                         # pi_thr = 0.6
+print(f'\nStable features (>60%, true signal = g0..g4): {list(stable)}')
+print(f'Nogueira stability index: {stability:.2f}')

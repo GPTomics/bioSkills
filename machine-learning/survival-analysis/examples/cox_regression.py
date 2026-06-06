@@ -1,64 +1,48 @@
-'''Cox proportional hazards regression for survival modeling'''
-# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
+'''Predictive survival modeling: penalized Cox vs RSF, evaluated beyond the C-index.
 
-import pandas as pd
-from lifelines import CoxPHFitter, KaplanMeierFitter
-from lifelines.statistics import logrank_test
-import matplotlib.pyplot as plt
+Runs end-to-end on synthetic data. Fits an elastic-net Cox and a random survival
+forest, then evaluates with Uno's IPCW C, time-dependent AUC, and integrated Brier
+versus a Kaplan-Meier baseline -- because the C-index alone is censoring-dependent,
+blind to calibration, and insensitive.
+'''
+# Reference: scikit-survival 0.22+, numpy 1.26+ | Verify API if version differs
 
-clinical = pd.read_csv('clinical.csv')
-expr = pd.read_csv('expression.csv', index_col=0)
+import numpy as np
+from sksurv.util import Surv
+from sksurv.linear_model import CoxnetSurvivalAnalysis
+from sksurv.ensemble import RandomSurvivalForest
+from sksurv.metrics import concordance_index_ipcw, cumulative_dynamic_auc, integrated_brier_score
+from sklearn.model_selection import train_test_split
 
-# Prepare Cox data with clinical + omics features
-cox_df = pd.DataFrame({
-    'time': clinical['survival_time'],
-    'event': clinical['event'],
-    'age': clinical['age'],
-    'stage': clinical['stage'],
-    'BRCA1': expr.loc['BRCA1'],
-    'TP53': expr.loc['TP53']
-})
-cox_df = cox_df.dropna()
-print(f'Cox data: {len(cox_df)} patients, {cox_df["event"].sum()} events')
+rng = np.random.default_rng(0)
+n, p = 600, 40
+X = rng.normal(size=(n, p))
+beta = np.zeros(p); beta[:5] = 0.8                       # 5 prognostic features
+risk = X @ beta
+true_time = rng.exponential(np.exp(-risk))               # higher risk -> shorter time
+censor = rng.exponential(1.5, n)
+time = np.minimum(true_time, censor).astype(float)
+event = (true_time <= censor)                            # bool event field is REQUIRED by sksurv
 
-# penalizer=0.1: L2 regularization, use higher values for more features
-cph = CoxPHFitter(penalizer=0.1)
-cph.fit(cox_df, duration_col='time', event_col='event')
+Xtr, Xte, etr, ete, ttr, tte = train_test_split(X, event, time, test_size=0.4, random_state=0)
+y_tr = Surv.from_arrays(event=etr, time=ttr)             # structured array: (bool event, float time)
+y_te = Surv.from_arrays(event=ete, time=tte)
 
-print('\n=== Cox PH Model Summary ===')
-cph.print_summary()
+cox = CoxnetSurvivalAnalysis(l1_ratio=0.9, alpha_min_ratio=0.01, fit_baseline_model=True).fit(Xtr, y_tr)
+rsf = RandomSurvivalForest(n_estimators=300, min_samples_leaf=15, random_state=0).fit(Xtr, y_tr)
 
-print(f'\nConcordance index: {cph.concordance_index_:.3f}')
-# C-index: 0.5=random, 0.7+=useful, 0.8+=good
+tau = np.quantile(tte[ete], 0.8)                         # truncate IPCW at a horizon inside follow-up
+times = np.linspace(np.quantile(tte[ete], 0.1), tau, 12)
 
-hr_df = cph.summary[['exp(coef)', 'exp(coef) lower 95%', 'exp(coef) upper 95%', 'p']]
-hr_df.columns = ['HR', 'HR_lower', 'HR_upper', 'p_value']
-hr_df.to_csv('cox_hazard_ratios.csv')
-print('\nSaved hazard ratios to cox_hazard_ratios.csv')
+print(f'{"model":18s} {"UnoC":>6s} {"meanAUC":>8s} {"IBS":>6s}')
+for name, m in [('elastic-net Cox', cox), ('random forest', rsf)]:
+    risk_score = m.predict(Xte)                          # higher = higher risk, NOT a probability
+    c = concordance_index_ipcw(y_tr, y_te, risk_score, tau=tau)[0]
+    _, mean_auc = cumulative_dynamic_auc(y_tr, y_te, risk_score, times)
+    surv = np.vstack([[fn(t) for t in times] for fn in m.predict_survival_function(Xte)])
+    ibs = integrated_brier_score(y_tr, y_te, surv, times)
+    print(f'{name:18s} {c:6.3f} {mean_auc:8.3f} {ibs:6.3f}')
 
-# Check proportional hazards assumption (uncomment for full check)
-# cph.check_assumptions(cox_df, show_plots=True)
-
-# Risk stratification using Cox partial hazard
-risk_scores = cph.predict_partial_hazard(cox_df)
-cox_df['risk_score'] = risk_scores
-cox_df['risk_group'] = (risk_scores > risk_scores.median()).map({True: 'high', False: 'low'})
-
-# KM plot for risk groups
-fig, ax = plt.subplots(figsize=(8, 6))
-for group, color in [('high', 'red'), ('low', 'blue')]:
-    mask = cox_df['risk_group'] == group
-    kmf = KaplanMeierFitter()
-    kmf.fit(cox_df.loc[mask, 'time'], event_observed=cox_df.loc[mask, 'event'], label=f'{group} risk')
-    kmf.plot_survival_function(ax=ax, color=color)
-
-high = cox_df[cox_df['risk_group'] == 'high']
-low = cox_df[cox_df['risk_group'] == 'low']
-lr = logrank_test(high['time'], low['time'], event_observed_A=high['event'], event_observed_B=low['event'])
-
-ax.set_xlabel('Time (months)')
-ax.set_ylabel('Survival probability')
-ax.set_title(f'Cox risk stratification (C-index={cph.concordance_index_:.3f})\nLog-rank p={lr.p_value:.4e}')
-plt.tight_layout()
-plt.savefig('cox_risk_stratification.png', dpi=150)
-print('Saved cox_risk_stratification.png')
+# KM-only baseline IBS: a model whose IBS does not beat this has no predictive value.
+km_surv = np.tile([np.mean(ttr[etr] > t) for t in times], (len(tte), 1))
+print(f'\nKaplan-Meier baseline IBS (no covariates): {integrated_brier_score(y_tr, y_te, km_surv, times):.3f}')

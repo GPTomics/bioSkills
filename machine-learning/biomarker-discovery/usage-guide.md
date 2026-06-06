@@ -1,8 +1,8 @@
-# Feature Selection Usage Guide
+# Feature Selection for Biomarker Discovery Usage Guide
 
 ## Overview
 
-Select informative features for biomarker discovery using Boruta all-relevant selection, mRMR minimum redundancy, and LASSO regularization.
+Select candidate biomarker features from high-dimensional omics data using Boruta (all-relevant), mRMR, LASSO/elastic-net (minimal-optimal), and stability selection. The discipline this skill enforces is that most gene signatures do not replicate: selection must happen inside the cross-validation loop, the right null is a random size-matched signature rather than "no association," and a selected list is reported with a stability index, never on its own.
 
 ## Prerequisites
 
@@ -10,51 +10,63 @@ Select informative features for biomarker discovery using Boruta all-relevant se
 pip install Boruta mrmr-selection scikit-learn pandas numpy
 ```
 
+Conceptual prerequisites: decide whether you want all-relevant (which genes carry signal) or minimal-optimal (smallest predictive set) before choosing a method; for single-cell data, pseudobulk to the donor level first.
+
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Select biomarker genes using Boruta"
-- "Find a minimal set of non-redundant features with mRMR"
-- "Use LASSO to find sparse biomarkers"
-- "Which features are stable across bootstrap samples?"
+- "Select all-relevant biomarker genes with Boruta for pathway interpretation"
+- "Build a small stable elastic-net signature and report its stability index"
+- "Run leakage-safe selection inside cross-validation and give an honest AUC"
+- "Is my selected gene list reproducible, or a resampling accident?"
 
 ## Example Prompts
 
-### Boruta Selection
+### All-relevant vs minimal-optimal
 
-> "Run Boruta on my expression matrix to find all genes relevant for predicting disease status. I want the complete set of biomarkers, not just a minimal subset."
+> "I want to enumerate every gene implicated in disease status for downstream pathway analysis, including redundant co-expressed genes. Which selector should I use?"
 
-> "Use Boruta feature selection on my data. How many genes are selected vs tentative?"
+> "I need the smallest possible panel for an assay. Use elastic net rather than bare LASSO and tell me why."
 
-### mRMR Selection
+### Leakage-safe estimation
 
-> "Select 50 non-redundant biomarker genes using mRMR from my expression data."
+> "Select the top genes and estimate classifier performance without leakage. Put selection inside the cross-validation folds and use nested CV for tuning."
 
-### LASSO Biomarkers
+### Reproducibility
 
-> "Use LASSO with cross-validation to find a sparse set of genes that predict my outcome. What alpha was selected?"
+> "Run subsampling stability selection, keep features selected in more than 60% of runs, and report the Nogueira stability index next to the accuracy."
 
-### Stability Selection
+> "My signature barely overlaps a published one. Is that a problem?"
 
-> "Run stability selection with 100 bootstrap samples. Which features are selected in more than 60% of runs?"
+### Correct nulls
 
-### Combined Approaches
-
-> "First filter to top 5000 genes by ANOVA, then run Boruta on the filtered set."
+> "Does my signature beat a size-matched random signature and a proliferation meta-gene in independent data?"
 
 ## What the Agent Will Do
 
-1. Load expression matrix and sample labels
-2. Apply appropriate feature selection method
-3. Report number of selected features
-4. Rank features by importance/stability
-5. Save selected feature list
+1. Establish the question: all-relevant (Boruta) vs minimal-optimal (elastic net) vs stable signature
+2. For single-cell, pseudobulk to the donor level
+3. Run selection inside a `Pipeline` so held-out folds never inform feature choice
+4. Estimate performance by nested CV; report discrimination with an interval
+5. Quantify stability across subsamples (selection frequency + a chance-corrected index)
+6. Benchmark against a random-signature null and recommend independent-cohort validation
 
 ## Tips
 
-- Boruta finds ALL relevant features; mRMR/LASSO find minimal sets
-- Pre-filter with univariate tests (top 1000-5000) before Boruta on large matrices
-- mRMR is good when you want exactly K features with low redundancy
-- LASSO picks arbitrarily among correlated features; stability selection helps
-- Consider running multiple methods and taking intersection or union
-- Validate selected features on independent data or nested CV
+- Absence from a LASSO/minimal-optimal set is not evidence a gene is irrelevant -- it may be redundant with a kept gene
+- "LASSO kept gene X but not its co-expressed partner" is L1 geometry, not biology; use elastic net or report selection frequencies
+- Selecting features on the whole dataset before CV inflates AUC to near-perfect even on pure noise -- selection must be inside the fold
+- A signature being "significantly associated with outcome" is weak evidence; random signatures clear that bar (Venet 2011)
+- Report a stability index (Nogueira 2018) alongside accuracy; a high-accuracy, low-stability signature is an accident
+- Effect sizes at selected features are inflated (winner's curse); estimate them on an independent split and size replication for the shrunken effect
+- BorutaPy needs numpy arrays and a tree estimator; it returns a redundant all-relevant set by design
+
+## Related Skills
+
+- machine-learning/model-validation - Nested CV and leakage-safe estimation of the selected model
+- machine-learning/prediction-explanation - Why SHAP rankings are not a validated selection method
+- machine-learning/omics-classifiers - Build a classifier from the selected features
+- differential-expression/de-results - Pre-filter candidates with differential expression
+- experimental-design/multiple-testing - FDR control and why it is orthogonal to selection stability
+- experimental-design/power-analysis - Sample size for a stable signature vs an accurate predictor
+- pathway-analysis/go-enrichment - Functional enrichment of an all-relevant gene set

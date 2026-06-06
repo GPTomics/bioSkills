@@ -1,57 +1,71 @@
-# Classification Models Usage Guide
+# Classification Models for Omics Data Usage Guide
 
 ## Overview
 
-Build classification models for biomarker discovery and diagnostics using RandomForest, XGBoost, and logistic regression with sklearn-compatible APIs.
+Build diagnostic and prognostic classifiers on omics feature matrices with regularized logistic regression, random forest, and gradient-boosted trees. The discipline this skill enforces is that in the p>>n regime a regularized linear model is often the strongest baseline, the probability (not the label) is usually the product so calibration matters more than accuracy, and a suspiciously perfect AUC is most often a batch artifact rather than biology.
 
 ## Prerequisites
 
 ```bash
-pip install scikit-learn xgboost pandas matplotlib
+pip install scikit-learn xgboost imbalanced-learn pandas
 ```
+
+Conceptual prerequisites: know whether the deliverable is a probability or a hard label, whether batch is confounded with the outcome, and whether feature selection and scaling are inside the cross-validation loop (machine-learning/model-validation).
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Build a random forest classifier on my expression data"
-- "Train an XGBoost model to predict disease status from my omics data"
-- "Use logistic regression with L1 penalty to find sparse biomarkers"
-- "Evaluate my classifier with ROC curves and AUC"
+- "Build an elastic-net logistic classifier as a baseline on my expression data"
+- "Train XGBoost with early stopping and check whether it beats the linear model"
+- "Is my high AUC real, or is it learning the batch?"
+- "My classes are imbalanced -- should I use SMOTE?"
 
 ## Example Prompts
 
-### Basic Classification
+### Algorithm choice
 
-> "Train a random forest classifier on my gene expression matrix (expression.csv) with labels in metadata.csv. Show me the ROC curve and top 20 important features."
+> "Build a classifier from my RNA-seq matrix. Start with regularized logistic regression and only escalate to trees if there is interaction signal it misses."
 
-> "Build an XGBoost classifier to predict tumor vs normal from my RNA-seq counts."
+> "Train an XGBoost classifier with a low learning rate, shallow depth, and early stopping; the dataset is small."
 
-### Biomarker Selection
+### Batch shortcuts
 
-> "Use L1-regularized logistic regression to find a sparse set of genes that classify my samples. Which genes have non-zero coefficients?"
+> "My cross-validated AUC is 0.97. Check whether the model is learning batch instead of biology by predicting the batch from the features and using a batch-aware split."
 
-### Multi-class
+### Imbalance and calibration
 
-> "I have expression data with 4 cancer subtypes. Train a classifier and show the confusion matrix."
+> "My positive class is 8%. Handle the imbalance without destroying calibration, and tell me whether SMOTE is appropriate."
 
-### Model Comparison
+> "Check whether my random forest probabilities are calibrated and recalibrate them if not."
 
-> "Compare RandomForest, XGBoost, and logistic regression on my dataset. Which has the best AUC?"
+### Mixed features and missing data
+
+> "My features mix continuous expression and categorical genotype with missing values. Set up the preprocessing and a model that handles NaN natively."
 
 ## What the Agent Will Do
 
-1. Load expression matrix and sample labels
-2. Split data into train/test sets (stratified)
-3. Build preprocessing pipeline with scaling
-4. Train classifier and generate predictions
-5. Report metrics (accuracy, AUC, classification report)
-6. Visualize ROC curve and feature importances
+1. Start with a regularized linear baseline (often the ceiling in p>>n)
+2. Escalate to RF/XGBoost only when nonlinear or interaction signal is present, with early stopping
+3. Run the batch-shortcut checks (predict the batch; leave-one-batch-out) before trusting any AUC
+4. Handle imbalance by class weighting or threshold tuning, not resampling, for risk models
+5. Check and recalibrate probabilities; report AUPRC and MCC under imbalance
+6. Keep all preprocessing inside the CV fold and defer unbiased evaluation to model-validation
 
 ## Tips
 
-- Always use stratified splits for imbalanced classes
-- StandardScaler is essential for logistic regression; optional for tree models
-- Use class_weight='balanced' when classes are imbalanced
-- XGBoost parameters: use random_state not seed, n_jobs not nthread
-- L1 penalty gives sparse solutions; L2 handles correlated features better
-- For small datasets, consider nested cross-validation instead of train/test split
+- "Random forest is the obvious choice for expression data" is a myth; regularized logistic/linear SVM frequently win in p>>n (Statnikov 2008)
+- GBDTs beat deep nets on tabular/omics matrices (Grinsztajn 2022); reserve deep nets for very large n or raw/multimodal inputs
+- RF compresses probabilities toward 0.5, boosting pushes them to the extremes -- both need recalibration if the probability is used
+- SMOTE/oversampling destroys calibration for no AUC gain on risk models; class-weight or tune the threshold instead, and if you must resample use an `imblearn` Pipeline
+- XGBoost 2.x: set `early_stopping_rounds` and `eval_metric` in the constructor, not `fit()`
+- XGBoost/LightGBM handle missing values natively; in omics, missingness is often informative (below detection limit)
+- Trees are scale-invariant; standardize for logistic/SVM/kNN/PCA
+
+## Related Skills
+
+- machine-learning/model-validation - Nested CV, calibration, and net benefit for the trained classifier
+- machine-learning/biomarker-discovery - Select features before modeling (inside the CV fold)
+- machine-learning/prediction-explanation - Interpret the classifier and detect shortcuts with SHAP
+- machine-learning/survival-analysis - Time-to-event outcomes that classifiers cannot handle
+- differential-expression/batch-correction - Batch correction done design-aware, not across the split
+- expression-matrix/normalization - Per-sample normalization that is safe outside the CV fold

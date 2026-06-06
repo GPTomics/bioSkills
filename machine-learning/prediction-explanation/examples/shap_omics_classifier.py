@@ -1,57 +1,39 @@
-'''SHAP interpretation for omics classifiers (v0.47+ API)'''
-# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+ | Verify API if version differs
+'''The SHAP credit split between correlated genes is mode-dependent (not biology).
 
-import pandas as pd
+Runs end-to-end on synthetic data. Two co-expressed genes both carry the signal;
+TreeSHAP splits credit between them differently under tree_path_dependent
+(conditional) vs interventional (marginal) conditioning. The module TOTAL is
+stable, but the within-module order is an artifact of the chosen estimand --
+which is why you aggregate over modules before ranking.
+'''
+# Reference: numpy 1.26+, scikit-learn 1.4+, shap 0.44+ | Verify API if version differs
+
 import numpy as np
 import shap
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
 
-expr = pd.read_csv('expression.csv', index_col=0)
-meta = pd.read_csv('metadata.csv', index_col=0)
+rng = np.random.default_rng(0)
+n = 800
+A = rng.normal(size=n)
+B = A + rng.normal(scale=0.8, size=n)               # B co-expressed with A but noisier (corr ~0.78)
+noise = rng.normal(size=(n, 8))
+X = np.column_stack([A, B, noise])
+y = (A + rng.normal(scale=0.3, size=n) > 0).astype(int)    # label depends on A; the model still uses B as a noisy proxy
 
-X = expr.T
-y = meta.loc[X.index, 'condition'].values
+model = RandomForestClassifier(n_estimators=300, random_state=0).fit(X, y)
+print(f'corr(geneA, geneB) = {np.corrcoef(A, B)[0, 1]:.2f}')
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+def module_split(mode, data=None):
+    expl = shap.TreeExplainer(model, data=data, feature_perturbation=mode)
+    vals = expl.shap_values(X[:200])
+    vals = vals[1] if isinstance(vals, list) else (vals[..., 1] if vals.ndim == 3 else vals)
+    m = np.abs(vals).mean(axis=0)
+    return m[0], m[1], m[0] + m[1]
 
-model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
-
-# SHAP v0.47+ API: call explainer directly, NOT .shap_values()
-explainer = shap.TreeExplainer(model)
-shap_values = explainer(X_test)
-print(f'SHAP values shape: {shap_values.values.shape}')
-
-# Beeswarm: shows importance AND direction of effect
-# max_display=20: Top 20 features; increase for more
-shap.plots.beeswarm(shap_values, max_display=20, show=False)
-plt.tight_layout()
-plt.savefig('shap_beeswarm.png', dpi=150, bbox_inches='tight')
-plt.close()
-
-# Bar plot: mean |SHAP|
-shap.plots.bar(shap_values, max_display=20, show=False)
-plt.tight_layout()
-plt.savefig('shap_bar.png', dpi=150, bbox_inches='tight')
-plt.close()
-
-# Waterfall for single prediction
-sample_idx = 0
-shap.plots.waterfall(shap_values[sample_idx], max_display=15, show=False)
-plt.tight_layout()
-plt.savefig('shap_waterfall_sample0.png', dpi=150, bbox_inches='tight')
-plt.close()
-
-# Extract feature importances
-mean_shap = np.abs(shap_values.values).mean(axis=0)
-feature_importance = pd.DataFrame({
-    'feature': X_test.columns,
-    'mean_abs_shap': mean_shap
-}).sort_values('mean_abs_shap', ascending=False)
-
-feature_importance.to_csv('shap_feature_importance.csv', index=False)
-print('\nTop 20 features by SHAP importance:')
-feature_importance.head(20)
+pa, pb, ptot = module_split('tree_path_dependent')
+ia, ib, itot = module_split('interventional', data=shap.utils.sample(X, 100))
+print(f'{"mode":20s} {"geneA":>7s} {"geneB":>7s} {"A+B":>7s}')
+print(f'{"path_dependent":20s} {pa:7.3f} {pb:7.3f} {ptot:7.3f}')
+print(f'{"interventional":20s} {ia:7.3f} {ib:7.3f} {itot:7.3f}')
+print('\nThe A-vs-B split differs by mode; the module total is the stable quantity.')
+print('Lesson: aggregate |SHAP| over co-expression modules before ranking genes.')
