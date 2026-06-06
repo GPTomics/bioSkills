@@ -1,308 +1,213 @@
 ---
 name: bio-metabolomics-msdial-preprocessing
-description: MS-DIAL-based metabolomics preprocessing as alternative to XCMS. Covers peak detection, alignment, annotation, and export for downstream analysis. Use when processing MS-DIAL output files for R/Python analysis or when preferring GUI-based preprocessing.
+description: Runs the MS-DIAL preprocessing workflow (peak picking, MS2Dec spectral deconvolution, alignment, gap-filling) and imports the alignment-result table into R or Python with honest filtering. Use when preprocessing LC-MS DDA/DIA (SWATH) raw data with MS-DIAL, deciding MS-DIAL vs XCMS, configuring the MsdialConsoleApp console run, or parsing an MS-DIAL export into a clean feature matrix. For programmatic R peak detection and the feature-table-as-artifact framing see metabolomics/xcms-preprocessing; for lipid annotation mode see metabolomics/lipidomics; for MSI-level confidence honesty see metabolomics/metabolite-annotation; for drift correction and QC see metabolomics/normalization-qc.
 tool_type: mixed
 primary_tool: msdial
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: numpy 1.26+, pandas 2.2+, scanpy 1.10+, xcms 4.0+
+Reference examples tested with: MS-DIAL 5.x (LC-MS) / MS-DIAL 4.x (GC-MS), pandas 2.2+, R 4.3+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: run `MsdialConsoleApp` with no arguments to print the current subcommand/flag list
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Python: `pip show pandas` then `help(module.function)` to check signatures
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+The MS-DIAL GUI runs only on Windows; the console (MsdialConsoleApp) is the cross-platform headless entry. Which build supports a task is itself a constraint: MS-DIAL 5-alpha covers DI-MS, IM-MS, LC-MS, LC-IM-MS but NOT GC-MS - GC-EI stays in the MS-DIAL 4 lineage. If code throws ImportError, AttributeError, or TypeError, introspect the installed package and adapt rather than retrying.
 
 # MS-DIAL Preprocessing
 
-**"Process my LC-MS data with MS-DIAL"** -> Detect chromatographic peaks, align across samples, annotate metabolites, and export a feature table for statistical analysis.
-- CLI: MS-DIAL GUI or console mode for peak picking and alignment
+**"Process my LC-MS run with MS-DIAL and give me a feature table"** -> Pick peaks per file, deconvolve chimeric MS/MS into clean component spectra (MS2Dec), align across samples, gap-fill, then import the alignment result and filter it honestly.
+- CLI: `MsdialConsoleApp lcmsdda|lcmsdia|gcms -i <in> -o <out> -m <param.txt>`
+- R: `read.csv(..., skip = 4, check.names = FALSE)` to parse the alignment export
+- Python: `pandas.read_csv(..., skiprows=4)` for the same export
 
-## MS-DIAL GUI Workflow
+## The Single Most Important Insight -- Preprocessing Software Is Not Neutral
 
-MS-DIAL provides a user-friendly GUI for complete metabolomics preprocessing:
+The same raw files through MS-DIAL versus XCMS yield different feature tables and different marker lists. Li 2018 benchmarked five tools on a 1,100-compound standard and found that while feature *detection* was broadly similar, *quantification* and the set of selected discriminating markers differed by tool. A metabolomics "hit" is conditional on (raw data + software + version + every parameter + fill/filter order), not on the raw files alone. MS-DIAL's specific differentiator is **MS2Dec deconvolution**: it reconstructs clean, library-matchable MS/MS spectra from chimeric DDA/DIA fragment data, which is what makes wide-window DIA (SWATH) tractable at all. Report the full processing specification as part of the result, and treat a finding that survives only one pipeline as a candidate, not a result.
 
-1. **Project Setup** - Create new project, select data type
-2. **Data Import** - Load mzML/ABF files
-3. **Peak Detection** - Automatic peak picking
-4. **Alignment** - Cross-sample alignment
-5. **Gap Filling** - Fill missing values
-6. **Annotation** - Database matching
-7. **Export** - Export for downstream analysis
+## MS-DIAL vs XCMS
 
-## Export MS-DIAL Results to R
+| Axis | MS-DIAL | XCMS |
+|---|---|---|
+| Interface | Windows GUI + cross-platform console | R package (scriptable everywhere) |
+| Core differentiator | MS2Dec MS/MS deconvolution (DDA + DIA) | centWave peak picking, full programmatic control |
+| Annotation | Built-in (library + MS-FINDER + LipidBlast) | Separate (CAMERA, downstream tools) |
+| Lipidomics | Strong (predicted-CCS / EAD structural elucidation in v5) | Manual |
+| Reproducibility unit | Param file + GUI choices | Versioned R script |
+| Best when | DIA data, lipidomics, GUI workflow, built-in IDs | Scripted pipelines, custom parameters, cohort scale |
 
-```r
-library(tidyverse)
+Use MS-DIAL when DIA deconvolution or built-in lipid annotation is the point; use metabolomics/xcms-preprocessing for fully scripted, version-pinned cohort processing. The strongest untargeted claims replicate across both.
 
-# Load MS-DIAL alignment result
-msdial_data <- read.csv('msdial_alignment_result.csv', check.names = FALSE)
+## Decision Tree by Scenario
 
-# Typical columns from MS-DIAL export
-# Alignment ID, Average Rt(min), Average Mz, Metabolite name, Adduct type,
-# Fill %, MS/MS assigned, Reference RT, Reference m/z, Formula, Ontology,
-# INCHIKEY, SMILES, Annotation tag (Level), Comment, [Sample columns...]
+| Situation | Do | Why |
+|---|---|---|
+| LC-MS, top-N MS/MS (DDA) | `lcmsdda` console / GUI LC-MS DDA | Cleaner per-precursor MS2, but intensity-biased, stochastic coverage |
+| LC-MS, wide-window MS/MS (DIA / SWATH) | `lcmsdia` (ABF input only) | Complete MS2 coverage; chimeric spectra REQUIRE MS2Dec to be usable |
+| GC-EI run | `gcms` (MS-DIAL 4 build), or AMDIS/eRah | EI fragments every co-eluting compound; deconvolution IS detection (see below) |
+| Headless / Linux cluster | MsdialConsoleApp with a `-m` param file | GUI is Windows-only; console is the reproducible batch path |
+| Lipid-focused study | MS-DIAL + LipidBlast | -> metabolomics/lipidomics for lipid annotation mode |
+| Already have an alignment CSV | skip processing, parse + filter | See import + honest-filter sections below |
 
-# Identify sample columns (contain "Area" or sample names)
-sample_cols <- grep('Area$|^Sample', colnames(msdial_data), value = TRUE)
-meta_cols <- setdiff(colnames(msdial_data), sample_cols)
+## Why GC-EI Is Different (and stays in MS-DIAL 4)
 
-# Extract feature metadata
-feature_info <- msdial_data[, meta_cols]
+In GC-EI, 70 eV ionization fragments every compound reproducibly, so the trace at any retention time is a superposition of fragments from several co-eluting molecules. Naive peak picking conflates them; **deconvolution into component spectra IS the feature-detection step**, then each component is matched against EI+RI libraries (NIST, FiehnLib). Cross-run/cross-lab alignment uses **retention index** (Kovats n-alkanes, or Fiehn FAME markers giving diagnostic m/z 74/87) rather than raw RT, because RT drifts with column aging. MS-DIAL 5-alpha explicitly excludes GC-MS; use the `gcms` token in a MS-DIAL 4 build, or AMDIS/eRah, for GC-EI work.
 
-# Extract intensity matrix
-intensity_matrix <- as.matrix(msdial_data[, sample_cols])
-rownames(intensity_matrix) <- msdial_data$`Alignment ID`
+## Run MS-DIAL Headless (console)
 
-cat('Loaded', nrow(intensity_matrix), 'features from', ncol(intensity_matrix), 'samples\n')
-```
+**Goal:** Process a folder of converted spectra into an alignment table without the GUI.
 
-## Filter MS-DIAL Results
-
-```r
-# Filter by annotation confidence
-# MS-DIAL Annotation tags: Lipid, Metabolite, Unknown, etc.
-annotated <- feature_info$`Annotation tag` != 'Unknown'
-
-# Filter by fill percentage (presence across samples)
-fill_threshold <- 50  # Present in at least 50% of samples
-good_fill <- feature_info$`Fill %` >= fill_threshold
-
-# Filter by MS/MS match
-has_msms <- feature_info$`MS/MS assigned` == TRUE
-
-# Apply filters
-filtered_idx <- which(good_fill)  # Minimum filter
-filtered_matrix <- intensity_matrix[filtered_idx, ]
-filtered_info <- feature_info[filtered_idx, ]
-
-cat('After filtering:', nrow(filtered_matrix), 'features\n')
-```
-
-## MS-DIAL Data to XCMS-Like Format
-
-```r
-library(SummarizedExperiment)
-
-# Create SummarizedExperiment for compatibility with other tools
-se <- SummarizedExperiment(
-    assays = list(raw = filtered_matrix),
-    rowData = filtered_info,
-    colData = data.frame(
-        sample = colnames(filtered_matrix),
-        row.names = colnames(filtered_matrix)
-    )
-)
-
-# Add sample metadata
-sample_metadata <- read.csv('sample_metadata.csv')
-colData(se) <- merge(colData(se), sample_metadata, by.x = 'sample', by.y = 'sample_id')
-```
-
-## MS-DIAL Batch Processing (Console Mode)
+**Approach:** Pick the analysis-type token, point `-i`/`-o`/`-m` at input dir, output dir, and a method (parameter) file; keep `-p` only if the project should reopen in the GUI.
 
 ```bash
-# MS-DIAL console application for batch processing
-# Available on Windows
+# DDA LC-MS: accepts netCDF/mzML/ABF. Output is *.msdial in the output dir.
+MsdialConsoleApp lcmsdda -i ./LCMS_DDA/ -o ./LCMS_DDA_out/ -m ./Msdial-lcms-dda-Param.txt
 
-# Create parameter file (msdial_param.txt)
-# See MS-DIAL documentation for all parameters
+# DIA/SWATH LC-MS: accepts ABF ONLY (convert vendor raw -> ABF first). MS2Dec is the point.
+MsdialConsoleApp lcmsdia -i ./LCMS_DIA/ -o ./LCMS_DIA_out/ -m ./Msdial-lcms-dia-Param.txt
 
-# Run MS-DIAL console
-MsdialConsoleApp.exe lcmsdda -i input_folder -o output_folder -m msdial_param.txt
+# GC-EI (MS-DIAL 4 build): retention-index alignment, quant-mass quantification.
+MsdialConsoleApp gcms -i ./GCMS/ -o ./GCMS_out/ -m ./Msdial-GCMS-Param.txt -p
 ```
 
-## Parameter File Example
+The parameter file is plain text (one `Key=Value` per line). The `Minimum peak height` key is the direct analog of an intensity floor and is instrument-dependent: the GUI default is tuned for a TOF and is often far too high (or its baseline assumption wrong) for an Orbitrap. Set the alignment reference to a pooled QC, never to file #1 by default.
 
-```
-# MS-DIAL Parameter File for LC-MS DDA
+## Import the Alignment Result into R
 
-# Data collection
-Data type=Centroid
-Ion mode=Positive
-MS1 data type=Centroid
-MS2 data type=Centroid
+**Goal:** Split the MS-DIAL alignment export into a feature-metadata frame and an intensity matrix.
 
-# Peak detection
-Smoothing method=LinearWeightedMovingAverage
-Smoothing level=3
-Minimum peak width=5
-Minimum peak height=1000
-Mass slice width=0.1
+**Approach:** The export carries four header rows above the real column header (sample class / file type / injection order / batch), so skip them; metadata columns precede the per-sample Area columns.
 
-# Alignment
-Retention time tolerance=0.1
-MS1 tolerance=0.01
-Retention time factor=0.5
-MS1 factor=0.5
+```r
+# MS-DIAL alignment export: real column header is on row 5, so skip the first 4 rows.
+msdial <- read.csv('AlignResult.txt', sep = '\t', skip = 4, check.names = FALSE)
 
-# Identification
-MSP file path=MassBank-GNPS.msp
-Retention time tolerance for identification=0.5
-Accurate mass tolerance (MS1)=0.01
-Accurate mass tolerance (MS2)=0.05
-Identification score cut off=80
+# Metadata columns appear before the per-sample intensity columns. Common ones:
+# 'Alignment ID', 'Average Rt(min)', 'Average Mz', 'Metabolite name', 'Adduct type',
+# 'Fill %', 'MS/MS assigned', 'Reference RT', 'Formula', 'Ontology', 'INCHIKEY',
+# 'SMILES', 'Annotation tag (VS1.0)'. Sample columns are everything after these.
+meta_cols <- c('Alignment ID', 'Average Rt(min)', 'Average Mz', 'Metabolite name',
+               'Adduct type', 'Fill %', 'MS/MS assigned', 'Annotation tag (VS1.0)')
+meta_cols <- intersect(meta_cols, colnames(msdial))
+sample_cols <- setdiff(colnames(msdial), colnames(msdial)[seq_len(max(match(meta_cols, colnames(msdial))))])
+
+feature_info <- msdial[, meta_cols]
+intensity <- as.matrix(msdial[, sample_cols])
+rownames(intensity) <- msdial[['Alignment ID']]
 ```
 
-## Python Processing of MS-DIAL Output
+## Import the Alignment Result into Python
 
-**Goal:** Convert MS-DIAL alignment results into a clean, filtered, log-transformed feature matrix for downstream statistical analysis.
+**Goal:** Same split, in pandas.
 
-**Approach:** Parse MS-DIAL CSV export to separate feature metadata from intensity values, filter by fill percentage, log2-transform, and export as a tidy matrix.
+**Approach:** `skiprows=4` to land on the real header; slice metadata vs sample columns by position after the last known metadata column.
 
 ```python
 import pandas as pd
-import numpy as np
 
-# Load MS-DIAL alignment results
-df = pd.read_csv('msdial_alignment_result.csv')
+msdial = pd.read_csv('AlignResult.txt', sep='\t', skiprows=4)
+meta_cols = ['Alignment ID', 'Average Rt(min)', 'Average Mz', 'Metabolite name', 'Adduct type', 'Fill %', 'MS/MS assigned', 'Annotation tag (VS1.0)']
+meta_cols = [c for c in meta_cols if c in msdial.columns]
+last_meta = max(msdial.columns.get_loc(c) for c in meta_cols)
+sample_cols = msdial.columns[last_meta + 1:]
 
-# Identify sample columns
-sample_cols = [c for c in df.columns if 'Area' in c or c.startswith('Sample')]
-meta_cols = [c for c in df.columns if c not in sample_cols]
-
-# Create feature info and intensity matrix
-feature_info = df[meta_cols].copy()
-intensities = df[sample_cols].values
-
-# Clean column names (remove 'Area' suffix)
-sample_names = [c.replace(' Area', '').strip() for c in sample_cols]
-
-# Filter by fill percentage
-fill_pct = df['Fill %'].values
-good_features = fill_pct >= 50
-
-intensities_filtered = intensities[good_features]
-feature_info_filtered = feature_info[good_features].reset_index(drop=True)
-
-print(f'Filtered: {sum(good_features)} / {len(good_features)} features')
-
-# Log transform
-intensities_log = np.log2(intensities_filtered + 1)
-
-# Export for downstream analysis
-result_df = pd.DataFrame(
-    intensities_log,
-    columns=sample_names,
-    index=feature_info_filtered['Alignment ID']
-)
-result_df.to_csv('msdial_processed.csv')
+feature_info = msdial[meta_cols].copy()
+intensity = msdial[sample_cols].set_axis(msdial['Alignment ID']) if False else msdial[sample_cols].copy()
+intensity.index = msdial['Alignment ID']
 ```
 
-## MS-DIAL Annotation Levels
+## Filter the Table Honestly
+
+**Goal:** Keep features supported by real signal and known confidence, without overtrusting annotation tags.
+
+**Approach:** Filter on Fill% (cross-sample presence), require MS/MS support for any feature called identified, and tie the annotation tag to a real MSI confidence level rather than treating a name as proof.
 
 ```r
-# MS-DIAL uses different annotation confidence levels
-annotation_levels <- data.frame(
-    level = c('Lipid', 'Metabolite', 'SuggestedLipid', 'SuggestedMetabolite', 'Unknown'),
-    confidence = c('High', 'High', 'Medium', 'Medium', 'None'),
-    description = c(
-        'MS/MS match to lipid database',
-        'MS/MS match to metabolite database',
-        'Mass match to lipid (no MS/MS)',
-        'Mass match to metabolite (no MS/MS)',
-        'No database match'
-    )
-)
+# Fill% is the fraction of samples with a DETECTED (not gap-filled) peak. Low Fill% means
+# the feature exists mostly as gap-filled noise-floor integrals, which fabricate intensity
+# (an honest 'below detection' becomes a positive number). 70% is a common floor.
+keep_fill <- feature_info[['Fill %']] >= 70
 
-# Count by annotation level
-table(feature_info$`Annotation tag`)
+# An annotated name without MS/MS is at best an MSI Level 2/3 putative ID (accurate mass
+# only). Require 'MS/MS assigned == TRUE' before trusting any identity downstream.
+has_msms <- feature_info[['MS/MS assigned']] == 'TRUE'
+
+# Annotation tag confidence (do NOT treat a name as an identification). The exact tag
+# vocabulary is MS-DIAL-version-dependent, so inspect unique(feature_info[['Annotation tag (VS1.0)']])
+# and map the strings the build actually emits rather than hard-coding them:
+#   Metabolite / Lipid  with MS/MS  -> MSI Level 2 (spectral library match)
+#   Suggested*          mass-only   -> MSI Level 3 (putative, no MS/MS)
+#   Unknown                         -> unannotated feature
+feature_info$msi_level <- ifelse(feature_info[['Annotation tag (VS1.0)']] %in% c('Metabolite', 'Lipid') & has_msms, 2,
+                          ifelse(grepl('^Suggested', feature_info[['Annotation tag (VS1.0)']]), 3, NA))
+
+filtered <- intensity[keep_fill, ]
 ```
 
-## Compare MS-DIAL vs XCMS Results
+Confidence-level honesty and orthogonal-evidence identification belong to metabolomics/metabolite-annotation; this skill only routes the tag to the right level. Fill% / blank / drift filtering interacts with normalization-qc - process blanks and pooled QCs through the SAME run, then filter the aligned table.
 
-```r
-# Load both preprocessing results
-msdial_features <- read.csv('msdial_alignment_result.csv')
-xcms_features <- read.csv('xcms_features.csv')
+## Per-Method Failure Modes
 
-# Compare feature counts
-cat('MS-DIAL features:', nrow(msdial_features), '\n')
-cat('XCMS features:', nrow(xcms_features), '\n')
+### DIA processed as DDA (wrong console token)
+- **Trigger:** Running SWATH/DIA data through `lcmsdda`.
+- **Mechanism:** `lcmsdda` does not deconvolve wide-isolation chimeric MS/MS, so fragments from co-isolated precursors stay mixed.
+- **Symptom:** Library matches to the wrong compound; "clean-looking" spectra that fail orthogonal confirmation.
+- **Fix:** Use `lcmsdia` (ABF input only); MS2Dec deconvolution is the entire reason to run DIA in MS-DIAL.
 
-# Match features by m/z and RT
-match_features <- function(mz1, rt1, mz2, rt2, mz_tol = 0.01, rt_tol = 0.5) {
-    matches <- data.frame()
-    for (i in 1:length(mz1)) {
-        mz_match <- abs(mz2 - mz1[i]) < mz_tol
-        rt_match <- abs(rt2 - rt1[i]) < rt_tol
-        both_match <- which(mz_match & rt_match)
-        if (length(both_match) > 0) {
-            matches <- rbind(matches, data.frame(idx1 = i, idx2 = both_match[1]))
-        }
-    }
-    return(matches)
-}
+### Over-trusting the annotation tag
+- **Trigger:** Filtering on `Annotation tag != Unknown` and calling the survivors "identified."
+- **Mechanism:** A `Suggested*` tag is an accurate-mass guess with no MS/MS; a named hit without MS/MS is MSI Level 3.
+- **Symptom:** A marker list full of confident-sounding names that do not validate against standards.
+- **Fix:** Require `MS/MS assigned == TRUE` for any identity claim; map tags to MSI levels (see filtering section) and defer to metabolomics/metabolite-annotation.
 
-matched <- match_features(
-    msdial_features$`Average Mz`, msdial_features$`Average Rt(min)`,
-    xcms_features$mzmed, xcms_features$rtmed / 60
-)
+### Gap-fill masquerading as measurement
+- **Trigger:** Treating low-Fill% features as quantitative.
+- **Mechanism:** Gap-filling integrates whatever signal sits in the m/z-RT box even when no peak exists, turning a true below-detection (MNAR, left-censored) value into a positive number.
+- **Symptom:** "Significant" features that are mostly gap-filled in one group; shrunken fold-changes for on/off markers.
+- **Fix:** Report per-feature filled fraction; gate on Fill%; for inferential stats prefer MNAR-aware imputation over naive fill (see metabolomics/normalization-qc).
 
-cat('Matched features:', nrow(matched), '\n')
-```
+### GC-EI run through an LC pipeline / MS-DIAL 5
+- **Trigger:** Sending GC-EI data to MS-DIAL 5-alpha or treating it like LC peak-pick-then-group.
+- **Mechanism:** MS-DIAL 5-alpha excludes GC-MS; EI needs component deconvolution, not adduct-style peak picking, and RI (not RT) alignment.
+- **Symptom:** No GC mode available; or conflated co-eluting compounds and cross-lab RT misalignment.
+- **Fix:** Use the `gcms` token in a MS-DIAL 4 build (or AMDIS/eRah); align on Kovats/FAME retention index.
 
-## Export for MetaboAnalyst
+## Quantitative Thresholds
 
-```r
-# MS-DIAL output to MetaboAnalyst format
-# MetaboAnalyst expects: rows = samples, columns = features
+| Threshold | Source | Rationale |
+|---|---|---|
+| Fill% >= 70% | Common untargeted practice | Below this, the feature is mostly gap-filled noise-floor integrals, not measurements |
+| QC CV (RSD) < 20-30% | Broadhurst 2018 | Technical reproducibility floor; drop features noisier than this in pooled QCs |
+| D-ratio (sd_QC/sd_sample) < 0.5 | Broadhurst 2018 | Keeps features whose technical variance is well below biological variance |
+| Blank filter: sample mean > 3-5x blank mean | Broadhurst 2018 | Removes background/contaminant features present in process blanks |
+| ~10x more features than compounds | Mahieu 2017 | One metabolite makes adducts/isotopes/fragments; counting features over-counts hypotheses |
 
-# Transpose matrix
-metaboanalyst_format <- t(filtered_matrix)
+## Common Errors
 
-# Add sample metadata as first columns
-sample_info <- colData(se)
-metaboanalyst_df <- cbind(
-    Sample = rownames(metaboanalyst_format),
-    Group = sample_info$condition,
-    as.data.frame(metaboanalyst_format)
-)
+| Error / symptom | Cause | Solution |
+|---|---|---|
+| All columns land in one field on import | Header offset wrong; tab-separated export read as CSV | `skip=4` (R) / `skiprows=4` (Python), set `sep='\t'` |
+| `lcmsdia` rejects mzML input | DIA mode accepts ABF only | Convert vendor raw to ABF (Reifycs ABF converter) before `lcmsdia` |
+| `Annotation tag` column not found | Header changes across versions (e.g. `Annotation tag (VS1.0)`) | Match by prefix / inspect `colnames()`; do not hard-code the suffix |
+| No GC-MS option in MS-DIAL 5 | 5-alpha excludes GC-MS | Use a MS-DIAL 4 build's `gcms` token, or AMDIS/eRah |
+| Console command not found on Linux | Expecting the GUI executable | The GUI is Windows-only; run `MsdialConsoleApp` (cross-platform) |
+| Few features detected | `Minimum peak height` default too high for the instrument | Lower it toward the real baseline; defaults are TOF-tuned |
 
-write.csv(metaboanalyst_df, 'for_metaboanalyst.csv', row.names = FALSE)
-```
+## References
 
-## Normalization Options
-
-```r
-# MS-DIAL provides several normalization options during export
-# Or apply post-hoc:
-
-# Internal standard normalization
-normalize_istd <- function(data, istd_idx) {
-    istd_values <- data[istd_idx, ]
-    sweep(data[-istd_idx, ], 2, istd_values, '/')
-}
-
-# LOWESS normalization (QC-based)
-normalize_loess <- function(data, qc_idx, span = 0.75) {
-    qc_data <- data[, qc_idx]
-    qc_median <- apply(qc_data, 1, median)
-
-    normalized <- data
-    for (i in 1:ncol(data)) {
-        loess_fit <- loess(data[, i] ~ qc_median, span = span)
-        normalized[, i] <- data[, i] / predict(loess_fit)
-    }
-    return(normalized)
-}
-
-# Probabilistic Quotient Normalization
-normalize_pqn <- function(data) {
-    reference <- apply(data, 1, median)
-    quotients <- sweep(data, 1, reference, '/')
-    sample_medians <- apply(quotients, 2, median, na.rm = TRUE)
-    sweep(data, 2, sample_medians, '/')
-}
-```
+- Tsugawa H, Cajka T, Kind T, Ma Y, Higgins B, Ikeda K, Kanazawa M, VanderGheynst J, Fiehn O, Arita M. MS-DIAL: data-independent MS/MS deconvolution for comprehensive metabolome analysis. *Nat Methods.* 2015; 12(6):523-526.
+- Tsugawa H, Ikeda K, Takahashi M, et al. A lipidome atlas in MS-DIAL 4. *Nat Biotechnol.* 2020; 38(10):1159-1163.
+- Takeda H, Takahashi M, Ikeda K, et al. MS-DIAL 5 multimodal mass spectrometry data mining unveils lipidome complexities. *Nat Commun.* 2024; 15:9903.
+- Li Z, Lu Y, Guo Y, Cao H, Wang Q, Shui W. Comprehensive evaluation of untargeted metabolomics data processing software in feature detection, quantification and discriminating marker selection. *Anal Chim Acta.* 2018; 1029:50-57.
+- Mahieu NG, Patti GJ. Systems-level annotation of a metabolomics data set reduces 25,000 features to fewer than 1,000 unique metabolites. *Anal Chem.* 2017; 89(19):10397-10406.
+- Broadhurst D, Goodacre R, Reinke SN, Kuligowski J, Wilson ID, Lewis MR, Dunn WB. Guidelines and considerations for the use of system suitability and quality control samples in mass spectrometry assays applied in untargeted clinical metabolomic studies. *Metabolomics.* 2018; 14(6):72.
+- Stein SE. An integrated method for spectrum extraction and compound identification from gas chromatography/mass spectrometry data (AMDIS). *J Am Soc Mass Spectrom.* 1999; 10(8):770-781.
 
 ## Related Skills
 
-- xcms-preprocessing - Alternative preprocessing with XCMS
-- metabolite-annotation - Additional annotation methods
-- normalization-qc - Detailed normalization approaches
-- lipidomics - Lipid-specific MS-DIAL workflows
+- metabolomics/xcms-preprocessing - Programmatic R preprocessing and the feature-table-as-artifact framing
+- metabolomics/lipidomics - Lipid annotation mode and LipidBlast workflows
+- metabolomics/metabolite-annotation - MSI confidence levels and orthogonal-evidence identification
+- metabolomics/normalization-qc - Drift correction, QC/CV/D-ratio filtering, MNAR-aware imputation

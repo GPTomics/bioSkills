@@ -1,53 +1,70 @@
-'''Differential abundance analysis for metabolomics data with preprocessing'''
-# Reference: scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
+'''Univariate differential metabolomics with explicit BH FDR and a volcano plot.
 
+Demonstrates the two silent default traps: scipy ttest_ind defaults to Student
+(equal_var=True) and statsmodels multipletests defaults to Holm-Sidak ('hs').
+Both are overridden explicitly. Runs on synthetic data; the figure goes to a tempdir.
+'''
+# Reference: scipy 1.12+, statsmodels 0.14+, matplotlib 3.8+ | Verify API if version differs
+
+import os
+import tempfile
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 
-intensities = pd.read_csv('feature_table.csv', index_col=0)
-metadata = pd.read_csv('sample_info.csv')
+rng = np.random.default_rng(0)
+n_per_group = 25
+n_features = 400
+n_true = 20                                   # only the first 20 features truly differ
 
-groups = metadata.set_index('sample_id')['group']
-group_levels = sorted(groups.unique())
-ctrl_group, case_group = group_levels[0], group_levels[1]
-ctrl_samples = groups[groups == ctrl_group].index.tolist()
-case_samples = groups[groups == case_group].index.tolist()
+samples = [f's{i}' for i in range(2 * n_per_group)]
+features = [f'M{i}' for i in range(n_features)]
+group = np.array(['control'] * n_per_group + ['case'] * n_per_group)
 
-# Preprocess: log2 transform (replace zeros with NaN to avoid -inf)
-log2_data = np.log2(intensities.replace(0, np.nan))
+raw = rng.lognormal(mean=10, sigma=0.4, size=(n_features, 2 * n_per_group))
+case_cols = np.where(group == 'case')[0]
+raw[:n_true][:, case_cols] *= 2.0             # 2-fold up in case for the true features
+intensities = pd.DataFrame(raw, index=features, columns=samples)
 
-# PQN normalization: reference spectrum -> quotients -> median quotient per sample
-reference = log2_data.median(axis=1)
-quotients = log2_data.div(reference, axis=0)
-norm_factors = quotients.median(axis=0)
-normalized = log2_data.div(norm_factors, axis=1)
+case = [s for s, g in zip(samples, group) if g == 'case']
+ctrl = [s for s, g in zip(samples, group) if g == 'control']
 
-# Welch's t-test per feature (equal_var=False is critical -- scipy defaults to Student's)
-pvalues, log2fcs = [], []
-for feature in normalized.index:
-    case_vals = normalized.loc[feature, case_samples].dropna().values.astype(float)
-    ctrl_vals = normalized.loc[feature, ctrl_samples].dropna().values.astype(float)
-    if len(case_vals) >= 2 and len(ctrl_vals) >= 2:
-        _, pval = ttest_ind(case_vals, ctrl_vals, equal_var=False)
-        pvalues.append(pval)
-        log2fcs.append(case_vals.mean() - ctrl_vals.mean())
+logged = np.log2(intensities.replace(0, np.nan))   # transform before any parametric test
+
+pvals, lfc = [], []
+for feat in logged.index:
+    a = logged.loc[feat, case].dropna().values
+    b = logged.loc[feat, ctrl].dropna().values
+    if len(a) >= 3 and len(b) >= 3:
+        pvals.append(ttest_ind(a, b, equal_var=False)[1])   # Welch, not Student
+        lfc.append(a.mean() - b.mean())                     # geometric-mean ratio on log scale
     else:
-        pvalues.append(np.nan)
-        log2fcs.append(np.nan)
+        pvals.append(np.nan)
+        lfc.append(np.nan)
 
-results = pd.DataFrame({'feature_id': normalized.index, 'log2fc': log2fcs, 'pvalue': pvalues})
-results = results.dropna(subset=['pvalue'])
+res = pd.DataFrame({'feature': logged.index, 'log2fc': lfc, 'pval': pvals}).dropna(subset=['pval'])
+res['padj'] = multipletests(res['pval'], method='fdr_bh')[1]   # explicit BH, not 'hs'
+res['hit'] = (res['padj'] < 0.05) & (res['log2fc'].abs() > 1)  # 2-fold + FDR 5%
+res = res.sort_values('padj')
 
-# BH FDR correction (statsmodels defaults to Holm-Sidak -- always specify fdr_bh)
-_, results['padj'], _, _ = multipletests(results['pvalue'], method='fdr_bh')
-results['significant'] = results['padj'] < 0.05
+n_hit = int(res['hit'].sum())
+true_recovered = res.loc[res['hit'], 'feature'].isin(features[:n_true]).sum()
+print(f'Hits (padj<0.05 and |log2fc|>1): {n_hit} of {len(res)}')
+print(f'True features recovered among hits: {true_recovered} of {n_true}')
+print(res.head(10)[['feature', 'log2fc', 'pval', 'padj']].to_string(index=False))
 
-results = results.sort_values('padj')
-results.to_csv('differential_results.csv', index=False)
-
-n_sig = results['significant'].sum()
-print(f'Significant features (padj < 0.05): {n_sig} of {len(results)}')
-print(f'\nTop features by adjusted p-value:')
-print(results.head(10)[['feature_id', 'log2fc', 'pvalue', 'padj']].to_string(index=False))
+plt.figure(figsize=(7, 5))
+plt.scatter(res['log2fc'], -np.log10(res['pval']),
+            c=np.where(res['hit'], 'firebrick', 'gray'), s=12, alpha=0.6)
+plt.axhline(-np.log10(0.05), ls='--', color='black')
+plt.axvline(1, ls='--', color='black')
+plt.axvline(-1, ls='--', color='black')
+plt.xlabel('log2 fold change')
+plt.ylabel('-log10(p)')
+out_path = os.path.join(tempfile.gettempdir(), 'metabolomics_volcano.png')
+plt.savefig(out_path, dpi=120, bbox_inches='tight')
+print(f'Volcano plot written to {out_path}')

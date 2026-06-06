@@ -1,135 +1,78 @@
-# Reference: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+, xcms 4.0+ | Verify API if version differs
+# Reference: R 4.3+, ggplot2 3.5+ | Verify API if version differs
+# Demonstrates the central targeted-quant claims on synthetic data:
+#   weighted (1/x^2) calibration accepted by back-calculated %RE not R-squared,
+#   LLOQ from accuracy, IS normalization, and ion-ratio confirmation.
 library(ggplot2)
-library(dplyr)
 
-# === CONFIGURATION ===
-output_dir <- 'results/'
-dir.create(output_dir, showWarnings = FALSE)
+out_dir <- file.path(tempdir(), 'targeted_quant')
+dir.create(out_dir, showWarnings = FALSE)
 
-# === 1. STANDARD CURVE DATA ===
-cat('Setting up standard curves...\n')
+# ICH M10 acceptance: each calibrator within +-15% back-calc, +-20% at the LLOQ;
+# SANTE/2020/12830 ion-ratio tolerance +-30% relative for LC-MS/MS.
+re_tol_pct <- 15
+re_tol_lloq_pct <- 20
+ion_ratio_tol <- 0.30
 
-standards <- data.frame(
-    concentration = c(0, 1, 5, 10, 25, 50, 100, 250, 500, 1000),
-    analyte_area = c(50, 4800, 24500, 49000, 122000, 245000, 490000, 1220000, 2450000, 4900000),
-    istd_area = c(100000, 98000, 102000, 99000, 101000, 100000, 98000, 101000, 99000, 100000)
-)
+# Synthetic standards spanning three orders of magnitude. Areas carry constant-CV
+# (heteroscedastic) noise so absolute variance grows with concentration.
+set.seed(7)
+conc <- c(1, 5, 10, 25, 50, 100, 250, 500, 1000)
+true_slope <- 0.0049
+istd_area <- rnorm(length(conc), 1e5, 2e3)
+analyte_area <- true_slope * conc * istd_area * rnorm(length(conc), 1, 0.04)
+standards <- data.frame(conc, analyte_area, istd_area)
+standards$ratio <- standards$analyte_area / standards$istd_area
 
-# Response ratio
-standards$response_ratio <- standards$analyte_area / standards$istd_area
+# Fit unweighted vs 1/x^2-weighted and compare low-end accuracy, the whole point.
+fit_ols <- lm(ratio ~ conc, data = standards)
+fit_w <- lm(ratio ~ conc, data = standards, weights = 1 / standards$conc^2)
 
-# === 2. FIT STANDARD CURVE ===
-cat('Fitting calibration curve...\n')
+back_calc <- function(fit) (standards$ratio - coef(fit)[1]) / coef(fit)[2]
+re_pct <- function(bc) (bc - standards$conc) / standards$conc * 100
 
-# Weighted linear regression (1/x^2 weighting)
-weights <- 1 / (standards$concentration + 1)^2
-fit <- lm(response_ratio ~ concentration, data = standards, weights = weights)
+standards$re_ols <- re_pct(back_calc(fit_ols))
+standards$re_w <- re_pct(back_calc(fit_w))
 
-cat('Slope:', coef(fit)[2], '\n')
-cat('Intercept:', coef(fit)[1], '\n')
-cat('R-squared:', summary(fit)$r.squared, '\n')
+cat('R-squared (unweighted):', round(summary(fit_ols)$r.squared, 4), '\n')
+cat('Low-end %RE unweighted vs weighted (lowest 3 levels):\n')
+print(round(head(standards[, c('conc', 're_ols', 're_w')], 3), 1))
 
-# Back-calculated concentrations
-standards$back_calc <- (standards$response_ratio - coef(fit)[1]) / coef(fit)[2]
-standards$accuracy <- ifelse(standards$concentration > 0,
-                             standards$back_calc / standards$concentration * 100, NA)
+# Accept the weighted curve per-level; LLOQ = lowest passing calibrator.
+tol <- ifelse(standards$conc == min(standards$conc), re_tol_lloq_pct, re_tol_pct)
+standards$pass <- abs(standards$re_w) <= tol
+lloq <- min(standards$conc[standards$pass])
+cat('LLOQ (lowest calibrator within tolerance):', lloq, 'nM\n')
 
-# === 3. STANDARD CURVE PLOT ===
-ggplot(standards, aes(x = concentration, y = response_ratio)) +
-    geom_point(size = 3, color = 'blue') +
-    geom_smooth(method = 'lm', se = TRUE, color = 'red') +
-    theme_bw() +
-    labs(title = sprintf('Standard Curve (R² = %.4f)', summary(fit)$r.squared),
-         x = 'Concentration (nM)', y = 'Response Ratio')
-ggsave(file.path(output_dir, 'standard_curve.png'), width = 8, height = 6)
+cal_line <- data.frame(conc = standards$conc, ratio = predict(fit_w))
+cal_plot <- ggplot(standards, aes(conc, ratio)) +
+  geom_point(size = 3, colour = 'steelblue') +
+  geom_line(data = cal_line, colour = 'firebrick') +
+  scale_x_log10() + scale_y_log10() + theme_bw() +
+  labs(title = 'Weighted calibration (1/x^2)', x = 'Concentration (nM)', y = 'Analyte/IS ratio')
+ggsave(file.path(out_dir, 'calibration_curve.png'), plot = cal_plot, width = 7, height = 5)
 
-# === 4. SAMPLE QUANTIFICATION ===
-cat('Quantifying samples...\n')
-
+# IS normalization on samples: matrix effect cancels in the analyte/IS ratio.
 samples <- data.frame(
-    sample = paste0('Sample', 1:12),
-    condition = rep(c('Control', 'Treatment'), each = 6),
-    analyte_area = c(52000, 48000, 55000, 51000, 49000, 53000,
-                     125000, 118000, 132000, 121000, 128000, 119000),
-    istd_area = c(100000, 98000, 101000, 99000, 100000, 102000,
-                  99000, 101000, 100000, 98000, 101000, 99000)
+  sample = paste0('S', 1:6),
+  condition = rep(c('control', 'treated'), each = 3),
+  analyte_area = c(24500, 23800, 25200, 61000, 58500, 63000),
+  istd_area = c(1.00e5, 9.8e4, 1.01e5, 9.9e4, 1.00e5, 1.02e5),
+  quantifier_area = c(24500, 23800, 25200, 61000, 58500, 63000),
+  qualifier_area = c(9600, 9300, 9900, 23800, 9200, 24600)
 )
+samples$ratio <- samples$analyte_area / samples$istd_area
+samples$conc <- (samples$ratio - coef(fit_w)[1]) / coef(fit_w)[2]
+samples$conc[samples$conc < lloq] <- NA
 
-# Calculate response ratio and concentration
-samples$response_ratio <- samples$analyte_area / samples$istd_area
-samples$concentration <- (samples$response_ratio - coef(fit)[1]) / coef(fit)[2]
+# Ion-ratio confirmation: a drifted qualifier/quantifier ratio means an interference.
+# Calibrator ratio ~0.39 here; S5's collapsed qualifier (0.16) falls outside +-30%.
+cal_ratio <- 0.39
+samples$ion_ratio <- samples$qualifier_area / samples$quantifier_area
+samples$id_confirmed <- abs(samples$ion_ratio - cal_ratio) / cal_ratio <= ion_ratio_tol
 
-# Account for dilution
-dilution_factor <- 10
-samples$concentration_original <- samples$concentration * dilution_factor
+cat('\nQuantified samples (S5 qualifier collapsed -> id_confirmed FALSE):\n')
+print(samples[, c('sample', 'condition', 'conc', 'ion_ratio', 'id_confirmed')])
 
-cat('Sample concentrations calculated\n')
-
-# === 5. QC ASSESSMENT ===
-cat('Assessing QC samples...\n')
-
-qc_samples <- data.frame(
-    level = rep(c('Low', 'Medium', 'High'), each = 3),
-    nominal = rep(c(25, 250, 750), each = 3),
-    measured = c(23.5, 26.2, 24.8, 242, 258, 251, 738, 762, 745)
-)
-
-qc_summary <- qc_samples %>%
-    group_by(level, nominal) %>%
-    summarise(
-        mean = mean(measured),
-        sd = sd(measured),
-        cv = sd(measured) / mean(measured) * 100,
-        accuracy = mean(measured) / nominal * 100,
-        .groups = 'drop'
-    )
-
-cat('\nQC Summary:\n')
-print(qc_summary)
-
-# QC acceptance
-qc_summary$cv_pass <- qc_summary$cv < 15
-qc_summary$accuracy_pass <- qc_summary$accuracy > 85 & qc_summary$accuracy < 115
-
-# === 6. LOD/LOQ CALCULATION ===
-residuals_sd <- sd(residuals(fit))
-slope <- coef(fit)[2]
-
-LOD <- 3.3 * residuals_sd / slope
-LOQ <- 10 * residuals_sd / slope
-
-cat('\nLOD:', round(LOD, 2), 'nM\n')
-cat('LOQ:', round(LOQ, 2), 'nM\n')
-
-# === 7. GROUP COMPARISON ===
-cat('\nComparing groups...\n')
-
-group_summary <- samples %>%
-    group_by(condition) %>%
-    summarise(
-        mean = mean(concentration_original),
-        sd = sd(concentration_original),
-        n = n(),
-        .groups = 'drop'
-    )
-
-print(group_summary)
-
-# t-test
-ttest <- t.test(concentration_original ~ condition, data = samples)
-cat('p-value:', format(ttest$p.value, digits = 3), '\n')
-
-# === 8. RESULTS PLOT ===
-ggplot(samples, aes(x = condition, y = concentration_original, fill = condition)) +
-    geom_boxplot(alpha = 0.7) +
-    geom_jitter(width = 0.2, size = 2) +
-    theme_bw() +
-    labs(title = sprintf('Metabolite Concentration (p = %.3f)', ttest$p.value),
-         x = 'Condition', y = 'Concentration (nM)')
-ggsave(file.path(output_dir, 'group_comparison.png'), width = 6, height = 5)
-
-# === 9. EXPORT RESULTS ===
-write.csv(samples, file.path(output_dir, 'sample_concentrations.csv'), row.names = FALSE)
-write.csv(qc_summary, file.path(output_dir, 'qc_summary.csv'), row.names = FALSE)
-
-cat('\nResults saved to', output_dir, '\n')
+write.csv(samples[, c('sample', 'condition', 'conc', 'ion_ratio', 'id_confirmed')],
+          file.path(out_dir, 'sample_concentrations.csv'), row.names = FALSE)
+cat('\nOutputs written to', out_dir, '\n')

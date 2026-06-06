@@ -1,93 +1,71 @@
-# Lipidomics - Usage Guide
+# Lipidomics Usage Guide
 
 ## Overview
 
-Lipidomics is a specialized branch of metabolomics focused on comprehensive lipid analysis. Lipids have unique characteristics requiring specialized annotation, normalization, and class-based analysis approaches.
+Lipidomics is a combinatorial-structure problem wearing a quantification problem's clothes. This skill keeps the agent honest about two things software routinely overstates: the structural-resolution level a lipid name actually carries (the shorthand separator `space` -> `_` -> `/` -> `(9Z)` encodes what was measured, and sn-position is almost never measured), and quantification (one isotope-labeled internal standard per class is non-negotiable because ESI response is head-group-dependent). It guards against in-source-fragment phantom lyso-lipids, sn over-claims, ether/plasmalogen ambiguity, and invalid cross-class comparisons.
 
 ## Prerequisites
 
 ```bash
-# R packages
-BiocManager::install("lipidr")
-install.packages("ggplot2")
+# R (primary)
+# BiocManager::install("lipidr")
 
-# Python
-pip install pandas numpy scipy
-
-# Software: MS-DIAL, LipidSearch
+# Nomenclature parsing
+pip install pygoslin
 ```
+
+Conceptual prerequisites: a quantified lipid table (Skyline, MS-DIAL, or LipidSearch export) with sample group annotations, and knowledge of which internal standards were spiked and at what stage. To trust any sn or double-bond claim, the agent needs to know whether EAD/OzID/PB/UVPD data were acquired - under routine CID they were not.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Analyze my lipidomics data by lipid class"
-- "Normalize to internal standards and compare lipid profiles"
+- "Load my lipidomics table, normalize within class, and find lipids changing between groups"
+- "Canonicalize these lipid names and downgrade any that over-claim sn-position"
+- "Check whether my elevated LPC signal is real or an in-source fragment of PC"
+- "Design an internal-standard strategy for class-based quantification"
 
 ## Example Prompts
 
-### Data Processing
-> "Import my MS-DIAL lipidomics output and parse lipid annotations"
-> "Extract lipid class, carbon chain length, and double bond information from annotations"
+### Annotation honesty
+> "Parse these lipid names through Goslin and report the structural-resolution level each one actually claims."
+> "Re-emit my LipidSearch output at molecular-species level since we only ran CID - drop the sn slashes."
+> "Flag any plasmalogen (P-) call that lacks vinyl-ether diagnostic evidence."
 
-### Normalization
-> "Normalize each lipid class to its matched internal standard"
-> "Apply PQN normalization and calculate class-level summaries"
+### Quantification
+> "Normalize each lipid class to its matched internal standard, not a single global standard."
+> "Is comparing PE to PC abundance valid in my dataset given the standards I used?"
+> "Set up class-based quantification using my EquiSPLASH internal standards."
 
-### Class Analysis
-> "Compare lipid class abundances between treatment groups"
-> "Create a lipid class composition bar plot for each sample group"
-> "Test for changes in sphingolipids between disease and control"
+### Differential and enrichment analysis
+> "Run differential lipid analysis between treatment and control and make a class-faceted volcano plot."
+> "Test whether any lipid class, chain length, or unsaturation pattern is enriched among the changed lipids."
 
-### Chain Analysis
-> "Analyze the distribution of chain lengths and saturation by class"
-> "Compare fatty acid profiles between groups"
-
-### Visualization
-> "Create a lipid bubble plot showing class, saturation, and fold change"
-> "Generate a heatmap of individual lipid species grouped by class"
+### Artifact triage
+> "My LPC pool is unexpectedly high - check retention-time co-elution against the parent PCs."
+> "This apparent odd-chain PC 33:1 - is it real or an isotope/in-source artifact?"
 
 ## What the Agent Will Do
 
-1. Parse lipid annotations (class, chains, saturation)
-2. Normalize to internal standards by class
-3. Aggregate by lipid class or species
-4. Run statistical comparisons
-5. Create lipid-specific visualizations
-6. Export results with lipid metadata
+1. Canonicalize names through Goslin and assign each an honest resolution level, defaulting down where evidence is absent.
+2. Set up class-based internal-standard normalization (one IS per class) or PQN, and state semi-quant vs absolute.
+3. Run `de_analysis` with an explicit contrast and class/chain-aware visualization.
+4. Run lipid set enrichment (class / chain length / unsaturation) with `lsea`.
+5. Triage in-source fragments, odd-chain sums, and ether/plasmalogen calls before reporting.
+6. Export results with class, chain, and resolution-level metadata.
 
 ## Tips
 
-- Use class-matched internal standards (e.g., PC-d7 for PC class)
-- Report sum composition when isomers cannot be separated
-- Include at least one internal standard per lipid class
-- Consider ion suppression varies by lipid class
-- LipidMaps shorthand notation is standard (e.g., PC 34:1)
+- The separator is the claim: `space` = sum composition, `_` = chains known (sn unresolved), `/` = sn-resolved, `(9Z)` = double-bond position+geometry. Default down when in doubt.
+- One isotope-labeled internal standard per class, spiked before extraction. Never quantify a class with another class's standard.
+- An "LPC" eluting at a PC's retention time is an in-source fragment, not biology. Shotgun has no retention-time axis to run this test.
+- "Number of lipids identified" is a vanity metric unless paired with the resolution level and confidence grade.
+- A single-software species-level annotation needs orthogonal validation (ECN/retention-time consistency, a second adduct/polarity, CCS, or manual MS/MS) before it is trustworthy.
+- Treat isomer resolution (sn, C=C) as an emerging capability; verify what the installed instrument/method actually supports rather than assuming.
 
-## Lipid Classes
+## Related Skills
 
-| Class | Abbreviation | Examples |
-|-------|--------------|----------|
-| Glycerophospholipids | GP | PC, PE, PS, PI |
-| Sphingolipids | SP | Cer, SM |
-| Glycerolipids | GL | TG, DG |
-| Sterol lipids | ST | CE, Cholesterol |
-| Fatty acyls | FA | Free fatty acids |
-
-## Nomenclature
-
-Standard shorthand: `Class(carbons:double_bonds)`
-- `PC(34:1)` - Phosphatidylcholine, 34 carbons, 1 double bond
-- `TG(52:2)` - Triacylglycerol, 52 carbons, 2 double bonds
-- `Cer(d18:1/16:0)` - Ceramide with specific chains
-
-## Databases
-
-- **LipidMaps** - Comprehensive lipid database
-- **SwissLipids** - Curated structures
-- **LipidBlast** - In-silico MS/MS library
-
-## References
-
-- lipidr: doi:10.1093/bioinformatics/btaa706
-- LipidMaps: doi:10.1093/nar/gkl838
-- MS-DIAL lipidomics: doi:10.1038/nmeth.4512
+- metabolomics/xcms-preprocessing - Upstream peak detection and feature extraction
+- metabolomics/msdial-preprocessing - MS-DIAL alignment and deconvolution upstream of lipid annotation
+- metabolomics/metabolite-annotation - General (non-lipid) annotation and confidence levels
+- metabolomics/normalization-qc - Sample normalization and QC framing
+- metabolomics/statistical-analysis - Multivariate stats on the lipid abundance matrix

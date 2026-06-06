@@ -1,102 +1,74 @@
-# Targeted Metabolomics - Usage Guide
+# Targeted Metabolomics Analysis Usage Guide
 
 ## Overview
 
-Targeted metabolomics quantifies a predefined set of metabolites using selected reaction monitoring (SRM/MRM). This approach provides absolute quantification with high sensitivity and reproducibility.
+Targeted metabolomics quantifies a closed, pre-defined panel of known metabolites and reports absolute concentrations with units, using MRM/SRM on a triple quadrupole or PRM on a high-resolution instrument. The central enemy is the matrix effect: co-eluting matrix suppresses analyte ionization, and only a co-eluting stable-isotope-labeled internal standard truly corrects it. This guide covers building a calibration assay, choosing the internal-standard and weighting strategy, confirming identity by ion ratio, and validating to a depth that matches the decision the number supports.
 
 ## Prerequisites
 
 ```bash
-# Skyline (free, comprehensive)
+# Skyline (free, vendor-neutral) for transition lists, integration, export
 # Download from: https://skyline.ms/
-
-# R packages
-install.packages(c("calibrate", "ggplot2"))
-
-# Python
-pip install pandas numpy scipy scikit-learn
+# R for post-export curve fitting and validation metrics
+Rscript -e 'install.packages(c("ggplot2", "dplyr"))'
+# Optional Python path
+pip install pandas numpy scipy
 ```
+
+Conceptual prerequisites: an authentic reference standard for each analyte (its purity scales every reported number), ideally one stable-isotope-labeled internal standard per analyte, a defined transition list (quantifier + qualifier per analyte with collision energies), and a decision about how much validation the application demands.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Build calibration curves and quantify metabolites from my MRM data"
-- "Validate my targeted assay with QC sample statistics"
+- "Build a 1/x^2-weighted calibration curve and accept it by back-calculated %RE, not R-squared"
+- "Normalize each analyte to its co-eluting internal standard and quantify the samples"
+- "Confirm identity with the quantifier/qualifier ion ratio and flag interferences"
+- "Compute LOD and LLOQ and mark samples below the validated range as not reportable"
+- "Help me decide an internal-standard and validation strategy for a clinical assay"
 
 ## Example Prompts
 
-### Calibration
-> "Build calibration curves for my standard dilution series with 1/x weighting"
-> "Calculate R-squared and back-calculated accuracy for each analyte"
-> "Determine LOD and LOQ from calibration curve residuals"
+### Calibration and Weighting
+> "Fit unweighted, 1/x, and 1/x^2 calibration curves and pick the weighting that minimizes low-end back-calculated relative error."
+> "Show the per-level %RE for each calibrator and tell me whether the curve passes ICH M10."
+> "Set the LLOQ to the lowest calibrator within +/-20% accuracy."
 
 ### Quantification
-> "Calculate absolute concentrations using my calibration curves"
-> "Normalize to internal standards before quantification"
-> "Apply dilution factors and report final concentrations"
+> "Normalize analyte areas to the SIL-IS and back-calculate concentrations from the response-ratio curve."
+> "Apply the dilution factor and report concentrations in micromolar, flagging anything below the LLOQ."
 
-### Validation
-> "Calculate accuracy and precision from QC samples at low, medium, and high levels"
-> "Check if QC accuracy is within 85-115% acceptance criteria"
-> "Report CV% for replicate measurements"
+### Identity and Quality
+> "Compute the qualifier/quantifier ion ratio per sample and flag any outside +/-30% of the calibrator ratio."
+> "Check carryover in the blank injected after the top calibrator."
+> "Estimate the matrix factor and the IS-normalized matrix factor across matrix lots."
 
-### Quality Assessment
-> "Flag samples with concentrations outside the calibration range"
-> "Check for carryover using blank samples after high concentration samples"
-> "Assess matrix effects using post-extraction spike"
+### Strategy and Validation
+> "My panel has 40 chemically diverse metabolites and one global IS -- where is my accuracy at risk?"
+> "Lay out the ICH M10 parameters I need for a regulated PK assay versus an exploratory study."
+> "Should I use a deuterated or 13C internal standard, and what do I verify before trusting it?"
 
 ## What the Agent Will Do
 
-1. Import peak areas/heights and standard concentrations
-2. Build calibration curves with appropriate weighting
-3. Calculate regression statistics and LOD/LOQ
-4. Quantify unknowns using calibration
-5. Validate with QC sample statistics
-6. Export concentrations with quality flags
+1. Establish the panel, transitions, and internal-standard strategy, and pick a validation tier by application.
+2. Fit weighted calibration on the analyte/IS response ratio and accept it by per-level back-calculated %RE.
+3. Set the LLOQ from accuracy and noise, not from an extrapolated curve.
+4. Normalize samples to the internal standard and back-calculate concentrations within the validated range.
+5. Confirm identity by ion ratio and flag isobaric interferences.
+6. Compute validation metrics (accuracy, precision, matrix factor, recovery, carryover) and export concentrations with quality flags.
 
 ## Tips
 
-- Use weighted regression (1/x or 1/x^2) for wide concentration ranges
-- Include at least 6 calibration points spanning expected sample range
-- QC samples at 3 levels (low, medium, high) track assay performance
-- Accept calibrators with 85-115% back-calculated accuracy (80-120% at LLOQ)
-- Use stable isotope-labeled internal standards when available
+- Judge a calibration by back-calculated %RE at the low end, never by R-squared alone.
+- One SIL-IS per analyte is the gold standard; the further an analyte is from its IS in retention time and chemistry, the larger the uncorrected matrix error.
+- Prefer 13C/15N internal standards over deuterium; if forced to deuterium, verify co-elution by overlaying analyte and IS chromatograms.
+- Low CV is not evidence of a correct number -- precision and accuracy decouple in shared-IS panels.
+- Pre-analytics is upstream of every assay safeguard and invisible to all of them; quench fast and measure stability for labile metabolites.
+- A single transition has no defense against isobaric interference -- always carry a qualifier where sensitivity allows.
 
-## Acceptance Criteria
+## Related Skills
 
-| Parameter | Threshold |
-|-----------|-----------|
-| Calibration R^2 | > 0.99 |
-| Accuracy (calibrators) | 85-115% |
-| Accuracy at LLOQ | 80-120% |
-| Precision (CV%) | < 15% |
-| Precision at LLOQ | < 20% |
-
-## LOD/LOQ Calculation
-
-- LOD: 3.3 x (residual SD) / slope
-- LOQ: 10 x (residual SD) / slope
-
-## Standard Curve Levels
-
-| Level | Purpose |
-|-------|---------|
-| Blank | No analyte, check contamination |
-| LLOQ | Lower limit of quantification |
-| Low | 3x LLOQ |
-| Medium | Mid-range |
-| High | 75% of ULOQ |
-| ULOQ | Upper limit |
-
-## Software Options
-
-- **Skyline** - Free, comprehensive
-- **TraceFinder** - Thermo
-- **MassHunter** - Agilent
-- **MultiQuant** - SCIEX
-
-## References
-
-- FDA Bioanalytical Method Validation Guidance (2018)
-- EMA Guideline on bioanalytical method validation
-- Skyline: doi:10.1093/bioinformatics/btq054
+- metabolomics/xcms-preprocessing - Upstream feature detection for untargeted discovery before targeted validation
+- metabolomics/statistical-analysis - Group comparison and multivariate analysis of quantified concentrations
+- metabolomics/isotope-tracing - Stable-isotope tracing and flux (MID), the adjacent discipline this skill hands off to
+- metabolomics/normalization-qc - QC-sample-driven drift correction and RSD filtering
+- clinical-biostatistics/cdisc-data-handling - Regulated-trial bioanalysis data handling when targeted numbers feed a clinical study

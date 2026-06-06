@@ -1,8 +1,8 @@
-# Statistical Analysis - Usage Guide
+# Statistical Analysis Usage Guide
 
 ## Overview
 
-Statistical analysis identifies metabolites associated with biological conditions. Covers the full pipeline from raw intensities through preprocessing (log2 transformation, normalization), statistical modeling with limma or Welch's t-tests, fold change estimation, and multivariate methods for biomarker discovery.
+Statistical analysis decides which metabolites differ between conditions and whether a discriminant model is real. The two endemic failure modes it guards against are overfitting (in p >> n, supervised models separate pure noise -- a score plot proves nothing without permutation-validated Q2) and false-discovery inflation (thousands of correlated tests on small n yield long "significant" lists that do not replicate). It covers transformation/scaling as an explicit modeling choice, unsupervised structure (PCA/HCA for QC), validated PLS-DA/OPLS-DA, univariate testing with covariate adjustment, and dependence-aware multiple testing.
 
 ## Prerequisites
 
@@ -12,135 +12,77 @@ pip install scipy statsmodels numpy pandas matplotlib scikit-learn
 ```
 
 ```r
-# R packages
-BiocManager::install(c("limma"))
-install.packages(c("mixOmics", "ropls", "pROC", "ashr"))
+# R
+BiocManager::install("ropls")
+install.packages(c("mixOmics", "lme4", "qvalue"))
 ```
+
+Conceptual prerequisites: decide the scaling (Pareto vs unit-variance is a hypothesis, not a default), know whether the normalization imposed closure (total-area/PQN), distinguish technical from biological zeros, and identify the experimental unit (the subject, not the injection) before any group test.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Find differentially abundant metabolites between treatment and control"
-- "Log2 transform and normalize my metabolomics data, then run limma for differential analysis"
-- "Identify significant metabolites with shrunk fold change estimates"
-- "Run PLS-DA and identify important features by VIP score"
+- "Run PCA with Pareto scaling and check whether my pooled QC samples cluster tightly"
+- "Fit an OPLS-DA model and permutation-test it -- I only trust it if pQ2 is small"
+- "Run Welch t-tests between case and control with explicit BH FDR and fold changes"
+- "Fit a linear mixed model per metabolite for my longitudinal design"
+- "Show me whether my top hits survive switching from Pareto to unit-variance scaling"
 
 ## Example Prompts
 
-### Full Pipeline
-> "I have raw metabolite intensities in a TSV file. Log2 transform, PQN normalize, and run differential testing between case and control groups. Report fold changes and adjusted p-values."
+### Scaling and Unsupervised Structure
+> "Transform and Pareto-scale my feature table, run PCA, and color the scores by batch and injection order to check for drift."
+> "Re-run the PCA with unit-variance scaling and tell me whether the top loadings change."
 
-> "Process my untargeted metabolomics feature table: handle missing values, normalize, run limma with empirical Bayes, and generate a volcano plot."
+### Validated Multivariate Models
+> "Build an OPLS-DA model between disease and control, run 1000 permutations, and report R2X, R2Y, Q2, and pQ2."
+> "Put a PCA score plot next to my PLS-DA plot so I can see whether the separation is real or supervised-only."
+> "Extract VIP scores but only after the model passes the permutation test, and cross-check them against my univariate hits."
 
-### Univariate Analysis
-> "Run limma moderated t-tests on my log2-transformed metabolomics data with BH FDR correction"
+### Univariate Testing and FDR
+> "Run Welch t-tests in Python with Benjamini-Hochberg correction and report log2 fold changes."
+> "Fit a per-metabolite linear model adjusting for age, sex, and BMI."
+> "My features are heavily correlated -- use an effective-number-of-tests correction instead of Bonferroni."
 
-> "Perform Welch's t-tests in Python on my metabolomics data with Benjamini-Hochberg correction"
-
-> "Perform ANOVA across my three treatment groups and identify significant metabolites"
-
-### Multivariate Analysis
-> "Run PCA for exploratory analysis and check sample grouping"
-
-> "Build a PLS-DA model with 10-fold cross-validation and calculate VIP scores"
-
-> "Use OPLS-DA for biomarker discovery between disease and healthy groups"
-
-### Biomarker Selection
-> "Identify metabolites with VIP > 1 and FDR < 0.05"
-
-> "Calculate ROC curves and AUC for top candidate biomarkers"
-
-### Fold Change and Effect Size
-> "Apply ashr fold change shrinkage to get more accurate effect size estimates from my limma results"
-
-> "Use treat() to test for metabolites with at least 1.5-fold change"
+### Reproducibility
+> "Check whether my discriminant result survives changing the scaling and the imputation method."
+> "I have a validation cohort -- estimate external performance, not just cross-validated discovery performance."
 
 ## What the Agent Will Do
 
-1. Load raw intensity matrix and sample metadata
-2. Preprocess: handle zeros (distinguish technical vs biological), log2 transform, apply normalization (PQN for untargeted LC-MS, or skip if data is pre-normalized)
-3. Select statistical method based on sample size and design (limma for small n, Welch's for large n in Python, Wilcoxon for non-normal data)
-4. Define experimental design and contrasts
-5. Fit statistical model with empirical Bayes moderation (limma) or per-feature testing (Python)
-6. Apply Benjamini-Hochberg multiple testing correction
-7. Choose fold change reporting strategy (raw for GSEA/pathway analysis, ashr-shrunk for effect size recovery)
-8. Generate results table and optional visualizations (volcano plot, PCA, heatmap)
-9. Optionally run multivariate models (PLS-DA, OPLS-DA) for classification and VIP ranking
-
-## Statistical Methods
-
-| Method | Best for | Key advantage |
-|--------|----------|---------------|
-| limma | Small n (3-10), general purpose | Borrows variance across features; ~10-20 extra effective df |
-| Welch's t-test | Large n (>10), Python-only | Simple, reliable with sufficient samples |
-| Wilcoxon rank-sum | Non-normal after log transform | Distribution-free; less powerful when normality holds |
-| Two-part test | Zero-inflated features (BPMVs) | Separately tests presence/absence and abundance |
-| PCA | Any | Unsupervised exploration, QC, outlier detection |
-| PLS-DA | 2+ groups | Supervised classification with VIP ranking |
-| OPLS-DA | 2 groups | Separates predictive from orthogonal variation |
-
-## Normalization Methods
-
-| Method | When to use | Key assumption |
-|--------|-------------|----------------|
-| PQN | Default for untargeted LC-MS metabolomics | Majority of features unchanged |
-| QC-RSC (LOESS) | Multi-batch studies with pooled QC samples | QC samples represent technical drift |
-| VSN | High zero rate; heteroscedastic data | Parametric variance model holds |
-| TIC | NMR metabolomics; quick exploration | All features contribute equally |
-| Cyclic loess | Asymmetric DE pattern | Majority of features unchanged |
-| None | IS-corrected; single-batch balanced design | No systematic bias present |
-
-PQN is preferred over median centering or TIC for untargeted metabolomics because it is more robust to dominant high-abundance features.
-
-## Fold Change Reporting
-
-Raw fold changes are noisy but unbiased. How to handle them depends on what comes next:
-
-- **Pathway analysis (QEA/GSEA)**: Use raw fold changes for all features. Do not zero or threshold FCs before enrichment analysis.
-- **Effect size recovery**: Apply ashr shrinkage in R for posterior mean estimates. Smoothly shrinks uncertain effects toward zero.
-- **Reporting tables**: Report raw FC with adjusted p-value. The p-value communicates uncertainty; the FC communicates magnitude.
-- **Cross-study / meta-analysis**: Use raw FCs with standard errors. Shrinkage is study-specific.
-
-Avoid hard-thresholding FCs at a p-value cutoff (setting non-significant FCs to zero). Use `treat()` + `topTreat()` in limma for minimum-effect-size testing instead of post-hoc FC filtering.
-
-## Significance Thresholds
-
-| Metric | Threshold |
-|--------|-----------|
-| Adjusted p-value | < 0.05 (discovery: < 0.1) |
-| Log2 fold change | > 1 (2-fold) or > 0.58 (1.5-fold) |
-| VIP score | > 1 |
-| AUC | > 0.7 (moderate), > 0.8 (good) |
+1. Confirm the upstream state: normalization/closure, zero handling, and the experimental unit.
+2. Choose and report a transformation + scaling, and offer to run a second scaling as a robustness check.
+3. Run PCA for QC and structure (pooled-QC clustering, batch/outlier inspection) before any supervised model.
+4. Match the univariate test to the design (Welch/Mann-Whitney/ANOVA/paired/LMM), with covariate adjustment where needed.
+5. Apply BH FDR explicitly (defaults are not BH in R or statsmodels) and report fold change + CI; use a dependence-aware correction when features are strongly correlated.
+6. For any discriminant model, fit PLS-DA/OPLS-DA, raise permutations to >= 1000, and report pQ2 plus the validation checklist.
+7. Read VIP/S-plot only from a validated model and reconcile multivariate VIPs with univariate FDR.
+8. Generate a volcano plot and a results table; flag scaling-fragile or detection-rate-confounded hits.
 
 ## Tips
-
-- Always log2-transform raw intensities before statistical testing; compute fold change as difference of means on the log2 scale (geometric mean ratio), not `log2(mean_ratio)` which uses arithmetic means
-- Use limma with `eBayes(trend=TRUE, robust=TRUE)` as the default for metabolomics. Even with n > 5, it is never worse than a plain t-test and is often better
-- In Python, set `equal_var=False` in `scipy.stats.ttest_ind()` for Welch's t-test (scipy defaults to Student's)
-- Pass `method='fdr_bh'` explicitly to `statsmodels.multipletests()` (the default is Holm-Sidak, not BH)
-- Include batch as a covariate in the design matrix if samples were processed separately; do not use `removeBatchEffect()` before testing
-- MetaboAnalyst uses arithmetic mean FC and Student's t-test by default; be aware when comparing results
-- Consider ashr fold change shrinkage in R when effect size accuracy matters; for GSEA or pathway analysis, use raw FCs
-- Distinguish biological zeros (metabolite truly absent) from technical zeros (below detection limit) before imputation
-- Validate PLS-DA with permutation testing (Q2 should exceed permuted values)
-- VIP > 1 is a common threshold, but combine with FDR for confidence
-- Check volcano plot symmetry. Strongly asymmetric patterns may indicate normalization issues
-- Report: number tested, normalization method, statistical method, thresholds, and number significant
+- There is no scaling-free analysis: report the scaling, and if conclusions flip between Pareto and UV, the result is a property of the prior, not the biology.
+- `ropls::opls()` defaults `scaleC = "standard"` (unit-variance), not Pareto -- set it explicitly.
+- Raise `permI` well above the ropls default of 20 (>= 1000) or the permutation p-value just reports the grid granularity.
+- R `p.adjust` defaults to Holm (FWER) and statsmodels `multipletests` to Holm-Sidak -- always pass BH explicitly.
+- In Python set `equal_var=False` in `scipy.stats.ttest_ind()` for Welch; group variances differ, especially near the LOD.
+- Compute fold change as a difference of means on the log scale (geometric-mean ratio), not `log2(mean_ratio)`.
+- VIP > 1 is a heuristic with no error control; corroborate with univariate FDR + effect size and resampling stability.
+- Internal cross-validation does not substitute for an independent cohort -- discovery performance overestimates external.
+- Report per-group detection rates with any low-abundance hit; a detection-rate difference can masquerade as a concentration difference.
 
 ## Related Skills
 
-- normalization-qc - Data preparation and batch correction
-- pathway-mapping - Functional interpretation of differential metabolites
-- multi-omics-integration/mixomics-analysis - Advanced multivariate methods
-- proteomics/differential-abundance - Analogous empirical Bayes concepts for proteomics
-- data-visualization/volcano-and-ma-plots - Volcano and MA plots with LFC shrinkage
-- data-visualization/heatmaps-clustering - Clustered heatmaps with annotation tracks
+- metabolomics/normalization-qc - Sample-wise normalization, drift/batch correction, missing-value imputation upstream of testing
+- metabolomics/pathway-mapping - Functional interpretation of differential metabolites
+- machine-learning/biomarker-discovery - Feature selection inside CV, stability, minimal-optimal vs all-relevant
+- machine-learning/model-validation - Leakage taxonomy, nested CV, calibration vs discrimination
+- experimental-design/multiple-testing - FDR vs FWER regime, discovery vs confirmatory
+- data-visualization/volcano-and-ma-plots - Volcano plot recipes
 
 ## References
 
-- limma: doi:10.1093/nar/gkv007
-- ashr: doi:10.1093/biostatistics/kxw041
-- mixOmics: doi:10.1371/journal.pcbi.1005752
-- ropls (OPLS-DA): doi:10.1021/acs.jproteome.5b00354
-- PQN normalization: doi:10.1021/ac051632c
+- van den Berg RA, et al. 2006. Centering, scaling, and transformations. *BMC Genomics* 7:142.
+- Westerhuis JA, et al. 2008. Assessment of PLSDA cross validation. *Metabolomics* 4:81-89.
+- Thevenot EA, et al. 2015. ropls / urinary metabolome workflow. *J Proteome Res* 14:3322-3335.
+- Szymanska E, et al. 2012. Double-check: validation of diagnostic statistics for PLS-DA. *Metabolomics* 8(Suppl 1):3-16.
+- Peluso A, Glen R, Ebbels TMD. 2021. Multiple-testing correction in metabolome-wide association studies. *BMC Bioinformatics* 22:67.

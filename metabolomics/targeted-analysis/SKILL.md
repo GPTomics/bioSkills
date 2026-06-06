@@ -1,314 +1,210 @@
 ---
 name: bio-metabolomics-targeted-analysis
-description: Targeted metabolomics analysis using MRM/SRM with standard curves. Covers absolute quantification, method validation, and quality assessment. Use when quantifying specific metabolites using calibration curves and internal standards.
+description: Designs and validates quantitative targeted metabolomics assays (MRM/SRM on triple-quadrupole, PRM on high-resolution instruments) to report absolute concentrations. Covers the internal-standard strategy (external cal -> global IS -> standard addition -> stable-isotope-labeled IS), weighted calibration judged by back-calculated %RE not R-squared, ion-ratio quantifier/qualifier confirmation, matrix-effect/recovery characterization, and ICH M10 method validation. Use when quantifying a closed panel of known metabolites with units, building or validating an LC-MS/MS assay, choosing an IS or calibration weighting, or judging whether a reported concentration is trustworthy. For untargeted feature detection see metabolomics/xcms-preprocessing; for group statistics see metabolomics/statistical-analysis; for flux/MID/tracing see metabolomics/isotope-tracing.
 tool_type: mixed
 primary_tool: skyline
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, scipy 1.12+, xcms 4.0+
+Reference examples tested with: R 4.3+, ggplot2 3.5+, Skyline 23.1+, pandas 2.2+, numpy 1.26+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
+- Python: `pip show <package>` then `help(module.function)` to check signatures
+- CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+An absolute concentration requires three inputs the code cannot supply: an authentic reference standard (its certificate-of-analysis purity scales every reported number), a stable-isotope-labeled internal standard that co-elutes with the analyte, and a per-analyte validation record. Without these, the workflow below produces relative peak-area ratios dressed as concentrations.
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # Targeted Metabolomics Analysis
 
-**"Quantify specific metabolites from my MRM data"** -> Perform absolute quantification using calibration curves, internal standards, and quality assessment for targeted metabolomics.
-- CLI: Skyline for peak integration and export
-- Python/R: calibration curve fitting and sample quantification
+**"Quantify these specific metabolites and give me concentrations with units"** -> Fit weighted calibration curves on authentic standards, normalize each analyte to a co-eluting stable-isotope-labeled internal standard, confirm identity by ion ratio, and report concentrations only within the validated range.
+- CLI: Skyline builds the small-molecule transition list, integrates peaks, fits weighted calibration, and exports via the Document Grid.
+- R / Python: post-export curve fitting, back-calculated %RE checks, IS normalization, ion-ratio confirmation, validation metrics.
 
-## Skyline Data Export Processing
+## The Single Most Important Modern Insight -- A Concentration Is a Chain of Cancellations, and Matrix Effects Are the Term That Fails to Cancel
+
+Ion suppression is competition for charge and droplet surface in the electrospray source: a co-eluting matrix component (phospholipids late in a reversed-phase gradient, salts at the void) steals ionization from the analyte. Suppression is a property of the co-elution, not of the analyte, so it is retention-time-dependent and lot-dependent. The only mechanism that truly removes it is a stable-isotope-labeled internal standard (SIL-IS) that sits in the identical droplet at the identical instant: the suppression cancels in the analyte/IS area ratio. An IS that elutes even half a minute away samples a different point on the suppression landscape and injects new error rather than removing it. Every other safeguard in this skill -- weighting, ion ratios, validation -- assumes this cancellation is working; the gap between a solvent calibration curve and a matrix-matched curve is a direct readout of how badly the IS is failing.
+
+## Targeted vs Untargeted -- Different Experiments, Not Two Settings
+
+| Axis | Untargeted (discovery) | Targeted (quantification) |
+|---|---|---|
+| Analyte set | Open -- everything ionizable | Closed -- a panel defined before acquisition |
+| Output | Relative fold-change; often putative IDs | Absolute concentration for confirmed analytes |
+| Instrument | High-res full-scan / DDA (Orbitrap, QTOF) | Triple-quad SRM/MRM, or high-res PRM |
+| Validation | QA/QC framework (Broadhurst, mQACC) | Full bioanalytical validation possible (ICH M10) |
+| Question | "What changed?" | "How much is there?" |
+
+Targeted buys sensitivity and absolute quant by spending scope (only what is on the list is seen) and up-front method development. Common pattern: untargeted discovery -> targeted validation of the hits. Feature detection upstream is metabolomics/xcms-preprocessing; this skill begins once the panel and transitions are defined.
+
+## Acquisition Mechanics -- MRM/SRM and PRM
+
+A transition is a precursor-m/z -> product-m/z pair plus a tuned collision energy. On a triple quadrupole, Q1 isolates the precursor, the collision cell fragments it, Q3 isolates one product: the double mass filter is the source of MRM sensitivity. SRM monitors one transition; MRM multiplexes many. Each analyte should carry at least two transitions -- a quantifier (most intense/cleanest, used for concentration) and one or more qualifiers (orthogonal confirmation). PRM replaces Q3 with a high-resolution analyzer that records the full product spectrum in parallel, so transitions are chosen post hoc and isobaric interferences are resolved by exact mass; MRM still wins on absolute sensitivity and very large panels. Dwell time is the signal-accumulation time per transition; cycle time must stay short enough for at least 10-15 points across each chromatographic peak (convention). Scheduled MRM monitors each transition only within a retention-time window so a large panel keeps adequate dwell -- but a peak that drifts out of its window vanishes with no error message, the classic scheduled-MRM failure.
+
+## Decision Tree -- Quant Goal -> IS + Calibration + Validation Depth
+
+| Goal / situation | Internal standard | Calibration | Validation depth | Why |
+|---|---|---|---|---|
+| Clinical / regulated / PK number | One SIL-IS per analyte (13C/15N) | Multi-level weighted curve, judged by %RE | Full ICH M10 (accuracy, precision, MF, recovery, carryover, stability, ISR) | A number driving a decision must carry its evidence |
+| Cross-study quantitative claim | SIL-IS per analyte or per RT/chemical cluster | Multi-level weighted | Accuracy/precision + matrix-factor on QCs | Comparability across runs demands characterized bias |
+| Exploratory research, ranking | Few global IS, or per-class | 1/x^2 weighted, low-end %RE checked | Broadhurst/mQACC QC discipline (pooled QC, blanks, RSD filtering) | Relative comparison tolerates residual matrix bias |
+| Dirty matrix, isobaric interferences | SIL-IS + high-res | PRM, post-hoc transitions | Selectivity dominated | Exact-mass product resolves co-eluters a unit-resolution Q3 cannot |
+| Large standardized panel (600+) | Kit-supplied class IS | Single/limited-point (vendor) | Vendor + bridging study before pooling sites | Kit buys comparability and throughput, not per-analyte full-validation accuracy |
+| Carbon source / pathway rate | (tracer, not IS) | -- | -- | Flux question: hand off to metabolomics/isotope-tracing; MID measures rate, not pool size |
+
+The IS rule of thumb: ask how far (in retention time and chemistry) each analyte is from its assigned IS -- that distance is the size of the uncorrected matrix error. 13C/15N at non-exchangeable positions are preferred over deuterium: deuterium causes a small reversed-phase retention shift (the deuterium isotope effect) that can chromatographically separate the IS from its analyte so it stops correcting suppression, and labile deuteriums back-exchange to H. If forced to a deuterated IS, verify co-elution by overlaying analyte and IS chromatograms.
+
+## Calibration and Weighting
+
+| Weighting | When | Effect |
+|---|---|---|
+| Unweighted (OLS) | Narrow range, near-constant variance | High points dominate; low-end bias on heteroscedastic MS data -- usually wrong |
+| 1/x | Moderate range (1-2 orders) | Down-weights high concentrations; restores low-end fit |
+| 1/x^2 | Wide range (3+ orders), the common LC-MS default | Aggressively down-weights the top; can over-weight the low end -- still compare, do not reflex |
+| Quadratic | Genuine, mechanism-explained curvature (detector saturation) | Never to paper over a bad linear fit |
+
+MS detector response is heteroscedastic -- absolute variance grows with concentration -- so weighting models the variance structure (1/x and 1/x^2 are parametric stand-ins for 1/variance). Select empirically: fit candidate weightings, then pick the one minimizing the sum of absolute back-calculated relative error (%RE) across levels, especially the bottom two or three. R-squared is the wrong instrument: it is dominated by high-leverage top points, so a curve with R-squared 0.999 can be +40% biased at the LLOQ. Use a fitted (non-zero) intercept; forcing the line through the origin re-introduces low-end bias. The blank (matrix only) and zero (matrix + IS) are diagnostic, not calibration points.
+
+### Build a Weighted Calibration Curve With a Back-Calculated %RE Check
+
+**Goal:** Fit a calibration curve on the analyte/IS response ratio and accept it by per-level back-calculation accuracy, not by R-squared.
+
+**Approach:** Fit 1/x^2-weighted linear regression of response ratio on nominal concentration, back-calculate every standard, flag any non-LLOQ level outside +/-15% and the LLOQ outside +/-20%, and set the LLOQ to the lowest passing level.
 
 ```r
-library(tidyverse)
-
-# Load Skyline export
-skyline_data <- read.csv('skyline_export.csv')
-
-# Expected columns: Replicate, Peptide/Molecule, Area, Concentration (for standards)
-colnames(skyline_data)
-
-# Filter to quantifier transitions
-quant_data <- skyline_data %>%
-    filter(Quantitative == TRUE | is.na(Quantitative))
-
-# Pivot to matrix format
-intensity_matrix <- quant_data %>%
-    select(Replicate, Molecule, Area) %>%
-    pivot_wider(names_from = Replicate, values_from = Area)
-```
-
-## Standard Curve Fitting
-
-```r
-# Standard curve data
 standards <- data.frame(
-    concentration = c(0, 1, 5, 10, 50, 100, 500, 1000),  # nM
-    area = c(100, 5000, 25000, 50000, 240000, 480000, 2300000, 4500000)
+  conc = c(1, 5, 10, 25, 50, 100, 250, 500, 1000),
+  analyte_area = c(480, 2500, 4900, 12100, 24500, 49000, 121000, 245000, 488000),
+  istd_area = c(100000, 98000, 99000, 101000, 100000, 98000, 101000, 99000, 100000)
 )
+standards$ratio <- standards$analyte_area / standards$istd_area
 
-# Linear regression (log-log for wide range)
-fit_linear <- lm(area ~ concentration, data = standards)
-fit_loglog <- lm(log10(area) ~ log10(concentration + 1), data = standards)
+fit <- lm(ratio ~ conc, data = standards, weights = 1 / standards$conc^2)
+standards$back_calc <- (standards$ratio - coef(fit)[1]) / coef(fit)[2]
+standards$re_pct <- (standards$back_calc - standards$conc) / standards$conc * 100
 
-# Weighted linear regression (1/x^2 weighting)
-fit_weighted <- lm(area ~ concentration, data = standards,
-                   weights = 1 / (standards$concentration + 1)^2)
-
-# R-squared
-summary(fit_linear)$r.squared
-summary(fit_weighted)$r.squared
-
-# Plot standard curve
-ggplot(standards, aes(x = concentration, y = area)) +
-    geom_point(size = 3) +
-    geom_smooth(method = 'lm', se = TRUE) +
-    scale_x_log10() +
-    scale_y_log10() +
-    theme_bw() +
-    labs(title = 'Standard Curve', x = 'Concentration (nM)', y = 'Peak Area')
+# ICH M10: each calibrator within +-15%, +-20% at the LLOQ (lowest level)
+tol <- ifelse(standards$conc == min(standards$conc), 20, 15)
+standards$pass <- abs(standards$re_pct) <= tol
+lloq <- min(standards$conc[standards$pass])
 ```
 
-## Calculate Concentrations
+### Internal-Standard Normalization
+
+**Goal:** Convert raw analyte area to a matrix-corrected response that the calibration curve maps to concentration.
+
+**Approach:** Divide analyte area by co-eluting SIL-IS area per sample, then invert the same response-ratio calibration; matrix effect and extraction recovery cancel in the ratio.
 
 ```r
-calculate_concentration <- function(area, fit, method = 'linear') {
-    if (method == 'linear') {
-        coef <- coef(fit)
-        conc <- (area - coef[1]) / coef[2]
-    } else if (method == 'loglog') {
-        coef <- coef(fit)
-        conc <- 10^((log10(area) - coef[1]) / coef[2]) - 1
-    }
-    return(pmax(conc, 0))  # No negative concentrations
-}
-
-# Apply to samples
-samples <- data.frame(
-    sample = paste0('Sample', 1:10),
-    area = c(12000, 45000, 8000, 120000, 35000, 78000, 22000, 95000, 41000, 63000)
-)
-
-samples$concentration <- calculate_concentration(samples$area, fit_weighted)
-
-# Account for dilution factor
-dilution_factor <- 10
-samples$concentration_original <- samples$concentration * dilution_factor
+samples$ratio <- samples$analyte_area / samples$istd_area
+samples$conc <- (samples$ratio - coef(fit)[1]) / coef(fit)[2]
+samples$conc[samples$conc < lloq] <- NA   # below validated range -> not reportable
 ```
 
-## Internal Standard Normalization
+### Ion-Ratio Confirmation
+
+**Goal:** Guard against quantifying an isobaric co-eluter as the analyte.
+
+**Approach:** Compute the qualifier/quantifier area ratio per sample, compare to the mean calibrator ratio, and flag samples outside the tolerance window -- a drifted ratio means the quantifier peak is partly something else.
 
 ```r
-# Data with internal standard
-data_with_istd <- data.frame(
-    sample = paste0('Sample', 1:10),
-    analyte_area = c(12000, 45000, 8000, 120000, 35000, 78000, 22000, 95000, 41000, 63000),
-    istd_area = c(50000, 52000, 48000, 51000, 49000, 53000, 47000, 50000, 51000, 49000)
-)
-
-# Calculate response ratio
-data_with_istd$response_ratio <- data_with_istd$analyte_area / data_with_istd$istd_area
-
-# IS-normalized concentration (using IS-corrected standard curve)
-istd_conc <- 100  # nM - known ISTD concentration
-data_with_istd$concentration <- calculate_concentration(
-    data_with_istd$response_ratio * istd_conc,
-    fit_weighted
-)
+cal_ratio <- mean(standards$qualifier_area / standards$quantifier_area)
+samples$ion_ratio <- samples$qualifier_area / samples$quantifier_area
+# SANTE/2020/12830 uses +-30% relative for LC-MS/MS qualifier/quantifier ratios
+samples$id_confirmed <- abs(samples$ion_ratio - cal_ratio) / cal_ratio <= 0.30
 ```
 
-## Method Validation Metrics
+MRM gives mass selectivity, not identity: two compounds can share a precursor->product transition (many acylcarnitines share m/z 85; lipids share head-group fragments). Identity needs retention time plus the ion ratio plus an authentic standard. Near the LLOQ the qualifier may fall below its own detection limit, so ion-ratio confirmation is usually only enforceable above a few times the LLOQ -- state that limit rather than hiding it. A single-transition method has no defense against isobaric interference and is a documented compromise, not a default.
+
+### LOD and LLOQ
+
+**Goal:** Set the lowest reliably quantifiable concentration from noise and accuracy, not from an extrapolated curve.
+
+**Approach:** Estimate LOD from blank-signal scatter (S/N ~3) and confirm the LLOQ as the lowest calibrator meeting the +/-20% back-calculation and precision criteria; never anchor the curve below the real noise floor to claim sensitivity.
 
 ```r
-# Accuracy and precision from QC samples
-qc_data <- data.frame(
-    level = rep(c('Low', 'Medium', 'High'), each = 6),
-    nominal = rep(c(10, 100, 500), each = 6),
-    measured = c(
-        c(9.5, 10.2, 11.1, 9.8, 10.5, 10.0),
-        c(98, 102, 95, 105, 99, 101),
-        c(485, 510, 495, 520, 490, 505)
-    )
-)
-
-# Calculate metrics
-validation_metrics <- qc_data %>%
-    group_by(level, nominal) %>%
-    summarise(
-        mean = mean(measured),
-        sd = sd(measured),
-        cv_percent = sd(measured) / mean(measured) * 100,
-        accuracy_percent = mean(measured) / nominal * 100,
-        bias_percent = (mean(measured) - nominal) / nominal * 100,
-        .groups = 'drop'
-    )
-
-print(validation_metrics)
-
-# Acceptance criteria
-# CV < 15% (< 20% at LLOQ)
-# Accuracy 85-115% (80-120% at LLOQ)
-```
-
-## Limit of Detection/Quantification
-
-```r
-# LOD/LOQ from standard curve
-# LOD = 3.3 * (SD of response / slope)
-# LOQ = 10 * (SD of response / slope)
-
-# Residual standard deviation
-residuals_sd <- sd(residuals(fit_weighted))
-slope <- coef(fit_weighted)[2]
-
-LOD <- 3.3 * residuals_sd / slope
-LOQ <- 10 * residuals_sd / slope
-
-cat('LOD:', round(LOD, 2), 'nM\n')
-cat('LOQ:', round(LOQ, 2), 'nM\n')
-
-# Signal-to-noise based LOD (from blank samples)
 blank_areas <- c(100, 120, 95, 110, 105)
-LOD_SN <- mean(blank_areas) + 3 * sd(blank_areas)
+slope <- coef(fit)[2]
+lod <- (mean(blank_areas) + 3 * sd(blank_areas)) / slope   # S/N~3 convention
+# LLOQ is the lowest calibrator passing +-20% %RE AND precision -- not 10*SD/slope alone
 ```
 
-## Multi-Compound Analysis
+## Per-Method Failure Modes
 
-```r
-# Multiple analytes with individual standard curves
-analytes <- c('Glucose', 'Lactate', 'Pyruvate', 'Citrate', 'Succinate')
+### Matrix suppression unaccounted
+- **Trigger:** Neat-solvent calibration, or an IS that does not co-elute with the analyte.
+- **Mechanism:** Co-eluting phospholipids/salts suppress analyte ionization; with no co-eluting IS the suppression does not cancel.
+- **Symptom:** Solvent and matrix-matched curves disagree; IS-normalized matrix factor far from 1; lot-to-lot drift.
+- **Fix:** Co-eluting SIL-IS per analyte; map suppression zones by post-column infusion and move peaks off them; report IS-normalized matrix factor across at least six matrix lots.
 
-# Store calibration curves
-calibrations <- list()
-for (analyte in analytes) {
-    std_data <- standards_all[standards_all$analyte == analyte, ]
-    calibrations[[analyte]] <- lm(area ~ concentration, data = std_data,
-                                   weights = 1 / (std_data$concentration + 1)^2)
-}
+### One IS shared across chemically diverse analytes
+- **Trigger:** A single global IS used to correct a heterogeneous panel.
+- **Mechanism:** The IS corrects suppression and recovery only for analytes co-eluting and chemically near it; distant analytes carry the difference of two suppressions.
+- **Symptom:** Excellent CVs but biased group means -- precision (set by the IS correcting injection/drift) and accuracy (set by the per-analyte residual) are decoupled.
+- **Fix:** SIL-IS per analyte, or per RT/chemical cluster; treat low CV as no evidence of correctness.
 
-# Quantify all samples
-quantify_sample <- function(sample_data, calibrations) {
-    results <- data.frame(analyte = names(calibrations))
-    results$concentration <- sapply(names(calibrations), function(a) {
-        area <- sample_data$area[sample_data$analyte == a]
-        calculate_concentration(area, calibrations[[a]])
-    })
-    return(results)
-}
-```
+### Unweighted calibration over a wide range
+- **Trigger:** OLS fit on heteroscedastic data; acceptance judged by R-squared.
+- **Mechanism:** High-concentration points dominate least squares; the low end is fit poorly.
+- **Symptom:** R-squared 0.999 yet +30-40% bias at the LLOQ.
+- **Fix:** Compare 1/x and 1/x^2, pick by minimizing low-end |%RE|, judge by per-level back-calculation.
 
-## Python Workflow
+### Isotopic crosstalk between analyte and IS
+- **Trigger:** IS-analyte mass gap below ~3-4 Da, or high IS:analyte ratio at the LLOQ.
+- **Mechanism:** The analyte natural-isotope envelope bleeds into the IS channel (bends the high end, mis-read as saturation); IS isotopic impurity bleeds into the analyte quantifier channel (inflates the low end, biases the LLOQ badly).
+- **Symptom:** Non-linear high end; a matrix-blank-plus-IS sample shows signal in the analyte channel.
+- **Fix:** Choose an IS mass gap of at least 3-4 Da or a less-abundant SIL isotopologue transition; always run a zero (matrix + IS only) and require its analyte-channel signal below 20% of the LLOQ.
 
-**Goal:** Perform absolute quantification of targeted metabolites from LC-MS/MRM data using weighted calibration curves and validation metrics.
+### Pre-analytical degradation
+- **Trigger:** Delayed quench, freeze-thaw, slow time-to-freezer.
+- **Mechanism:** Metabolism continues post-collection (glycolysis, esterases, redox auto-oxidation); labile metabolites collapse in seconds to minutes.
+- **Symptom:** No chromatographic error -- the true value is biased before injection; low/variable adenylate energy charge across samples is the tell that quenching, not biology, drove the numbers.
+- **Fix:** Cold (-40 to -80 C) aqueous-organic quench matched to the metabolite, measure freeze-thaw and long-term stability per labile analyte, control collection-to-freeze time as a study variable.
 
-**Approach:** Fit weighted linear regression to standard curve data, back-calculate sample concentrations, compute CV and accuracy metrics, and visualize results.
+## Quantitative Thresholds
 
-```python
-import pandas as pd
-import numpy as np
-from scipy import stats
-from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
+| Threshold | Source | Rationale |
+|---|---|---|
+| Calibrator back-calc within +/-15% (+/-20% at LLOQ), >=75% of >=6 levels pass | ICH M10 (Step 4, 2022) | Per-level accuracy, not correlation, defines a usable curve |
+| QC accuracy +/-15% (+/-20% at LLOQ); precision CV <=15% (<=20% at LLOQ) | ICH M10 | Intra- and inter-day acceptance at >=4 levels |
+| IS-normalized matrix factor CV <=15% across >=6 lots | ICH M10 / Matuszewski 2003 | Proof the IS cancels matrix effect; raw MF may be poor while IS-normalized MF ~1 |
+| Carryover <=20% of LLOQ (analyte), <=5% (IS) | ICH M10 | Measured in a blank after the ULOQ; concentration-dependent, must be quantified not eyeballed |
+| Selectivity: interference at LLOQ <=20% of analyte, <=5% of IS response | ICH M10 | Across >=6 individual matrix lots |
+| ISR: >=2/3 of reanalyzed study samples within +/-20% | ICH M10 | Only test that catches incurred-sample-specific problems spiked QCs cannot |
+| Ion-ratio tolerance +/-30% relative (LC-MS/MS) | SANTE/2020/12830 | Illustrative codified window; enforce only above a few times the LLOQ |
+| >=10-15 points across a chromatographic peak | Convention | Reliable integration; sets the cycle-time ceiling |
+| S/N ~3 = LOD, ~5-10 = LLOQ | Convention | Detection vs reliable quantification; LLOQ also bounded by accuracy/precision |
 
-# Load data
-data = pd.read_csv('targeted_data.csv')
+## Common Errors
 
-# Standard curve fitting
-def fit_standard_curve(concentrations, areas, weighted=True):
-    X = np.array(concentrations).reshape(-1, 1)
-    y = np.array(areas)
+| Error / symptom | Cause | Solution |
+|---|---|---|
+| Curve accepted on R-squared, biased at LLOQ | Unweighted heteroscedastic fit | Weight (1/x, 1/x^2); accept by per-level back-calculated %RE |
+| Deuterated IS gives lot-dependent ratios | Deuterium isotope effect separates IS from analyte; lost matrix correction | Use 13C/15N at non-exchangeable positions, or verify co-elution explicitly |
+| High-end curvature mis-read as detector saturation | Analyte natural isotopes bleed into a too-close IS channel | Widen IS-analyte mass gap to >=3-4 Da; use nonlinear isotopic-crosstalk correction |
+| Beautiful CVs, wrong group means | One global IS across diverse analytes -- precision/accuracy decoupled | SIL-IS per analyte or per RT/chemical cluster |
+| Low samples after a high sample read high | Concentration-dependent carryover | Inject a blank after the ULOQ, randomize run order, report measured carryover |
+| Skyline never ratios analyte to IS | IS not tagged Label Type = heavy and paired to its light analyte | Set Label Type heavy in the transition list; pair by molecule name |
+| Validated assay, study numbers still wrong | Pre-analytical degradation (no error message) | Quench fast, measure stability, monitor adenylate energy charge |
 
-    if weighted:
-        weights = 1 / (np.array(concentrations) + 1)**2
-        model = LinearRegression()
-        model.fit(X, y, sample_weight=weights)
-    else:
-        model = LinearRegression()
-        model.fit(X, y)
+## References
 
-    r2 = model.score(X, y)
-    return model, r2
-
-model, r2 = fit_standard_curve(standards['concentration'], standards['area'])
-print(f'R² = {r2:.4f}')
-
-# Calculate concentrations
-def calculate_conc(areas, model):
-    return (np.array(areas) - model.intercept_) / model.coef_[0]
-
-samples['concentration'] = calculate_conc(samples['area'], model)
-
-# Validation metrics
-def calc_cv(values):
-    return np.std(values) / np.mean(values) * 100
-
-def calc_accuracy(measured, nominal):
-    return np.mean(measured) / nominal * 100
-
-# Plot results
-fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-# Standard curve
-axes[0].scatter(standards['concentration'], standards['area'])
-x_line = np.linspace(0, max(standards['concentration']), 100)
-axes[0].plot(x_line, model.predict(x_line.reshape(-1, 1)), 'r-')
-axes[0].set_xlabel('Concentration')
-axes[0].set_ylabel('Area')
-axes[0].set_title(f'Standard Curve (R² = {r2:.4f})')
-
-# Sample concentrations
-axes[1].bar(samples['sample'], samples['concentration'])
-axes[1].set_xlabel('Sample')
-axes[1].set_ylabel('Concentration')
-axes[1].set_title('Sample Quantification')
-
-plt.tight_layout()
-plt.savefig('targeted_results.png', dpi=150)
-```
-
-## Quality Control
-
-```r
-# QC sample tracking
-qc_chart <- function(qc_values, target, warning_sd = 2, action_sd = 3) {
-    mean_val <- mean(qc_values)
-    sd_val <- sd(qc_values)
-
-    ggplot(data.frame(run = 1:length(qc_values), value = qc_values)) +
-        geom_point(aes(x = run, y = value), size = 3) +
-        geom_line(aes(x = run, y = value)) +
-        geom_hline(yintercept = target, color = 'green', linetype = 'solid') +
-        geom_hline(yintercept = target + warning_sd * sd_val, color = 'orange', linetype = 'dashed') +
-        geom_hline(yintercept = target - warning_sd * sd_val, color = 'orange', linetype = 'dashed') +
-        geom_hline(yintercept = target + action_sd * sd_val, color = 'red', linetype = 'dashed') +
-        geom_hline(yintercept = target - action_sd * sd_val, color = 'red', linetype = 'dashed') +
-        theme_bw() +
-        labs(title = 'QC Levey-Jennings Chart', x = 'Run', y = 'Measured Concentration')
-}
-```
-
-## Export Results
-
-```r
-# Final results table
-results_final <- data.frame(
-    sample = samples$sample,
-    concentration_nM = round(samples$concentration, 2),
-    concentration_uM = round(samples$concentration / 1000, 4),
-    cv_percent = round(samples$cv, 1),
-    qc_flag = ifelse(samples$cv > 20, 'FAIL', 'PASS')
-)
-
-write.csv(results_final, 'targeted_results.csv', row.names = FALSE)
-```
+- MacLean B, Tomazela DM, Shulman N, Chambers M, Finney GL, Frewen B, Kern R, Tabb DL, Liebler DC, MacCoss MJ. 2010. Skyline: an open source document editor for creating and analyzing targeted proteomics experiments. *Bioinformatics* 26(7):966-968.
+- Peterson AC, Russell JD, Bailey DJ, Westphall MS, Coon JJ. 2012. Parallel reaction monitoring for high resolution and high mass accuracy quantitative, targeted proteomics. *Molecular & Cellular Proteomics* 11(11):1475-1488.
+- Matuszewski BK, Constanzer ML, Chavez-Eng CM. 2003. Strategies for the assessment of matrix effect in quantitative bioanalytical methods based on HPLC-MS/MS. *Analytical Chemistry* 75(13):3019-3030.
+- ICH M10 Bioanalytical Method Validation and Study Sample Analysis. ICH Harmonised Guideline, Step 4, adopted 24 May 2022 (FDA implemented November 2022; EMA effective January 2023).
+- Broadhurst D, Goodacre R, Reinke SN, Kuligowski J, Wilson ID, Lewis MR, Dunn WB. 2018. Guidelines and considerations for the use of system suitability and quality control samples in mass spectrometry assays applied in untargeted clinical metabolomic studies. *Metabolomics* 14(6):72.
+- Wang S, Cyronak M, Yang E. 2007. Does a stable isotopically labeled internal standard always correct analyte response? A matrix effect study on a LC/MS/MS method for the determination of carvedilol enantiomers in human plasma. *Journal of Pharmaceutical and Biomedical Analysis* 43(2):701-707.
+- Teo G, Chew WS, Burla BJ, Herr DR, Tai ES, Wenk MR, Torta F, Choi H. 2020. MRMkit: automated data processing for large-scale targeted metabolomics analysis. *Analytical Chemistry* 92(20):13677-13682.
 
 ## Related Skills
 
-- xcms-preprocessing - Peak detection for targeted features
-- normalization-qc - QC-based normalization
-- statistical-analysis - Group comparisons
+- metabolomics/xcms-preprocessing - Upstream feature detection for untargeted discovery before targeted validation
+- metabolomics/statistical-analysis - Group comparison and multivariate analysis of quantified concentrations
+- metabolomics/isotope-tracing - Stable-isotope tracing and flux (MID), the adjacent discipline this skill hands off to
+- metabolomics/normalization-qc - QC-sample-driven drift correction and RSD filtering
+- clinical-biostatistics/cdisc-data-handling - Regulated-trial bioanalysis data handling when targeted numbers feed a clinical study

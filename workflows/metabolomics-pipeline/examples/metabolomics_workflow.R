@@ -1,88 +1,116 @@
-# Reference: MSnbase 2.28+, ggplot2 3.5+, limma 3.58+, scanpy 1.10+, xcms 4.0+ | Verify API if version differs
-library(xcms)
-library(MSnbase)
-library(limma)
-library(ggplot2)
+# Reference: xcms 4.x+, pmp 1.14+, ropls 1.34+, MetaboAnalystR 4.0+ | Verify API if version differs
+#
+# End-to-end untargeted LC-MS metabolomics orchestration. Stage 1 (raw mzML -> feature
+# table) is shown with the modern xcms 4.x MsExperiment API but commented out, because it
+# needs real centroided mzML files. Stages 2-5 run on a synthetic feature table so the QC /
+# statistics / pathway logic is demonstrable without instrument data. Each stage defers to
+# its component skill for parameter rationale and failure modes.
 
-# === CONFIGURATION ===
-data_dir <- 'data/'
-output_dir <- 'results/'
+# === STAGE 1: FEATURE EXTRACTION (xcms 4.x) -- see metabolomics/xcms-preprocessing ===
+# pd is a data.frame, one row per file, with a sample_group column.
+#
+# library(xcms)
+# raw <- readMsExperiment(spectraFiles = mzml_files, sampleData = pd)
+# cwp <- CentWaveParam(ppm = 10, peakwidth = c(2, 20), snthresh = 10,
+#                      prefilter = c(3, 1000), noise = 1000)
+# xdata <- findChromPeaks(raw, param = cwp)
+# xdata <- adjustRtime(xdata, param = ObiwarpParam(binSize = 0.6))
+# pdp <- PeakDensityParam(sampleGroups = sampleData(xdata)$sample_group,
+#                         bw = 5, minFraction = 0.5, binSize = 0.025)
+# xdata <- groupChromPeaks(xdata, param = pdp)          # regroup on corrected RT
+# xdata <- fillChromPeaks(xdata, param = ChromPeakAreaParam())
+# feat <- featureValues(xdata, value = 'into')          # features x samples; filled cells are imputations
+# defs <- featureDefinitions(xdata)                     # mzmed / rtmed per feature
+
+output_dir <- file.path(tempdir(), 'metabolomics_demo')
 dir.create(output_dir, showWarnings = FALSE)
 
-# === 1. LOAD DATA ===
-cat('Loading data...\n')
-mzml_files <- list.files(data_dir, pattern = '\\.mzML$', full.names = TRUE)
-sample_data <- read.csv('sample_metadata.csv')
-raw_data <- readMSData(mzml_files, mode = 'onDisk')
-pData(raw_data) <- sample_data
-cat('Loaded', length(mzml_files), 'samples\n')
+# === SYNTHETIC FEATURE TABLE standing in for Stage 1 output ===
+set.seed(1)
+n_features <- 300
+n_per_group <- 12
+n_qc <- 6
+sample_names <- c(paste0('QC', 1:n_qc), paste0('Ctrl', 1:n_per_group), paste0('Trt', 1:n_per_group))
+sample_group <- c(rep('QC', n_qc), rep('Control', n_per_group), rep('Treatment', n_per_group))
+injection_order <- seq_along(sample_names)
+batch_id <- rep(1, length(sample_names))
 
-# === 2. PEAK DETECTION ===
-cat('Detecting peaks...\n')
-cwp <- CentWaveParam(peakwidth = c(5, 30), ppm = 25, snthresh = 10,
-                     prefilter = c(3, 1000), noise = 1000)
-xdata <- findChromPeaks(raw_data, param = cwp)
-cat('Detected', nrow(chromPeaks(xdata)), 'peaks\n')
+base_intensity <- 2^runif(n_features, 8, 20)
+# QCs are matrix-matched pools: tight technical noise. Study samples carry biological spread,
+# so a real feature has small QC SD relative to biological SD (low D-ratio) by construction.
+qc_noise <- matrix(rlnorm(n_features * n_qc, 0, 0.05), nrow = n_features)
+bio_noise <- matrix(rlnorm(n_features * (2 * n_per_group), 0, 0.20), nrow = n_features)
+feat <- base_intensity * cbind(qc_noise, bio_noise)
 
-# === 3. RETENTION TIME ALIGNMENT ===
-cat('Aligning...\n')
-xdata <- adjustRtime(xdata, param = ObiwarpParam(binSize = 0.6))
+# Inject a true Treatment effect into 20 features (2-fold up), the signal the pipeline must recover.
+true_hits <- 1:20
+feat[true_hits, sample_group == 'Treatment'] <- feat[true_hits, sample_group == 'Treatment'] * 2
 
-# === 4. FEATURE GROUPING ===
-cat('Grouping features...\n')
-pdp <- PeakDensityParam(sampleGroups = pData(xdata)$condition,
-                        minFraction = 0.5, bw = 5, binSize = 0.025)
-xdata <- groupChromPeaks(xdata, param = pdp)
-xdata <- fillChromPeaks(xdata, param = ChromPeakAreaParam())
-cat('Total features:', nrow(featureDefinitions(xdata)), '\n')
+# Inject injection-order drift (sensitivity loss) that Stage 2 must flatten without eating the effect.
+drift <- 1 - 0.3 * (injection_order / max(injection_order))
+feat <- sweep(feat, 2, drift, '*')
 
-# === 5. EXTRACT & NORMALIZE ===
-feature_matrix <- featureValues(xdata, value = 'into', method = 'maxint')
-feature_matrix[feature_matrix == 0] <- NA
-log_matrix <- log2(feature_matrix)
+rownames(feat) <- paste0('FT', sprintf('%03d', 1:n_features))
+colnames(feat) <- sample_names
+mz <- runif(n_features, 80, 900)
 
-valid_features <- rowSums(!is.na(log_matrix)) > ncol(log_matrix) * 0.5
-filtered_matrix <- log_matrix[valid_features, ]
-cat('Features after filtering:', nrow(filtered_matrix), '\n')
+# === STAGE 2: QC, DRIFT, NORMALIZATION -- see metabolomics/normalization-qc ===
+# Real pipeline: filter_peaks_by_fraction -> QCRSC -> filter_peaks_by_rsd -> pqn_normalisation
+# (pmp; features in ROWS). Demonstrated here with base R so the script runs without Bioconductor.
 
-sample_medians <- apply(filtered_matrix, 2, median, na.rm = TRUE)
-normalized <- sweep(filtered_matrix, 2, sample_medians - median(sample_medians))
+is_qc <- sample_group == 'QC'
 
-# === 6. QC PLOTS ===
-cat('Generating QC plots...\n')
-pca <- prcomp(t(normalized), scale. = TRUE)
-pca_df <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2],
-                     Condition = pData(xdata)$condition)
-ggplot(pca_df, aes(PC1, PC2, color = Condition)) +
-    geom_point(size = 3) + theme_bw() + labs(title = 'Metabolomics PCA')
-ggsave(file.path(output_dir, 'qc_pca.png'), width = 8, height = 6)
+qc_rsd <- apply(feat[, is_qc], 1, function(x) sd(x) / mean(x))
+sd_qc <- apply(feat[, is_qc], 1, sd)
+sd_bio <- apply(feat[, !is_qc], 1, sd)
+dratio <- sd_qc / sd_bio
+keep <- qc_rsd <= 0.30 & dratio <= 0.50            # Broadhurst 2018: RSD<=30%, D-ratio<=0.5
+feat_qc <- feat[keep, ]
+cat('Features kept after RSD/D-ratio filter:', nrow(feat_qc), 'of', n_features, '\n')
 
-# === 7. DIFFERENTIAL ANALYSIS ===
-cat('Running differential analysis...\n')
-design <- model.matrix(~ 0 + condition, data = pData(xdata))
-colnames(design) <- levels(factor(pData(xdata)$condition))
+# PQN: median-quotient against the QC reference spectrum, robust to a minority of changed features.
+reference <- apply(feat_qc[, is_qc], 1, median)
+quotients <- sweep(feat_qc, 1, reference, '/')
+dilution_factor <- apply(quotients, 2, median, na.rm = TRUE)
+normalized <- sweep(feat_qc, 2, dilution_factor, '/')
+logged <- log2(normalized)
 
-imputed <- normalized
-imputed[is.na(imputed)] <- min(imputed, na.rm = TRUE) - 1
+# === STAGE 4: STATISTICS -- see metabolomics/statistical-analysis ===
+# Univariate Welch + BH FDR on the study samples (QCs excluded). A permutation-validated
+# OPLS-DA via ropls::opls(permI=1000) is the multivariate half; shown in SKILL.md.
+study <- sample_group %in% c('Control', 'Treatment')
+study_group <- factor(sample_group[study])
 
-fit <- lmFit(imputed, design)
-contrast <- makeContrasts(Treatment - Control, levels = design)
-fit2 <- eBayes(contrasts.fit(fit, contrast), trend = TRUE, robust = TRUE)
+welch <- apply(logged[, study], 1, function(x)
+    t.test(x[study_group == 'Treatment'], x[study_group == 'Control'])$p.value)
+lfc <- apply(logged[, study], 1, function(x)
+    mean(x[study_group == 'Treatment']) - mean(x[study_group == 'Control']))
+padj <- p.adjust(welch, method = 'BH')             # default p.adjust is 'holm'; BH is the discovery default
 
-results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')
-results$significant <- abs(results$logFC) > 1 & results$adj.P.Val < 0.05
-cat('Significant features:', sum(results$significant), '\n')
+results <- data.frame(feature_id = rownames(logged), mz = mz[keep],
+                      log2fc = lfc, pval = welch, padj = padj)
+results$significant <- results$padj < 0.05 & abs(results$log2fc) > 1   # FDR 5% + 2-fold
+cat('Significant features (FDR<0.05, |log2FC|>1):', sum(results$significant), '\n')
+recovered <- sum(results$significant & results$feature_id %in% rownames(feat)[true_hits])
+cat('True planted hits recovered:', recovered, 'of', length(true_hits), '\n')
 
-# === 8. VOLCANO PLOT ===
-ggplot(results, aes(logFC, -log10(adj.P.Val), color = significant)) +
-    geom_point(alpha = 0.5) +
-    geom_hline(yintercept = -log10(0.05), linetype = 'dashed') +
-    geom_vline(xintercept = c(-1, 1), linetype = 'dashed') +
-    scale_color_manual(values = c('gray', 'red')) +
-    theme_bw() + labs(title = 'Differential Metabolites')
-ggsave(file.path(output_dir, 'volcano.png'), width = 8, height = 6)
+# === STAGE 3 + 5: ANNOTATION & PATHWAY MAPPING -- see metabolite-annotation, pathway-mapping ===
+# Stage 3 attaches an MSI/Schymanski confidence level to each significant feature (no level,
+# no identification). Stage 5 then chooses ORA (identified compounds, assay-coverage background)
+# or mummichog (raw m/z, FULL feature table as background). Both deferred to their skills:
+#
+# library(MetaboAnalystR)
+# mSet <- InitDataObjects('mass_all', 'mummichog', FALSE)
+# mSet <- UpdateInstrumentParameters(mSet, 5.0, 'negative')   # ppm + ionization mode mandatory
+# mSet <- Read.PeakListData(mSet, 'peaks_full.txt')           # ENTIRE table, not significant-only
+# mSet <- PerformPSEA(mSet, 'hsa_mfn', 'current', permNum = 1000)
 
-# === 9. SAVE RESULTS ===
-write.csv(results, file.path(output_dir, 'differential_metabolites.csv'), row.names = TRUE)
-write.csv(normalized, file.path(output_dir, 'normalized_matrix.csv'))
-cat('Results saved to', output_dir, '\n')
+# === OUTPUT to tempdir, then clean up ===
+results_path <- file.path(output_dir, 'differential_metabolites.csv')
+matrix_path <- file.path(output_dir, 'normalized_feature_matrix.csv')
+write.csv(results, results_path, row.names = FALSE)
+write.csv(normalized, matrix_path)
+cat('Wrote results to', output_dir, '\n')
+
+unlink(output_dir, recursive = TRUE)
+cat('Cleaned up temporary outputs\n')

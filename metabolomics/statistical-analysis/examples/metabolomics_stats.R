@@ -1,77 +1,56 @@
-# Reference: limma 3.58+, ashr 2.2+, mixOmics 6.28+ | Verify API if version differs
-library(limma)
-library(mixOmics)
+# Reference: ropls 1.34+ | Verify API if version differs
+# Permutation-validated OPLS-DA on synthetic metabolomics data, demonstrating that
+# (1) only pQ2 -- not R2Y or the score plot -- licenses a discriminant claim, and
+# (2) the scaling choice (Pareto vs unit-variance) is a hypothesis that changes the VIP list.
+library(ropls)
 
-data <- as.matrix(read.csv('feature_intensities.csv', row.names = 1))
-sample_info <- read.csv('sample_info.csv')
+set.seed(1)
+n_per_group <- 20
+n_features <- 300
+n_true <- 15                                  # only the first 15 features actually differ
 
-cat('Samples:', ncol(data), '\n')
-cat('Features:', nrow(data), '\n')
-cat('Groups:', levels(factor(sample_info$group)), '\n')
+# Synthetic data is already homoscedastic and roughly normal; real MS intensities are
+# right-skewed and heteroscedastic, so log/glog-transform them BEFORE opls() in practice.
+group <- factor(rep(c('control', 'case'), each = n_per_group))
+intensities <- matrix(rnorm(2 * n_per_group * n_features, mean = 10, sd = 1),
+                      nrow = 2 * n_per_group, ncol = n_features)
+colnames(intensities) <- paste0('M', seq_len(n_features))
+case_rows <- group == 'case'
+intensities[case_rows, seq_len(n_true)] <- intensities[case_rows, seq_len(n_true)] + 1.2
 
-# Preprocess: log2 transform
-log2_data <- log2(data)
-log2_data[!is.finite(log2_data)] <- NA
+# A NULL model: same data, labels permuted. OPLS-DA will still separate it in p>>n,
+# so a clean score plot here is the geometry, not signal -- pQ2 is the honest check.
+null_group <- factor(sample(as.character(group)))
 
-# PQN normalization
-reference <- apply(log2_data, 1, median, na.rm = TRUE)
-quotients <- sweep(log2_data, 1, reference, '/')
-norm_factors <- apply(quotients, 2, median, na.rm = TRUE)
-normalized <- sweep(log2_data, 2, norm_factors, '/')
-
-# Filter features present in >50% of samples
-valid <- rowSums(!is.na(normalized)) > ncol(normalized) * 0.5
-normalized <- normalized[valid, ]
-cat('Features after filtering:', nrow(normalized), '\n')
-
-# 1. limma differential analysis
-sample_info$group <- factor(sample_info$group)
-design <- model.matrix(~0 + group, data = sample_info)
-colnames(design) <- levels(sample_info$group)
-
-imputed <- normalized
-imputed[is.na(imputed)] <- min(imputed, na.rm = TRUE) - 1
-
-fit <- lmFit(imputed, design)
-contrast_matrix <- makeContrasts(Treatment - Control, levels = design)
-fit2 <- contrasts.fit(fit, contrast_matrix)
-fit2 <- eBayes(fit2, trend = TRUE, robust = TRUE)
-
-results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')
-
-# FC shrinkage with ashr for more accurate effect size estimates
-if (requireNamespace('ashr', quietly = TRUE)) {
-    library(ashr)
-    se <- sqrt(fit2$s2.post) * fit2$stdev.unscaled[, 1]
-    shrunk <- ash(fit2$coefficients[, 1], se, mixcompdist = 'normal')
-    results$logFC_raw <- results$logFC
-    results$logFC_shrunk <- shrunk$result$PosteriorMean[match(rownames(results), names(fit2$coefficients[, 1]))]
-    results$lfsr <- shrunk$result$lfsr[match(rownames(results), names(fit2$coefficients[, 1]))]
+run_model <- function(y, scaleC) {
+    opls(intensities, y, predI = 1, orthoI = NA, scaleC = scaleC,
+         permI = 1000, crossvalI = 7, fig.pdfC = 'none', info.txtC = 'none')
 }
 
-results$significant <- results$adj.P.Val < 0.05
-cat('\nSignificant (adj.P.Val < 0.05):', sum(results$significant), '\n')
+cat('=== Real labels, Pareto scaling ===\n')
+real_pareto <- run_model(group, 'pareto')
+print(getSummaryDF(real_pareto)[, c('R2X(cum)', 'R2Y(cum)', 'Q2(cum)', 'pR2Y', 'pQ2')])
 
-# 2. PCA
-pca <- prcomp(t(normalized), scale. = TRUE)
-var_explained <- summary(pca)$importance[2, 1:2] * 100
-cat('\nPCA variance explained:')
-cat('\n  PC1:', round(var_explained[1], 1), '%')
-cat('\n  PC2:', round(var_explained[2], 1), '%\n')
+cat('\n=== Permuted (null) labels, Pareto scaling -- expect high R2Y, failed pQ2 ===\n')
+null_pareto <- run_model(null_group, 'pareto')
+print(getSummaryDF(null_pareto)[, c('R2X(cum)', 'R2Y(cum)', 'Q2(cum)', 'pR2Y', 'pQ2')])
 
-# 3. PLS-DA
-plsda <- plsda(t(normalized), sample_info$group, ncomp = 2)
-vip_scores <- vip(plsda)
-top_vip <- sort(vip_scores[, 2], decreasing = TRUE)[1:10]
-cat('\nTop 10 VIP features:\n')
-print(round(top_vip, 2))
+cat('\n=== Real labels, unit-variance scaling -- compare the VIP ranking ===\n')
+real_uv <- run_model(group, 'standard')
+print(getSummaryDF(real_uv)[, c('R2X(cum)', 'R2Y(cum)', 'Q2(cum)', 'pR2Y', 'pQ2')])
 
-# 4. Combine limma + VIP results
-results$feature <- rownames(results)
-results$vip <- vip_scores[results$feature, 2]
-results$significant_both <- results$adj.P.Val < 0.05 & results$vip > 1
+vip_pareto <- getVipVn(real_pareto)
+vip_uv <- getVipVn(real_uv)
+top10_pareto <- names(sort(vip_pareto, decreasing = TRUE))[1:10]
+top10_uv <- names(sort(vip_uv, decreasing = TRUE))[1:10]
+overlap <- length(intersect(top10_pareto, top10_uv))
+cat('\nTop-10 VIP overlap between Pareto and UV scaling:', overlap, 'of 10\n')
+cat('Scaling-fragile result if the two lists diverge.\n')
 
-cat('\nFeatures with adj.P.Val<0.05 AND VIP>1:', sum(results$significant_both, na.rm = TRUE), '\n')
-
-write.csv(results, 'statistical_results.csv', row.names = FALSE)
-cat('\nResults saved to statistical_results.csv\n')
+# pQ2 (the permutation p-value for Q2) is the licensing gate -- it, not R2Y or the score
+# plot, exposes a model built on noise. Q2's magnitude is the effect size and should also
+# clear the Triba >0.5 heuristic to be worth reporting.
+summ <- getSummaryDF(real_pareto)
+licensed <- summ[['pQ2']] < 0.05
+cat(sprintf('\nReal model: Q2(cum)=%.2f, pQ2=%.3f -> permutation-licensed: %s\n',
+            summ[['Q2(cum)']], summ[['pQ2']], licensed))
