@@ -1,334 +1,167 @@
 ---
 name: bio-long-read-sequencing-isoseq-analysis
-description: Analyze PacBio Iso-Seq data for full-length isoform discovery and quantification. Use when characterizing transcript diversity or identifying novel splice variants.
-tool_type: cli
-primary_tool: IsoSeq3
+description: Discovers, classifies, filters, and quantifies full-length transcript isoforms from PacBio Iso-Seq/Kinnex (HiFi) and Oxford Nanopore (cDNA/direct-RNA) long reads, using the isoseq+pigeon pipeline, SQANTI3, and ONT tools (IsoQuant, FLAIR, Bambu, StringTie2). Covers why a novel isoform is an artifact until proven otherwise (RT template-switching, intra-priming, and 5' degradation manufacture junctions and truncations), the SQANTI3 structural categories and their trust order, the Kinnex skera-split step, orthogonal CAGE/poly-A/short-read-junction validation, and why long-read isoform quantification needs EM. Use when building a full-length isoform catalog, classifying/filtering long-read transcripts, running Iso-Seq or ONT cDNA/dRNA analysis, or judging novel-isoform reliability.
+tool_type: mixed
+primary_tool: SQANTI3
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: minimap2 2.26+, pandas 2.2+, pysam 0.22+, samtools 1.19+
+Reference examples tested with: isoseq 4.3+, pigeon 1.2+, SQANTI3 5.2+, pbmm2 1.13+, minimap2 2.28+, IsoQuant 3.4+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
-- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Python/R: `pip show <pkg>` / `packageVersion('<pkg>')` for SQANTI3/IsoQuant/Bambu
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+Results depend on inputs that outlive the binary version - record them:
+- The reference annotation + genome version drive SQANTI3/pigeon classification; record them.
+- Orthogonal support files (CAGE refTSS BED, poly-A motif/atlas, short-read STAR SJ.out) determine which novels survive; record their provenance.
+- The Iso-Seq binary was renamed `isoseq3` -> `isoseq` in v4; the classifier `pigeon` is a separate binary.
 
-# Iso-Seq Analysis
+If code throws an error, introspect the installed tool (`isoseq --help`, `pigeon --help`, `sqanti3_qc.py --help`) and adapt the example to the actual API rather than retrying.
 
-**"Analyze full-length isoforms from my Iso-Seq data"** -> Process PacBio HiFi reads through CCS generation, primer removal, clustering, and isoform classification to discover novel transcript variants.
-- CLI: `isoseq3 refine` -> `isoseq3 cluster` -> `pbmm2 align` -> `sqanti3_qc.py`
+# Full-Length Isoform Analysis
 
-## IsoSeq3 Pipeline Overview
+**"Find the isoforms in my long-read RNA data"** -> Build a full-length isoform catalog, then classify and filter it against the reference with orthogonal end/junction support - because discovery without curation is a catalog of artifacts.
+- CLI: `isoseq refine ... && isoseq collapse ... && pigeon classify ... && pigeon filter ...` (PacBio), `IsoQuant`/`FLAIR`/`Bambu` (ONT)
 
-```bash
-# Full pipeline: subreads -> HQ transcripts
-# 1. CCS: Generate circular consensus sequences
-# 2. Lima: Remove primers and demultiplex
-# 3. Refine: Remove polyA and concatemers
-# 4. Cluster: Group into isoforms
-# 5. Polish: Generate high-quality consensus (optional with HiFi)
-```
+## The Single Most Important Modern Insight -- A Novel Isoform Is an Artifact Until Proven Otherwise
 
-## CCS Generation
+RT template-switching, intra-priming on genomic poly-A, and 5' RNA degradation actively MANUFACTURE novel junctions and truncated isoforms. So the classification + filter + orthogonal validation IS the analysis, not a QC postscript. Invert the posture from "I discovered N novel isoforms" to "I curated N novel isoforms that survived artifact filtering." Three consequences:
 
-```bash
-# Generate CCS from subreads (skip if using HiFi reads)
-ccs input.subreads.bam ccs.bam \
-    --min-rq 0.9 \
-    --min-passes 3 \
-    --num-threads 32
+1. **A high novel-isoform fraction is a RED FLAG, not a success** - it usually means an under-powered filter or degraded RNA, not unusually rich biology.
+2. **ISM (incomplete-splice-match) is the RNA-degradation thermometer, not a discovery.** ISMs are 5'-truncated FSMs; a high ISM fraction signals bad RNA integrity. Do not report ISMs as novel isoforms without CAGE 5' support.
+3. **The orthogonal validation triad is mandatory:** CAGE peaks for the 5' TSS (catches 5' degradation), poly-A atlas/motif for the 3' TES (catches intra-priming), and short-read STAR junctions for splice sites (catches RT-switch/NNC junk).
 
-# For HiFi reads, CCS is already done
-# Start directly from HiFi reads
-```
+## SQANTI3 Structural Categories (trust order)
 
-## Primer Removal with Lima
+Reference comparison is junction-chain based. NIC > NNC in trust, always; ISM is a diagnostic, not a discovery.
 
-```bash
-# Iso-Seq specific primer removal
-lima ccs.bam primers.fasta demux.bam \
-    --isoseq \
-    --peek-guess \
-    --num-threads 16
+| Category (field value) | Meaning | Trust |
+|------------------------|---------|-------|
+| FSM (`full-splice_match`) | every internal junction matches a reference transcript; ends may differ | highest (known); ends still need CAGE/polyA |
+| ISM (`incomplete-splice_match`) | junction subset of a reference (fewer 5' exons) | low - the 5'-degradation/RT-dropoff signature; trust only with CAGE |
+| NIC (`novel_in_catalog`) | novel combination of KNOWN splice sites | high among novels - RT-switching cannot fake a NIC |
+| NNC (`novel_not_in_catalog`) | >=1 genuinely novel splice site | lower - where junction artifacts concentrate; needs canonical/short-read support |
+| genic / genic_intron | overlaps introns/exons; within an intron | low - pre-mRNA / gDNA carryover |
+| fusion | spans >=2 genes | RT-chimera until proven by short-read split reads |
+| intergenic / antisense | no gene overlap / antisense | novel-gene candidate or artifact; needs ORF/CAGE/conservation |
 
-# Output: demux.primer_5p--primer_3p.bam
-# Lima reports also contain demux statistics
+Mono-exon transcripts have no junctions to validate and are the false-discovery sink (intra-priming + gDNA run unchecked) - require ORF + CAGE + polyA + conservation before belief.
 
-# Check lima report
-cat demux.lima.summary
-```
+## Platform / Tool Decision Tree
 
-## Primer File Format
+| Data / goal | Tool | Why |
+|-------------|------|-----|
+| PacBio Iso-Seq/Kinnex, turnkey | isoseq + pigeon | native PacBio collapse + SQANTI-style classify/filter, SMRT Link integrated |
+| Any long-read transcriptome, full curation | SQANTI3 | structural classification + ~50 QC descriptors + rules/ML filter + rescue; PacBio and ONT |
+| ONT bulk discovery + quantification | IsoQuant | intron-graph; lowest novel FP rate among ONT tools |
+| ONT, want built-in differential splicing | FLAIR | align -> correct junctions -> collapse -> diffSplice |
+| Quantification with a precision knob | Bambu | NDR (novel discovery rate) calibrates precision; R/Bioconductor |
+| Genome-guided assembly / hybrid short+long | StringTie2 `-L` (`--mix`) | fast long-read transcript assembly |
+| ONT single-cell long-read isoforms | FLAMES | single-cell/spatial full-length isoforms |
+| Differential isoform usage (DTU/DTE) | -> alternative-splicing | this skill yields the filtered set + counts and hands off |
 
-```fasta
->primer_5p
-AAGCAGTGGTATCAACGCAGAGTACATGGG
->primer_3p
-AAGCAGTGGTATCAACGCAGAGTAC
-```
+## cDNA vs Direct-RNA and Spliced Alignment
 
-## Refine Full-Length Reads
+PacBio Iso-Seq and ONT cDNA sequence reverse-transcribed cDNA (modifications erased; strand from primers); ONT direct-RNA sequences native RNA (true strand, poly-A length, modifications preserved, lower accuracy). Match the minimap2 preset to the chemistry:
 
 ```bash
-# Remove polyA tails and concatemers
-isoseq3 refine demux.primer_5p--primer_3p.bam primers.fasta refined.bam \
-    --require-polya \
-    --min-polya-length 20
-
-# Output: refined.bam (full-length non-chimeric reads)
-# Also: refined.filter_summary.json
-
-# Check refinement stats
-cat refined.filter_summary.json | jq
+minimap2 -ax splice ref.fa ont_cdna.fq        # ONT cDNA (orient first with pychopper)
+minimap2 -ax splice -uf -k14 ref.fa drna.fq   # ONT direct RNA (stranded -> -uf, small k)
+minimap2 -ax splice:hq -uf ref.fa hifi.fa     # PacBio HiFi (or pbmm2 --preset ISOSEQ)
 ```
 
-## Cluster Into Isoforms
+`-uf` forces the forward transcript strand - correct for stranded dRNA/Iso-Seq, wrong for unoriented ONT PCR-cDNA (orient with pychopper first).
+
+## PacBio Iso-Seq / Kinnex Pipeline
 
 ```bash
-# Cluster similar transcripts
-isoseq3 cluster refined.bam clustered.bam \
-    --verbose \
-    --use-qvs \
-    --num-threads 32
+# 0. Kinnex (MAS-seq) ONLY: deconcatenate the array into segmented reads FIRST
+skera split movie.hifi_reads.bam mas_adapters.fasta movie.segmented.bam   # skip for classic Iso-Seq
 
-# Output files:
-# - clustered.bam: Clustered transcripts
-# - clustered.hq_transcripts.fasta: High-quality consensus
-# - clustered.lq_transcripts.fasta: Low-quality consensus
-# - clustered.cluster_report.csv: Cluster membership
+# 1. Remove cDNA primers; 2. produce FLNC (full-length non-chimeric)
+lima movie.segmented.bam primers.fasta movie.fl.bam --isoseq --peek-guess
+isoseq refine movie.fl.5p--3p.bam primers.fasta movie.flnc.bam --require-polya
+
+# 3. cluster (reference-free) or skip and align FLNC directly; 4. map; 5. collapse to isoforms
+isoseq cluster2 movie.flnc.bam clustered.bam                              # cluster2 scales to large sets
+pbmm2 align --preset ISOSEQ --sort ref.fa clustered.bam mapped.bam
+isoseq collapse --do-not-collapse-extra-5exons mapped.bam movie.flnc.bam collapsed.gff
+#   collapsed.flnc_count.txt = FLNC molecules per isoform = the real DEPTH metric
+
+# 6. classify + filter with pigeon (needs the collapsed.sorted.gff after prepare, NOT a BAM)
+pigeon prepare collapsed.gff            # sorts the transcript GFF
+pigeon prepare annotation.gtf ref.fa    # sorts the annotation -> annotation.sorted.gtf, indexes genome
+pigeon classify collapsed.sorted.gff annotation.sorted.gtf ref.fa \
+    --fl collapsed.flnc_count.txt --cage-peak cage.refTSS.bed --poly-a polyA.motif.list
+pigeon filter collapsed_classification.txt --isoforms collapsed.sorted.gff
+pigeon report --exclude-singletons collapsed_classification.filtered_lite_classification.txt saturation.txt
 ```
 
-## Align to Reference
+pigeon is PacBio's productized SQANTI3 (classify/filter, NOT a quantifier). Substitute SQANTI3 itself for the full descriptor set, ML filter, rescue module, and ONT support:
 
 ```bash
-# Map HQ transcripts to reference genome
-minimap2 -ax splice:hq \
-    -uf \
-    --secondary=no \
-    reference.fa \
-    clustered.hq_transcripts.fasta \
-    | samtools sort -o aligned.bam
-
-samtools index aligned.bam
-
-# For downstream analysis
-pbmm2 align reference.fa clustered.bam aligned.bam \
-    --preset ISOSEQ \
-    --sort
+sqanti3_qc.py collapsed.gff annotation.gtf ref.fa --CAGE_peak cage.bed --polyA_motif_list polyA.txt \
+    --short_reads short_reads_fofn.txt    # isoforms positional defaults to GTF/GFF; add --fasta for FASTA input
+sqanti3_filter.py rules collapsed_classification.txt   # or: sqanti3_filter.py ml ...
 ```
 
-## Collapse Redundant Isoforms
+## Per-Method Failure Modes
 
-```bash
-# Collapse mapped transcripts
-isoseq3 collapse aligned.bam collapsed.gff
+### Counting ISMs as novel isoforms
+**Trigger:** reporting incomplete-splice-match transcripts as discoveries. **Mechanism:** 5' RNA degradation truncates FSMs into ISMs. **Symptom:** inflated novel/ISM fraction tracking RNA quality, not biology. **Fix:** treat ISM fraction as an integrity QC; keep ISMs only with CAGE 5' support.
 
-# Output:
-# - collapsed.gff: Collapsed transcript models
-# - collapsed.abundance.txt: Read counts per isoform
-# - collapsed.group.txt: Isoform groupings
+### Intra-priming false 3' ends
+**Trigger:** trusting 3' ends without poly-A validation. **Mechanism:** oligo-dT primes on a genomic internal A-stretch. **Symptom:** spurious short/mono-exon transcripts; `perc_A_downstream_TTS` >59%. **Fix:** SQANTI3/pigeon filter on downstream genomic A-content and poly-A motif; `--require-polya` alone does NOT catch this.
 
-# Convert to GTF
-gffread collapsed.gff -T -o collapsed.gtf
-```
+### Believing NNC novels without scrutiny
+**Trigger:** treating NNC like NIC. **Mechanism:** novel splice sites are where RT template-switching and mapping artifacts land. **Symptom:** novel junctions absent from short-read data. **Fix:** require canonical junctions or short-read SJ coverage; prefer NIC.
 
-## SQANTI3 Quality Control
+### Feeding pigeon a BAM
+**Trigger:** `pigeon classify mapped.bam ...`. **Mechanism:** pigeon classifies the collapsed.sorted.gff after `pigeon prepare`, not an alignment. **Symptom:** wrong-input error. **Fix:** `isoseq collapse` -> `pigeon prepare` -> `pigeon classify`.
 
-```bash
-# Classify isoforms against reference annotation
-sqanti3_qc.py \
-    clustered.hq_transcripts.fasta \
-    reference.gtf \
-    reference.fa \
-    -o sqanti_output \
-    --aligner_choice minimap2 \
-    --cage_peak cage_peaks.bed \
-    --polyA_motif_list polyA_motifs.txt \
-    --cpus 16
+### Comparing isoform counts across libraries of different depth
+**Trigger:** raw isoform counts as abundance. **Mechanism:** discovery is depth-unsaturated; truncated reads are multi-isoform-compatible. **Symptom:** deeper libraries "have more isoforms"; double-counted abundance. **Fix:** rarefaction curve (`--exclude-singletons`); EM quantification (Bambu/IsoQuant/NanoCount), not raw FLNC counts.
 
-# Key output files:
-# - sqanti_output_classification.txt: Per-isoform metrics
-# - sqanti_output_junctions.txt: Splice junction details
-# - sqanti_output.params.txt: Run parameters
-```
+## Quantitative Thresholds
 
-## SQANTI3 Categories
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| `perc_A_downstream_TTS` > 59-60% = intra-priming | SQANTI (Tardaguila 2018) | genomic A-rich window means the poly-A was internal, not the real tail |
+| novel junction trusted if canonical OR short-read cov >= 3 | SQANTI3 rules filter | a single criterion for RT-switch/NNC artifacts |
+| ML filter needs >= 250 Reference-Match FSM | SQANTI3 | enough true-positive labels to train; else falls back to rules |
+| exclude singletons (1-FLNC) for saturation | pigeon report | singletons are the dominant unreliable novel bucket |
+| FLNC count = depth metric | isoseq collapse | independently sequenced full-length molecules, before clustering/dedup |
 
-| Category | Code | Description |
-|----------|------|-------------|
-| Full Splice Match | FSM | All junctions match reference |
-| Incomplete Splice Match | ISM | Subset of reference junctions |
-| Novel In Catalog | NIC | Novel combination of known junctions |
-| Novel Not in Catalog | NNC | Contains novel junction |
-| Antisense | AS | Overlaps gene on opposite strand |
-| Genic | G | Within gene but no junction match |
-| Intergenic | IR | Between genes |
-| Fusion | FU | Spans multiple genes |
+## Common Errors
 
-## SQANTI3 Filtering
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `isoseq3: command not found` | renamed in v4 | use `isoseq` (subcommands unchanged) |
+| pigeon classify wrong input | fed a BAM | give the collapsed.sorted.gff after `pigeon prepare` |
+| Huge novel-isoform count | filter skipped/underpowered | run pigeon/SQANTI3 filter with CAGE/polyA/short-read support |
+| Many mono-exon novels | intra-priming / gDNA carryover | filter on poly-A; require ORF/CAGE for mono-exon |
+| Wrong-strand spliced alignment | `-uf` on unoriented cDNA | orient with pychopper, or drop `-uf` for cDNA |
+| Isoform counts not comparable across samples | depth-unsaturated discovery | EM quantification + rarefaction curve |
 
-```bash
-# Filter artifacts using SQANTI3 rules
-sqanti3_filter.py \
-    sqanti_output_classification.txt \
-    --isoforms clustered.hq_transcripts.fasta \
-    --gtf collapsed.gtf \
-    --faa predicted_proteins.faa \
-    -o sqanti_filtered
+## References
 
-# Custom filtering
-python << 'EOF'
-import pandas as pd
-
-classification = pd.read_csv('sqanti_output_classification.txt', sep='\t')
-
-# Keep FSM, ISM, NIC with evidence
-keep = classification[
-    (classification['structural_category'].isin(['full-splice_match', 'incomplete-splice_match', 'novel_in_catalog'])) &
-    (classification['FL'] >= 2) &
-    (classification['bite'] == 'FALSE')
-]
-keep['isoform'].to_csv('filtered_isoforms.txt', index=False, header=False)
-EOF
-```
-
-## Quantification with Pigeon
-
-```bash
-# PacBio's isoform quantification tool
-pigeon classify \
-    aligned.bam \
-    reference.gtf \
-    reference.fa \
-    -o pigeon_output
-
-# Produces count matrix and classification
-pigeon report pigeon_output_classification.txt
-```
-
-## TAMA for Annotation Merge
-
-```bash
-# Merge Iso-Seq with reference annotation
-# First, convert to TAMA format
-tama_format_convert.py \
-    -i collapsed.gtf \
-    -f gtf \
-    -o isoseq.bed
-
-# Create file list
-echo -e "isoseq.bed\tcapped\t1\t1" > file_list.txt
-echo -e "reference.bed\tcapped\t1\t2" >> file_list.txt
-
-# Merge annotations
-tama_merge.py \
-    -f file_list.txt \
-    -p merged \
-    -a 50 \
-    -z 50 \
-    -m 10
-```
-
-## Python Processing
-
-**Goal:** Summarize Iso-Seq clustering results including isoform counts, read support, and transcript lengths.
-
-**Approach:** Parse the cluster report CSV for per-isoform read counts and extract sequence lengths from the HQ FASTA.
-
-```python
-import pysam
-import pandas as pd
-
-def parse_cluster_report(report_path):
-    df = pd.read_csv(report_path)
-    isoform_counts = df.groupby('cluster_id').size()
-    return isoform_counts
-
-def get_transcript_lengths(fasta_path):
-    lengths = {}
-    with pysam.FastxFile(fasta_path) as fh:
-        for entry in fh:
-            lengths[entry.name] = len(entry.sequence)
-    return lengths
-
-def summarize_isoseq(cluster_report, hq_fasta):
-    counts = parse_cluster_report(cluster_report)
-    lengths = get_transcript_lengths(hq_fasta)
-
-    print(f'Total isoforms: {len(counts)}')
-    print(f'Median support: {counts.median():.0f} reads')
-    print(f'Mean length: {sum(lengths.values())/len(lengths):.0f} bp')
-
-    return counts, lengths
-```
-
-## Differential Isoform Usage
-
-```r
-library(IsoformSwitchAnalyzeR)
-
-# Import SQANTI3 results
-switchList <- importIsoformExpression(
-    isoformCountMatrix = 'counts.txt',
-    isoformRepExpression = 'tpm.txt',
-    designMatrix = design
-)
-
-# Add SQANTI3 annotations
-switchList <- addORFfromFASTA(
-    switchList,
-    orfs = 'sqanti_corrected.fasta'
-)
-
-# Analyze switching
-switchList <- isoformSwitchTestDEXSeq(switchList)
-
-# Extract significant switches
-sig_switches <- switchList$isoformSwitchAnalysis[
-    switchList$isoformSwitchAnalysis$padj < 0.05,
-]
-```
-
-## Quality Metrics
-
-| Metric | Good | Acceptable | Poor |
-|--------|------|------------|------|
-| CCS passes | >3 | 2-3 | <2 |
-| Full-length % | >80% | 60-80% | <60% |
-| Clustering rate | >90% | 80-90% | <80% |
-| FSM % | >50% | 30-50% | <30% |
-| Novel isoforms | 10-30% | 30-50% | >50% (suspect) |
-
-## Troubleshooting
-
-| Issue | Possible Cause | Solution |
-|-------|---------------|----------|
-| Low full-length % | Primer issues | Check primer sequences |
-| High concatemer % | Library prep | Increase SMRTbell cleanup |
-| Few FSM | Poor reference | Use comprehensive GTF |
-| High NNC % | Novel biology or artifacts | Validate with orthogonal data |
-| Low clustering | High diversity | Reduce clustering stringency |
-
-## Docker/Singularity
-
-```bash
-# Using PacBio Docker images
-docker run -v /data:/data \
-    quay.io/biocontainers/isoseq3:4.0.0--h9ee0642_0 \
-    isoseq3 cluster /data/refined.bam /data/clustered.bam
-
-# SQANTI3 in Singularity
-singularity exec sqanti3.sif \
-    sqanti3_qc.py input.fa ref.gtf ref.fa -o output
-```
+- Tardaguila M, de la Fuente L, Marti C, et al. 2018. SQANTI: extensive characterization of long-read transcript sequences for quality control in full-length transcriptome identification and quantification. *Genome Res* 28(3):396-411.
+- Pardo-Palacios FJ, Arzalluz-Luque A, Kondratova L, et al. 2024. SQANTI3: curation of long-read transcriptomes for accurate identification of known and novel isoforms. *Nat Methods* 21(5):793-797.
+- Prjibelski AD, Mikheenko A, Joglekar A, et al. 2023. Accurate isoform discovery with IsoQuant using long reads. *Nat Biotechnol* 41(7):915-918.
+- Tang AD, Soulette CM, van Baren MJ, et al. 2020. Full-length transcript characterization of SF3B1 mutation in chronic lymphocytic leukemia (FLAIR). *Nat Commun* 11:1438.
+- Chen Y, Sim A, Wan YK, et al. 2023. Context-aware transcript quantification from long-read RNA-seq data with Bambu. *Nat Methods* 20(8):1187-1195.
+- Al'Khafaji AM, Smith JT, Garimella KV, et al. 2024. High-throughput RNA isoform sequencing using programmed cDNA concatenation (MAS-ISO-seq/Kinnex). *Nat Biotechnol* 42(4):582-586.
 
 ## Related Skills
 
-- long-read-sequencing/basecalling - ONT/PacBio basics
-- rna-quantification/alignment-free-quant - Expression analysis
-- genome-intervals/gtf-gff-handling - GTF/GFF handling
-- differential-expression/timeseries-de - Differential isoform usage
+- long-read-alignment - Spliced alignment of cDNA/direct-RNA (splice/splice:hq, `-uf`)
+- basecalling - Direct-RNA (RNA004) basecalling; cDNA vs direct-RNA chemistry
+- nanopore-methylation - Direct-RNA modifications are separate from isoform structure
+- alternative-splicing/long-read-splicing - Long-read splicing analysis (define the boundary)
+- alternative-splicing/isoform-switching - Differential isoform usage (DTU) downstream
+- alternative-splicing/differential-splicing - Differential splicing downstream
+- rna-quantification/tximport-workflow - Transcript-level quantification downstream
+- genome-annotation/eukaryotic-gene-prediction - Long-read isoforms as annotation evidence

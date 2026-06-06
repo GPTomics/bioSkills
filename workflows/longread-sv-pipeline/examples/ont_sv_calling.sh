@@ -1,6 +1,6 @@
 #!/bin/bash
-# Reference: bcftools 1.19+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
-# ONT structural variant calling with Sniffles2
+# Reference: minimap2 2.28+, Sniffles 2.2+, bcftools 1.19+, samtools 1.19+ | Verify API if version differs
+# ONT structural variant calling with Sniffles2. minimap2 >= 2.28 is required: 2.27 broke --MD.
 set -e
 
 THREADS=16
@@ -43,12 +43,13 @@ avg_cov=$(samtools depth -a ${OUTDIR}/aligned/${SAMPLE}.bam | \
     awk '{sum+=$3; n++} END {printf "%.1f", sum/n}')
 echo "Average coverage: ${avg_cov}x"
 
-# Step 3: SV Calling
+# Step 3: SV Calling (supply --tandem-repeats: the biggest false-positive lever in repeats)
 echo "=== Step 3: SV Calling ==="
 sniffles \
     --input ${OUTDIR}/aligned/${SAMPLE}.bam \
     --vcf ${OUTDIR}/sv/${SAMPLE}.raw.vcf.gz \
     --reference ${REF} \
+    --tandem-repeats human_GRCh38_TR.bed \
     --threads ${THREADS} \
     --minsvlen 50 \
     --output-rnames

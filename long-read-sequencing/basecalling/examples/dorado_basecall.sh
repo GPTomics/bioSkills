@@ -1,24 +1,36 @@
 #!/bin/bash
-# Reference: samtools 1.19+ | Verify API if version differs
-# Basecall with Dorado
+# Reference: Dorado 1.0+, samtools 1.19+ | Verify API if version differs
+# Methylation-aware basecalling and barcode demultiplexing - the two operations
+# whose order/flags most often go wrong.
+set -euo pipefail
 
-INPUT_DIR=$1
-OUTPUT_BAM=${2:-calls.bam}
-MODEL=${3:-sup}
+POD5_DIR=${1:?Usage: $0 <pod5_dir> [output_dir] [kit_name]}
+OUTPUT=${2:-dorado_output}
+KIT=${3:-}              # e.g. SQK-NBD114-24; leave empty for a non-barcoded run
 
-if [ -z "$INPUT_DIR" ]; then
-    echo "Usage: $0 <pod5_dir> [output.bam] [model]"
-    echo "Models: fast, hac, sup (default: sup)"
-    exit 1
+mkdir -p "$OUTPUT"
+
+# Methylation MUST be requested at basecall time - it cannot be recovered from a plain
+# BAM. 5mCG_5hmCG calls CpG 5mC and 5hmC; the result carries MM/ML tags. KEEP the POD5.
+echo 'Basecalling with CpG methylation...'
+if [ -n "$KIT" ]; then
+    # Barcoded: basecall WITHOUT trimming, then demux (demux trims barcodes itself).
+    # Trimming during basecalling would strip barcodes before demux can read them.
+    dorado basecaller sup,5mCG_5hmCG "$POD5_DIR" --no-trim > "$OUTPUT/calls.bam"
+    dorado demux --kit-name "$KIT" --output-dir "$OUTPUT/demux/" "$OUTPUT/calls.bam"
+    echo "Per-barcode BAMs (with MM/ML tags preserved): $OUTPUT/demux/"
+else
+    dorado basecaller sup,5mCG_5hmCG "$POD5_DIR" > "$OUTPUT/calls.bam"
 fi
 
-echo "Basecalling $INPUT_DIR with $MODEL model..."
-dorado basecaller $MODEL $INPUT_DIR > $OUTPUT_BAM
+# Confirm the modification tags survived - their absence is the silent failure mode.
+echo 'Checking for MM/ML methylation tags...'
+# Capture a count (grep -cm1); `head | grep -q` would return 141 under `set -o pipefail`
+# (samtools killed by SIGPIPE) and invert the check.
+if [ "$(samtools view "$OUTPUT/calls.bam" | grep -cm1 'MM:Z' || true)" -ge 1 ]; then
+    echo 'MM/ML tags present. Carry them through alignment with minimap2 -y -Y (see nanopore-methylation).'
+else
+    echo 'WARNING: no MM/ML tags found - was a modification model requested?'
+fi
 
-echo "Generating FASTQ..."
-samtools fastq $OUTPUT_BAM | gzip > ${OUTPUT_BAM%.bam}.fastq.gz
-
-echo "Stats:"
-samtools stats $OUTPUT_BAM | grep "^SN" | head -10
-
-echo "Done: $OUTPUT_BAM"
+echo "Done: $OUTPUT/calls.bam"

@@ -16,13 +16,14 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: bcftools 1.19+, minimap2 2.26+, samtools 1.19+
+Reference examples tested with: minimap2 2.28+, Sniffles 2.2+, cuteSV 2.1+, bcftools 1.19+, samtools 1.19+, truvari 4.0+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
-If code throws ImportError, AttributeError, or TypeError, introspect the installed
-package and adapt the example to match the actual API rather than retrying.
+Use minimap2 >= 2.28 (has the `lr:hq` accurate-read preset and fixes the 2.27 `--MD` regression). Supply a reference-matched tandem-repeat BED to the caller - it is the single biggest false-positive lever in repeats.
+
+If code throws an error, introspect the installed tool and adapt the example to the actual API rather than retrying.
 
 # Long-Read SV Pipeline
 
@@ -72,8 +73,10 @@ NanoPlot --fastq reads.fastq.gz \
 
 ### Step 2: Alignment with minimap2
 
+The `-Y` (soft-clip supplementary) flag is load-bearing for SV calling: it keeps the breakpoint sequence on the split reads that callers reconstruct SVs from. Use `lr:hq` for accurate R10/Q20 ONT instead of `map-ont`.
+
 ```bash
-# ONT reads
+# ONT reads (map-ont for noisy R9; lr:hq for accurate R10/Q20 - faster, equal accuracy)
 minimap2 -ax map-ont \
     -t 16 \
     --MD \
@@ -133,16 +136,19 @@ sniffles \
 
 ### Alternative: cuteSV
 
+cuteSV's defaults are NOT platform-appropriate; pass the platform-matched cluster-bias/merge-ratio set (ONT shown below; HiFi uses 1000/0.9/1000/0.5, CLR uses 100/0.3/200/0.5). `--genotype` is off by default.
+
 ```bash
-# cuteSV (faster, good for ONT)
+# cuteSV with the ONT parameter set
 cuteSV \
     aligned.bam \
     reference.fa \
     svs.vcf \
     work_dir/ \
     --threads 8 \
-    --min_size 50 \
-    --genotype
+    --genotype \
+    --max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 \
+    --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3
 
 bgzip svs.vcf
 tabix svs.vcf.gz
@@ -193,11 +199,13 @@ sniffles --input sample1.snf sample2.snf sample3.snf \
 
 | Tool | Parameter | ONT | PacBio HiFi |
 |------|-----------|-----|-------------|
-| minimap2 | -ax | map-ont | map-hifi |
-| Sniffles | --minsvlen | 50 | 50 |
-| Sniffles | --minsupport | auto | auto |
-| cuteSV | --min_size | 50 | 50 |
-| cuteSV | --min_support | 3 | 3 |
+| minimap2 | -ax | map-ont (R9) / lr:hq (R10) | map-hifi |
+| Sniffles | --minsvlen | 35 default (set 50 for the GIAB >=50bp convention) | same |
+| Sniffles | --minsupport | auto (coverage-derived) | auto |
+| Sniffles | --tandem-repeats | reference-matched TR BED (critical) | same |
+| cuteSV | INS/DEL cluster-bias, merge-ratio | 100/0.3, 100/0.3 | 1000/0.9, 1000/0.5 |
+
+Benchmark calls with Truvari against GIAB (`truvari bench` then `truvari refine`), and state the region set, TR BED, and Truvari params - they move precision/recall as much as the caller. For tumor-normal somatic SVs use a paired caller (Severus/nanomonsv), not Sniffles `--mosaic`.
 
 ## SV Types Detected
 
@@ -267,7 +275,8 @@ echo "SVs: $(bcftools view -H ${OUTDIR}/sv/${SAMPLE}.filtered.vcf.gz | wc -l)"
 
 ## Related Skills
 
-- long-read-sequencing/long-read-alignment - minimap2 details
-- long-read-sequencing/structural-variants - Sniffles, cuteSV options
-- long-read-sequencing/long-read-qc - NanoPlot metrics
+- long-read-sequencing/long-read-alignment - minimap2 preset and `-Y` details
+- long-read-sequencing/structural-variants - Sniffles2 .snf workflow, cuteSV per-platform params, Truvari
+- long-read-sequencing/long-read-qc - Read QC and chimera screening before SV calling
+- long-read-sequencing/haplotype-phasing - Haplotag the BAM for phased/somatic SVs
 - variant-calling/structural-variant-calling - Short-read SV methods

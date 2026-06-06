@@ -1,122 +1,37 @@
 #!/bin/bash
-# Reference: methylKit 1.28+, minimap2 2.26+, samtools 1.19+ | Verify API if version differs
-# Nanopore Methylation Calling with modkit
-# Demonstrates methylation analysis from ONT data
+# Reference: modkit 0.3+, samtools 1.19+, htslib 1.19+ | Verify API if version differs
+# Call 5mC from a Nanopore modBAM. The tags MUST be present and have survived alignment;
+# modkit auto-thresholds at the 10th percentile of the ML distribution (NOT 0.5), and there
+# is no --min-coverage flag (filter on Nvalid_cov, column 10, afterward).
+set -euo pipefail
 
-# =============================================================================
-# Prerequisites
-# =============================================================================
+BAM=${1:?Usage: $0 <aligned_mod.bam> <reference.fa> [output_prefix] [min_cov]}
+REFERENCE=${2:?reference required}
+PREFIX=${3:-methylation}
+MIN_COV=${4:-10}          # Nvalid_cov floor for confident single-site calls
 
-# Ensure BAM has methylation tags from dorado basecalling
-# BAM should contain MM and ML tags
+# Methylation is a basecalling decision: no MM tags means re-basecall, not re-analyze.
+# Capture a count (grep -cm1); `head | grep -q` would return 141 under `set -o pipefail`
+# (samtools killed by SIGPIPE) and invert the check.
+if [ "$(samtools view "$BAM" | grep -cm1 'MM:Z' || true)" -eq 0 ]; then
+    echo 'ERROR: no MM/ML tags - this BAM has no methylation. Re-basecall from POD5 with a mods model.'
+    exit 1
+fi
 
-# Check if BAM has modification tags
-echo "=== Checking BAM for modification tags ==="
-samtools view -h input.bam | head -100 | grep -E "^@|MM:Z:|ML:B:"
+# Pile up 5mC at CpG sites, strands combined. bedMethyl has 18 columns; col 10 = Nvalid_cov
+# (the denominator), col 11 = percent_modified (0-100).
+modkit pileup "$BAM" "${PREFIX}.bed" --ref "$REFERENCE" --cpg --combine-strands --threads 8
+bgzip -f "${PREFIX}.bed" && tabix -p bed "${PREFIX}.bed.gz"
 
-# =============================================================================
-# Basic Methylation Pileup
-# =============================================================================
+# Coverage filtering is post-hoc on Nvalid_cov, not a pileup flag.
+zcat "${PREFIX}.bed.gz" | awk -v c="$MIN_COV" '$10 >= c' > "${PREFIX}.cov${MIN_COV}.bed"
 
-# Extract 5mC methylation at CpG sites
-modkit pileup input.bam methylation.bed \
-    --ref reference.fa \
-    --cpg \
-    --combine-strands \
-    --threads 8
+echo "Sites with >= ${MIN_COV}x: $(wc -l < "${PREFIX}.cov${MIN_COV}.bed")"
+echo "Mean percent modified (>= ${MIN_COV}x):"
+awk '{s+=$11; n++} END {if(n) print s/n"%"}' "${PREFIX}.cov${MIN_COV}.bed"
 
-# Output: bedMethyl format
-# chr  start  end  name  score  strand  thickStart  thickEnd  color  coverage  percent_modified
-
-# =============================================================================
-# Filtering Options
-# =============================================================================
-
-# Minimum coverage filter
-modkit pileup input.bam methylation_cov10.bed \
-    --ref reference.fa \
-    --cpg \
-    --combine-strands \
-    --filter-threshold 0.5 \
-    --min-coverage 10
-
-# Specific regions only (faster)
-modkit pileup input.bam promoters_meth.bed \
-    --ref reference.fa \
-    --cpg \
-    --combine-strands \
-    --include-bed promoter_regions.bed
-
-# =============================================================================
-# Sample Summary Statistics
-# =============================================================================
-
-echo "=== Methylation Summary ==="
-modkit summary input.bam
-
-# Output includes:
-# - Total reads with modifications
-# - Modification types (5mC, 6mA, etc.)
-# - Fraction of bases modified
-
-# =============================================================================
-# Multiple Modification Types
-# =============================================================================
-
-# 5mC and 5hmC separately (if model supports)
-modkit pileup input.bam meth_5mC.bed \
-    --ref reference.fa \
-    --mod-thresholds m:0.5 \
-    --cpg
-
-modkit pileup input.bam meth_5hmC.bed \
-    --ref reference.fa \
-    --mod-thresholds h:0.5 \
-    --cpg
-
-# =============================================================================
-# Extract per-read methylation
-# =============================================================================
-
-# Get per-read modification calls (for visualization)
-modkit extract input.bam per_read_meth.tsv \
-    --ref reference.fa
-
-# =============================================================================
-# Compare Two Samples
-# =============================================================================
-
-# Generate bedMethyl for each sample
-for sample in tumor normal; do
-    modkit pileup "${sample}.bam" "${sample}_meth.bed" \
-        --ref reference.fa \
-        --cpg \
-        --combine-strands \
-        --min-coverage 10
-done
-
-# Find differentially methylated regions (requires R)
-# See methylation-analysis/dmr-detection for downstream analysis
-
-# =============================================================================
-# Quality Metrics
-# =============================================================================
-
-echo "=== Quality Checks ==="
-
-# Count CpG sites with sufficient coverage
-echo "CpG sites with >=10x coverage:"
-awk '$10 >= 10' methylation.bed | wc -l
-
-# Distribution of methylation levels
-echo "Methylation distribution:"
-awk '$10 >= 10 {print int($11/10)*10}' methylation.bed | sort -n | uniq -c
-
-# Average methylation
-echo "Mean methylation (sites with >=10x):"
-awk '$10 >= 10 {sum += $11; n++} END {print sum/n "%"}' methylation.bed
-
-# Recommended thresholds:
-# - Minimum coverage: 10x for reliable single-site calls
-# - Probability threshold: 0.5 (default), increase for higher confidence
-# - For population-level analysis: can use lower coverage
+# To compare against WGBS, combine 5mC+5hmC (bisulfite conflates them):
+#   modkit pileup "$BAM" combined.bed --ref "$REFERENCE" --preset traditional
+# For allele-specific methylation, phase+haplotag first, then:
+#   modkit pileup haplotagged.bam asm/ --ref "$REFERENCE" --cpg --combine-strands --partition-tag HP
+echo "bedMethyl: ${PREFIX}.bed.gz  (hand Nmod/Nvalid_cov to methylation-analysis/dmr-detection)"
