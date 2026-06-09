@@ -1,53 +1,65 @@
-# Reference: matplotlib 3.8+, pandas 2.2+, scikit-learn 1.4+, seaborn 0.13+ | Verify API if version differs
+"""Compositionally coherent visualization of a shotgun profiler table.
+
+The ordination here is CLR-PCA (Aitchison-PCA), NOT StandardScaler-then-PCA on raw relative abundance,
+which is compositionally incoherent. The stacked bar labels how many taxa are hidden in "Other" - a
+relative-abundance bar shows the relative race, never the absolute community.
+"""
+# Reference: pandas 2.2+, scikit-bio 0.6+, scikit-learn 1.4+, matplotlib 3.8+ | Verify API if version differs
+import os
+import sys
+import tempfile
+import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import seaborn as sns
+from skbio.stats.composition import clr, multi_replace   # renamed from multiplicative_replacement in skbio 0.6
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 
-abundance = pd.read_csv('merged_abundance.txt', sep='\t', index_col=0)
-species = abundance[abundance.index.str.contains('s__') & ~abundance.index.str.contains('t__')]
-species.index = species.index.str.split('|').str[-1].str.replace('s__', '')
 
-top_species = species.sum(axis=1).nlargest(10).index
-species_top = species.loc[top_species].copy()
-species_top.loc['Other'] = species.drop(top_species).sum()
+def load_species(path):
+    ab = pd.read_csv(path, sep='\t', index_col=0)
+    species = ab[ab.index.str.contains(r'\|s__') & ~ab.index.str.contains(r'\|t__')].copy()
+    species.index = species.index.str.split('|').str[-1].str.replace('s__', '')
+    return species
 
-fig, ax = plt.subplots(figsize=(12, 6))
-species_top.T.plot(kind='bar', stacked=True, ax=ax, colormap='tab20')
-ax.set_xlabel('Sample')
-ax.set_ylabel('Relative Abundance (%)')
-ax.set_title('Species Composition')
-ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
-plt.tight_layout()
-plt.savefig('stacked_bar.png', dpi=300, bbox_inches='tight')
-plt.close()
 
-top20 = species.sum(axis=1).nlargest(20).index
-fig, ax = plt.subplots(figsize=(12, 10))
-sns.heatmap(species.loc[top20], cmap='YlOrRd', ax=ax, cbar_kws={'label': 'Abundance (%)'})
-ax.set_xlabel('Sample')
-ax.set_ylabel('Species')
-ax.set_title('Top 20 Species Abundance Heatmap')
-plt.tight_layout()
-plt.savefig('heatmap.png', dpi=300)
-plt.close()
+def clr_pca(species, n_components=2):
+    proportions = species.T.values / species.T.values.sum(axis=1, keepdims=True)
+    clr_mat = clr(multi_replace(proportions))
+    pca = PCA(n_components=n_components).fit(clr_mat)
+    return pca, pca.transform(clr_mat)
 
-species_t = species.T
-scaler = StandardScaler()
-scaled = scaler.fit_transform(species_t)
-pca = PCA(n_components=2)
-pca_result = pca.fit_transform(scaled)
 
-fig, ax = plt.subplots(figsize=(8, 6))
-ax.scatter(pca_result[:, 0], pca_result[:, 1], s=100)
-for i, sample in enumerate(species_t.index):
-    ax.annotate(sample, (pca_result[i, 0] + 0.1, pca_result[i, 1] + 0.1))
-ax.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)')
-ax.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)')
-ax.set_title('PCA of Sample Composition')
-plt.tight_layout()
-plt.savefig('pca.png', dpi=300)
-plt.close()
+def honest_stacked_bar(species, top_n, out_path):
+    top = species.sum(axis=1).nlargest(top_n).index
+    plotted = species.loc[top].copy()
+    hidden = species.drop(top)
+    plotted.loc['Other'] = hidden.sum()
+    hidden_pct = 100 * hidden.sum().sum() / species.sum().sum()
+    fig, ax = plt.subplots(figsize=(10, 6))
+    plotted.T.plot(kind='bar', stacked=True, ax=ax, colormap='tab20')
+    ax.set_ylabel('Relative abundance (%)')
+    ax.set_title(f'Composition (Other hides {len(hidden)} taxa, {hidden_pct:.1f}% of signal; relative, not absolute)')
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return len(hidden), hidden_pct
 
-print('Visualizations saved: stacked_bar.png, heatmap.png, pca.png')
+
+if __name__ == '__main__':
+    path = sys.argv[1] if len(sys.argv) > 1 else None
+    if path:
+        species = load_species(path)
+    else:
+        rng = np.random.default_rng(0)
+        taxa = [f'species_{i}' for i in range(25)]
+        samples = [f's{j}' for j in range(8)]
+        species = pd.DataFrame(rng.poisson(rng.uniform(1, 300, size=(25, 8))), index=taxa, columns=samples).astype(float)
+
+    out_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(tempfile.gettempdir(), 'stacked_bar.png')
+    pca, coords = clr_pca(species)
+    n_hidden, pct = honest_stacked_bar(species, 10, out_path)
+    print(f'CLR-PCA variance explained: {(pca.explained_variance_ratio_[:2] * 100).round(1)}%')
+    print(f'Stacked bar Other hides {n_hidden} taxa ({pct:.1f}% of signal)')
+    print(f'Wrote {out_path} (CLR-PCA coords computed; loadings interpretable as taxa)')

@@ -1,80 +1,73 @@
 # Strain Tracking - Usage Guide
 
 ## Overview
-Track bacterial strains at sub-species resolution using genome distance metrics (MASH, fastANI) and strain-level metagenomics (inStrain, sourmash).
+This skill resolves and compares bacterial strains below the species level from shotgun metagenomes. A strain is not a thing you find - it is a claim your threshold makes: inStrain's popANI >= 99.999% over >= 50% of the genome, or a per-species nGD cutoff, IS the strain definition. ANI tools (MASH/skani/fastANI) answer "are these two genomes the same?" - they saturate and cannot resolve the difference that matters for transmission. Use microdiversity-aware tools (inStrain, StrainPhlAn, MIDAS2, StrainGE) for in-situ strain resolution, and map to your own dRep MAGs, not database genomes.
 
 ## Prerequisites
 ```bash
-# MASH - fast distance estimation
-conda install -c bioconda mash
-
-# sourmash - metagenome comparisons
-pip install sourmash
-
-# fastANI - average nucleotide identity
-conda install -c bioconda fastani
-
-# inStrain - strain-level metagenomics
+conda install -c bioconda instrain drep skani bowtie2 samtools
 pip install instrain
+# StrainPhlAn ships with MetaPhlAn (conda install metaphlan); StrainGE / MIDAS2 separately.
 ```
+
+Conceptual prerequisites:
+- Three distinct tasks: identification, tracking/sharing, deconvolution. Pick the right one.
+- Map to dRep-dereplicated MAGs from your own dataset; a distant reference fakes SNVs and corrupts popANI.
+- You can only share a strain both samples detect at depth (>= 5x, >= 50% breadth). Absence is not absence.
+- Sharing is an undirected edge; direction needs timepoints or contact data, not the genomic comparison.
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Calculate pairwise distances between my genome assemblies"
-- "Track strains across timepoints in my longitudinal study"
-- "Identify which reference genomes are in my metagenome"
+- "Detect whether a strain is shared between my paired samples with inStrain popANI"
+- "Run a cross-sample transmission survey with StrainPhlAn and derive per-species nGD thresholds"
+- "Track a low-abundance pathogen strain down to 0.5x coverage"
+- "Compare two assembled MAGs with skani"
 
 ## Example Prompts
-### Genome Distance Calculations
-> "Calculate MASH distances between all genomes in this directory"
 
-> "Run fastANI to determine if these isolates are the same species"
+### Shared-strain detection
+> "I have mother and infant gut metagenomes. dRep my MAGs, map reads back, run inStrain profile and compare, and report which genomes are shared at popANI >= 99.999% over at least 50% breadth - and the co-detection rate."
 
-### Outbreak Investigation
-> "Cluster my outbreak isolates and identify closely related strains"
+### Transmission survey
+> "Run StrainPhlAn across my 200 samples for a target species, build the tree, and derive an nGD threshold that separates same-individual timepoints from unrelated pairs."
 
-> "Find genomes with less than 0.001 MASH distance (same strain)"
+### Low-abundance tracking
+> "My pathogen is below 1% relative abundance. Use StrainGE to detect and compare its strain across samples."
 
-### Metagenome Strain Analysis
-> "Run sourmash gather to identify reference genomes in my metagenome"
-
-> "Use inStrain to profile strain variation in my sample"
-
-### Longitudinal Tracking
-> "Track strain changes across my time-series samples using inStrain"
-
-> "Compare strain populations between treatment and control groups"
+### Genome comparison (not strains)
+> "Compare these two MAGs with skani and tell me if they are the same species - but do not call them the same strain from ANI."
 
 ## What the Agent Will Do
-1. Create genome sketches or signatures for efficient comparison
-2. Calculate pairwise distances or ANI values
-3. Cluster strains based on distance thresholds
-4. Profile within-sample variation for metagenomes
-5. Compare strain profiles across samples or timepoints
+1. Identify the task (identification vs tracking vs deconvolution) and pick the matching tool.
+2. dRep MAGs from the dataset and map reads to them, not to database genomes.
+3. Run inStrain profile and compare on popANI over the co-covered genome fraction, or StrainPhlAn for marker-based surveys.
+4. Report the threshold used, the percent genome compared, and co-detection rates alongside sharing.
+5. Refuse to infer transmission direction from a single cross-sectional comparison.
+6. Use ANI tools only for isolate/MAG comparison and dereplication, never for strain calls.
 
 ## Tips
-- MASH distance < 0.05 indicates same species (ANI > 95%)
-- MASH distance < 0.001 suggests same strain
-- sourmash uses MinHash sketches; compatible with large-scale comparisons
-- inStrain requires BAM alignment to reference; provides SNV-level resolution
-- fastANI is gold standard for species delineation
-
-## Distance Interpretation
-
-| MASH Distance | ANI | Interpretation |
-|---------------|-----|----------------|
-| 0.00 | 100% | Same strain |
-| < 0.05 | > 95% | Same species |
-| 0.05-0.10 | 90-95% | Related species |
-| > 0.10 | < 90% | Different species |
+- popANI (microdiversity-aware) detects shared strains conANI/consensus tools miss.
+- A sample missing from a StrainPhlAn tree usually means low coverage dropped its markers - not no sharing.
+- Prefer skani over fastANI for fragmented MAGs.
+- StrainGE pushes detection to ~0.5x; inStrain needs ~5x and 50% breadth.
+- SNV tools resolve and compare; they do not separate co-occurring strains - that needs DESMAN or long reads.
 
 ## inStrain Key Metrics
-- **popANI**: Population ANI across reads
-- **conANI**: Consensus ANI
-- **SNV density**: Variation within sample
+- **popANI**: population ANI; a position differs only if the two samples share no alleles (incl. minor) - the shared-strain metric.
+- **conANI**: consensus ANI; confounded by microdiversity (conservative sibling).
+- **percent_compared** (genome-level `genomeWide_compare.tsv`; the per-scaffold `comparisonsTable.tsv` names it `percent_genome_compared`): genome fraction covered at min_cov in both samples; gate at >= 50%.
+- **nucleotide diversity (pi)**: within-population microdiversity.
 
 ## Resources
-- [MASH documentation](https://mash.readthedocs.io/)
-- [sourmash documentation](https://sourmash.readthedocs.io/)
-- [inStrain tutorial](https://instrain.readthedocs.io/)
-- [fastANI paper](https://doi.org/10.1038/s41467-018-07641-9)
+- [inStrain docs](https://instrain.readthedocs.io/)
+- [StrainPhlAn (MetaPhlAn) docs](https://github.com/biobakery/MetaPhlAn)
+- [skani](https://github.com/bluenote-1577/skani)
+- [StrainGE](https://github.com/broadinstitute/StrainGE)
+
+## Related Skills
+
+- metaphlan-profiling - StrainPhlAn builds on MetaPhlAn markers
+- kraken-classification - Species presence before strain resolution
+- genome-assembly/metagenome-assembly - dRep MAGs to map against; long-read deconvolution
+- epidemiological-genomics/amr-surveillance - Isolate outbreak SNP/cgMLST trees
+- workflows/metagenomics-pipeline - End-to-end shotgun analysis

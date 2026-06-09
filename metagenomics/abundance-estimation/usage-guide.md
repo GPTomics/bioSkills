@@ -1,64 +1,76 @@
-# Abundance Estimation with Bracken - Usage Guide
+# Abundance Estimation - Usage Guide
 
 ## Overview
-Bracken improves Kraken2 abundance estimates by redistributing reads assigned to higher taxonomic levels down to species using a Bayesian approach based on expected k-mer distributions.
+Bracken re-estimates species abundance from a Kraken2 report by redistributing reads stranded at higher taxonomic ranks back down to species. But Bracken is step one: the resulting table is a composition (the sequencer fixed the total), so making a defensible statement requires choosing an estimand, handling the compositional structure (CLR, zero replacement), deciding normalization, using a reference-frame test, and - for any "increased/decreased" claim - anchoring to absolute load. Bracken read fractions and MetaPhlAn percentages are different physical quantities and must not be merged.
 
 ## Prerequisites
 ```bash
-conda install -c bioconda bracken
-
-# Bracken database must match your read length
-# Build if not included with Kraken2 database
-bracken-build -d /path/to/kraken_db -t 8 -l 150
+conda install -c bioconda bracken kraken2
+pip install scikit-bio pandas
+# R compositional tooling (optional, for sparse-table zero replacement and DA):
+# install.packages('zCompositions'); BiocManager::install(c('ALDEx2','ANCOMBC'))
 ```
+
+Conceptual prerequisites:
+- A relative-abundance table is compositional. "Taxon X increased" is undefined without a reference frame or an external load anchor.
+- Bracken `-r` must match the bracken-build `-l` and the actual post-trim read length; it is not auto-detected.
+- No library-size normalization fixes the genome-size confound - only a coverage estimand or a genome-normalized profiler does.
+- Decide rarefaction per analysis: defensible for diversity, contested for differential abundance.
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Estimate species abundances from my Kraken2 output"
-- "Run Bracken on my classification report with 150bp reads"
-- "Compare microbial abundances across my samples"
+- "Run Bracken on my Kraken2 reports at read length 150 and build a species abundance matrix"
+- "CLR-transform my abundance table and handle the zeros properly before stats"
+- "Help me decide whether to rarefy for this analysis"
+- "I want to claim a taxon increased - what do I need beyond relative abundances?"
 
 ## Example Prompts
-### Basic Abundance Estimation
-> "Run Bracken on kraken_report.txt to get species-level abundances"
 
-> "Estimate abundances for my 150bp paired-end reads after Kraken2 classification"
+### Bracken to matrix
+> "I have Kraken2 reports for 24 gut samples at 150 bp. Run Bracken at species level, combine into one abundance matrix, and flag any species whose abundance came mostly from redistributed rather than directly assigned reads."
 
-### Multi-sample Analysis
-> "Process all my Kraken2 reports through Bracken and combine into one table"
+### Compositional handling
+> "Transform my species-by-sample count matrix with CLR after Bayesian-multiplicative zero replacement, and compute an Aitchison distance matrix for ordination."
 
-> "Generate relative abundance profiles for all samples in this directory"
+### Relative vs absolute
+> "My relative abundances say Bacteroides dropped after treatment. We also have flow-cytometry cell counts. Convert to absolute load and tell me whether Bacteroides actually decreased or just lost share to a bloom."
 
-### Different Taxonomic Levels
-> "Get genus-level abundances instead of species"
-
-> "Run Bracken at family level for my low-coverage samples"
+### Cross-tool comparison
+> "I have both Bracken and MetaPhlAn profiles for the same samples. Should I merge them into one table?"
 
 ## What the Agent Will Do
-1. Verify Kraken2 report and Bracken database are compatible
-2. Run Bracken with appropriate read length and taxonomic level
-3. Generate abundance table with read counts and fractions
-4. Combine multiple sample outputs if requested
+1. Run Bracken with the correct read length and level, then combine per-sample outputs into a matrix.
+2. Flag species dominated by redistributed reads (likely fabricated relatives of database-absent taxa).
+3. Replace zeros (multiplicative/Bayesian) and CLR-transform before any multivariate or correlation analysis.
+4. Recommend a normalization, and decide rarefaction per the downstream analysis.
+5. Use a reference-frame DA method (ALDEx2/ANCOM-BC) rather than naive tests on proportions.
+6. Convert to absolute load only when an external anchor exists, and state the estimand throughout.
 
 ## Tips
-- Use the closest available read length (100, 150, 200, 250, 300)
-- Bracken requires a Kraken2 report file, not the per-read output
-- Species level (`-l S`) is default; use `-l G` for genus
-- Check `added_reads` column to see how much redistribution occurred
-- Normalize to relative abundance for cross-sample comparisons
+- Distrust a species with large `added_reads` but tiny `kraken_assigned_reads` - it may be a redistribution artifact.
+- `fraction_total_reads` is a fraction of classified-and-retained reads; differing host fractions make denominators non-comparable.
+- Use CLR + Aitchison distance, never Pearson or Bray-Curtis on raw proportions for co-occurrence.
+- GMPR or CSS survive sparse tables that break DESeq/edgeR median-of-ratios.
+- Keep Bracken (read fraction) and MetaPhlAn (cell fraction) in separate tables.
 
 ## Output Columns
 
 | Column | Description |
 |--------|-------------|
-| name | Taxon name |
-| taxonomy_id | NCBI taxon ID |
-| taxonomy_lvl | Level (S, G, etc.) |
 | kraken_assigned_reads | Direct Kraken2 assignments |
 | added_reads | Reads redistributed from higher levels |
-| new_est_reads | Total estimated reads |
-| fraction_total_reads | Proportion of classified reads |
+| new_est_reads | Total estimated reads (assigned + added) |
+| fraction_total_reads | Proportion of classified-and-retained reads |
+
+## Related Skills
+
+- kraken-classification - Generates the Kraken2 report; owns the read-count-is-not-abundance reframe
+- metaphlan-profiling - Cell-fraction abundance; a different estimand
+- metagenome-visualization - Diversity, ordination, and DA tool mechanics
+- contamination-controls - Host-fraction handling that affects the denominator
+- workflows/metagenomics-pipeline - End-to-end profiling and abundance
 
 ## Resources
 - [Bracken GitHub](https://github.com/jenniferlu717/Bracken)
 - [Bracken Paper](https://peerj.com/articles/cs-104/)
+- [scikit-bio composition module](https://scikit.bio)

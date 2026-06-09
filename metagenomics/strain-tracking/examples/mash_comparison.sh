@@ -1,32 +1,26 @@
 #!/bin/bash
-# Reference: Bowtie2 2.5.3+, MetaPhlAn 4.1+, numpy 1.26+, pandas 2.2+, samtools 1.19+, scipy 1.12+ | Verify API if version differs
-# Strain comparison using MASH
-
+# Reference: skani 0.2+, Mash 2.3+ | Verify API if version differs
+# GENOME-vs-GENOME ANI for isolate/MAG comparison and dereplication - NOT in-situ strain resolution.
+# ANI saturates above ~99.9% and cannot call same-vs-different strain; use inStrain/StrainPhlAn for that.
 set -euo pipefail
 
 INPUT_DIR=${1:-.}
-OUTPUT_PREFIX=${2:-mash_results}
+OUTPUT_PREFIX=${2:-ani_results}
 
-echo "=== MASH Strain Comparison ==="
+# skani is the modern fastANI replacement: faster and robust on FRAGMENTED MAGs (where fastANI degrades).
+# Use -E for a sparse EDGE list (one row per pair: Ref Query ANI Af_ref Af_query Ref_name Query_name);
+# the default `skani triangle` emits a lower-triangular MATRIX, which is not a pairwise table.
+echo "=== skani all-vs-all ANI (edge list) ==="
+skani triangle -E "${INPUT_DIR}"/*.fasta -o "${OUTPUT_PREFIX}_skani.tsv"
 
-# Create sketches for all genomes
-echo "Creating sketches..."
-mash sketch -s 10000 -o ${OUTPUT_PREFIX}_sketch ${INPUT_DIR}/*.fasta
-
-# Pairwise distances
-echo "Calculating pairwise distances..."
-mash dist ${OUTPUT_PREFIX}_sketch.msh ${OUTPUT_PREFIX}_sketch.msh > ${OUTPUT_PREFIX}_distances.tsv
-
-# Find closely related strains (distance < 0.001)
+# ~95% ANI is the species boundary (Jain 2018). Above it, ANI cannot resolve strains - do not
+# label high-ANI pairs "same strain"; that needs microdiversity-aware popANI/nGD.
+# (-E emits a header row like skani dist; the numeric $3 >= 95 test below skips it - "ANI" coerces to 0.)
 echo ""
-echo "=== Closely Related Strains (MASH distance < 0.001) ==="
-awk '$1 != $2 && $3 < 0.001' ${OUTPUT_PREFIX}_distances.tsv | head -20
+echo "Pairs above the ~95% species boundary (same species, NOT necessarily same strain):"
+awk -F'\t' '$3 >= 95 {print $1, $2, $3"%"}' "${OUTPUT_PREFIX}_skani.tsv" | head -20
 
-# Summary statistics
-echo ""
-echo "=== Distance Summary ==="
-awk '$1 != $2 {print $3}' ${OUTPUT_PREFIX}_distances.tsv | sort -n | \
-    awk '{a[NR]=$1} END {print "Min:", a[1]; print "Max:", a[NR]; print "Median:", a[int(NR/2)]}'
-
-echo ""
-echo "Results: ${OUTPUT_PREFIX}_distances.tsv"
+# Mash remains useful for very fast distance triage of large genome sets:
+# mash sketch -o "${OUTPUT_PREFIX}.msh" "${INPUT_DIR}"/*.fasta
+# mash dist "${OUTPUT_PREFIX}.msh" "${OUTPUT_PREFIX}.msh" > "${OUTPUT_PREFIX}_mash.tsv"
+echo "Results: ${OUTPUT_PREFIX}_skani.tsv (genome-vs-genome ANI; for strains use inStrain)."

@@ -1,80 +1,89 @@
 # MetaPhlAn Profiling - Usage Guide
 
 ## Overview
-MetaPhlAn uses clade-specific marker genes to provide accurate taxonomic profiling of metagenomic samples, outputting relative abundances that sum to 100%.
+MetaPhlAn uses clade-specific marker genes to profile shotgun metagenomes to species/SGB-level relative abundance. Its percentages are a cell fraction (genome-size-normalized taxonomic abundance), not a fraction of reads - which is why they must never be merged with Kraken/Bracken read fractions. MetaPhlAn 4 quantifies database-absent taxa as uSGBs, is high-precision and low-recall, and reports a separate unknown fraction whose default behavior changed in version 4.2.
 
 ## Prerequisites
 ```bash
 conda install -c bioconda metaphlan
 
-# Database downloads automatically on first run (~1GB)
-# Or download manually:
-metaphlan --install
+# Database downloads on first run (several GB); pin and place it explicitly:
+metaphlan --install --index mpa_vJun23_CHOCOPhlAnSGB_202403 --db_dir /path/to/db
 ```
+
+Conceptual prerequisites:
+- A MetaPhlAn percentage is a cell fraction; a Kraken/Bracken percentage is a read fraction. Keep them apart.
+- The atomic taxon is the SGB (species-level), not a strain; uSGBs have no Latin name but are real quantified taxa.
+- Pin `--index` and keep one version across a study; the unknown-fraction default flip (4.2) is a hidden batch effect.
+- MetaPhlAn is high precision, low recall - it cannot see clades whose markers are not in the database.
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Profile the taxonomic composition of my metagenome"
-- "Get species-level abundances for my microbial community"
-- "Merge MetaPhlAn profiles from multiple samples"
+- "Profile species abundances for my gut metagenome with MetaPhlAn, pinning the database index"
+- "Save the mapping file so I can re-profile at different levels without realigning"
+- "Include the unknown fraction so my environmental sample abundances are honest"
+- "Decide whether MetaPhlAn or mOTUs3 fits my under-characterized environment"
 
 ## Example Prompts
-### Basic Profiling
-> "Run MetaPhlAn on sample.fastq.gz and output species abundances"
 
-> "Profile my metagenome and save the intermediate mapping file"
+### Basic profiling
+> "Run MetaPhlAn 4 on sample_R1.fastq.gz and sample_R2.fastq.gz at species level, pin the index, and cache the mapping file."
 
-### Multi-sample Analysis
-> "Process all fastq files through MetaPhlAn and merge into one table"
+### Quantifying novel taxa
+> "My samples are from rumen and a lot of the community is uncharacterized. Profile with MetaPhlAn 4 keeping uSGBs, and tell me how large the unknown fraction is."
 
-> "Create a merged abundance table for downstream visualization"
+### Marker-gene vs k-mer choice
+> "I need maximum recall of novel species in a soil metagenome. Help me decide between MetaPhlAn, mOTUs3, and sourmash gather."
 
-### Specific Taxonomic Levels
-> "Extract only species-level results from my MetaPhlAn output"
-
-> "Get genus-level abundances from the merged table"
-
-### Comparison with Kraken2
-> "I have both MetaPhlAn and Kraken2 results - help me compare them"
+### Merging a study
+> "Profile all my samples on one pinned index and merge them into one abundance table for compositional analysis."
 
 ## What the Agent Will Do
-1. Verify MetaPhlAn installation and database availability
-2. Run profiling with appropriate parameters for input format
-3. Generate taxonomic profile with relative abundances
-4. Merge multiple samples if requested
-5. Filter to specific taxonomic levels as needed
+1. Confirm the MetaPhlAn version and pin the database `--index`.
+2. Profile each sample, caching the read-to-marker mapping for cheap re-profiling.
+3. Keep the unknown fraction consistent across the study and report its size for environmental samples.
+4. Merge profiles built on the same index, and convert SGBs to GTDB names if needed.
+5. State that the percentages are cell fractions and must not be merged with Kraken/Bracken read fractions.
+6. Hand off compositional differential abundance (CLR/ANCOM-BC) to metagenome-visualization.
 
 ## Tips
-- MetaPhlAn outputs relative abundance (all values sum to 100% at each level)
-- Low mapping rate is normal - only marker genes are targeted
-- Save the mapping file (`--mapout`) for faster re-analysis
-- UNCLASSIFIED means reads didn't match any marker gene
-- Use `merge_metaphlan_tables.py` to combine multiple profiles
+- Pass paired reads as one comma-separated argument; MetaPhlAn treats them as two single-end files.
+- Save `--mapout` once, then re-profile at different levels/settings from it for free.
+- A low mapping rate is normal; a large unknown fraction means database-absent community, not a failure.
+- SGBs are species-level. Do not call `--tax_lev t` "strain-level" - strains are StrainPhlAn.
+- For recall-limited environments, reach for mOTUs3 or sourmash gather rather than lowering MetaPhlAn thresholds.
 
-## MetaPhlAn vs Kraken2
+## MetaPhlAn vs Kraken2 (frame by precision/recall and abundance type, not "accuracy")
 
-| Feature | MetaPhlAn | Kraken2 |
-|---------|-----------|---------|
-| Method | Marker genes | K-mers |
-| Output | Relative abundance | Read counts |
-| Accuracy | Higher at species | Good overall |
-| Database | Smaller (~1GB) | Larger (8-50GB) |
-| Speed | Slower | Very fast |
+| Axis | MetaPhlAn 4 | Kraken2 + Bracken |
+|------|-------------|-------------------|
+| Method | clade-specific marker genes | k-mer LCA + Bayesian reestimation |
+| Abundance type | cell fraction (taxonomic) | read fraction (sequence) |
+| Precision / recall | high precision, lower recall | high recall, lower precision |
+| Database-absent taxa | uSGBs (if binned) | assigned to nearest present relative |
 
 ## Common Issues
 
 ### No Database Found
 ```bash
-metaphlan --install
+metaphlan --install --index mpa_vJun23_CHOCOPhlAnSGB_202403
 ```
 
 ### Low Mapping Rate
-Normal for some samples. MetaPhlAn only considers marker genes. Check for host contamination if rate is very low.
+Normal - only marker genes are targeted. A large unknown fraction means uncharacterized community; a very low rate with low microbial yield suggests host contamination (see contamination-controls).
 
 ### Output All Zeros
-- Check input file is not empty
-- Verify `--input_type` matches file format
-- Sample may have very low microbial content
+- Check the input file is not empty and `--input_type` matches the format.
+- The sample may be host-dominated or have very low microbial content.
+
+## Related Skills
+
+- kraken-classification - K-mer read classification; read fraction, not cell fraction
+- abundance-estimation - Compositional handling and cross-tool comparison
+- strain-tracking - StrainPhlAn strain resolution below the SGB
+- functional-profiling - HUMAnN reuses the MetaPhlAn profile
+- metagenome-visualization - Compositional stats and plotting
+- workflows/metagenomics-pipeline - End-to-end shotgun profiling
 
 ## Resources
 - [MetaPhlAn GitHub](https://github.com/biobakery/MetaPhlAn)

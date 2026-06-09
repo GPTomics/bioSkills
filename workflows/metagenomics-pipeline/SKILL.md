@@ -1,11 +1,12 @@
 ---
 name: bio-workflows-metagenomics-pipeline
-description: End-to-end metagenomics workflow from FASTQ to taxonomic and functional profiles. Covers Kraken2 classification, Bracken abundance estimation, and HUMAnN functional profiling. Use when profiling metagenomic samples.
+description: End-to-end shotgun metagenomics workflow from FASTQ to taxonomic and functional profiles, orchestrating controls/host depletion, Kraken2+Bracken classification, MetaPhlAn marker profiling, and HUMAnN functional profiling. Covers the controls-first ordering, why Kraken2 read counts are not abundances and MetaPhlAn cell fractions do not equal Bracken read fractions, and the consistent-pipeline framing. Use when profiling shotgun metagenomic samples end to end, or chaining classification, abundance, and function. For resistome see metagenomics/amr-detection; for strains see metagenomics/strain-tracking; for assembly see genome-assembly/metagenome-assembly.
 tool_type: cli
 primary_tool: Kraken2
 workflow: true
 depends_on:
   - read-qc/fastp-workflow
+  - metagenomics/contamination-controls
   - metagenomics/kraken-classification
   - metagenomics/metaphlan-profiling
   - metagenomics/abundance-estimation
@@ -30,38 +31,40 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Metagenomics Pipeline
 
-**"Analyze my metagenomic samples from FASTQ to taxonomic and functional profiles"** -> Orchestrate host depletion, Kraken2/Bracken taxonomic classification, MetaPhlAn profiling, HUMAnN3 functional analysis, and AMR gene detection.
+**"Analyze my metagenomic samples from FASTQ to taxonomic and functional profiles"** -> Orchestrate controls and host depletion, Kraken2/Bracken taxonomic classification, MetaPhlAn profiling, and HUMAnN3 functional analysis - reporting results relative to a consistent pipeline, never as a direct observation of the community.
 
-Complete workflow from metagenomic FASTQ to taxonomic and functional profiles.
+Complete workflow from metagenomic FASTQ to taxonomic and functional profiles. Every result is a position in a choice-chain (extraction -> depletion -> depth -> classifier -> database -> normalization); hold the chain constant across a study and report each link.
 
 ## Workflow Overview
 
 ```
-FASTQ files
+FASTQ files (+ extraction blanks, mock)
     |
     v
-[1. QC & Host Removal] --> fastp + Bowtie2
+[0. QC, Host Removal & Controls] --> fastp + Hostile/Bowtie2(T2T) + blanks/decontam + Nonpareil depth check
     |
     v
-[2. Taxonomic Classification]
+[1. Taxonomic Classification]
     |
-    +---> Kraken2 + Bracken (fast, database-dependent)
+    +---> Kraken2 (+confidence, +hit-groups) + Bracken -> read fraction
     |
-    +---> MetaPhlAn (marker-based, standardized)
-    |
-    v
-[3. Functional Profiling] --> HUMAnN
+    +---> MetaPhlAn 4 (marker-based, pinned --index) -> cell fraction (NOT comparable to Bracken %)
     |
     v
-Taxonomic profiles + Pathway abundances
+[2. Functional Profiling] --> HUMAnN (potential, not activity; keep UNMAPPED)
+    |
+    v
+Taxonomic profiles + Pathway abundances (+ AMR/strain via their own skills)
 ```
 
 ## Primary Path: Kraken2 + Bracken + HUMAnN
 
-### Step 1: Quality Control and Host Removal
+### Step 0: Quality Control, Host Removal, and Controls
+
+Carry extraction blanks and a mock through the whole workflow; host-deplete against T2T-CHM13; confirm depth with Nonpareil. See metagenomics/contamination-controls for the controls/decontam detail.
 
 ```bash
-# QC with fastp
+# QC with fastp (trimming mechanics: read-qc/fastp-workflow)
 for sample in sample1 sample2 sample3; do
     fastp -i ${sample}_R1.fastq.gz -I ${sample}_R2.fastq.gz \
         -o trimmed/${sample}_R1.fq.gz -O trimmed/${sample}_R2.fq.gz \
@@ -71,24 +74,27 @@ for sample in sample1 sample2 sample3; do
         --html qc/${sample}_fastp.html
 done
 
-# Remove host reads (human example)
+# Remove host reads - Hostile with a T2T-CHM13 index removes >99.5% host with low microbial loss.
+# Report the reads removed; host depletion can halve usable depth.
 for sample in sample1 sample2 sample3; do
-    bowtie2 -p 8 -x human_index \
-        -1 trimmed/${sample}_R1.fq.gz \
-        -2 trimmed/${sample}_R2.fq.gz \
-        --un-conc-gz host_removed/${sample}_R%.fq.gz \
-        > /dev/null 2> qc/${sample}_host_removal.log
+    hostile clean --fastq1 trimmed/${sample}_R1.fq.gz --fastq2 trimmed/${sample}_R2.fq.gz \
+        --index human-t2t-hla --aligner bowtie2 --output host_removed/
 done
+# Then run decontam on the classifier output table using the blanks (contamination-controls),
+# and confirm depth adequacy with Nonpareil before interpreting any non-detection.
 ```
 
 ### Step 2A: Kraken2 Classification
 
 ```bash
-# Classify reads
+# Classify reads. Raise --confidence above the default 0 to suppress single-k-mer false positives,
+# and require >=2 hit groups. The database defines what can be detected.
 for sample in sample1 sample2 sample3; do
     kraken2 --db kraken2_db \
         --threads 8 \
         --paired \
+        --confidence 0.1 \
+        --minimum-hit-groups 2 \
         --report kraken/${sample}.report \
         --output kraken/${sample}.output \
         host_removed/${sample}_R1.fq.gz \
@@ -118,10 +124,12 @@ combine_bracken_outputs.py \
 ### Step 2C: Alternative - MetaPhlAn Profiling
 
 ```bash
-# Profile with MetaPhlAn 4
+# Profile with MetaPhlAn 4. Pin --index (DB version is a batch variable). MetaPhlAn % is a cell
+# fraction - do NOT merge it with Bracken read fractions. In 4.2 --bowtie2out is renamed --mapout.
 for sample in sample1 sample2 sample3; do
     metaphlan host_removed/${sample}_R1.fq.gz,host_removed/${sample}_R2.fq.gz \
         --bowtie2out metaphlan/${sample}.bowtie2.bz2 \
+        --index mpa_vJun23_CHOCOPhlAnSGB_202403 \
         --input_type fastq \
         --nproc 8 \
         -o metaphlan/${sample}_profile.txt
@@ -193,8 +201,9 @@ plt.savefig('species_barplot.pdf')
 | Step | Parameter | Value |
 |------|-----------|-------|
 | fastp | --length_required | 50 (metagenomic reads) |
-| Kraken2 | --confidence | 0.0 (default) or 0.1 |
-| Bracken | -r | Read length (e.g., 150) |
+| Kraken2 | --confidence | 0.1-0.4 (default 0.0 over-classifies; see metagenomics/kraken-classification) |
+| Kraken2 | --minimum-hit-groups | 2 (cut single-region false positives) |
+| Bracken | -r | Read length (e.g., 150; must match the DB build) |
 | Bracken | -l | S (species) or G (genus) |
 | Bracken | -t | 10 (min reads threshold) |
 | MetaPhlAn | --min_cu_len | 2000 (default) |
@@ -247,6 +256,7 @@ done
 echo "=== Kraken2 ==="
 for sample in $SAMPLES; do
     kraken2 --db ${KRAKEN_DB} --threads ${THREADS} --paired \
+        --confidence 0.1 --minimum-hit-groups 2 \
         --report ${OUTDIR}/kraken/${sample}.report \
         --output ${OUTDIR}/kraken/${sample}.output \
         ${OUTDIR}/host_removed/${sample}_R1.fq.gz \
@@ -272,8 +282,11 @@ echo "Bracken abundances: ${OUTDIR}/bracken/"
 - database-access/sra-data - Pull metagenomic FASTQ from SRA / ENA (16S amplicon or shotgun)
 - database-access/ncbi-datasets-cli - Bulk-pull reference genomes for read mapping
 - database-access/remote-homology - DIAMOND --ultra-sensitive for predicted-ORF annotation
+- metagenomics/contamination-controls - Host depletion, blanks/decontam, depth checks up front
 - metagenomics/kraken-classification - Kraken2 details
 - metagenomics/metaphlan-profiling - MetaPhlAn parameters
-- metagenomics/abundance-estimation - Bracken options
+- metagenomics/abundance-estimation - Bracken options and compositional handling
 - metagenomics/functional-profiling - HUMAnN workflow
-- metagenomics/metagenome-visualization - Plotting functions
+- metagenomics/amr-detection - Community resistome from the same reads
+- metagenomics/strain-tracking - Strain resolution from the same reads
+- metagenomics/metagenome-visualization - Plotting and community statistics

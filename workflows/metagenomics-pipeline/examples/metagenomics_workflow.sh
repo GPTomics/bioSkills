@@ -57,6 +57,8 @@ for sample in $SAMPLES; do
         --db ${KRAKEN_DB} \
         --threads ${THREADS} \
         --paired \
+        --confidence 0.1 \
+        --minimum-hit-groups 2 \
         --report ${OUTDIR}/kraken/${sample}.report \
         --report-minimizer-data \
         --output ${OUTDIR}/kraken/${sample}.output \
