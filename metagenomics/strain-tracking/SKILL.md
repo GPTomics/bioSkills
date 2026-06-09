@@ -1,292 +1,163 @@
 ---
 name: bio-metagenomics-strain-tracking
-description: Track bacterial strains using MASH, sourmash, fastANI, and inStrain. Compare genomes, detect contamination, and monitor strain-level variation. Use when needing sub-species resolution for outbreak tracking, transmission analysis, or within-host strain dynamics.
-tool_type: cli
-primary_tool: MASH
+description: Resolves and compares bacterial strains below the species level from shotgun metagenomes with inStrain (popANI/conANI microdiversity), StrainPhlAn (marker-SNV consensus phylogeny and nGD), MIDAS2, metaSNV, and StrainGE, plus genome-vs-genome ANI (skani/fastANI/MASH) for isolate/MAG comparison. Covers why a strain is a threshold not a thing, why ANI answers same-genome while popANI/nGD answer same-population-in-situ, the 99.999% popANI and per-species nGD definitions, the coverage detection limit (absence is not absence), why sharing is not transmission direction, and mapping to the dataset's own dRep MAGs. Use when detecting shared strains, tracking transmission, resolving within-host strain dynamics, or deconvoluting co-occurring strains. For pure-culture isolate outbreak SNP trees see epidemiological-genomics; for MAG assembly see genome-assembly/metagenome-assembly.
+tool_type: mixed
+primary_tool: inStrain
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: Bowtie2 2.5.3+, MetaPhlAn 4.1+, numpy 1.26+, pandas 2.2+, samtools 1.19+, scipy 1.12+
+Reference examples tested with: inStrain 1.8+, StrainPhlAn/MetaPhlAn 4.1+, dRep 3.4+, skani 0.2+, Bowtie2 2.5+, samtools 1.19+, pandas 2.2+.
 
 Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `inStrain profile -h`, `strainphlan -h`, `skani dist -h` to confirm flags and defaults
 - Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+The mapping REFERENCE defines the answer. Map to genomes present in the sample set (dRep-dereplicated MAGs from this dataset), not generic database genomes - a distant reference inflates apparent SNVs and corrupts popANI. Record the reference set, the popANI/nGD threshold, the minimum coverage and breadth, and the co-detection rate; the "strain" is defined by these, not by nature.
+
 # Strain Tracking
 
-**"Track bacterial strains across my samples"** -> Resolve sub-species variation using genome sketching (Mash/sourmash), average nucleotide identity (fastANI), or within-sample strain profiling (inStrain) for outbreak tracking and transmission analysis.
-- CLI: `mash dist`, `sourmash compare`, `fastANI`, `inStrain profile`
+**"Is the same strain in samples A and B?"** -> Compare per-position SNV populations (not consensus genomes) at adequate depth - because a strain is defined by the chosen threshold, and ANI cannot resolve the difference that matters.
+- CLI: `inStrain profile sample.bam reps.fasta -o sample.IS -s reps.stb -p 8` then `inStrain compare`
 
-Identify and track bacterial strains at sub-species resolution.
+Scope: in-situ strain resolution, sharing, and deconvolution from a community. Pure-culture isolate outbreak SNP/cgMLST trees -> epidemiological-genomics. MAG assembly/binning -> genome-assembly/metagenome-assembly. Species presence/abundance -> kraken-classification, metaphlan-profiling.
 
-## Tool Comparison
+## The Single Most Important Modern Insight -- A Strain Is a Threshold, Not a Thing
 
-| Tool | Method | Best For |
-|------|--------|----------|
-| MASH | MinHash sketches | Fast distance estimation |
-| sourmash | MinHash + containment | Metagenome comparisons |
-| fastANI | ANI calculation | Accurate species/strain ID |
-| inStrain | SNV profiling | Strain dynamics in metagenomes |
+There is no universal definition of a metagenomic strain. A strain is an operational construct fixed by the reference mapped to, the genome fraction comparable at adequate depth, and the cutoff drawn. inStrain's popANI >= 99.999% over >= 50% of the genome IS the strain definition; Valles-Colomer's per-species nGD threshold IS the strain definition. Changing the cutoff changes how many strains exist. Two corollaries:
 
-## MASH
+1. **ANI answers "same genome?"; popANI/nGD answer "same population, in situ?"** Genome-to-genome ANI (MASH/skani/fastANI) saturates - two genuinely distinct, separately transmissible strains routinely share >99.9% ANI, and ANI's resolution floor sits above the difference that matters. Strain sharing cannot be done with an ANI number; it needs microdiversity-aware, position-level concordance.
+2. **Detecting a shared strain is a narrow statement:** across the genome fraction both samples covered at >= 5x, their SNV populations were >= 99.999% concordant. That is not proof an organism was transmitted between two people - the threshold certifies genomic identity within a coverage window, nothing more.
 
-### Installation
+## The Three Tasks (Do Not Conflate)
 
-```bash
-conda install -c bioconda mash
-```
+| Task | Question | Tools |
+|------|----------|-------|
+| Identification | which known reference strain is present? | StrainGST, sourmash gather, MIDAS |
+| Tracking / sharing | is the SAME strain in samples A and B? | inStrain compare, StrainPhlAn, MIDAS2, metaSNV, SameStr |
+| Deconvolution | how many strains coexist in ONE sample, what are their haplotypes? | DESMAN, Strainberry, strainFlye, Strainy |
 
-### Create Sketch
+Genome-to-genome ANI (MASH/skani/fastANI) is a fourth, orthogonal task - "are these two assembled genomes the same?" - isolate/MAG comparison and dereplication, NOT in-situ strain resolution.
 
-```bash
-# Single genome
-mash sketch -o genome.msh genome.fasta
+## Tool Taxonomy
 
-# Multiple genomes
-mash sketch -o reference_db.msh genomes/*.fasta
+| Tool | Citation | Mechanism / role | When |
+|------|----------|------------------|------|
+| inStrain | Olm 2021 *Nat Biotechnol* 39:727 | popANI/conANI microdiversity from reads mapped to MAGs | the reference standard for shared-strain detection |
+| StrainPhlAn | Truong 2017 *Genome Res* 27:626 | marker-SNV consensus -> phylogeny -> nGD | large cross-sample marker surveys, no assembly needed |
+| MIDAS2 | Zhao 2023 *Bioinformatics* 39:btac713 | UHGG pan-genome SNV + gene CNV | accessory-genome strain signal at scale |
+| StrainGE | van Dijk 2022 *Genome Biol* 23:74 | k-mer search + low-coverage variant calling | low-abundance strains down to 0.5x coverage |
+| metaSNV v2 | Van Rossum 2022 *Bioinformatics* 38:1162 | SNV distances + subspecies clustering | subspecies structure across samples |
+| skani | Shaw 2023 *Nat Methods* 20:1661 | sparse-chaining ANI | genome-vs-genome ANI; robust on fragmented MAGs (prefer over fastANI) |
+| Strainberry / strainFlye | Vicedomini 2021 *Nat Commun* 12:4485; Fedarko 2022 *Genome Res* 32:2119 | long-read haplotype separation | deconvolute co-occurring strains (-> genome-assembly) |
 
-# From reads (with coverage)
-mash sketch -m 2 -r -o reads.msh reads.fastq.gz
-```
+## Decision Tree by Scenario
 
-### Calculate Distance
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Is a strain shared between two metagenomes? | inStrain compare (popANI) | microdiversity-aware; the field standard |
+| Cross-sample transmission survey, many samples | StrainPhlAn (per-species nGD) | marker-based, scalable, no assembly |
+| Low-abundance pathogen (< 1% / < 5x) | StrainGE | detects/compares down to 0.5x |
+| Accessory-genome / pan-genome strain signal | MIDAS2 | adds gene-content axis SNV tools miss |
+| Separate co-occurring strains into haplotypes | DESMAN (many samples) or long-read Strainberry/strainFlye | SNV tools do not partition a mixture |
+| Compare two assembled genomes / dereplicate | skani (or fastANI) | genome-vs-genome ANI, not in-situ strains |
+| Pure-culture isolate outbreak tree | -> epidemiological-genomics | cgMLST/SNP-distance on one genome per sample |
 
-```bash
-# Pairwise distance
-mash dist genome1.fasta genome2.fasta
+## inStrain: popANI vs conANI
 
-# Query against database
-mash dist reference_db.msh query.fasta > distances.tsv
+**Goal:** Decide whether two metagenomes share a strain without being fooled by which allele happens to be the majority.
 
-# Screen for containment (metagenome)
-mash screen reference_db.msh reads.fastq.gz > screen_results.tsv
-```
-
-### Interpret MASH Distance
-
-| Distance | Interpretation |
-|----------|----------------|
-| < 0.05 | Same species/strain |
-| 0.05-0.15 | Same species |
-| 0.15-0.25 | Same genus |
-| > 0.25 | Different genus |
-
-### Cluster Genomes
+**Approach:** dRep the dataset's MAGs into representative genomes, map reads to the concatenated references, profile each sample, then compare on popANI (microdiversity-aware) over the co-covered genome fraction.
 
 ```bash
-# All-vs-all distances
-mash triangle genomes/*.fasta > distances.phylip
-
-# Build tree
-mash triangle -E genomes/*.fasta > distances.tsv
+# 1. dRep -> representative genomes (97-99% ANI); concatenate; build scaffold-to-bin (.stb).
+# 2. Map reads to the concatenated reps - your OWN MAGs, not database genomes.
+bowtie2 -x reps -1 r1.fq.gz -2 r2.fq.gz | samtools sort -o sampleA.bam
+inStrain profile sampleA.bam reps.fasta -o sampleA.IS -s reps.stb -g genes.fna -p 8
+inStrain profile sampleB.bam reps.fasta -o sampleB.IS -s reps.stb -g genes.fna -p 8
+inStrain compare -i sampleA.IS sampleB.IS -o compare.out -s reps.stb -p 8
 ```
 
-## sourmash
+conANI calls a difference whenever the consensus base differs - confounded by within-sample microdiversity (a minor-allele flip fakes a difference). popANI calls a difference only if the two samples share NO alleles at all, including minor ones, so popANI >= conANI always and is what detects shared strains consensus tools miss. Read genome-level calls from `genomeWide_compare.tsv` (breadth column `percent_compared`); the per-scaffold `comparisonsTable.tsv` uses `percent_genome_compared`.
 
-### Installation
+## StrainPhlAn: Marker SNVs and nGD
 
 ```bash
-conda install -c bioconda sourmash
+metaphlan sample.fq.gz --input_type fastq -s sample.sam.bz2 --bowtie2out sample.bz2 -o profile.tsv  # need the SAM (-s)
+sample2markers.py -i sams/*.sam.bz2 -o consensus_markers -n 8
+extract_markers.py -c t__SGB1877 -o clade_markers/
+strainphlan -s consensus_markers/*.json -m clade_markers/t__SGB1877.fna \
+    -r reference_genomes/*.fna.bz2 -o output -c t__SGB1877 \
+    --marker_in_n_samples_perc 80 --sample_with_n_markers 20 --nproc 8  # 4.0 named this --marker_in_n_samples
 ```
 
-### Create Signatures
+The output tree gives a pairwise nGD (normalized genetic distance). There is no universal nGD strain cutoff - derive a per-species threshold from the data (same-individual-different-timepoint pairs fall below it, unrelated pairs above), as in Valles-Colomer 2023. Low coverage means too few markers pass the filters and the sample is dropped from the species tree silently - so a missing shared-strain call is not evidence of no shared strain.
+
+## Genome-vs-Genome ANI (Isolate/MAG Comparison, NOT In-Situ Strains)
 
 ```bash
-# Genome signature
-sourmash sketch dna -p scaled=1000,k=31 genome.fasta -o genome.sig
-
-# Multiple genomes
-sourmash sketch dna -p scaled=1000,k=31 genomes/*.fasta -o genomes.sig
-
-# Protein signatures
-sourmash sketch protein -p scaled=100,k=10 proteins.faa -o proteins.sig
+skani dist genomeA.fasta genomeB.fasta   # prefer skani over fastANI: robust on fragmented MAGs
 ```
 
-### Compare Signatures
+~95% ANI is the species boundary (Jain 2018 *Nat Commun* 9:5114). ANI saturates above that and cannot resolve same-vs-different strain - use it to compare isolates/MAGs and to dereplicate, never to call transmission.
 
-```bash
-# Pairwise comparison
-sourmash compare *.sig -o comparison.npy --csv comparison.csv
+## Per-Method Failure Modes
 
-# Search against database
-sourmash search query.sig database.sig --threshold 0.8
+### ANI distance reported as strain resolution
+**Trigger:** "MASH distance < 0.001 = same strain" or "fastANI > 99% = same strain." **Mechanism:** ANI operates on consensus genomes, saturates above 99.9%, and ignores microdiversity. **Symptom:** distinct transmissible strains called identical; transmission inferred from an ANI number. **Fix:** use ANI for isolate/MAG comparison; use inStrain popANI / StrainPhlAn nGD for strain sharing.
 
-# Gather (metagenome decomposition)
-sourmash gather metagenome.sig database.sig -o gather_results.csv
-```
+### Coverage detection limit (absence is not absence)
+**Trigger:** concluding "no transmission" or "strain turnover." **Mechanism:** a shared strain can only be called for a species detected at adequate depth in BOTH samples (inStrain >= 5x and >= 50% breadth; StrainPhlAn enough markers). **Symptom:** a coverage dropout misread as biological absence; sharing rates biased to abundant taxa. **Fix:** report co-detection rates alongside sharing rates; use StrainGE for low-abundance targets.
 
-### Taxonomy Assignment
+### Sharing read as transmission direction
+**Trigger:** narrating "A infected B." **Mechanism:** a shared strain is an undirected edge. **Symptom:** directionality claimed from one cross-sectional comparison. **Fix:** direction comes from timepoints, contact metadata, or a known index case - the published landscapes infer it from study design, not the genomic comparison.
 
-```bash
-# Download taxonomy database
-sourmash database download gtdb-rs214-k31.zip
+### Wrong reference genome
+**Trigger:** mapping to a generic database genome. **Mechanism:** a distant reference inflates apparent SNVs. **Symptom:** corrupted popANI; spurious differences. **Fix:** map to dRep-dereplicated MAGs from the sample set.
 
-# Classify
-sourmash lca classify --db gtdb-rs214-k31.lca.json.gz --query query.sig
+### Asking a SNV tool to deconvolute a mixture
+**Trigger:** "what are the two strains here?" from inStrain. **Mechanism:** SNV/marker tools characterize population diversity; they do not partition it into haplotypes. **Symptom:** a category error. **Fix:** use DESMAN (many samples) or long-read Strainberry/strainFlye/Strainy for haplotype separation.
 
-# Summarize metagenome
-sourmash lca summarize --db gtdb-rs214-k31.lca.json.gz --query metagenome.sig
-```
+## Quantitative Thresholds
 
-## fastANI
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| popANI >= 99.999% same strain | Olm 2021 *Nat Biotechnol* 39:727 | empirical shared-strain cutoff; IS the operational definition |
+| percent_compared >= 50% (genome-level breadth) | Olm 2021 *Nat Biotechnol* 39:727 | a genome below 50% breadth is not confidently present |
+| min_cov 5x | Olm 2021 *Nat Biotechnol* 39:727 | lowest coverage at which sub-50% minor alleles are reliable |
+| StrainGE detection ~0.5x | van Dijk 2022 *Genome Biol* 23:74 | tracks low-abundance strains below the inStrain floor |
+| Per-species nGD threshold (derive it) | Valles-Colomer 2023 *Nature* 614:125 | no universal cutoff; separate within-host timepoints from unrelated |
+| ~95% ANI species boundary | Jain 2018 *Nat Commun* 9:5114 | ANI saturates above this; cannot resolve strains |
 
-### Installation
+## Common Errors
 
-```bash
-conda install -c bioconda fastani
-```
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| Everything looks like one strain | ANI/MASH used for strain calls | switch to inStrain popANI / StrainPhlAn nGD |
+| Sample missing from the StrainPhlAn tree | too few markers passed filters at low coverage | report co-detection; do not read absence as no-sharing |
+| popANI implausibly low across the board | mapped to a distant database reference | map to dRep MAGs from the dataset |
+| inStrain compare gives no genomes | < 50% breadth or < 5x in one sample | deepen sequencing or use StrainGE for that taxon |
+| "Who infected whom" asked of one timepoint | sharing is undirected | need longitudinal/epi design for direction |
 
-### Calculate ANI
+## References
 
-```bash
-# Single pair
-fastANI -q query.fasta -r reference.fasta -o ani_result.txt
-
-# Query vs multiple references
-fastANI -q query.fasta --rl reference_list.txt -o ani_results.txt
-
-# All-vs-all
-fastANI --ql genome_list.txt --rl genome_list.txt -o all_vs_all.txt --matrix
-```
-
-### Interpret ANI
-
-| ANI | Interpretation |
-|-----|----------------|
-| >99% | Same strain |
-| 95-99% | Same species |
-| <95% | Different species |
-
-## inStrain
-
-For strain-level analysis in metagenomes.
-
-### Installation
-
-```bash
-conda install -c bioconda instrain
-```
-
-### Profile Strains
-
-```bash
-# Map reads to reference
-bowtie2 -x reference -1 reads_1.fq -2 reads_2.fq | \
-    samtools sort -o mapped.bam
-
-# Profile with inStrain
-inStrain profile mapped.bam reference.fasta -o instrain_output -p 8
-```
-
-### Compare Samples
-
-```bash
-# Profile multiple samples
-for bam in sample*.bam; do
-    inStrain profile $bam reference.fasta -o ${bam%.bam}_IS -p 8
-done
-
-# Compare strain populations
-inStrain compare -i sample*_IS -o comparison_IS -p 8
-```
-
-### Key Outputs
-
-```bash
-# SNV table
-cat instrain_output/output/SNVs.tsv
-
-# Gene-level info
-cat instrain_output/output/gene_info.tsv
-
-# Genome info
-cat instrain_output/output/genome_info.tsv
-```
-
-## Complete Workflow: Outbreak Tracking
-
-**Goal:** Identify potential outbreak clusters by computing pairwise genomic distances across isolate genomes using multiple complementary methods.
-
-**Approach:** Sketch genomes with MASH for fast distance estimation, compute ANI with fastANI for accurate species-level resolution, compare sourmash signatures for containment analysis, and cluster close matches to identify transmission pairs.
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-GENOMES_DIR=$1
-OUTPUT_DIR=$2
-
-mkdir -p $OUTPUT_DIR
-
-echo "=== MASH sketching ==="
-mash sketch -o $OUTPUT_DIR/genomes.msh $GENOMES_DIR/*.fasta
-
-echo "=== MASH distances ==="
-mash dist $OUTPUT_DIR/genomes.msh $OUTPUT_DIR/genomes.msh > $OUTPUT_DIR/mash_distances.tsv
-
-echo "=== fastANI ==="
-ls $GENOMES_DIR/*.fasta > $OUTPUT_DIR/genome_list.txt
-fastANI --ql $OUTPUT_DIR/genome_list.txt \
-        --rl $OUTPUT_DIR/genome_list.txt \
-        -o $OUTPUT_DIR/fastani_results.txt \
-        --matrix
-
-echo "=== sourmash signatures ==="
-sourmash sketch dna -p scaled=1000,k=31 $GENOMES_DIR/*.fasta -o $OUTPUT_DIR/all.sig
-sourmash compare $OUTPUT_DIR/all.sig -o $OUTPUT_DIR/sourmash.npy --csv $OUTPUT_DIR/sourmash.csv
-
-echo "=== Identify clusters ==="
-python3 << 'EOF'
-import pandas as pd
-import numpy as np
-
-# Load MASH distances
-mash = pd.read_csv('${OUTPUT_DIR}/mash_distances.tsv', sep='\t', header=None,
-                   names=['ref', 'query', 'distance', 'pvalue', 'shared'])
-
-# Filter for close matches (potential outbreak cluster)
-close = mash[(mash['distance'] < 0.001) & (mash['ref'] != mash['query'])]
-print("Potential outbreak pairs (MASH distance < 0.001):")
-print(close[['ref', 'query', 'distance']])
-EOF
-
-echo "=== Complete ==="
-```
-
-## Python Analysis
-
-```python
-import pandas as pd
-import numpy as np
-from scipy.cluster.hierarchy import linkage, fcluster
-from scipy.spatial.distance import squareform
-
-# Load MASH distances
-mash = pd.read_csv('mash_distances.tsv', sep='\t', header=None,
-                   names=['ref', 'query', 'dist', 'pval', 'shared'])
-
-# Pivot to matrix
-samples = sorted(set(mash['ref'].tolist()))
-dist_matrix = mash.pivot(index='ref', columns='query', values='dist').fillna(0)
-dist_matrix = dist_matrix.loc[samples, samples]
-
-# Cluster
-condensed = squareform(dist_matrix.values)
-Z = linkage(condensed, method='average')
-
-# Cut tree at species level (0.05)
-clusters = fcluster(Z, t=0.05, criterion='distance')
-cluster_df = pd.DataFrame({'sample': samples, 'cluster': clusters})
-print(cluster_df.groupby('cluster').size())
-```
+- Olm MR, Crits-Christoph A, Bouma-Gregson K, et al. 2021. inStrain profiles population microdiversity from metagenomic data and sensitively detects shared microbial strains. *Nat Biotechnol* 39:727-736.
+- Truong DT, Tett A, Pasolli E, Huttenhower C, Segata N. 2017. Microbial strain-level population structure and genetic diversity from metagenomes. *Genome Res* 27:626-638.
+- Zhao C, Dimitrov B, Goldman M, Nayfach S, Pollard KS. 2023. MIDAS2: Metagenomic Intra-species Diversity Analysis System. *Bioinformatics* 39:btac713.
+- Van Rossum T, Costea PI, Paoli L, et al. 2022. metaSNV v2: detection of SNVs and subspecies in prokaryotic metagenomes. *Bioinformatics* 38:1162-1164.
+- van Dijk LR, Walker BJ, Straub TJ, et al. 2022. StrainGE: a toolkit to track and characterize low-abundance strains in complex microbial communities. *Genome Biol* 23:74.
+- Vicedomini R, Quince C, Darling AE, Chikhi R. 2021. Strainberry: automated strain separation in low-complexity metagenomes using long reads. *Nat Commun* 12:4485.
+- Valles-Colomer M, Blanco-Miguez A, Manghi P, et al. 2023. The person-to-person transmission landscape of the gut and oral microbiomes. *Nature* 614:125-135.
+- Shaw J, Yu YW. 2023. Fast and robust metagenomic sequence comparison through sparse chaining with skani. *Nat Methods* 20:1661-1665.
+- Jain C, Rodriguez-R LM, Phillippy AM, Konstantinidis KT, Aluru S. 2018. High throughput ANI analysis of 90K prokaryotic genomes reveals clear species boundaries. *Nat Commun* 9:5114.
 
 ## Related Skills
 
-- metagenomics/kraken-classification - Taxonomic classification
-- genome-assembly/contamination-detection - Contamination screening
-- phylogenetics/modern-tree-inference - Phylogenetic analysis
-- metagenomics/metaphlan-profiling - Species profiling
+- metaphlan-profiling - StrainPhlAn builds on MetaPhlAn markers; profile species first
+- kraken-classification - Species presence before strain resolution
+- genome-assembly/metagenome-assembly - dRep MAGs to map against; long-read deconvolution
+- epidemiological-genomics/amr-surveillance - Isolate outbreak SNP/cgMLST trees from pure cultures
+- workflows/metagenomics-pipeline - End-to-end shotgun analysis

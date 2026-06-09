@@ -16,7 +16,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | scrnaseq-pipeline | 10X data to clustered and annotated cells |
 | atacseq-pipeline | ATAC-seq reads to accessibility analysis |
 | methylation-pipeline | Bisulfite-seq to differentially methylated regions |
-| metagenomics-pipeline | Metagenomic reads to taxonomic profiles |
+| metagenomics-pipeline | Metagenomic reads to taxonomic and functional profiles, controls-first |
 | expression-to-pathways | DE results to functional enrichment (GO, KEGG, Reactome, GSEA) with prokaryotic support and multi-condition comparison |
 | genome-assembly-pipeline | Profile, QC, assemble (short/long/HiFi/meta), polish, decontaminate, scaffold, and three-axis QC from reads |
 | longread-sv-pipeline | Long reads to structural variants |

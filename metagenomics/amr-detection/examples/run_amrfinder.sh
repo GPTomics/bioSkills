@@ -1,38 +1,31 @@
 #!/bin/bash
-# Reference: AMRFinderPlus 3.12+, pandas 2.2+ | Verify API if version differs
-# AMR detection with AMRFinderPlus
-
+# Reference: AMRFinderPlus 3.12+, RGI 6+ | Verify API if version differs
+# Community resistome: quantify from reads (RGI bwt) AND call presence on assembled MAGs
+# (AMRFinderPlus). Output is "ARG present at abundance X", never a resistance phenotype.
 set -euo pipefail
 
-INPUT=${1:-contigs.fasta}
-OUTPUT=${2:-amr_results.tsv}
+READS_R1=${1:-reads_R1.fastq.gz}
+READS_R2=${2:-reads_R2.fastq.gz}
+MAG=${3:-mag.fasta}
+OUTDIR=${4:-amr_results}
+mkdir -p "$OUTDIR"
 
-echo "=== AMRFinderPlus AMR Detection ==="
-echo "Input: $INPUT"
+# --- Read-based quantification (no host, no context) ---
+# RGI bwt maps to CARD homolog models; it CANNOT screen point-mutation SNPs.
+echo "=== RGI bwt (read-based resistome) ==="
+rgi bwt -1 "$READS_R1" -2 "$READS_R2" \
+    -a kma -n 8 \
+    -o "${OUTDIR}/resistome" --local
+# Filter the gene-level table on breadth-of-coverage before trusting any call (partial hits != genes).
 
-# Update database (run periodically)
-# amrfinder -u
+# --- Contig/MAG presence calling (curated per-gene cutoffs) ---
+# Run --organism ONLY on a single resolved species; omit it for mixed contigs.
+echo "=== AMRFinderPlus (MAG presence) ==="
+amrfinder -n "$MAG" --plus --threads 8 -o "${OUTDIR}/mag_amr.tsv"
 
-# Run AMRFinderPlus with extended output
-amrfinder \
-    -n ${INPUT} \
-    -o ${OUTPUT} \
-    --plus \
-    --threads 8
-
-# Summary statistics
+# Summarize by drug class using the HEADER name (column order varies across versions).
 echo ""
-echo "=== Results Summary ==="
-total=$(tail -n +2 ${OUTPUT} | wc -l)
-echo "Total AMR genes found: $total"
-
-echo ""
-echo "By drug class:"
-tail -n +2 ${OUTPUT} | cut -f12 | sort | uniq -c | sort -rn | head -10
-
-echo ""
-echo "By element type:"
-tail -n +2 ${OUTPUT} | cut -f9 | sort | uniq -c | sort -rn
-
-echo ""
-echo "Results written to: ${OUTPUT}"
+echo "ARG count by drug class (presence, not phenotype):"
+awk -F'\t' 'NR==1{for(i=1;i<=NF;i++) if($i=="Class") c=i; next} c{print $c}' \
+    "${OUTDIR}/mag_amr.tsv" | sort | uniq -c | sort -rn | head -10
+echo "Results in ${OUTDIR}/ - report ARG presence/abundance, not resistance."

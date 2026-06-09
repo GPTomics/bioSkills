@@ -1,51 +1,41 @@
-# Reference: MetaPhlAn 4.1+, ggplot2 3.5+, matplotlib 3.8+, pandas 2.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+, scipy 1.12+, seaborn 0.13+, vegan 2.6+ | Verify API if version differs
+# Reference: phyloseq 1.46+, vegan 2.6+, microViz 0.12+, ALDEx2 1.34+ | Verify API if version differs
+# Honest community stats from a MetaPhlAn table: CLR ordination, PERMANOVA PAIRED WITH betadisper,
+# Hill-number diversity, and a two-tool differential-abundance consensus. Bray-Curtis is incoherent
+# on relative abundance; pair every adonis2 with a dispersion test.
 library(phyloseq)
-library(ggplot2)
 library(vegan)
 
 abundance <- read.table('merged_abundance.txt', sep = '\t', header = TRUE, row.names = 1, check.names = FALSE)
-
 species <- abundance[grepl('s__', rownames(abundance)) & !grepl('t__', rownames(abundance)), ]
-rownames(species) <- sapply(strsplit(rownames(species), '\\|'), tail, 1)
-rownames(species) <- gsub('s__', '', rownames(species))
+rownames(species) <- gsub('s__', '', sapply(strsplit(rownames(species), '\\|'), tail, 1))
 
 otu <- otu_table(as.matrix(species), taxa_are_rows = TRUE)
+meta <- data.frame(Group = rep(c('Control', 'Treatment'), length.out = ncol(species)),
+                   row.names = colnames(species))
+ps <- phyloseq(otu, sample_data(meta))
 
-sample_metadata <- data.frame(
-    Sample = colnames(species),
-    Group = rep(c('Control', 'Treatment'), length.out = ncol(species)),
-    row.names = colnames(species)
-)
-samp <- sample_data(sample_metadata)
+# Beta diversity: declare the metric. Bray-Curtis is the field default but compositionally incoherent;
+# for a compositional ordination use microViz CLR-PCA. Show the conclusion survives both.
+mat <- t(as(otu_table(ps), 'matrix'))               # samples as rows
+dist_bc <- vegdist(mat, method = 'bray')
+pm <- adonis2(dist_bc ~ Group, data = meta, permutations = 999, by = 'terms')
 
-ps <- phyloseq(otu, samp)
+# ALWAYS pair PERMANOVA with a dispersion test - a significant adonis2 can be a spread difference,
+# not a location shift (Anderson & Walsh 2013).
+bd <- betadisper(dist_bc, meta$Group)
+disp <- permutest(bd, permutations = 999)
 
-top_taxa <- names(sort(taxa_sums(ps), decreasing = TRUE))[1:10]
-ps_top <- prune_taxa(top_taxa, ps)
+# Alpha diversity as Hill numbers (effective species). estimate_richness Observed/Chao1 assume INTEGER
+# counts - valid for Bracken, meaningless on MetaPhlAn percentages, so prefer evenness-weighted q=1/q=2.
+alpha <- estimate_richness(ps, measures = c('Shannon', 'InvSimpson'))
+alpha$hill_q1 <- exp(alpha$Shannon)
+alpha$hill_q2 <- alpha$InvSimpson
 
-p1 <- plot_bar(ps_top, fill = 'taxa_names') +
-    geom_bar(stat = 'identity', position = 'stack') +
-    theme_minimal() +
-    labs(x = 'Sample', y = 'Relative Abundance (%)', title = 'Species Composition') +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.title = element_blank())
-ggsave('stacked_bar_phyloseq.png', p1, width = 10, height = 6, dpi = 300)
+cat('PERMANOVA p =', pm[['Pr(>F)']][1], '| betadisper p =', disp$tab[['Pr(>F)']][1], '\n')
+cat('If betadisper is significant, the PERMANOVA is ambiguous - report both.\n')
 
-ord <- ordinate(ps, method = 'PCoA', distance = 'bray')
-p2 <- plot_ordination(ps, ord, color = 'Group') +
-    geom_point(size = 4) +
-    stat_ellipse() +
-    theme_minimal() +
-    labs(title = 'PCoA of Sample Composition (Bray-Curtis)')
-ggsave('pcoa_phyloseq.png', p2, width = 8, height = 6, dpi = 300)
-
-alpha_div <- estimate_richness(ps, measures = c('Shannon', 'Simpson', 'Observed'))
-alpha_div$Group <- sample_data(ps)$Group
-
-p3 <- ggplot(alpha_div, aes(x = Group, y = Shannon, fill = Group)) +
-    geom_boxplot() +
-    geom_jitter(width = 0.1, size = 2) +
-    theme_minimal() +
-    labs(title = 'Alpha Diversity by Group', y = 'Shannon Index')
-ggsave('alpha_diversity.png', p3, width = 6, height = 5, dpi = 300)
-
-cat('Visualizations saved: stacked_bar_phyloseq.png, pcoa_phyloseq.png, alpha_diversity.png\n')
+# Differential abundance: never one tool, never uncorrected Wilcoxon on relative abundance.
+# Run >=2 compositional tools (e.g. ALDEx2 + ANCOM-BC), prevalence-filter, BH-correct, intersect.
+# library(ALDEx2)
+# aldex_res <- aldex(round(as(otu_table(ps), 'matrix')), meta$Group, test = 't', effect = TRUE)
+# Report taxa with we.eBH < 0.05 AND |effect| > 1, intersected with a second tool's hits.
