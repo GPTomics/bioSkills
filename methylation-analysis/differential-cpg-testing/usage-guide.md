@@ -2,7 +2,7 @@
 
 ## Overview
 
-Per-CpG differential methylation testing from bisulfite sequencing count data or beta-value matrices. Covers the full pipeline from raw counts through beta/M-value computation, coverage filtering, statistical testing, multiple testing correction, and effect size reporting.
+Per-CpG (per-site) differential methylation testing - finding individual CpGs (DMC/DMP) that differ between groups. The decisive first choice is the data object: bisulfite sequencing yields integer (methylated, total) counts whose coverage carries precision, so it routes to a beta-binomial / overdispersion-corrected count model (DSS, methylKit); arrays and any continuous beta matrix have no coverage, so they route to limma moderated-t on M-values. Throughout: test on the M-value scale, report effect on the beta scale (delta-beta), and gate hits on the intersection of FDR and effect size. Also covers scanning for differential VARIABILITY (variance, not mean) with DiffVar/iEVORA.
 
 ## Prerequisites
 
@@ -11,73 +11,74 @@ pip install numpy pandas scipy statsmodels
 ```
 
 ```r
-BiocManager::install(c('limma', 'DSS'))
+BiocManager::install(c('limma', 'DSS', 'methylKit', 'missMethyl'))
 ```
+
+Conceptual prerequisites and notes:
+- Input from sequencing is per-CpG (methylated, total) counts (Bismark coverage / cytosine report -> methylation-calling). Input from arrays is a beta-value (or M-value) probe matrix.
+- The minimum-coverage floor must hold in ALL compared samples; one low-coverage sample makes a CpG unusable for a group test.
+- Cell-type composition is the dominant confounder in bulk-tissue EWAS - have cell-fraction estimates ready to add to the design matrix.
+- Region-level questions (DMRs) are a separate, complementary step downstream of per-site testing.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
 - "Test each CpG for differential methylation between my case and control groups"
-- "Run Welch's t-test on beta values from my bisulfite count data with BH FDR correction"
-- "Use limma on M-values to find differentially methylated CpGs in my small-sample experiment"
-- "Compute delta-beta effect sizes and identify significant CpGs"
+- "I have WGBS counts with replicates - use DSS beta-binomial per-site testing"
+- "Run limma on M-values for my EPIC array, with cell-fraction covariates"
+- "Recompute delta-beta from raw betas and gate hits on FDR < 0.05 and |delta-beta| > 0.2"
+- "Scan for differentially variable CpGs, not just mean differences"
 
 ## Example Prompts
 
-### From Count Data
-> "I have a TSV with per-CpG methylated and total read counts for 6 case and 6 control samples. Compute beta values, filter CpGs with any sample below 10x coverage, run Welch's t-test, and apply BH FDR correction."
+### Sequencing counts (count model)
+> "I have per-CpG methylated and total read counts for 3 control and 3 treated WGBS samples. Run a beta-binomial per-site test with DSS, then keep CpGs with FDR < 0.05 and |delta-beta| >= 0.1."
 
-> "Read my bisulfite count data, compute beta values as meth/total, and test each CpG for differential methylation between treatment groups."
+> "Use methylKit to test my RRBS replicates per CpG with overdispersion correction and an F-test, then report hyper- and hypo-methylated sites at 25% difference and q < 0.01."
 
-### Method Selection
-> "I have only 3 samples per group from RRBS. Use limma on M-values for per-CpG differential methylation testing."
+### Array / continuous matrix (limma)
+> "I have an EPIC array beta matrix for 6 cases and 6 controls plus estimated cell fractions. Convert to M-values, fit limma with trend and robust empirical Bayes, include the cell fractions as covariates, and report adj.P.Val with delta-beta from the raw betas."
 
-> "My beta value distributions look non-normal at many CpGs. Use Mann-Whitney U test instead of Welch's t-test."
+> "Run a quick continuous per-CpG Welch test on my high-coverage methylation matrix and apply BH FDR - I understand this loses coverage information."
 
-> "Analyze my BS-seq count data with DSS beta-binomial model for statistically rigorous per-CpG testing."
+### Effect size, multiple testing, variability
+> "Filter my differential methylation results to the intersection of FDR < 0.05 and |delta-beta| >= 0.2, and flag the top discovery effect sizes as upward-biased."
 
-### Results and Effect Sizes
-> "Filter my differential methylation results to CpGs with |delta_beta| > 0.2 and FDR < 0.05."
-
-> "Generate a results table with cpg_id, mean_case_beta, mean_ctrl_beta, delta_beta, pvalue, padj, and significant columns."
+> "Scan my methylation data for differentially variable CpGs with DiffVar on M-values, and co-report the mean delta-beta for each hit."
 
 ## What the Agent Will Do
 
-1. Read per-CpG methylation data (count matrix or beta-value matrix)
-2. Compute beta values from counts if starting from raw data (beta = meth / total)
-3. Apply coverage filtering (minimum 10x default, 99.9th percentile upper limit)
-4. Select statistical test based on sample size and data characteristics
-5. Run per-CpG testing between groups (Welch's t-test, Mann-Whitney, limma, or DSS)
-6. Apply Benjamini-Hochberg FDR correction for multiple testing
-7. Calculate delta_beta effect sizes (mean case beta minus mean control beta)
-8. Output results table with statistics, adjusted p-values, and significance calls
-
-## Method Selection Guide
-
-| Scenario | Recommended | Key Advantage |
-|----------|-------------|---------------|
-| Large n (>10/group), Python | Welch's t-test + BH | Fast, simple, reliable with adequate samples |
-| Large n, non-normal | Mann-Whitney U + BH | No distributional assumptions |
-| Small n (3-5/group) | limma on M-values | Borrows variance across CpGs via empirical Bayes |
-| Count-level modeling | DSS beta-binomial | Models biological + sampling variance jointly |
-| Unreplicated | Fisher's exact | Only option without replicates (use with caution) |
+1. Determine the data object (sequencing counts vs array/continuous beta) - this dictates the model.
+2. For sequencing, assemble (chr, pos, M, Cov) per sample; for arrays, take the beta/M-value matrix.
+3. Apply coverage filtering for sequencing (minimum 10x in every sample, 99.9th-percentile upper cap).
+4. Route to the right test: DSS or methylKit (overdispersion-corrected) on counts; limma moderated-t on M-values for arrays/continuous; Welch quick-look only when explicitly continuous.
+5. Build the design matrix, adding cell-fraction and other covariates for bulk-tissue EWAS.
+6. Apply BH-FDR (or an EWAS genome-wide threshold for array consortium work).
+7. Compute delta-beta from the raw beta values and gate hits on the intersection of FDR and |delta-beta|.
+8. Optionally run a differential-variability scan (DiffVar/iEVORA on M-values) alongside the mean test.
+9. Output a results table with per-CpG statistics, adjusted p-values, delta-beta, and significance calls.
 
 ## Tips
 
-- For small samples (n < 5/group), use M-values (logit of beta) for statistical testing with limma. M-values are homoscedastic unlike beta values. For large samples (n > 10/group), t-test on beta values directly is standard and acceptable
-- Report delta_beta (difference in mean beta values) for effect sizes, directly interpretable as percentage-point methylation difference
-- Always pass `equal_var=False` to `scipy.stats.ttest_ind`. The default is Student's t-test which assumes equal variance
-- Always pass `method='fdr_bh'` to `statsmodels.stats.multitest.multipletests`. The default is Holm-Sidak, not Benjamini-Hochberg
-- For fewer than 5 samples per group, strongly prefer limma on M-values over a simple t-test
-- Coverage filtering at 10x is standard; increase to 30x+ for targeted bisulfite sequencing
-- Effect size thresholds: 0.10 for discovery/EWAS, 0.20 for standard analysis, 0.30 for stringent filtering
-- Compute delta_beta from original beta values, not from model coefficients. methylKit's meth.diff and limma's logFC on M-values do not equal mean(case) - mean(ctrl) on beta values
-- Do not pool counts across biological replicates for Fisher's exact test. This ignores biological variance and inflates false positives
+- The data object decides the model: counts -> a count model (DSS/methylKit) that uses coverage as precision; continuous beta -> a Gaussian model on M-values. A bare-beta t-test on sequencing counts discards coverage and is the central anti-pattern.
+- methylKit's `calculateDiffMeth` defaults to `overdispersion="none"` (no correction, over-calls with replicates) and `adjust="SLIM"` (not BH). Set `overdispersion="MN", test="F", adjust="BH"`.
+- Test on M-values, report effect on beta. The M-scale logFC (limma) and methylKit's `meth.diff` are NOT delta-beta - recompute delta-beta from raw betas.
+- In Python, `scipy.stats.ttest_ind` defaults to Student's; pass `equal_var=False` for Welch. `statsmodels` `multipletests` defaults to Holm-Sidak; pass `method='fdr_bh'`.
+- The limma adjusted-p column is `adj.P.Val`, not `padj` (DESeq2) or `FDR`.
+- Fisher's exact is for unreplicated designs only (n=1 vs n=1); never pool biological replicates into one super-sample.
+- Gate hits on BOTH FDR and |delta-beta|; at millions of CpGs a tiny delta-beta within noise can clear FDR.
+- Discovery effect sizes are upward-biased (winner's curse) and attenuate on replication - treat them as upper bounds.
+- Run differential-variability tests (DiffVar/iEVORA) on M-values, not beta, and co-report the mean to rule out a mean-at-boundary artifact.
+- Per-site FDR is conservative when neighboring CpGs are correlated; for regional inference move to region-level methods.
 
 ## Related Skills
 
-- methylkit-analysis - Chi-squared testing with methylKit in R
-- methylation-calling - Generate per-CpG count data from Bismark BAM files
-- dmr-detection - Region-level testing after per-CpG analysis
-- differential-expression/deseq2-basics - Analogous empirical Bayes concepts for count data
-- proteomics/differential-abundance - Similar Welch t-test + BH workflow for proteomics
+- methylation-calling - Produces the (M, coverage) counts tested here
+- methylkit-analysis - methylKit object model and calculateDiffMeth mechanics
+- dmr-detection - Region-level aggregation downstream of per-site testing
+- cell-type-deconvolution - Cell-fraction covariates (the dominant bulk-tissue confounder)
+- ewas-design - Covariate strategy, genomic inflation, and genome-wide thresholds
+- experimental-design/multiple-testing - FDR/FWER theory behind the corrections applied here
+- long-read-sequencing/nanopore-methylation - Long-read MM/ML calling; pipe per-site counts here for count-based statistics
+- differential-expression/deseq2-basics - Analogous dispersion-shrinkage / empirical-Bayes machinery
+- workflows/methylation-pipeline - End-to-end bisulfite pipeline
