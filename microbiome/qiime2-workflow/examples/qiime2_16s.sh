@@ -1,81 +1,91 @@
 #!/bin/bash
-# Reference: DADA2 1.30+, MAFFT 7.520+, QIIME2 2024.2+, phyloseq 1.46+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
-# Complete QIIME2 16S analysis workflow
+# Reference: QIIME2 2026.1+ | Verify release/API if version differs
+#
+# Artifact-lifecycle walk-through: import -> orchestrate -> view/replay -> export.
+# This script demonstrates the FRAMEWORK mechanics QIIME2 owns. Every scientific
+# parameter choice is DEFERRED to the owning sibling skill (noted inline) and the
+# values here are placeholders, not recommendations.
+#
+# Release model is a moving target: QIIME2 is calendar-versioned, ships as separate
+# distributions (amplicon/moshpit/pathogenome/tiny), the framework is now `rachis`
+# (2026.1), and `amplicon` is renamed `qiime2` in 2026.4. Run `qiime info` and verify
+# distribution/action names against the current docs before pinning.
 
-set -e
+set -euo pipefail
 
-# Configuration
-MANIFEST="manifest.tsv"
-METADATA="metadata.tsv"
-CLASSIFIER="silva-138-99-nb-classifier.qza"
-SAMPLING_DEPTH=10000
-OUTPUT_DIR="qiime2_results"
+MANIFEST='manifest.tsv'        # V2 TSV: sample-id<TAB>forward-absolute-filepath<TAB>reverse-absolute-filepath
+METADATA='metadata.tsv'        # ID column + a #q2:types row annotating integer ID/batch columns categorical
+CLASSIFIER='classifier.qza'    # MUST be trained for THIS release; data.qiime2.org/<release>/common/... is release-namespaced
+SAMPLING_DEPTH=10000           # placeholder; pick the real depth from alpha-rarefaction -> diversity-analysis
+OUT='qiime2_results'
 
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUT"
 
-# 1. Import data
-echo "Importing data..."
+# 1. IMPORT - typed, provenance-rooted artifact. Phred offset is baked into the format name
+#    (Phred33V2 = modern Illumina). EMP-multiplexed data needs EMPPairedEndSequences + qiime demux instead.
 qiime tools import \
     --type 'SampleData[PairedEndSequencesWithQuality]' \
     --input-path "$MANIFEST" \
-    --output-path "$OUTPUT_DIR/demux.qza" \
-    --input-format PairedEndFastqManifestPhred33V2
+    --input-format PairedEndFastqManifestPhred33V2 \
+    --output-path "$OUT/demux.qza"
 
-# 2. Denoise with DADA2
-echo "Denoising with DADA2..."
+# Per-base quality summary that drives the truncation choice (the choice belongs to amplicon-processing)
+qiime demux summarize --i-data "$OUT/demux.qza" --o-visualization "$OUT/demux.qzv"
+
+# 2. DENOISE - trunc/trim/maxEE and DADA2-vs-Deblur are DEFERRED to amplicon-processing
 qiime dada2 denoise-paired \
-    --i-demultiplexed-seqs "$OUTPUT_DIR/demux.qza" \
-    --p-trunc-len-f 240 \
-    --p-trunc-len-r 160 \
-    --p-n-threads 0 \
-    --o-table "$OUTPUT_DIR/table.qza" \
-    --o-representative-sequences "$OUTPUT_DIR/rep-seqs.qza" \
-    --o-denoising-stats "$OUTPUT_DIR/denoising-stats.qza"
+    --i-demultiplexed-seqs "$OUT/demux.qza" \
+    --p-trunc-len-f 0 --p-trunc-len-r 0 \
+    --o-table "$OUT/table.qza" \
+    --o-representative-sequences "$OUT/rep-seqs.qza" \
+    --o-denoising-stats "$OUT/stats.qza"
 
-# 3. Assign taxonomy
-echo "Assigning taxonomy..."
+# 3. PEEK / VALIDATE - confirm the semantic types before wiring downstream actions.
+#    A type error downstream is the framework guard working; fix the upstream action, do not re-import.
+qiime tools peek "$OUT/table.qza"                          # expect Type: FeatureTable[Frequency]
+qiime tools validate "$OUT/table.qza" --level max          # archive integrity + format conformance
+
+# 4. TAXONOMY - classifier and reference database are DEFERRED to taxonomy-assignment.
+#    A classifier trained under another release breaks (it is pinned to its scikit-learn version).
 qiime feature-classifier classify-sklearn \
     --i-classifier "$CLASSIFIER" \
-    --i-reads "$OUTPUT_DIR/rep-seqs.qza" \
-    --o-classification "$OUTPUT_DIR/taxonomy.qza"
+    --i-reads "$OUT/rep-seqs.qza" \
+    --o-classification "$OUT/taxonomy.qza"
 
-# 4. Build phylogeny
-echo "Building phylogenetic tree..."
+# 5. PHYLOGENY (Pipeline) - rooted tree for UniFrac / Faith PD
 qiime phylogeny align-to-tree-mafft-fasttree \
-    --i-sequences "$OUTPUT_DIR/rep-seqs.qza" \
-    --o-alignment "$OUTPUT_DIR/aligned-rep-seqs.qza" \
-    --o-masked-alignment "$OUTPUT_DIR/masked-aligned-rep-seqs.qza" \
-    --o-tree "$OUTPUT_DIR/unrooted-tree.qza" \
-    --o-rooted-tree "$OUTPUT_DIR/rooted-tree.qza"
+    --i-sequences "$OUT/rep-seqs.qza" \
+    --o-alignment "$OUT/aln.qza" \
+    --o-masked-alignment "$OUT/masked-aln.qza" \
+    --o-tree "$OUT/unrooted-tree.qza" \
+    --o-rooted-tree "$OUT/rooted-tree.qza"
 
-# 5. Diversity analysis
-echo "Running diversity analysis..."
+# 6. DIVERSITY (Pipeline) - sampling depth, metric, and rarefy-or-not are DEFERRED to diversity-analysis.
+#    The PERMANOVA location-vs-dispersion (betadisper) confound also lives in diversity-analysis.
 qiime diversity core-metrics-phylogenetic \
-    --i-phylogeny "$OUTPUT_DIR/rooted-tree.qza" \
-    --i-table "$OUTPUT_DIR/table.qza" \
+    --i-phylogeny "$OUT/rooted-tree.qza" \
+    --i-table "$OUT/table.qza" \
     --p-sampling-depth "$SAMPLING_DEPTH" \
     --m-metadata-file "$METADATA" \
-    --output-dir "$OUTPUT_DIR/diversity"
+    --output-dir "$OUT/core-metrics"
 
-# 6. Alpha diversity significance
-qiime diversity alpha-group-significance \
-    --i-alpha-diversity "$OUTPUT_DIR/diversity/shannon_vector.qza" \
+# 7. DIFFERENTIAL ABUNDANCE - MODERN q2-composition ANCOM-BC (NOT the legacy add-pseudocount + ancom idiom).
+#    Tool choice and the run-several-take-consensus message are DEFERRED to differential-abundance.
+qiime composition ancombc \
+    --i-table "$OUT/table.qza" \
     --m-metadata-file "$METADATA" \
-    --o-visualization "$OUTPUT_DIR/shannon-significance.qzv"
+    --p-formula 'group' \
+    --o-differentials "$OUT/ancombc.qza"
+qiime composition da-barplot --i-data "$OUT/ancombc.qza" --o-visualization "$OUT/ancombc-barplot.qzv"
 
-# 7. Beta diversity significance
-qiime diversity beta-group-significance \
-    --i-distance-matrix "$OUTPUT_DIR/diversity/weighted_unifrac_distance_matrix.qza" \
-    --m-metadata-file "$METADATA" \
-    --m-metadata-column Group \
-    --p-method permanova \
-    --o-visualization "$OUTPUT_DIR/permanova.qzv"
+# 8. PROVENANCE REPLAY - regenerate the executable commands + citations from an artifact alone.
+#    Verify flag spelling with `qiime tools replay-provenance --help` (the interface is still maturing).
+qiime tools replay-provenance --in-fp "$OUT/core-metrics" --out-fp "$OUT/replay.sh" --usage-driver cli
+qiime tools replay-citations  --in-fp "$OUT/core-metrics" --out-fp "$OUT/citations.bib"
 
-# 8. Taxonomic barplot
-qiime taxa barplot \
-    --i-table "$OUTPUT_DIR/table.qza" \
-    --i-taxonomy "$OUTPUT_DIR/taxonomy.qza" \
-    --m-metadata-file "$METADATA" \
-    --o-visualization "$OUTPUT_DIR/taxa-barplot.qzv"
+# 9. EXPORT - the one-way door. This DROPS the QIIME2 wrapper and the provenance; the exported TSV has no
+#    history back to the reads. Export at the LAST step. For R, qiime2R::qza_to_phyloseq() reads .qza directly.
+qiime tools export --input-path "$OUT/table.qza" --output-path "$OUT/exported"
+biom convert -i "$OUT/exported/feature-table.biom" -o "$OUT/exported/feature-table.tsv" --to-tsv
 
-echo "Analysis complete! View results at https://view.qiime2.org/"
+echo "Done. View .qzv files and provenance at https://view.qiime2.org/ (no install needed)."

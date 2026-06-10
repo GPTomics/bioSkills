@@ -1,62 +1,63 @@
-# Reference: DADA2 1.30+, cutadapt 4.4+ | Verify API if version differs
-# DADA2 amplicon processing workflow for paired-end 16S data
+# Reference: DADA2 1.30+, cutadapt 4.6+ | Verify API if version differs
+# Multi-run DADA2 amplicon workflow: per-run error model -> mergeSequenceTables -> ONE chimera removal.
+# Primers MUST be removed (cutadapt --discard-untrimmed) BEFORE this script runs; see remove_primers.sh.
+# Leaving primers on corrupts the error model and fakes chimeras, so the order is non-negotiable.
 library(dada2)
 
-path <- 'raw_reads'
-fnFs <- sort(list.files(path, pattern = '_R1_001.fastq.gz', full.names = TRUE))
-fnRs <- sort(list.files(path, pattern = '_R2_001.fastq.gz', full.names = TRUE))
-sample_names <- sapply(strsplit(basename(fnFs), '_'), `[`, 1)
+# truncLen is a DETECTION BUDGET, not just a quality cut: truncLen_F + truncLen_R must exceed
+# amplicon_length + minOverlap (DADA2 default minOverlap = 12) or denoised pairs cannot merge.
+# These values suit 16S V4 (~253 bp) on 2x250; for V3-V4 (~460 bp) keep more length and loosen maxEE_R.
+truncLen <- c(240, 200)
+maxEE <- c(2, 2)         # expected-errors filter (on the TRUNCATED read); beats a hard Q cutoff. Default 2.
+truncQ <- 2             # truncate each read at the first base with Q <= 2
 
-cat('Processing', length(fnFs), 'samples\n')
+run_dirs <- c('run1', 'run2')   # one directory of primer-trimmed FASTQs per sequencing run
 
-# Quality profiles (check first 2 samples)
-pdf('quality_profiles.pdf')
-plotQualityProfile(fnFs[1:2])
-plotQualityProfile(fnRs[1:2])
-dev.off()
+process_run <- function(run_path) {
+    fnFs <- sort(list.files(run_path, pattern='_R1_001.fastq.gz', full.names=TRUE))
+    fnRs <- sort(list.files(run_path, pattern='_R2_001.fastq.gz', full.names=TRUE))
+    sample_names <- sapply(strsplit(basename(fnFs), '_'), `[`, 1)
+    filtFs <- file.path(run_path, 'filtered', paste0(sample_names, '_F.fastq.gz'))
+    filtRs <- file.path(run_path, 'filtered', paste0(sample_names, '_R.fastq.gz'))
+    names(filtFs) <- sample_names
+    names(filtRs) <- sample_names
 
-# Setup filtered files
-dir.create('filtered', showWarnings = FALSE)
-filtFs <- file.path('filtered', paste0(sample_names, '_F_filt.fastq.gz'))
-filtRs <- file.path('filtered', paste0(sample_names, '_R_filt.fastq.gz'))
-names(filtFs) <- sample_names
-names(filtRs) <- sample_names
+    out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=truncLen, maxEE=maxEE,
+                         truncQ=truncQ, maxN=0, rm.phix=TRUE, compress=TRUE, multithread=TRUE)
 
-# Filter and trim (adjust truncLen based on quality profiles)
-# truncLen: Set where Q-score drops below ~25-30; forward usually longer than reverse
-# maxEE: Max expected errors; 2 is DADA2 default, use 1 for stricter filtering
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
-                     truncLen = c(240, 160), maxN = 0, maxEE = c(2, 2),
-                     truncQ = 2, rm.phix = TRUE, compress = TRUE, multithread = TRUE)
+    errF <- learnErrors(filtFs, multithread=TRUE)   # fit THIS run only - error rates are run-specific
+    errR <- learnErrors(filtRs, multithread=TRUE)
 
-# Learn error rates
-errF <- learnErrors(filtFs, multithread = TRUE)
-errR <- learnErrors(filtRs, multithread = TRUE)
+    # Inspect the fit: observed points must track the fitted line and fall with Q. On NovaSeq/NextSeq
+    # binned quality the fit can go non-monotonic - enforce monotonicity before trusting the denoising.
+    ggsave(file.path(run_path, 'error_fit_F.png'), plotErrors(errF, nominalQ=TRUE), width=8, height=6)
 
-# Denoise
-dadaFs <- dada(filtFs, err = errF, multithread = TRUE)
-dadaRs <- dada(filtRs, err = errR, multithread = TRUE)
+    dadaFs <- dada(filtFs, err=errF, multithread=TRUE)   # pool='pseudo' for rare-ASV sensitivity
+    dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
+    mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+    seqtab <- makeSequenceTable(mergers)
 
-# Merge paired reads
-mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose = TRUE)
+    getN <- function(x) sum(getUniques(x))
+    track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN))
+    colnames(track) <- c('input', 'filtered', 'denoisedF', 'denoisedR', 'merged')
+    rownames(track) <- sample_names
+    list(seqtab=seqtab, track=track)
+}
 
-# Construct sequence table
-seqtab <- makeSequenceTable(mergers)
-cat('ASVs before chimera removal:', ncol(seqtab), '\n')
+per_run <- lapply(run_dirs, process_run)
 
-# Remove chimeras; 'consensus' method is more conservative than 'pooled', reducing false positives
-seqtab_nochim <- removeBimeraDenovo(seqtab, method = 'consensus', multithread = TRUE, verbose = TRUE)
-cat('ASVs after chimera removal:', ncol(seqtab_nochim), '\n')
-cat('Reads retained:', round(100 * sum(seqtab_nochim) / sum(seqtab), 1), '%\n')
+# Combine AFTER per-run inference: mergeSequenceTables joins by the exact ASV sequence string,
+# which is only possible because ASVs are exact sequences (the operational payoff of "ASVs replace OTUs").
+seqtab_all <- mergeSequenceTables(tables=lapply(per_run, `[[`, 'seqtab'))
 
-# Track reads through pipeline
-getN <- function(x) sum(getUniques(x))
-track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN),
-               sapply(mergers, getN), rowSums(seqtab_nochim))
-colnames(track) <- c('input', 'filtered', 'denoisedF', 'denoisedR', 'merged', 'nonchim')
-rownames(track) <- sample_names
-write.csv(track, 'read_tracking.csv')
+# ONE chimera removal on the combined table. Chimeras are many ASVs but few READS; a large read loss
+# here is a leftover-primer smell (degenerate bases look chimeric), not a real chimera storm.
+seqtab_nochim <- removeBimeraDenovo(seqtab_all, method='consensus', multithread=TRUE, verbose=TRUE)
+cat('reads retained after chimera removal:', round(100 * sum(seqtab_nochim) / sum(seqtab_all), 1), '%\n')
 
-# Save sequence table
-saveRDS(seqtab_nochim, 'seqtab_nochim.rds')
-cat('Saved seqtab_nochim.rds\n')
+# ASV length distribution - off-target lengths flag mis-merges or non-target amplification.
+table(nchar(getSequences(seqtab_nochim)))
+
+track_all <- do.call(rbind, lapply(per_run, `[[`, 'track'))
+write.csv(track_all, 'read_tracking.csv')
+saveRDS(seqtab_nochim, 'seqtab_nochim.rds')   # carry 'run' as a batch covariate into downstream stats
