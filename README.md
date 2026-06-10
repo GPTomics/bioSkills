@@ -138,7 +138,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **single-cell** | 14 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication |
 | **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot | GO, KEGG, Reactome, WikiPathways enrichment; ORA vs GSEA guidance, prokaryotic support, background universe, multi-condition comparison |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
-| **methylation-analysis** | 5 | Bismark, methylKit, bsseq, scipy | Bisulfite alignment, methylation calling, per-CpG testing, DMRs |
+| **methylation-analysis** | 10 | Bismark, methylKit, dmrseq, sesame, minfi, EpiDISH, methylclock, meffil | Bisulfite + Infinium array DNA methylation: alignment, calling, per-CpG testing, DMRs, array preprocessing/QC, cell-type deconvolution, epigenetic clocks, EWAS design |
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
 | **metagenomics** | 8 | Kraken2, MetaPhlAn, Bracken, HUMAnN, AMRFinderPlus, inStrain, decontam | Read-based taxonomic/functional profiling, abundance, resistome, strain tracking, contamination controls |
 | **long-read-sequencing** | 8 | Dorado, minimap2, Clair3, modkit, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, methylation, Iso-Seq |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 535 skills across 63 categories**
+**Total: 540 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 535 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 540 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

@@ -98,8 +98,8 @@ bismark --genome genome/ \
 ```
 
 **QC Checkpoint:** Check Bismark report
-- Mapping efficiency >50% (BS-seq has lower rates)
-- Bisulfite conversion rate >99%
+- Mapping efficiency >50% (the 3-letter alphabet lowers uniqueness; 50-70% is normal for WGBS)
+- Bisulfite conversion >99% from the unmethylated lambda spike-in (bounds under-conversion -> false hyper); also check a methylated pUC19 control for over-conversion (-> false hypo)
 
 ### Step 3: Deduplication
 
@@ -129,6 +129,10 @@ bismark2summary
 ```
 
 ### Step 5: Analysis with methylKit
+
+**Goal:** Turn per-sample coverage/cytosine reports into a coverage-filtered, normalized, united methylation object ready for testing.
+
+**Approach:** Read each sample with the matching pipeline, drop low-coverage and extreme-coverage CpGs, normalize coverage across libraries, then unite to the sites covered in every sample.
 
 ```r
 library(methylKit)
@@ -186,9 +190,11 @@ import numpy as np
 # See methylation-analysis/differential-cpg-testing for full pipeline
 ```
 
-This approach is appropriate for large sample sizes (>10 per group). For small sample sizes (3-5 per group), use limma on M-values instead (also covered in the differential-cpg-testing skill).
+A bare-beta t-test discards coverage (the precision information unique to sequencing) and is only a quick look. For sequencing counts, route to a beta-binomial / overdispersion-corrected count model (DSS, or methylKit with overdispersion='MN'); for array or continuous data, use limma on M-values. The count-vs-continuous decision is owned by methylation-analysis/differential-cpg-testing.
 
 ### Step 6: DMR Detection
+
+methylKit fixed tiles are a fast screen, but their region q-value is not corrected for the region-selection step. For a rigorous region-level FDR use dmrseq (a permutation null over the selection) or DSS callDMR, and confirm with cross-tool overlap - see methylation-analysis/dmr-detection.
 
 ```r
 # Calculate differential methylation (per CpG)
@@ -230,7 +236,7 @@ annotateWithGeneParts(as(dmr, 'GRanges'), gene_obj)
 | Low mapping rate | Normal for BS-seq | Expect 40-70% |
 | Low conversion | Failed bisulfite treatment | Check spike-in controls |
 | Few DMRs | Low coverage, small differences | Increase sequencing, relax thresholds |
-| Biased positions | M-bias | Trim 10bp from read ends |
+| Biased positions | M-bias (end-repair fill-in) | Trim the affected read ends from the M-bias plot, not a fixed number |
 
 ## Complete Pipeline Script
 
@@ -282,8 +288,12 @@ echo "Pipeline complete. Run R script for DMR analysis."
 
 ## Related Skills
 
-- methylation-analysis/bismark-alignment - Bismark parameters
-- methylation-analysis/methylation-calling - Calling details
-- methylation-analysis/methylkit-analysis - methylKit functions
-- methylation-analysis/differential-cpg-testing - Per-CpG testing (Python/R alternatives)
-- methylation-analysis/dmr-detection - DMR algorithms
+- methylation-analysis/bismark-alignment - Bisulfite/EM-seq alignment, library/strand model, conversion QC
+- methylation-analysis/methylation-calling - Calling from BAM (Bismark/MethylDackel), contexts, variant-aware
+- methylation-analysis/methylkit-analysis - methylKit object model and overdispersion gotchas
+- methylation-analysis/differential-cpg-testing - Per-CpG testing (count-vs-continuous fork)
+- methylation-analysis/dmr-detection - Selection-aware region callers (dmrseq/DSS) and PMD segmentation
+- methylation-analysis/array-preprocessing - Alternate entry: Infinium IDAT to beta/M matrix
+- methylation-analysis/cell-type-deconvolution - Cell-fraction covariates for bulk-tissue EWAS
+- methylation-analysis/epigenetic-clocks - DNAm age and age acceleration
+- methylation-analysis/ewas-design - EWAS confounding, batch, inflation, and replication

@@ -1,14 +1,16 @@
 # Reference: limma 3.58+ | Verify API if version differs
-# Per-CpG differential methylation with limma on M-values
-# Recommended when sample sizes are small (n=3-5 per group)
+# Per-CpG differential methylation with limma moderated-t on M-values.
+# This is the ARRAY / CONTINUOUS path (450K/EPIC, or high uniform-coverage sequencing).
+# For bisulfite sequencing COUNTS prefer a beta-binomial count model (DSS / methylKit MN)
+# that uses coverage as precision instead of collapsing to a continuous beta.
 
 library(limma)
 
 beta_matrix <- read.csv('beta_values.csv', row.names = 1)
 
-# M-value: logit transform (base 2) for statistical testing
-# 1e-6 offset: prevents log(0) and division by zero at beta=0 or beta=1
-offset <- 1e-6
+# M-value: logit transform (base 2); test on M, report effect on beta.
+# 1e-3 offset: boundary-safe so beta = 0 or 1 does not blow up the logit
+offset <- 1e-3
 m_values <- log2((beta_matrix + offset) / (1 - beta_matrix + offset))
 
 group <- factor(c(rep('case', 6), rep('ctrl', 6)))
@@ -32,7 +34,8 @@ delta_beta <- rowMeans(beta_matrix[, group == 'case']) -
 results$delta_beta <- delta_beta
 results$significant <- ifelse(results$adj.P.Val < 0.05, 'TRUE', 'FALSE')
 
-write.csv(results, 'dmc_limma_results.csv', row.names = TRUE)
+out_file <- tempfile(fileext = '.csv')   # write to a temp path, not the working directory
+write.csv(results, out_file, row.names = TRUE)
 
 n_sig <- sum(results$significant == 'TRUE')
 cat(sprintf('CpGs tested: %d, significant (adj.P.Val < 0.05): %d\n', nrow(results), n_sig))
