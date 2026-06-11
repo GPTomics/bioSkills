@@ -1,58 +1,41 @@
-# Reference: DESeq2 1.42+ | Verify API if version differs
-library(DESeq2)
+# Reference: MultiAssayExperiment 1.36+, sva 3.50+ | Verify API if version differs
+# Cross-omic harmonization: assemble the container, equalize block contribution, correct batch
+# ONCE per omic (only after a confounding check), and triage missingness by mechanism. Assumes
+# each block is ALREADY per-omic normalized (VST / log2 / M-values) in its own category.
+
+library(MultiAssayExperiment)
 library(sva)
 
-# Simulate multi-omics data
-set.seed(42)
-n_samples <- 60
-samples <- paste0('Sample', 1:n_samples)
+set.seed(1)
+n <- 50
+samples <- paste0('S', seq_len(n))
+sample_info <- DataFrame(row.names=samples,
+                         Condition=factor(rep(c('case', 'control'), length.out=n)),
+                         Batch=factor(rep(c('b1', 'b2'), each=n / 2)))
 
-# RNA-seq counts
-rna_counts <- matrix(rnbinom(n_samples * 1000, size = 10, mu = 100), nrow = 1000, dimnames = list(paste0('Gene', 1:1000), samples))
+vst_rna  <- matrix(rnorm(2000 * n, 8, 2), nrow=2000, dimnames=list(paste0('gene', 1:2000), samples))
+norm_prot <- matrix(rnorm(300 * n, 20, 1), nrow=300, dimnames=list(paste0('prot', 1:300), samples))
+m_values <- matrix(rnorm(5000 * n), nrow=5000, dimnames=list(paste0('cg', 1:5000), samples))
 
-# Proteomics intensity
-protein_int <- matrix(2^rnorm(n_samples * 500, mean = 20, sd = 3), nrow = 500, dimnames = list(paste0('Protein', 1:500), samples))
-protein_int[sample(length(protein_int), 0.1 * length(protein_int))] <- NA  # Add missing
+mae <- MultiAssayExperiment(experiments=ExperimentList(RNA=vst_rna, Protein=norm_prot, Methylation=m_values),
+                            colData=sample_info)
+cat('subjects with every omic:', sum(complete.cases(mae)), 'of', nrow(colData(mae)), '\n')
 
-# Sample info
-sample_info <- data.frame(
-    SampleID = samples,
-    Condition = rep(c('Control', 'Treatment'), each = n_samples / 2),
-    Batch = rep(c('B1', 'B2'), n_samples / 2)
-)
+drop_constant <- function(mat, min_sd=1e-8) mat[apply(mat, 1, sd, na.rm=TRUE) > min_sd, ]   # per-feature scaling blows up zero-variance features
+scale_per_view <- function(mat) mat / sqrt(sum(apply(mat, 1, var, na.rm=TRUE)))             # equalize block contribution, keep within-block feature ratios
 
-# === HARMONIZATION ===
+blocks <- lapply(experiments(mae), function(x) scale_per_view(drop_constant(as.matrix(x))))
+cat('per-block variance after scaling:\n')
+print(round(sapply(blocks, function(x) sum(apply(x, 1, var))), 3))
 
-# 1. Normalize RNA-seq
-dds <- DESeqDataSetFromMatrix(rna_counts, colData = sample_info, design = ~ 1)
-vst_rna <- assay(vst(dds))
+cat('\nbatch x condition (confounding gate; any 0 cell = collinear, do NOT correct):\n')
+print(with(as.data.frame(colData(mae)), table(Batch, Condition)))
 
-# 2. Normalize proteomics
-log2_protein <- log2(protein_int)
-log2_protein[is.infinite(log2_protein)] <- NA
-medians <- apply(log2_protein, 2, median, na.rm = TRUE)
-norm_protein <- sweep(log2_protein, 2, medians - median(medians))
+mod <- model.matrix(~ Condition, data=as.data.frame(colData(mae)))                          # protect biology
+rna_bc <- ComBat(dat=vst_rna, batch=colData(mae)$Batch, mod=mod, par.prior=TRUE)            # ONE omic at a time, never a stacked matrix
+cat('\nRNA batch-corrected:', nrow(rna_bc), 'x', ncol(rna_bc), '\n')
 
-# 3. Filter missing values in proteomics
-keep_prot <- rowMeans(is.na(norm_protein)) < 0.3
-norm_protein <- norm_protein[keep_prot, ]
-
-# 4. Impute remaining missing
-for (i in 1:ncol(norm_protein)) {
-    nas <- is.na(norm_protein[, i])
-    if (any(nas)) {
-        q01 <- quantile(norm_protein[, i], 0.01, na.rm = TRUE)
-        norm_protein[nas, i] <- rnorm(sum(nas), q01, abs(q01) * 0.1)
-    }
-}
-
-# 5. Scale
-scaled_rna <- t(scale(t(vst_rna)))
-scaled_protein <- t(scale(t(norm_protein)))
-
-# Save
-cat('Harmonization complete\n')
-cat('RNA:', nrow(scaled_rna), 'features x', ncol(scaled_rna), 'samples\n')
-cat('Protein:', nrow(scaled_protein), 'features x', ncol(scaled_protein), 'samples\n')
-
-saveRDS(list(RNA = scaled_rna, Protein = scaled_protein, sample_info = sample_info), 'harmonized_data.rds')
+prot_miss <- norm_prot
+prot_miss[sample(length(prot_miss), 0.1 * length(prot_miss))] <- NA                         # simulate sporadic gaps
+keep <- rowMeans(is.na(prot_miss)) < 0.30                                                    # drop features missing in >30% of samples
+cat('proteins kept after missingness filter:', sum(keep), 'of', nrow(prot_miss), '\n')

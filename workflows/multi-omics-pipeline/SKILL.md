@@ -13,7 +13,7 @@ depends_on:
 
 ## Version Compatibility
 
-Reference examples tested with: clusterProfiler 4.10+, ggplot2 3.5+, scanpy 1.10+
+Reference examples tested with: MOFA2 1.12+, mixOmics 6.26+, SNFtool 2.3+, clusterProfiler 4.10+, ggplot2 3.5+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -23,7 +23,9 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Multi-omics Integration Pipeline
 
-**"Integrate my multi-omics datasets"** -> Orchestrate data harmonization, MOFA+ factor analysis, mixOmics multivariate integration, similarity network fusion, and joint pathway interpretation across transcriptomics, proteomics, metabolomics, or other modalities.
+**"Integrate my multi-omics datasets"** -> Decide the strategy first, then orchestrate harmonization, the chosen integration method (MOFA2, mixOmics, or SNF), interpretation, and validation - because bulk multi-omics is small-n, huge-p, so an unvalidated integrated result is the default noise outcome.
+
+Before any tool runs, settle the design with multi-omics-integration/integration-design: confirm the data is vertical (different omics on the SAME samples, not the same features across cohorts), map the question to a method (shared factors -> MOFA2, predictive signature -> DIABLO, patient subtypes -> SNF), and plan a held-out cohort because in-cohort cross-validation at small n is optimistically biased. Inspect the per-view variance-explained table to confirm no single omic dominates the shared structure.
 
 ## Pipeline Overview
 
@@ -49,6 +51,10 @@ Metabolomics ─────┘                                                 
 ```
 
 ## Complete MOFA2 Workflow
+
+**Goal:** Discover unsupervised shared and view-specific factors across the harmonized omics, then interpret and validate them.
+
+**Approach:** Harmonize to common samples, feature-select per view, train MOFA2, read the per-view variance decomposition first, label factors against biological and technical covariates, and run enrichment on the signed weights.
 
 ```r
 library(MOFA2)
@@ -101,9 +107,10 @@ data_list <- list(
 # Create MOFA object
 mofa <- create_mofa(data_list)
 
-# Add sample metadata
+# Add sample metadata (samples_metadata<- requires a literal 'sample' column)
 sample_metadata <- read.csv('sample_metadata.csv')
 rownames(sample_metadata) <- sample_metadata$sample_id
+sample_metadata$sample <- sample_metadata$sample_id
 samples_metadata(mofa) <- sample_metadata[common_samples, ]
 
 # === 4. CONFIGURE AND TRAIN MODEL ===
@@ -137,9 +144,8 @@ ggsave('variance_explained.png', width = 10, height = 6)
 # Factor values
 factor_values <- get_factors(mofa)[[1]]
 
-# Correlate factors with phenotypes
-plot_factor_cor(mofa, color_by = 'condition')
-ggsave('factor_phenotype_correlation.png', width = 8, height = 6)
+# Correlate factors with biological AND technical covariates; a factor that tracks batch is a batch factor
+correlate_factors_with_covariates(mofa, covariates = c('condition', 'batch', 'depth'))
 
 # Factor plots
 plot_factor(mofa, factors = 1:4, color_by = 'condition', dot_size = 3)
@@ -216,6 +222,10 @@ cat('\nMOFA analysis complete!\n')
 
 ## mixOmics DIABLO Workflow
 
+**Goal:** Build a supervised cross-omic signature that discriminates a known outcome, with an honest performance estimate.
+
+**Approach:** Set the design matrix from the goal, tune the component count then keepX inside cross-validation folds with balanced error rate, fit, and report performance from data not used in tuning.
+
 ```r
 library(mixOmics)
 
@@ -230,9 +240,10 @@ X <- list(
 # Outcome variable
 Y <- factor(sample_metadata[common_samples, 'condition'])
 
-# === 2. DESIGN MATRIX ===
-# Define connections between blocks
-design <- matrix(0.1, ncol = length(X), nrow = length(X),
+# === 2. DESIGN MATRIX (the central DIABLO decision) ===
+# off-diagonal trades discrimination vs cross-block correlation: ~1 for a coherent network,
+# <0.5 for prediction. 0.1 leans toward prediction and is tutorial convention, not a default.
+design <- matrix(0.5, ncol = length(X), nrow = length(X),
                  dimnames = list(names(X), names(X)))
 diag(design) <- 0
 
@@ -275,9 +286,9 @@ circosPlot(diablo.model, cutoff = 0.7, line = TRUE,
 cimDiablo(diablo.model, color.blocks = c('darkorchid', 'brown1', 'lightgreen'),
           margins = c(10, 5))
 
-# === 6. PERFORMANCE ===
+# === 6. PERFORMANCE (report from data not used to tune; an external test set is the honest estimate) ===
 perf.final <- perf(diablo.model, validation = 'Mfold', folds = 5, nrepeat = 10)
-cat('Classification error rate:', perf.final$WeightedVote.error.rate, '\n')
+perf.final$WeightedVote.error.rate   # matrix: classes + Overall.BER by component
 
 # ROC curves
 auc.diablo <- auroc(diablo.model, roc.block = 'RNA', roc.comp = 1)
@@ -285,29 +296,28 @@ auc.diablo <- auroc(diablo.model, roc.block = 'RNA', roc.comp = 1)
 
 ## Similarity Network Fusion (SNF)
 
+**Goal:** Stratify patients into candidate subtypes from the fused multi-omic similarity network.
+
+**Approach:** Standardize each omic, build local-scaled affinity networks, fuse by cross-diffusion, estimate a plausible cluster number, and defend it with a fused-versus-single-omic concordance check before claiming subtypes.
+
 ```r
 library(SNFtool)
 
 # === 1. CREATE SIMILARITY MATRICES ===
-# Distance matrices per modality
-dist_rna <- dist2(as.matrix(rna_var), as.matrix(rna_var))
-dist_protein <- dist2(as.matrix(protein_var), as.matrix(protein_var))
-dist_metab <- dist2(as.matrix(metab_var), as.matrix(metab_var))
+K <- 20       # neighbors for the local kernel bandwidth (10-30)
+sigma <- 0.5  # affinityMatrix width (the arg is sigma, not alpha); 0.3-0.8
 
-# Affinity matrices
-K <- 20  # Number of neighbors
-alpha <- 0.5  # Hyperparameter
-
-aff_rna <- affinityMatrix(dist_rna, K = K, sigma = alpha)
-aff_protein <- affinityMatrix(dist_protein, K = K, sigma = alpha)
-aff_metab <- affinityMatrix(dist_metab, K = K, sigma = alpha)
+# standardize per feature, then squared-Euclidean -> root -> local-scaled kernel
+views <- lapply(list(rna_var, protein_var, metab_var), function(x) standardNormalization(as.matrix(x)))
+affinities <- lapply(views, function(x) affinityMatrix(dist2(x, x)^(1/2), K, sigma))   # dist2 returns SQUARED distance
 
 # === 2. FUSE NETWORKS ===
-W <- SNF(list(aff_rna, aff_protein, aff_metab), K = K, t = 20)
+W <- SNF(affinities, K, t = 20)
 
-# === 3. CLUSTER ON FUSED NETWORK ===
-clusters <- spectralClustering(W, K = 3)  # K = number of clusters
-cat('Cluster distribution:', table(clusters), '\n')
+# === 3. CLUSTER ON FUSED NETWORK (defend the count, do not assume it) ===
+estimateNumberOfClustersGivenGraph(W, NUMC = 2:8)   # four eigengap/rotation estimates - plausibility, not truth
+clusters <- spectralClustering(W, K = 3)            # here K is the CLUSTER COUNT
+concordanceNetworkNMI(c(affinities, list(W)), 3)    # did fusion beat the best single omic? (Rappoport and Shamir 2018)
 
 # === 4. VISUALIZATION ===
 # Plot fused network
@@ -322,36 +332,34 @@ displayClustersWithHeatmap(W, clusters)
 | Missing values | <20% per modality | Impute or remove |
 | Feature variance | Features vary | Filter low variance |
 | Model convergence | ELBO plateau | Increase iterations |
-| Factor variance | >5% per factor | Keep fewer factors |
+| Factor variance | drop factors below ~1-2% in all views | set drop_factor_threshold; keep fewer factors |
+| Variance imbalance | no single view dominates every factor | per-view scaling or filter the wider view harder |
+| Validation | held-out cohort, not in-cohort CV | replicate before claiming a biomarker/subtype |
 
 ## Workflow Variants
 
 ### With Missing Samples
 ```r
-# MOFA2 handles missing views gracefully
-# Use create_mofa_from_df for unbalanced data
-data_long <- rbind(
-    data.frame(sample = rownames(rna), view = 'RNA',
-               feature = colnames(rna), value = unlist(rna)),
-    data.frame(sample = rownames(protein), view = 'Protein',
-               feature = colnames(protein), value = unlist(protein))
-)
+# MOFA2 handles missing views gracefully; create_mofa_from_df wants one row per (sample, feature, value)
+to_long <- function(mat, view) {
+    df <- as.data.frame(as.table(as.matrix(mat)))   # samples x features -> Var1=sample, Var2=feature, Freq=value (alignment preserved)
+    data.frame(sample = as.character(df$Var1), feature = as.character(df$Var2), view = view, value = df$Freq)
+}
+data_long <- rbind(to_long(rna, 'RNA'), to_long(protein, 'Protein'))
 mofa <- create_mofa_from_df(data_long)
 ```
 
 ### Single-cell Multi-omics
-```r
-# MOFA+ for single-cell
-library(MOFA2)
-mofa <- create_mofa_from_Seurat(seurat_obj, groups = 'cell_type',
-                                 assays = c('RNA', 'ATAC'))
-```
+Single-cell multimodal data (CITE-seq, 10x Multiome) is a different paradigm - per-cell generative models with abundant observations rather than the bulk small-n regime. Route it to single-cell/multimodal-integration rather than applying this bulk pipeline.
 
 ## Related Skills
 
-- multi-omics-integration/mofa-integration - MOFA2 details
-- multi-omics-integration/mixomics-analysis - mixOmics methods
-- multi-omics-integration/similarity-network - SNF method
-- multi-omics-integration/data-harmonization - Preprocessing
-- pathway-analysis/go-enrichment - Factor interpretation
+- multi-omics-integration/integration-design - Method selection, correspondence, and the n<<p discipline (decide first)
+- multi-omics-integration/mofa-integration - MOFA2 unsupervised factor analysis
+- multi-omics-integration/mixomics-analysis - mixOmics DIABLO/sPLS/MINT methods
+- multi-omics-integration/similarity-network - SNF patient stratification
+- multi-omics-integration/data-harmonization - Cross-omic preprocessing and scaling
+- pathway-analysis/go-enrichment - Factor/signature interpretation
 - differential-expression/batch-correction - Batch effects
+- clinical-biostatistics/survival-analysis - Survival validation of factors and subtypes
+- single-cell/multimodal-integration - Single-cell multimodal integration (different paradigm)

@@ -2,46 +2,47 @@
 
 ## Overview
 
-Statistical integration of multiple omics data types (transcriptomics, proteomics, metabolomics, etc.) for biological discovery.
+Joint statistical integration of two or more BULK omics blocks on a shared sample axis: deciding the integration strategy, MOFA2 unsupervised factor discovery, mixOmics supervised multi-block discriminant analysis (DIABLO/sPLS/MINT), Similarity Network Fusion for patient stratification, and cross-omic harmonization. The framing is decision-grade: bulk multi-omics is small-n/large-p so an unvalidated integrated signature is the default noise result, vertical and horizontal integration are different problems, MOFA factors are unsupervised so a factor need not align with the phenotype, DIABLO signatures are cross-validated hypotheses not truths, SNF subtypes are hyperparameter-dependent claims to defend, and per-omic normalization belongs upstream. Single-cell multimodal integration is a different paradigm and lives in the single-cell category.
 
-**Tool type:** r | **Primary tools:** MOFA2, mixOmics, SNF
+**Tool type:** r | **Primary tools:** MOFA2, mixOmics, SNFtool
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| mofa-integration | Multi-Omics Factor Analysis with MOFA2 |
-| mixomics-analysis | Multivariate integration with mixOmics (sPLS, DIABLO) |
+| integration-design | Method selection, sample correspondence, the n<<p discipline, and the variance-imbalance diagnostic |
+| data-harmonization | Cross-omic preprocessing, scaling, batch strategy, and missing-data triage |
+| mofa-integration | Unsupervised latent-factor discovery across omics blocks with MOFA2 |
+| mixomics-analysis | Supervised multivariate integration (sPLS, DIABLO, MINT) with mixOmics |
 | similarity-network | Similarity Network Fusion for patient stratification |
-| data-harmonization | Cross-omics preprocessing and batch effect handling |
 
 ## Example Prompts
 
-- "Integrate my RNA-seq and proteomics data with MOFA2"
-- "Find features correlated across omics layers with sPLS"
-- "Build a patient similarity network from multi-omics data"
-- "Harmonize my transcriptomics and methylation datasets"
-- "Identify multi-omics signatures using DIABLO"
+- "Which integration method fits my RNA, protein, and methylation data on the same patients?"
+- "Integrate my RNA-seq and proteomics with MOFA2 and tell me which view drives each factor"
+- "Find a cross-omic signature that discriminates my groups with DIABLO"
+- "Stratify my patients into subtypes by fusing similarity networks"
+- "Harmonize my omics blocks so no single one dominates the integration"
 
 ## Requirements
 
 ```r
 # R/Bioconductor
-BiocManager::install(c("MOFA2", "mixOmics", "SNFtool", "MultiAssayExperiment"))
+BiocManager::install(c("MOFA2", "mixOmics", "SNFtool", "MultiAssayExperiment", "sva"))
 
 # Additional packages used in examples
-install.packages(c("survival", "survminer", "igraph", "pheatmap"))
-BiocManager::install(c("DESeq2", "sva", "clusterProfiler", "msigdbr"))
+install.packages(c("igraph", "pheatmap", "imputeLCMD"))
 ```
 
 ```bash
-# Python
-pip install mofapy2
+# Python (MOFA2 training backend)
+pip install mofapy2 muon
 ```
 
 ## Related Skills
 
-- **differential-expression** - Single-omics DE analysis
-- **proteomics** - Proteomics-specific workflows
-- **methylation-analysis** - Epigenomics analysis
-- **pathway-analysis** - Functional interpretation of integrated results
+- **single-cell** - Single-cell multimodal (CITE-seq/Multiome) integration (different paradigm)
+- **differential-expression** - Per-omic RNA-seq normalization and batch correction
+- **machine-learning** - Cross-validation and biomarker-panel theory
+- **pathway-analysis** - Enrichment of integrated factors and signatures
+- **clinical-biostatistics** - Survival validation of discovered subtypes

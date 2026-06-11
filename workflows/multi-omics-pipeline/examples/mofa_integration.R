@@ -1,4 +1,4 @@
-# Reference: clusterProfiler 4.10+, ggplot2 3.5+, scanpy 1.10+ | Verify API if version differs
+# Reference: MOFA2 1.12+, clusterProfiler 4.10+, ggplot2 3.5+ | Verify API if version differs
 library(MOFA2)
 library(ggplot2)
 
@@ -61,11 +61,13 @@ mofa <- run_mofa(mofa, outfile = file.path(output_dir, 'mofa_model.hdf5'), use_b
 # === 6. ANALYZE RESULTS ===
 cat('Analyzing results...\n')
 
-# Variance explained
+# Variance explained per factor per view - the central output (shared = 2+ views, view-specific = 1)
+get_variance_explained(mofa)$r2_per_factor
 plot_variance_explained(mofa, max_r2 = 15)
 ggsave(file.path(output_dir, 'variance_explained.png'), width = 10, height = 6)
 
-# Factor values
+# Factor values; before interpreting, correlate factors with technical covariates and exclude
+# any that track batch/depth (a factor that correlates with batch is a batch factor).
 factors <- get_factors(mofa)[[1]]
 
 # Top weights

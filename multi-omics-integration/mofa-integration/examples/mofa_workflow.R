@@ -1,53 +1,41 @@
-# Reference: scanpy 1.10+ | Verify API if version differs
+# Reference: MOFA2 1.12+ | Verify API if version differs
+# Unsupervised cross-omic factor discovery. The deliverable is the per-view variance
+# decomposition plus factors that are annotated, checked against technical covariates, and
+# robust across seeds - not the factors themselves. Each view is features-by-samples and
+# already per-omic normalized / variance-stabilized (data-harmonization owns that).
+
 library(MOFA2)
 
-# --- ALTERNATIVE: Use the CLL dataset from MOFA2 package ---
-# The CLL (Chronic Lymphocytic Leukemia) dataset is the canonical MOFA2 example
-# with matched RNA-seq, drug response, methylation, and mutation data:
-#
-# data('CLL_data')  # Loads list with mRNA, Drugs, Methylation, Mutations
-# mofa <- create_mofa(CLL_data)
-#
-# For more details see: https://biofam.github.io/MOFA2/CLL.html
-
-# Simulated multi-omics data with shared latent structure
 set.seed(42)
-n_samples <- 100
-n_factors <- 5
+n <- 60
+samples <- paste0('S', seq_len(n))
+metadata <- data.frame(row.names=samples,
+                       condition=factor(rep(c('case', 'control'), length.out=n)),
+                       batch=factor(rep(c('b1', 'b2'), each=n / 2)))
 
-# Create shared latent factors (what MOFA will try to recover)
-latent_factors <- matrix(rnorm(n_samples * n_factors), nrow = n_samples)
+rna  <- matrix(rnorm(2000 * n), nrow=2000, dimnames=list(paste0('gene', 1:2000), samples))   # features x samples
+prot <- matrix(rnorm(300 * n), nrow=300, dimnames=list(paste0('prot', 1:300), samples))
+meth <- matrix(rnorm(800 * n), nrow=800, dimnames=list(paste0('cg', 1:800), samples))
 
-# RNA: 500 genes, ~60% influenced by shared factors
-rna_loadings <- matrix(rnorm(500 * n_factors, 0, 0.5), nrow = 500)
-rna_loadings[1:300, ] <- rna_loadings[1:300, ] * 3  # Stronger signal in subset
-rna <- rna_loadings %*% t(latent_factors) + matrix(rnorm(500 * n_samples, 0, 0.5), nrow = 500)
-dimnames(rna) <- list(paste0('Gene', 1:500), paste0('Sample', 1:n_samples))
+mofa <- create_mofa(list(RNA=rna, Protein=prot, Methylation=meth))
 
-# Protein: 200 proteins, correlated with RNA via shared factors
-protein_loadings <- matrix(rnorm(200 * n_factors, 0, 0.5), nrow = 200)
-protein_loadings[1:100, ] <- protein_loadings[1:100, ] * 2.5
-protein <- protein_loadings %*% t(latent_factors) + matrix(rnorm(200 * n_samples, 0, 0.5), nrow = 200)
-dimnames(protein) <- list(paste0('Protein', 1:200), paste0('Sample', 1:n_samples))
-
-data_list <- list(RNA = rna, Protein = protein)
-
-# Create and configure MOFA
-mofa <- create_mofa(data_list)
+data_opts  <- get_default_data_options(mofa)
 model_opts <- get_default_model_options(mofa)
-model_opts$num_factors <- 10
-
 train_opts <- get_default_training_options(mofa)
-train_opts$seed <- 42
 
-mofa <- prepare_mofa(mofa, model_options = model_opts, training_options = train_opts)
-mofa <- run_mofa(mofa)
+model_opts$num_factors <- 15                  # over-specify; ARD prunes inactive factors
+model_opts$likelihoods <- c(RNA='gaussian', Protein='gaussian', Methylation='gaussian')   # counts transformed upstream -> gaussian
+train_opts$drop_factor_threshold <- 0.01      # drop factors explaining <1% variance in ALL views
+train_opts$seed <- 42                          # set for reproducibility; confirm headline factors recur on retrain
+data_opts$scale_views <- TRUE                  # equalize per-view variance when feature counts cannot be balanced
 
-# Results
-cat('Factors learned:', mofa@dimensions$K, '\n')
-var_exp <- get_variance_explained(mofa)
+mofa <- prepare_mofa(mofa, data_options=data_opts, model_options=model_opts, training_options=train_opts)
+mofa <- run_mofa(mofa, outfile=file.path(tempdir(), 'model.hdf5'), use_basilisk=TRUE)
+
+var_exp <- get_variance_explained(mofa)        # $r2_per_factor is the central output: shared = 2+ views, view-specific = 1
 print(var_exp$r2_total)
 
-# Export factor values
-factors <- get_factors(mofa, as.data.frame = TRUE)
-write.csv(factors, 'mofa_factors.csv', row.names = FALSE)
+md <- metadata[unlist(samples_names(mofa)), ]
+md$sample <- rownames(md)                       # MOFA2's samples_metadata<- requires a literal 'sample' column
+samples_metadata(mofa) <- md
+correlate_factors_with_covariates(mofa, covariates=c('condition', 'batch'))   # a factor that correlates with batch IS a batch factor
