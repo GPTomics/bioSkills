@@ -161,7 +161,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **workflows** | 41 | Various (workflow-specific) | End-to-end pipelines: RNA-seq, variants, ChIP-seq, scRNA-seq, spatial, Hi-C, proteomics, microbiome, CRISPR, metabolomics, multi-omics, immunotherapy, outbreak, metabolic modeling, splicing, liquid biopsy, genome annotation, GRN, causal genomics, time-course, eDNA, clinical trials |
 | **proteomics** | 9 | pyOpenMS, limma, DEqMS, QFeatures | Mass spec data import, QC, quantification, differential abundance, PTM, DIA |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon: ASV inference, taxonomy, diversity, compositional differential abundance, PICRUSt2 functional prediction, QIIME2 provenance |
-| **multi-omics-integration** | 4 | MOFA2, mixOmics, SNF | Cross-modality integration, factor analysis, network fusion |
+| **multi-omics-integration** | 5 | MOFA2, mixOmics, SNFtool | Integration design, cross-omic harmonization, factor analysis, supervised signatures, network fusion |
 | **crispr-screens** | 8 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, base/prime editing |
 | **metabolomics** | 9 | XCMS, MS-DIAL, matchms, SIRIUS, ropls, lipidr, IsoCor | Decision-grade LC-MS/GC-MS: feature detection, confidence-level annotation (MSI/Schymanski), QC/drift/normalization, permutation-validated multivariate stats, mummichog/ORA pathway mapping, lipidomics structural-resolution honesty, MRM/ICH-M10 targeted quant, 13C/15N isotope tracing |
 | **imaging-mass-cytometry** | 7 | steinbock, CATALYST, deepcell, squidpy, napari, diffcyt | IMC preprocessing, NNLS spillover compensation, segmentation, phenotyping, spatial analysis, patient-level differential analysis, annotation, QC |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 540 skills across 63 categories**
+**Total: 541 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 540 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 541 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

@@ -1,51 +1,36 @@
-# Reference: scanpy 1.10+ | Verify API if version differs
+# Reference: SNFtool 2.3+ | Verify API if version differs
+# Patient stratification by Similarity Network Fusion. The clustering always returns the C
+# requested, so the subtype count is a claim to defend (stability across a fixed grid, a
+# fused-vs-best-single-omic check, and out-of-skill survival validation), not a discovery.
+
 library(SNFtool)
 
-# Generate synthetic multi-omics data
-set.seed(42)
-n <- 100
-p1 <- 200
-p2 <- 150
+data(Data1)   # shipped demo views: two omics, 200 samples, two true groups
+data(Data2)
 
-# Three clusters with different signals in each omics
-true_clusters <- rep(1:3, length.out = n)
+K <- 20        # neighbors for the local kernel bandwidth; SNFtool guidance 10-30
+sigma <- 0.5   # affinityMatrix width (third arg is sigma, not alpha); guidance 0.3-0.8
+t_iter <- 20   # cross-diffusion iterations; converges by ~10-20
 
-data1 <- matrix(rnorm(n * p1), nrow = n)
-data2 <- matrix(rnorm(n * p2), nrow = n)
+views <- lapply(list(view1=Data1, view2=Data2), standardNormalization)   # per-feature z-score before distance
+dists <- lapply(views, function(x) dist2(x, x)^(1/2))                     # dist2 returns SQUARED distance; take the root
+affinities <- lapply(dists, function(d) affinityMatrix(d, K, sigma))
 
-# Add cluster signal
-for (k in 1:3) {
-    idx <- which(true_clusters == k)
-    data1[idx, 1:20] <- data1[idx, 1:20] + k
-    data2[idx, 1:15] <- data2[idx, 1:15] + k
-}
+fused <- SNF(affinities, K, t_iter)
 
-rownames(data1) <- rownames(data2) <- paste0('Sample', 1:n)
+est <- estimateNumberOfClustersGivenGraph(fused, NUMC=2:6)   # FOUR estimates (eigengap + rotation cost); plausibility, not truth
+print(est)
 
-# SNF pipeline
-dist1 <- dist2(data1, data1)
-dist2_mat <- dist2(data2, data2)
+C <- 2                                                       # the central claim - defend it, do not assume it
+clusters <- spectralClustering(fused, K=C, type=3)           # here K is the CLUSTER COUNT; type 3 = Ng-Jordan-Weiss default
 
-K <- 20
-alpha <- 0.5
+concordance <- concordanceNetworkNMI(c(affinities, list(fused)), C)   # did fusion beat the best single omic?
+print(round(concordance, 3))
 
-aff1 <- affinityMatrix(dist1, K, alpha)
-aff2 <- affinityMatrix(dist2_mat, K, alpha)
+feat_rank <- rankFeaturesByNMI(views, fused)                 # POST-HOC attribution, not a model that made the clusters
+cat('top view1 feature rank:', head(order(feat_rank[[1]][[1]], decreasing=TRUE)), '\n')
 
-fused <- SNF(list(aff1, aff2), K = K, t = 20)
-
-# Cluster
-num_clusters <- estimateNumberOfClustersGivenGraph(fused, NUMC = 2:5)[[1]]
-clusters <- spectralClustering(fused, 3)
-
-# Evaluate
-nmi <- calNMI(clusters, true_clusters)
-cat('Number of clusters:', 3, '\n')
-cat('NMI with true labels:', round(nmi, 3), '\n')
-
-# Compare single vs fused
-nmi_single1 <- calNMI(spectralClustering(aff1, 3), true_clusters)
-nmi_single2 <- calNMI(spectralClustering(aff2, 3), true_clusters)
-cat('NMI data1 only:', round(nmi_single1, 3), '\n')
-cat('NMI data2 only:', round(nmi_single2, 3), '\n')
-cat('NMI fused:', round(nmi, 3), '\n')
+# Stability: resample patients, re-cluster, and compare; a real subtype recurs across subsamples.
+sub <- sample(nrow(fused), 0.8 * nrow(fused))
+clusters_sub <- spectralClustering(fused[sub, sub], K=C, type=3)
+cat('subsample-vs-full NMI:', round(calNMI(clusters[sub], clusters_sub), 3), '\n')

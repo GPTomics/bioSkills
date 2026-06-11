@@ -45,7 +45,7 @@ Tell your AI agent what you want to do:
 
 ## Required Inputs
 
-1. **Normalized data matrices** - One per modality (samples × features)
+1. **Normalized data matrices** - One per modality (samples x features)
 2. **Sample metadata** - Conditions, outcomes, covariates
 3. **Feature annotations** - Gene names, protein IDs, metabolite names
 
