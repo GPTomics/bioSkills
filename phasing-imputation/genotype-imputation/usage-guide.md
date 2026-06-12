@@ -1,173 +1,70 @@
 # Genotype Imputation - Usage Guide
 
 ## Overview
-Genotype imputation predicts untyped variants using haplotype patterns from a reference panel, enabling increased variant density for GWAS, fine-mapping, and polygenic risk score calculation.
+
+Impute untyped genotypes against a reference panel - for array data (Beagle, Minimac4, IMPUTE5) or low-coverage WGS from genotype likelihoods (GLIMPSE2, QUILT2, STITCH). The load-bearing idea is that an imputed genotype is a posterior, not a measurement: the deliverable is a dosage (expected alt-allele count in [0,2]) plus a self-estimated quality (Beagle DR2, Minimac R2, IMPUTE INFO) that estimates r2 from the posterior spread without ever seeing the truth. Downstream GWAS regresses on dosages, not hard calls. This skill covers engine choice, the dosage/quality output fields, the phasing prerequisite, per-chromosome chunking, the Michigan/TOPMed servers, and low-coverage WGS as the modern array replacement. It routes phasing, panel preparation, and quality filtering to sibling skills.
 
 ## Prerequisites
-```bash
-# Beagle (download jar)
-wget https://faculty.washington.edu/browning/beagle/beagle.22Jul22.46e.jar
 
-# bcftools for data manipulation
-conda install -c bioconda bcftools
-
-# PLINK2 for downstream analysis
-conda install -c bioconda plink2
-
-# Genetic maps
-wget https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh38.map.zip
-unzip plink.GRCh38.map.zip -d genetic_maps/
-
-# Reference panel (e.g., 1000 Genomes)
-# Download from http://ftp.1000genomes.ebi.ac.uk/
-```
+- An imputation engine: Beagle (a Java jar), Minimac4, IMPUTE5, or GLIMPSE2 for low-coverage WGS (`conda install -c bioconda` for several). bcftools for FORMAT-field extraction and genotype-likelihood generation.
+- A reference panel in the engine's format (bref3 for Beagle, msav for Minimac4, imp5 for IMPUTE5), prepared and build/strand-aligned (route to reference-panels), and a build-matched genetic map.
+- For Minimac4/IMPUTE5, a PHASED target (route to haplotype-phasing); Beagle and GLIMPSE2 phase internally.
+- Conceptual prerequisites and big notes:
+  - Output dosages (DS), not hard calls, go to association testing; request DS/HDS/GP explicitly.
+  - The quality field (DR2/R2/INFO) is an estimate of imputation quality, not a measured accuracy, and cannot detect panel-ancestry mismatch.
+  - Impute all samples together; separate case/control imputation manufactures false associations.
+  - Run per chromosome; HRC and TOPMed are server-only.
+  - Low-coverage WGS imputation consumes genotype likelihoods (PL/GL), not hard calls.
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Impute missing genotypes in my VCF using 1000 Genomes reference"
-- "Set up an imputation pipeline for all chromosomes"
+- "Impute my phased array VCF against TOPMed and give me dosages with the imputation quality"
+- "Impute my low-coverage (1x) WGS BAMs with GLIMPSE2 against a reference panel"
+- "Which imputation engine should I use for a very large reference panel run locally?"
+- "Extract dosages and DR2 from my imputed VCF for filtering before GWAS"
 - "Prepare my data for the Michigan Imputation Server"
 
 ## Example Prompts
-### Basic Imputation
-> "Impute genotypes in study.vcf.gz using 1000 Genomes Phase 3 as reference panel"
 
-### Full Pipeline
-> "Run a complete imputation pipeline: align to reference, phase, impute, and filter by INFO score"
+### Array imputation
+> "I have a phased Illumina array VCF for 5,000 European samples on GRCh38. Impute it against an appropriate panel per chromosome with Beagle, output dosages and the per-variant quality, and tell me which field carries the dosage."
 
-### Server Preparation
-> "Prepare my data for upload to the Michigan Imputation Server"
+### Low-coverage WGS
+> "I have 0.5x whole-genome sequencing on 2,000 samples and a TOPMed-like panel. Run the GLIMPSE2 chunk/split/phase/ligate workflow from genotype likelihoods and explain why low-coverage WGS beats an array for my admixed cohort."
 
-### Quality Filtering
-> "Filter my imputed VCF to keep only variants with INFO score > 0.8 and MAF > 0.01"
+### Engine and server choice
+> "My cohort needs HRC. Should I run Minimac4 locally or use the Michigan Imputation Server, and what are the access and reproducibility implications?"
+
+### Dosage handling
+> "Explain why I should carry dosages (DS) rather than hard-called genotypes into my GWAS, and how DR2/R2/INFO differ across Beagle, Minimac, and IMPUTE5."
 
 ## What the Agent Will Do
-1. Align study data to reference panel (strand and allele coding)
-2. Phase haplotypes if not already phased
-3. Impute genotypes from reference panel per chromosome
-4. Filter imputed variants by INFO score
-5. Merge chromosomes into final output
+
+1. Confirm the input is phased (for Minimac4/IMPUTE5) or note that Beagle/GLIMPSE2 phase internally.
+2. Choose the engine by data type (array vs low-coverage WGS), panel access, and scale.
+3. Impute per chromosome against the prepared, build/strand-aligned panel, requesting DS/HDS/GP.
+4. For low-coverage WGS, generate or read genotype likelihoods and run the GLIMPSE2 chunk/split-reference/phase/ligate pipeline.
+5. For controlled-access panels (HRC, TOPMed), route to the imputation server and prepare per-chromosome uploads.
+6. Hand dosages and the quality field to imputation-qc for filtering, then to population-genetics/association-testing.
 
 ## Tips
-- Match reference panel ancestry to your study population for best results
-- TOPMed provides best accuracy for rare variants
-- Michigan Imputation Server is the easiest approach for most users
-- Always filter by INFO score (typically > 0.3 for GWAS)
-- Use dosages (not hard calls) in association analysis
-- Rare variants impute less accurately - check INFO by MAF
 
-## Choosing a Reference Panel
+- Carry dosages (DS) into the regression; hard-calling discards exactly the uncertainty imputation exists to quantify.
+- Treat DR2/R2/INFO as an estimate of imputation quality, not a validated accuracy; the only true accuracy comes from masking known genotypes (route to imputation-qc).
+- Impute cases and controls together; batch-differential imputation quality is a classic source of non-replicating GWAS hits.
+- Use the correct Minimac4 syntax (positional args, `minimac4 panel.msav target.vcf.gz`); the old `--refHaps`/`--haps` style is Minimac3.
+- For under-represented ancestries or rare-variant work, consider low-coverage WGS plus GLIMPSE2 instead of an array; it removes the array's ascertainment bias.
+- Request the FORMAT fields up front (`-f GT,DS,HDS,GP` for Minimac4; `gp=true ap=true` for Beagle), or the dosage will be missing downstream.
 
-| Panel | Size | Populations | Use For |
-|-------|------|-------------|---------|
-| 1000 Genomes | 2,504 | 26 global | General purpose |
-| HRC | 32,470 | European-heavy | European studies |
-| TOPMed | 97,256 | Diverse | Best accuracy |
-| gnomAD | 76,156 | Diverse | Rare variants |
+## Related Skills
 
-## Complete Pipeline
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-STUDY=study.vcf.gz
-REF_DIR=reference_panels/1000GP_phase3
-OUT_DIR=imputed
-THREADS=8
-
-mkdir -p $OUT_DIR
-
-for chr in {1..22}; do
-    echo "Processing chromosome $chr..."
-
-    # Extract chromosome
-    bcftools view -r chr${chr} $STUDY -Oz -o $OUT_DIR/study.chr${chr}.vcf.gz
-
-    # Align to reference
-    bcftools +fixref $OUT_DIR/study.chr${chr}.vcf.gz \
-        -Oz -o $OUT_DIR/fixed.chr${chr}.vcf.gz -- \
-        -f reference.fa -m flip
-
-    # Phase and impute together (Beagle does both)
-    java -Xmx32g -jar beagle.jar \
-        gt=$OUT_DIR/fixed.chr${chr}.vcf.gz \
-        ref=${REF_DIR}/1000GP.chr${chr}.vcf.gz \
-        map=genetic_maps/plink.chr${chr}.GRCh38.map \
-        out=$OUT_DIR/imputed.chr${chr} \
-        gp=true \
-        nthreads=$THREADS
-
-    # Filter by imputation quality
-    bcftools view -i 'INFO/DR2 > 0.3' \
-        $OUT_DIR/imputed.chr${chr}.vcf.gz \
-        -Oz -o $OUT_DIR/imputed.chr${chr}.filtered.vcf.gz
-
-    bcftools index $OUT_DIR/imputed.chr${chr}.filtered.vcf.gz
-done
-
-# Merge chromosomes
-bcftools concat $OUT_DIR/imputed.chr*.filtered.vcf.gz \
-    -Oz -o $OUT_DIR/imputed.all.vcf.gz
-bcftools index $OUT_DIR/imputed.all.vcf.gz
-```
-
-## Using Michigan Imputation Server
-
-```bash
-# 1. Prepare files (VCF per chromosome)
-for chr in {1..22}; do
-    bcftools view -r chr${chr} study.vcf.gz -Oz -o study.chr${chr}.vcf.gz
-done
-
-# 2. Upload to imputationserver.sph.umich.edu
-#    - Select reference panel
-#    - Choose population
-#    - Enable phasing
-
-# 3. Download results
-#    - Imputed VCF with dosages
-#    - INFO score file
-#    - QC report
-```
-
-## Interpreting INFO Scores
-
-| R2 Score | Quality | Recommendation |
-|----------|---------|----------------|
-| > 0.9 | Excellent | All analyses |
-| 0.8 - 0.9 | Good | Fine-mapping, PRS |
-| 0.5 - 0.8 | Moderate | GWAS |
-| 0.3 - 0.5 | Low | GWAS discovery only |
-| < 0.3 | Poor | Exclude |
-
-## Post-Imputation QC
-
-```bash
-# 1. Filter by INFO
-bcftools view -i 'INFO/DR2 > 0.3' imputed.vcf.gz -Oz -o filtered.vcf.gz
-
-# 2. Filter by MAF
-bcftools view -i 'MAF > 0.01' filtered.vcf.gz -Oz -o common.vcf.gz
-
-# 3. Remove palindromic SNPs (optional)
-bcftools view -e 'REF="A" && ALT="T" || REF="T" && ALT="A" || REF="G" && ALT="C" || REF="C" && ALT="G"' \
-    common.vcf.gz -Oz -o no_palindrome.vcf.gz
-
-# 4. Hardy-Weinberg filter
-plink2 --vcf common.vcf.gz --hwe 1e-6 --make-pgen --out qc_passed
-```
-
-## Using Imputed Data in GWAS
-
-```bash
-# With dosages (recommended)
-plink2 --vcf imputed.vcf.gz dosage=DS \
-    --glm \
-    --pheno phenotypes.txt \
-    --covar covariates.txt \
-    --out gwas_dosage
-
-# Convert to hard calls if needed (loses uncertainty)
-bcftools +dosage2gt imputed.vcf.gz -Oz -o imputed_gt.vcf.gz
-```
+- foundations - The pipeline order, dosage philosophy, and the array-vs-low-coverage-WGS fork
+- haplotype-phasing - Pre-phasing the target (required by Minimac4 and IMPUTE5)
+- reference-panels - Select and prepare the panel and align build/strand
+- imputation-qc - Filter by DR2/R2/INFO and MAF; the metric is an estimate, not truth
+- variant-calling/vcf-basics - Genotype likelihoods (PL/GL) for low-coverage imputation
+- variant-calling/variant-normalization - Split multiallelics before imputation
+- population-genetics/association-testing - GWAS test on the imputed dosages
+- clinical-databases/polygenic-risk - Polygenic scores from imputed dosages
+- workflows/gwas-pipeline - End-to-end QC -> phase -> impute -> associate

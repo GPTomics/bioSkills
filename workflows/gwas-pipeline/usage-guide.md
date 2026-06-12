@@ -47,10 +47,11 @@ Tell your AI agent what you want to do:
 ## What the Workflow Does
 
 1. **QC Filtering** - Remove poor quality samples/variants
-2. **LD Pruning** - Get independent variants for PCA
-3. **PCA** - Calculate population structure covariates
-4. **Association** - Test variant-phenotype associations
-5. **Visualization** - Manhattan and QQ plots
+2. **Phasing and Imputation** - Align to a reference panel, phase, impute to dosages, and filter by R2 (owned by the phasing-imputation skills; impute cases and controls together)
+3. **LD Pruning** - Get independent variants for PCA
+4. **PCA** - Calculate population structure covariates
+5. **Association** - Test variant-phenotype associations on dosages
+6. **Visualization** - Manhattan and QQ plots
 
 ## Case-Control vs Quantitative
 
@@ -66,3 +67,4 @@ Tell your AI agent what you want to do:
 - **Lambda**: Should be ~1.0; high values indicate stratification
 - **Multiple testing**: Genome-wide threshold is p < 5e-8
 - **Replication**: Always validate findings in independent cohort
+- **Imputation**: Impute cases and controls together and carry dosages (not hard calls) into association; see the phasing-imputation skills

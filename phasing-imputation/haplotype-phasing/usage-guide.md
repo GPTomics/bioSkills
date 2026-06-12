@@ -1,146 +1,69 @@
 # Haplotype Phasing - Usage Guide
 
 ## Overview
-Haplotype phasing determines which alleles are inherited together on each chromosome, essential for genotype imputation, haplotype-based association tests, and compound heterozygosity detection.
+
+Estimate haplotype phase from population linkage disequilibrium - turning unphased genotypes (0/1) into phased haplotypes (0|1) using SHAPEIT5, SHAPEIT4, Eagle2, or Beagle. The load-bearing idea is that statistical phase is an inference, not a measurement: it works well for common variants in LD with their neighbors and degrades steeply for rare variants, so the deliverable is a switch-error rate stratified by minor allele count, not a single genome-wide number, and rare-variant cis/trans calls (compound heterozygotes) need biobank-scale phasing or orthogonal trio/read-backed evidence. This skill owns the statistical paradigm and carves the boundary to read-backed phasing, which is a physically different signal owned by long-read-sequencing.
 
 ## Prerequisites
-```bash
-# Beagle (download jar)
-wget https://faculty.washington.edu/browning/beagle/beagle.22Jul22.46e.jar
 
-# SHAPEIT5 (for large datasets)
-conda install -c bioconda shapeit5
-
-# bcftools for data preparation
-conda install -c bioconda bcftools
-
-# Genetic maps (required for phasing)
-wget https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh38.map.zip
-unzip plink.GRCh38.map.zip -d genetic_maps/
-```
+- A phasing engine: SHAPEIT5 (`conda install -c bioconda shapeit5`), Eagle2, or Beagle (a Java jar). bcftools for normalization and inspection.
+- A QC'd, biallelic VCF/BCF and a genetic (recombination) map matching the data's genome build.
+- A reference panel if reference-based phasing a small cohort (route to reference-panels for selection).
+- Conceptual prerequisites and big notes:
+  - Only heterozygous sites carry phase ambiguity; all error is measured there.
+  - SHAPEIT5 is a suite (phase_common, phase_rare, ligate, switch), not one command; this changed from SHAPEIT4.
+  - The genetic map must match the genome build; a mismatched map degrades phasing silently.
+  - chrX male non-PAR is haploid and must be coded so; split multiallelics before phasing.
+  - Reference-based phasing wins for small cohorts; within-cohort phasing wins past tens of thousands of samples.
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Phase my VCF file using Beagle"
-- "Set up a phasing pipeline for all chromosomes"
-- "Phase my large biobank data with SHAPEIT5"
+- "Phase my array VCF with Eagle2 against an ancestry-matched reference panel"
+- "Phase my biobank WGS data including rare variants with SHAPEIT5"
+- "Phase my genotypes with Beagle as input to imputation"
+- "Benchmark my phasing switch-error rate against a trio, stratified by allele frequency"
+- "Should I phase against a reference panel or within my cohort?"
 
 ## Example Prompts
-### Basic Phasing
-> "Phase my genotype data in study.vcf.gz using Beagle with GRCh38 genetic maps"
 
-### Large Dataset Phasing
-> "Use SHAPEIT5 two-stage approach to phase my 100,000 sample dataset"
+### Pre-phasing for imputation
+> "I have a 5,000-sample European array VCF on GRCh38. Phase it as input to imputation against a matched panel, per chromosome, and tell me whether reference-based or within-cohort phasing is appropriate at this sample size."
 
-### Reference-Assisted Phasing
-> "Phase my study data using 1000 Genomes as a reference panel for better rare variant phasing"
+### Rare-variant phasing
+> "I have 50,000 WGS samples and need to call compound heterozygotes. Run the SHAPEIT5 common-scaffold-then-rare pipeline and explain why rare-variant phasing needs this design and how to report accuracy by minor allele count."
 
-### Quality Evaluation
-> "Evaluate phasing quality using trio data to calculate switch error rates"
+### Benchmarking
+> "I have parent-parent-child trios in my cohort. Use them to compute my phaser's switch-error rate stratified by minor allele count and explain what switch versus Hamming error tells me."
+
+### Boundary
+> "I have long-read sequencing on a single sample and want to phase a private variant. Should I run SHAPEIT, and how does read-backed phasing fit in?"
 
 ## What the Agent Will Do
-1. Prepare input data by filtering to biallelic SNPs and checking for strand issues
-2. Download required genetic maps for the appropriate genome build
-3. Run phasing tool (Beagle or SHAPEIT5) per chromosome
-4. Merge phased chromosomes into final output
-5. Evaluate phasing quality if trio data is available
+
+1. Confirm the genome build and align the genetic map to it; normalize the VCF to biallelic.
+2. Choose reference-based vs within-cohort phasing by cohort size and panel availability, and the engine (SHAPEIT5 for rare-variant biobank work, Eagle2/Beagle for common-variant pre-phasing).
+3. For rare-variant phasing, run phase_common -> ligate -> phase_rare with overlapping chunks.
+4. Handle chrX by coding male non-PAR haploid and splitting the PARs.
+5. Benchmark with the `switch` tool against trios where available, reporting SER stratified by minor allele count.
+6. Hand the phased haplotypes to genotype-imputation, or flag when a phase-dependent claim needs trio/read-backed confirmation.
 
 ## Tips
-- Always use genetic maps - they significantly improve phasing accuracy
-- Process chromosomes in parallel since each is independent
-- For datasets >50,000 samples, use SHAPEIT5's two-stage approach
-- Filter to biallelic SNPs before phasing (Beagle handles these best)
-- Using a reference panel improves accuracy for rare variants
-- Memory errors can be resolved by increasing heap size or phasing in smaller chunks
 
-## Choosing a Phasing Tool
+- Do not trust a single genome-wide switch-error rate for a rare-variant call; phasing quality is a steep function of minor allele count.
+- A switch error is invisible to genotype QC because it changes which haplotype an allele sits on, not the genotype; report a rate against an independent truth set.
+- Make chunked phasing regions overlap so the ligate step can resolve phase across the seam; abutting chunks guarantee a switch.
+- Combine, do not rank, the phase sources: seed SHAPEIT with read-backed phase from long reads when phasing a private variant, since statistical phasing cannot place a variant no one else carries.
+- Match the genetic map and reference panel to the data build; a GRCh37 map on GRCh38 data corrupts phase with no error.
 
-| Tool | Best For | Memory | Speed |
-|------|----------|--------|-------|
-| Beagle 5.4 | General purpose, <50k samples | Medium | Fast |
-| SHAPEIT5 | Large biobanks (>50k samples) | Low | Very fast |
-| Eagle2 | Phasing with ref panel | Medium | Fast |
+## Related Skills
 
-## Beagle Workflow
-
-```bash
-# Prepare input
-bcftools view -m2 -M2 -v snps input.vcf.gz -Oz -o biallelic.vcf.gz
-bcftools index biallelic.vcf.gz
-
-# Phase per chromosome
-for chr in {1..22}; do
-    java -Xmx16g -jar beagle.jar \
-        gt=biallelic.vcf.gz \
-        chrom=chr${chr} \
-        map=genetic_maps/plink.chr${chr}.GRCh38.map \
-        out=phased_chr${chr} \
-        nthreads=8
-done
-
-# Merge chromosomes
-ls phased_chr*.vcf.gz > filelist.txt
-bcftools concat -f filelist.txt -Oz -o phased.vcf.gz
-bcftools index phased.vcf.gz
-```
-
-## SHAPEIT5 Workflow (Large Datasets)
-
-```bash
-# For datasets >10,000 samples, use two-stage approach
-# Stage 1: Phase common variants (MAF > 0.1%)
-shapeit5_phase_common \
-    --input input.bcf \
-    --map genetic_map.txt \
-    --output phased_common.bcf \
-    --thread 16 \
-    --filter-maf 0.001
-
-# Stage 2: Phase rare variants using common as scaffold
-shapeit5_phase_rare \
-    --input input.bcf \
-    --scaffold phased_common.bcf \
-    --map genetic_map.txt \
-    --output phased_all.bcf \
-    --thread 16
-```
-
-## Using Reference Panel for Better Phasing
-
-```bash
-# Beagle with 1000 Genomes reference
-java -Xmx16g -jar beagle.jar \
-    gt=study.vcf.gz \
-    ref=1000GP.chr22.vcf.gz \
-    map=plink.chr22.GRCh38.map \
-    out=phased_with_ref \
-    nthreads=8
-```
-
-## Input QC Before Phasing
-
-```bash
-# 1. Check for strand issues
-bcftools +fixref input.vcf.gz -Oz -o fixed.vcf.gz -- -f reference.fa
-
-# 2. Filter to biallelic SNPs
-bcftools view -m2 -M2 -v snps fixed.vcf.gz -Oz -o biallelic.vcf.gz
-
-# 3. Remove problematic regions
-bcftools view -T ^exclude_regions.bed biallelic.vcf.gz -Oz -o filtered.vcf.gz
-
-# 4. Check sample missingness
-bcftools stats filtered.vcf.gz | grep "PSC"
-```
-
-## Output Format
-
-Phased genotypes use `|` separator:
-```
-# Unphased
-GT: 0/1  (unknown which allele on which haplotype)
-
-# Phased
-GT: 0|1  (REF on haplotype 1, ALT on haplotype 2)
-GT: 1|0  (ALT on haplotype 1, REF on haplotype 2)
-```
+- foundations - The pipeline order, the copying-HMM model, and why phasing is committed once
+- reference-panels - Select the ancestry-matched panel that reference-based phasing copies from
+- genotype-imputation - Imputation consumes the phased haplotypes (pre-phasing)
+- imputation-qc - Switch-error benchmarking alongside imputation quality QC
+- long-read-sequencing/haplotype-phasing - Read-backed / molecular single-sample phasing
+- variant-calling/variant-normalization - Split multiallelics and left-align before phasing
+- causal-genomics/fine-mapping - Phased haplotypes feed haplotype-level fine-mapping
+- clinical-databases/hla-typing - HLA typing is a high-stakes consumer of long-range phase
+- workflows/gwas-pipeline - End-to-end QC -> phase -> impute -> associate
