@@ -2,7 +2,7 @@
 
 ## Overview
 
-Functional enrichment and pathway analysis using R/Bioconductor. Supports over-representation analysis (ORA) and Gene Set Enrichment Analysis (GSEA) across Gene Ontology, KEGG, Reactome, and WikiPathways databases. Includes guidance for prokaryotic organisms, multi-condition comparison, and common methodological pitfalls.
+Functional enrichment of gene lists and ranked gene vectors against curated gene sets (GO, KEGG, Reactome, WikiPathways, MSigDB) with R/Bioconductor: over-representation analysis (ORA), Gene Set Enrichment Analysis (GSEA), and pathway-topology analysis (SPIA). Decision-grade framing: the first decision is the generation (ORA vs GSEA vs topology), set by the input not by preference; the BACKGROUND universe (not the gene list) decides ORA significance; GSEA needs a NAMED decreasing vector and the ranking metric IS the experiment; KEGG/WikiPathways query live databases (internet-dependent, not reproducible across releases) while GO/Reactome use local annotation; gene-ID requirements differ per method (OrgDb keyType vs kegg-id vs ENTREZ).
 
 **Tool type:** r | **Primary tools:** clusterProfiler, ReactomePA, rWikiPathways, enrichplot
 
@@ -10,25 +10,30 @@ Functional enrichment and pathway analysis using R/Bioconductor. Supports over-r
 
 | Skill | Description |
 |-------|-------------|
-| go-enrichment | Gene Ontology over-representation analysis with enrichGO; includes ORA vs GSEA decision guidance, background universe selection, gene length bias correction |
-| kegg-pathways | KEGG pathway enrichment with enrichKEGG and enrichMKEGG; includes prokaryotic organism support and multi-condition comparison |
-| reactome-pathways | Reactome pathway enrichment with ReactomePA; peer-reviewed curated pathways with reaction-level detail |
-| wikipathways | WikiPathways enrichment with enrichWP and rWikiPathways; community-curated open-source pathways for 30+ species |
-| gsea | Gene Set Enrichment Analysis with gseGO, gseKEGG; ranking metric selection, leading edge interpretation, NES caveats |
-| enrichment-visualization | Dot plots, bar plots, enrichment maps, cnetplots, GSEA plots; visualization selection guidance and common mistakes |
+| enrichment-foundations | Method-selection spine: the ORA-vs-FCS-vs-topology generation fork, competitive vs self-contained nulls, the master decision tree, and the is-my-result-trustworthy layer (background universe, FDR/version reporting, redundancy != replication, annotation bias) |
+| go-enrichment | GO over-representation with enrichGO; background-universe selection, ID conversion, GO-DAG redundancy reduction, RNA-seq gene-length bias (GOseq) |
+| gsea | Gene Set Enrichment with gseGO/gseKEGG; named decreasing vector, ranking-metric choice, permutation type, leading edge, NES, ssGSEA/GSVA |
+| kegg-pathways | KEGG pathway/module enrichment with enrichKEGG/enrichMKEGG/gseKEGG and pathway-topology analysis (SPIA/graphite); live DB and reproducibility pinning, prokaryotes, multi-condition |
+| reactome-pathways | Reactome curated-pathway ORA and GSEA with ReactomePA; reaction-level detail, the nested-hierarchy double-count, ENTREZ IDs, reproducible local DB |
+| wikipathways | WikiPathways enrichment with enrichWP/rWikiPathways; community curation, broad species, the live-snapshot reproducibility pin (dated GMT) |
+| enrichment-visualization | enrichplot dot/bar/cnet/emap/tree/GSEA plots; the figure-is-a-modeling-choice and redundancy-collapse decision, encoding choices, required pre-steps |
 
 ## Method Selection
 
 | Scenario | Method | Skill |
 |----------|--------|-------|
-| Ranked DE results for all genes | GSEA | gsea |
-| Gene list from co-expression, GWAS, screens | ORA | go-enrichment, kegg-pathways |
+| Unsure which method at all / is my result trustworthy | The generation fork + trustworthiness checklist | enrichment-foundations |
+| Ranked DE statistic for all genes, no arbitrary cutoff | GSEA | gsea |
+| Pre-selected gene list (co-expression, GWAS, screens) | ORA | go-enrichment, kegg-pathways |
+| Signed signaling topology + fold changes | Pathway topology (SPIA) | kegg-pathways |
 | Bacterial / prokaryotic data | KEGG ORA with locus tags | kegg-pathways |
-| Multiple conditions to compare | compareCluster or mitch | kegg-pathways |
+| Multiple conditions to compare | compareCluster | kegg-pathways |
 | RNA-seq with gene length bias | GOseq | go-enrichment |
 
 ## Example Prompts
 
+- "Should I run ORA or GSEA on this result, and is my enrichment trustworthy?"
+- "Pick the right enrichment method for my data and check the background universe"
 - "Run GO enrichment on my differentially expressed genes"
 - "Find enriched biological processes for these genes"
 - "What molecular functions are over-represented in my gene list?"
@@ -52,9 +57,11 @@ Functional enrichment and pathway analysis using R/Bioconductor. Supports over-r
 
 ```r
 BiocManager::install(c('clusterProfiler', 'enrichplot', 'org.Hs.eg.db'))
-BiocManager::install(c('ReactomePA', 'rWikiPathways'))
+BiocManager::install(c('ReactomePA', 'rWikiPathways', 'msigdbr'))
 # For gene length bias correction in RNA-seq:
 BiocManager::install('goseq')
+# For KEGG pathway-topology analysis (SPIA):
+BiocManager::install(c('SPIA', 'graphite'))
 ```
 
 ## Related Skills

@@ -1,13 +1,13 @@
 ---
 name: bio-pathway-enrichment-visualization
-description: Visualize enrichment results using enrichplot package functions. Use when creating publication-quality figures from clusterProfiler results. Covers dotplot, barplot, cnetplot, emapplot, gseaplot2, ridgeplot, and treeplot.
+description: Turns an enrichResult or gseaResult from clusterProfiler/enrichplot into a figure that collapses or shows gene-set redundancy, using dotplot, barplot, cnetplot, emapplot, treeplot, ridgeplot, gseaplot2, and upsetplot. Covers why a default top-20 GO dotplot is one biological theme drawn twenty times (the DAG/nesting guarantees redundant overlapping terms), so the figure is a modeling choice between SHOWING redundancy (pairwise_termsim -> emapplot/treeplot) and DELETING it (simplify/REVIGO); why cnetplot/emapplot/treeplot need pairwise_termsim first; why enrichplot ships no barplot for gseaResult (a bar cannot carry a signed NES); why GeneRatio is not fold enrichment; and why showCategory silently truncates. Use when plotting ORA or GSEA results, collapsing redundant GO terms visually, choosing the dotplot encoding, or building a publication enrichment figure. Statistics come from go-enrichment and gsea; generic ggplot -> data-visualization/ggplot2-fundamentals; method decision -> enrichment-foundations.
 tool_type: r
 primary_tool: enrichplot
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: ggplot2 3.5+
+Reference examples tested with: enrichplot 1.30+, clusterProfiler 4.18+, ggplot2 3.5+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -15,306 +15,216 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+The single biggest hazard here is the cnetplot/emapplot/goplot API churn. enrichplot 1.25.5 (2024-10) moved these to the ggtangle backend and DROPPED several old arguments (`cex_label_category`, `cex_label_gene`, `circular`, `colorEdge`, `group`/`group_category`/`group_legend`). The examples target the post-churn API (1.30+), but installed bases span three argument generations - run `?cnetplot` / `?emapplot` and adapt rather than pinning one generation.
+
 # Enrichment Visualization
 
-**"Create publication-quality plots from my enrichment analysis"** -> Generate dotplots, gene-concept networks, enrichment maps, GSEA running score plots, and ridgeplots from clusterProfiler results.
-- R: `dotplot()`, `cnetplot()`, `emapplot()`, `gseaplot2()` (enrichplot)
+**"Make a figure from my enrichment results"** -> Render an enrichResult or gseaResult with enrichplot, choosing how the gene-set REDUNDANCY is handled - because a raw top-N plot is one biological theme drawn N times, not N findings.
+- R: `dotplot(ego, showCategory=20)`; redundancy as structure via `emapplot(pairwise_termsim(ego))`
 
-## Scope
+Scope: turn an `enrichResult`/`gseaResult`/`compareClusterResult` into a figure, and decide whether to SHOW or DELETE redundancy. The ORA/GSEA statistics that produce the objects -> go-enrichment, gsea. The method-selection / why-sets-overlap theory -> enrichment-foundations. `simplify()` existence (the GO-DAG dedup) -> go-enrichment. Generic ggplot2 grammar (scales, themes, faceting) -> data-visualization/ggplot2-fundamentals. Cytoscape UI mechanics -> data-visualization/network-visualization.
 
-This skill covers **enrichplot package functions** designed for clusterProfiler results:
-- `dotplot()`, `barplot()` - Summary views
-- `cnetplot()`, `emapplot()`, `treeplot()` - Network/hierarchical views
-- `gseaplot2()`, `ridgeplot()` - GSEA-specific
-- `goplot()`, `heatplot()`, `upsetplot()` - Specialized views
+## The Single Most Important Modern Insight -- An Enrichment Figure Is a Modeling Choice, Not a Rendering of a Table
 
-**For custom ggplot2 dotplots and statistical annotation**, see `data-visualization/distribution-plots` and `data-visualization/ggplot2-fundamentals`.
+The default `dotplot(ego, showCategory=20)` is almost never twenty findings. The GO DAG and nested pathway databases guarantee that a real signal surfaces as a CLUSTER of near-identical overlapping terms driven by the same handful of genes: if "mitotic cell cycle" is enriched, then "cell cycle process," "cell cycle," "cell division," and a dozen ancestors and siblings enrich too. Sorting by p-value floats that redundant cluster to the top, so the figure shows ONE theme twenty times and crowds out the second and third themes entirely. The reader infers twenty independent findings; the figure lies by omission.
 
-## Setup
+So the load-bearing question is never "which plotting function" but three decisions:
 
-**Goal:** Load required packages for visualizing enrichment analysis results.
+1. **How is the redundancy collapsed?** SHOW it as structure (`pairwise_termsim` -> `emapplot`/`treeplot`, or EnrichmentMap) so the cluster size conveys support, or DELETE it (`simplify()` for a shorter GO list, REVIGO for a flat-list treemap). Plotting raw top-20 with no collapse step is the error the whole skill exists to prevent.
+2. **Is the direction kept?** GSEA results are SIGNED (NES > 0 = activated, NES < 0 = suppressed). Any GSEA figure that maps magnitude to a bar height or |NES|, or colors by a one-sided p-value ramp, silently merges activation and suppression. enrichplot deliberately ships NO barplot method for `gseaResult` for exactly this reason - a bar from zero cannot carry a sign.
+3. **Does the caption admit truncation?** `showCategory=20` is a window, not a census. If 200 terms passed FDR it is a 10% sample chosen by whatever `orderBy` used. Report the total significant count and the similarity `method=`/`min_edge=` settings - two honest analysts get different emapplot modules from the same object.
 
-**Approach:** Import clusterProfiler, enrichplot, and ggplot2 which provide the plotting functions for enrichment objects.
+## The Object Model -- What Gets Plotted
+
+Every enrichplot function dispatches on the S4 class of its input, and the SAME function name encodes different things by class:
+
+- `enrichResult` (ORA: enrichGO/enrichKEGG/enricher) - columns `ID, Description, GeneRatio, BgRatio, pvalue, p.adjust, qvalue, geneID, Count`.
+- `gseaResult` (GSEA: gseGO/gseKEGG/GSEA) - columns `ID, Description, setSize, enrichmentScore, NES, pvalue, p.adjust, qvalue, rank, leading_edge, core_enrichment`, plus the `@geneList` slot (the ranked named vector that drove the analysis).
+- `compareClusterResult` (compareCluster) - stacked results across gene lists; the substrate for faceted dotplots.
+
+Encoding definitions (verified): **GeneRatio = k/n** (k = query genes annotated to the term, n = query genes mapped to any term; stored as the string `"k/n"`). **Count = k** (the numerator alone). **BgRatio = M/N** (M = universe genes annotated to the term, N = universe genes mapped). **Fold enrichment = (k/n)/(M/N)** = `GeneRatio/BgRatio`. GeneRatio is NOT effect size: a giant term (M=800) can post a large GeneRatio with trivial enrichment, while a small term (M=5, k=3) shows a modest GeneRatio but huge fold enrichment. The p-value, not GeneRatio, is the test statistic. dotplot can put `GeneRatio` OR `Count` on x; size = Count, color = p.adjust by default.
+
+## Tool Taxonomy
+
+| Plot / method | Encodes | Class | Redundancy handling | Direction-aware |
+|---------------|---------|-------|---------------------|-----------------|
+| dotplot | GeneRatio (x), Count (size), p.adjust (color) | ORA + GSEA | none (raw top-N) | only if x/color = NES |
+| barplot | Count or GeneRatio (height), p.adjust (color) | ORA ONLY | none | no - misuse for GSEA |
+| cnetplot | gene<->term bipartite net; item color = fold change | ORA + GSEA | shows shared genes (gene side) | yes (item color) |
+| emapplot | term net; edge = gene overlap; clusters = redundant groups | ORA + GSEA | SHOWS redundancy (term side) | node color = p.adjust |
+| treeplot | hierarchical Ward clusters of terms | ORA + GSEA | COLLAPSES into nCluster groups | node color = p.adjust |
+| ridgeplot | leading-edge metric density per set | GSEA ONLY | per-set | YES (left/right shift) |
+| gseaplot2 | running ES + hit ticks + ranked metric | GSEA ONLY | single / few sets | YES (peak sign) |
+| upsetplot | gene-overlap combinations (ORA); per-set metric boxplots (GSEA) | ORA + GSEA | quantifies overlap | metric boxplots for GSEA |
+| goplot | induced GO DAG subgraph | GO ONLY | exposes DAG nesting | no |
+| heatplot | gene x term matrix, color by fold change | ORA + GSEA | flattened cnetplot | yes (fold change) |
+| simplify() | semantic dedup of GO terms | GO ORA/GSEA | DELETES redundant terms (lives in go-enrichment) | n/a |
+| REVIGO / EnrichmentMap | non-redundant subset / node-edge map | any list | DELETE / SHOW + annotate | EnrichmentMap by sign |
+
+Citations: dotplot/barplot/cnet/tree/upset/goplot/heatplot are enrichplot, paper-of-record clusterProfiler 4.0 (Wu 2021 *The Innovation* 2:100141). emapplot reimplements EnrichmentMap (Merico 2010 *PLoS One* 5:e13984; protocol Reimand 2019 *Nat Protoc* 14:482). simplify/Wang use GOSemSim (Yu 2010 *Bioinformatics* 26:976). REVIGO (Supek 2011 *PLoS One* 6:e21800). ridgeplot/gseaplot2 display the ES Subramanian 2005 *PNAS* 102:15545 defined.
+
+## Decision Tree by Intent
+
+| Intent | Do this | Why / avoid |
+|--------|---------|-------------|
+| First look at ORA results | `dotplot(simplify(ego))` - collapse GO redundancy THEN dotplot | avoid raw `dotplot(ego, showCategory=20)` (redundant cluster floats up) |
+| Many significant terms, show the structure | `pairwise_termsim()` -> `emapplot` (topology) or `treeplot` (named clusters) | the redundancy becomes the message, not hidden |
+| Hundreds of sets, manuscript figure | EnrichmentMap (Cytoscape; Reimand 2019 protocol) -> data-visualization/network-visualization | a top-20 list is indefensible at that scale |
+| Flat GO-ID + p-value list from a non-clusterProfiler tool | REVIGO (treemap / MDS) | external semantic collapse |
+| GSEA overview, all sets | `ridgeplot(gse)` | direction + shape preserved; never a barplot of NES |
+| GSEA, one pathway in detail | `gseaplot2(gse, geneSetID=1)` | the running ES; a single number hides the shape |
+| Compare several pathways' running scores | `gseaplot2(gse, geneSetID=1:3)` | overlay in one panel |
+| Which genes bridge multiple terms | `cnetplot` (<=5-8 terms) or `heatplot` | a 20-term cnetplot is a hairball |
+| Need effect size, not GeneRatio | `dotplot(ego, x='FoldEnrichment')` or compute `GeneRatio/BgRatio` | a dot far right on GeneRatio is not strong over-representation |
+| Compare conditions / gene lists | `dotplot(ck) + facet_grid(~Cluster)` on compareCluster | one model, faceted panels |
+| term similarity for KEGG/Reactome/custom | `pairwise_termsim(x, method='JC')` (default) | Wang/Resnik need the GO DAG |
+| term similarity for GO, want DAG-awareness | `pairwise_termsim(x, method='Wang', semData=godata(...))` | JC sees only gene overlap |
+| The ORA/GSEA statistics themselves | -> go-enrichment, gsea | upstream, not visualization |
+
+## Dotplot -- the Three-Channel Summary
+
+`dotplot(object, x='geneRatio', color='p.adjust', showCategory=10, orderBy='x', label_format=30)`. The terms are ordered by `orderBy='x'` (the x variable), NOT by p-value, so by default the TOP dot is the highest GeneRatio, not the most significant. State the ordering or set it.
 
 ```r
-library(clusterProfiler)
-library(enrichplot)
-library(ggplot2)
-
-# Assume ego (enrichGO result), kk (enrichKEGG result), or gse (GSEA result) exists
+dotplot(ego, showCategory = 20)                                       # x = GeneRatio, size = Count, color = p.adjust
+dotplot(ego, x = 'FoldEnrichment', showCategory = 20)                 # effect size = (k/n)/(M/N), not GeneRatio
+dotplot(gse, x = 'NES', showCategory = 20, color = 'p.adjust')        # signed GSEA summary (dotplot dispatches on gseaResult)
+dotplot(gse, showCategory = 20, split = '.sign') + facet_grid(~.sign) # split GSEA up vs down
 ```
 
-## Dot Plot
+For a compareClusterResult, `dotplot.compareClusterResult` defaults `showCategory=5` per cluster and `includeAll=TRUE` (a term top-N in any cluster appears in every column).
 
-**Goal:** Summarize enrichment results showing gene ratio, count, and significance in a single figure.
+## Barplot -- ORA Only
 
-**Approach:** Use enrichplot dotplot which maps gene ratio to x-axis, term to y-axis, dot size to count, and color to p-value.
-
-Most common visualization - shows gene ratio, count, and significance.
+`barplot(height, x='Count', color='p.adjust', showCategory=8)`. There is NO `barplot` method for `gseaResult` (verified) - forcing a bar onto GSEA drops the NES sign. For signed GSEA use a NES dotplot, ridgeplot, or gseaplot2.
 
 ```r
-dotplot(ego, showCategory = 20)
-
-# Customize
-dotplot(ego, showCategory = 15, font.size = 10, title = 'GO Enrichment') +
-    scale_color_gradient(low = 'red', high = 'blue')
-
-# Save
-pdf('go_dotplot.pdf', width = 10, height = 8)
-dotplot(ego, showCategory = 20)
-dev.off()
+barplot(ego, showCategory = 15)                          # height = Count, color = p.adjust
+barplot(ego, x = 'GeneRatio', showCategory = 15)
 ```
 
-## Bar Plot
+## Show the Redundancy -- pairwise_termsim then emapplot/treeplot
 
-Shows enrichment count or gene ratio.
+**Goal:** Reveal that a block of near-identical enriched terms is one biological theme, by clustering terms on gene-set overlap and drawing the clusters.
+
+**Approach:** Populate the term-similarity matrix first with `pairwise_termsim` (emapplot/treeplot READ `x@termsim` and do NOT compute it), then draw it as a force-directed map (emapplot, shows topology) or a deterministic Ward tree (treeplot, named clusters). The similarity `method=` and `min_edge=` are modeling choices that change the picture.
 
 ```r
-barplot(ego, showCategory = 20)
+ego_ts <- pairwise_termsim(ego)                          # JC (Jaccard on gene overlap), the default; any gene-set type
+emapplot(ego_ts, showCategory = 30)                      # nodes = terms, edges = overlap >= min_edge (0.2), clusters = redundant groups
+treeplot(ego_ts, showCategory = 30, nCluster = 5)        # deterministic Ward clustering into 5 labeled groups
 
-# Customize
-barplot(ego, showCategory = 15, x = 'GeneRatio', color = 'p.adjust')
+# GO terms, DAG-aware similarity (Wang sees parent/child closeness even with modest gene overlap)
+ego_ts <- pairwise_termsim(ego, method = 'Wang', semData = GOSemSim::godata('org.Hs.eg.db', ont = 'BP'))
 ```
+
+`pairwise_termsim` `method` is exactly one of `{Resnik, Lin, Rel, Jiang, Wang, JC}`, default `JC`. Resnik/Lin/Rel/Jiang/Wang are GO-ONLY and need a `GOSemSimDATA` object; JC works for any gene-set type. Lower `min_edge` and everything connects to everything (the "if every node touches every node, the result IS redundant" diagnostic); raise it and only the strongest overlaps survive.
 
 ## Gene-Concept Network (cnetplot)
 
-**Goal:** Visualize which genes contribute to multiple enriched terms, revealing shared biology.
+**Goal:** Show which genes are shared across enriched terms - the redundancy seen from the gene side - and their direction.
 
-**Approach:** Build a bipartite network connecting enriched terms to their member genes, optionally colored by fold change.
-
-Shows relationships between genes and enriched terms.
+**Approach:** Draw a bipartite term-to-gene network, mapping the gene-node color to fold change. Keep to 5-8 terms or it collapses into a hairball. The ggtangle-era arguments differ from older tutorials - introspect before pinning args.
 
 ```r
-# Basic cnetplot
-cnetplot(ego)
-
-# With fold change colors
-cnetplot(ego, foldChange = gene_list)
-
-# Circular layout
-cnetplot(ego, circular = TRUE, colorEdge = TRUE)
-
-# Customize node size
-cnetplot(ego, node_label = 'gene', cex_label_gene = 0.8)
+cnetplot(ego, showCategory = 5)                          # ggtangle backend (enrichplot >= 1.25.5)
+cnetplot(ego, showCategory = 5, foldChange = gene_list)  # gene color by fold change; node_label = 'all'|'category'|'item'|'none'
+# OLDER installed versions used: cnetplot(ego, foldChange=fc, circular=TRUE, colorEdge=TRUE) -- those args were REMOVED; run ?cnetplot
 ```
 
-## Enrichment Map (emapplot)
+## GSEA Plots -- ridgeplot, gseaplot2
 
-**Goal:** Identify clusters of related enriched terms by visualizing shared gene overlap.
-
-**Approach:** Compute pairwise term similarity, then plot as a network where edges connect terms sharing genes.
-
-Shows term-term relationships based on shared genes.
+`ridgeplot(gse, showCategory=30, fill='p.adjust', core_enrichment=TRUE, orderBy='NES')` draws, per set, a density of the `@geneList` metric values of its LEADING-EDGE genes. Shifted right = up-ranked, left = down-ranked, bimodal = the set straddles both extremes (often too broad). `ridgeplot` needs the `ggridges` package (an enrichplot Suggests-only dependency) or it errors. `gseaplot2(gse, geneSetID, subplots=1:3)` stacks the running ES curve, the hit ticks, and the ranked-metric profile; `geneSetID` is required and accepts an index, a vector (`1:3` to overlay), or an ID string.
 
 ```r
-# Requires pairwise_termsim first
-ego_pt <- pairwise_termsim(ego)
-emapplot(ego_pt)
-
-# Customize
-emapplot(ego_pt, showCategory = 30, cex_label_category = 0.6)
-
-# Cluster by similarity
-emapplot(ego_pt, group_category = TRUE, group_legend = TRUE)
+ridgeplot(gse, showCategory = 20)                        # direction + shape; the honest GSEA overview
+gseaplot2(gse, geneSetID = 1:3, pvalue_table = TRUE)     # overlay three sets' running scores
 ```
 
-### pairwise_termsim() Method Selection
+## Specialized Views -- upsetplot, goplot, heatplot
 
 ```r
-# Default: Jaccard Coefficient (works with any gene set type)
-ego_pt <- pairwise_termsim(ego)
-
-# For GO terms: Wang semantic similarity (more biologically meaningful)
-ego_pt <- pairwise_termsim(ego, method = 'Wang', semData = godata('org.Hs.eg.db', ont = 'BP'))
+upsetplot(ego, n = 10)                                   # gene-overlap combinations across terms (gseaResult gives per-set metric boxplots)
+goplot(ego)                                              # GO-ONLY: the induced DAG subgraph; needs the ggarchery package (enrichplot Suggests)
+heatplot(ego, foldChange = gene_list, showCategory = 15) # gene x term matrix, color by direction; a flattened cnetplot
 ```
 
-| Method | Type | When to Use |
-|--------|------|-------------|
-| JC (Jaccard) | Gene overlap | Default; works with KEGG, Reactome, any gene set |
-| Wang | Graph-based | Best for GO; captures biological relationships independent of annotation version |
-| Resnik/Lin/Jiang | IC-based | GO only; depends on annotation corpus (results change between database releases) |
+## All Outputs Are ggplot Objects
 
-## Tree Plot
-
-Hierarchical clustering of enriched terms.
+Every enrichplot function returns a ggplot object, so chain ggplot2 modifiers and save with `ggsave`. Generic grammar (themes, scales, faceting) lives in data-visualization/ggplot2-fundamentals.
 
 ```r
-ego_pt <- pairwise_termsim(ego)
-treeplot(ego_pt)
-
-# Show more categories
-treeplot(ego_pt, showCategory = 30)
+p <- dotplot(ego, showCategory = 20) + scale_color_viridis_c() + ggtitle('GO BP enrichment')
+ggsave('fig.pdf', p, width = 10, height = 8)
 ```
 
-## Upset Plot
+## Per-Method Failure Modes
 
-Show overlapping genes between terms.
+### Raw top-20 redundancy artifact
+**Trigger:** `dotplot(ego, showCategory=20)` straight from enrichGO on GO results. **Mechanism:** the GO DAG guarantees a real signal surfaces as a nested cluster of overlapping terms driven by the same genes. **Symptom:** twenty bars/dots that are "cell cycle," "cell cycle process," "mitotic cell cycle," "cell division" - one theme repeated. **Fix:** `simplify()` for a shorter list, or `pairwise_termsim` -> `emapplot`/`treeplot` to show the structure, or REVIGO/EnrichmentMap.
 
-```r
-upsetplot(ego)
+### Missing pairwise_termsim
+**Trigger:** `emapplot(ego)` or `treeplot(ego)` without the precursor. **Mechanism:** these read `x@termsim`, an empty slot until populated. **Symptom:** an error about a missing termsim slot, or an empty map. **Fix:** `ego_ts <- pairwise_termsim(ego)` first, every time.
 
-# Limit to specific number of terms
-upsetplot(ego, n = 10)
-```
+### Barplot on gseaResult / dropped NES sign
+**Trigger:** coercing a gseaResult to a data frame and bar/dot-plotting |NES| or a p-value ramp. **Mechanism:** a bar from zero is unsigned; |NES| merges activated and suppressed pathways. **Symptom:** a figure that hides that half the pathways are suppressed. **Fix:** there is deliberately no barplot for gseaResult; use a diverging color-by-NES dotplot, ridgeplot, or gseaplot2.
 
-## GSEA-Specific Plots
+### GeneRatio read as effect size
+**Trigger:** "term A has GeneRatio 0.6 so it is strongly over-represented." **Mechanism:** GeneRatio is k/n, not the fold enrichment (k/n)/(M/N). **Symptom:** a giant uninformative term ranked above a small specifically-enriched one. **Fix:** use `x='FoldEnrichment'` (or `GeneRatio/BgRatio`) when specificity is the point; report the p-value as the test statistic.
 
-### Running Score Plot (gseaplot2)
+### Default-ordering misread
+**Trigger:** reading the top dot of a default dotplot as "most significant." **Mechanism:** `orderBy='x'` orders by the x variable (GeneRatio), not p.adjust. **Symptom:** a low-significance high-GeneRatio term presented as the headline. **Fix:** order/color by p.adjust explicitly, or state the ordering in the caption.
 
-```r
-# Single gene set
-gseaplot2(gse, geneSetID = 1, title = gse$Description[1])
+### Over-trimmed showCategory
+**Trigger:** `showCategory=20` when 200 terms passed FDR. **Mechanism:** showCategory truncates to a top-N window by whatever orderBy used. **Symptom:** a 10% sample read as the complete result. **Fix:** report the total significant count and selection criterion in the caption; the figure is a window, not a census.
 
-# Multiple gene sets
-gseaplot2(gse, geneSetID = 1:3)
+### Pinned deprecated enrichplot args
+**Trigger:** copying `circular=TRUE`, `colorEdge=TRUE`, `cex_label_gene=`, `cex_label_category=`, or `group_category=` from a pre-2024 tutorial. **Mechanism:** enrichplot 1.25.5+ moved cnet/emap/goplot to ggtangle and removed those arguments. **Symptom:** an unused-argument error or a silently ignored arg. **Fix:** `?cnetplot` / `?emapplot` and use the current arguments (`color_item`, `size_category`, `node_label`, `node_label_size`, `min_edge`).
 
-# With subplots
-gseaplot2(gse, geneSetID = 1, subplots = 1:3)
+### Wang/IC similarity on non-GO results
+**Trigger:** `pairwise_termsim(kegg_result, method='Wang')`. **Mechanism:** Resnik/Lin/Rel/Jiang/Wang require the GO DAG and a GOSemSimDATA object. **Symptom:** an error or a meaningless similarity for KEGG/Reactome/custom sets. **Fix:** use `method='JC'` (gene overlap) for any non-GO gene set.
 
-# By term ID
-gseaplot2(gse, geneSetID = 'GO:0006955')
-```
+## Quantitative Thresholds
 
-### Ridge Plot
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| `showCategory = 10-30` | enrichplot defaults (dotplot 10, emapplot/treeplot 30) | more terms become unreadable; always report the total significant count alongside |
+| `pairwise_termsim(method='JC')` default | enrichplot | Jaccard on gene overlap; works for any gene-set type; non-JC are GO-only |
+| `simplify(cutoff=0.7)` | clusterProfiler / GOSemSim (Yu 2010 *Bioinformatics* 26:976) | semantic-similarity redundancy cutoff; lower keeps more terms (lives in go-enrichment) |
+| `emapplot(min_edge=0.2)` | enrichplot | draw a term-term edge only above this overlap; if everything still connects, the result is redundant |
+| `treeplot(nCluster=5, cluster_method='ward.D')` | enrichplot | deterministic Ward cut into 5 named groups; an explicit, reproducible alternative to emapplot's stochastic layout |
+| cnetplot <=5-8 terms | enrichplot (showCategory default 5) | the bipartite layout hairballs past ~8 terms |
+| diverging color centered at 0 for NES | Subramanian 2005 *PNAS* 102:15545 | NES is signed; a sequential p-value ramp hides activation vs suppression |
 
-Distribution of fold changes in gene sets.
+## Common Errors
 
-```r
-ridgeplot(gse)
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| emapplot/treeplot error about a missing termsim slot | skipped `pairwise_termsim()` | run `x <- pairwise_termsim(x)` first |
+| `unused argument (circular = TRUE)` in cnetplot | pre-1.25.5 args under ggtangle backend | `?cnetplot`; use `color_item`/`node_label`/`size_category` |
+| no applicable method for 'barplot' on gseaResult | GSEA has no barplot method by design | use a NES dotplot, ridgeplot, or gseaplot2 |
+| top dot is not the most significant | default `orderBy='x'` orders by GeneRatio | order/color by p.adjust explicitly |
+| dotplot terms all look modestly enriched | GeneRatio is not fold enrichment | `dotplot(ego, x='FoldEnrichment')` |
+| Wang similarity errors on KEGG terms | IC/graph methods need the GO DAG | `pairwise_termsim(x, method='JC')` |
+| gene labels are Entrez IDs not symbols | object not made readable | `setReadable(x, OrgDb, 'ENTREZID')` before plotting |
+| two analysts get different emapplot modules | different `method=` / `min_edge=` | record both in the caption; the clustering is a choice |
 
-# Top n gene sets
-ridgeplot(gse, showCategory = 15)
+## References
 
-# Order by NES
-ridgeplot(gse, showCategory = 20) + theme(axis.text.y = element_text(size = 8))
-```
-
-**Reading ridge plots:**
-- **Shifted right (positive values):** Gene set enriched among upregulated genes
-- **Shifted left (negative values):** Gene set enriched among downregulated genes
-- **Bimodal distribution:** Pathway contains both strongly up- and down-regulated genes; may indicate heterogeneous pathway with opposing components
-- **Narrow peak:** Enrichment driven by a small cluster of similarly ranked genes
-- **Broad distribution:** Many genes with varied rankings (more diffuse, less concentrated signal)
-
-## GO-Specific Plot (goplot)
-
-DAG structure of GO terms.
-
-```r
-# Only for GO enrichment results
-goplot(ego)
-
-# Specific ontology
-goplot(ego_bp)  # where ego_bp is enrichGO with ont='BP'
-```
-
-## Heatplot
-
-Gene-concept heatmap.
-
-```r
-heatplot(ego, foldChange = gene_list)
-
-# Customize
-heatplot(ego, showCategory = 15, foldChange = gene_list)
-```
-
-## Compare Multiple Analyses
-
-**Goal:** Visualize enrichment results side by side across multiple gene lists or conditions.
-
-**Approach:** Use dotplot on compareCluster output, optionally faceting by cluster.
-
-```r
-# Compare clusters (from compareCluster)
-dotplot(ck, showCategory = 10)
-
-# Facet by cluster
-dotplot(ck) + facet_grid(~Cluster)
-```
-
-## Customize ggplot2 Elements
-
-**Goal:** Fine-tune enrichment plots with custom titles, themes, colors, and text sizes.
-
-**Approach:** Chain ggplot2 modifiers onto enrichplot output since all functions return ggplot2 objects.
-
-All enrichplot functions return ggplot2 objects.
-
-```r
-p <- dotplot(ego, showCategory = 20)
-
-# Add title
-p + ggtitle('GO Biological Process Enrichment')
-
-# Change theme
-p + theme_minimal()
-
-# Adjust text
-p + theme(axis.text.y = element_text(size = 10))
-
-# Change colors
-p + scale_color_viridis_c()
-```
-
-## Save Plots
-
-**Goal:** Export enrichment plots as publication-quality PDF or PNG files.
-
-**Approach:** Use base R pdf/png device functions or ggplot2 ggsave to write plots to files.
-
-```r
-# PDF (vector, publication quality)
-pdf('enrichment_plots.pdf', width = 10, height = 8)
-dotplot(ego, showCategory = 20)
-dev.off()
-
-# PNG (raster)
-png('dotplot.png', width = 800, height = 600, res = 100)
-dotplot(ego, showCategory = 20)
-dev.off()
-
-# Using ggsave
-p <- dotplot(ego)
-ggsave('dotplot.pdf', p, width = 10, height = 8)
-```
-
-## Visualization Summary
-
-| Function | Best For | Input Type |
-|----------|----------|------------|
-| dotplot | Overview of enrichment | ORA, GSEA |
-| barplot | Simple counts/ratios | ORA |
-| cnetplot | Gene-term relationships | ORA |
-| emapplot | Term clustering | ORA |
-| treeplot | Hierarchical grouping | ORA |
-| upsetplot | Term overlap | ORA |
-| gseaplot2 | Running enrichment score | GSEA |
-| ridgeplot | Fold change distribution | GSEA |
-| goplot | GO DAG structure | GO only |
-| heatplot | Gene-concept matrix | ORA |
-
-## Choosing the Right Visualization
-
-| Goal | Plot | Key Tip |
-|------|------|---------|
-| First overview of top enriched terms | dotplot | Best starting point; shows 3 dimensions (ratio, count, p-value) |
-| Which genes drive multiple enriched terms | cnetplot | Limit to 5-10 terms; use `circular = TRUE` for crowded networks |
-| Identify functional modules among terms | emapplot | Run `pairwise_termsim()` first; if everything connects to everything, results are redundant |
-| GSEA: detailed single-pathway view | gseaplot2 | Check where genes cluster in the ranked list |
-| GSEA: overview of all enriched sets | ridgeplot | Read direction (left/right shift) and shape (narrow vs broad) |
-| Compare enrichment across conditions | dotplot on compareCluster | Use `facet_grid(~Cluster)` for side-by-side panels |
-
-## Common Visualization Mistakes
-
-- **Too many terms**: plots with > 30 terms are unreadable. Use `showCategory = 15-20`.
-- **Not simplifying GO first**: showing 15 redundant GO terms (cell cycle, cell cycle process, mitotic cell cycle...) wastes space and misleads. Run `simplify()` before plotting.
-- **Missing gene set size**: always show both the overlap count and the total pathway size. A 3/5 overlap (60%) is very different from 30/500 (6%).
-- **Bar plots for GSEA**: bar plots show count or enrichment. For GSEA, use NES on the x-axis, not p-value. Use dotplot or ridgeplot instead.
-- **Skipping pairwise_termsim()**: emapplot and treeplot will fail or produce meaningless results without it.
+- Wu T, Hu E, Xu S, et al. 2021. clusterProfiler 4.0: A universal enrichment tool for interpreting omics data. *The Innovation* 2:100141.
+- Yu G, Li F, Qin Y, Bo X, Wu Y, Wang S. 2010. GOSemSim: an R package for measuring semantic similarity among GO terms and gene products. *Bioinformatics* 26:976-978.
+- Supek F, Bosnjak M, Skunca N, Smuc T. 2011. REVIGO summarizes and visualizes long lists of gene ontology terms. *PLoS One* 6:e21800.
+- Merico D, Isserlin R, Stueker O, Emili A, Bader GD. 2010. Enrichment Map: a network-based method for gene-set enrichment visualization and interpretation. *PLoS One* 5:e13984.
+- Reimand J, Isserlin R, Voisin V, et al. 2019. Pathway enrichment analysis and visualization of omics data using g:Profiler, GSEA, Cytoscape and EnrichmentMap. *Nat Protoc* 14:482-517.
+- Subramanian A, Tamayo P, Mootha VK, et al. 2005. Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS* 102:15545-15550.
 
 ## Related Skills
 
-- go-enrichment - Generate GO enrichment results
-- kegg-pathways - Generate KEGG enrichment results
-- gsea - Generate GSEA results
+- enrichment-foundations - The method-selection decision and why gene sets overlap (the DAG/nesting theory this skill renders)
+- go-enrichment - Produces the enrichResult; owns simplify() the GO-DAG dedup
+- gsea - Produces the gseaResult; owns the enrichment score and leading-edge concept
+- kegg-pathways - KEGG enrichResult/gseaResult to plot (pathview pathway-diagram overlay lives there)
+- reactome-pathways - Reactome enrichResult/gseaResult to plot
+- wikipathways - WikiPathways enrichResult/gseaResult to plot
+- data-visualization/ggplot2-fundamentals - Generic ggplot2 grammar for the returned objects
+- workflows/expression-to-pathways - End-to-end DE-to-enrichment-to-figure pipeline

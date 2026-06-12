@@ -1,78 +1,107 @@
 # Reactome Pathway Enrichment - Usage Guide
 
 ## Overview
-ReactomePA provides pathway enrichment analysis using the Reactome database, a curated peer-reviewed knowledgebase of biological pathways with deep hierarchy and reaction-level detail.
+ReactomePA tests a gene list (ORA via `enrichPathway`) or a ranked gene vector (GSEA via `gsePathway`) against Reactome, a curated, peer-reviewed knowledgebase whose atomic unit is the REACTION and whose pathways are nested containers of reactions. The result is therefore one signal projected onto a hierarchy, not a list of independent findings, and the honest read is the deepest curated human pathway nodes the list over-represents, deduplicated against their ancestors, against a measured background. ReactomePA reads the local `reactome.db`, so a run is reproducible offline given the Bioconductor release - unlike KEGG and WikiPathways, which query a live database.
 
 ## Prerequisites
 ```r
 if (!require('BiocManager', quietly = TRUE))
     install.packages('BiocManager')
 
-BiocManager::install(c('ReactomePA', 'org.Hs.eg.db', 'enrichplot'))
+BiocManager::install(c('ReactomePA', 'reactome.db', 'org.Hs.eg.db', 'clusterProfiler'))
+BiocManager::install('ReactomeGSA')   # only for comparative / multi-omics analysis
 ```
+
+Conceptual prerequisites:
+- The input is a gene LIST (ORA) or a NAMED numeric vector sorted decreasing by a per-gene statistic (GSEA).
+- ReactomePA is ENTREZ-only. `enrichPathway` and `gsePathway` have no `keyType` argument, so SYMBOL or ENSEMBL ids must be converted with `bitr` first or the result is silently empty.
+- ORA needs a background `universe` of the genes actually measured; omitting it defaults the background to all ~11,200 Reactome-annotated genes and inflates significance.
+- Only human is curated. ReactomePA's `organism` accepts seven values (human, rat, mouse, celegans, yeast, zebrafish, fly), all non-human ones orthology-inferred from human.
+- The DE list and the ranking statistic come from differential-expression; the ORA-vs-GSEA decision and null theory from enrichment-foundations.
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Run Reactome pathway enrichment on my significant genes"
-- "Find peer-reviewed curated pathways enriched in my gene list"
-- "Use Reactome instead of KEGG for pathway analysis"
+- "Run Reactome over-representation on my significant genes against my measured background"
+- "Run Reactome GSEA on my ranked DESeq2 results"
+- "My Reactome top hits are a parent and its child pathways - which is the real finding?"
+- "Compare Reactome pathway activity between my treated and control groups"
 
 ## Example Prompts
-### Basic Enrichment
-> "Run Reactome pathway enrichment on my differentially expressed genes from deseq2_results.csv"
 
-> "Perform Reactome enrichment on my significant genes and show the top 20 pathways"
+### Over-representation
+> "I have 240 significant genes as gene symbols from a DESeq2 contrast and the ~14,000 expressed genes as the background. Convert to Entrez, run Reactome over-representation, and give me the top pathways with fold enrichment, deduplicated so I am not double-counting parent and child pathways."
 
-### Visualization
-> "Create a dotplot of my Reactome enrichment results"
+### GSEA
+> "I have a full DESeq2 result with the test statistic for every gene. Build the ranked vector, fix the seed, and run Reactome GSEA, then show me the leading-edge genes for the top pathways."
 
-> "Open the most enriched Reactome pathway in the browser"
+### Hierarchy interpretation
+> "My Reactome result has 'Cell Cycle Checkpoints', 'G2/M Checkpoints', and 'G1/S Transition' all near the top. Are those separate findings, and which one should I report?"
 
-### Comparison with KEGG
-> "Run both Reactome and KEGG enrichment on my genes and compare results"
+### Inspecting one pathway
+> "Draw the reaction network for my top Reactome pathway colored by log2 fold change, and give me the link to open it in the Reactome Pathway Browser."
 
-### GSEA with Reactome
-> "Run Reactome GSEA on my ranked gene list"
+### Comparative / multi-omics
+> "I have RNA-seq counts for treated vs control. Use ReactomeGSA to find which Reactome pathways differ between the groups."
 
 ## What the Agent Will Do
-1. Load DE results and extract significant genes
-2. Convert gene IDs to Entrez format (required for ReactomePA)
-3. Run enrichPathway() with readable = TRUE for gene symbols
-4. Generate visualizations and export results
-5. Optionally view pathways in Reactome browser
+1. Load the DE results and extract the significant-gene list (ORA) or build the ranked named vector (GSEA).
+2. Convert gene ids to Entrez with `bitr` - mandatory, since ReactomePA has no `keyType` argument.
+3. Run `enrichPathway` with the measured background as `universe` and `readable=TRUE`, or `gsePathway` with a fixed seed.
+4. Deduplicate the hierarchy: report the deepest significant pathway per signal and note ancestors as context.
+5. Optionally draw a local reaction network with `viewPathway` (by pathway NAME) or build a PathwayBrowser URL.
+6. For comparative or multi-omics questions, route to ReactomeGSA instead of ReactomePA.
 
 ## Reactome vs KEGG
 
 | Feature | Reactome | KEGG |
 |---------|----------|------|
-| Curation | Peer-reviewed | Expert curated |
-| Access | Open source | Requires license for commercial |
-| Hierarchy | Deep pathway hierarchy | Flat pathway list |
-| Detail | Reaction-level detail | Pathway-level |
-| Updates | Quarterly | Ongoing |
-| Organisms | 7 species | 4000+ species |
+| Atomic unit | Reaction (typed entities, PubMed-cited) | Pathway map |
+| Curation | Expert-authored, externally peer-reviewed | KEGG-team curated |
+| Structure | Deep event hierarchy (parent/child double-count) | Mostly flat map list |
+| Granularity | Finest (reaction level); heavier multiple-testing | Coarser (pathway level) |
+| Reproducibility | Local reactome.db, pinned to the Bioconductor release | Live REST API, date-dependent |
+| Metabolic depth | Good | Deeper |
+| License | CC0 (fully open) | Free academic; commercial license for KEGG REST |
+| Organisms (in R) | 7 in ReactomePA (DB projects to ~14-20) | 8,000+ |
 
 ## Understanding Results
 
+`enrichResult` (ORA) columns:
+
 | Column | Description |
 |--------|-------------|
-| ID | Reactome pathway ID (R-HSA-XXXXX) |
+| ID | Reactome stable id (R-HSA-XXXXX) |
 | Description | Pathway name |
-| GeneRatio | Genes in list / genes in pathway |
-| BgRatio | Pathway genes / total genes |
-| pvalue | Raw p-value |
-| p.adjust | Adjusted p-value (BH) |
-| qvalue | Q-value |
-| geneID | Genes in pathway |
-| Count | Number of genes |
+| GeneRatio | query genes in the pathway / query genes mapped to any pathway |
+| BgRatio | pathway genes in the universe / universe genes mapped (denominator ~11,230 if no universe passed) |
+| RichFactor | query genes in the pathway / total genes in the pathway |
+| FoldEnrichment | observed / expected fraction - read effect size here, do not compute it by hand |
+| zScore | standardized enrichment score |
+| p.adjust | BH-adjusted p-value (report this, not raw pvalue) |
+| qvalue | q-value |
+| geneID | genes in the pathway (symbols when readable=TRUE) |
+| Count | number of query genes in the pathway |
+
+`gseaResult` (GSEA) adds `setSize`, `enrichmentScore`, `NES`, `rank`, `leading_edge`, and `core_enrichment`.
 
 ## Tips
-- Reactome requires Entrez gene IDs. Convert from symbols first with bitr()
-- Use readable = TRUE in enrichPathway() to get gene symbols in output
-- Always specify a background universe (all tested genes) for accurate results
-- Use `minGSSize = 10` to filter out very small pathways (Reactome has some with only 2-3 genes)
-- For non-human species, Reactome annotations are computationally inferred via orthology from human. Verify species-specific findings independently
-- Reactome is fully open (CC0 license), unlike KEGG which requires a commercial license
-- viewPathway() opens interactive pathway visualization in browser
-- Combine Reactome with KEGG/WikiPathways for comprehensive pathway coverage
-- See enrichment-visualization skill for dotplot() and other plots
+- ReactomePA requires Entrez gene ids; convert from symbols or Ensembl with `bitr()` first - there is no `keyType` argument, so non-Entrez input returns nothing silently.
+- Always pass a background `universe` (the genes actually measured); the implicit ~11,200-gene Reactome background otherwise inflates significance.
+- Read the hierarchy, not the raw row order: a parent and its child enrich on the same genes, so report the deepest significant node and treat its ancestors as context. ReactomePA has no `simplify()` equivalent, so this is a manual call.
+- `viewPathway()` takes the pathway NAME (the `Description`), NOT the R-HSA id, and it draws a LOCAL ggraph reaction network in the R graphics device - it does not open a browser. For the interactive web diagram use `browseURL('https://reactome.org/PathwayBrowser/#/<R-HSA-id>')`.
+- For non-human species the annotations are orthology-inferred from human (mouse ~81% complete, less for distant species); confirm species-specific findings independently.
+- The R package and the reactome.org web AnalysisService can give different p-values for the same list because of release skew and different default backgrounds; name the tool, the reactome.db version, and the background.
+- For comparative (between-condition), multi-omics, or per-single-cell-cluster pathway analysis use ReactomeGSA, not ReactomePA.
+- Reactome is fully open (CC0); supplement with KEGG for deeper metabolic coverage.
+- See enrichment-visualization for dotplot/emapplot/cnetplot/gseaplot2 recipes.
+
+## Related Skills
+
+- enrichment-foundations - The ORA-vs-GSEA meta-decision, null models, and the gene-set database landscape
+- go-enrichment - The hypergeometric test and the background-universe problem
+- gsea - The GSEA running-sum engine and ranking-metric choice
+- kegg-pathways - KEGG pathway/module enrichment; deeper metabolic coverage
+- wikipathways - WikiPathways community-pathway enrichment (also CC0)
+- enrichment-visualization - Dot/bar/cnet/emap/tree/GSEA plots of enrichment results
+- differential-expression/de-results - Source of the gene list and the ranking statistic
+- workflows/expression-to-pathways - End-to-end DE-to-enrichment pipeline

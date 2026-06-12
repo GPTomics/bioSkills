@@ -1,37 +1,40 @@
-# Reference: DESeq2 1.42+ | Verify API if version differs
-# GSEA with MSigDB Hallmark gene sets
+# Reference: clusterProfiler 4.18.4+, org.Hs.eg.db 3.22+, msigdbr 26+ | Verify API if version differs
+# GSEA against the MSigDB Hallmark collection using the generic GSEA(TERM2GENE) function.
+# Self-contained: builds a synthetic signed ranking over real Entrez IDs so it runs offline.
 
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(msigdbr)
 
-de_results <- read.csv('de_results.csv')
+set.seed(123)
 
-gene_list <- de_results$log2FoldChange
-names(gene_list) <- de_results$gene_id
+entrez_ids <- head(keys(org.Hs.eg.db, keytype = 'ENTREZID'), 4000)
+
+# In real use this vector is de$stat (DESeq2 Wald) named by Entrez IDs.
+gene_list <- rnorm(length(entrez_ids))
+names(gene_list) <- entrez_ids
 gene_list <- gene_list[!is.na(gene_list)]
+gene_list <- gene_list[!duplicated(names(gene_list))]
 gene_list <- sort(gene_list, decreasing = TRUE)
 
-gene_ids <- bitr(names(gene_list), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-gene_list_entrez <- gene_list[names(gene_list) %in% gene_ids$SYMBOL]
-names(gene_list_entrez) <- gene_ids$ENTREZID[match(names(gene_list_entrez), gene_ids$SYMBOL)]
-gene_list_entrez <- sort(gene_list_entrez, decreasing = TRUE)
+# msigdbr 26.x: collection= (was category=); the Entrez column is ncbi_gene (older releases used entrez_gene).
+hallmarks <- msigdbr(species = 'Homo sapiens', collection = 'H')
+hallmarks_t2g <- hallmarks[, c('gs_name', 'ncbi_gene')]
 
-hallmarks <- msigdbr(species = 'Homo sapiens', category = 'H')
-hallmarks_t2g <- hallmarks[, c('gs_name', 'entrez_gene')]
-
-gse_hallmark <- GSEA(geneList = gene_list_entrez, TERM2GENE = hallmarks_t2g, minGSSize = 10, maxGSSize = 500, pvalueCutoff = 0.05, verbose = FALSE)
+gse_hallmark <- GSEA(geneList = gene_list, TERM2GENE = hallmarks_t2g, exponent = 1,
+                     minGSSize = 10, maxGSSize = 500, eps = 0,
+                     pvalueCutoff = 0.05, pAdjustMethod = 'BH',
+                     seed = TRUE, verbose = FALSE)
 
 results <- as.data.frame(gse_hallmark)
 cat('Enriched Hallmarks:', nrow(results), '\n')
+if (nrow(results) > 0) {
+    up_hallmarks <- results[results$NES > 0, c('ID', 'NES', 'p.adjust')]
+    down_hallmarks <- results[results$NES < 0, c('ID', 'NES', 'p.adjust')]
+    cat('\nTop up (positive NES):\n')
+    print(head(up_hallmarks[order(-up_hallmarks$NES), ], 5))
+    cat('\nTop down (negative NES):\n')
+    print(head(down_hallmarks[order(down_hallmarks$NES), ], 5))
+}
 
-up_hallmarks <- results[results$NES > 0, c('ID', 'NES', 'p.adjust')]
-down_hallmarks <- results[results$NES < 0, c('ID', 'NES', 'p.adjust')]
-
-cat('\nUpregulated hallmarks:\n')
-print(head(up_hallmarks[order(-up_hallmarks$NES), ], 5))
-
-cat('\nDownregulated hallmarks:\n')
-print(head(down_hallmarks[order(down_hallmarks$NES), ], 5))
-
-write.csv(results, 'gsea_hallmark_results.csv', row.names = FALSE)
+write.csv(results, file.path(tempdir(), 'gsea_hallmark_results.csv'), row.names = FALSE)

@@ -305,5 +305,6 @@ MAGeCKFlute R package provides one-shot FluteRRA / FluteMLE dashboards with KEGG
 - crispr-screens/perturb-seq-analysis - Single-cell screen analysis
 - crispr-screens/combinatorial-screens - Cas12a multiplex + GI scoring
 - crispr-screens/in-vivo-screens - Bottleneck-aware in vivo design
+- pathway-analysis/enrichment-foundations - Choose ORA vs GSEA for the hit list and check the background universe
 - pathway-analysis/go-enrichment - Functional enrichment of hits
 - pathway-analysis/gsea - Pre-ranked GSEA on hit lists
