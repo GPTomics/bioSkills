@@ -1,37 +1,39 @@
 #!/bin/bash
-# Reference: IQ-TREE 2.2+ | Verify API if version differs
-# Partitioned analysis for multi-gene datasets with IQ-TREE2
+# Reference: IQ-TREE 2.2+/2.3+ | Verify API if version differs
+# Partitioned multi-gene analysis with per-partition models, merging, and
+# concordance factors. The branch-length linkage flag is what people get wrong:
+#   -p edge-linked PROPORTIONAL (default/recommended), -q edge-equal, -Q edge-unlinked.
+# NOT spot-runnable offline: needs the iqtree2 binary and real alignments.
+set -euo pipefail
 
-# Input files
-CONCAT_ALIGNMENT="concatenated.fasta"
-PARTITION_FILE="partitions.nex"
+CONCAT="${1:-concatenated.fasta}"
+OUT="part_out"
+mkdir -p "$OUT"
 
-# Create example partition file
-# Defines gene boundaries and optionally models per partition
-cat > "$PARTITION_FILE" << 'EOF'
+# Partition file: gene boundaries (models omitted so ModelFinder chooses + merges)
+cat > "$OUT/partitions.nex" << 'EOF'
 #nexus
 begin sets;
-    charset COI = 1-657;
+    charset COI  = 1-657;
     charset CYTB = 658-1140;
-    charset 16S = 1141-1650;
-    charset 28S = 1651-2100;
+    charset 16S  = 1141-1650;
+    charset 28S  = 1651-2100;
 end;
 EOF
 
-# Option 1: Merged partition analysis
-# -p: Find best partitioning scheme (may merge similar partitions)
-# Recommended for most analyses - balances fit and complexity
-iqtree2 -s "$CONCAT_ALIGNMENT" -p "$PARTITION_FILE" -m MFP -B 1000 -T AUTO --prefix merged
+# -p           edge-linked proportional BLs (one rate multiplier per partition)
+# -m MFP+MERGE per-partition models + greedy BIC merge of partitions that match
+# -rcluster 10 relaxed clustering: only test top 10% most-similar pairs (tractable)
+iqtree2 -s "$CONCAT" -p "$OUT/partitions.nex" -m MFP+MERGE -rcluster 10 \
+        -B 1000 -bnni -alrt 1000 -T AUTO --seed 12345 --prefix "$OUT/part"
 
-# Option 2: Edge-linked proportional (separate models, proportional branch lengths)
-# -q: Keep partitions separate but link branch lengths proportionally
-# Good when genes evolve at different rates but tree topology is shared
-iqtree2 -s "$CONCAT_ALIGNMENT" -q "$PARTITION_FILE" -m MFP -B 1000 -T AUTO --prefix linked
+# Concordance factors expose nodes the concatenated bootstrap over-reads.
+# -S builds one separate gene tree per partition (no concatenation); --gcf/--scfl
+# then score the fixed concat tree against those per-locus trees and the sites.
+iqtree2 -s "$CONCAT" -S "$OUT/partitions.nex" -m MFP -T AUTO --prefix "$OUT/loci"
+iqtree2 -te "$OUT/part.treefile" -s "$CONCAT" \
+        --gcf "$OUT/loci.treefile" --scfl 100 -T 4 --prefix "$OUT/concord"
 
-# Option 3: Edge-unlinked (fully independent branch lengths per partition)
-# -Q: Fully independent branch lengths per partition
-# Use when genes may have very different evolutionary histories
-iqtree2 -s "$CONCAT_ALIGNMENT" -Q "$PARTITION_FILE" -m MFP -B 1000 -T AUTO --prefix unlinked
-
-# View partition schemes and models selected
-grep -A 20 "Best-fit model" merged.iqtree
+echo "Partitioned tree: $OUT/part.treefile"
+echo "Concordance:      $OUT/concord.cf.tree (UFBoot 100 + gCF ~33 => unresolved/ILS)"
+grep -A 20 "Best-fit model" "$OUT/part.iqtree" || true

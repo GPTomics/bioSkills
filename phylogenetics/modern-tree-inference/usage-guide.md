@@ -1,100 +1,87 @@
-# Modern Tree Inference - Usage Guide
+# Modern ML Tree Inference - Usage Guide
 
 ## Overview
 
-Build publication-quality maximum likelihood phylogenetic trees using IQ-TREE2 and RAxML-NG. Covers automatic model selection with ModelFinder, ultrafast bootstrap with proper interpretation, concordance factors for phylogenomic datasets, partitioned analyses, topology testing, and long branch attraction awareness.
+Maximum-likelihood phylogenetics with IQ-TREE2 and RAxML-NG. An ML tree maximizes the likelihood under an assumed substitution model on a fixed alignment, so it inherits every flaw of both, and the support it reports measures repeatability under resampling, not whether a clade is true. This skill covers ModelFinder model selection, UFBoot2 and SH-aLRT support with their correct cutoffs, gene and site concordance factors that are the honest measure at genome scale, partitioning, AU topology tests, and long-branch-attraction control. The recurring lesson: high support is consistent with being wrong, and the cure for confident-wrong trees is better models, alignments, and diagnostics, not more bootstrap replicates.
 
 ## Prerequisites
 
 ```bash
-# Install IQ-TREE2
+# IQ-TREE2 (model selection, UFBoot2, SH-aLRT, concordance factors, AU test, PMSF all built in)
 conda install -c bioconda iqtree
 
-# Install RAxML-NG
+# RAxML-NG (very large trees, transfer bootstrap, precise branch lengths, checkpointing)
 conda install -c bioconda raxml-ng
-
-# Or download binaries:
-# IQ-TREE2: http://www.iqtree.org/
-# RAxML-NG: https://github.com/amkozlov/raxml-ng
 ```
+
+- Input is a multiple-sequence alignment (FASTA, PHYLIP, or NEXUS). Its column homology is assumed correct and is the single largest source of confident-wrong trees, so trim and inspect it first (alignment/alignment-trimming, alignment/alignment-io).
+- For concordance factors you also need per-locus alignments or gene trees.
+- Conceptual prerequisite: support is not accuracy: a node can carry UFBoot 100 or PP 1.00 and still be wrong, especially on a contested deep branch. The branch-support and concordance-factor sections below cover how to tell.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Build a maximum likelihood tree from my alignment with bootstrap support"
-- "Find the best substitution model for my sequences and infer a tree"
-- "Run IQ-TREE2 with ultrafast bootstrap and SH-aLRT on my FASTA file"
-- "Compare multiple gene partitions with different evolutionary rates"
-- "Compute concordance factors for my phylogenomic dataset"
+- "Build a maximum-likelihood tree from alignment.fasta with model selection and dual support"
+- "Run IQ-TREE2 with ModelFinder, 1000 ultrafast bootstrap replicates, and SH-aLRT, and interpret the support"
+- "Find the best substitution model and partition scheme for my concatenated multi-gene alignment"
+- "Compute gene and site concordance factors for my phylogenomic tree"
+- "Test whether my constrained topology is rejected against the ML tree with the AU test"
+- "My two longest branches group together at 100% bootstrap: check for long-branch attraction"
 
 ## Example Prompts
 
-### Basic Tree Inference
-> "Build a phylogenetic tree from alignment.fasta using maximum likelihood with proper model selection"
+### Tree Inference and Model Selection
+> "Infer an ML tree from alignment.fasta with IQ-TREE2, using ModelFinder Plus and reporting both UFBoot2 and SH-aLRT support."
 
-> "Run IQ-TREE2 with ModelFinder, 1000 ultrafast bootstrap replicates, and SH-aLRT"
+> "Should this concatenated alignment use +G or FreeRate, and should I partition it? Run ModelFinder with partition merging."
 
-> "Infer a tree with RAxML-NG using GTR+G and 100 bootstrap replicates"
+> "Build a deep protein tree under a site-heterogeneous C60/PMSF model to guard against long-branch attraction."
 
-### Model Selection
-> "What's the best substitution model for my DNA alignment? Use ModelFinder with FreeRate models"
+### Support Interpretation
+> "My tree has UFBoot 100 almost everywhere. Is it well resolved, and how do I tell which nodes are genuinely supported?"
 
-> "Run ModelFinder on my protein alignment and explain why it chose this model"
+> "Explain the difference between the UFBoot >=95 cutoff and the bootstrap >=70 rule, and which applies to my output."
 
-> "Should I use AIC or BIC for model selection?"
+> "Compute gene and site concordance factors and flag any node with high bootstrap but low concordance."
 
-### Branch Support
-> "Add both UFBoot and SH-aLRT support to my tree and explain the thresholds"
+### Partitioning and Large Trees
+> "Run a partitioned analysis with separate models per gene and proportional branch lengths."
 
-> "Compute gene and site concordance factors for my phylogenomic dataset"
+> "I have 4000 taxa: infer the tree in RAxML-NG with transfer bootstrap and explain why TBE not the standard bootstrap."
 
-> "My tree has low support throughout. What does that mean and what should I try?"
+### Topology Testing and Troubleshooting
+> "Test with the AU test whether a tree constraining these two genera to be sisters is rejected."
 
-### Partitioned Analysis
-> "Analyze my concatenated multi-gene alignment with separate models per gene"
-
-> "Should I use edge-linked or edge-unlinked partition models?"
-
-> "Run partitioned analysis with automatic partition merging"
-
-### Topology Testing
-> "Compare these two candidate tree topologies using the AU test"
-
-> "Is my constrained topology significantly worse than the unconstrained ML tree?"
-
-### Troubleshooting
-> "I suspect long branch attraction in my tree. How do I detect and fix it?"
-
-> "My two longest branches are grouping together. Is this an artifact?"
+> "A fast-evolving taxon is attracted to the outgroup. Detect and treat the long-branch attraction."
 
 ## What the Agent Will Do
 
-1. Check the alignment file format and sequence type (DNA/protein)
-2. Select appropriate model selection strategy (MFP for most cases)
-3. Run ML tree search with proper flags (-bnni for UFBoot2)
-4. Generate both UFBoot2 and SH-aLRT support if appropriate
-5. Interpret support values with correct thresholds (UFBoot >= 95, not >= 70)
-6. Compute concordance factors for phylogenomic datasets
-7. Flag potential issues (LBA, low support, model adequacy)
-8. Set random seed for reproducibility
+1. Inspect the alignment format and sequence type, and flag that column homology and trimming gate everything downstream.
+2. Run ModelFinder (`-m MFP`, BIC) for a single locus, or `-m MFP+MERGE -rcluster 10` for a partitioned dataset; choose a C60/PMSF mixture for deep / LBA-prone protein data.
+3. Search the ML tree with dual support (`-B 1000 -bnni -alrt 1000`) and a fixed seed for reproducibility.
+4. Interpret support with the correct cutoffs: a branch is strongly supported only if SH-aLRT >=80 AND UFBoot >=95, never the bootstrap-70 rule on UFBoot.
+5. For phylogenomic data, compute gene and site concordance factors and flag UFBoot-100/gCF-~33 nodes as effectively unresolved (ILS or introgression).
+6. Run AU topology tests when an a-priori hypothesis is being tested against the ML tree.
+7. Diagnose and treat long-branch attraction with site-heterogeneous models, fast-site/taxon removal, and recoding cross-checks.
+8. Route out-of-scope work: model-free distance trees, posteriors, species trees under ILS, or dating to the sibling skills.
 
 ## Tips
 
-- Always use `-m MFP` (not `-m TEST`) to include FreeRate models in model testing
-- The `-bnni` flag reduces UFBoot overestimation, so always include it
-- UFBoot >= 95 means strong support; do NOT apply the standard bootstrap >= 70 threshold
-- For publication, report at minimum two support measures (UFBoot + SH-aLRT)
-- Add concordance factors for phylogenomic datasets to distinguish genuine discordance from noise
-- Set `--seed` for reproducibility; use `-T AUTO` for automatic thread detection
-- For large datasets (>500 taxa), consider `-fast` mode
-- If support is low throughout, consider coalescent methods (ASTRAL) or Bayesian approaches
-- When LBA is suspected, try site-heterogeneous models (C60, CAT-GTR) or add taxa to break long branches
+- Use `-m MFP` (not the legacy `-m TEST`) so FreeRate models are tested; expect `+R` to win on concatenated data and `+G` on single short genes.
+- Always add `-bnni` with `-B`; it reins in the UFBoot inflation that model violation causes.
+- UFBoot >=95 is strong support; do NOT apply the standard-bootstrap >=70 threshold to it; they are different scales.
+- Report at least two support measures (UFBoot + SH-aLRT) and, for any phylogenomic tree, concordance factors as well.
+- A node with UFBoot 100 and gCF ~35 is essentially unresolved; report it as contested, not as a clade, and consider a coalescent species tree.
+- Prefer `-p` (edge-linked proportional) for partitions; reserve `-Q` (edge-unlinked) for genuine heterotachy, and merge with `-m MFP+MERGE` to avoid over-partitioning.
+- For LBA, change the model first (C60/PMSF), then remove fast sites/taxa; believe a deep node only when it survives a site-heterogeneous model, fast-site removal, and recoding.
+- Reach for RAxML-NG on very large trees, for transfer bootstrap, for the most precise branch lengths, or for robust checkpointing.
 
 ## Related Skills
 
-- bayesian-inference - Bayesian alternative when ML is insufficient
-- species-trees - Coalescent methods for gene tree discordance
-- divergence-dating - Molecular clock and dating analyses
-- tree-io - Read and convert tree output files
-- tree-visualization - Visualize trees with support annotations
-- distance-calculations - Distance-based tree methods
+- distance-calculations - model-corrected distances and fast NJ trees as a model-free alternative
+- bayesian-inference - posteriors, MCMC convergence, and CAT-GTR site-heterogeneous models
+- species-trees - coalescent species-tree estimation when concordance factors reveal ILS
+- divergence-dating - time-scaled trees from the ML topology
+- tree-manipulation - rooting, pruning, and collapsing low-support nodes
+- tree-visualization - mapping support and concordance factors onto branches
+- alignment/alignment-io - reading and writing the alignment the ML tree trusts as fixed

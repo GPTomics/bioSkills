@@ -1,41 +1,32 @@
 #!/bin/bash
-# Reference: IQ-TREE 2.2+ | Verify API if version differs
-# RAxML-ng maximum likelihood tree inference
+# Reference: RAxML-NG 1.2+ | Verify API if version differs
+# RAxML-NG for very large trees: ML search + bootstrap with BOTH the Felsenstein
+# proportion and the transfer bootstrap (TBE), which rescues deep branches that a
+# single rogue taxon would crush in a big tree.
+# NOT spot-runnable offline: needs the raxml-ng binary and a real alignment.
+set -euo pipefail
 
-ALIGNMENT="alignment.fasta"
-PREFIX="raxml_analysis"
+ALIGNMENT="${1:-alignment.fasta}"
+OUT="raxml_out"
+mkdir -p "$OUT"
 
-# Check alignment format and determine data type
-raxml-ng --check --msa "$ALIGNMENT" --model GTR+G --prefix check
+# Pre-flight: validate the alignment and estimate RAM/threads before the run
+raxml-ng --check --msa "$ALIGNMENT" --model GTR+G --prefix "$OUT/check"
+raxml-ng --parse --msa "$ALIGNMENT" --model GTR+G --prefix "$OUT/parse"
 
-# Full analysis: ML search + bootstrap
-# --all: Combined ML search and bootstrapping
-# --model GTR+G: General Time Reversible + Gamma rate variation
-# --bs-trees 100: 100 bootstrap replicates (use 1000 for publication)
-# --threads auto: Automatic thread detection
-raxml-ng --all \
-    --msa "$ALIGNMENT" \
-    --model GTR+G \
-    --bs-trees 100 \
-    --threads auto \
-    --seed 12345 \
-    --prefix "$PREFIX"
+# --all                ML search + bootstrap + draw support in one command
+# --bs-trees autoMRE{1000}  bootstrap with MRE convergence test, cap 1000
+# --bs-metric fbp,tbe  Felsenstein proportion AND transfer bootstrap expectation
+# --threads auto{8}    auto thread/worker detection capped at 8
+raxml-ng --all --msa "$ALIGNMENT" --model GTR+G \
+         --bs-trees autoMRE{1000} --bs-metric fbp,tbe \
+         --threads auto{8} --seed 42 --prefix "$OUT/run_ng"
 
-# Output files:
-# ${PREFIX}.raxml.bestTree    - Best ML tree
-# ${PREFIX}.raxml.support     - Tree with bootstrap support values
-# ${PREFIX}.raxml.bootstraps  - Individual bootstrap trees
-# ${PREFIX}.raxml.log         - Analysis log
+echo "Best tree:    $OUT/run_ng.raxml.bestTree"
+echo "With support: $OUT/run_ng.raxml.support (FBP and TBE columns)"
 
-echo "Best tree: ${PREFIX}.raxml.bestTree"
-echo "With support: ${PREFIX}.raxml.support"
-
-# For thorough ML search, use multiple starting trees
-# --tree pars{10}: 10 parsimony starting trees
-# --tree rand{10}: 10 random starting trees
-raxml-ng --search \
-    --msa "$ALIGNMENT" \
-    --model GTR+G \
-    --tree pars{10},rand{10} \
-    --threads auto \
-    --prefix thorough_search
+# Separate steps for a long HPC run with checkpointing:
+# raxml-ng --search    --msa "$ALIGNMENT" --model GTR+G --seed 42 --prefix "$OUT/ml"
+# raxml-ng --bootstrap --msa "$ALIGNMENT" --model GTR+G --seed 42 --bs-trees 1000 --prefix "$OUT/bs"
+# raxml-ng --support   --tree "$OUT/ml.raxml.bestTree" --bs-trees "$OUT/bs.raxml.bootstraps" \
+#          --bs-metric tbe --prefix "$OUT/sup"

@@ -1,5 +1,5 @@
 '''Generate bootstrap consensus tree from alignment'''
-# Reference: biopython 1.83+, ncbi blast+ 2.15+ | Verify API if version differs
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import Phylo
 from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceTreeConstructor
@@ -17,7 +17,7 @@ sequences = [
 ]
 alignment = MultipleSeqAlignment(sequences)
 
-calculator = DistanceCalculator('identity')
+calculator = DistanceCalculator('identity')   # identity-only p-distance; ape dist.dna needed for model correction
 constructor = DistanceTreeConstructor(calculator, 'nj')
 
 print('Building bootstrap consensus (50 replicates)...')
@@ -27,6 +27,5 @@ consensus_tree.ladderize()
 print('\nMajority Rule Consensus Tree:')
 Phylo.draw_ascii(consensus_tree)
 
-# Expected output: Bootstrap values appear as branch confidences (0-100%)
-# Interpretation: <50 = weak, 50-70 = moderate, 70-90 = good, >90 = strong support
-# For publication: typically require >70% bootstrap support to report a clade
+# Bootstrap values appear as branch confidences (0-100%): <50 weak, 50-70 moderate, 70-90 good, >90 strong.
+# Caveat: support is sampling PRECISION, not accuracy -- a bias in the distances reproduces every replicate.
