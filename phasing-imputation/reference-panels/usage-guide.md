@@ -1,185 +1,68 @@
 # Reference Panels - Usage Guide
 
 ## Overview
-Reference panels provide haplotype information from well-characterized samples, essential for haplotype phasing, genotype imputation, and quality control alignment.
+
+Select and prepare the reference panel that statistical phasing and imputation copy haplotypes from. The load-bearing decision is ancestry match: imputation can only impute variants the panel contains and copies haplotypes from samples that resemble the target, so a panel whose ancestry does not match the study population imputes poorly no matter how large it is. This skill covers panel choice (1000 Genomes, HRC, TOPMed, HGDP+1kGP, CAAPA), genome-build and chromosome-naming reconciliation, the strand/allele harmonization gate that silently corrupts results when skipped, and conversion to the engine-specific panel format. It does not run the phasing or imputation engines (those are sibling skills) and routes classical HLA-allele panels out to clinical-databases.
 
 ## Prerequisites
-```bash
-# bcftools for panel manipulation
-conda install -c bioconda bcftools
 
-# Picard for liftover
-conda install -c bioconda picard
-
-# wget for downloading panels
-# (usually pre-installed)
-
-# Storage: 50GB-500GB depending on panel
-```
+- bcftools (`conda install -c bioconda bcftools`) with the `fixref` and `fill-tags` plugins; PLINK for the allele-frequency file the harmonization check consumes.
+- Will Rayner's `HRC-1000G-check-bim.pl` (or the bgen/VCF variant) for the field-standard strand/allele check, plus the panel's site/legend file.
+- A reference FASTA matching the PANEL's genome build, and a QC'd, normalized study VCF.
+- Conceptual prerequisites and big notes:
+  - A panel is data with a dated release and a fixed build (GRCh37 or GRCh38). Record the exact version and build; "1000 Genomes" alone is unreproducible.
+  - HRC is SNP-only (no indels) with a MAF floor near 5e-4; TOPMed is the most diverse but is server-only and never downloadable.
+  - Match the panel build to the study build and avoid liftover; if forced to lift, do it once with a strand-aware method and re-run the harmonization check.
+  - Normalize (split multiallelics, left-align) before aligning alleles to the panel.
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Download and set up 1000 Genomes reference panel for imputation"
-- "Create population-specific subsets from 1000 Genomes"
-- "Liftover my data from GRCh37 to GRCh38"
+- "Which reference panel should I use for my admixed Latino cohort on GRCh38?"
+- "Align my GRCh37 array data to the HRC panel strand and alleles before imputation"
+- "Convert my reference VCF to Beagle bref3 and Minimac msav formats"
+- "My study data is GRCh37 but I want a GRCh38 panel - how should I handle the build?"
+- "Check whether my data can use TOPMed given our data-residency rules"
 
 ## Example Prompts
-### Panel Setup
-> "Download 1000 Genomes Phase 3 high-coverage data and prepare it for imputation"
 
-### Population Subset
-> "Extract European samples from the 1000 Genomes reference panel"
+### Panel selection
+> "My cohort is an admixed US population sequenced on GRCh38. Which reference panel should I impute against and why, and note any access or governance requirements."
 
-### Data Alignment
-> "Align my study VCF to the reference panel, fixing strand and allele issues"
+### Strand and build harmonization
+> "I have an Illumina array VCF on GRCh37. Walk me through aligning strand and alleles to the panel, handling palindromic SNPs, and reading the allele-frequency concordance plot before I upload to an imputation server."
 
-### Genome Build Conversion
-> "Liftover my GRCh37 VCF to GRCh38 to match the reference panel"
+### Format conversion
+> "I have a custom reference panel as a phased VCF. Convert it to bref3 for Beagle and msav for Minimac4, per chromosome, and tell me what each engine requires."
+
+### Governance constraint
+> "Our IRB forbids participant genotypes leaving the country. Which diverse panels can I use locally, and what accuracy trade-off does that imply versus TOPMed?"
 
 ## What the Agent Will Do
-1. Download reference panel files for all chromosomes
-2. Extract population-specific samples if needed
-3. Prepare reference for imputation (biallelic SNPs, consistent IDs)
-4. Align study data to reference (strand correction)
-5. Verify alignment and compatibility
+
+1. Establish the study genome build and the target ancestry (routing to population-genetics/population-structure for the PCA if needed).
+2. Recommend a panel by ancestry match, build, variant class (SNP vs indel), and data-governance constraints, naming the exact version.
+3. Normalize the study VCF and reconcile chromosome naming to the panel convention.
+4. Run the strand/allele harmonization check, execute the generated fix script, drop unresolvable palindromic SNPs, and inspect the allele-frequency concordance plot against the ancestry-matched sub-panel.
+5. Convert the panel to the engine-specific format (msav, bref3, or imp5), pairing it with a build-matched genetic map.
+6. Hand the harmonized study data and prepared panel to haplotype-phasing and genotype-imputation.
 
 ## Tips
-- Match reference panel ancestry to your study population
-- TOPMed has best coverage for rare variants
-- Always verify genome build matches between study and reference
-- Plan storage: 1000G ~50GB, HRC ~100GB, TOPMed ~500GB
-- Use imputation servers (Michigan, TOPMed) for convenience
-- Keep population subset files for ancestry-matched imputation
 
-## Choosing a Reference Panel
+- When someone says "I used the biggest panel," the real question is how many panel samples share the target ancestry, because that subset did the work.
+- Treat "all palindromic SNPs kept" as evidence the strand was never checked; the check drops A/T and C/G SNPs above MAF 0.4 deliberately.
+- Run the harmonization check and then actually execute its generated fix script; the check diagnoses, the script fixes.
+- A high INFO/R2 from an ancestry-mismatched panel can be confidently wrong; the metric is panel-relative and cannot detect that the panel lacked the target's haplotypes.
+- If the data cannot be uploaded to a US server, the practical choice narrows to downloadable panels (1000G, HGDP+1kGP); HGDP+1kGP is the strong diverse-and-local default.
+- Obtain both the site-only legend (for the check) and the full haplotype panel (for imputation); they are different files.
 
-### By Ancestry
-| Study Population | Recommended Panel |
-|-----------------|-------------------|
-| European | HRC, 1000G EUR, UK10K |
-| African | 1000G AFR, TOPMed |
-| East Asian | 1000G EAS |
-| South Asian | 1000G SAS |
-| Mixed/diverse | TOPMed, 1000G ALL |
-| Latino/Admixed | TOPMed, 1000G AMR |
+## Related Skills
 
-### By Application
-| Application | Recommended |
-|-------------|-------------|
-| General GWAS | 1000G or HRC |
-| Rare variants | TOPMed |
-| Fine-mapping | TOPMed or HRC |
-| Non-European | 1000G superpopulation |
-
-## Setting Up 1000 Genomes
-
-```bash
-#!/bin/bash
-# Download and prepare 1000 Genomes Phase 3 (GRCh38)
-
-BASE_DIR=reference_panels/1000GP
-mkdir -p $BASE_DIR
-
-# Download high-coverage data
-FTP="http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/working/20201028_3202_phased"
-
-for chr in {1..22}; do
-    echo "Downloading chromosome $chr..."
-    wget -P $BASE_DIR ${FTP}/CCDG_14151_B01_GRM_WGS_2020-08-05_chr${chr}.filtered.shapeit2-duohmm-phased.vcf.gz
-    wget -P $BASE_DIR ${FTP}/CCDG_14151_B01_GRM_WGS_2020-08-05_chr${chr}.filtered.shapeit2-duohmm-phased.vcf.gz.tbi
-done
-
-# Download sample information
-wget -P $BASE_DIR http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000G_2504_high_coverage/20130606_g1k_3202_samples_ped_population.txt
-
-# Create population subsets
-cd $BASE_DIR
-awk '$7=="EUR" {print $2}' 20130606_g1k_3202_samples_ped_population.txt > EUR_samples.txt
-awk '$7=="AFR" {print $2}' 20130606_g1k_3202_samples_ped_population.txt > AFR_samples.txt
-awk '$7=="EAS" {print $2}' 20130606_g1k_3202_samples_ped_population.txt > EAS_samples.txt
-```
-
-## Preparing Reference for Imputation
-
-```bash
-# Standard preparation workflow
-
-# 1. Filter to biallelic SNPs
-bcftools view -m2 -M2 -v snps reference.vcf.gz -Oz -o ref_biallelic.vcf.gz
-
-# 2. Remove rare variants if needed (optional, saves memory)
-bcftools view -q 0.001:minor ref_biallelic.vcf.gz -Oz -o ref_maf001.vcf.gz
-
-# 3. Set consistent IDs
-bcftools annotate --set-id '%CHROM:%POS:%REF:%ALT' ref_maf001.vcf.gz -Oz -o ref_final.vcf.gz
-
-# 4. Index
-bcftools index ref_final.vcf.gz
-```
-
-## Aligning Study Data to Reference
-
-```bash
-# 1. Check reference genome build
-bcftools view -h study.vcf.gz | grep "##reference"
-bcftools view -h reference.vcf.gz | grep "##reference"
-
-# 2. Fix strand and allele issues
-bcftools +fixref study.vcf.gz -Oz -o study_fixed.vcf.gz -- \
-    -f genome.fa \
-    -i reference.vcf.gz \
-    -m flip
-
-# 3. Extract overlapping sites
-bcftools isec -n=2 -w1 \
-    study_fixed.vcf.gz \
-    reference.vcf.gz \
-    -Oz -o study_for_imputation.vcf.gz
-```
-
-## Liftover Between Builds
-
-```bash
-# GRCh37 to GRCh38 using Picard
-wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
-
-java -jar picard.jar LiftoverVcf \
-    I=study_hg19.vcf.gz \
-    O=study_hg38.vcf.gz \
-    CHAIN=hg19ToHg38.over.chain.gz \
-    R=hg38.fa \
-    REJECT=rejected.vcf
-
-# Check rejection rate (should be <5%)
-wc -l rejected.vcf
-```
-
-## Using Imputation Servers
-
-### Michigan Imputation Server
-```bash
-# Prepare files
-for chr in {1..22}; do
-    bcftools view -r chr${chr} study.vcf.gz -Oz -o upload/study.chr${chr}.vcf.gz
-done
-
-# Upload to https://imputationserver.sph.umich.edu
-# Select: Reference Panel (HRC r1.1 or TOPMed r2), Population, Phasing (Eagle)
-```
-
-### TOPMed Imputation Server
-```bash
-# Same preparation, upload to:
-# https://imputation.biodatacatalyst.nhlbi.nih.gov
-
-# TOPMed has best coverage for rare variants
-# May require dbGaP authorization
-```
-
-## Storage Requirements
-
-| Panel | Compressed Size | Uncompressed |
-|-------|-----------------|--------------|
-| 1000G Phase 3 | ~50 GB | ~500 GB |
-| HRC | ~100 GB | ~1 TB |
-| TOPMed | ~500 GB | ~5 TB |
+- foundations - The genotyping strategy fork, pipeline order, and why the panel is the prior
+- haplotype-phasing - The phasing engine that consumes the panel
+- genotype-imputation - Impute untyped variants once the panel is prepared
+- imputation-qc - INFO/R2 quality metrics, which cannot detect ancestry mismatch
+- variant-calling/variant-normalization - Split multiallelics and left-align before harmonization
+- population-genetics/population-structure - PCA to establish target ancestry
+- clinical-databases/hla-typing - Classical HLA-allele imputation with a dedicated panel
+- workflows/gwas-pipeline - End-to-end QC -> phase -> impute -> associate

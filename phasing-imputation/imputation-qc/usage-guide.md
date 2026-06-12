@@ -1,190 +1,67 @@
 # Imputation QC - Usage Guide
 
 ## Overview
-Quality control of imputed data is essential before downstream analysis, as poor quality imputation can introduce false positives in GWAS and bias effect estimates.
+
+Assess and filter phasing and imputation output. The load-bearing idea is that the routine quality score (Beagle DR2, Minimac R2, IMPUTE/GLIMPSE INFO) is the model grading its own posterior, not a measured accuracy: it estimates r2 from the dosage variance without ever seeing the truth, it is confounded with allele frequency, and a flat INFO >= 0.3 cutoff is therefore a hidden rare-variant filter. True accuracy comes only from masking known genotypes and computing dosage-r2 binned by MAF; concordance lies for rare variants. The other load-bearing point is the differential-imputation confound: imputing cases and controls separately manufactures false GWAS hits that every per-group QC metric passes. This skill covers the metrics, MAF-stratified filtering, masked-truth accuracy, phasing switch-error QC, and dosage-based downstream usage.
 
 ## Prerequisites
-```bash
-# bcftools for VCF manipulation
-conda install -c bioconda bcftools
 
-# Python packages for QC analysis
-pip install pandas numpy matplotlib
-```
+- bcftools (`conda install -c bioconda bcftools`) for filtering and field extraction; cyvcf2, pandas, and numpy for the Python QC summaries; PLINK2 for downstream dosage handling.
+- An imputed VCF with the engine's quality field (DR2, R2, or INFO) and AF; a truth/array genotype set for masked-accuracy validation; trios for phasing switch-error QC.
+- Conceptual prerequisites and big notes:
+  - The quality score is an estimate of r2 from the posterior, not a validation; it cannot detect panel-ancestry mismatch.
+  - The field name is engine-specific (DR2 Beagle, R2 Minimac, INFO GLIMPSE/IMPUTE), and the numbers are not comparable across engines.
+  - Pair any quality cutoff with a MAF floor, and prefer MAF-stratified filtering.
+  - Impute cases and controls together; the differential-imputation confound is structural, not fixable by a filter.
+  - Carry dosages, not hard calls, into association.
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Run QC on my imputed VCF and generate quality plots"
-- "Filter my imputed data by INFO score and MAF"
-- "Check concordance between imputed and typed variants"
+- "Filter my imputed VCF by DR2 and MAF before GWAS"
+- "Report imputation quality stratified by minor allele frequency"
+- "Validate my imputation accuracy by masking typed genotypes"
+- "Check my phasing switch-error rate against trios"
+- "Why do my imputed case-control hits not replicate?"
 
 ## Example Prompts
-### Quality Assessment
-> "Analyze imputation quality in my VCF and generate a report with INFO score distributions"
 
-### Filtering
-> "Filter my imputed VCF to keep only variants with R2 > 0.8 and MAF > 0.01"
+### Quality filtering
+> "I have a Beagle-imputed VCF. Filter it for GWAS using the correct quality field plus a MAF floor, and explain why a single flat INFO cutoff acts as a hidden rare-variant filter."
 
-### Concordance Check
-> "Validate imputation accuracy by checking concordance at typed variant positions"
+### Accuracy validation
+> "I have array genotypes and an imputed VCF. Mask the typed sites, compute the true dosage-r2 binned by minor allele frequency, and tell me why I should not report concordance for rare variants."
 
-### MAF Analysis
-> "Plot INFO score vs minor allele frequency to assess imputation quality across the frequency spectrum"
+### Diagnosing inflation
+> "My imputed case-control GWAS has genome-wide-significant hits that do not replicate and the QC looks clean. Could separate imputation of cases and controls be the cause, and how do I confirm it?"
+
+### Phasing QC
+> "I have parent-parent-child trios. Compute my phaser's switch-error rate stratified by minor allele count and explain switch versus Hamming error."
 
 ## What the Agent Will Do
-1. Extract INFO scores and allele frequencies from imputed VCF
-2. Calculate summary statistics (mean R2, proportion passing thresholds)
-3. Generate QC plots (R2 histogram, R2 vs MAF scatter, cumulative distribution)
-4. Filter VCF by specified quality thresholds
-5. Write summary report
+
+1. Detect the engine's quality field (DR2, R2, or INFO) and extract it with AF.
+2. Filter on the correct field with a MAF floor, MAF-stratified where rare variants matter, and state the thresholds.
+3. Where a truth/array set exists, mask typed genotypes, re-impute, and compute dosage-r2 binned by MAF as the gold-standard accuracy curve.
+4. Check the Rsq-versus-EmpRsq gap and the allele-frequency concordance plot for strand/ancestry problems (routing strand fixes to reference-panels).
+5. Benchmark phasing switch-error against trios where available, stratified by minor allele count.
+6. Confirm imputation was done jointly across batches, and hand filtered dosages to population-genetics/association-testing.
 
 ## Tips
-- Always filter by INFO score before GWAS (typically R2 > 0.3)
-- Rare variants impute less accurately - expect lower R2 for MAF < 0.01
-- Check that reference panel ancestry matches your study
-- Verify concordance at typed positions to validate imputation
-- Plot INFO by chromosome to detect systematic issues
-- Use stricter thresholds (R2 > 0.8) for fine-mapping and PRS
 
-## Key Quality Metrics
+- Use the engine's actual field: DR2 for Beagle, R2 for Minimac, INFO for GLIMPSE/IMPUTE; a filter on the wrong name silently passes everything.
+- `bcftools +fill-tags` computes AF/MAF/HWE but cannot produce an imputation quality score; that number comes only from the imputer.
+- A negative Minimac EmpR is a strand/allele flip; a large Rsq-versus-EmpRsq gap flags panel, strand, or ancestry mismatch.
+- Concordance is disqualified for rare variants because a do-nothing imputer scores ~98% at MAF 1%; use masked dosage-r2 by MAF bin.
+- The absence of a QC red flag never clears the differential-imputation confound; impute together and verify quality does not differ by batch.
 
-### INFO Score (R2) Interpretation
-| R2 Score | Quality | Typical Use |
-|----------|---------|-------------|
-| > 0.9 | Excellent | All analyses |
-| 0.8 - 0.9 | Good | Fine-mapping, PRS |
-| 0.5 - 0.8 | Moderate | GWAS |
-| 0.3 - 0.5 | Low | GWAS discovery only |
-| < 0.3 | Poor | Exclude |
+## Related Skills
 
-## Complete QC Workflow
-
-```python
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import subprocess
-
-class ImputationQC:
-    def __init__(self, vcf_path):
-        self.vcf = vcf_path
-        self.info = None
-        self.stats = {}
-
-    def extract_info(self, output_file='info_scores.txt'):
-        cmd = f"bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%INFO/DR2\\t%INFO/AF\\n' {self.vcf} > {output_file}"
-        subprocess.run(cmd, shell=True, check=True)
-        self.info = pd.read_csv(output_file, sep='\t', names=['CHR', 'POS', 'ID', 'REF', 'ALT', 'R2', 'AF'])
-        self.info['MAF'] = self.info['AF'].apply(lambda x: min(x, 1-x) if pd.notna(x) else np.nan)
-        return self.info
-
-    def calculate_stats(self):
-        self.stats = {
-            'total_variants': len(self.info),
-            'mean_r2': self.info['R2'].mean(),
-            'median_r2': self.info['R2'].median(),
-            'pct_r2_above_03': 100 * (self.info['R2'] >= 0.3).mean(),
-            'pct_r2_above_08': 100 * (self.info['R2'] >= 0.8).mean(),
-        }
-        return self.stats
-
-    def plot_qc(self, output_prefix):
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-        axes[0, 0].hist(self.info['R2'].dropna(), bins=50, edgecolor='black', alpha=0.7)
-        axes[0, 0].axvline(0.3, color='red', linestyle='--', label='R2=0.3')
-        axes[0, 0].axvline(0.8, color='orange', linestyle='--', label='R2=0.8')
-        axes[0, 0].set_xlabel('INFO Score (R2)')
-        axes[0, 0].set_ylabel('Variant Count')
-        axes[0, 0].legend()
-
-        sample = self.info.dropna().sample(min(50000, len(self.info)))
-        axes[0, 1].scatter(sample['MAF'], sample['R2'], alpha=0.1, s=1)
-        axes[0, 1].set_xlabel('Minor Allele Frequency')
-        axes[0, 1].set_ylabel('INFO Score (R2)')
-        axes[0, 1].axhline(0.3, color='red', linestyle='--')
-
-        bins = [0, 0.001, 0.01, 0.05, 0.1, 0.5]
-        self.info['MAF_bin'] = pd.cut(self.info['MAF'], bins=bins)
-        self.info.boxplot(column='R2', by='MAF_bin', ax=axes[1, 0])
-        axes[1, 0].set_xlabel('MAF Bin')
-        axes[1, 0].set_ylabel('INFO Score')
-        plt.suptitle('')
-
-        sorted_r2 = np.sort(self.info['R2'].dropna())
-        axes[1, 1].plot(sorted_r2, np.arange(len(sorted_r2)) / len(sorted_r2))
-        axes[1, 1].axvline(0.3, color='red', linestyle='--')
-        axes[1, 1].set_xlabel('INFO Score (R2)')
-        axes[1, 1].set_ylabel('Cumulative Proportion')
-
-        plt.tight_layout()
-        plt.savefig(f'{output_prefix}_qc_plots.png', dpi=150)
-        plt.close()
-
-    def filter_vcf(self, r2_threshold=0.3, maf_threshold=0.01, output=None):
-        if output is None:
-            output = self.vcf.replace('.vcf.gz', f'_r2{r2_threshold}_maf{maf_threshold}.vcf.gz')
-        cmd = f"bcftools view -i 'INFO/DR2 >= {r2_threshold} && INFO/AF >= {maf_threshold} && INFO/AF <= {1-maf_threshold}' {self.vcf} -Oz -o {output}"
-        subprocess.run(cmd, shell=True, check=True)
-        subprocess.run(f'bcftools index {output}', shell=True, check=True)
-        return output
-
-    def generate_report(self, output_prefix):
-        if self.info is None:
-            self.extract_info()
-        self.calculate_stats()
-        self.plot_qc(output_prefix)
-        with open(f'{output_prefix}_summary.txt', 'w') as f:
-            f.write('Imputation QC Report\n')
-            f.write('=' * 50 + '\n\n')
-            for k, v in self.stats.items():
-                f.write(f'{k}: {v:.4f}\n' if isinstance(v, float) else f'{k}: {v}\n')
-
-# Usage
-qc = ImputationQC('imputed.vcf.gz')
-qc.generate_report('imputation_qc')
-filtered_vcf = qc.filter_vcf(r2_threshold=0.3, maf_threshold=0.01)
-```
-
-## Concordance with Typed Variants
-
-```bash
-# Extract typed variants
-bcftools view -i 'INFO/TYPED=1' imputed.vcf.gz -Oz -o typed_imputed.vcf.gz
-
-# Compare with original
-bcftools gtcheck -g original.vcf.gz typed_imputed.vcf.gz > concordance.txt
-
-# Parse results
-grep "^DC" concordance.txt  # Discordance rate
-```
-
-## Filter Commands
-
-```bash
-# Check INFO score distribution
-bcftools query -f '%INFO/DR2\n' imputed.vcf.gz | \
-    awk '{if($1<0.3) low++; else if($1<0.8) med++; else high++}
-    END {print "Low (<0.3):", low; print "Medium (0.3-0.8):", med; print "High (>0.8):", high}'
-
-# Filter by INFO and MAF
-bcftools view -i 'INFO/DR2 > 0.3' imputed.vcf.gz -Oz -o filtered.vcf.gz
-bcftools view -i 'MAF > 0.01' filtered.vcf.gz -Oz -o common.vcf.gz
-```
-
-## Troubleshooting
-
-### Low R2 Overall
-- Check reference panel ancestry match
-- Verify strand alignment
-- Check genotyping quality of input data
-
-### Low R2 for Rare Variants
-- Expected behavior - rare variants impute poorly
-- Use larger/better matched reference panel
-- Consider TOPMed for rare variants
-
-### Systematic Chromosome Differences
-- Check genetic map coverage
-- Look for reference panel issues
-- May indicate liftover problems
+- foundations - The dosage philosophy and why the quality score is a self-estimate
+- genotype-imputation - Produces the dosages and the quality field this skill filters
+- haplotype-phasing - Switch-error benchmarking of the phasing that precedes imputation
+- reference-panels - Panel ancestry mismatch, which the quality metric cannot detect
+- variant-calling/vcf-statistics - Generic VCF INFO/FORMAT field parsing
+- population-genetics/association-testing - Consumes the filtered dosages
+- long-read-sequencing/haplotype-phasing - Read-backed phasing switch QC
+- workflows/gwas-pipeline - End-to-end QC -> phase -> impute -> associate

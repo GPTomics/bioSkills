@@ -20,7 +20,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | expression-to-pathways | DE results to functional enrichment (GO, KEGG, Reactome, GSEA) with prokaryotic support and multi-condition comparison |
 | genome-assembly-pipeline | Profile, QC, assemble (short/long/HiFi/meta), polish, decontaminate, scaffold, and three-axis QC from reads |
 | longread-sv-pipeline | Long reads to structural variants |
-| gwas-pipeline | VCF to genome-wide associations |
+| gwas-pipeline | VCF to genome-wide associations, including phasing/imputation and population-structure correction |
 | cnv-pipeline | BAM to copy number variants |
 | spatial-pipeline | Spatial transcriptomics end-to-end |
 | hic-pipeline | Hi-C data to compartments, TADs, and loops |
