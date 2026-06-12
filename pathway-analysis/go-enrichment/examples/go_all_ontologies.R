@@ -1,27 +1,31 @@
-# Reference: R stats (base), clusterProfiler 4.10+ | Verify API if version differs
-# GO enrichment for all three ontologies
+# Reference: clusterProfiler 4.18.4+, org.Hs.eg.db 3.22+ | Verify API if version differs
+# GO ORA across all three ontologies, simplified PER ONTOLOGY.
+# simplify() operates on one ontology (GOSemSim similarity is defined within a single DAG),
+# so an ont='ALL' object must be split into BP/MF/CC and each simplified separately.
 
 library(clusterProfiler)
 library(org.Hs.eg.db)
-library(dplyr)
+
+simplify_cut <- 0.7   # semantic-similarity redundancy cutoff; lower keeps more terms
 
 de_results <- read.csv('de_results.csv')
-sig_genes <- de_results %>% filter(padj < 0.05, abs(log2FoldChange) > 1) %>% pull(gene_id)
 
-gene_ids <- bitr(sig_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+sig_genes  <- de_results$gene_id[de_results$padj < 0.05 & abs(de_results$log2FoldChange) > 1]
+all_tested <- de_results$gene_id[!is.na(de_results$pvalue)]   # universe = tested genes, NOT all rows, NOT the genome
 
-all_genes <- de_results$gene_id
-universe_ids <- bitr(all_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+fg_map <- bitr(sig_genes,  fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+bg_map <- bitr(all_tested, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+gene_list    <- unique(fg_map$ENTREZID)   # deduplicate one-to-many maps before counting
+universe_ids <- unique(bg_map$ENTREZID)
 
-ego_all <- enrichGO(gene = gene_ids$ENTREZID, universe = universe_ids$ENTREZID, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID', ont = 'ALL', pAdjustMethod = 'BH', pvalueCutoff = 0.05, readable = TRUE)
+simplified <- lapply(c('BP', 'MF', 'CC'), function(ont) {
+    ego <- enrichGO(gene = gene_list, universe = universe_ids, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID',
+                    ont = ont, pAdjustMethod = 'BH', pvalueCutoff = 0.05, qvalueCutoff = 0.2, readable = TRUE)
+    ego <- simplify(ego, cutoff = simplify_cut, by = 'p.adjust', select_fun = min, measure = 'Wang')
+    df <- as.data.frame(ego)
+    cat(ont, ':', nrow(df), 'terms after simplify\n')
+    df
+})
 
-results <- as.data.frame(ego_all)
-for (ont in c('BP', 'MF', 'CC')) {
-    ont_results <- results[results$ONTOLOGY == ont, ]
-    cat(ont, ':', nrow(ont_results), 'terms\n')
-}
-
-ego_simplified <- simplify(ego_all, cutoff = 0.7, by = 'p.adjust', select_fun = min)
-cat('After simplification:', nrow(as.data.frame(ego_simplified)), 'terms\n')
-
-write.csv(as.data.frame(ego_simplified), 'go_all_simplified.csv', row.names = FALSE)
+combined <- do.call(rbind, simplified)
+write.csv(combined, file.path(tempdir(), 'go_all_simplified.csv'), row.names = FALSE)

@@ -1,23 +1,26 @@
 ---
 name: bio-workflows-expression-to-pathways
-description: Workflow from differential expression results to functional enrichment analysis. Covers GO, KEGG, Reactome enrichment with clusterProfiler and visualization. Use when taking DE results to pathway enrichment.
+description: 'Orchestrates the full path from differential expression results to redundancy-collapsed functional enrichment: choose ORA vs GSEA, convert gene IDs per method, run enrichGO/enrichKEGG/enrichPathway/enrichWP or gseGO/gseKEGG (clusterProfiler, ReactomePA, rWikiPathways), and visualize. Routes the ORA-vs-GSEA generation fork and the null/universe/reproducibility theory to pathway-analysis/enrichment-foundations. Use when a DESeq2/edgeR/limma result must become enriched GO terms, KEGG/Reactome/WikiPathways pathways, or a GSEA leading edge; when deciding whether a ranking exists for all genes (GSEA, named decreasing vector) or only a pre-selected list (ORA plus a defensible background universe); or when assembling DE-to-pathway end to end. The DE list and ranking statistic come from differential-expression/de-results; per-method nuance lives in the pathway-analysis skills.'
 tool_type: r
 primary_tool: clusterProfiler
 workflow: true
 depends_on:
+  - pathway-analysis/enrichment-foundations
   - pathway-analysis/go-enrichment
+  - pathway-analysis/gsea
   - pathway-analysis/kegg-pathways
   - pathway-analysis/reactome-pathways
-  - pathway-analysis/gsea
+  - pathway-analysis/wikipathways
   - pathway-analysis/enrichment-visualization
 qc_checkpoints:
-  - input_validation: "Valid gene IDs, sufficient DE genes"
-  - enrichment_qc: "Reasonable number of terms, p-values not all significant"
+  - input_validation: "Gene IDs match the method (OrgDb keyType / kegg-id / ENTREZ); >85% convert; background = testable genes"
+  - generation_choice: "ORA-vs-GSEA fork decided BEFORE running; a ranking for all genes -> GSEA, a pre-selected list -> ORA"
+  - reproducibility: "Tool + database version/date, ranking metric, p-adjust method, and universe recorded; set.seed for GSEA"
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: DESeq2 1.42+, R stats (base), ReactomePA 1.46+, clusterProfiler 4.10+, ggplot2 3.5+
+Reference examples tested with: clusterProfiler 4.10+, org.Hs.eg.db 3.18+, ReactomePA 1.46+, enrichplot 1.22+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -27,358 +30,251 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Expression to Pathways Workflow
 
-**"Find enriched pathways from my differential expression results"** -> Orchestrate GO enrichment (clusterProfiler), GSEA, KEGG/Reactome pathway mapping, and enrichment visualization from DE gene lists or ranked gene lists.
+**"Find enriched pathways from my differential expression results"** -> Decide the generation (ORA vs GSEA) FIRST, then convert IDs to the form each method needs, run enrichment against the chosen database, and collapse redundancy before interpreting - because the enrichment result is a claim conditioned on the method, the background universe, and the database version, not a discovery the algorithm hands back.
+- R: `enrichGO(...)` / `gseGO(...)` / `enrichKEGG(...)` / `enrichPathway(...)` (clusterProfiler, ReactomePA)
 
-Convert differential expression results into biological insights through functional enrichment analysis.
+Scope: the ORCHESTRATION of a DE-to-enrichment pipeline - the generation fork, per-method ID conversion, the universe decision, the live-vs-local database caveat, and the handoff to redundancy-collapsed visualization. This workflow does NOT re-teach each method. The null/universe/reproducibility theory and the master method-selection tree -> pathway-analysis/enrichment-foundations. ORA mechanics -> go-enrichment; GSEA mechanics -> gsea; per-database IDs and live-DB behavior -> kegg-pathways, reactome-pathways, wikipathways; the DE list and ranking statistic -> differential-expression/de-results; plotting -> enrichment-visualization.
 
-## Method Selection
+## The Single Most Important Modern Insight -- The First Decision Is the Generation, and It Is Set by the Input, Not by Preference
 
-| Scenario | Method | Why |
-|----------|--------|-----|
-| Have DE results with Wald stat / t-stat for all genes | GSEA (Step 4) | Uses full ranking; no arbitrary cutoff; ~35% higher F1 than ORA |
-| Clear gene list from non-DE source (co-expression, GWAS) | ORA (Steps 1-3) | No ranking available |
-| RNA-seq with known gene length bias | GOseq (goseq package) | Standard ORA ignores length bias |
-| Bacterial / prokaryotic data | KEGG with locus tags | No org.*.eg.db; use keyType='kegg' |
-| Multiple conditions to compare | compareCluster or mitch | Never compare p-values across separate enrichments |
+Pathway analysis has three generations (Khatri 2012 *PLoS Comput Biol* 8:e1002375): over-representation analysis (ORA), functional class scoring / GSEA (FCS), and pathway topology. A workflow that "runs enrichment" without first deciding which generation applies has already made the choice silently - usually ORA, the worst-calibrated corner of the space. The fork is mechanical:
 
-When in doubt, run both ORA and GSEA and compare. Concordant results are more trustworthy.
+1. **Is there a meaningful per-gene ranking for (nearly) ALL measured genes?** A signed test statistic, the DESeq2 Wald `stat`, or `-sign(log2FC)*log10(p)` for every tested gene -> **GSEA** (a NAMED vector sorted in DECREASING order; the ranking metric IS the experiment). No arbitrary cutoff; detects coordinated weak shifts that ORA misses.
+2. **Only a pre-selected LIST (DE hits past a cutoff, a co-expression module, GWAS loci, screen hits)?** -> **ORA**, and the deliverable hinges on a defensible **background universe** - the genes that were testable, not the whole genome. ORA's p-value is whatever the denominator says it is.
 
-## Workflow Overview
+The dangerous default is running ORA on data that has a full ranking (binarizing away the signal) or running ORA against the genome (measuring expression, not enrichment). Decide the fork out loud, record it, and route the why to pathway-analysis/enrichment-foundations - this workflow owns the routing, not the derivation.
+
+## Pipeline Overview
 
 ```
-DE Results (gene list or ranked list)
+DE results (differential-expression/de-results)
     |
     v
-[1. Gene ID Conversion] --> Convert to Entrez/Ensembl
+[0. Decide the generation: ranking for all genes? -> GSEA | pre-selected list? -> ORA]   (enrichment-foundations)
+    |
+    +--> ORA branch: define the TESTABLE-gene universe, convert IDs per method
+    |        +--> enrichGO     (OrgDb keyType)        -> go-enrichment
+    |        +--> enrichKEGG   ('kegg' / 'ncbi-geneid', LIVE DB)  -> kegg-pathways
+    |        +--> enrichPathway (ENTREZ, local DB)    -> reactome-pathways
+    |        +--> enrichWP      (ENTREZ, LIVE GMT)    -> wikipathways
+    |
+    +--> GSEA branch: build a NAMED decreasing vector of ALL genes, set.seed
+    |        +--> gseGO / gseKEGG / GSEA(+msigdbr)    -> gsea
     |
     v
-[2. Over-representation Analysis]
-    |
-    +---> GO Enrichment (BP, MF, CC)
-    |
-    +---> KEGG Pathways
-    |
-    +---> Reactome Pathways
+[Redundancy collapse + visualization: simplify, pairwise_termsim, dotplot/emapplot/gseaplot2]   (enrichment-visualization)
     |
     v
-[3. GSEA (ranked genes)]
-    |
-    v
-[4. Visualization] -----> Dot plots, networks, bar plots
-    |
-    v
-Functional annotations and pathway insights
+A claim conditioned on universe + method + database version (record provenance)
 ```
 
-## Input Preparation
+## Stage Map
 
-### From DESeq2 Results
+| Stage | Goal | Owns the nuance |
+|-------|------|-----------------|
+| 0. Decide generation | ORA vs GSEA from the available input | pathway-analysis/enrichment-foundations |
+| 1. Prepare input | Build the gene list AND/OR the named ranked vector; define the universe | differential-expression/de-results (the stat); foundations (the universe rule) |
+| 2. Convert IDs | Map to the form each method needs (OrgDb keyType / kegg-id / ENTREZ) | go-enrichment, kegg-pathways, reactome-pathways |
+| 3a. ORA | Hypergeometric test of the list vs background | go-enrichment, kegg-pathways, reactome-pathways, wikipathways |
+| 3b. GSEA | Running-sum over the full ranking | gsea |
+| 4. Collapse + visualize | Reduce redundancy, then plot | enrichment-visualization |
+
+## Decision Tree by Scenario
+
+| Scenario | Route | Why |
+|----------|-------|-----|
+| All genes carry a DE statistic, a cutoff would be arbitrary | GSEA (gseGO/gseKEGG) -> gsea | uses the full ranking; no cutoff; named decreasing vector |
+| Pre-selected list (module, GWAS loci, screen hits), no ranking | ORA (enrichGO/enrichKEGG) -> go-enrichment | no ranking available; define the universe |
+| Broad function annotation | enrichGO / gseGO -> go-enrichment, gsea | GO is the broadest LOCAL resource (reproducible) |
+| Metabolic / signaling pathways | enrichKEGG / gseKEGG -> kegg-pathways | KEGG maps query a LIVE DB (pin the date) |
+| Reaction-level, peer-reviewed, reproducible offline | enrichPathway -> reactome-pathways | local reactome.db, version-pinned |
+| Disease/drug sets the others miss, broad species | enrichWP -> wikipathways | community-curated; LIVE versioned GMT |
+| Bacterial / prokaryotic data | enrichKEGG with locus tags + KEGG organism code -> kegg-pathways | KEGG covers prokaryotes; OrgDb usually does not |
+| RNA-seq with strong gene-length bias | GOseq -> go-enrichment | length-aware ORA null |
+| Multiple conditions/clusters side by side | compareCluster -> any DB | one model, faceted dotplot; never compare p across separate runs |
+| The DE list / ranking statistic itself | -> differential-expression/de-results | that is upstream, not enrichment |
+| Why this null, which universe, version reporting | -> pathway-analysis/enrichment-foundations | the conceptual spine |
+
+## Stage 1: Prepare the Input (list, ranked vector, and the universe)
+
+**Goal:** Turn a DE table into the two possible inputs - a gene LIST for ORA and a NAMED decreasing vector for GSEA - and define the background universe as the testable genes.
+
+**Approach:** Read the DE result, derive the significant list, build the ranked vector from a signed statistic (not a bare log2FC), and set the universe to exactly the genes that entered the DE test. The DE mechanics (the `$padj` vs `$adj.P.Val` column, shrinkage) live at differential-expression/de-results - this is only input shaping.
 
 ```r
-library(DESeq2)
 library(clusterProfiler)
 library(org.Hs.eg.db)
 
-# Load DE results
 res <- read.csv('deseq2_results.csv', row.names = 1)
 
-# Significant genes for ORA
+# ORA input: a pre-selected list (DESeq2 padj column; limma/edgeR name it differently)
 sig_genes <- rownames(subset(res, padj < 0.05 & abs(log2FoldChange) > 1))
 
-# Background = all tested genes (NOT the full genome)
-# Pre-filtering and independent filtering reduce the tested set; use only genes that were tested
-background_genes <- rownames(res[!is.na(res$pvalue), ])
+# Background universe = genes that were TESTABLE (entered the DE test), NOT the genome.
+# Using the genome measures expression bias, not enrichment (foundations: the universe rule).
+universe_genes <- rownames(res[!is.na(res$pvalue), ])
 
-# Ranked list for GSEA — prefer Wald statistic (combines magnitude + precision)
-# Alternatives: shrunken LFC, or sign(logFC) * -log10(PValue) for edgeR
-ranked_genes <- res$stat
-names(ranked_genes) <- rownames(res)
-ranked_genes <- sort(ranked_genes[!is.na(ranked_genes)], decreasing = TRUE)
-```
-
-### Gene ID Conversion
-
-```r
-# Convert gene symbols to Entrez IDs
-sig_entrez <- bitr(sig_genes, fromType = 'SYMBOL', toType = 'ENTREZID',
-                   OrgDb = org.Hs.eg.db)
-
-# For ranked list
-ranked_entrez <- bitr(names(ranked_genes), fromType = 'SYMBOL', toType = 'ENTREZID',
-                      OrgDb = org.Hs.eg.db)
-ranked_list <- ranked_genes[ranked_entrez$SYMBOL]
-names(ranked_list) <- ranked_entrez$ENTREZID
-```
-
-## Step 1: GO Over-representation Analysis
-
-```r
-# Convert background genes too
-bg_entrez <- bitr(background_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-
-# Biological Process — always specify universe (background)
-go_bp <- enrichGO(gene = sig_entrez$ENTREZID,
-                  universe = bg_entrez$ENTREZID,
-                  OrgDb = org.Hs.eg.db,
-                  ont = 'BP',
-                  pAdjustMethod = 'BH',
-                  pvalueCutoff = 0.05,
-                  qvalueCutoff = 0.1,
-                  readable = TRUE)
-
-# Molecular Function
-go_mf <- enrichGO(gene = sig_entrez$ENTREZID,
-                  universe = bg_entrez$ENTREZID,
-                  OrgDb = org.Hs.eg.db,
-                  ont = 'MF',
-                  pAdjustMethod = 'BH',
-                  pvalueCutoff = 0.05,
-                  readable = TRUE)
-
-# Cellular Component
-go_cc <- enrichGO(gene = sig_entrez$ENTREZID,
-                  universe = bg_entrez$ENTREZID,
-                  OrgDb = org.Hs.eg.db,
-                  ont = 'CC',
-                  pAdjustMethod = 'BH',
-                  pvalueCutoff = 0.05,
-                  readable = TRUE)
-
-# Simplify redundant terms
-go_bp_simple <- simplify(go_bp, cutoff = 0.7, by = 'p.adjust')
-```
-
-## Step 2: KEGG Pathway Enrichment
-
-```r
-kegg <- enrichKEGG(gene = sig_entrez$ENTREZID,
-                   organism = 'hsa',
-                   pvalueCutoff = 0.05,
-                   qvalueCutoff = 0.1)
-
-# Convert KEGG IDs to readable names
-kegg <- setReadable(kegg, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
-```
-
-## Step 3: Reactome Pathway Enrichment
-
-```r
-library(ReactomePA)
-
-reactome <- enrichPathway(gene = sig_entrez$ENTREZID,
-                          organism = 'human',
-                          pvalueCutoff = 0.05,
-                          readable = TRUE)
-```
-
-## Step 4: Gene Set Enrichment Analysis (GSEA)
-
-```r
-# GO GSEA
-gsea_go <- gseGO(geneList = ranked_list,
-                 OrgDb = org.Hs.eg.db,
-                 ont = 'BP',
-                 minGSSize = 10,
-                 maxGSSize = 500,
-                 pvalueCutoff = 0.05,
-                 verbose = FALSE)
-
-# KEGG GSEA
-gsea_kegg <- gseKEGG(geneList = ranked_list,
-                     organism = 'hsa',
-                     minGSSize = 10,
-                     maxGSSize = 500,
-                     pvalueCutoff = 0.05,
-                     verbose = FALSE)
-```
-
-## Step 5: Visualization
-
-```r
-library(enrichplot)
-library(ggplot2)
-
-# Dot plot
-dotplot(go_bp_simple, showCategory = 20) +
-    ggtitle('GO Biological Process Enrichment')
-ggsave('go_bp_dotplot.pdf', width = 10, height = 8)
-
-# Bar plot
-barplot(kegg, showCategory = 15) +
-    ggtitle('KEGG Pathway Enrichment')
-ggsave('kegg_barplot.pdf', width = 9, height = 6)
-
-# Enrichment map (network of related terms)
-go_bp_simple <- pairwise_termsim(go_bp_simple)
-emapplot(go_bp_simple, showCategory = 30) +
-    ggtitle('GO Term Similarity Network')
-ggsave('go_network.pdf', width = 10, height = 10)
-
-# Concept network (gene-term connections)
-cnetplot(go_bp, showCategory = 5, categorySize = 'pvalue') +
-    ggtitle('Gene-Concept Network')
-ggsave('cnet_plot.pdf', width = 12, height = 10)
-
-# GSEA plot for specific pathway
-gseaplot2(gsea_kegg, geneSetID = 1:3, pvalue_table = TRUE)
-ggsave('gsea_plot.pdf', width = 10, height = 8)
-
-# Ridge plot for GSEA
-ridgeplot(gsea_go, showCategory = 15)
-ggsave('gsea_ridge.pdf', width = 8, height = 10)
-```
-
-## Step 6: Export Results
-
-```r
-# Export enrichment results
-write.csv(as.data.frame(go_bp), 'go_bp_enrichment.csv', row.names = FALSE)
-write.csv(as.data.frame(kegg), 'kegg_enrichment.csv', row.names = FALSE)
-write.csv(as.data.frame(reactome), 'reactome_enrichment.csv', row.names = FALSE)
-write.csv(as.data.frame(gsea_go), 'gsea_go_results.csv', row.names = FALSE)
-
-# Combine key results
-combined <- rbind(
-    data.frame(Database = 'GO_BP', as.data.frame(go_bp_simple)[1:10,]),
-    data.frame(Database = 'KEGG', as.data.frame(kegg)[1:10,]),
-    data.frame(Database = 'Reactome', as.data.frame(reactome)[1:10,])
-)
-write.csv(combined, 'top_enriched_pathways.csv', row.names = FALSE)
-```
-
-## Parameter Recommendations
-
-| Analysis | Parameter | Value |
-|----------|-----------|-------|
-| enrichGO | pvalueCutoff | 0.05 |
-| enrichGO | qvalueCutoff | 0.1 |
-| simplify | cutoff | 0.7 |
-| gseGO | minGSSize | 10 |
-| gseGO | maxGSSize | 500 |
-| GSEA | perm | 1000 (default) |
-
-## Troubleshooting
-
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| No enriched terms | Too few genes, wrong IDs | Check gene IDs, relax thresholds |
-| All terms significant | Too many genes | Be more stringent with DE cutoffs |
-| Gene ID conversion fails | Wrong organism, format | Check OrgDb package, gene format |
-| GSEA no results | Poor ranking, small gene sets | Check ranked list, adjust minGSSize |
-
-## Complete Workflow Script
-
-```r
-library(clusterProfiler)
-library(org.Hs.eg.db)
-library(ReactomePA)
-library(enrichplot)
-library(ggplot2)
-
-# Configuration
-de_file <- 'deseq2_results.csv'
-output_dir <- 'pathway_analysis'
-dir.create(output_dir, showWarnings = FALSE)
-
-# Load and prepare data
-res <- read.csv(de_file, row.names = 1)
-sig_genes <- rownames(subset(res, padj < 0.05 & abs(log2FoldChange) > 1))
-cat('Significant genes:', length(sig_genes), '\n')
-
-# Convert IDs
-sig_entrez <- bitr(sig_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-cat('Converted to Entrez:', nrow(sig_entrez), '\n')
-
-# Ranked list for GSEA (Wald statistic preferred over LFC)
+# GSEA input: a NAMED vector of ALL genes, sorted DECREASING by a signed metric.
+# Prefer the Wald stat (magnitude + precision); a bare log2FC over-weights noisy low-count genes.
 ranked <- res$stat
 names(ranked) <- rownames(res)
 ranked <- sort(ranked[!is.na(ranked)], decreasing = TRUE)
-ranked_entrez <- bitr(names(ranked), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-ranked_list <- ranked[ranked_entrez$SYMBOL]
-names(ranked_list) <- ranked_entrez$ENTREZID
+```
 
-# Background genes (all tested, not full genome)
-bg_entrez <- bitr(rownames(res[!is.na(res$pvalue), ]), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+## Stage 2: Convert Gene IDs to What Each Method Needs
 
-# GO enrichment with background
-go_bp <- enrichGO(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, OrgDb = org.Hs.eg.db, ont = 'BP', readable = TRUE)
-go_bp_simple <- simplify(go_bp, cutoff = 0.7)
+**Goal:** Map identifiers to the exact ID type each enrichment function expects, because a mismatch returns zero hits silently.
 
-# KEGG
-kegg <- enrichKEGG(sig_entrez$ENTREZID, organism = 'hsa')
+**Approach:** Use `bitr` (OrgDb) for SYMBOL/ENSEMBL -> ENTREZ, keep both list and ranked vector in the same ID space, deduplicate, and track the conversion rate. Per-method ID rules are owned by each DB skill; the table below is the routing summary.
+
+```r
+# enrichGO accepts ENSEMBL/SYMBOL/ENTREZ via keyType=; ENTREZ is the safe lingua franca downstream
+sig_entrez <- bitr(sig_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+bg_entrez <- bitr(universe_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+
+# Carry the ranking through conversion: name the kept stat by its ENTREZ id
+ranked_map <- bitr(names(ranked), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
+ranked_list <- ranked[ranked_map$SYMBOL]
+names(ranked_list) <- ranked_map$ENTREZID
+ranked_list <- ranked_list[!duplicated(names(ranked_list))]   # dedup or GSEA biases the score
+
+conv_rate <- nrow(sig_entrez) / length(sig_genes)   # report it; <0.85 -> wrong ID type/organism
+```
+
+| Method | keyType / ID required | Convert with |
+|--------|-----------------------|--------------|
+| enrichGO / gseGO | OrgDb keyType ('ENSEMBL', 'SYMBOL', 'ENTREZID') | bitr |
+| enrichKEGG / gseKEGG | 'kegg' or 'ncbi-geneid' (NOT ENSEMBL/OrgDb) | bitr to ENTREZID, pass keyType='ncbi-geneid' (bitr_kegg only converts among KEGG ID flavors) |
+| enrichPathway / gsePathway (ReactomePA) | ENTREZ | bitr |
+| enrichWP / gseWP (WikiPathways) | ENTREZ + organism string | bitr |
+
+## Stage 3a: ORA Branch (pre-selected list + universe)
+
+**Goal:** Test each gene set for over-representation of the list against the testable-gene background.
+
+**Approach:** Always pass `universe=`; run GO ontologies separately; KEGG/Reactome/WikiPathways each need their own ID form. KEGG and WikiPathways query a LIVE database (internet-dependent, not reproducible across releases - pin the run date); GO and Reactome read local annotation (reproducible given the Bioconductor release).
+
+```r
+# GO ORA - universe is the decision; simplify() collapses DAG redundancy (BP/MF/CC separately, not 'ALL')
+go_bp <- enrichGO(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, OrgDb = org.Hs.eg.db,
+                  ont = 'BP', pAdjustMethod = 'BH', pvalueCutoff = 0.05, readable = TRUE)
+go_bp <- simplify(go_bp, cutoff = 0.7, by = 'p.adjust')
+
+# KEGG ORA - LIVE KEGG REST API; needs internet; record the access date for reproducibility
+kegg <- enrichKEGG(sig_entrez$ENTREZID, organism = 'hsa', keyType = 'ncbi-geneid', pvalueCutoff = 0.05)   # Entrez input; 'kegg' default is the prokaryote locus-tag path
 kegg <- setReadable(kegg, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
 
-# Reactome
-reactome <- enrichPathway(sig_entrez$ENTREZID, organism = 'human', readable = TRUE)
-
-# GSEA
-gsea_go <- gseGO(ranked_list, OrgDb = org.Hs.eg.db, ont = 'BP', verbose = FALSE)
-
-# Plots
-pdf(file.path(output_dir, 'enrichment_plots.pdf'), width = 10, height = 8)
-print(dotplot(go_bp_simple, showCategory = 20) + ggtitle('GO Biological Process'))
-print(barplot(kegg, showCategory = 15) + ggtitle('KEGG Pathways'))
-if (nrow(as.data.frame(reactome)) > 0) {
-    print(dotplot(reactome, showCategory = 15) + ggtitle('Reactome Pathways'))
-}
-dev.off()
-
-# Export
-write.csv(as.data.frame(go_bp_simple), file.path(output_dir, 'go_bp.csv'), row.names = FALSE)
-write.csv(as.data.frame(kegg), file.path(output_dir, 'kegg.csv'), row.names = FALSE)
-write.csv(as.data.frame(reactome), file.path(output_dir, 'reactome.csv'), row.names = FALSE)
-
-cat('\nResults saved to:', output_dir, '\n')
-cat('GO BP terms:', nrow(as.data.frame(go_bp_simple)), '\n')
-cat('KEGG pathways:', nrow(as.data.frame(kegg)), '\n')
-cat('Reactome pathways:', nrow(as.data.frame(reactome)), '\n')
+# Reactome ORA - ENTREZ required; LOCAL reactome.db so reproducible given the release
+library(ReactomePA)
+reactome <- enrichPathway(sig_entrez$ENTREZID, organism = 'human', pvalueCutoff = 0.05, readable = TRUE)
 ```
 
-## Prokaryotic Organisms
+## Stage 3b: GSEA Branch (named decreasing vector of all genes)
 
-For bacteria/archaea, standard org.db annotation packages are unavailable. Use KEGG directly with strain-specific organism codes:
+**Goal:** Find gene sets whose genes shift coordinately across the full ranking, without a significance cutoff.
+
+**Approach:** Run on the named decreasing `ranked_list`, fix the permutation seed so p-values are reproducible, then read the leading edge as the interpretable core. clusterProfiler GSEA is preranked / gene-permutation (the inter-gene-correlation-UNcorrected null) - a discovery screen; see pathway-analysis/gsea and enrichment-foundations for the calibration caveat (CAMERA/ROAST).
 
 ```r
-# Find organism code
-search_kegg_organism('Pseudomonas aeruginosa', by = 'scientific_name')
+set.seed(123)   # permutation reproducibility; without it p-values drift across runs
 
-# KEGG ORA with bacterial organism code (e.g., 'pae' for P. aeruginosa PAO1)
-kegg_bac <- enrichKEGG(gene = sig_gene_ids, organism = 'pae', keyType = 'kegg',
-                       pvalueCutoff = 0.05)
+gsea_go <- gseGO(ranked_list, OrgDb = org.Hs.eg.db, ont = 'BP',
+                 minGSSize = 10, maxGSSize = 500, pvalueCutoff = 0.05, verbose = FALSE)
 
-# For organisms without KEGG annotation, use KEGG Orthology
-# Map genes to KO IDs via eggNOG-mapper or KOALA, then:
-kegg_ko <- enrichKEGG(gene = ko_ids, organism = 'ko', keyType = 'kegg')
+gsea_kegg <- gseKEGG(ranked_list, organism = 'hsa',
+                     minGSSize = 10, maxGSSize = 500, pvalueCutoff = 0.05, verbose = FALSE)
 ```
 
-GO enrichment for prokaryotes: use `enricher()` with custom GO-to-gene mapping from eggNOG-mapper or InterProScan output, rather than org.db packages.
+## Stage 4: Collapse Redundancy, Then Visualize
 
-## Multi-Condition Enrichment Comparison
+**Goal:** Reduce overlapping terms to distinct findings before drawing conclusions, then plot deliberately.
 
-When comparing enrichment across conditions (e.g., treatment A vs B vs C):
+**Approach:** A list of 40 significant GO terms is often a few biological stories told many times (shared genes via the GO true-path rule). Collapse with `simplify`/`pairwise_termsim`, then plot - `emapplot`/`cnetplot` require `pairwise_termsim()` first, and `gseaplot2` is for a gseaResult not an enrichResult. Encoding choice and required pre-steps are owned by pathway-analysis/enrichment-visualization.
 
 ```r
-# compareCluster: run ORA across multiple gene lists
-gene_clusters <- list(
-    ConditionA = sig_genes_A,
-    ConditionB = sig_genes_B,
-    ConditionC = sig_genes_C
-)
+library(enrichplot)
+
+go_bp <- pairwise_termsim(go_bp)              # required before emapplot/treeplot
+dotplot(go_bp, showCategory = 20)             # GeneRatio vs Count: pick the encoding deliberately
+emapplot(go_bp, showCategory = 30)            # redundancy-collapsed term-similarity map
+gseaplot2(gsea_go, geneSetID = 1:3)           # gseaResult only, not enrichResult
+```
+
+## Multi-Condition Comparison
+
+**Goal:** Compare enrichment across conditions in one model instead of comparing p-values from separate runs.
+
+**Approach:** `compareCluster` fits all gene lists together and facets the dotplot; never compare raw -log10(p) across separate enrichments (it scales with set size and sample size). For GSEA, compare NES, not p.
+
+```r
+gene_clusters <- list(A = sig_A, B = sig_B, C = sig_C)
 cc <- compareCluster(gene_clusters, fun = 'enrichKEGG', organism = 'hsa')
-dotplot(cc, showCategory = 10) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+dotplot(cc, showCategory = 10)
 ```
 
-Do not compare raw -log10(p-values) across conditions — they scale with sample size. Compare NES (normalized enrichment scores) for GSEA, or use compareCluster for ORA.
+## Per-Method Failure Modes
+
+### Whole-genome background
+**Trigger:** `universe=` left at default while only ~12k genes were expressed. **Mechanism:** the hypergeometric p-value is fully determined by the denominator; the genome inflates any set whose members are expressed in the tissue. **Symptom:** many tissue-specific terms enrich with tiny p. **Fix:** set `universe` to the genes that entered the DE test (the testable set).
+
+### ORA on a ranked dataset
+**Trigger:** filtering all-gene DE results to a list and running ORA. **Mechanism:** binarizing at an arbitrary cutoff discards magnitude and the coordinated-weak signal. **Symptom:** GSEA finds sets ORA missed. **Fix:** if a ranking exists for all genes, run GSEA; reserve ORA for genuinely unranked lists.
+
+### Wrong ID type for the database
+**Trigger:** ENSEMBL/SYMBOL passed to enrichKEGG/enrichPathway/enrichWP. **Mechanism:** those expect kegg-id/ENTREZ; unmatched IDs are dropped. **Symptom:** zero terms, no error. **Fix:** `bitr`/`bitr_kegg` to the required ID; check `conv_rate`.
+
+### GSEA without set.seed or with an unsorted vector
+**Trigger:** no seed, or a list that is not named and decreasing. **Mechanism:** permutation p-values drift run to run; an unsorted/unnamed vector errors or mis-ranks. **Symptom:** different leading edges each run, or a names error. **Fix:** build the named decreasing vector and `set.seed`.
+
+### Live-DB result reported as reproducible
+**Trigger:** KEGG/WikiPathways result with no recorded date. **Mechanism:** those query the current data release; the same code returns different pathways later. **Symptom:** a collaborator cannot reproduce the figure. **Fix:** record the access date and data version; prefer local GO/Reactome when reproducibility is paramount.
+
+### Redundancy read as replication
+**Trigger:** interpreting 40 overlapping GO terms as 40 findings. **Mechanism:** the true-path rule and pathway overlap mean shared genes drive many sets. **Symptom:** the same 3-5 genes explain the top 20 terms. **Fix:** `simplify`/`pairwise_termsim`, inspect the leading-edge/`geneID` core, report clusters of terms.
+
+## Quantitative Thresholds
+
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| `pvalueCutoff = 0.05` | clusterProfiler default | filters on p.adjust by default in enrichResult; standard FDR gate |
+| `qvalueCutoff = 0.2` | clusterProfiler default | secondary q-value gate |
+| `pAdjustMethod = 'BH'` | Benjamini-Hochberg | valid FDR control under positive dependence (overlapping sets); Bonferroni over-corrects |
+| `minGSSize = 10` | enrichGO/gseGO default | drop tiny sets that overfit |
+| `maxGSSize = 500` | enrichGO/gseGO default | drop overly broad sets that always "enrich" |
+| `simplify(cutoff = 0.7)` | GOSemSim semantic similarity | GO DAG redundancy cutoff; lower keeps more terms |
+| conversion rate > 0.85 | practical QC | <85% ID conversion flags a wrong ID type/organism |
+| `set.seed(123)` | reproducibility | any fixed seed; the point is to fix the permutation draw |
+
+## Common Errors
+
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| enrichKEGG returns 0 terms | ENSEMBL passed (needs kegg-id/ENTREZ), wrong organism code, or KEGG API down | convert with bitr_kegg; check organism; retry (live DB) |
+| `--> No gene can be mapped` | wrong keyType/OrgDb for the input IDs | match keyType to the actual ID type |
+| gseGO error about names | vector not named or not sorted decreasing | build a named vector sorted `decreasing = TRUE` |
+| cnetplot/emapplot empty or errors | `pairwise_termsim()` not run first | run `pairwise_termsim()` before the plot |
+| simplify fails on ont='ALL' | simplify needs one ontology | run BP/MF/CC separately, then simplify each |
+| different results each run | no set.seed, or the live KEGG/WP DB changed | set.seed; pin and record the DB version/date |
+| all terms have NA Description | `readable`/`setReadable` not applied | set `readable = TRUE` or call `setReadable` |
+
+## References
+
+- Khatri P, Sirota M, Butte AJ. 2012. Ten years of pathway analysis: current approaches and outstanding challenges. *PLoS Comput Biol* 8:e1002375.
+- Subramanian A, Tamayo P, Mootha VK, et al. 2005. Gene set enrichment analysis: a knowledge-based approach for interpreting genome-wide expression profiles. *PNAS* 102:15545-15550.
+- Goeman JJ, Buhlmann P. 2007. Analyzing gene expression data in terms of gene sets: methodological issues. *Bioinformatics* 23:980-987.
+- Wu T, Hu E, Xu S, et al. 2021. clusterProfiler 4.0: a universal enrichment tool for interpreting omics data. *The Innovation* 2:100141.
+- Yu G, He QY. 2016. ReactomePA: an R/Bioconductor package for reactome pathway analysis and visualization. *Mol BioSyst* 12:477-479.
+- Kanehisa M, Goto S. 2000. KEGG: Kyoto Encyclopedia of Genes and Genomes. *Nucleic Acids Res* 28:27-30.
+- Young MD, Wakefield MJ, Smyth GK, Oshlack A. 2010. Gene ontology analysis for RNA-seq: accounting for selection bias. *Genome Biol* 11:R14.
+- Wijesooriya K, Jadaan SA, Perera KL, Kaur T, Ziemann M. 2022. Urgent need for consistent standards in functional enrichment analysis. *PLoS Comput Biol* 18:e1009935.
 
 ## Related Skills
 
-- database-access/biomart-queries - Bulk SYMBOL -> Entrez / HGNC / UniProt ID mapping
-- database-access/uniprot-access - UniProt ID-mapping (alternative to bitr) for obsolete-accession resolution
-- database-access/interaction-databases - Layer STRING / OmniPath interactions on enriched gene sets
-- database-access/ortholog-inference - Pull pre-computed orthologs for cross-species enrichment
-- pathway-analysis/go-enrichment - GO enrichment details
-- pathway-analysis/kegg-pathways - KEGG analysis
-- pathway-analysis/reactome-pathways - Reactome analysis
-- pathway-analysis/gsea - GSEA methods
-- pathway-analysis/enrichment-visualization - Visualization options
-- differential-expression/de-results - Preparing gene lists for enrichment
+- pathway-analysis/enrichment-foundations - The ORA-vs-GSEA generation fork, null theory, the universe rule, and reproducibility (NEW spine skill)
+- pathway-analysis/go-enrichment - GO over-representation, background universe, redundancy reduction, length bias
+- pathway-analysis/gsea - Ranked-list GSEA, named decreasing vector, ranking metric, leading edge, NES
+- pathway-analysis/kegg-pathways - KEGG pathway/module enrichment, live DB, prokaryotes, multi-condition
+- pathway-analysis/reactome-pathways - Reactome curated-pathway ORA and GSEA, ENTREZ IDs, reproducible local DB
+- pathway-analysis/wikipathways - WikiPathways community-pathway enrichment, versioned GMT, broad species
+- pathway-analysis/enrichment-visualization - Dot/bar/cnet/emap/GSEA plots and required pre-steps
+- differential-expression/de-results - Source of the gene list and the ranking statistic

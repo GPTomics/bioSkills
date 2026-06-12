@@ -1,48 +1,38 @@
-# Reference: ggplot2 3.5+ | Verify API if version differs
-# Visualize GSEA results
+# Reference: enrichplot 1.30+, clusterProfiler 4.18+, ggplot2 3.5+ | Verify API if version differs
+# Visualize a GSEA gseaResult preserving DIRECTION (NES sign).
+# Note: there is NO barplot method for gseaResult by design - a bar from zero cannot carry a signed NES.
+# Note: ridgeplot() needs the ggridges package (enrichplot Suggests-only); install.packages('ggridges') if missing.
+# Offline-runnable: needs only org.Hs.eg.db locally.
 
 library(clusterProfiler)
 library(enrichplot)
 library(org.Hs.eg.db)
 library(ggplot2)
 
-de_results <- read.csv('de_results.csv')
-gene_list <- de_results$log2FoldChange
-names(gene_list) <- de_results$gene_id
-gene_list <- sort(gene_list[!is.na(gene_list)], decreasing = TRUE)
+set.seed(123)   # fix the GSEA permutation seed so p-values are reproducible
 
-gene_ids <- bitr(names(gene_list), fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-gene_list_entrez <- gene_list[names(gene_list) %in% gene_ids$SYMBOL]
-names(gene_list_entrez) <- gene_ids$ENTREZID[match(names(gene_list_entrez), gene_ids$SYMBOL)]
-gene_list_entrez <- sort(gene_list_entrez, decreasing = TRUE)
+# A named numeric vector sorted DECREASING by the ranking metric (here a synthetic log2FC).
+# Replace with a real ranking from differential-expression/de-results.
+genes <- keys(org.Hs.eg.db, keytype = 'ENTREZID')[1:3000]
+gene_list <- sort(setNames(rnorm(length(genes), sd = 1.5), genes), decreasing = TRUE)
 
-gse <- gseGO(geneList = gene_list_entrez, OrgDb = org.Hs.eg.db, ont = 'BP', pvalueCutoff = 0.05, verbose = FALSE)
+gse <- gseGO(geneList = gene_list, OrgDb = org.Hs.eg.db, ont = 'BP',
+             minGSSize = 10, maxGSSize = 500,   # drop tiny overfit and overly broad always-enriched sets
+             pvalueCutoff = 0.25, verbose = FALSE)
 gse <- setReadable(gse, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
 
-pdf('gsea_dotplot.pdf', width = 10, height = 8)
-dotplot(gse, showCategory = 20, split = '.sign') + facet_grid(~.sign)
-dev.off()
+show_n <- 20
 
-pdf('gsea_ridgeplot.pdf', width = 10, height = 10)
-ridgeplot(gse, showCategory = 20) + theme(axis.text.y = element_text(size = 8))
-dev.off()
+out <- file.path(tempdir(), 'gsea_visualization.pdf')
+pdf(out, width = 10, height = 9)
 
-results <- as.data.frame(gse)
-if (nrow(results) > 0) {
-    top_up <- which(results$NES > 0)[1]
-    top_down <- which(results$NES < 0)[1]
-
-    if (!is.na(top_up)) {
-        pdf('gsea_plot_up.pdf', width = 8, height = 6)
-        print(gseaplot2(gse, geneSetID = top_up, title = results$Description[top_up]))
-        dev.off()
-    }
-
-    if (!is.na(top_down)) {
-        pdf('gsea_plot_down.pdf', width = 8, height = 6)
-        print(gseaplot2(gse, geneSetID = top_down, title = results$Description[top_down]))
-        dev.off()
-    }
+if (nrow(as.data.frame(gse)) > 0) {
+    print(dotplot(gse, x = 'NES', showCategory = show_n, color = 'p.adjust') + ggtitle('GSEA: signed NES'))
+    print(ridgeplot(gse, showCategory = show_n) + theme(axis.text.y = element_text(size = 8)))
+    print(gseaplot2(gse, geneSetID = 1, title = as.data.frame(gse)$Description[1]))
+} else {
+    cat('No enriched sets in this synthetic run; rerun with real ranked data.\n')
 }
 
-cat('Saved GSEA visualization plots\n')
+dev.off()
+cat('Wrote', out, '\n')

@@ -1,23 +1,26 @@
-# Reference: R stats (base), clusterProfiler 4.10+ | Verify API if version differs
-# Basic GO enrichment analysis
+# Reference: clusterProfiler 4.18.4+, org.Hs.eg.db 3.22+ | Verify API if version differs
+# Basic GO over-representation analysis: foreground + matched universe, ont set explicitly.
+# Self-contained: draws a small foreground and a tested-gene universe from org.Hs.eg.db so it runs offline.
 
 library(clusterProfiler)
 library(org.Hs.eg.db)
 
-de_results <- read.csv('de_results.csv')
+pvalue_cutoff <- 0.05   # filters p.adjust (despite the name); standard FDR gate
+qvalue_cutoff <- 0.2    # clusterProfiler default secondary q-value gate
+min_gs        <- 10     # drop tiny over-fitting gene sets; enrichGO default
+max_gs        <- 500    # drop overly broad always-enriched sets; enrichGO default
 
-sig_genes <- de_results$gene_id[de_results$padj < 0.05 & abs(de_results$log2FoldChange) > 1]
+all_entrez   <- keys(org.Hs.eg.db, keytype = 'ENTREZID')
+universe_ids <- head(all_entrez, 3000)   # the genes TESTED in this assay, NOT the whole genome
+gene_list    <- head(universe_ids, 200)  # foreground = the flagged hits
 
-gene_ids <- bitr(sig_genes, fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = org.Hs.eg.db)
-gene_list <- gene_ids$ENTREZID
-
-ego_bp <- enrichGO(gene = gene_list, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID', ont = 'BP', pAdjustMethod = 'BH', pvalueCutoff = 0.05, qvalueCutoff = 0.2)
-
-ego_bp <- setReadable(ego_bp, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
-
-print(head(ego_bp))
+# enrichGO source default is ont='MF'; always set ont explicitly.
+ego_bp <- enrichGO(gene = gene_list, universe = universe_ids, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID',
+                   ont = 'BP', pAdjustMethod = 'BH', pvalueCutoff = pvalue_cutoff, qvalueCutoff = qvalue_cutoff,
+                   minGSSize = min_gs, maxGSSize = max_gs, readable = TRUE)
 
 results_df <- as.data.frame(ego_bp)
-write.csv(results_df, 'go_bp_enrichment.csv', row.names = FALSE)
+print(head(results_df))
+cat('Found', nrow(results_df), 'enriched GO BP terms\n')
 
-cat('Found', nrow(results_df), 'enriched GO terms\n')
+write.csv(results_df, file.path(tempdir(), 'go_bp_enrichment.csv'), row.names = FALSE)
