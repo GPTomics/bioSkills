@@ -1,298 +1,209 @@
 ---
 name: bio-phylo-modern-tree-inference
-description: Build maximum likelihood phylogenetic trees using IQ-TREE2 and RAxML-NG with expert model selection, branch support assessment, and topology testing. Use when inferring publication-quality ML trees, selecting substitution models, interpreting bootstrap and concordance factor support, or running partitioned phylogenomic analyses.
+description: Infers maximum-likelihood phylogenetic trees with IQ-TREE2 and RAxML-NG -- model selection (ModelFinder), branch support (UFBoot2, SH-aLRT), concordance factors (gCF/sCF), partitioning, topology tests, and long-branch-attraction control. Covers why an ML tree inherits every flaw of the assumed model and the fixed alignment, why reported support measures repeatability under resampling and not correctness, why UFBoot uses a >=95 cutoff and not the bootstrap-70 rule, and why a node with UFBoot 100 but gCF ~35 is essentially unresolved ILS rather than a clade. Use when inferring an ML tree, selecting a substitution or partition model, choosing or interpreting support measures, testing an a-priori topology, or diagnosing LBA. Routes model-free distance trees to distance-calculations, posteriors to bayesian-inference, and species trees under ILS to species-trees.
 tool_type: cli
 primary_tool: IQ-TREE2
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: IQ-TREE 2.2+, RAxML-NG 1.2+
+Reference examples tested with: IQ-TREE 2.2+ / 2.3+, RAxML-NG 1.2+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `iqtree2 --version` then `iqtree2 --help` to confirm flags
 - CLI: `raxml-ng --version` then `raxml-ng --help` to confirm flags
 
-If commands fail, introspect the installed version and adapt flags rather than retrying.
+If code throws an unrecognized-argument or model-parse error, introspect the installed tool and adapt the example to match the actual API rather than retrying.
 
-# Modern ML Tree Inference
+IQ-TREE2 uses single-dash documented forms (`-alrt`, `-bnni`, `-B`); `-B`/`-T` are v2.x (v1.x used `-bb`/`-nt`). Do NOT write `--alrt`. The likelihood site-concordance flag `--scfl` requires IQ-TREE 2.2.2+ (older builds have only the parsimony `--scf`).
 
-**"Infer a maximum likelihood tree from my alignment"** -> Build publication-quality ML trees with automatic substitution model selection, ultrafast bootstrap support, concordance factors, and topology testing.
-- CLI: `iqtree2 -s alignment.fa -m MFP -B 1000 -alrt 1000 -bnni` (IQ-TREE2)
-- CLI: `raxml-ng --all --msa alignment.fa --model GTR+G --bs-trees 100` (RAxML-NG)
+# Modern ML Tree Inference -- ML Support Measures Repeatability, Not Correctness
 
-## IQ-TREE2 vs RAxML-NG Decision
+**"Build a maximum-likelihood tree with support from my alignment"** -> Select a substitution model, search topology and branch lengths that maximize the likelihood, then attach support that quantifies repeatability and concordance that quantifies genealogical agreement.
+- CLI: `iqtree2 -s aln.fasta -m MFP -B 1000 -bnni -alrt 1000` (model selection + dual support, all built in)
+- CLI: `raxml-ng --all --msa aln.fasta --model GTR+G --bs-metric fbp,tbe` (very large trees, transfer bootstrap, precise branch lengths)
 
-| Factor | IQ-TREE2 | RAxML-NG |
-|--------|----------|----------|
-| Model selection | Built-in ModelFinder | External ModelTest-NG |
-| Ultrafast bootstrap | UFBoot2 | No |
-| Branch lengths | Good | More accurate |
-| Concordance factors | Built-in (gCF/sCF) | No |
-| Very large trees (>1000 taxa) | Good | Better |
-| Transfer bootstrap | No | Yes |
-| Partition models | Extensive | Good |
+Scope: ML estimation of topology, branch lengths, model selection, branch support, concordance factors, partitioning, topology tests, and LBA control. Model-free distance/NJ trees and distance correction -> distance-calculations. Posterior distributions, MCMC, and CAT-GTR -> bayesian-inference. Per-locus gene trees summarized into a species tree under ILS -> species-trees. Time-scaled trees -> divergence-dating.
 
-**Default recommendation:** IQ-TREE2 for most workflows (integrated model selection, UFBoot2, concordance factors). Use RAxML-NG when precise branch lengths matter, for very large trees, or when using transfer bootstrap for rogue-taxon-prone datasets.
+## The Single Most Important Modern Insight
 
-**Best practice for important results:** Run both tools and compare topologies.
+An ML tree is the topology and branch lengths that maximize the likelihood under an ASSUMED substitution model, conditioned on a FIXED multiple-sequence alignment. It inherits every flaw of both: a misaligned column is a fabricated character the model dutifully fits, and a misspecified model biases the point estimate toward a wrong topology that more data only sharpens. The reported support measures REPEATABILITY under resampling, not correctness. Three load-bearing facts:
+
+1. **High support is consistent with being wrong.** Bootstrap, UFBoot, SH-aLRT, and aBayes all ask whether a branch reappears when the data or tree is perturbed. Under model misspecification every replicate reproduces the same bias, so support climbs toward 100% precisely as the inference becomes more wrong. At genome scale, sampling error vanishes and UFBoot ~100 on most branches is the default, not a signal.
+2. **More data fixes variance, not bias.** Adding sites shrinks sampling error and makes the estimate more confident, but the systematic error from saturation, compositional heterogeneity, and ILS is bias that CONCENTRATES with scale. The cure for confident-wrong trees is better models, better alignments, and better diagnostics -- never more bootstrap replicates.
+3. **Concordance factors are the honest measure at genome scale.** gCF/sCF ask what FRACTION of genes or sites actually contains a branch. A node with UFBoot 100 and gCF 35 means the concatenated likelihood is certain but only ~35% of loci endorse that branch -- biologically unresolved (ILS or introgression), and the bootstrap answered a question nobody should have asked. Report CFs on every phylogenomic tree; treat bootstrap as necessary-not-sufficient.
+
+## Tool Taxonomy
+
+| Tool | Citation | Role | When |
+|------|----------|------|------|
+| IQ-TREE2 | Minh 2020 | ML search + ModelFinder + UFBoot2 + SH-aLRT + gCF/sCF + AU test + C60/PMSF, all built in | the default for almost all work |
+| RAxML-NG | Kozlov 2019 | ML search, transfer bootstrap, terrace-aware, MPI/checkpointing | very large trees, TBE, precise branch lengths, long HPC runs |
+| PhyML | Guindon 2010 | ML search, origin of SH-aLRT | legacy/teaching; SH-aLRT is now in IQ-TREE2 |
+| FastTree | Price 2010 | approximate ML, single-pass NNI/SPR | a fast first-pass tree on thousands of sequences; not for final support |
+
+IQ-TREE2 vs RAxML-NG (both hill-climb the same likelihood; they differ in built-in features and scaling, not correctness):
+
+| Need | Use |
+|------|-----|
+| Model selection, UFBoot2, SH-aLRT, concordance factors, AU test, mixture/PMSF | IQ-TREE2 (built in; nothing else bundles all of this) |
+| Very large trees (thousands of taxa), low memory, MPI | RAxML-NG |
+| Transfer bootstrap (TBE) for rogue-taxon mega-trees | RAxML-NG (`--bs-metric tbe`) |
+| Most precise branch lengths for downstream dating | RAxML-NG |
+| Robust checkpoint/restart on long runs | RAxML-NG |
+
+Common production pattern: model-select, compute CFs, and topology-test in IQ-TREE2; do heavy bootstrap on a mega-tree in RAxML-NG with `--bs-metric fbp,tbe`.
 
 ## Model Selection
 
-### Use ModelFinder (`-m MFP`), Not `-m TEST`
+ModelFinder (Kalyaanamoorthy 2017) scores the substitution matrix and the rate-heterogeneity model jointly, including FreeRate categories the old jModelTest/ProtTest generation never tested, and ranks by BIC (the default; k*ln(n) penalty favors simpler models that generalize on large n).
 
-**Goal:** Select the substitution model that best describes the evolutionary process in the alignment.
+- `-m MFP` -- ModelFinder Plus: test all models by BIC, then search with the winner. The standard. (`-m MF` selects only; avoid `-m TEST`/`-m TESTONLY`, the legacy jModelTest-style limited set.)
+- **+G vs +R.** `+G` (discrete Gamma, one alpha) is the workhorse for single short genes. `+R` (FreeRate) freely estimates each category's rate AND weight, capturing the non-Gamma, often multimodal rate distributions of concatenated phylogenomic data; expect `+R3` to `+R6` to win on BIC at scale.
+- **The +I+G trap.** The invariant-sites proportion (+I) and the Gamma shape (+G) describe overlapping rate distributions, so the likelihood surface has a flat ridge: the two estimates are individually near-meaningless and start-dependent. Prefer `+R` (its slowest category absorbs near-invariant sites); use `+G` alone unless BIC genuinely demands +I+G.
+- **Partition model selection.** `-m MFP+MERGE` fits per-partition models AND greedily merges partitions that fit the same model (BIC-chosen scheme, the successor to PartitionFinder greedy). Pair with `-rcluster 10` (relaxed clustering: only test the top 10% most-similar pairs) for many partitions.
+- **Site-heterogeneous mixtures for deep data.** Empirical matrices (LG, WAG) assume one residue-frequency vector for the whole alignment; real proteins do not, and that across-site compositional heterogeneity is the chief driver of deep LBA. The ML answer is the C10..C60 profile-mixture series (`LG+C60+F+G`), made tractable by PMSF (Wang 2018): a guide-tree pass computes one posterior-mean profile per site, and the real search uses those frozen profiles. PMSF is the standard recommendation for deep / LBA-prone protein phylogenomics.
 
-**Approach:** ModelFinder (`-m MFP`) tests standard models plus FreeRate (+R) models and performs concurrent model-tree search. The older `-m TEST` does not test FreeRate models and tests on a fixed tree.
+## Branch Support -- the Heart
 
-```bash
-# Recommended: ModelFinder Plus (includes FreeRate models)
-iqtree2 -s alignment.fasta -m MFP -B 1000 -alrt 1000 -bnni -T AUTO
+Five measures, three different questions; the cardinal sin is cross-comparing their cutoffs.
 
-# Model selection only (no tree inference)
-iqtree2 -s alignment.fasta -m MF -T AUTO
+| Metric | What it perturbs / measures | Strong cutoff | Tool / flag | Failure mode |
+|--------|------------------------------|---------------|-------------|--------------|
+| Standard bootstrap (FBP) | resample sites; clade frequency (binary) | >=70 (folklore) | RAxML-NG `--bs-metric fbp`; IQ-TREE `-b` | slow; crushed by rogue taxa in big trees |
+| Ultrafast bootstrap 2 (UFBoot) | RELL-resampled log-Ls; ~unbiased clade prob | **>=95 (NOT 70)** | IQ-TREE2 `-B 1000` (+`-bnni`) | inflates under model violation -> use `-bnni` |
+| SH-aLRT | local NNI likelihood ratio (no resampling) | >=80 | IQ-TREE2 `-alrt 1000` | conservative on very short branches |
+| aBayes | posterior from 3 NNI Ls, flat prior | >=0.95 | IQ-TREE2 `-abayes` | anti-conservative; never the sole criterion |
+| Transfer bootstrap (TBE) | gradual transfer distance under resampling | no fixed cutoff; > FBP | RAxML-NG `--bs-metric tbe` | permissive; "fuzzy" branch identity |
 
-# Partition model with automatic merging
-iqtree2 -s concat.fasta -p partitions.nex -m MFP+MERGE -B 1000 -bnni -T AUTO
-```
+UFBoot2 (Hoang 2018) uses the RELL trick (resample site log-likelihoods, reuse a candidate tree set) to run hundreds of times faster than the Felsenstein bootstrap (1985), and its values are CLOSER to unbiased clade probabilities -- which is exactly why the strong-support cutoff is 95, not the conservative-bootstrap 70. Treating UFBoot 70 as "good" is a category error. `-bnni` re-optimizes each replicate tree by NNI to rein in the inflation that model violation causes; use `-B 1000 -bnni` routinely. UFBoot is on a DIFFERENT scale from the standard bootstrap -- never read it with the BP-70 rule.
 
-### Rate Heterogeneity Models
+SH-aLRT (Guindon 2010) does not resample data; for each branch it tests whether the ML likelihood beats its two best NNI rearrangements. UFBoot (data perturbation) and SH-aLRT (tree perturbation) have different failure modes, so the community-standard joint criterion requires both:
 
-| Model | Description | When Selected |
-|-------|-------------|---------------|
-| +G4 | Discrete gamma (4 categories) | Standard default; sufficient for most datasets |
-| +I+G4 | Invariant sites + gamma | Often selected despite theoretical identifiability concerns; safe to use |
-| +R4/+R5 | FreeRate model | Better fit for large datasets; relaxes gamma assumption |
-| +R (auto k) | FreeRate with automatic categories | **Only tested by `-m MFP`**, not `-m TEST` |
+> A branch is strongly supported iff SH-aLRT >= 80% AND UFBoot >= 95%.
 
-FreeRate models can absorb rate variation from long tails that discretized gamma cannot. For large datasets or datasets with complex rate variation, FreeRate often fits better.
+For large rogue-taxon-prone trees, the binary Felsenstein bootstrap lets a single wandering tip crush an otherwise-recovered deep branch; transfer bootstrap (TBE, Lemoine 2018, RAxML-NG `--bs-metric tbe`) replaces the in/out indicator with a gradual transfer distance and rescues those branches, at the cost of being more permissive.
 
-### BIC vs AIC for Model Selection
+## Concordance Factors
 
-BIC is the IQ-TREE default and recommended for most analyses. BIC penalizes complexity more heavily than AIC, reducing overfitting risk. AIC tends to select overly complex models.
+Bootstrap quantifies statistical confidence given the concatenated data; concordance factors (Minh 2020) quantify how much of the actual data carries a branch.
 
-### DNA Model Hierarchy
-
-| Model | Free Parameters | When Appropriate |
-|-------|----------------|------------------|
-| JC69 | 0 | Almost never in practice; null model |
-| K2P/K80 | 1 (kappa) | Very closely related sequences with balanced composition |
-| HKY85 | 4 | Moderate divergence, single-gene analyses |
-| GTR | 8 | Default; almost always selected by model testing |
-
-The real decision is usually not GTR vs HKY but which rate heterogeneity model (+G vs +I+G vs +R).
-
-### Protein Models
-
-Let ModelFinder choose. For deep phylogenies, profile mixture models (C10-C60 in IQ-TREE, CAT in PhyloBayes) can outperform fixed-matrix models by capturing site-specific amino acid preferences.
+- **gCF (gene concordance factor):** the percentage of decisive single-locus gene trees that contain the exact branch. Needs per-locus gene trees.
+- **sCF (site concordance factor):** the percentage of decisive sites supporting the branch, from sampled quartets; works on a single concatenated alignment with no gene trees.
+- **sCFL (likelihood sCF, Mo 2023):** uses ancestral-state likelihoods rather than parsimony quartet counting, substantially reducing (not abolishing) homoplasy and taxon-sampling bias. Prefer `--scfl` over the old `--scf` on IQ-TREE 2.2.2+.
 
 ```bash
-# Protein with ModelFinder
-iqtree2 -s protein.fasta -m MFP -B 1000 -bnni -st AA -T AUTO
+# one gene tree per locus from a directory of locus alignments (-S = separate, no concatenation)
+iqtree2 -S loci_dir -m MFP -B 1000 -T AUTO --prefix loci   # -B 1000 = UFBoot per gene tree, needed to contract weak branches before ASTRAL
 
-# Protein with mixture model (for deep phylogenies)
-iqtree2 -s protein.fasta -m LG+C60+F+G -B 1000 -bnni -st AA -T AUTO
+# gene + likelihood site concordance against a fixed concatenated tree (-te fixes the tree)
+iqtree2 -te concat.treefile -s concat.fasta --gcf loci.treefile --scfl 100 -T 4 --prefix concord
+#  --gcf loci.treefile   per-locus gene trees for gCF
+#  --scfl 100            100 sampled quartets per branch for likelihood sCF (higher = more stable)
 ```
 
-## Branch Support Assessment
+Outputs `concord.cf.tree` (Newick with gCF/sCF labels) and `concord.cf.stat` (per-branch gCF, gDF1, gDF2, gDFP, sCF). A node with UFBoot 100 but gCF ~35 (gDF1 ~33, gDF2 ~30) is genes split three ways: the concatenated point estimate barely edges the alternatives and the node is biologically unresolved -- the signature of ILS or introgression, not a clade. Report CFs alongside support on every phylogenomic tree.
 
-### Standard Analysis: UFBoot2 + SH-aLRT
+## Topology Tests
+
+For testing an a-priori hypothesis ("can I reject that X and Y are monophyletic?") against the ML tree, by comparing a set of fixed trees. Build the constrained tree with `-g constraint.tree`, then evaluate both trees:
 
 ```bash
-# Recommended for most analyses
-iqtree2 -s alignment.fasta -m MFP -B 1000 -alrt 1000 -bnni -T AUTO --seed 12345
+# trees.nex holds the unconstrained ML tree + the constrained/alternative trees
+iqtree2 -s aln.fasta -m <model> -z trees.nex -n 0 -zb 10000 -au --prefix autest
+#  -z trees.nex   trees to compare        -n 0   no fresh search, just evaluate
+#  -zb 10000      RELL replicates (>=1000) -au    add the AU test (must accompany -zb)
 ```
 
-The `-bnni` flag is critical: it further optimizes each bootstrap tree with NNI, reducing overestimation from model violations. This flag is default since IQ-TREE 2.2.0 but should be specified explicitly for clarity.
+The AU test (Shimodaira 2002) uses multiscale bootstrap resampling to correct both the selection bias of the KH test (invalid on the data-selected ML tree) and the over-conservatism of the SH test (which rejects less as the candidate set is padded). Use AU by default. **p-AU < 0.05 means that tree is REJECTED**; p-AU >= 0.05 means it is in the 95% confidence set (failure to reject is not acceptance -- weak data fails to reject many trees). Report SH/KH only for completeness.
 
-### Interpreting Support Values
+## Partitioning
 
-| UFBoot2 | SH-aLRT | Interpretation |
-|---------|---------|----------------|
-| >= 95 | >= 80 | Strong support |
-| 80-94 | 70-79 | Moderate support |
-| < 80 | < 70 | Weak support |
+When splitting an alignment into partitions, the branch-length linkage choice is what people get wrong:
 
-**Critical nuance:** UFBoot values are NOT comparable to standard bootstrap. UFBoot >= 95 corresponds roughly to standard bootstrap >= 70. Do not apply the traditional >= 70 threshold to UFBoot values.
+| Mode | Flag | Branch lengths | Use when |
+|------|------|----------------|----------|
+| Edge-equal | `-q part.nex` | identical across partitions | partitions share rate (rare, restrictive) |
+| Edge-linked proportional | `-p part.nex` | shared topology, per-partition rate multiplier | DEFAULT -- genes evolve at different speeds, share history |
+| Edge-unlinked | `-Q part.nex` | fully independent per partition | genuine heterotachy; parameter-hungry, overfits |
 
-### When Low Support Matters
+`-p` (edge-linked proportional) is the standard: one rate multiplier per partition over a shared topology. Over-partitioning spends degrees of freedom without bias reduction and inflates variance; the antidote is to start fine (gene x codon position) and let `-m MFP+MERGE -rcluster 10` find the coarsest BIC-justified scheme. Prefer a merged scheme over a hand-picked maximal one; prefer `-p` over `-Q`.
 
-- Low support on backbone branches: genuine topological uncertainty. Investigate with concordance factors or coalescent methods
-- Low support on recent divergences within a well-sampled clade: may reflect insufficient data rather than genuine uncertainty
-- Low support throughout the tree: suspect rapid radiation, incomplete lineage sorting (ILS), hybridization, or inadequate data
+## Per-Method Failure Modes
 
-### Transfer Bootstrap (RAxML-NG)
+### Long-Branch Attraction
+**Trigger:** Two or more independently fast-evolving lineages on long branches separated by a short internode.
+**Mechanism:** Convergent/homoplastic substitutions on the long branches look like shared ancestry; a site-homogeneous model cannot separate convergence from homology and groups them -- bias that GROWS with more sites.
+**Symptom:** Fast taxa group with the outgroup or each other at 100% bootstrap; the grouping collapses under a better model or when a long-branch taxon is removed.
+**Fix:** Site-heterogeneous model (C60/PMSF) first; remove the fastest sites and watch the node; drop the long-branch taxon or use a closer outgroup; cross-check with SR4/Dayhoff recoding. Believe a deep node only when it survives all of these, not when it merely has UFBoot 100 under LG+G.
 
-For large trees (>1000 taxa), transfer bootstrap expectation (TBE) is less sensitive to rogue taxa than standard bootstrap:
+### Model Underspecification
+**Trigger:** A single inadequate model on heterogeneous data; the best site-homogeneous model by BIC still inadequate at depth.
+**Mechanism:** Wrong matrix, missing rate heterogeneity, or no partitioning biases the topology while support stays high.
+**Symptom:** Biologically implausible nodes with full support that move under a richer model.
+**Fix:** `-m MFP` (+MERGE for multi-locus), FreeRate `+R`, and at amino-acid depth a C60/PMSF mixture. Best-by-BIC among site-homogeneous models is not sufficient deep in the tree.
 
-```bash
-raxml-ng --all --msa alignment.fasta --model GTR+G --bs-trees autoMRE --bs-metric tbe
-```
+### Over-Partitioning
+**Trigger:** Hundreds of hand-defined partitions, especially under `-Q`.
+**Mechanism:** Each partition's model is estimated from too little data; parameter and branch-length estimates get noisy without reducing bias.
+**Symptom:** Slow runs, noisy estimates, degraded support.
+**Fix:** `-m MFP+MERGE -rcluster 10` to the coarsest BIC-justified scheme; use `-p`, not `-Q`.
 
-### Concordance Factors
+### The Support-Accuracy Gap
+**Trigger:** UFBoot/bootstrap ~100 everywhere, including implausible or conflicting nodes.
+**Mechanism:** Support measures repeatability of a possibly-biased estimate; concatenation pools conflicting gene signals so the likelihood is certain while the loci disagree.
+**Symptom:** Full support but gCF ~33 / sCF near its ~33% floor on contested nodes.
+**Fix:** Compute gCF/sCFL; treat UFBoot 100 + gCF ~33 as UNRESOLVED; require SH-aLRT >=80 AND UFBoot >=95; use `-bnni`. If most genes reject the ML resolution, route to a coalescent species tree -> species-trees.
 
-Concordance factors quantify agreement among loci (gCF) and sites (sCF), complementing bootstrap:
+## Quantitative Thresholds
 
-```bash
-# After obtaining gene trees and species tree
-iqtree2 -t species.treefile --gcf gene_trees.treefile -s concat.fasta --scf 100
+| Quantity | Threshold | Source |
+|----------|-----------|--------|
+| UFBoot strong support | >=95 (NOT the bootstrap 70) | Hoang 2018 |
+| SH-aLRT strong support | >=80 | Guindon 2010 |
+| Joint rule | SH-aLRT >=80 AND UFBoot >=95 | community standard |
+| Standard bootstrap "good" | >=70 (different metric, folklore) | Felsenstein 1985 / Hillis 1993 |
+| aBayes strong | >=0.95 (anti-conservative; never alone) | Anisimova 2011 |
+| Bootstrap replicates | UFBoot `-B` >=1000; SH-aLRT `-alrt` >=1000; AU `-zb` 10000 | IQ-TREE docs |
+| gCF reading | >~75 agree; ~50 conflicted; ~33 effective polytomy; <33 with higher alternative = possible wrong resolution | Minh 2020 |
+| sCF floor | ~33% (three quartet resolutions); ~33 = no site signal | Minh 2020 |
+| AU test | p-AU < 0.05 => tree REJECTED | Shimodaira 2002 |
+| Model selection | rank by BIC (`-m MFP` default), k*ln(n) penalty | Kalyaanamoorthy 2017 |
 
-# Likelihood-based sCF (more accurate; requires recent IQ-TREE)
-iqtree2 -t species.treefile --gcf gene_trees.treefile -s concat.fasta --scfl 100
-```
+## Common Errors
 
-| Metric | Interpretation |
-|--------|---------------|
-| gCF/sCF > 50% | Majority of loci/sites support this branch |
-| gCF/sCF ~ 33% | Completely equivocal (three resolutions equally likely) |
-| gCF << sCF | Gene tree estimation error, not genuine discordance |
-| sCF < 33% | A different topology is better supported at this node |
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `Unknown argument --alrt` | wrote the GNU double-dash form | IQ-TREE2 uses single-dash `-alrt`, `-bnni`, `-B` |
+| `-bb` / `-nt` not recognized | v1.x flags on a v2.x binary | use `-B` (bootstrap) and `-T` (threads) in 2.x |
+| Reading UFBoot 80 as "supported" | applied the bootstrap-70 rule to a different scale | use UFBoot >=95 AND SH-aLRT >=80 |
+| Fully-supported deep node distrusted by reviewer | no concordance factors reported | compute gCF/sCFL; treat high-support/low-CF as unresolved |
+| `--scfl` unrecognized | IQ-TREE older than 2.2.2 | upgrade, or fall back to parsimony `--scf` |
+| Concatenated tree confidently wrong on a rapid radiation | ILS; concatenation is inconsistent in the anomaly zone | infer per-locus gene trees and a coalescent species tree -> species-trees |
+| AU test "fails to reject" the alternative | weak data, or candidate set padded | do not pad the set; failure to reject is not acceptance |
 
-For publication, report UFBoot + SH-aLRT at minimum; add concordance factors for phylogenomic datasets.
+## References
 
-## Partitioned Analysis
-
-For multi-gene concatenated datasets where genes evolve at different rates:
-
-```bash
-# Edge-linked proportional (recommended default)
-iqtree2 -s concat.fasta -p partitions.nex -m MFP -B 1000 -bnni -T AUTO
-
-# Edge-unlinked (independent branch lengths per partition)
-# Most general but parameter-rich; risk of overfitting with missing data
-iqtree2 -s concat.fasta -Q partitions.nex -m MFP -B 1000 -bnni -T AUTO
-
-# With automatic partition merging
-iqtree2 -s concat.fasta -p partitions.nex -m MFP+MERGE -B 1000 -bnni -T AUTO
-```
-
-| Flag | Model | Recommendation |
-|------|-------|----------------|
-| `-q` | Edge-linked equal | Unrealistic; not recommended |
-| `-p` | Edge-linked proportional | **Recommended default** |
-| `-Q` | Edge-unlinked | Justified when different genes have different relative rates across lineages (heterotachy) |
-
-## Topology Testing
-
-### AU Test (Approximately Unbiased)
-
-**Goal:** Test whether alternative tree topologies are significantly worse than the best tree.
-
-**Approach:** Compare candidate topologies using the AU test, which provides proper multiple-testing correction. Preferred over the overly conservative SH test.
-
-```bash
-# Compare candidate topologies
-iqtree2 -s alignment.fasta -m GTR+F+R3 --trees candidates.treefile --test-au --test 10000 -n 0
-```
-
-- p-AU >= 0.05: Tree cannot be rejected
-- p-AU < 0.05: Tree is significantly worse
-
-Use topology tests for evaluating specific competing hypotheses, not for fishing through thousands of random topologies.
-
-## Long Branch Attraction (LBA) Awareness
-
-LBA causes distantly related long-branched taxa to group together artifactually due to model misspecification. It affects ML and Bayesian methods, not just parsimony.
-
-**Detection signs:**
-- Two long-branched taxa group together when they should not
-- Removing one long-branch taxon causes the other to move
-- Switching to a more complex model changes the placement
-
-**Mitigation (in order of effectiveness):**
-1. Add taxa that break long branches (most effective)
-2. Use site-heterogeneous models (C60 in IQ-TREE, CAT-GTR in PhyloBayes)
-3. Remove saturated sites (3rd codon positions, hypervariable regions)
-4. Use amino acids instead of nucleotides for coding regions
-5. RY-coding or Dayhoff-6 recoding for proteins
-
-When LBA is suspected, consider running PhyloBayes with CAT-GTR model (see bayesian-inference skill).
-
-## IQ-TREE2 Output Files
-
-| File | Description |
-|------|-------------|
-| `.treefile` | Best ML tree (Newick) |
-| `.iqtree` | Full report with model parameters |
-| `.contree` | Consensus tree with support values |
-| `.splits.nex` | Bootstrap splits (Nexus) |
-| `.model.gz` | Model parameters |
-| `.log` | Run log |
-| `.ckp.gz` | Checkpoint for resuming |
-
-## RAxML-NG Usage
-
-```bash
-# ML search + bootstrap
-raxml-ng --all --msa alignment.fasta --model GTR+G --bs-trees 100
-
-# Thorough search with multiple starting trees
-raxml-ng --msa alignment.fasta --model GTR+G --tree pars{10} --prefix ml_search
-
-# Protein models
-raxml-ng --msa protein.fasta --model LG+G8+F
-
-# Constrained tree search
-raxml-ng --msa alignment.fasta --model GTR+G --tree-constraint constraint.tre
-
-# Check alignment before full run
-raxml-ng --check --msa alignment.fasta --model GTR+G
-```
-
-## RAxML-NG Output Files
-
-| File | Description |
-|------|-------------|
-| `.raxml.bestTree` | Best ML tree |
-| `.raxml.support` | Tree with bootstrap support |
-| `.raxml.bootstraps` | All bootstrap trees |
-| `.raxml.mlTrees` | All ML trees from search |
-| `.raxml.log` | Analysis log |
-
-## Large Dataset Strategies
-
-```bash
-# IQ-TREE2 fast mode for >500 taxa
-iqtree2 -s large.fasta -m GTR+G -B 1000 -bnni -T 4 -mem 8G -fast
-
-# RAxML-NG with limited starting trees
-raxml-ng --msa large.fasta --model GTR+G --tree pars{5} --threads 8
-```
-
-For very large trees (>1000 taxa), consider FastTree 2 for an initial exploratory tree, then refine with RAxML-NG.
-
-## Constrained Analysis
-
-```bash
-# Enforce monophyly constraint
-iqtree2 -s alignment.fasta -m MFP -g constraint.tre -B 1000 -bnni
-
-# Constraint file: Newick with taxa to constrain
-# ((Human,Chimp),Gorilla);
-```
-
-## Reproducibility
-
-```bash
-# Always set random seed for reproducible results
-iqtree2 -s alignment.fasta -m MFP -B 1000 -bnni --seed 12345 -T AUTO
-raxml-ng --msa alignment.fasta --model GTR+G --seed 12345 --bs-trees 100
-```
-
-## Resuming Interrupted Runs
-
-```bash
-iqtree2 -s alignment.fasta -m MFP -B 1000 --redo-tree
-raxml-ng --msa alignment.fasta --model GTR+G --redo
-```
+Felsenstein J. 1978. Cases in which parsimony or compatibility methods will be positively misleading. *Systematic Zoology* 27(4):401-410.
+Felsenstein J. 1985. Confidence limits on phylogenies: an approach using the bootstrap. *Evolution* 39(4):783-791.
+Guindon S, Dufayard J-F, Lefort V, Anisimova M, Hordijk W, Gascuel O. 2010. New algorithms and methods to estimate maximum-likelihood phylogenies: assessing the performance of PhyML 3.0. *Systematic Biology* 59(3):307-321.
+Price MN, Dehal PS, Arkin AP. 2010. FastTree 2: approximately maximum-likelihood trees for large alignments. *PLoS ONE* 5(3):e9490.
+Anisimova M, Gil M, Dufayard J-F, Dessimoz C, Gascuel O. 2011. Survey of branch support methods demonstrates accuracy, power, and robustness of fast likelihood-based approximation schemes. *Systematic Biology* 60(5):685-699.
+Shimodaira H. 2002. An approximately unbiased test of phylogenetic tree selection. *Systematic Biology* 51(3):492-508.
+Kalyaanamoorthy S, Minh BQ, Wong TKF, von Haeseler A, Jermiin LS. 2017. ModelFinder: fast model selection for accurate phylogenetic estimates. *Nature Methods* 14(6):587-589.
+Wang H-C, Minh BQ, Susko E, Roger AJ. 2018. Modeling site heterogeneity with posterior mean site frequency profiles accelerates accurate phylogenomic estimation. *Systematic Biology* 67(2):216-235.
+Hoang DT, Chernomor O, von Haeseler A, Minh BQ, Vinh LS. 2018. UFBoot2: improving the ultrafast bootstrap approximation. *Molecular Biology and Evolution* 35(2):518-522.
+Lemoine F, Domelevo Entfellner J-B, Wilkinson E, Correia D, Davila Felipe M, De Oliveira T, Gascuel O. 2018. Renewing Felsenstein's phylogenetic bootstrap in the era of big data. *Nature* 556(7702):452-456.
+Kozlov AM, Darriba D, Flouri T, Morel B, Stamatakis A. 2019. RAxML-NG: a fast, scalable and user-friendly tool for maximum likelihood phylogenetic inference. *Bioinformatics* 35(21):4453-4455.
+Minh BQ, Schmidt HA, Chernomor O, Schrempf D, Woodhams MD, von Haeseler A, Lanfear R. 2020. IQ-TREE 2: new models and efficient methods for phylogenetic inference in the genomic era. *Molecular Biology and Evolution* 37(5):1530-1534.
+Minh BQ, Hahn MW, Lanfear R. 2020. New methods to calculate concordance factors for phylogenomic datasets. *Molecular Biology and Evolution* 37(9):2727-2733.
+Mo YK, Lanfear R, Hahn MW, Minh BQ. 2023. Updated site concordance factors minimize effects of homoplasy and taxon sampling. *Bioinformatics* 39(1):btac741.
 
 ## Related Skills
 
-- bayesian-inference - Bayesian tree inference with MrBayes, BEAST2, convergence diagnostics
-- species-trees - Coalescent methods (ASTRAL) when gene tree discordance is high
-- divergence-dating - Molecular clock analysis and divergence time estimation
-- tree-io - Read and convert output tree files
-- tree-visualization - Visualize trees with support values
-- distance-calculations - Compare with distance-based methods
-- alignment/alignment-io - Prepare alignments for tree inference
-- alignment/multiple-alignment - Alignment quality affects tree inference
+- distance-calculations - model-corrected distances and fast NJ trees as a model-free alternative
+- bayesian-inference - posteriors, MCMC convergence, and CAT-GTR site-heterogeneous models
+- species-trees - coalescent species-tree estimation when concordance factors reveal ILS
+- divergence-dating - time-scaled trees from the ML topology
+- tree-manipulation - rooting, pruning, and collapsing low-support nodes
+- alignment/alignment-io - the alignment whose homology assumption the ML tree trusts as fixed

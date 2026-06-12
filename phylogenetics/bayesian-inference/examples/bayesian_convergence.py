@@ -1,7 +1,11 @@
-'''Check MCMC convergence from MrBayes .p (parameter) files across two independent runs'''
-# Reference: biopython 1.83+, numpy 1.24+, pandas 2.0+ | Verify API if version differs
+'''Gate a MrBayes result on SCALAR convergence: parse two runs' .p files, compute per-parameter
+ESS and PSRF, and report PASS/FAIL. This covers only Question A (scalars); topology convergence
+(ASDSF / RWTY tree-space) is a separate, mandatory check the skill describes. Spot-runnable on
+any two MrBayes .p files; here it self-tests on synthetic traces so no MrBayes install is needed.'''
+# Reference: numpy 1.24+, pandas 2.0+ | Verify API if version differs
 
 import sys
+import tempfile
 import numpy as np
 import pandas as pd
 
@@ -79,7 +83,7 @@ def assess_convergence(pfile_run1, pfile_run2, burnin_fraction=0.25):
         ess2 = compute_ess(df2[col])
         psrf = compute_psrf(df1[col], df2[col])
         min_ess = min(ess1, ess2)
-        converged = min_ess >= 200 and psrf < 1.05
+        converged = min_ess >= 200 and psrf <= 1.01
         results.append({'parameter': col, 'ess_run1': ess1, 'ess_run2': ess2, 'min_ess': min_ess, 'psrf': psrf, 'converged': converged})
 
     results_df = pd.DataFrame(results)
@@ -92,27 +96,48 @@ def assess_convergence(pfile_run1, pfile_run2, burnin_fraction=0.25):
     failed = results_df[~results_df['converged']]
     print(f'\n{"=" * 80}')
     if len(failed) == 0:
-        print('All parameters converged (ESS >= 200, PSRF < 1.05)')
+        print('All parameters converged on scalars (ESS >= 200, PSRF <= 1.01)')
     else:
         print(f'{len(failed)} parameter(s) NOT converged:')
         for _, row in failed.iterrows():
             reasons = []
             if row['min_ess'] < 200:
                 reasons.append(f'low ESS ({row["min_ess"]:.1f})')
-            if row['psrf'] >= 1.05:
+            if row['psrf'] > 1.01:
                 reasons.append(f'high PSRF ({row["psrf"]:.4f})')
             print(f"  {row['parameter']}: {', '.join(reasons)}")
         print('\nRecommendation: Run chains longer (increase ngen). Do NOT just increase samplefreq.')
+        print('Then check TOPOLOGY convergence separately (MrBayes ASDSF < 0.01 / RWTY tree-space).')
 
     return results_df
 
 
+def write_synthetic_pfiles(outdir):
+    rng = np.random.default_rng(0)
+    n = 2000
+    paths = []
+    for run, shift in enumerate((0.0, 0.02)):
+        gen = np.arange(n) * 100
+        lnl = -5000 + rng.normal(0, 15, n)
+        tl = 1.5 + shift + rng.normal(0, 0.05, n)
+        alpha = 0.6 + rng.normal(0, 0.03, n)
+        path = f'{outdir}/run{run + 1}.p'
+        with open(path, 'w') as f:
+            f.write('[ID: synthetic]\n')
+            f.write('Gen\tLnL\tTL\talpha\n')
+            for g, l, t, a in zip(gen, lnl, tl, alpha):
+                f.write(f'{g}\t{l:.4f}\t{t:.4f}\t{a:.4f}\n')
+        paths.append(path)
+    return paths
+
+
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print('Usage: python bayesian_convergence.py run1.p run2.p [burnin_fraction]')
-        print('  burnin_fraction: proportion to discard (default 0.25)')
-        sys.exit(1)
-    pfile1 = sys.argv[1]
-    pfile2 = sys.argv[2]
-    burnin = float(sys.argv[3]) if len(sys.argv) > 3 else 0.25
-    assess_convergence(pfile1, pfile2, burnin)
+    if len(sys.argv) >= 3:
+        pfile1, pfile2 = sys.argv[1], sys.argv[2]
+        burnin = float(sys.argv[3]) if len(sys.argv) > 3 else 0.25
+        assess_convergence(pfile1, pfile2, burnin)
+    else:
+        print('No .p files given; running a self-test on synthetic traces.\n')
+        with tempfile.TemporaryDirectory() as tmp:
+            p1, p2 = write_synthetic_pfiles(tmp)
+            assess_convergence(p1, p2)

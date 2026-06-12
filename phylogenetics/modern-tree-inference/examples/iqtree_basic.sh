@@ -1,33 +1,27 @@
 #!/bin/bash
-# Reference: IQ-TREE 2.2+ | Verify API if version differs
-# Basic IQ-TREE2 analysis with automatic model selection and ultrafast bootstrap
+# Reference: IQ-TREE 2.2+/2.3+ | Verify API if version differs
+# Standard ML tree: ModelFinder + dual support (UFBoot2 + SH-aLRT).
+# Reframe: the support is repeatability under resampling, NOT correctness.
+# A branch is strongly supported only if SH-aLRT >= 80 AND UFBoot >= 95.
+# NOT spot-runnable offline: needs the iqtree2 binary and a real alignment.
+set -euo pipefail
 
-# Input: FASTA alignment
-ALIGNMENT="alignment.fasta"
-PREFIX="iqtree_analysis"
+ALIGNMENT="${1:-alignment.fasta}"
+OUT="iqtree_out"                       # all outputs namespaced here, never the CWD
+mkdir -p "$OUT"
 
-# For test data, download example alignment:
-# wget https://raw.githubusercontent.com/Cibiv/IQ-TREE/master/example.phy
+# -m MFP   ModelFinder Plus: BIC-rank all models (incl. FreeRate +R), then search
+# -B 1000  ultrafast bootstrap, >=1000 reps          (v1.x used -bb)
+# -bnni    UFBoot2 NNI safeguard against model-violation inflation; pair with -B
+# -alrt 1000  SH-aLRT, the tree-perturbation companion to UFBoot
+# -T AUTO  auto thread count; -ntmax caps it          (v1.x used -nt)
+# --seed   reproducibility
+iqtree2 -s "$ALIGNMENT" -m MFP -B 1000 -bnni -alrt 1000 -T AUTO -ntmax 8 \
+        --seed 12345 --prefix "$OUT/run1"
 
-# Standard analysis: ModelFinder + UFBoot2 + SH-aLRT
-# -m MFP: ModelFinder Plus (tests FreeRate models; -m TEST does not)
-# -B 1000: 1000 UFBoot replicates (minimum for publication; use 10000 for final)
-# -alrt 1000: SH-aLRT for complementary support measure
-# -bnni: Reduces UFBoot overestimation via NNI optimization of bootstrap trees
-# --seed: Fixed seed for reproducibility
-iqtree2 -s "$ALIGNMENT" -m MFP -B 1000 -alrt 1000 -bnni -T AUTO --seed 12345 --prefix "$PREFIX"
+echo "Best tree:  $OUT/run1.treefile"
+echo "Report:     $OUT/run1.iqtree"
+grep "Best-fit model" "$OUT/run1.iqtree" || true
 
-# Output files:
-# ${PREFIX}.treefile     - Best ML tree (Newick format)
-# ${PREFIX}.contree      - Consensus tree with bootstrap support
-# ${PREFIX}.iqtree       - Full report including model parameters
-# ${PREFIX}.log          - Run log
-
-echo "Best tree: ${PREFIX}.treefile"
-echo "Report: ${PREFIX}.iqtree"
-
-# View selected model
-grep "Best-fit model" "${PREFIX}.iqtree"
-
-# View tree
-cat "${PREFIX}.treefile"
+# Node labels are written as SH-aLRT/UFBoot (e.g. 92.5/98). Strong iff both pass:
+echo "Interpret labels as SH-aLRT/UFBoot; strong support needs >=80 AND >=95."

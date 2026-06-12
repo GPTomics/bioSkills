@@ -2,108 +2,107 @@
 
 ## Overview
 
-Molecular clock models and divergence time estimation using BEAST2, MCMCTree, and TreePL. Covers clock model selection (strict, UCLN, autocorrelated), fossil calibration strategies (node calibration, tip-dating, Fossilized Birth-Death), and practical workflows for inferring absolute divergence times on phylogenies.
+Divergence dating converts a rooted, branch-length tree into absolute node ages under a molecular-clock model. The load-bearing idea: because a branch length is the product rate x time, sequences alone fix only the relative rate-time tree, and calibrations are the one thing that turns it into millions of years. A node-age posterior is therefore dominated by the calibration prior and how the tree prior and neighboring calibrations reshape it, far more than by the sequence data. This guide covers clock-model choice (strict, UCLN, autocorrelated, random local clocks), calibration strategy (node priors, soft bounds, tip-dating, fossilized birth-death), the dating engines (BEAST2, MCMCTree/PAML, TreePL, LSD2), and the two checks that separate a real date from a prior reflected back: the sample-from-prior run and the temporal-signal test.
 
 ## Prerequisites
 
 ```bash
-# BEAST2 (includes BEAUti, LogCombiner, TreeAnnotator)
-# Download from https://www.beast2.org/
-# Or via conda:
+# BEAST2 (includes BEAUti, LogCombiner, TreeAnnotator); add the SA package for FBD tip-dating
 conda install -c bioconda beast2
 
-# MCMCTree (part of PAML)
+# MCMCTree (part of PAML) for genome-scale approximate-likelihood dating
 conda install -c bioconda paml
 
-# TreePL
+# TreePL (penalized likelihood, very large trees)
 conda install -c bioconda treepl
 
-# Python utilities
-pip install biopython ete3
+# LSD2 ships inside IQ-TREE 2 as --date; TempEst is a separate GUI download (beast.community/tempest)
+conda install -c bioconda iqtree
+
+# Python helpers for control files and reading dated trees
+pip install biopython dendropy
 ```
+
+Conceptual prerequisites: a rooted tree with branch lengths (in substitutions), at least one justified calibration (a fossil minimum or sampling dates), and, for tip-dating, heterochronous samples with verified temporal signal.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Estimate divergence times for my phylogeny using BEAST2"
-- "Set up fossil calibrations for my molecular clock analysis"
-- "Choose between strict and relaxed clock models for my dataset"
-- "Prepare an MCMCTree control file for genome-scale divergence dating"
-- "Date my large phylogeny quickly with TreePL"
-- "Compare node calibration versus tip-dating approaches"
+- "Estimate divergence times for my phylogeny and report HPD intervals, not point ages"
+- "Run my BEAST2 analysis sampling from the prior first and compare effective priors to the posterior"
+- "Set up fossil calibrations as minima with soft bounds, not point constraints"
+- "Prepare an MCMCTree control file for genome-scale dating with approximate likelihood"
+- "Check whether my virus dataset has temporal signal before I tip-date it"
+- "Date a 5000-taxon tree with TreePL, cross-validating the smoothing parameter"
+- "Decide whether to use node calibration or the fossilized birth-death process"
 
 ## Example Prompts
 
 ### Clock Model Selection
-> "I have a multi-gene alignment of primates. Should I use a strict or relaxed molecular clock?"
+> "I have a multi-gene primate alignment. Should I use a strict or relaxed clock, and how do I decide?"
 
-> "How do I interpret the ucld.stdev parameter from my BEAST2 relaxed clock analysis?"
+> "How do I read the ucld.stdev posterior and the coefficient of variation to tell whether a strict clock suffices?"
 
-> "My dataset spans mammals and birds. Which clock model handles this level of rate variation?"
+> "My data span mammals and birds with very different rates. Which clock model fits, and how do I justify it?"
 
-### Fossil Calibration
-> "I have three fossil calibrations for my insect phylogeny. Help me set up appropriate prior distributions in BEAST2."
+### Calibration Strategy
+> "I have three insect fossil calibrations. Help me set lognormal-offset priors that treat each fossil as a minimum."
 
-> "How do I verify that my specified calibration priors match the effective priors in my BEAST2 analysis?"
+> "Set up MCMCTree soft-bound calibrations with 2.5% tails for a vertebrate phylogeny."
 
-> "Set up MCMCTree calibrations using soft bounds for a vertebrate phylogeny with five fossil constraints."
+> "I have a rich fossil record and a morphological matrix. Should I use the fossilized birth-death process instead of node priors?"
 
-> "I only have secondary calibrations from a previous study. What precautions should I take?"
+> "I only have secondary calibrations from a previous study. How do I avoid laundering their uncertainty?"
 
-### BEAST2 Workflow
-> "Walk me through a complete BEAST2 divergence dating analysis from alignment to dated tree."
+### Effective Prior and Convergence
+> "Run my BEAST2 model from the prior only and tell me whether the posterior on each calibrated node differs from the effective prior."
 
-> "My BEAST2 run has low ESS values for the clock rate. How do I improve convergence?"
+> "My clock-rate ESS is below 200 in Tracer. How do I fix convergence?"
 
-> "Set up a Fossilized Birth-Death analysis in BEAST2 with morphological and molecular data."
+> "Two independent MCMCTree runs disagree on a deep node age. How do I diagnose it?"
 
-### MCMCTree
-> "Generate an MCMCTree control file for dating a 500-gene dataset with approximate likelihood."
+### Tip-Dating (Viruses, Ancient DNA)
+> "Check temporal signal in my viral dataset with a root-to-tip regression and a date-randomization test before dating."
 
-> "My MCMCTree acceptance proportions are outside 20-40%. How do I tune the finetune parameters?"
+> "Set up tip-dating in BEAST2 using collection dates and a coalescent tree prior."
 
-> "Compare results from two independent MCMCTree runs to check convergence."
+> "Run a fast LSD2 dating pass with confidence intervals on my large outbreak tree."
 
-### TreePL
-> "Date my phylogeny of 5000 species using TreePL with cross-validation."
+### Engine Choice and Interpretation
+> "I have 500 loci. Is BEAST2 or MCMCTree the right engine, and why?"
 
-> "How do I set up fossil calibrations in TreePL format?"
+> "My divergence-time credible intervals are very wide on both rates and the root. What is wrong?"
 
-### Interpretation
-> "My divergence time estimates have very wide credible intervals. What could be wrong?"
-
-> "The posterior on one node age looks identical to the prior. Is my data uninformative for that node?"
+> "The posterior on one node looks identical to the prior. Does that mean the data are uninformative there?"
 
 ## What the Agent Will Do
 
-1. Assess the dataset size and complexity to recommend the appropriate tool (BEAST2, MCMCTree, or TreePL)
-2. Select an appropriate clock model based on dataset characteristics and rate variation
-3. Help design fossil calibration strategies with justified prior distributions
-4. Generate configuration files (BEAST2 XML parameters, MCMCTree control files, TreePL config)
-5. Set up the two-step approximate likelihood workflow for MCMCTree when working with large datasets
-6. Recommend running from the prior first to verify effective calibration priors
-7. Diagnose convergence issues (low ESS, non-stationarity, multimodality) and suggest solutions
-8. Interpret results including credible intervals, rate variation, and prior-posterior comparisons
-9. Flag common pitfalls such as prior interaction, secondary calibration error compounding, and substitution saturation
+1. Confirm the input is a rooted, branch-length tree with at least one justified calibration, and route topology/rooting/model selection to the upstream skills.
+2. Recommend a dating engine from dataset size and goal: BEAST2 for posteriors and fossils-as-tips, MCMCTree for genome-scale data, TreePL/LSD2 for very large or fast tip-dated trees.
+3. Choose a clock model by testing clocklikeness (coefficient of variation / `ucld.stdev`), not by defaulting, and justify strict-vs-relaxed via marginal-likelihood comparison.
+4. Design calibrations that treat each fossil as a minimum with a backward tail or soft bounds, justified per the Parham et al. 2012 checklist, and prefer the fossilized birth-death process when several fossils exist.
+5. For heterochronous data, run a TempEst root-to-tip regression and a date-randomization test, and refuse to date if there is no temporal signal.
+6. Run the analysis sampling from the prior first (`sampleFromPrior="true"` / `usedata=0`) and compare specified-vs-effective-vs-posterior on every calibrated node.
+7. Run at least two independent chains, check ESS > 200 and chain agreement in Tracer, and discard adequate burn-in.
+8. Report median + 95% HPD per node, the effective-prior-vs-posterior comparison, and all model and calibration choices: never a bare point, and never a PL date without a bootstrap CI.
 
 ## Tips
 
-- Always run from the prior first (no data) in BEAST2 to verify effective priors match expectations; calibration prior interactions through the tree prior can silently distort node age priors
-- Use at least 2 independent runs with different random seeds in both BEAST2 and MCMCTree; comparing runs is the most reliable convergence diagnostic
-- For genome-scale data (>100 loci), MCMCTree with approximate likelihood is orders of magnitude faster than BEAST2
-- TreePL is ideal for exploratory analyses or very large trees (>1000 taxa) where Bayesian methods are too slow, but it does not produce posterior distributions
-- UCLN (uncorrelated lognormal) is the default relaxed clock choice for most datasets; switch to autocorrelated rates only with specific biological justification
-- Fossils provide minimum age constraints; maximum ages require additional geological or biogeographic arguments
-- When using secondary calibrations (estimates from previous studies), widen the uncertainty substantially to avoid error compounding
-- Check `ucld.stdev` (BEAST2) or `sigma2` (MCMCTree) posteriors to assess whether rate variation is present; near-zero values suggest a strict clock may suffice
-- For deep divergences (>500 Ma), watch for substitution saturation; use slow-evolving markers or amino acid sequences
-- The birth-death tree prior parameters can influence uncalibrated node ages; perform sensitivity analyses on these settings
+- Always run from the prior first; topological truncation and neighboring calibrations make the effective prior differ from the density you typed, and a tight posterior is often just that truncated prior reflected back.
+- Treat every fossil as a minimum, never a point; a near-delta calibration forces a guaranteed-too-young, falsely precise node.
+- Use soft bounds (canonical 0.025 tail) rather than hard walls so one bad fossil or an over-tight maximum cannot dominate.
+- For viruses and ancient DNA, verify temporal signal (positive root-to-tip slope plus a passing date-randomization test) before any dating run; short-time-span data often have none.
+- Check the coefficient of variation / `ucld.stdev`: abutting zero means a strict clock suffices; clearly above zero means the relaxed clock is doing necessary work.
+- Prefer the fossilized birth-death process when several fossils are available; it uses all of them coherently instead of multiplying ad hoc node densities.
+- If credible intervals do not shrink as you add sequence data, you are at the calibration floor: invest in better fossils, not more sites (check the MCMCTree infinite-sites plot).
+- TreePL and r8s give point estimates only; cross-validate the smoothing parameter and bootstrap for confidence intervals, and never report a bare PL date.
+- Always run at least two independent chains; agreement between chains is the most reliable convergence diagnostic, with ESS > 200 on every reported parameter.
+- For deep divergences, watch for substitution saturation; use slower markers, amino acids, or codon models and check that per-partition branch lengths are reliable before trusting MCMCTree.
 
 ## Related Skills
 
-- bayesian-inference - MCMC convergence diagnostics and Bayesian fundamentals
-- modern-tree-inference - ML tree topology estimation before dating
-- species-trees - Species tree estimation (date after resolving species tree)
-- tree-manipulation - Rooting trees (required input for dating)
-- tree-io - Reading and converting tree file formats
-- alignment/multiple-alignment - Prepare alignments for dating analyses
+- bayesian-inference - MCMC convergence, ESS, marginal-likelihood model comparison, and site-heterogeneous models
+- modern-tree-inference - the rooted, branch-length ML tree and model selection that dating consumes
+- tree-manipulation - rooting as a separate inference and the input tree required before dating
+- tree-io - reading and writing the dated MCC tree without dropping HPD intervals on node ages
+- epidemiological-genomics/phylodynamics - effective population size and Re estimation downstream of tip-dated trees

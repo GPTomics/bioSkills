@@ -2,7 +2,7 @@
 
 ## Overview
 
-Bayesian phylogenetic inference using MrBayes, BEAST2, RevBayes, and PhyloBayes. Covers MCMC setup and convergence diagnostics, posterior probability interpretation, model comparison via stepping-stone sampling, prior sensitivity analysis, and site-heterogeneous models (CAT-GTR) for deep phylogenies prone to long branch attraction.
+A Bayesian phylogeny is not a tree; it is a posterior distribution over trees conditioned on the data and on the priors, approximated by an MCMC that may not have converged. The deliverable is a distribution WITH diagnostics. This skill covers the load-bearing decisions: which tool (MrBayes, BEAST2, RevBayes, PhyloBayes-MPI) fits the question, how to prove MCMC convergence (ESS, PSRF, ASDSF, and the crucial scalar-vs-topology distinction), why posterior probabilities run higher than bootstrap and are overconfident under model misspecification, why the default branch-length prior inflates tree length, why model comparison must use stepping-stone sampling and never the harmonic mean, and when site-heterogeneous CAT-GTR is required at depth. The honest one-sentence framing: PP near 1 means the data are decisive GIVEN the model, not that the clade is true.
 
 ## Prerequisites
 
@@ -10,107 +10,100 @@ Bayesian phylogenetic inference using MrBayes, BEAST2, RevBayes, and PhyloBayes.
 # MrBayes
 conda install -c bioconda mrbayes
 
-# BEAST2
+# BEAST2 (and BEAUti / TreeAnnotator / LogCombiner)
 conda install -c bioconda beast2
 # Or download from https://www.beast2.org/
 
-# Tracer (convergence diagnostics GUI)
+# Tracer (visual ESS / trace diagnostics GUI)
 # Download from https://github.com/beast-dev/tracer/releases
 
-# PhyloBayes MPI
+# PhyloBayes MPI (CAT / CAT-GTR for deep phylogeny)
 conda install -c bioconda phylobayes-mpi
 
-# RevBayes
+# RevBayes (custom graphical models)
 conda install -c bioconda revbayes
-# Or download from https://revbayes.github.io/
 
 # RWTY (R package for topological convergence)
 # install.packages('rwty')
 
-# Python dependencies for convergence scripts
+# Python for the convergence-check script
 pip install biopython numpy pandas
 ```
+
+Conceptual prerequisites: a tree is a point estimate, not an observation, and support is not accuracy: a posterior probability of 1.00 can still be wrong under model misspecification. Bayesian model comparison requires PROPER priors. At least two independent runs are mandatory, because PSRF and ASDSF are between-run metrics.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Run a Bayesian phylogenetic analysis with MrBayes on my alignment"
-- "Check MCMC convergence for my BEAST2 analysis"
-- "Compare two substitution models using stepping-stone sampling in MrBayes"
-- "Run PhyloBayes with CAT-GTR to check for long branch attraction"
-- "Parse my MrBayes parameter files and check ESS values"
+- "Run a Bayesian phylogenetic analysis with MrBayes on my Nexus alignment"
+- "Check whether my MrBayes runs converged using ESS, PSRF, and ASDSF"
+- "Compare GTR+G vs GTR+I+G using stepping-stone sampling in MrBayes"
+- "Run PhyloBayes CAT-GTR to test whether a long-branched taxon is an LBA artifact"
+- "Parse my two MrBayes .p files and compute ESS and PSRF for every parameter"
 
 ## Example Prompts
 
 ### Basic Bayesian Analysis
-> "Set up a MrBayes analysis for my Nexus alignment with GTR+I+G and two runs of 1 million generations"
+> "Set up a MrBayes analysis for my Nexus alignment with GTR+I+G, the compound-Dirichlet branch-length prior, and two runs of 10 million generations"
 
-> "Run BEAST2 on my alignment with bModelTest for automatic model averaging"
+> "Run BEAST2 on my alignment with bModelTest for substitution-model averaging, then summarize with TreeAnnotator"
 
 ### Convergence Diagnostics
-> "Check if my MrBayes runs have converged by examining ESS, PSRF, and trace plots"
+> "Check whether my MrBayes runs converged: ESS for all parameters, PSRF, ASDSF, and the trace plots"
 
-> "My BEAST2 analysis has low ESS for the tree likelihood. What should I do?"
+> "My continuous parameters all have high ESS but I am not sure the topology converged: assess tree-space convergence with RWTY"
 
-> "Assess topological convergence of my MrBayes runs using RWTY in R"
-
-> "Parse the .p files from my two MrBayes runs and calculate ESS for all parameters"
+> "My BEAST2 analysis has low ESS for a clock rate. What should I change?"
 
 ### Model Comparison
-> "Compare GTR+G vs GTR+I+G using stepping-stone sampling in MrBayes"
+> "Compare two partition schemes by stepping-stone marginal likelihood in MrBayes and report the Bayes factor"
 
-> "Calculate Bayes factors between two BEAST2 models using path sampling"
+> "Calculate Bayes factors between two BEAST2 models using the MODEL_SELECTION package"
 
-> "Set up nested sampling in BEAST2 to compare clock models"
+### Priors
+> "Switch my MrBayes branch-length prior off exp(10) and check whether the tree length was inflated"
 
-### Prior Sensitivity
-> "Run my MrBayes analysis sampling from the prior only to check if the data are informative"
-
-> "Test whether my divergence time estimates are sensitive to the calibration prior"
+> "Sample from the prior only to see whether the data are informative for each parameter"
 
 ### Deep Phylogenies and LBA
-> "Run PhyloBayes with CAT-GTR on my amino acid alignment to test for long branch attraction"
+> "Run PhyloBayes CAT-GTR on my amino-acid alignment and check convergence with bpcomp and tracecomp"
 
-> "My ML and Bayesian trees disagree on the placement of a long-branched taxon. How do I resolve this?"
-
-> "Check convergence of my PhyloBayes chains with bpcomp and tracecomp"
+> "My ML and Bayesian trees disagree on a long-branched taxon at depth: how do I tell whether it is an LBA artifact?"
 
 ### RevBayes
 > "Write a RevBayes script for a GTR+G analysis with two independent runs"
 
-> "Set up a custom model in RevBayes that is not available in MrBayes or BEAST2"
+> "Set up a custom hierarchical model in RevBayes that is not available in MrBayes or BEAST2"
 
 ## What the Agent Will Do
 
-1. Assess whether Bayesian analysis is appropriate (vs ML) based on the scientific question
-2. Prepare the alignment in the correct format (Nexus for MrBayes, XML via BEAUti for BEAST2)
-3. Set up the substitution model, priors, and MCMC parameters
-4. Configure multiple independent runs for convergence assessment
-5. Run the analysis or generate the command/script
-6. Check convergence: ESS >= 200 for all parameters, PSRF < 1.01, trace plots, topological ESS
-7. Summarize posterior trees with appropriate burn-in
-8. Perform model comparison via stepping-stone sampling if requested (never harmonic mean)
-9. Flag potential issues: low ESS, non-convergent runs, inflated posterior probabilities
-10. Recommend PhyloBayes CAT-GTR when LBA is suspected
+1. Decide whether Bayesian inference is the right tool (vs ML in modern-tree-inference, or dating in divergence-dating) from the question.
+2. Pick the tool: MrBayes for a standard alignment, BEAST2 for time trees, RevBayes for custom models, PhyloBayes-MPI for deep / compositionally-heterogeneous data.
+3. Set a multiple-hit-correcting substitution model and the compound-Dirichlet branch-length prior (not exp(10)).
+4. Configure >= 2 independent runs and MC3 heated chains, with live ASDSF and auto-stop where available.
+5. Run the analysis or emit the command/script.
+6. Prove convergence: ESS > 200 for EVERY parameter, PSRF ~ 1.00, ASDSF < 0.01 (or bpcomp maxdiff < 0.1), trace stationarity, and tree-space agreement across runs.
+7. Summarize the posterior trees with a data-driven burn-in.
+8. Do model comparison via stepping-stone / path sampling if requested (never the harmonic mean), and interpret with Kass-Raftery thresholds.
+9. Flag overconfident posteriors: PP = 1.0 that disagrees with the bootstrap, or high PP on a near-zero internode (star-tree paradox).
+10. Recommend CAT-GTR (PhyloBayes) or PMSF (IQ-TREE) when LBA from compositional heterogeneity is suspected at depth.
 
 ## Tips
 
-- Always run at least two independent MCMC analyses and compare them for convergence
-- Check ESS for ALL parameters, not just the likelihood. Branch lengths and model parameters matter too
-- If ESS is low, run the chain longer; do not just increase thinning (samplefreq)
-- BEAST2 does not run multiple chains by default; manually run independent analyses with different seeds
-- Never use the harmonic mean estimator for model comparison; use stepping-stone or path sampling
-- Posterior probability = 1.00 does not mean certainty; compare with ML bootstrap for robustness
-- For deep phylogenies with suspected LBA, try PhyloBayes CAT-GTR before concluding on topology
-- PhyloBayes can take weeks to converge on large datasets; check `bpcomp` maxdiff < 0.3
-- MrBayes `nst=mixed` averages over substitution models during MCMC, avoiding model selection bias
-- Report both posterior probabilities and bootstrap support when possible
+- Always run at least two independent runs from different starting trees; a single run cannot demonstrate convergence (PSRF and ASDSF are between-run metrics).
+- Check ESS for EVERY parameter, not just the likelihood: a nuisance parameter can have ESS=12 while the likelihood reads 2000.
+- Scalar convergence does not prove topology convergence. Always add a tree diagnostic: ASDSF (MrBayes), bpcomp maxdiff (PhyloBayes), or the RWTY tree-space MDS plot.
+- If ESS is low, run more generations; do not just raise samplefreq, which discards information without raising ESS.
+- Do not trust a default exp(10) branch-length prior on datasets with many taxa or long branches; use the compound Dirichlet (gammadir) and compare tree length to an ML reference.
+- Never select a model with the harmonic-mean estimator; use stepping-stone or path sampling, and make sure all priors are proper.
+- PP = 1.0 means "decisive under this model", not truth. When PP and bootstrap disagree sharply, distrust the more confident number.
+- A high PP on a clade subtended by a near-zero internal branch is where Bayesian support is least trustworthy (the star-tree paradox).
+- For deep phylogenies with suspected LBA, run PhyloBayes CAT-GTR (or IQ-TREE PMSF) before concluding on the topology; budget days-to-weeks and gate on maxdiff < 0.1.
+- BEAST2 does not run multiple chains by default; launch independent seeds and combine with LogCombiner before inspecting in Tracer.
 
 ## Related Skills
 
-- modern-tree-inference - ML tree inference as the default starting point
-- phylogenetics/divergence-dating - Molecular dating with BEAST2
-- phylogenetics/species-trees - Coalescent methods for multi-locus datasets
-- phylogenetics/tree-io - Parse MrBayes and BEAST2 output tree files
-- phylogenetics/tree-visualization - Visualize posterior consensus trees
-- alignment/multiple-alignment - Alignment quality affects all downstream inference
+- modern-tree-inference - ML inference, bootstrap/SH-aLRT support, concordance factors, and IQ-TREE C60/PMSF
+- divergence-dating - BEAST2 clock models, calibration, and time-scaled posteriors
+- species-trees - coalescent species-tree estimation when ILS dominates
+- tree-io - reading and summarizing MrBayes/BEAST2 output trees without dropping posteriors and HPDs
