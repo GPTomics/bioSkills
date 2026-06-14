@@ -2,130 +2,83 @@
 
 ## Overview
 
-Selection statistics detect signatures of natural selection in genomic data. Different methods detect different selection types and timescales, from recent sweeps (iHS) to ancient differentiation (Fst).
+Selection statistics scan genomes for natural selection, but no single statistic separates selection from demography at one locus: a bottleneck mimics a sweep in the site-frequency spectrum, recent expansion gives genome-wide negative Tajima's D, and population structure gives positive D that mimics balancing selection. The honest deliverable is therefore empirical genome-wide outliers, multiple orthogonal signals (haplotype plus SFS plus diversity plus differentiation), and explicit demographic-model calibration, never an absolute cutoff. iHS and nSL detect ongoing/incomplete sweeps and collapse to zero at fixation, while XP-EHH and Rsb catch fixed sweeps by borrowing a second population, so they are complementary rather than redundant.
 
 ## Prerequisites
 
-```bash
-pip install scikit-allel
-conda install -c bioconda vcftools
-```
+- scikit-allel and numpy: `pip install scikit-allel numpy`
+- selscan 2.0 and the companion `norm` binary for EHH scans: `conda install -c bioconda selscan`
+- SweepFinder2 (and optionally SweeD, OmegaPlus) for SFS-CLR scans
+- Phased haplotypes plus a genetic map for iHS/XP-EHH; an ancestral-allele assignment for any derived-allele test
+- Conceptual prerequisites and big notes:
+  - No single statistic is a selection test; rank windows and flag the genome-wide empirical tail (top 1%), then intersect orthogonal signals.
+  - iHS/nSL are standardized within derived-allele-frequency bins; XP-EHH/iHH12 get a plain genome-wide z-score - conflating the two is a real bug.
+  - Derived-allele tests (Fay & Wu H, Zeng E, unfolded SFS) need substitution-model polarization with two or more outgroups, not a single chimp allele.
+  - Background selection mimics FST, PBS, and CLR peaks in low-recombination regions; deconfound CLR with a SweepFinder2 B-value map.
+  - Haplotype statistics require phased data and degrade with switch error; use selscan 2.0 `--unphased` if phasing is unreliable.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Calculate Fst between my two populations"
-- "Scan for selection signatures using Tajima's D"
-- "Compute iHS to detect ongoing selective sweeps"
-- "Find regions under balancing selection"
-- "Compare selection pressures between populations"
+- "Scan for selection using genome-wide outliers, not absolute cutoffs"
+- "Compute iHS for ongoing sweeps and standardize within frequency bins"
+- "Run XP-EHH to find completed sweeps in one of two populations"
+- "Compute Hudson FST and PBS for population-differentiation outliers"
+- "Find soft sweeps with Garud's H12"
+- "Run a SweepFinder2 CLR scan with a background-selection map"
+- "Intersect outliers across iHS, FST, and reduced diversity"
 
 ## Example Prompts
 
-### Diversity Statistics
-> "Calculate Tajima's D in 50kb windows across the genome"
+### SFS Neutrality Tests
+> "Compute windowed Tajima's D and nucleotide diversity, but interpret them relative to the genome-wide distribution rather than an absolute cutoff."
 
-> "Compute nucleotide diversity (pi) for each population"
+> "Run a Fay & Wu H scan and tell me how to polarize ancestral alleles correctly so CpG sites don't fake a sweep."
 
-> "Find regions with unusually low diversity suggesting sweeps"
+### Haplotype Tests
+> "Compute iHS scores for ongoing selection and standardize them within derived-allele-frequency bins."
 
-### Population Differentiation
-> "Calculate Fst between European and African samples"
+> "Run XP-EHH between my two populations to find completed sweeps, and apply the correct genome-wide standardization."
 
-> "Find highly differentiated SNPs between cases and controls"
+> "My data is poorly phased - can I still run a haplotype sweep scan?"
 
-> "Generate a Manhattan plot of Fst values"
+### Differentiation
+> "Calculate Hudson FST between two populations with unequal sample sizes and report the ratio-of-averages."
 
-> "My two populations have very different sample sizes, which Fst estimator should I use?"
+> "Compute PBS across three populations to find which branch the differentiation is on."
 
-> "I don't have population labels for my samples, how do I compute Fst?"
+> "An FST peak sits in a low-recombination region - is it selection or background selection?"
 
-### Haplotype-Based Tests
-> "Compute iHS scores to detect ongoing selection"
+### Multi-Statistic and Polygenic
+> "Intersect outliers from iHS, FST, and depressed diversity to get credible sweep candidates."
 
-> "Run XP-EHH between my populations to find completed sweeps"
-
-> "Identify haplotypes under positive selection"
-
-### Multi-Statistic Analysis
-> "Scan for selection using Tajima's D, Fst, and iHS together"
-
-> "Find regions significant in multiple selection tests"
-
-> "Compare selection signatures across chromosomes"
+> "I want to test for polygenic adaptation on a trait - what effect sizes should I use?"
 
 ## What the Agent Will Do
 
-1. Assess data format and phase status
-2. Calculate requested statistics genome-wide or in windows
-3. Standardize/normalize scores where appropriate
-4. Identify outlier regions exceeding thresholds
-5. Generate visualizations (Manhattan plots, histograms)
-6. Report candidate regions with coordinates
+1. Clarify the question (localized recent sweep vs ancient/recurrent coding selection vs polygenic trait shift) and route coding selection to comparative-genomics and polygenic shifts to Qx.
+2. Assess data: phase status, genetic map availability, and whether ancestral alleles are polarized with an adequate outgroup model.
+3. Pick complementary statistics by sweep completeness (iHS/nSL for incomplete, XP-EHH/Rsb for fixed, H12 for soft, CLR to localize, FST/PBS for differentiation).
+4. Standardize correctly: derived-allele-frequency bins for iHS/nSL, genome-wide z-score for XP-EHH/iHH12.
+5. Flag empirical genome-wide outliers (top 1%) rather than absolute cutoffs, and intersect orthogonal signals.
+6. Deconfound background selection (B-value map for CLR, recombination control for FST) and calibrate against a demographic-model simulation where possible.
+7. Report candidate regions with coordinates and the evidence each statistic contributes.
 
 ## Tips
 
-- Haplotype-based tests (iHS, XP-EHH) require phased data
-- Demographic history can mimic selection signals
-- Use multiple statistics to reduce false positives
-- Always adjust for recombination rate variation
-- Empirical outlier cutoffs (top 1%) are often more reliable than p-values
-- For Fst with unequal sample sizes, prefer Weir & Cockerham or Hudson over Nei's Gst
-- Compute mean Fst as ratio-of-averages, not the mean of per-SNP ratios
-- Without population labels, infer structure first via PCA or ADMIXTURE before computing Fst
-
-## Selection Signatures Reference
-
-| Statistic | Type Detected | Timescale |
-|-----------|---------------|-----------|
-| Fst | Population differentiation | Any |
-| Tajima's D | Neutral departures | Recent |
-| iHS | Ongoing sweep | Very recent |
-| XP-EHH | Completed sweep | Recent |
-| H12/H2H1 | Soft sweeps | Recent |
-
-### Positive Selection (Hard Sweep)
-
-Signs:
-- Low Tajima's D (< -2)
-- High |iHS| (> 2)
-- High Fst between populations
-- Reduced diversity (Pi)
-
-### Balancing Selection
-
-Signs:
-- High Tajima's D (> 2)
-- Elevated heterozygosity
-- Old alleles maintained
-
-### Recent Selection
-
-Use haplotype-based methods:
-- iHS for ongoing sweeps
-- XP-EHH for completed sweeps
-
-### Ancient Selection
-
-Use diversity-based methods:
-- Fst for differentiation
-- dN/dS for coding regions
-
-## Interpretation Caveats
-
-- Demographic history mimics selection
-- Recombination rate affects EHH statistics
-- Multiple testing correction needed
-- Functional validation recommended
-
-## Resources
-
-- [Selection Tutorial](https://github.com/cggh/scikit-allel/tree/master/docs)
-- [vcftools Manual](https://vcftools.github.io/man_latest.html)
+- A null iHS is not evidence of no selection; a completed sweep erases the within-population contrast iHS needs - switch to XP-EHH/Rsb.
+- Report the windowed proportion of |iHS|>2 SNPs, not single extreme scores, which are noisy.
+- Filter rare variants before any FST/PBS outlier scan and use the Hudson estimator for unequal sample sizes (Bhatia 2013).
+- nSL needs no genetic map and is more robust to recombination-rate variation; it is a good default when no reliable map exists.
+- Conservation scores (phyloP, GERP, phastCons) measure purifying constraint, the opposite sign of a recent positive sweep - do not read them as "under selection."
+- Any polygenic Qx result is only as trustworthy as the stratification control in the GWAS supplying its effect sizes; prefer within-family/sibling estimates (the height-selection retraction).
+- One significant statistic is a hypothesis; the deliverable is the intersection of orthogonal signals plus demographic-model calibration.
 
 ## Related Skills
 
-- scikit-allel-analysis - Data loading and basic statistics
-- population-structure - Population assignment for Fst
-- linkage-disequilibrium - EHH depends on LD patterns
-- ecological-genomics/landscape-genomics - Genotype-environment association for non-model organisms
+- scikit-allel-analysis - genotype/haplotype array loading and allele-count basics
+- population-structure - PCA and ADMIXTURE for population assignment before FST/PBS
+- linkage-disequilibrium - EHH and LD mechanics underlying haplotype statistics
+- phasing-imputation/haplotype-phasing - phased haplotypes that all EHH statistics require
+- comparative-genomics/positive-selection - dN/dS and McDonald-Kreitman for recurrent coding selection
+- comparative-genomics/introgression-detection - archaic/admixture signals that confound differentiation outliers

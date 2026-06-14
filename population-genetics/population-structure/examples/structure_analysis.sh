@@ -1,47 +1,59 @@
-#!/bin/bash
-# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
-# Population structure analysis with PCA and Admixture
-# Usage: ./structure_analysis.sh <plink_prefix> <output_prefix> [max_K]
+#!/usr/bin/env bash
+# Reference: PLINK 2.0 (alpha 6+), ADMIXTURE 1.3+ | Verify API if version differs
+# Decision-grade population-structure pipeline: LD-prune + exclude long-range-LD/inversion regions,
+# remove second-degree relatives BEFORE PCA, compute PCs, then run ADMIXTURE over a K SPAN with
+# cross-validation (CV error is a GUIDE, never "the true K"). All outputs go to a caller-supplied
+# directory (default: a fresh temp dir) so nothing is written to the current dir.
+# Usage: ./structure_analysis.sh <plink_prefix> [max_K] [lrld_range_file] [output_dir]
+set -euo pipefail
 
-BFILE="${1}"
-PREFIX="${2:-structure}"
-MAX_K="${3:-6}"
+BFILE="${1:?Usage: $0 <plink_prefix> [max_K] [lrld_range_file] [output_dir]}"
+MAX_K="${2:-6}"
+LRLD="${3:-}"
+OUTDIR="${4:-$(mktemp -d)}"
+mkdir -p "$OUTDIR"
+echo "Outputs -> $OUTDIR"
 
-if [[ -z "$BFILE" ]]; then
-    echo "Usage: $0 <plink_prefix> [output_prefix] [max_K]"
-    exit 1
+# LD-prune so a single dense block cannot dominate a PC (50-SNP window, 5-SNP step, r2 0.2).
+plink2 --bfile "$BFILE" --indep-pairwise 50 5 0.2 --out "$OUTDIR/prune"
+
+# Build the PCA input: extract pruned SNPs, drop very-low-MAF variants (destabilize PCA), and
+# exclude long-range-LD/inversion regions (MHC, 8p23, 17q21.31, LCT) when a range file is supplied.
+EXCLUDE=()
+if [[ -n "$LRLD" ]]; then
+    EXCLUDE=(--exclude range "$LRLD")
 fi
+plink2 --bfile "$BFILE" --extract "$OUTDIR/prune.prune.in" "${EXCLUDE[@]}" --maf 0.01 \
+    --make-bed --out "$OUTDIR/for_pca"
 
-echo "=== Population Structure Analysis ==="
-echo "Input: $BFILE"
-echo "Output prefix: $PREFIX"
-echo "Testing K=2 to K=$MAX_K"
+# Remove relatives BEFORE computing axes: a cluster of relatives forms its own spurious PC.
+# 0.0884 is the KING second-degree kinship cutoff (MZ 0.354 / 1st 0.177 / 2nd 0.0884 / 3rd 0.0442).
+plink2 --bfile "$OUTDIR/for_pca" --king-cutoff 0.0884 --out "$OUTDIR/unrel"
+plink2 --bfile "$OUTDIR/for_pca" --keep "$OUTDIR/unrel.king.cutoff.in.id" \
+    --make-bed --out "$OUTDIR/pca_input"
 
-echo -e "\n=== Step 1: LD Pruning ==="
-plink2 --bfile "$BFILE" --indep-pairwise 50 10 0.1 --out "${PREFIX}_prune"
-plink2 --bfile "$BFILE" --extract "${PREFIX}_prune.prune.in" --make-bed --out "${PREFIX}_pruned"
+# PCA on the pruned, inversion-stripped, unrelated set. approx is near-required above ~50k samples.
+plink2 --bfile "$OUTDIR/pca_input" --pca 20 approx --out "$OUTDIR/pca"
+echo "PCs -> $OUTDIR/pca.eigenvec  eigenvalues -> $OUTDIR/pca.eigenval"
 
-echo "Pruned SNPs: $(wc -l < ${PREFIX}_pruned.bim)"
+# ADMIXTURE over a K SPAN with 5-fold cross-validation (the default). admixture writes .Q/.P next to
+# its input, so run it inside OUTDIR on a basename to keep every artifact out of the current dir.
+ADM_BED="$OUTDIR/pca_input.bed"
+(
+    cd "$OUTDIR"
+    for K in $(seq 2 "$MAX_K"); do
+        echo "ADMIXTURE K=$K ..."
+        admixture --cv -j4 "$(basename "$ADM_BED")" "$K" 2>&1 | tee "log_K${K}.out"
+    done
+)
 
-echo -e "\n=== Step 2: PCA ==="
-plink2 --bfile "${PREFIX}_pruned" --pca 20 --out "${PREFIX}_pca"
+# CV error is a GUIDE: report the whole curve, not just the argmin. The true number of populations
+# depends on sampling design and is often unidentifiable; present a span and check Q stability.
+echo "=== Cross-validation error (guide, not the true K) ==="
+grep -h "CV error" "$OUTDIR"/log_K*.out
 
-echo -e "\n=== Step 3: Admixture ==="
-cd "$(dirname ${PREFIX}_pruned.bed)" || exit
-
-for K in $(seq 2 $MAX_K); do
-    echo "Running K=$K..."
-    admixture --cv -j4 "$(basename ${PREFIX}_pruned.bed)" $K 2>&1 | tee "${PREFIX}_log${K}.out"
-done
-
-echo -e "\n=== Step 4: CV Error Summary ==="
-echo "K CV_Error"
-for K in $(seq 2 $MAX_K); do
-    CV=$(grep "CV" "${PREFIX}_log${K}.out" | awk '{print $4}')
-    echo "$K $CV"
-done
-
-echo -e "\n=== Output Files ==="
-echo "PCA eigenvectors: ${PREFIX}_pca.eigenvec"
-echo "PCA eigenvalues: ${PREFIX}_pca.eigenval"
-echo "Admixture Q files: ${PREFIX}_pruned.*.Q"
+echo "=== Output files ==="
+echo "Eigenvectors: $OUTDIR/pca.eigenvec"
+echo "Eigenvalues:  $OUTDIR/pca.eigenval"
+echo "ADMIXTURE Q:  $OUTDIR/pca_input.*.Q"
+echo "ADMIXTURE P:  $OUTDIR/pca_input.*.P"
