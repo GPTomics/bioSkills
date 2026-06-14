@@ -12,6 +12,7 @@ depends_on:
   - phasing-imputation/imputation-qc
   - population-genetics/population-structure
   - population-genetics/association-testing
+  - population-genetics/rare-variant-association
   - population-genetics/linkage-disequilibrium
 qc_checkpoints:
   - after_qc: "Sample/variant call rates >95%, HWE p>1e-6"
@@ -81,52 +82,43 @@ plink2 --vcf input.vcf.gz \
     --out study
 ```
 
+QC order is load-bearing (-> population-genetics/plink-basics): variant missingness runs FIRST, in its own invocation, so a sample is not dropped for missingness driven by variants slated for removal.
+
+### Variant call-rate (first)
+
+```bash
+plink2 --bfile study --missing --out study_stats
+plink2 --bfile study --geno 0.05 --make-bed --out study_var_qc   # variant missingness BEFORE sample missingness
+```
+
 ### Sample QC
 
 ```bash
-# Calculate sample statistics
-plink2 --bfile study \
-    --missing \
-    --out study_stats
+# Sample missingness AFTER variant missingness.
+plink2 --bfile study_var_qc --mind 0.05 --make-bed --out study_sample_qc
 
-# Remove samples with high missing rate (>5%)
-plink2 --bfile study \
-    --mind 0.05 \
-    --make-bed \
-    --out study_sample_qc
+# Sex check: split the pseudoautosomal region first or male PAR het reads as a sex error (see plink-basics).
+plink2 --bfile study_sample_qc --split-par hg38 --check-sex --out study_sex_check
 
-# Check for sex discrepancies (if sex chromosome data available)
-plink2 --bfile study_sample_qc \
-    --check-sex \
-    --out study_sex_check
-
-# Remove related individuals (optional, requires IBD)
-plink2 --bfile study_sample_qc \
-    --king-cutoff 0.0884 \
-    --make-bed \
-    --out study_unrelated
+# KING-robust relatedness - structure-robust and IBD-free (this is the point of KING; no --genome needed).
+plink2 --bfile study_sample_qc --king-cutoff 0.0884 --make-bed --out study_unrelated
 ```
 
-### Variant QC
+### Variant QC: MAF and controls-only HWE
 
 ```bash
-# Apply standard variant filters
-plink2 --bfile study_sample_qc \
-    --geno 0.05 \
-    --maf 0.01 \
-    --hwe 1e-6 \
-    --make-bed \
-    --out study_qc
-
-# Summary
+# Controls-only HWE with mid-p. plink2 is NOT controls-only by default, so gate to controls explicitly:
+# a true risk variant depletes heterozygotes in cases and would fail a case-inclusive HWE test (see plink-basics).
+plink2 --bfile study_unrelated --keep-if "PHENO1 == control" --hwe 1e-6 midp --write-snplist --out hwe_pass
+plink2 --bfile study_unrelated --maf 0.01 --extract hwe_pass.snplist --make-bed --out study_qc
 plink2 --bfile study_qc --freq --out study_qc
 ```
 
 **QC Checkpoint:**
+- Variant call rate >95% (applied before sample missingness)
 - Sample call rate >95%
-- Variant call rate >95%
 - MAF >1%
-- HWE p-value >1e-6 (controls only for case-control)
+- HWE applied to controls only with mid-p (p>1e-6)
 
 ## Step 2: Phasing and Imputation
 
@@ -153,16 +145,13 @@ bcftools view -e 'INFO/DR2<0.3 || INFO/AF<0.01 || INFO/AF>0.99' imputed.vcf.gz -
 ## Step 3: LD Pruning for PCA
 
 ```bash
-# Identify independent variants
-plink2 --bfile study_qc \
-    --indep-pairwise 50 5 0.2 \
-    --out pruned
+# Exclude long-range-LD regions and inversions FIRST (MHC, 8p23.1, 17q21.31, LCT) - their internal r2 is
+# high and real, so a window prune keeps them and a PC then tracks the inversion (-> population-structure).
+plink2 --bfile study_qc --exclude range longrange_ld.txt --make-bed --out study_noLR
 
-# Extract pruned variants
-plink2 --bfile study_qc \
-    --extract pruned.prune.in \
-    --make-bed \
-    --out study_pruned
+# Identify independent variants (r2 0.1 matches the linkage-disequilibrium / population-structure default).
+plink2 --bfile study_noLR --indep-pairwise 50 5 0.1 --out pruned
+plink2 --bfile study_noLR --extract pruned.prune.in --make-bed --out study_pruned
 ```
 
 ## Step 4: Population Structure (PCA)
@@ -201,6 +190,8 @@ ggsave('pca_plot.pdf', width = 8, height = 6)
 
 Run the association on imputed DOSAGES, not hard calls, so the imputation uncertainty is propagated (PLINK2 reads dosages with `--vcf imputed.qc.vcf.gz dosage=DS`, or use a `.pgen` built from dosages). The examples below use the QC'd best-guess genotypes for brevity; substitute the dosage input for an imputed analysis.
 
+The engine choice is set by sample structure, not convenience (-> population-genetics/association-testing). PC-covariate GLM (below) is valid only for unrelated samples whose confounding is continuous ancestry; any related, family-based, or fine-scale-structured cohort needs a linear mixed model (BOLT-LMM, SAIGE, regenie) with leave-one-chromosome-out, because PCs cannot remove a covariance structure. Use SPA (SAIGE) or Firth when the case:control ratio is more extreme than ~1:10 or minor-allele counts are low. For aggregating rare variants by gene rather than testing them one at a time, branch to population-genetics/rare-variant-association (burden/SKAT/SKAT-O via SAIGE-GENE+/regenie).
+
 ### Case-Control (Binary Trait)
 
 ```bash
@@ -209,10 +200,10 @@ plink2 --bfile study_qc \
     --pheno phenotypes.txt \
     --covar study_pca.eigenvec \
     --covar-col-nums 3-12 \
-    --glm hide-covar \
+    --glm firth-fallback hide-covar \
     --out gwas_results
 
-# Results in gwas_results.PHENO.glm.logistic
+# Binary --glm defaults to firth-fallback -> results in gwas_results.PHENO.glm.logistic.hybrid
 ```
 
 ### Quantitative Trait
@@ -250,7 +241,7 @@ plink2 --bfile study_qc \
 library(qqman)
 
 # Load results
-results <- read.table('gwas_results.PHENO.glm.logistic', header = TRUE)
+results <- read.table('gwas_results.PHENO.glm.logistic.hybrid', header = TRUE)
 results <- results[!is.na(results$P),]
 
 # Manhattan plot
@@ -278,11 +269,11 @@ cat('Lambda:', round(lambda, 3), '\n')
 ### Extract Significant Hits
 
 ```bash
-# Genome-wide significant (p < 5e-8)
-awk '$12 < 5e-8' gwas_results.PHENO.glm.logistic > significant_hits.txt
-
-# Suggestive (p < 1e-5)
-awk '$12 < 1e-5' gwas_results.PHENO.glm.logistic > suggestive_hits.txt
+# Select the P column by header, not a fixed index (firth-fallback adds columns and shifts positions).
+awk 'NR==1{for(i=1;i<=NF;i++) if($i=="P") p=i; print; next} $p<5e-8' \
+    gwas_results.PHENO.glm.logistic.hybrid > significant_hits.txt
+awk 'NR==1{for(i=1;i<=NF;i++) if($i=="P") p=i; print; next} $p<1e-5' \
+    gwas_results.PHENO.glm.logistic.hybrid > suggestive_hits.txt
 ```
 
 ## Parameter Recommendations
@@ -293,7 +284,7 @@ awk '$12 < 1e-5' gwas_results.PHENO.glm.logistic > suggestive_hits.txt
 | Variant QC | --geno | 0.05 |
 | Variant QC | --maf | 0.01 |
 | Variant QC | --hwe | 1e-6 |
-| LD pruning | --indep-pairwise | 50 5 0.2 |
+| LD pruning | --indep-pairwise | 50 5 0.1 (after long-range-LD exclusion) |
 | PCA | --pca | 10 |
 | Significance | p-value | 5e-8 |
 
@@ -301,10 +292,11 @@ awk '$12 < 1e-5' gwas_results.PHENO.glm.logistic > suggestive_hits.txt
 
 | Issue | Likely Cause | Solution |
 |-------|--------------|----------|
-| High lambda (>1.1) | Population stratification | Add more PCs, check ancestry |
-| No significant hits | Low power | Increase sample size, meta-analysis |
-| Deflated lambda (<1) | Over-correction | Reduce PC covariates |
-| QQ deviation at low end | Batch effects | Check for technical artifacts |
+| Elevated lambda | Polygenicity OR confounding - lambda alone cannot tell them apart | Check the LDSC intercept (~1 = polygenic inflation, not confounding); do NOT reflexively genomic-control, which over-corrects true signal |
+| Residual structure after PCs | Relatedness/fine-scale structure (a covariance PCs cannot remove) | Switch to a linear mixed model (BOLT-LMM/SAIGE/regenie) with LOCO |
+| Inflation at low MAC or extreme case:control ratio | Score/Wald test anti-conservative | Use SPA (SAIGE) or Firth regression |
+| No significant hits | Low power | Increase sample size, meta-analysis; for rare variants aggregate by gene (rare-variant-association) |
+| QQ deviation at low end | Batch effects / differential missingness | Check technical artifacts and case/control missingness skew |
 
 ## Complete Pipeline Script
 
@@ -318,23 +310,28 @@ OUTDIR="gwas_results"
 
 mkdir -p ${OUTDIR}
 
-# Step 1: Convert and QC
+# Step 1: Convert, then QC in order (variant missingness, then sample, then MAF + controls-only HWE).
 plink2 --vcf ${INPUT_VCF} --make-bed --out ${OUTDIR}/raw
-plink2 --bfile ${OUTDIR}/raw --mind 0.05 --geno 0.05 --maf 0.01 --hwe 1e-6 \
+plink2 --bfile ${OUTDIR}/raw --geno 0.05 --make-bed --out ${OUTDIR}/var_qc
+plink2 --bfile ${OUTDIR}/var_qc --mind 0.05 --king-cutoff 0.0884 --make-bed --out ${OUTDIR}/samp_qc
+plink2 --bfile ${OUTDIR}/samp_qc --keep-if "PHENO1 == control" --hwe 1e-6 midp \
+    --write-snplist --out ${OUTDIR}/hwe_pass
+plink2 --bfile ${OUTDIR}/samp_qc --maf 0.01 --extract ${OUTDIR}/hwe_pass.snplist \
     --make-bed --out ${OUTDIR}/qc
 
-# Step 2: LD pruning
-plink2 --bfile ${OUTDIR}/qc --indep-pairwise 50 5 0.2 --out ${OUTDIR}/pruned
-plink2 --bfile ${OUTDIR}/qc --extract ${OUTDIR}/pruned.prune.in \
-    --make-bed --out ${OUTDIR}/pruned
+# Step 2: LD pruning (exclude long-range-LD regions first; r2 0.1)
+plink2 --bfile ${OUTDIR}/qc --exclude range longrange_ld.txt --make-bed --out ${OUTDIR}/noLR
+plink2 --bfile ${OUTDIR}/noLR --indep-pairwise 50 5 0.1 --out ${OUTDIR}/pruned
+plink2 --bfile ${OUTDIR}/noLR --extract ${OUTDIR}/pruned.prune.in \
+    --make-bed --out ${OUTDIR}/pruned_set
 
 # Step 3: PCA
-plink2 --bfile ${OUTDIR}/pruned --pca 10 --out ${OUTDIR}/pca
+plink2 --bfile ${OUTDIR}/pruned_set --pca 10 --out ${OUTDIR}/pca
 
-# Step 4: Association
+# Step 4: Association on the full QC'd set (binary --glm defaults to firth-fallback -> .glm.logistic.hybrid)
 plink2 --bfile ${OUTDIR}/qc --pheno ${PHENO} \
     --covar ${OUTDIR}/pca.eigenvec --covar-col-nums 3-12 \
-    --glm hide-covar --out ${OUTDIR}/gwas
+    --glm firth-fallback hide-covar --out ${OUTDIR}/gwas
 
 echo "=== GWAS Complete ==="
 echo "Results: ${OUTDIR}/gwas.*.glm.*"
@@ -350,5 +347,6 @@ echo "Results: ${OUTDIR}/gwas.*.glm.*"
 - phasing-imputation/genotype-imputation - Impute to dosages against the panel
 - phasing-imputation/imputation-qc - Filter imputed variants by R2 and MAF before association
 - population-genetics/population-structure - PCA and admixture
-- population-genetics/association-testing - Statistical models (on dosages)
+- population-genetics/association-testing - Single-variant models (PC-GLM vs LMM, SPA/Firth) on dosages
+- population-genetics/rare-variant-association - Gene-based burden/SKAT/SKAT-O for rare variants
 - population-genetics/linkage-disequilibrium - LD concepts

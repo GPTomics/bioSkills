@@ -1,49 +1,46 @@
-#!/bin/bash
-# Reference: pandas 2.2+ | Verify API if version differs
-# PLINK QC pipeline for population genetics
-# Usage: ./qc_pipeline.sh <input_vcf> <output_prefix>
+#!/usr/bin/env bash
+# Reference: PLINK 1.9 (1.90b7+), PLINK 2.0 (alpha 6+) | Verify API if version differs
+# Ordered GWAS QC pipeline: variant missingness BEFORE sample missingness, controls-only HWE with
+# mid-p, KING relatedness pruning, and a differential-missingness confounder check. Outputs go to a
+# caller-supplied directory (default: a fresh temp dir) so nothing is written to the current dir.
+# Usage: ./qc_pipeline.sh <input.vcf.gz> [pheno.txt] [output_dir]
+set -euo pipefail
 
-INPUT="${1}"
-PREFIX="${2:-qc_output}"
+INPUT="${1:?Usage: $0 <input.vcf.gz> [pheno.txt] [output_dir]}"
+PHENO="${2:-}"
+OUTDIR="${3:-$(mktemp -d)}"
+mkdir -p "$OUTDIR"
+echo "Outputs -> $OUTDIR"
 
-if [[ -z "$INPUT" ]]; then
-    echo "Usage: $0 <input.vcf.gz> [output_prefix]"
-    exit 1
+# Convert to pgen to keep REF/ALT and any dosage information honest.
+plink2 --vcf "$INPUT" --double-id --make-pgen --out "$OUTDIR/raw"
+
+# Variant missingness FIRST, in its own run, so a sample is not dropped for missingness driven
+# by variants that are about to be removed. Default --geno is 0.1; GWAS QC tightens to 0.02.
+plink2 --pfile "$OUTDIR/raw" --geno 0.02 --make-pgen --out "$OUTDIR/step_geno"
+
+# THEN sample missingness, MAF, and HWE on the surviving variants. mid-p is required (the plain
+# exact test is conservative for low-count genotypes). HWE here is applied to all samples; the
+# controls-only step below is the correct form when a case/control phenotype is supplied.
+plink2 --pfile "$OUTDIR/step_geno" --mind 0.02 --maf 0.01 --hwe 1e-6 midp --make-pgen --out "$OUTDIR/step_qc"
+
+# Controls-only HWE: a true risk variant depletes heterozygotes in cases and would fail a
+# case-inclusive HWE test. plink2 has no controls-only default, so gate to controls explicitly.
+if [[ -n "$PHENO" ]]; then
+    plink2 --pfile "$OUTDIR/step_geno" --pheno "$PHENO" --keep-if "PHENO1 == control" \
+        --hwe 1e-6 midp --write-snplist --out "$OUTDIR/hwe_pass_controls"
+    plink2 --pfile "$OUTDIR/step_geno" --mind 0.02 --maf 0.01 \
+        --extract "$OUTDIR/hwe_pass_controls.snplist" --make-pgen --out "$OUTDIR/step_qc"
+
+    # Differential missingness: drop variants whose missingness differs between cases and controls.
+    plink2 --pfile "$OUTDIR/step_geno" --pheno "$PHENO" --test-missing --out "$OUTDIR/diffmiss"
 fi
 
-echo "=== PLINK QC Pipeline ==="
-echo "Input: $INPUT"
-echo "Output prefix: $PREFIX"
+# KING-robust relatedness (structure-robust, unlike PLINK 1.9 PI_HAT). Prune to no-closer-than
+# second-degree: cutoffs are 0.354 (duplicate/MZ), 0.177 (first-degree), 0.0884 (second-degree).
+plink2 --pfile "$OUTDIR/step_qc" --king-cutoff 0.0884 --out "$OUTDIR/king_unrelated"
+plink2 --pfile "$OUTDIR/step_qc" --keep "$OUTDIR/king_unrelated.king.cutoff.in.id" \
+    --make-pgen --out "$OUTDIR/clean"
 
-echo -e "\n=== Step 1: Convert VCF to PLINK ==="
-plink2 --vcf "$INPUT" --double-id --make-bed --out "${PREFIX}_raw"
-
-echo -e "\n=== Step 2: Initial Statistics ==="
-echo "Samples: $(wc -l < ${PREFIX}_raw.fam)"
-echo "Variants: $(wc -l < ${PREFIX}_raw.bim)"
-
-plink2 --bfile "${PREFIX}_raw" --missing --out "${PREFIX}_raw"
-
-echo -e "\n=== Step 3: Apply QC Filters ==="
-# Thresholds follow PLINK best practices for GWAS; adjust for rare variant studies
-plink2 --bfile "${PREFIX}_raw" \
-    --maf 0.01 \      # Minor allele freq; typical 0.01-0.05 depending on sample size
-    --geno 0.05 \     # Max 5% missing genotypes per variant
-    --mind 0.05 \     # Max 5% missing genotypes per sample
-    --hwe 1e-6 \      # Hardy-Weinberg p-value; stringent to catch genotyping errors
-    --make-bed --out "$PREFIX"
-
-echo -e "\n=== Step 4: Final Statistics ==="
-echo "Samples after QC: $(wc -l < ${PREFIX}.fam)"
-echo "Variants after QC: $(wc -l < ${PREFIX}.bim)"
-
-INITIAL_SNPS=$(wc -l < "${PREFIX}_raw.bim")
-FINAL_SNPS=$(wc -l < "${PREFIX}.bim")
-echo "Variant retention: $(echo "scale=1; $FINAL_SNPS * 100 / $INITIAL_SNPS" | bc)%"
-
-INITIAL_SAMP=$(wc -l < "${PREFIX}_raw.fam")
-FINAL_SAMP=$(wc -l < "${PREFIX}.fam")
-echo "Sample retention: $(echo "scale=1; $FINAL_SAMP * 100 / $INITIAL_SAMP" | bc)%"
-
-echo -e "\n=== Output Files ==="
-ls -lh "${PREFIX}".{bed,bim,fam}
+echo "Final fileset: $OUTDIR/clean.{pgen,pvar,psam}"
+wc -l "$OUTDIR/clean.psam" "$OUTDIR/clean.pvar" 2>/dev/null || true

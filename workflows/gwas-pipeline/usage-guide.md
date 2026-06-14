@@ -46,11 +46,11 @@ Tell your AI agent what you want to do:
 
 ## What the Workflow Does
 
-1. **QC Filtering** - Remove poor quality samples/variants
+1. **QC Filtering** - Remove poor quality samples/variants in order (variant missingness before sample missingness), with controls-only HWE and KING relatedness pruning
 2. **Phasing and Imputation** - Align to a reference panel, phase, impute to dosages, and filter by R2 (owned by the phasing-imputation skills; impute cases and controls together)
-3. **LD Pruning** - Get independent variants for PCA
+3. **LD Pruning** - Get independent variants for PCA after excluding long-range-LD regions
 4. **PCA** - Calculate population structure covariates
-5. **Association** - Test variant-phenotype associations on dosages
+5. **Association** - Test variant-phenotype associations on dosages (PC-covariate GLM for unrelated samples, a linear mixed model for related/structured ones)
 6. **Visualization** - Manhattan and QQ plots
 
 ## Case-Control vs Quantitative
@@ -64,7 +64,9 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - **Sample size**: Need thousands of samples for common variants
-- **Lambda**: Should be ~1.0; high values indicate stratification
-- **Multiple testing**: Genome-wide threshold is p < 5e-8
+- **Lambda**: An elevated lambda is expected under a polygenic trait and is mostly true signal; do not genomic-control on it. Use the LDSC intercept (or attenuation ratio) to tell polygenicity from confounding
+- **Mixed models**: PC covariates absorb continuous ancestry but cannot remove relatedness; use a linear mixed model (BOLT-LMM, SAIGE, regenie) with LOCO for related or finely-structured samples, and SPA or Firth at extreme case:control imbalance
+- **Rare variants**: Single-variant tests are underpowered at low minor allele count; aggregate by gene with burden/SKAT/SKAT-O (see population-genetics/rare-variant-association)
+- **Multiple testing**: Genome-wide threshold is p < 5e-8 (tighter for WGS and rare variants)
 - **Replication**: Always validate findings in independent cohort
 - **Imputation**: Impute cases and controls together and carry dosages (not hard calls) into association; see the phasing-imputation skills
