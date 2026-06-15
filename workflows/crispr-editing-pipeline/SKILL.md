@@ -96,7 +96,7 @@ Target gene / position
 
 **Goal:** Quantify the intended edit and its byproducts.
 
-**Approach:** Design genotyping/amplicon primers around the edit and quantify outcomes by amplicon deep sequencing (CRISPResso2 / BE-Analyzer) -- intended-edit rate, indels, and (for base/prime editing) product purity -- stating the limit of detection (-> crispr-screens/crispresso-editing). **Checkpoint:** report purity and LoD, not a lone efficiency number.
+**Approach:** Design genotyping/amplicon primers around the edit (-> primer-design/primer-basics; keep both 3' ends off the cut site and any expected indel, and confirm the amplicon is unique near paralogs/pseudogenes -> primer-design/primer-specificity) and quantify outcomes by amplicon deep sequencing (CRISPResso2 / BE-Analyzer) -- intended-edit rate, indels, and (for base/prime editing) product purity -- stating the limit of detection (-> crispr-screens/crispresso-editing). **Checkpoint:** report purity and LoD, not a lone efficiency number.
 
 ## Common Errors (integration level)
 
@@ -125,3 +125,5 @@ Target gene / position
 - genome-engineering/hdr-template-design - Donor format and codon-checked blocking mutation
 - crispr-screens/crispresso-editing - Quantify and validate editing outcomes from amplicon reads
 - crispr-screens/library-design - Scale single-gene design to a pooled screen
+- primer-design/primer-basics - Design the genotyping/amplicon primers around the edit
+- primer-design/primer-specificity - Confirm the genotyping amplicon is unique near paralogs/pseudogenes

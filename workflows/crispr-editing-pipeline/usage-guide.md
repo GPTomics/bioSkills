@@ -86,3 +86,5 @@ What edit do you need?
 - genome-engineering/hdr-template-design - Donor format and codon-checked blocking mutation
 - crispr-screens/crispresso-editing - Quantify and validate editing outcomes from amplicon reads
 - crispr-screens/library-design - Scale single-gene design to a pooled screen
+- primer-design/primer-basics - Design the genotyping/amplicon primers around the edit
+- primer-design/primer-specificity - Confirm the genotyping amplicon is unique near paralogs/pseudogenes

@@ -74,4 +74,5 @@ Tell your AI agent what you want to do:
 - crispr-screens/library-design - Pool guides into a screening library
 - crispr-screens/crispresso-editing - Quantify editing outcomes from amplicon reads
 - primer-design/primer-basics - Validation/genotyping primers around the cut
+- primer-design/primer-specificity - Confirm genotyping primers are unique near paralogs/off-targets
 - genome-intervals/gtf-gff-handling - Exon coordinates to restrict guide placement

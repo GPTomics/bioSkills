@@ -37,6 +37,6 @@ pip install biopython primer3-py pandas
 ## Related Skills
 
 - **crispr-screens** - Analyze pooled screens and amplicon editing outcomes after the experiment
-- **primer-design** - General PCR/genotyping primer design
+- **primer-design** - PCR/qPCR primer design, validation, and genome specificity (genotyping amplicons)
 - **variant-calling** - Detect and annotate edits in sequencing data
 - **genome-intervals** - Exon/feature coordinates to restrict guide placement

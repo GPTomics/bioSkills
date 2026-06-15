@@ -159,6 +159,7 @@ def synonymous_pam_block(codon_table, pam_codon, alt_codon):
 - base-editing-design - Donor-free alternative for single-base transitions far from any cut
 - prime-editing-design - Donor-free precise small edits, and twinPE/PASTE for large insertions
 - primer-design/primer-basics - PCR primers for arm amplification and junction genotyping
-- primer-design/primer-validation - Check primer specificity/dimers
+- primer-design/primer-validation - Check genotyping primers for dimers and hairpins
+- primer-design/primer-specificity - Confirm the genotyping amplicon is unique (off-target/pseudogenes)
 - sequence-io/read-sequences - Parse GenBank CDS/start/stop features for tag placement and codon-aware design
 - variant-calling/variant-annotation - Confirm the installed edit and its consequence
