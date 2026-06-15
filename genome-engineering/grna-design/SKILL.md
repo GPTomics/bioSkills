@@ -213,4 +213,5 @@ KO success is mostly won here, and pure efficiency ranking fails:
 - crispr-screens/library-design - Pool guides into a screening library (domain tiling, Rule Set 2 logic)
 - crispr-screens/crispresso-editing - Quantify indel/editing outcomes from amplicon sequencing
 - primer-design/primer-basics - Design validation/genotyping primers around the cut
+- primer-design/primer-specificity - Confirm genotyping primers are unique near paralogs/off-targets
 - genome-intervals/gtf-gff-handling - Get exon coordinates to restrict guide placement

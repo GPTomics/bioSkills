@@ -1,337 +1,149 @@
 ---
 name: bio-primer-design-primer-validation
-description: Validate PCR primers for specificity, dimers, hairpins, and secondary structures using primer3-py thermodynamic calculations. Check self-complementarity, heterodimer formation, and 3' stability. Use when validating primer specificity and properties.
+description: Validates chosen PCR/qPCR oligos for intramolecular thermodynamic liabilities with primer3-py - hairpins, self-dimers, cross-dimers (calc_hairpin/homodimer/heterodimer), and 3'-end stability (calc_end_stability) - returning ThermoResult dG/Tm and ASCII structures. Covers why a "dimer-free" verdict is a PREDICTION at the supplied salt/Mg/dNTP/oligo conditions and temp_c (so the same primer is fine or dimer-prone depending on conditions), why a 3'-END dimer or hairpin is the lethal class (polymerase-extendable into primer-dimer) so structures are ranked by dG at the annealing temperature and 3'-end involvement rather than global Tm, that ThermoResult dG is in cal/mol not kcal/mol, and that .structure_found must gate the numbers. Use when checking primer pairs before ordering, troubleshooting primer-dimers or smears, or screening oligos for secondary structure. Genome off-target/mispriming is primer-specificity; design is primer-basics; probe assays are qpcr-primers.
 tool_type: python
 primary_tool: primer3-py
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: pandas 2.2+, primer3-py 2.0+
+Reference examples tested with: primer3-py 2.3+.
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
+- Python: `pip show primer3-py` then `help(primer3.calc_heterodimer)` to check signatures
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
-# Primer Validation
+# Primer Validation -- Thermodynamic Self-Structure of the Chosen Oligos
 
-Check primers for secondary structures, dimers, and other issues using primer3-py.
+**"Are these primers free of dimers and hairpins?"** -> Predict the most stable intramolecular and inter-primer structures and judge them at the reaction conditions -- because a structure's harm is set by its dG at the annealing temperature and by whether it ties up the 3' end, not by a single global score.
+- Python: `primer3.calc_hairpin(seq)`, `calc_homodimer(seq)`, `calc_heterodimer(seq1, seq2)`, `calc_end_stability(seq1, seq2)` return a `ThermoResult` with `.tm`, `.dg`, `.structure_found`.
 
-**"Validate a primer pair"** -> Check for hairpins, self-dimers, heterodimers, and 3' stability using thermodynamic calculations.
-- Python: `primer3.calc_hairpin()`, `primer3.calc_homodimer()`, `primer3.calc_heterodimer()` (primer3-py)
+Scope: thermodynamic validation of the OLIGOS themselves (hairpin, homodimer, heterodimer, 3'-end stability, pair Tm match) under stated conditions. Genome-wide off-target / mispriming / in-silico PCR -> primer-specificity. Designing primers -> primer-basics. qPCR primer+probe co-design -> qpcr-primers.
 
-## Required Imports
+## The Single Most Important Modern Insight -- A "Dimer-Free" Verdict Is a Prediction at the Conditions Supplied, and the 3' End Is What Kills the Reaction
+
+1. **These are predictions, not facts.** `calc_hairpin`/`calc_homodimer`/`calc_heterodimer` compute a dG/Tm under a specific monovalent/divalent/dNTP/oligo concentration and an evaluation temperature (`temp_c`). The same primer can read "fine" at default 37 C / default salt and "dimer-prone" at the real annealing temperature and Mg2+. Validate at the conditions and `temp_c` of the actual reaction, or the verdict is decorative.
+2. **The 3' end is the lethal locus.** A dimer or hairpin that pairs the primer's 3' end is polymerase-EXTENDABLE: it gets turned into primer-dimer that amplifies exponentially, consumes reagents, and (in SYBR qPCR) generates competing signal. A structure with a more negative GLOBAL dG but a free 3' end is far less harmful. So do NOT rank by global dG or global Tm -- inspect 3'-end involvement (`calc_end_stability` and the ASCII structure) and judge at the annealing temperature.
+3. **Read the units and the gate.** `ThermoResult.dg`, `.dh` are in cal/mol (and `.ds` in cal/(K.mol)) -- a value of -6000 is -6 kcal/mol, so divide by 1000 before comparing to kcal/mol heuristics. Always check `.structure_found` first: if no structure formed, the `.tm`/`.dg` are not a real duplex.
+
+## The Three Structures, and Why They Differ
+
+- **Hairpin** (intramolecular): the primer folds on itself; harmful mainly when it sequesters the 3' end or raises effective Tm enough to block template annealing.
+- **Homodimer** (self-dimer): two copies of one primer pair; common with self-complementary or palindromic primers.
+- **Heterodimer** (cross-dimer): the forward and reverse primers pair with each other. A primer can be individually clean and still cross-dimer with its partner, so the pair must be checked explicitly -- this is the dimer most often missed.
+
+## Tool Taxonomy
+
+| Function | Citation | Mechanism / role | When |
+|----------|----------|------------------|------|
+| `calc_hairpin(seq)` | Untergasser 2012 *Nucleic Acids Res* 40:e115 | most stable self-fold via thermodynamic alignment (ntthal) | screen a single primer/probe for hairpins |
+| `calc_homodimer(seq)` | Untergasser 2012 *Nucleic Acids Res* 40:e115 | most stable self-self duplex | self-dimer of one oligo |
+| `calc_heterodimer(s1, s2)` | Untergasser 2012 *Nucleic Acids Res* 40:e115 | most stable cross duplex of two oligos | forward-vs-reverse (and probe) cross-dimer |
+| `calc_end_stability(s1, s2)` | SantaLucia & Hicks 2004 *Annu Rev Biophys* 33:415 | dG of the 3' end of s1 annealing to s2 | the 3'-anchored, extendable-dimer question |
+| `calc_*_tm` (float) | Untergasser 2012 *Nucleic Acids Res* 40:e115 | the `.tm` only, no structure object | fast high-throughput screening |
+| `calc_tm(seq)` | SantaLucia 1998 *PNAS* 95:1460 | nearest-neighbor Tm vs perfect complement | the pair Tm-match check |
+
+## Decision Tree by Scenario
+
+| Scenario | Recommended | Why |
+|----------|-------------|-----|
+| Standard pre-order check of a pair | `calc_hairpin`/`homodimer` on each + `calc_heterodimer` on the pair, at reaction conditions and `temp_c` = Ta | the four-call panel that catches self-structure |
+| Suspect a primer-dimer artifact (gel, low-Tm melt peak) | `calc_heterodimer` + `calc_end_stability`, read the ASCII structure for 3'-end pairing | 3'-end dimers are extendable; that is the artifact source. A dimer that appears only at LOW template is diagnostic -- with scarce target, primer-primer collisions win the kinetic competition |
+| Screening hundreds of oligos | `calc_hairpin_tm`/`calc_homodimer_tm` (floats) | fast triage; promote flagged ones to full `ThermoResult` |
+| One primer designed with a 5' tail | run the calls on the FULL tailed oligo | the tail exists physically (palindromic sites/Gibson arms dimerize) |
+| Pair anneals unevenly / one strand dominates | compare `calc_tm` of the two primers | a Tm mismatch >2-3 C, not a dimer, is the cause |
+| "Will it amplify only the target?" | -> primer-specificity | that is genome off-target, a different question and toolset |
+
+Default when uncertain: run the four-call panel at the real salt/Mg/dNTP/oligo concentrations with `temp_c` set to the annealing temperature, flag any structure whose dG is strongly negative at Ta, and weight 3'-end involvement most.
+
+## Validate a Primer Pair at Reaction Conditions
+
+**Goal:** Decide whether a chosen forward/reverse pair will misbehave through hairpins or dimers in the actual reaction, with the 3' end weighted appropriately.
+
+**Approach:** Run hairpin and homodimer on each primer and heterodimer on the pair, all at the reaction's salt/Mg/dNTP/oligo concentrations and with `temp_c` set to the annealing temperature; gate every result on `.structure_found`; additionally compute `calc_end_stability` on the heterodimer to expose 3'-anchored (extendable) dimers; compare the two primer Tms for a match.
 
 ```python
 import primer3
+
+fwd, rev = 'GTCTCCTCTGACTTCAACAGCG', 'ACCACCCTGTTGCTGTAGCCAA'
+COND = dict(mv_conc=50.0, dv_conc=3.0, dntp_conc=0.8, dna_conc=250.0, temp_c=60.0)  # match the qPCR/PCR reaction + Ta
+
+def flag(label, res):
+    if res.structure_found:
+        print(f'{label}: Tm={res.tm:.1f}C dG={res.dg/1000:.2f} kcal/mol')   # dg is cal/mol -> /1000
+    else:
+        print(f'{label}: no structure')
+
+for name, seq in [('fwd', fwd), ('rev', rev)]:
+    flag(f'{name} hairpin', primer3.calc_hairpin(seq, **COND))
+    flag(f'{name} homodimer', primer3.calc_homodimer(seq, **COND))
+
+flag('heterodimer', primer3.calc_heterodimer(fwd, rev, **COND))
+end = primer3.calc_end_stability(fwd, rev, **COND)            # 3'-end-anchored stability = the extendable-dimer risk
+print(f"3'-end stability dG={end.dg/1000:.2f} kcal/mol")
+
+dtm = abs(primer3.calc_tm(fwd, **{k: COND[k] for k in ('mv_conc','dv_conc','dntp_conc','dna_conc')})
+          - primer3.calc_tm(rev, **{k: COND[k] for k in ('mv_conc','dv_conc','dntp_conc','dna_conc')}))
+print(f'pair Tm difference={dtm:.1f}C')
 ```
 
-## Check Hairpin Formation
+## Reading the Result: dG, the 3' End, and the Structure
 
-```python
-primer = 'ATGCGATCGATCGATCGATC'
+`ThermoResult.dg` is in cal/mol (divide by 1000 for kcal/mol). More negative = more stable = more concerning. But two structures with similar Tm can have very different dG at the annealing temperature, and the structure's own Tm is just where its dG crosses zero -- so judge by dG at `temp_c` = Ta, not by Tm. Print `res.ascii_structure` (or `res.ascii_structure_lines`) to SEE where the duplex sits: a dimer that pairs the recessed 3' ends is extendable and disqualifying even at modest dG, while a stronger structure with free 5'/internal pairing only transiently lowers free primer. `calc_end_stability(fwd, rev)` isolates exactly the 3'-end-of-fwd-against-rev stability, which is the right number for "will this dimer extend." It scores the 3' end of the FIRST argument, so check both directions (also `calc_end_stability(rev, fwd)`) -- either primer's 3' end can anchor the extendable dimer.
 
-hairpin = primer3.calc_hairpin(primer)
-print(f'Hairpin Tm: {hairpin.tm:.1f}C')
-print(f'Hairpin dG: {hairpin.dg:.1f} cal/mol')
-print(f'Hairpin dH: {hairpin.dh:.1f} cal/mol')
-print(f'Hairpin dS: {hairpin.ds:.1f} cal/mol/K')
+## Per-Method Failure Modes
 
-# Hairpin is problematic if Tm > annealing temp - 10
-annealing_temp = 60.0
-if hairpin.tm > annealing_temp - 10:
-    print(f'WARNING: Hairpin Tm too high for annealing at {annealing_temp}C')
-```
+### Ranking dimers by global dG or Tm
+**Trigger:** Accepting/rejecting a structure on its overall dG or Tm. **Mechanism:** a weak dimer that locks the 3' ends is extended into artifact, while a strong dimer with free 3' ends is benign. **Symptom:** a "passing" pair still produces primer-dimer; a "failing" pair amplifies fine. **Fix:** inspect 3'-end involvement (`calc_end_stability`, ASCII structure) and weight it above whole-molecule dG.
 
-## Check Self-Dimer (Homodimer)
+### Validating at the wrong temperature/conditions
+**Trigger:** Using default `temp_c=37` and default salt instead of the reaction's Ta and Mg2+. **Mechanism:** structure stability is strongly condition-dependent; a structure that melts below Ta is harmless. **Symptom:** false alarms (or false passes) that do not match the bench. **Fix:** set `temp_c` to the annealing temperature and pass the real mv/dv/dntp/dna concentrations.
 
-```python
-primer = 'ATGCGATCGATCGATCGATC'
+### Trusting dG without a structure
+**Trigger:** Reading `.dg`/`.tm` without checking `.structure_found`. **Mechanism:** when no structure forms the fields are not a real duplex. **Symptom:** nonsense or contradictory numbers. **Fix:** gate every result on `.structure_found` before reporting.
 
-homodimer = primer3.calc_homodimer(primer)
-print(f'Homodimer Tm: {homodimer.tm:.1f}C')
-print(f'Homodimer dG: {homodimer.dg:.1f} cal/mol')
+### Unit confusion (cal vs kcal)
+**Trigger:** Comparing `.dg` directly to a kcal/mol threshold. **Mechanism:** primer3-py reports dG in cal/mol, so -6000 is -6 kcal/mol. **Symptom:** thresholds off by 1000x; everything looks catastrophic or fine. **Fix:** divide `.dg` by 1000 before comparing.
 
-# Self-dimer is problematic if Tm is close to annealing temp
-if homodimer.tm > 40:
-    print('WARNING: Significant self-dimer potential')
-```
+### Validating only the binding core of a tailed primer
+**Trigger:** Checking the template-binding portion of a primer that carries a 5' tail. **Mechanism:** the full oligo (tail included) is what physically exists; palindromic restriction sites and complementary Gibson arms dimerize. **Symptom:** clean validation, dimers on the bench. **Fix:** run the calls on the FULL tailed oligo.
 
-## Check Primer-Primer Dimer (Heterodimer)
+## Quantitative Thresholds
 
-```python
-forward = 'ATGCGATCGATCGATCGATC'
-reverse = 'GCTAGCTAGCTAGCTAGCTA'
+These are FLAGGING heuristics for inspection, not hard cutoffs; they are condition-dependent (salt, Mg2+, primer concentration, Ta). Read the structure and judge at Ta before accepting or rejecting.
 
-heterodimer = primer3.calc_heterodimer(forward, reverse)
-print(f'Heterodimer Tm: {heterodimer.tm:.1f}C')
-print(f'Heterodimer dG: {heterodimer.dg:.1f} cal/mol')
+| Threshold | Source | Rationale |
+|-----------|--------|-----------|
+| Hairpin Tm at least ~10 C below Ta | SantaLucia & Hicks 2004 *Annu Rev Biophys* 33:415 | a hairpin that melts well below the anneal step is largely denatured |
+| Dimer dG flag if more negative than ~ -6 to -9 kcal/mol | -- | common practice line; below ~ -9 generally rejected; condition-dependent |
+| 3'-END dimer dG: be stricter, flag ~ -3 to -5 kcal/mol | Kwok 1990 *Nucleic Acids Res* 18:999 | 3'-anchored dimers are extendable, so weight them above global dG |
+| Pair Tm difference <= 2 C | Koressaar & Remm 2007 *Bioinformatics* 23:1289 | matched Tm so both primers anneal at one Ta |
+| Evaluate at `temp_c` = annealing temperature | SantaLucia & Hicks 2004 *Annu Rev Biophys* 33:415 | dG at Ta, not at 37 C, is the harm-relevant quantity |
 
-if heterodimer.tm > 40:
-    print('WARNING: Significant primer dimer potential between forward and reverse')
-```
+## Common Errors
 
-## Complete Primer Validation
+| Error / symptom | Cause | Solution |
+|-----------------|-------|----------|
+| `AttributeError: calcHeterodimer` | camelCase deprecated since primer3-py 1.0.0 | use snake_case `calc_heterodimer` |
+| Validation disagrees with the bench | default `temp_c`/salt, not the real reaction | pass reaction mv/dv/dntp/dna and `temp_c` = Ta |
+| A "clean" pair still makes primer-dimer | judged by global dG, missed the 3' end | check `calc_end_stability` and the ASCII structure |
+| dG threshold seems 1000x off | `.dg` is cal/mol, not kcal/mol | divide by 1000 before comparing |
+| `.tm`/`.dg` look meaningless | no structure formed | gate on `.structure_found` |
+| Pair amplifies one strand only | Tm mismatch, not a dimer | compare `calc_tm` of the two primers; redesign Tm-matched (primer-basics) |
 
-```python
-def validate_primer(primer_seq, name='Primer', annealing_temp=60.0):
-    '''Comprehensive primer validation'''
-    print(f'\n=== Validating {name}: {primer_seq} ===')
+## References
 
-    # Basic properties
-    tm = primer3.calc_tm(primer_seq)
-    gc = (primer_seq.count('G') + primer_seq.count('C')) / len(primer_seq) * 100
-    print(f'Length: {len(primer_seq)}bp')
-    print(f'Tm: {tm:.1f}C')
-    print(f'GC: {gc:.1f}%')
-
-    # Hairpin
-    hairpin = primer3.calc_hairpin(primer_seq)
-    print(f'Hairpin Tm: {hairpin.tm:.1f}C, dG: {hairpin.dg:.1f}')
-    if hairpin.tm > annealing_temp - 10:
-        print('  WARNING: Hairpin may interfere with annealing')
-
-    # Homodimer
-    homodimer = primer3.calc_homodimer(primer_seq)
-    print(f'Homodimer Tm: {homodimer.tm:.1f}C, dG: {homodimer.dg:.1f}')
-    if homodimer.tm > 40:
-        print('  WARNING: Self-dimer potential')
-
-    # 3' end stability (last 5 bases)
-    end_3 = primer_seq[-5:]
-    end_gc = (end_3.count('G') + end_3.count('C'))
-    print(f"3' end (last 5bp): {end_3}, {end_gc} G/C bases")
-    if end_gc > 3:
-        print("  WARNING: 3' end may be too GC-rich")
-    if end_gc == 0:
-        print("  WARNING: 3' end lacks GC clamp")
-
-    # Poly-X runs
-    for base in 'ATGC':
-        for run_len in range(5, len(primer_seq)):
-            if base * run_len in primer_seq:
-                print(f'  WARNING: Contains {base}x{run_len} run')
-                break
-
-    return {'tm': tm, 'gc': gc, 'hairpin_tm': hairpin.tm, 'homodimer_tm': homodimer.tm}
-
-validate_primer('ATGCGATCGATCGATCGATC', 'Forward')
-```
-
-## Validate Primer Pair
-
-```python
-def validate_primer_pair(forward, reverse, annealing_temp=60.0):
-    '''Validate a primer pair'''
-    print(f'\n=== Primer Pair Validation ===')
-    print(f'Forward: {forward}')
-    print(f'Reverse: {reverse}')
-
-    # Individual primer checks
-    fwd_tm = primer3.calc_tm(forward)
-    rev_tm = primer3.calc_tm(reverse)
-    print(f'\nTm Forward: {fwd_tm:.1f}C')
-    print(f'Tm Reverse: {rev_tm:.1f}C')
-    print(f'Tm Difference: {abs(fwd_tm - rev_tm):.1f}C')
-
-    if abs(fwd_tm - rev_tm) > 2:
-        print('  WARNING: Tm difference > 2C')
-
-    # Heterodimer check
-    heterodimer = primer3.calc_heterodimer(forward, reverse)
-    print(f'\nHeterodimer Tm: {heterodimer.tm:.1f}C')
-    print(f'Heterodimer dG: {heterodimer.dg:.1f} cal/mol')
-
-    if heterodimer.tm > 40:
-        print('  WARNING: Significant primer dimer potential')
-
-    # Check 3' complementarity specifically
-    end_heterodimer = primer3.calc_heterodimer(forward[-6:], reverse[-6:])
-    print(f"3' end heterodimer Tm: {end_heterodimer.tm:.1f}C")
-    if end_heterodimer.tm > 20:
-        print("  WARNING: 3' ends may form stable dimer")
-
-    # Individual hairpins and homodimers
-    fwd_hairpin = primer3.calc_hairpin(forward)
-    rev_hairpin = primer3.calc_hairpin(reverse)
-    fwd_homodimer = primer3.calc_homodimer(forward)
-    rev_homodimer = primer3.calc_homodimer(reverse)
-
-    print(f'\nForward hairpin Tm: {fwd_hairpin.tm:.1f}C')
-    print(f'Reverse hairpin Tm: {rev_hairpin.tm:.1f}C')
-    print(f'Forward homodimer Tm: {fwd_homodimer.tm:.1f}C')
-    print(f'Reverse homodimer Tm: {rev_homodimer.tm:.1f}C')
-
-    return {
-        'fwd_tm': fwd_tm,
-        'rev_tm': rev_tm,
-        'heterodimer_tm': heterodimer.tm,
-        'fwd_hairpin_tm': fwd_hairpin.tm,
-        'rev_hairpin_tm': rev_hairpin.tm,
-    }
-
-validate_primer_pair('ATGCGATCGATCGATCGATC', 'GCTAGCTAGCTAGCTAGCTA')
-```
-
-## Calculate End Stability (Native Function)
-
-```python
-# Use native calc_end_stability for 3' end thermodynamics
-primer = 'ATGCGATCGATCGATCGATC'
-
-# Calculate stability of last 5 bases (default)
-end_stability = primer3.calc_end_stability(primer)
-print(f"3' end stability: dG = {end_stability.dg:.1f} cal/mol")
-
-# More negative dG = more stable 3' end = better extension but higher mispriming risk
-if end_stability.dg < -9000:
-    print('  Note: Very stable 3\' end - good extension but watch for mispriming')
-```
-
-## Quick Tm-Only Checks (Lightweight)
-
-```python
-# For high-throughput screening, use Tm-only functions (return float, not ThermoResult)
-primer = 'ATGCGATCGATCGATCGATC'
-
-# Quick hairpin Tm check
-hairpin_tm = primer3.calc_hairpin_tm(primer)
-print(f'Hairpin Tm: {hairpin_tm:.1f}C')
-
-# Quick homodimer Tm check
-homodimer_tm = primer3.calc_homodimer_tm(primer)
-print(f'Homodimer Tm: {homodimer_tm:.1f}C')
-
-# Quick heterodimer Tm check
-forward = 'ATGCGATCGATCGATCGATC'
-reverse = 'GCTAGCTAGCTAGCTAGCTA'
-heterodimer_tm = primer3.calc_heterodimer_tm(forward, reverse)
-print(f'Heterodimer Tm: {heterodimer_tm:.1f}C')
-```
-
-## Fast Batch Screening with Tm-Only Functions
-
-```python
-def quick_screen_primers(primer_list, max_hairpin_tm=45, max_homodimer_tm=45):
-    '''Fast screening using Tm-only functions'''
-    passed = []
-    failed = []
-    for seq in primer_list:
-        hairpin_tm = primer3.calc_hairpin_tm(seq)
-        homodimer_tm = primer3.calc_homodimer_tm(seq)
-        if hairpin_tm < max_hairpin_tm and homodimer_tm < max_homodimer_tm:
-            passed.append(seq)
-        else:
-            failed.append((seq, hairpin_tm, homodimer_tm))
-    return passed, failed
-
-primers = ['ATGCGATCGATCGATCGATC', 'GCGCGCGCGCGCGCGCGCGC', 'ATATATATATATATATATAT']
-passed, failed = quick_screen_primers(primers)
-print(f'Passed: {len(passed)}, Failed: {len(failed)}')
-```
-
-## Check Specificity (3' End)
-
-```python
-def check_3prime_specificity(primer_seq):
-    '''Check if 3' end is suitable for specific priming'''
-    end_5bp = primer_seq[-5:]
-    end_3bp = primer_seq[-3:]
-
-    # Count G/C in last 5 bases
-    gc_5 = end_5bp.count('G') + end_5bp.count('C')
-
-    # Check last base
-    last_base = primer_seq[-1]
-
-    print(f"3' sequence: ...{end_5bp}")
-    print(f"G/C in last 5bp: {gc_5}")
-    print(f"Last base: {last_base}")
-
-    # Ideal: 1-2 G/C in last 5, ending in G or C
-    if gc_5 == 0:
-        print('  Consider: No GC clamp at 3\' end')
-    elif gc_5 > 3:
-        print('  Consider: 3\' end may be too stable (mispriming risk)')
-
-    if last_base in 'AT':
-        print('  Consider: Ending in A/T may reduce specificity')
-
-    return {'gc_5': gc_5, 'last_base': last_base}
-
-check_3prime_specificity('ATGCGATCGATCGATCGATC')
-```
-
-## Batch Validation
-
-```python
-import pandas as pd
-
-def batch_validate_primers(primers):
-    '''Validate multiple primers'''
-    results = []
-    for name, seq in primers.items():
-        tm = primer3.calc_tm(seq)
-        gc = (seq.count('G') + seq.count('C')) / len(seq) * 100
-        hairpin = primer3.calc_hairpin(seq)
-        homodimer = primer3.calc_homodimer(seq)
-
-        results.append({
-            'name': name,
-            'sequence': seq,
-            'length': len(seq),
-            'tm': round(tm, 1),
-            'gc_pct': round(gc, 1),
-            'hairpin_tm': round(hairpin.tm, 1),
-            'homodimer_tm': round(homodimer.tm, 1),
-        })
-
-    return pd.DataFrame(results)
-
-primers = {
-    'GAPDH_F': 'GTCTCCTCTGACTTCAACAGCG',
-    'GAPDH_R': 'ACCACCCTGTTGCTGTAGCCAA',
-    'ACTB_F': 'CATGTACGTTGCTATCCAGGC',
-    'ACTB_R': 'CTCCTTAATGTCACGCACGAT',
-}
-
-df = batch_validate_primers(primers)
-print(df.to_string(index=False))
-```
-
-## Thermodynamic Parameters Under Different Conditions
-
-```python
-primer = 'ATGCGATCGATCGATCGATC'
-
-# Standard conditions
-tm_standard = primer3.calc_tm(primer)
-hairpin_standard = primer3.calc_hairpin(primer)
-
-# Custom salt conditions
-tm_custom = primer3.calc_tm(primer, mv_conc=100.0, dv_conc=2.0, dntp_conc=0.4, dna_conc=200.0)
-hairpin_custom = primer3.calc_hairpin(primer, mv_conc=100.0, dv_conc=2.0)
-
-print(f'Standard conditions: Tm={tm_standard:.1f}C, Hairpin Tm={hairpin_standard.tm:.1f}C')
-print(f'Custom conditions:   Tm={tm_custom:.1f}C, Hairpin Tm={hairpin_custom.tm:.1f}C')
-```
-
-## Validation Thresholds
-
-| Property | Acceptable | Optimal |
-|----------|------------|---------|
-| Length | 18-30 bp | 20-25 bp |
-| Tm | 55-65C | 58-62C |
-| GC% | 35-65% | 45-55% |
-| Hairpin Tm | <45C | <35C |
-| Homodimer Tm | <45C | <35C |
-| Heterodimer Tm | <45C | <35C |
-| 3' GC (last 5bp) | 1-3 | 2 |
+- Untergasser A, Cutcutache I, Koressaar T, et al. 2012. Primer3 - new capabilities and interfaces. *Nucleic Acids Res* 40:e115.
+- SantaLucia J Jr, Hicks D. 2004. The thermodynamics of DNA structural motifs. *Annu Rev Biophys Biomol Struct* 33:415-440.
+- SantaLucia J Jr. 1998. A unified view of polymer, dumbbell, and oligonucleotide DNA nearest-neighbor thermodynamics. *PNAS* 95:1460-1465.
+- Koressaar T, Remm M. 2007. Enhancements and modifications of primer design program Primer3. *Bioinformatics* 23:1289-1291.
+- Kwok S, Kellogg DE, McKinney N, et al. 1990. Effects of primer-template mismatches on the polymerase chain reaction: human immunodeficiency virus type 1 model studies. *Nucleic Acids Res* 18:999-1005.
 
 ## Related Skills
 
-- primer-basics - Design new primers with primer3
-- qpcr-primers - Design and validate qPCR assays
-- database-access/local-blast - BLAST primers against genome for specificity
+- primer-basics - Design Tm-matched primer pairs (redesign if validation fails)
+- primer-specificity - Genome-wide off-target / in-silico PCR (a different question)
+- qpcr-primers - Co-design qPCR primers and probes, including probe self-structure
+- sequence-manipulation/seq-objects - Reverse-complement and assemble tailed oligos to validate

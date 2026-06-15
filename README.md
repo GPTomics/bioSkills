@@ -152,7 +152,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **phasing-imputation** | 5 | Beagle, SHAPEIT5, Minimac4, IMPUTE5, GLIMPSE2, bcftools | The copying-HMM foundations and genotyping-strategy fork, reference-panel selection and strand/build harmonization, statistical haplotype phasing, genotype imputation (array and low-coverage WGS) as dosages, and MAF-stratified imputation QC |
 | **atac-seq** | 12 | MACS3, DiffBind, csaw, chromVAR, TOBIAS, scprinter, ArchR, Signac, SnapATAC2, Cicero, ABC, chromBPNet, BPNet, scBasset, EnFormer, WASP, GATK ASEReadCounter, RASQUAL | Peak calling (MACS/Genrich/HMMRATAC), ENCODE 4 QC with spike-in / sex-chr, fixed-width consensus peaksets, differential accessibility with permutation/spike-in/Hi-C-anchored, TF footprinting (bias correction including chromBPNet), motif variability (chromVAR/scBasset), nucleosome positioning (NucleoATAC/V-plots/H2A.Z), single-cell ATAC (Signac/ArchR/SnapATAC2/scArches), cis-regulatory co-accessibility (Cicero/SCENIC+), deep learning (chromBPNet/BPNet/scBasset/EnFormer; in silico variant effect; TF-MoDISco motif discovery), enhancer-gene linking (ABC, ENCODE-rE2G, HiChIP, CRISPRi-FlowFISH validation), allele-specific accessibility (WASP, GATK, RASQUAL caQTL) |
 | **genome-assembly** | 9 | GenomeScope2, SPAdes, Flye, hifiasm, metaFlye, Pilon, YaHS, CheckM2, FCS-GX, QUAST, BUSCO, Merqury | Pre-assembly k-mer profiling, short/long/HiFi and metagenome assembly, polishing, Hi-C scaffolding, contamination detection, three-axis quality assessment |
-| **primer-design** | 3 | primer3-py | PCR primer design, qPCR probes, validation |
+| **primer-design** | 4 | primer3-py | PCR/qPCR primer design, probe co-design, thermodynamic validation, genome specificity (in-silico PCR) |
 | **spatial-transcriptomics** | 11 | Squidpy, SpatialData, Scanpy, scimap | Visium, Xenium, Slide-seq, spatial stats, domain detection, deconvolution, spatial proteomics |
 | **hi-c-analysis** | 9 | cooler, cooltools, pairtools, HiCExplorer, chromosight, FitHiChIP | Read-pair processing and library QC, cooler matrices, ICE/KR balancing and P(s) expected, A/B compartments, TADs, loops, visualization, differential comparison, protein-directed 3C (HiChIP/PLAC-seq/Capture Hi-C) |
 | **alternative-splicing** | 9 | rMATS-turbo, leafcutter, MAJIQ, SpliceAI, FRASER 2.0, FLAIR, IsoformSwitchAnalyzeR | Quantification, differential splicing, isoform switching/DTU, sashimi viz, splicing QC, single-cell splicing, splice variant prediction (SpliceAI), outlier detection (FRASER2/DROP), long-read splicing |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 544 skills across 63 categories**
+**Total: 545 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 544 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 545 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
