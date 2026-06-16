@@ -1,84 +1,77 @@
 # Spectral Libraries - Usage Guide
 
 ## Overview
-Build and use spectral libraries containing reference MS2 spectra for faster and more sensitive peptide identification in DIA and targeted proteomics.
+Builds and manages DIA spectral libraries, which are tables of peptide query parameters (precursor m/z, a few fragment m/z plus relative intensities, normalized RT, optional CCS) rather than whole spectra. Covers experimental DDA, chromatogram, predicted (Koina-served Prosit/AlphaPeptDeep/MS2PIP, DeepLC), and empirically-corrected libraries, plus iRT/CiRT RT calibration, NCE tuning, format conversion, and QC/merge. The load-bearing point: a predicted library is only as good as its empirical RT/CCS calibration, and NCE must match the predictor's training.
 
 ## Prerequisites
 ```bash
-pip install pandas numpy
-# CLI: EasyPQP, SpectraST, DIA-NN
-# Deep learning: Prosit (web), MS2PIP, DeepLC
+pip install koinapy ms2pip deeplc pandas numpy scipy
+# CLI: EncyclopeDIA (Java), EasyPQP/FragPipe for DDA libraries, OpenMS for OpenSwathDecoyGenerator
+# Predicted intensities/RT/CCS also served from Koina (koina.wilhelmlab.org)
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Build a spectral library from my DDA search results"
-- "Generate a predicted library using Prosit for my protein list"
-- "Convert my library to DIA-NN format"
+- "Generate a predicted library with Prosit via Koina for my protein list"
+- "Calibrate my predicted iRT to the observed retention times in my run"
+- "Convert my Spectronaut library to DIA-NN format"
+- "Merge two libraries without dropping distinct charge states"
+- "Build an empirically-corrected predicted library for my non-model organism"
 
 ## Example Prompts
 
-### Building Empirical Libraries
-> "Create a spectral library from my MaxQuant msms.txt using EasyPQP"
-
-> "Build a SpectraST library from my pepXML search results"
-
-> "Combine libraries from multiple DDA experiments into a consensus library"
-
 ### Generating Predicted Libraries
-> "Use Prosit to predict spectra for the human proteome"
+> "Use Prosit via Koina to predict fragment intensities and iRT for this peptide list"
 
-> "Generate a predicted library with MS2PIP for my target protein list"
+> "Predict a full library including CCS with AlphaPeptDeep for my timsTOF data"
 
-> "Create a DeepLC retention time library for my FASTA sequences"
+> "Scan candidate NCE values and pick the one that best matches my real spectra"
 
-### Hybrid Libraries
-> "Merge my empirical library with Prosit predictions for missing peptides"
+### Calibrating Retention Time
+> "Fit my predicted iRT to observed RT using the Biognosys iRT peptides"
 
-> "Supplement my DDA library with predicted spectra for low-abundance proteins"
+> "I have no iRT spike-in -- calibrate retention time using CiRT endogenous peptides"
+
+> "My gradient is nonlinear; use a LOWESS fit instead of a linear iRT alignment"
+
+### Empirical and Chromatogram Libraries
+> "Build a chromatogram library from my GPF-DIA runs with EncyclopeDIA"
+
+> "Build an empirically-corrected predicted library by searching one GPF-DIA pass"
+
+> "Build a DDA library from my FragPipe search results with EasyPQP"
 
 ### Format Conversion
-> "Convert my SpectraST .splib to DIA-NN .tsv format"
+> "Convert my library to DIA-NN tsv format and check the RT units"
 
-> "Export my library in PQP format for OpenSWATH"
+> "Export my library for OpenSWATH and generate decoys with OpenSwathDecoyGenerator"
 
-> "Transform the Spectronaut .kit library to a format compatible with DIA-NN"
+> "Reconcile the modification notation between UniMod accessions and delta masses"
 
-### Quality Assessment
-> "Check the number of precursors and transitions in my library"
+### Quality Assessment and Merging
+> "Report precursors, proteins, and transitions per precursor in my library"
 
-> "Analyze the retention time coverage and charge state distribution"
-
-> "Identify peptides missing from my library compared to the proteome"
+> "Merge these libraries keeping the full transition key so I don't drop charge states"
 
 ## What the Agent Will Do
-1. Load source data (search results, FASTA, or existing library)
-2. Build or generate spectral library
-3. Filter for quality (RT, intensity, charge)
-4. Convert to target format
-5. Generate library statistics
-
-## Library Types
-
-| Type | Source | Pros | Cons |
-|------|--------|------|------|
-| Empirical | DDA experiments | Highest quality spectra | Limited coverage |
-| Predicted | Deep learning (Prosit) | Complete proteome | Slightly lower accuracy |
-| Hybrid | Both combined | Best coverage + quality | More complex to build |
-
-## Key Formats
-
-| Format | Tool | Extension |
-|--------|------|-----------|
-| SpectraST | TPP | .splib |
-| PQP | OpenMS/Skyline | .pqp |
-| DLIB | EncyclopeDIA | .dlib |
-| TSV | DIA-NN/OpenSWATH | .tsv |
-| SSL | Spectronaut | .kit |
+1. Choose a library type (experimental DDA, chromatogram, predicted, or empirically-corrected) from the project context.
+2. Generate fragment intensities and RT (and CCS) via Koina, MS2PIP/DeepLC, or an empirical pass.
+3. Tune NCE by scanning candidate values for maximum spectral contrast against real spectra.
+4. Calibrate predicted iRT/CCS to the actual gradient/instrument using anchor peptides (R^2 > 0.95).
+5. Convert to the target format, reconciling RT units, intensity scaling, and modification notation; generate decoys for OpenSWATH.
+6. QC and merge libraries on the full transition key, then report precursor/protein/transition counts.
 
 ## Tips
-- Empirical libraries from same sample type give best results
-- Predicted libraries enable analysis without prior DDA data
-- Aim for 6-10 transitions per precursor
-- Check retention time coverage spans your gradient
-- Library-free DIA-NN is a good alternative when no library exists
+- A predicted library searched without RT calibration extracts at the wrong time and IDs collapse silently.
+- Fragment relative intensities transfer across instruments at matched NCE; predicted RT/CCS do not -- always calibrate them.
+- Do not reuse NCE=30 from a tutorial; scan and pick the best NCE for the instrument and method.
+- Retain about 6 fragments per precursor; more invites interference.
+- OpenSWATH needs decoys in the library; DIA-NN and Spectronaut generate their own, so do not supply both.
+- SpectraST is legacy; prefer EasyPQP/FragPipe for DDA-based libraries.
+
+## Related Skills
+
+- dia-analysis - Run the DIA search against the library and choose the q-value context
+- peptide-identification - Generate the DDA identifications a DDA library is built from
+- ptm-analysis - Design PTM-resolved and modified-peptide libraries
+- quantification - Summarize and roll up the search output to protein abundances

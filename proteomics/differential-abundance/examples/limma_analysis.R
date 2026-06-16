@@ -1,45 +1,49 @@
 # Reference: limma 3.58+, ashr 2.2+ | Verify API if version differs
-# Differential protein abundance with limma and ashr FC shrinkage
+# Differential protein abundance with limma empirical-Bayes moderation, treat() min-FC, and ashr FC shrinkage.
+# At n=3-5 the per-protein variance is unusable raw; trend=TRUE + robust=TRUE moderation is the load-bearing step.
 library(limma)
 
-protein_matrix <- as.matrix(read.csv('protein_intensities.csv', row.names = 1))
-sample_info <- read.csv('sample_info.csv')
+set.seed(0)
+n_proteins <- 400
+n_true <- 40
+n_per_group <- 4  # small n typical of proteomics: only ~6 residual df before moderation
+LFC_THRESHOLD <- log2(1.2)  # 1.2-fold floor; treat tests against this null without double-filter FDR inflation
 
-# Preprocess: log2 transform raw intensities
-log2_matrix <- log2(protein_matrix)
-log2_matrix[!is.finite(log2_matrix)] <- NA
+# Simulate a log2 intensity matrix: first n_true proteins up in Treatment (0.4 within-group spread, clean demo)
+log2_matrix <- matrix(rnorm(n_proteins * 2 * n_per_group, 20, 0.4), nrow = n_proteins)
+log2_matrix[1:n_true, (n_per_group + 1):(2 * n_per_group)] <-
+    log2_matrix[1:n_true, (n_per_group + 1):(2 * n_per_group)] + 1.5  # true up-regulation in case
+rownames(log2_matrix) <- sprintf('P%04d', seq_len(n_proteins))
 
-# Normalize: median centering via limma scale method
+sample_info <- data.frame(condition = factor(rep(c('Control', 'Treatment'), each = n_per_group),
+                                             levels = c('Control', 'Treatment')))
+
+# Normalize log2 intensities (median centering); summarization/normalization mechanics live in quantification
 log2_norm <- normalizeBetweenArrays(log2_matrix, method = 'scale')
 
-# Design and contrasts
-sample_info$condition <- factor(sample_info$condition, levels = c('Control', 'Treatment'))
 design <- model.matrix(~0 + condition, data = sample_info)
 colnames(design) <- levels(sample_info$condition)
 
 fit <- lmFit(log2_norm, design)
 contrast_matrix <- makeContrasts(Treatment - Control, levels = design)
 fit2 <- contrasts.fit(fit, contrast_matrix)
-fit2 <- eBayes(fit2, trend = TRUE, robust = TRUE)
+fit2 <- eBayes(fit2, trend = TRUE, robust = TRUE)  # trend mandatory for intensity data; robust Winsorizes outliers
 
-results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')
-
-# FC shrinkage with ashr for more accurate effect size estimates
-if (requireNamespace('ashr', quietly = TRUE)) {
-    library(ashr)
-    se <- sqrt(fit2$s2.post) * fit2$stdev.unscaled[, 1]
-    shrunk <- ash(fit2$coefficients[, 1], se, mixcompdist = 'normal')
-    results$logFC_raw <- results$logFC
-    results$logFC <- shrunk$result$PosteriorMean[match(rownames(results), names(fit2$coefficients[, 1]))]
-    results$lfsr <- shrunk$result$lfsr[match(rownames(results), names(fit2$coefficients[, 1]))]
-}
-
-results$protein <- rownames(results)
+results <- topTable(fit2, coef = 1, number = Inf, adjust.method = 'BH')  # columns include adj.P.Val, no $FDR
 results$significant <- results$adj.P.Val < 0.05
 
-cat('Total proteins tested:', nrow(results), '\n')
-cat('Significant (adj.p < 0.05):', sum(results$significant), '\n')
-cat('Up-regulated:', sum(results$significant & results$logFC > 0), '\n')
-cat('Down-regulated:', sum(results$significant & results$logFC < 0), '\n')
+# Minimum-fold-change testing: treat()+topTreat(), never topTable(lfc=...) nor a post-hoc volcano double filter
+fit_treat <- treat(fit2, lfc = LFC_THRESHOLD)
+treat_results <- topTreat(fit_treat, coef = 1, number = Inf)  # topTreat omits the B column
 
-write.csv(results, 'differential_results.csv', row.names = FALSE)
+# Fold-change shrinkage for effect-size recovery (report alongside raw logFC; use raw FC for GSEA)
+if (requireNamespace('ashr', quietly = TRUE)) {
+    se <- sqrt(fit2$s2.post) * fit2$stdev.unscaled[, 1]
+    shrunk <- ashr::ash(fit2$coefficients[, 1], se, mixcompdist = 'normal')
+    results$logFC_shrunk <- shrunk$result$PosteriorMean[match(rownames(results), rownames(fit2$coefficients))]
+}
+
+cat('Tested:', nrow(results), '\n')
+cat('Significant (adj.P.Val < 0.05):', sum(results$significant), '\n')
+cat('Pass 1.2-fold treat() (adj.P.Val < 0.05):', sum(treat_results$adj.P.Val < 0.05), '\n')
+print(head(results[order(results$adj.P.Val), c('logFC', 'adj.P.Val')]))
