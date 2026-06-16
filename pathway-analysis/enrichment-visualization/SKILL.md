@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-enrichment-visualization
-description: Turns an enrichResult or gseaResult from clusterProfiler/enrichplot into a figure that collapses or shows gene-set redundancy, using dotplot, barplot, cnetplot, emapplot, treeplot, ridgeplot, gseaplot2, and upsetplot. Covers why a default top-20 GO dotplot is one biological theme drawn twenty times (the DAG/nesting guarantees redundant overlapping terms), so the figure is a modeling choice between SHOWING redundancy (pairwise_termsim -> emapplot/treeplot) and DELETING it (simplify/REVIGO); why cnetplot/emapplot/treeplot need pairwise_termsim first; why enrichplot ships no barplot for gseaResult (a bar cannot carry a signed NES); why GeneRatio is not fold enrichment; and why showCategory silently truncates. Use when plotting ORA or GSEA results, collapsing redundant GO terms visually, choosing the dotplot encoding, or building a publication enrichment figure. Statistics come from go-enrichment and gsea; generic ggplot -> data-visualization/ggplot2-fundamentals; method decision -> enrichment-foundations.
+description: Turns an enrichResult or gseaResult from clusterProfiler/enrichplot into a figure that collapses or shows gene-set redundancy, using dotplot, barplot, cnetplot, emapplot, treeplot, ridgeplot, gseaplot2, and upsetplot. Covers why a default top-20 GO dotplot is one biological theme drawn twenty times (the DAG/nesting guarantees redundant overlapping terms), so the figure is a modeling choice between SHOWING redundancy (pairwise_termsim -> emapplot/treeplot) and DELETING it (simplify/REVIGO); why cnetplot/emapplot/treeplot need pairwise_termsim first; why enrichplot ships no barplot for gseaResult (a bar cannot carry a signed NES); why GeneRatio is not fold enrichment; and why showCategory silently truncates. Use when plotting ORA or GSEA results, collapsing redundant GO terms visually, encoding a dotplot, or building a publication enrichment figure. Statistics come from go-enrichment and gsea; generic ggplot -> data-visualization/ggplot2-fundamentals.
 tool_type: r
 primary_tool: enrichplot
 ---
@@ -22,7 +22,7 @@ The single biggest hazard here is the cnetplot/emapplot/goplot API churn. enrich
 **"Make a figure from my enrichment results"** -> Render an enrichResult or gseaResult with enrichplot, choosing how the gene-set REDUNDANCY is handled - because a raw top-N plot is one biological theme drawn N times, not N findings.
 - R: `dotplot(ego, showCategory=20)`; redundancy as structure via `emapplot(pairwise_termsim(ego))`
 
-Scope: turn an `enrichResult`/`gseaResult`/`compareClusterResult` into a figure, and decide whether to SHOW or DELETE redundancy. The ORA/GSEA statistics that produce the objects -> go-enrichment, gsea. The method-selection / why-sets-overlap theory -> enrichment-foundations. `simplify()` existence (the GO-DAG dedup) -> go-enrichment. Generic ggplot2 grammar (scales, themes, faceting) -> data-visualization/ggplot2-fundamentals. Cytoscape UI mechanics -> data-visualization/network-visualization.
+Scope: turn an `enrichResult`/`gseaResult`/`compareClusterResult` into a figure, and decide whether to SHOW or DELETE redundancy. The ORA/GSEA statistics that produce the objects -> go-enrichment, gsea. The method-selection fork lives in the category README; this skill already explains the redundancy (DAG/nesting) it renders. `simplify()` existence (the GO-DAG dedup) -> go-enrichment. Generic ggplot2 grammar (scales, themes, faceting) -> data-visualization/ggplot2-fundamentals. Cytoscape UI mechanics -> data-visualization/network-visualization.
 
 ## The Single Most Important Modern Insight -- An Enrichment Figure Is a Modeling Choice, Not a Rendering of a Table
 
@@ -220,7 +220,6 @@ ggsave('fig.pdf', p, width = 10, height = 8)
 
 ## Related Skills
 
-- enrichment-foundations - The method-selection decision and why gene sets overlap (the DAG/nesting theory this skill renders)
 - go-enrichment - Produces the enrichResult; owns simplify() the GO-DAG dedup
 - gsea - Produces the gseaResult; owns the enrichment score and leading-edge concept
 - kegg-pathways - KEGG enrichResult/gseaResult to plot (pathview pathway-diagram overlay lives there)

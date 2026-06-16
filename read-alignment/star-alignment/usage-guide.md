@@ -1,122 +1,101 @@
 # STAR RNA-seq Alignment - Usage Guide
 
 ## Overview
-STAR (Spliced Transcripts Alignment to a Reference) is the most widely used RNA-seq aligner. It's extremely fast, supports splice-aware alignment, and can detect novel junctions with two-pass mode.
+
+STAR is the fast, splice-aware RNA-seq aligner that places reads across exon-exon junctions on the genome. It is the choice when the deliverable needs genomic coordinates -- novel isoforms, fusions, RNA variant calling, coverage tracks, splicing QC, or single-cell counting (STARsolo) -- and has memory to spare (~30 GB for human). The decisions that actually shape the result are the splice-junction database (built from a GTF at sjdbOverhang = readlength - 1), the per-sample vs cohort two-pass choice, the 255-for-unique MAPQ that breaks GATK, and the strand column STAR reports; this skill emphasizes those over the basic command.
 
 ## Prerequisites
+
 ```bash
 conda install -c bioconda star samtools
 ```
 
+- A genome FASTA and a matching GTF annotation from the same provider/release (contig naming must agree; reconcile with alignment-files).
+- ~30 GB RAM for a human index; route memory-constrained jobs to hisat2-alignment.
+- The read length, to set `--sjdbOverhang` at index build.
+
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Align my RNA-seq reads using STAR"
-- "Generate a STAR index for my reference genome and GTF annotation"
-- "Run two-pass STAR alignment with gene counting"
+- "Build a STAR index for my genome and GTF with the right sjdbOverhang for 150 bp reads"
+- "Align my paired-end RNA-seq reads with STAR in two-pass mode and get gene counts"
+- "Detect my library strandedness from the STAR GeneCounts output"
+- "Align RNA-seq for GATK variant calling without the empty-VCF MAPQ problem"
+- "Run STAR for fusion detection with STAR-Fusion"
 
 ## Example Prompts
 
-### Index Generation
-> "Create a STAR index for genome.fa with genes.gtf annotation for 150bp reads"
+### Index generation
+> "Create a STAR index for genome.fa with genes.gtf for 150 bp reads, and reduce genomeSAindexNbases appropriately because my genome is a 5 Mb bacterial assembly."
 
-> "Generate STAR genome index with appropriate sjdbOverhang for my 100bp reads"
+### Two-pass and counts
+> "Align my paired-end RNA-seq with STAR two-pass, output a coordinate-sorted BAM and gene counts, and tell me from the counts whether my library is stranded."
 
-### Basic Alignment
-> "Align my paired-end RNA-seq reads to the STAR index"
+### RNA variant calling
+> "Align RNA-seq with STAR for GATK variant calling and make sure the unique-read MAPQ does not cause an empty VCF."
 
-> "Run STAR alignment on sample_R1.fq.gz and sample_R2.fq.gz"
+### Cohort splicing
+> "I am doing differential splicing across 30 samples -- how do I run STAR two-pass so the junction set is identical across samples instead of per-sample?"
 
-### Two-Pass Mode
-> "Align RNA-seq reads using STAR two-pass mode for novel junction discovery"
-
-> "Run STAR with twopassMode Basic and generate gene counts"
-
-### Multi-Sample Studies
-> "Collect splice junctions from all samples and realign with combined junctions"
-
-> "Run two-pass alignment across multiple samples for my population study"
+### Fusion detection
+> "Run STAR with chimeric output for STAR-Fusion on my tumor RNA-seq."
 
 ## What the Agent Will Do
-1. Generate STAR index if not present (with correct sjdbOverhang)
-2. Align reads with appropriate parameters
-3. Run two-pass mode if requested for novel junction discovery
-4. Generate gene counts if quantMode is enabled
-5. Sort and index output BAM file
+
+1. Build the index with `--sjdbGTFfile` and `--sjdbOverhang = readlength - 1`, reducing `--genomeSAindexNbases` for small genomes.
+2. Align to a coordinate-sorted BAM (STAR sorts natively; a later samtools sort is redundant), adding `--quantMode GeneCounts` to also read strandedness.
+3. Choose per-sample two-pass for novel-junction work, or the cohort pooling recipe (shared SJ.out.tab) for splicing comparisons.
+4. Set `--outSAMmapqUnique 60` for any STAR -> GATK path so the 255 uniques are not dropped.
+5. Avoid MAPQ-filtering RNA output for counting (it deletes multimappers), and route multimapper handling to the counter.
+6. Reconcile genome/GTF contig naming and run the QC gate (alignment-files/bam-statistics) before counting or calling.
+
+## Index sjdbOverhang by Read Length
+
+| Read length | sjdbOverhang |
+|-------------|--------------|
+| 50 bp | 49 |
+| 75 bp | 74 |
+| 100 bp | 99 |
+| 150 bp | 149 |
+
+## Strandedness from GeneCounts
+
+| Library type | ReadsPerGene column | Equivalent counter setting |
+|--------------|---------------------|----------------------------|
+| Unstranded | column 2 | htseq `-s no` / featureCounts `-s 0` |
+| Forward (Ligation) | column 3 | htseq `-s yes` / featureCounts `-s 1` |
+| Reverse (dUTP, TruSeq -- the common case) | column 4 | htseq `-s reverse` / featureCounts `-s 2` |
 
 ## Tips
-- Set sjdbOverhang to (read length - 1) for optimal junction detection
-- Use --twopassMode Basic for most RNA-seq analyses
-- STAR requires ~30GB RAM for human genome; use HISAT2 for low-memory systems
-- Use --quantMode GeneCounts for built-in gene counting
-- Check Log.final.out for alignment quality metrics
 
-## Index Parameters
+- Set `--sjdbOverhang` to read length - 1 at index build; the default 100 quietly degrades junction sensitivity for short reads.
+- STAR already coordinate-sorts with `--outSAMtype BAM SortedByCoordinate` -- do not run `samtools sort` again.
+- For any STAR -> GATK RNA-variant path, set `--outSAMmapqUnique 60` so the 255 uniques are not dropped as "unavailable," and inject read groups with `--outSAMattrRGline ID:.. SM:.. PL:ILLUMINA LB:..` (space-separated tags, not bwa's `-R '@RG\t...'`) because GATK requires them.
+- STAR does not auto-detect gzip; pass `--readFilesCommand zcat` for `.gz` input (bwa/bowtie2/HISAT2 auto-detect it). For htseq-count, emit `--outSAMtype BAM Unsorted` or re-sort with `samtools sort -n`; featureCounts accepts coordinate order.
+- Do not MAPQ-filter STAR output for counting; a `-q 10` filter deletes every multimapper and under-counts gene families.
+- For cohort splicing/sQTL, pool the pass-1 SJ.out.tab files and re-align all samples against one common junction set; per-sample two-pass is a batch effect.
+- Infer strandedness from the GeneCounts columns rather than assuming; the wrong column roughly halves the counts.
+- Reduce `--genomeSAindexNbases` for small genomes or STAR silently builds a broken index.
 
-| Read Length | sjdbOverhang |
-|-------------|--------------|
-| 50bp | 49 |
-| 100bp | 99 |
-| 150bp | 149 |
+## STAR vs HISAT2
 
-## Complete RNA-seq Pipeline
+| Factor | STAR | HISAT2 |
+|--------|------|--------|
+| Memory (human) | ~30 GB | ~7 GB |
+| Speed | very fast | fast |
+| Native gene counts | yes (GeneCounts) | no |
+| Fusion detection | yes (chimeric) | no |
+| MAPQ for GATK | 255 -> set 60 | 60 (GATK-friendly) |
+| Downstream coupling | featureCounts, RSEM, STAR-Fusion, STARsolo | StringTie/Cufflinks via --dta |
 
-```bash
-GENOME=genome.fa
-GTF=genes.gtf
-INDEX_DIR=star_index
-R1=sample_R1.fq.gz
-R2=sample_R2.fq.gz
-PREFIX=sample_
-THREADS=16
+## Related Skills
 
-if [ ! -d "$INDEX_DIR" ]; then
-    mkdir -p $INDEX_DIR
-    STAR --runMode genomeGenerate \
-        --runThreadN $THREADS \
-        --genomeDir $INDEX_DIR \
-        --genomeFastaFiles $GENOME \
-        --sjdbGTFfile $GTF \
-        --sjdbOverhang 149
-fi
-
-STAR --runThreadN $THREADS \
-    --genomeDir $INDEX_DIR \
-    --readFilesIn $R1 $R2 \
-    --readFilesCommand zcat \
-    --outFileNamePrefix $PREFIX \
-    --outSAMtype BAM SortedByCoordinate \
-    --twopassMode Basic \
-    --quantMode GeneCounts
-
-samtools index ${PREFIX}Aligned.sortedByCoord.out.bam
-```
-
-## Stranded Libraries
-
-| Library Type | STAR quantMode Column |
-|--------------|----------------------|
-| Unstranded | Column 2 |
-| Forward (Ligation) | Column 3 |
-| Reverse (dUTP, TruSeq) | Column 4 |
-
-## Troubleshooting
-
-### Low Unique Mapping
-- Check read quality
-- Verify correct reference genome
-- Check for contamination
-
-### Memory Errors
-```bash
---limitBAMsortRAM 10000000000
---outSAMtype BAM Unsorted
-```
-
-### STAR vs HISAT2
-
-| Feature | STAR | HISAT2 |
-|---------|------|--------|
-| Memory | High (~30GB) | Low (~8GB) |
-| Speed | Very fast | Fast |
-| Two-pass | Built-in | Manual |
-| Quantification | Built-in | No |
+- hisat2-alignment - Low-memory splice-aware alternative to STAR
+- bwa-alignment - DNA short-read mapping (when reads do not cross junctions)
+- read-qc/rnaseq-qc - RNA destination metrics: rRNA, gene-body coverage, strandedness
+- read-qc/fastp-workflow - Trim adapters/poly-A before alignment
+- alignment-files/bam-statistics - flagstat/idxstats QC gate; what a high mapping rate hides; contig naming
+- rna-quantification/featurecounts-counting - Count aligned reads over genes (NH-aware multimapper handling)
+- rna-quantification/alignment-free-quant - Salmon/kallisto when only known-transcript DE is needed
+- differential-expression/deseq2-basics - Downstream DE from the count matrix
+- single-cell/data-io - STARsolo single-cell counts into a single-cell workflow

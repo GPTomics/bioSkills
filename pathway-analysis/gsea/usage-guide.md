@@ -61,7 +61,7 @@ Tell your AI agent what you want to do:
 | Detects | strong individual changes | coordinated subtle shifts |
 | Functions | enrichGO, enrichKEGG | gseGO, gseKEGG, GSEA |
 
-The full ORA-vs-FCS-vs-topology fork and the competitive/self-contained null theory live in enrichment-foundations.
+The full ORA-vs-FCS-vs-topology fork and the competitive/self-contained null theory live in the category README.
 
 ## Choosing a Ranking Statistic
 
@@ -97,6 +97,5 @@ apeglm/ashr-shrunk DESeq2 results drop the `stat` column - pull `stat` from the 
 - reactome-pathways - Reactome curated-pathway enrichment (local DB)
 - wikipathways - WikiPathways community-pathway enrichment
 - enrichment-visualization - gseaplot2, ridgeplot, and dotplot of GSEA results
-- enrichment-foundations - The ORA-vs-FCS-vs-topology fork and competitive/self-contained null theory
 - differential-expression/de-results - Source of the ranking statistic and the padj column conventions
 - workflows/expression-to-pathways - End-to-end DE-to-enrichment pipeline

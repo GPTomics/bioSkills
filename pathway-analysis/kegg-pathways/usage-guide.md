@@ -109,6 +109,5 @@ SPIA output adds NDE, pNDE (over-representation), tA and pPERT (perturbation thr
 - reactome-pathways - Reactome curated-pathway enrichment (reproducible local DB)
 - wikipathways - WikiPathways community-pathway enrichment
 - enrichment-visualization - Dot/bar/cnet/emap plots of enrichment results
-- enrichment-foundations - The ORA/FCS/topology generation taxonomy and null theory
 - differential-expression/de-results - Source of the gene list and the fold-changes
 - workflows/expression-to-pathways - End-to-end DE-to-enrichment pipeline

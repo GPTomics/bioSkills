@@ -87,6 +87,8 @@ done
 
 ### Step 2: BWA-MEM2 Alignment
 
+For human DNA, map to a decoy-containing GRCh38 analysis set (the reference/analysis-set choice is in read-alignment/bwa-alignment; the QC gate is alignment-files); add `-Y` if structural-variant calling is downstream and `-K 100000000` for thread-count-invariant output. Read groups (SM/ID/PL/LB) are a hard GATK requirement.
+
 ```bash
 # Index reference (once)
 bwa-mem2 index reference.fa
@@ -112,20 +114,16 @@ samtools flagstat aligned/${sample}.bam
 ### Step 3: BAM Processing
 
 ```bash
+# Strict order: collate (name) -> fixmate -m -> sort (coordinate) -> markdup. fixmate needs mates
+# adjacent (name order), -m adds the ms/MC tags markdup requires, markdup needs coordinate order.
+# Do NOT coordinate-sort before fixmate, and do NOT run markdup on amplicon/PCR data (use UMIs there).
 for sample in sample1 sample2 sample3; do
-    # Sort by coordinate
-    samtools sort -@ 8 -o aligned/${sample}.sorted.bam aligned/${sample}.bam
-
-    # Mark duplicates (samtools method)
-    samtools fixmate -m aligned/${sample}.sorted.bam - | \
-        samtools sort -@ 8 - | \
+    samtools collate -@ 8 -O -u aligned/${sample}.bam | \
+        samtools fixmate -m -@ 8 -u - - | \
+        samtools sort -@ 8 -u - | \
         samtools markdup -@ 8 - aligned/${sample}.markdup.bam
-
-    # Index
     samtools index aligned/${sample}.markdup.bam
-
-    # Cleanup intermediate
-    rm aligned/${sample}.bam aligned/${sample}.sorted.bam
+    rm aligned/${sample}.bam
 done
 ```
 
@@ -330,17 +328,18 @@ done
 echo "=== Step 2: Alignment with bwa-mem2 ==="
 for sample in $SAMPLES; do
     bwa-mem2 mem -t ${THREADS} \
-        -R "@RG\tID:${sample}\tSM:${sample}\tPL:ILLUMINA" \
+        -R "@RG\tID:${sample}\tSM:${sample}\tPL:ILLUMINA\tLB:lib1" \
         ${REF} \
         ${OUTDIR}/trimmed/${sample}_R1.fq.gz \
         ${OUTDIR}/trimmed/${sample}_R2.fq.gz | \
     samtools view -@ ${THREADS} -bS - > ${OUTDIR}/aligned/${sample}.bam
 done
 
-echo "=== Step 3: BAM Processing ==="
+echo "=== Step 3: BAM Processing (collate -> fixmate -m -> sort -> markdup) ==="
 for sample in $SAMPLES; do
-    samtools fixmate -@ ${THREADS} -m ${OUTDIR}/aligned/${sample}.bam - | \
-    samtools sort -@ ${THREADS} - | \
+    samtools collate -@ ${THREADS} -O -u ${OUTDIR}/aligned/${sample}.bam | \
+    samtools fixmate -@ ${THREADS} -m -u - - | \
+    samtools sort -@ ${THREADS} -u - | \
     samtools markdup -@ ${THREADS} - ${OUTDIR}/aligned/${sample}.markdup.bam
     samtools index ${OUTDIR}/aligned/${sample}.markdup.bam
     rm ${OUTDIR}/aligned/${sample}.bam
@@ -371,7 +370,7 @@ echo "Filtered VCF: ${OUTDIR}/variants/cohort.filtered.vcf.gz"
 - database-access/ncbi-datasets-cli - Pull reference genome assembly via Datasets v2 CLI
 - database-access/ensembl-rest - Pull annotated reference and Compara orthologs for cross-species variants
 - read-qc/fastp-workflow - Detailed QC options
-- read-alignment/bwa-alignment - BWA-MEM2 parameters
+- read-alignment/bwa-alignment - BWA-MEM2 parameters, read groups, ALT/decoy analysis set, the dedup ordering
 - alignment-files/duplicate-handling - Duplicate marking details
 - variant-calling/variant-calling - bcftools calling options
 - variant-calling/gatk-variant-calling - GATK HaplotypeCaller details

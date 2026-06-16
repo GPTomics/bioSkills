@@ -85,7 +85,6 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- enrichment-foundations - The method-selection decision and why gene sets overlap
 - go-enrichment - Produces the enrichResult; owns simplify()
 - gsea - Produces the gseaResult; owns the enrichment score and leading edge
 - kegg-pathways - KEGG results to plot

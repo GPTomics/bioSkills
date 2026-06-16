@@ -17,7 +17,7 @@ Conceptual prerequisites:
 - ReactomePA is ENTREZ-only. `enrichPathway` and `gsePathway` have no `keyType` argument, so SYMBOL or ENSEMBL ids must be converted with `bitr` first or the result is silently empty.
 - ORA needs a background `universe` of the genes actually measured; omitting it defaults the background to all ~11,200 Reactome-annotated genes and inflates significance.
 - Only human is curated. ReactomePA's `organism` accepts seven values (human, rat, mouse, celegans, yeast, zebrafish, fly), all non-human ones orthology-inferred from human.
-- The DE list and the ranking statistic come from differential-expression; the ORA-vs-GSEA decision and null theory from enrichment-foundations.
+- The DE list and the ranking statistic come from differential-expression; the cross-database ORA-vs-GSEA method-selection fork lives in the category README.
 
 ## Quick Start
 Tell your AI agent what you want to do:
@@ -97,7 +97,6 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- enrichment-foundations - The ORA-vs-GSEA meta-decision, null models, and the gene-set database landscape
 - go-enrichment - The hypergeometric test and the background-universe problem
 - gsea - The GSEA running-sum engine and ranking-metric choice
 - kegg-pathways - KEGG pathway/module enrichment; deeper metabolic coverage

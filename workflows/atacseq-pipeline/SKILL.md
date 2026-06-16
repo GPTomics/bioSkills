@@ -120,8 +120,10 @@ for sample in sample1 sample2 sample3; do
         grep -v chrM | \
         samtools view -b - > aligned/${sample}.noMT.bam
 
-    # Mark and remove duplicates
-    samtools fixmate -m aligned/${sample}.noMT.bam - | \
+    # Mark and remove duplicates. collate first: fixmate needs name-grouped input, but noMT.bam is
+    # coordinate-sorted, so fixmate -m would mis-pair mates and markdup would mis-flag duplicates.
+    samtools collate -O -u aligned/${sample}.noMT.bam | \
+    samtools fixmate -m -u - - | \
     samtools sort - | \
     samtools markdup -r - aligned/${sample}.dedup.bam
 

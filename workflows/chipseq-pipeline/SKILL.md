@@ -109,8 +109,10 @@ done
 
 ```bash
 for sample in IP_rep1 IP_rep2 Input_rep1 Input_rep2; do
-    # Mark and remove duplicates
-    samtools fixmate -m aligned/${sample}.bam - | \
+    # Mark and remove duplicates. collate first: fixmate needs name-grouped input, but aligned.bam is
+    # coordinate-sorted, so fixmate -m would mis-pair mates and markdup would mis-flag duplicates.
+    samtools collate -O -u aligned/${sample}.bam | \
+    samtools fixmate -m -u - - | \
     samtools sort - | \
     samtools markdup -r - aligned/${sample}.dedup.bam
 

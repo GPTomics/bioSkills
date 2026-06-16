@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-crispr-screen-pipeline
-description: End-to-end pooled and single-cell CRISPR screen analysis from FASTQ to hit genes. Orchestrates library design QC, guide counting, six-stage screen QC (plasmid Gini, replicate Pearson, CEGv2 PR-AUC, copy-number artifact), method-appropriate hit calling across MAGeCK RRA/MLE, BAGEL2, drugZ, JACKS, and Chronos, cancer-cell-line copy-number correction (CRISPRcleanR / Chronos), batch correction for multi-batch screens, and the specialized branches for combinatorial paralog screens, single-cell Perturb-seq, base-editor variant-function screens, prime-editor screens, and in vivo bottleneck-aware screens. Use when analyzing any pooled CRISPR screen end-to-end, choosing the correct hit-calling method by experimental design, integrating copy-number correction into the pipeline, or branching the workflow for single-cell, combinatorial, base-editor, prime-editor, or in vivo variants.
+description: End-to-end pooled and single-cell CRISPR screen analysis from FASTQ to hit genes. Orchestrates library design QC, guide counting, six-stage screen QC (plasmid Gini, replicate Pearson, CEGv2 PR-AUC, copy-number artifact), method-appropriate hit calling across MAGeCK RRA/MLE, BAGEL2, drugZ, JACKS, and Chronos, cancer-cell-line copy-number correction (CRISPRcleanR / Chronos), batch correction for multi-batch screens, and the specialized branches for combinatorial paralog screens, single-cell Perturb-seq, base-editor variant-function screens, prime-editor screens, and in vivo bottleneck-aware screens. Use when analyzing any pooled CRISPR screen end-to-end, matching the hit-calling method to the experimental design, integrating copy-number correction into the pipeline, or branching the workflow for single-cell, combinatorial, base-editor, prime-editor, or in vivo variants.
 tool_type: mixed
 primary_tool: MAGeCK
 workflow: true
@@ -93,6 +93,10 @@ Reference [[library-design]] for full library composition. Verify before sequenc
 
 ## Step 2: Guide Counting
 
+**Goal:** Turn raw FASTQ into a per-guide count matrix with consistent sample labels.
+
+**Approach:** Run mageck count with the library CSV, sample labels in column order, the vector adapter trimmed off the 5' end, and median normalization.
+
 ```bash
 mageck count \
     --list-seq library.csv \
@@ -106,6 +110,10 @@ mageck count \
 For Cas12a libraries (Inzolia, in4mer): see [[combinatorial-screens]]. For 10X single-cell direct capture: use cellranger-arc or pertpy-aware counting; see [[perturb-seq-analysis]].
 
 ## Step 3: Six-Stage Quality Control
+
+**Goal:** Decide whether the screen is analyzable before calling any hits, using six orthogonal QC stages.
+
+**Approach:** Load the count matrix, compute per-sample Gini, zero-fraction, and depth plus replicate correlation, then check essential-gene recovery (CEGv2 PR-AUC) against the hard gates below.
 
 ```python
 import pandas as pd
@@ -146,6 +154,10 @@ Hard gates from [[screen-qc]]:
 
 If screening in a cancer cell line, apply CRISPRcleanR (unsupervised, no CN profile needed) or Chronos (joint with CN profile). Required to remove Aguirre 2016 / Munoz 2016 amplicon artifact.
 
+**Goal:** Strip the copy-number amplicon artifact that makes amplified regions look essential in cancer lines.
+
+**Approach:** Run CRISPRcleanR unsupervised genome-wide LFC correction (no CN profile needed), then feed the corrected counts downstream; for DepMap-scale panels with matched CN, use Chronos instead.
+
 ```r
 library(CRISPRcleanR)
 data(KY_Library_v1.0)
@@ -167,6 +179,10 @@ For DepMap-scale panels with longitudinal data + matched CN, use Chronos. See [[
 For multi-batch screens, add batch as a covariate in MAGeCK MLE rather than pre-correcting with ComBat. See [[batch-correction]] for full decision tree.
 
 ## Step 6: Method-Matched Hit Calling
+
+**Goal:** Call hits with the method that matches the experimental design, plus at least one orthogonal method for consensus.
+
+**Approach:** Pick by design - RRA or BAGEL2 for two-condition essentiality, MLE for time course, drugZ for drug-modifier, JACKS for multi-screen, Chronos for cancer panels - and run two methods so the consensus step has something to reconcile.
 
 ### 6a. Two-condition essentiality (MAGeCK RRA or BAGEL2)
 
@@ -227,6 +243,10 @@ DepMap quarterly standard; handles CN bias + screen quality + longitudinal joint
 
 ## Step 7: Tier-Based Consensus
 
+**Goal:** Consolidate the per-method calls into confidence tiers.
+
+**Approach:** Merge each method's gene-level result, threshold each to a per-method hit flag, and tier by how many methods agree (Tier 1 = all three, Tier 2 = two of three).
+
 ```python
 mageck = pd.read_csv('essentiality_rra.gene_summary.txt', sep='\t')[['id', 'neg|fdr']].rename(
     columns={'id': 'gene', 'neg|fdr': 'mageck_neg_fdr'})
@@ -255,6 +275,10 @@ tier2 = merged[merged['tier'] == 2]
 | In vivo tumor / immune screens | [[in-vivo-screens]] -- focused library; per-animal meta-analysis |
 
 ## Visualization
+
+**Goal:** Show the hit landscape as a volcano of effect size against significance.
+
+**Approach:** Plot log2 fold change against -log10(FDR), highlight genes past the FDR gate, and save the figure to file.
 
 ```python
 import matplotlib.pyplot as plt
@@ -305,6 +329,5 @@ MAGeCKFlute R package provides one-shot FluteRRA / FluteMLE dashboards with KEGG
 - crispr-screens/perturb-seq-analysis - Single-cell screen analysis
 - crispr-screens/combinatorial-screens - Cas12a multiplex + GI scoring
 - crispr-screens/in-vivo-screens - Bottleneck-aware in vivo design
-- pathway-analysis/enrichment-foundations - Choose ORA vs GSEA for the hit list and check the background universe
 - pathway-analysis/go-enrichment - Functional enrichment of hits
 - pathway-analysis/gsea - Pre-ranked GSEA on hit lists

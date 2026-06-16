@@ -136,7 +136,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
 | **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
 | **single-cell** | 14 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication |
-| **pathway-analysis** | 7 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot, SPIA | Decision-grade functional enrichment: the ORA-vs-GSEA-vs-topology generation fork and trustworthiness spine, GO/KEGG/Reactome/WikiPathways/MSigDB enrichment, SPIA pathway topology, background-universe selection, ranking-metric choice, live-DB reproducibility, redundancy-collapse visualization |
+| **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot, SPIA | Decision-grade functional enrichment: ORA, GSEA, and SPIA pathway topology across GO/KEGG/Reactome/WikiPathways/MSigDB, background-universe selection, ranking-metric choice, live-DB reproducibility, redundancy-collapse visualization |
 | **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
 | **methylation-analysis** | 10 | Bismark, methylKit, dmrseq, sesame, minfi, EpiDISH, methylclock, meffil | Bisulfite + Infinium array DNA methylation: alignment, calling, per-CpG testing, DMRs, array preprocessing/QC, cell-type deconvolution, epigenetic clocks, EWAS design |
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
@@ -146,10 +146,10 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **genome-intervals** | 8 | bedtools, pybedtools, pyranges, gffutils, deepTools, pyBigWig | Coordinate systems, interval arithmetic, overlap significance, GTF/GFF, proximity, coverage, bedGraph/bigWig tracks |
 | **population-genetics** | 7 | PLINK 1.9/2.0, BOLT-LMM, SAIGE, regenie, ADMIXTURE, scikit-allel | Allele-aware QC, LD pruning/clumping, PCA/admixture with ratio-of-averages FST, single-variant GWAS and mixed models (PC-vs-LMM, SPA/Firth, LOCO), rare-variant gene-based tests (burden/SKAT/SKAT-O/ACAT/STAAR), demography-aware selection scans |
 | **rna-quantification** | 4 | featureCounts, Salmon, kallisto, tximport | Gene/transcript quantification, count matrix QC |
-| **read-alignment** | 4 | bwa-mem2, bowtie2, STAR, HISAT2 | Short-read alignment for DNA and RNA-seq |
+| **read-alignment** | 4 | bwa-mem2, bowtie2, STAR, HISAT2 | Decision-grade short-read alignment for DNA and RNA-seq: read groups, ALT/decoy analysis sets, two-pass and strandedness, per-tool MAPQ, and read-group/dedup contracts |
 | **expression-matrix** | 5 | pandas, anndata, DESeq2, edgeR, biomaRt | Count matrix handling, normalization, gene ID mapping |
 | **copy-number** | 11 | CNVkit, GATK4, ASCAT, Sequenza, FACETS, PURPLE, PureCN, DNAcopy, GISTIC2, scarHRD, AmpliconArchitect, Battenberg, TITAN, AnnotSV, ClassifyCNV | Read-depth CNV calling (CNVkit/GATK), CBS/HMM segmentation and depth-bias correction, allele-specific copy number with purity/ploidy, recurrent and driver CNV (GISTIC2) and copy-number signatures, gene/clinical annotation, ACMG/ClinGen germline CNV interpretation, HRD genomic-scar scoring, focal amplification and ecDNA architecture, subclonal CN and whole-genome doubling, CNV visualization |
-| **phasing-imputation** | 5 | Beagle, SHAPEIT5, Minimac4, IMPUTE5, GLIMPSE2, bcftools | The copying-HMM foundations and genotyping-strategy fork, reference-panel selection and strand/build harmonization, statistical haplotype phasing, genotype imputation (array and low-coverage WGS) as dosages, and MAF-stratified imputation QC |
+| **phasing-imputation** | 4 | Beagle, SHAPEIT5, Minimac4, IMPUTE5, GLIMPSE2, bcftools | Reference-panel selection and strand/build harmonization, statistical haplotype phasing, genotype imputation (array and low-coverage WGS) as dosages, and MAF-stratified imputation QC |
 | **atac-seq** | 12 | MACS3, DiffBind, csaw, chromVAR, TOBIAS, scprinter, ArchR, Signac, SnapATAC2, Cicero, ABC, chromBPNet, BPNet, scBasset, EnFormer, WASP, GATK ASEReadCounter, RASQUAL | Peak calling (MACS/Genrich/HMMRATAC), ENCODE 4 QC with spike-in / sex-chr, fixed-width consensus peaksets, differential accessibility with permutation/spike-in/Hi-C-anchored, TF footprinting (bias correction including chromBPNet), motif variability (chromVAR/scBasset), nucleosome positioning (NucleoATAC/V-plots/H2A.Z), single-cell ATAC (Signac/ArchR/SnapATAC2/scArches), cis-regulatory co-accessibility (Cicero/SCENIC+), deep learning (chromBPNet/BPNet/scBasset/EnFormer; in silico variant effect; TF-MoDISco motif discovery), enhancer-gene linking (ABC, ENCODE-rE2G, HiChIP, CRISPRi-FlowFISH validation), allele-specific accessibility (WASP, GATK, RASQUAL caQTL) |
 | **genome-assembly** | 9 | GenomeScope2, SPAdes, Flye, hifiasm, metaFlye, Pilon, YaHS, CheckM2, FCS-GX, QUAST, BUSCO, Merqury | Pre-assembly k-mer profiling, short/long/HiFi and metagenome assembly, polishing, Hi-C scaffolding, contamination detection, three-axis quality assessment |
 | **primer-design** | 4 | primer3-py | PCR/qPCR primer design, probe co-design, thermodynamic validation, genome specificity (in-silico PCR) |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 545 skills across 63 categories**
+**Total: 543 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 545 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 543 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-wikipathways
-description: Tests a gene list (ORA, enrichWP) or a ranked gene vector (GSEA, gseWP) against the WikiPathways community-curated pathway collection with clusterProfiler and rWikiPathways. Covers why a WikiPathways result is a snapshot of a live, monthly-updated database (enrichWP/gseWP/gson_WP silently pull data.wikipathways.org/current/), why reproducibility requires pinning a dated GMT via downloadPathwayArchive(date=, format='gmt'), why the WP GMT is Entrez-keyed so symbols and Ensembl silently overlap nothing, why universe=NULL gives a biased all-WP-genes background, how to split the name%version%wpid%org term, and why WikiPathways (CC0, no peer review) complements KEGG/Reactome. Use when running open community-pathway enrichment, covering a non-model WP species, catching disease/drug pathways missing from KEGG/Reactome, or needing a reproducible dated analysis. For the ORA/GSEA decision see enrichment-foundations; the gene list comes from differential-expression/de-results; visualize with enrichment-visualization.
+description: Tests a gene list (ORA, enrichWP) or a ranked gene vector (GSEA, gseWP) against the WikiPathways community-curated pathway collection with clusterProfiler and rWikiPathways. Covers why a WikiPathways result is a snapshot of a live, monthly-updated database (enrichWP/gseWP/gson_WP silently pull data.wikipathways.org/current/), why reproducibility requires pinning a dated GMT via downloadPathwayArchive(date=, format='gmt'), why the WP GMT is Entrez-keyed so symbols and Ensembl silently overlap nothing, why universe=NULL gives a biased all-WP-genes background, how to split the name%version%wpid%org term, and why WikiPathways (CC0, no peer review) complements KEGG/Reactome. Use when running open community-pathway enrichment, covering a non-model WP species, catching disease/drug pathways missing from KEGG/Reactome, or needing a reproducible dated analysis. The gene list comes from differential-expression/de-results; visualize with enrichment-visualization.
 tool_type: r
 primary_tool: rWikiPathways
 ---
@@ -24,7 +24,7 @@ WikiPathways is a LIVE, monthly-updated database. `enrichWP`, `gseWP`, and `gson
 - R (GSEA): `gseWP(named_decreasing_entrez_vector, organism='Homo sapiens')`
 - R (reproducible): `downloadPathwayArchive(date='YYYYMMDD', organism=, format='gmt')` -> `read.gmt` -> split term -> `enricher`/`GSEA`
 
-Scope: WikiPathways-specific enrichment - the data model, the `current/`-vs-dated GMT reproducibility pin, the Entrez-GMT requirement, the term-field split, PFOCR as a noisier complement, and the WP-vs-KEGG-vs-Reactome contrast. The ORA/GSEA method choice and hypergeometric/background theory -> enrichment-foundations. The DE list and ranking statistic -> differential-expression/de-results. KEGG and Reactome -> kegg-pathways, reactome-pathways. Plot grammar -> enrichment-visualization.
+Scope: WikiPathways-specific enrichment - the data model, the `current/`-vs-dated GMT reproducibility pin, the Entrez-GMT requirement, the term-field split, PFOCR as a noisier complement, and the WP-vs-KEGG-vs-Reactome contrast. The ORA/GSEA method choice and hypergeometric/background theory -> the category README. The DE list and ranking statistic -> differential-expression/de-results. KEGG and Reactome -> kegg-pathways, reactome-pathways. Plot grammar -> enrichment-visualization.
 
 ## The Single Most Important Modern Insight -- A WikiPathways Result Is a Snapshot of a Live, Community-Edited Database Taken on the Run Date
 
@@ -53,14 +53,13 @@ WikiPathways is a wiki: anyone can create or edit a pathway, content is CC0, and
 |----------|-------------|-----|
 | Quick exploratory ORA, reproducibility not yet needed | `enrichWP(entrez, organism, universe=all_entrez)` | fastest path; log that it used the `current/` release |
 | Publication / reproducible analysis | `downloadPathwayArchive(date='YYYYMMDD', organism, format='gmt')` -> read -> split -> `enricher`/`GSEA` | the dated GMT is the only cross-time pin; report the date |
-| All genes carry a DE statistic, cutoff would be arbitrary | `gseWP` -> enrichment-foundations for the ORA/GSEA choice | ranked FCS uses the full list, no cutoff |
+| All genes carry a DE statistic, cutoff would be arbitrary | `gseWP` (see the category README for the ORA/GSEA choice) | ranked FCS uses the full list, no cutoff |
 | Pre-selected list (module, screen hits, GWAS loci) | `enrichWP` ORA | no ranking available |
 | Disease / drug pathways missing from KEGG/Reactome | WP as a complement, run alongside KEGG/Reactome | community content is genuinely additive where it exists |
 | Maximum gene/process coverage, noise tolerable | PFOCR (separate resource), not `enrichWP` | figure-OCR sets are higher-recall, lower-precision |
 | Non-model but WP-supported species (zebrafish, fly, worm, Arabidopsis) | `enrichWP(entrez, '<scientific name>')`, verify via `get_wp_organisms()` | WP covers ~30+ species |
 | Compare up- vs down-regulated | `compareCluster(geneClusters=list(up=..,down=..), fun='enrichWP', organism=)` | one model, faceted dotplot |
 | Genes are SYMBOL/ENSEMBL | convert to Entrez first (`bitr`) | the WP GMT is Entrez-keyed; other types overlap nothing |
-| The ORA/GSEA method choice, the universe/test theory | -> enrichment-foundations | that decision is upstream, not WP-specific |
 
 ## Over-Representation Analysis (enrichWP)
 
@@ -198,7 +197,6 @@ get_wp_organisms()                       # plural accessor; the string must matc
 
 ## Related Skills
 
-- enrichment-foundations - The ORA/GSEA method decision, the hypergeometric test, and the background-universe doctrine
 - go-enrichment - GO over-representation alternative
 - gsea - Ranked-list GSEA mechanics and the ranking metric
 - kegg-pathways - KEGG pathway/module enrichment (the primary DB WP complements)

@@ -58,7 +58,6 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- foundations - The genotyping strategy fork, pipeline order, and why the panel is the prior
 - haplotype-phasing - The phasing engine that consumes the panel
 - genotype-imputation - Impute untyped variants once the panel is prepared
 - imputation-qc - INFO/R2 quality metrics, which cannot detect ancestry mismatch

@@ -70,7 +70,7 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- Generation first: if a ranking exists for all genes, prefer GSEA; reserve ORA for genuinely unranked lists. See pathway-analysis/enrichment-foundations for why.
+- Generation first: if a ranking exists for all genes, prefer GSEA; reserve ORA for genuinely unranked lists. See the pathway-analysis README for why.
 - Background universe: always set the universe to the genes that entered the DE test, not the genome. If the background is the whole genome, the analysis measures expression bias, not enrichment.
 - Gene counts: ORA needs roughly 50-500 genes to be reliable; far fewer suggests switching to GSEA.
 - GSEA ranking: use the Wald statistic (DESeq2), the moderated t (limma), or a signed p-value (edgeR), not a bare log2FC, which over-weights noisy low-count genes.
@@ -82,7 +82,6 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- pathway-analysis/enrichment-foundations - The ORA-vs-GSEA generation fork, null theory, the universe rule, and reproducibility
 - pathway-analysis/go-enrichment - GO over-representation, background universe, redundancy reduction, length bias
 - pathway-analysis/gsea - Ranked-list GSEA, named decreasing vector, ranking metric, leading edge, NES
 - pathway-analysis/kegg-pathways - KEGG pathway/module enrichment, live DB, prokaryotes, multi-condition

@@ -163,6 +163,5 @@ Tell the AI agent what to run:
 - crispr-screens/perturb-seq-analysis - Single-cell screens
 - crispr-screens/combinatorial-screens - Cas12a paralog screens
 - crispr-screens/in-vivo-screens - Bottleneck-aware in vivo design
-- pathway-analysis/enrichment-foundations - Choose ORA vs GSEA for the hit list and check the background universe
 - pathway-analysis/go-enrichment - Hit-list functional enrichment
 - pathway-analysis/gsea - Pre-ranked GSEA

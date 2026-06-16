@@ -1,6 +1,6 @@
 ---
 name: bio-phasing-imputation-reference-panels
-description: Selects and prepares the reference panel that phasing/imputation copies haplotypes from (1000 Genomes, HRC, TOPMed, HGDP+1kGP/gnomAD, CAAPA), matching panel ancestry to the target, reconciling genome build and chromosome naming, and running the strand/allele harmonization gate. Covers why ancestry-match beats panel size (imputation can only copy haplotypes the panel contains), why palindromic A/T and C/G SNPs flip strand without erroring, why liftover is a strand-flip generator in between-build inverted regions, that HRC is SNP-only and TOPMed is never downloadable (governance can override accuracy), and panel formats (msav, bref3, imp5). Use when choosing a panel for a target ancestry, preparing or converting a panel, aligning study data, or deciding between downloadable and server-only panels. Phasing is haplotype-phasing; imputation is genotype-imputation; strategy is foundations; PCA for ancestry is population-genetics/population-structure; HLA panels are clinical-databases/hla-typing.
+description: Selects and prepares the reference panel that phasing/imputation copies haplotypes from (1000 Genomes, HRC, TOPMed, HGDP+1kGP/gnomAD, CAAPA), matching panel ancestry to the target, reconciling genome build and chromosome naming, and running the strand/allele harmonization gate. Covers why ancestry-match beats panel size (imputation can only copy haplotypes the panel contains), why palindromic A/T and C/G SNPs flip strand without erroring, why liftover is a strand-flip generator in between-build inverted regions, that HRC is SNP-only and TOPMed is never downloadable (governance can override accuracy), and panel formats (msav, bref3, imp5). Use when choosing a panel for a target ancestry, preparing or converting a panel, aligning study data, or deciding between downloadable and server-only panels. Phasing is haplotype-phasing; imputation is genotype-imputation; PCA for ancestry is population-genetics/population-structure; HLA panels are clinical-databases/hla-typing.
 tool_type: cli
 primary_tool: bcftools
 ---
@@ -22,7 +22,7 @@ A reference panel is DATA, not a tool: it has a dated release and a fixed genome
 **"Which reference panel should I use, and how do I prepare it?"** -> Match the panel's ancestry to the target population, reconcile build and strand, then convert to the engine's format - because imputation can only copy haplotypes the panel contains, so the panel IS the prior, and a mismatched ancestry or a flipped strand corrupts the result without any error.
 - CLI: `bcftools norm -m -any -f ref.fa` then the strand/allele harmonization check against the panel sites, then `minimac4 --compress-reference` / `bref3.jar` / `imp5Converter` to build the engine format
 
-Scope: panel selection (ancestry-match, build, access), strand/allele harmonization, build/liftover, and format conversion. The pipeline order and strategy fork -> foundations. The phasing engine that consumes the panel -> haplotype-phasing. Imputation -> genotype-imputation. PCA to establish the target ancestry -> population-genetics/population-structure. Classical HLA-allele imputation needs a dedicated HLA panel -> clinical-databases/hla-typing. VCF normalization mechanics -> variant-calling/variant-normalization.
+Scope: panel selection (ancestry-match, build, access), strand/allele harmonization, build/liftover, and format conversion. The phasing engine that consumes the panel -> haplotype-phasing. Imputation -> genotype-imputation. PCA to establish the target ancestry -> population-genetics/population-structure. Classical HLA-allele imputation needs a dedicated HLA panel -> clinical-databases/hla-typing. VCF normalization mechanics -> variant-calling/variant-normalization.
 
 ## The Single Most Important Modern Insight -- Ancestry Match Beats Panel Size, Because Imputation Copies Haplotypes and a Mismatched Panel Has None Worth Copying
 
@@ -30,7 +30,7 @@ The reflex "TOPMed has 97k samples, HRC has 32k, so use TOPMed" is right for a E
 
 1. **Ancestry composition often dominates size.** HRC (32k, European-heavy) imputes African-ancestry rare variants poorly while TOPMed lifts them dramatically - not because TOPMed is 3x bigger but because it contains African-American and Hispanic/Latino haplotypes. Admixed samples need a panel with both ancestral components and admixed individuals, because admixed haplotypes are mosaics a single-ancestry panel cannot reconstruct at the switch points. The honest answer is "large AND matched"; where both are not available, which one wins depends on whether the target is common or rare variants (size matters more for rare).
 2. **The self-graded INFO/R2 cannot see ancestry mismatch.** When the panel lacks the target's haplotypes the model still finds some template and reports a confident-looking quality about a copy that is systematically wrong (full metric theory -> imputation-qc). High R2 in an under-represented ancestry is not reassurance; validate against masked truth stratified by frequency.
-3. **A panel encodes whose haplotypes are trusted to fill the gaps.** HRC is European-heavy because its component cohorts were; TOPMed is diverse because it was designed to be. No panel represents everyone, and the imputation inherits exactly the panel population's representation, including its gaps. This is the central equity problem of imputation, and low-coverage WGS (unbiased ascertainment -> foundations) is the main route around it.
+3. **A panel encodes whose haplotypes are trusted to fill the gaps.** HRC is European-heavy because its component cohorts were; TOPMed is diverse because it was designed to be. No panel represents everyone, and the imputation inherits exactly the panel population's representation, including its gaps. This is the central equity problem of imputation, and low-coverage WGS (unbiased ascertainment -> genotype-imputation) is the main route around it.
 
 ## The Major Panels
 
@@ -143,7 +143,6 @@ A panel is half the input; phasing/imputation also needs a genetic (recombinatio
 
 ## Related Skills
 
-- foundations - The genotyping strategy fork, pipeline order, and why the panel is the prior
 - haplotype-phasing - The phasing engine that consumes the panel; the genetic-map pairing
 - genotype-imputation - Impute untyped variants once the panel is prepared
 - imputation-qc - INFO/R2 quality, which cannot detect ancestry mismatch

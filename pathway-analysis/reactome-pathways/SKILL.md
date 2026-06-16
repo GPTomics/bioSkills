@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-reactome
-description: Tests a gene list or ranked gene vector for over-representation or coordinated shifts in Reactome's curated, peer-reviewed, reaction-level pathways using ReactomePA's enrichPathway (ORA) and gsePathway (GSEA), reading the local reactome.db so a run is reproducible given the Bioconductor release. Covers why Reactome's atomic unit is the REACTION and pathways are nested containers so a parent and child enrich on the same genes and double-count one signal, why only human is curated and every other species is orthology-inferred, why enrichPathway has NO keyType argument and returns nothing unless genes are ENTREZ (bitr first), and why viewPathway draws a LOCAL reaction network from a pathway NAME. Use when reaction-level granularity, peer-reviewed curation, or an offline-reproducible database is wanted; for comparative multi-sample or multi-omics analysis use ReactomeGSA. The ORA-vs-GSEA meta-decision lives in enrichment-foundations; the DE list in differential-expression; plots in enrichment-visualization.
+description: Tests a gene list or ranked gene vector for over-representation or coordinated shifts in Reactome's curated, peer-reviewed, reaction-level pathways using ReactomePA's enrichPathway (ORA) and gsePathway (GSEA), reading the local reactome.db so a run is reproducible given the Bioconductor release. Covers why Reactome's atomic unit is the REACTION and pathways are nested containers so a parent and child enrich on the same genes and double-count one signal, why only human is curated and every other species is orthology-inferred, why enrichPathway has NO keyType argument and returns nothing unless genes are ENTREZ (bitr first), and why viewPathway draws a LOCAL reaction network from a pathway NAME. Use when reaction-level granularity, peer-reviewed curation, or an offline-reproducible database is wanted; for comparative multi-sample or multi-omics analysis use ReactomeGSA. The DE list comes from differential-expression; plots from enrichment-visualization.
 tool_type: r
 primary_tool: ReactomePA
 ---
@@ -22,7 +22,7 @@ reactome.db is a LOCAL Bioconductor annotation package pinned to the Bioconducto
 **"Which curated Reactome pathways does my gene list over-represent?"** -> Test each Reactome pathway for over-representation against a measured background, then deduplicate the hierarchy - because a Reactome result is one signal projected onto a tree of nested reactions, not a list of independent findings.
 - R: `enrichPathway(gene_entrez, organism='human', universe=measured_entrez, readable=TRUE)`
 
-Scope: ORA (enrichPathway) and GSEA (gsePathway) over Reactome reaction-rolled-to-pathway gene sets, the ENTREZ-only constraint, hierarchy deduplication, the human-curated-only species caveat, the local viewPathway reaction-network plot, and the ReactomeGSA comparative pointer. The ORA/GSEA meta-decision and null theory -> enrichment-foundations. The hypergeometric test and background-universe theory -> go-enrichment. The GSEA running-sum engine and ranking metric -> gsea. The DE list / ranking statistic -> differential-expression/de-results. Dotplot/emapplot/cnetplot/gseaplot2 -> enrichment-visualization.
+Scope: ORA (enrichPathway) and GSEA (gsePathway) over Reactome reaction-rolled-to-pathway gene sets, the ENTREZ-only constraint, hierarchy deduplication, the human-curated-only species caveat, the local viewPathway reaction-network plot, and the ReactomeGSA comparative pointer. The hypergeometric test and background-universe theory -> go-enrichment. The GSEA running-sum engine and ranking metric -> gsea. The DE list / ranking statistic -> differential-expression/de-results. Dotplot/emapplot/cnetplot/gseaplot2 -> enrichment-visualization.
 
 ## The Single Most Important Modern Insight -- Reactome's Atomic Unit Is the Reaction and Pathways Are Nested Containers, So a Result Is One Signal Projected Onto a Tree, Not a List
 
@@ -55,7 +55,7 @@ Second load-bearing fact: **only human is curated; every non-human pathway is or
 | Non-human within the 7 ReactomePA organisms | set `organism=`; flag results as orthology-inferred | the projection is a hypothesis, not curation |
 | Species beyond the 7 (bacteria, plant, etc.) | web AnalysisService / ReactomeGSA, not ReactomePA | reactome.db maps only 7 organisms |
 | Deeper metabolic coverage wanted | supplement with KEGG -> kegg-pathways | KEGG remains the deeper metabolic resource |
-| The ORA-vs-GSEA decision itself, or null/benchmark theory | -> enrichment-foundations | the meta-decision is owned there |
+| The ORA-vs-GSEA decision itself, or null/benchmark theory | -> the category README | the cross-database method-selection fork lives there |
 | The DE list / ranking statistic itself | -> differential-expression/de-results | upstream, not enrichment |
 
 ReactomePA's `organism` accepts exactly seven values: human, rat, mouse, celegans, yeast, zebrafish, fly. This is a reactome.db mapping ceiling, NOT a Reactome ceiling - the database projects to ~14-20 species and the web AnalysisService covers them; do not conflate the two.
@@ -195,7 +195,6 @@ Use ReactomePA for "is this one list over-represented / coordinately changed"; u
 
 ## Related Skills
 
-- enrichment-foundations - The ORA-vs-GSEA meta-decision, null models, and the gene-set database landscape
 - go-enrichment - The hypergeometric test and the background-universe problem
 - gsea - The GSEA running-sum engine and ranking-metric choice
 - kegg-pathways - KEGG pathway/module enrichment; deeper metabolic coverage

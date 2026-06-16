@@ -1,6 +1,6 @@
 ---
 name: bio-phasing-imputation-haplotype-phasing
-description: Estimates haplotype phase from population linkage disequilibrium with SHAPEIT5, SHAPEIT4, Eagle2, or Beagle - turning unphased genotypes (0/1) into phased haplotypes (0|1) for imputation input, compound-heterozygote calls, HLA typing, or population genetics. Covers why statistical phase is an INFERENCE (not a measurement) whose error concentrates at rare variants, why a genome-wide switch-error rate hides catastrophic rare-variant error and must be reported MAC-stratified, the SHAPEIT5 common-scaffold-then-rare design (phase_common, ligate, phase_rare, switch), reference-based vs within-cohort phasing, the build-matched genetic map, chrX male-haploid handling, and the switch-vs-flip-vs-Hamming distinction. Use when phasing genotypes before imputation, for compound-het/ASE/HLA, or benchmarking against trios. Read-backed / molecular phasing (long reads, Hi-C) is long-read-sequencing/haplotype-phasing; panel choice is reference-panels; imputation is genotype-imputation; strategy is foundations.
+description: Estimates haplotype phase from population linkage disequilibrium with SHAPEIT5, SHAPEIT4, Eagle2, or Beagle - turning unphased genotypes (0/1) into phased haplotypes (0|1) for imputation input, compound-heterozygote calls, HLA typing, or population genetics. Covers why statistical phase is an INFERENCE (not a measurement) whose error concentrates at rare variants, why a genome-wide switch-error rate hides catastrophic rare-variant error and must be reported MAC-stratified, the SHAPEIT5 common-scaffold-then-rare design (phase_common, ligate, phase_rare, switch), reference-based vs within-cohort phasing, the build-matched genetic map, chrX male-haploid handling, and the switch-vs-flip-vs-Hamming distinction. Use when phasing genotypes before imputation, for compound-het/ASE/HLA, or benchmarking against trios. Read-backed / molecular phasing (long reads, Hi-C) is long-read-sequencing/haplotype-phasing; panel choice is reference-panels; imputation is genotype-imputation.
 tool_type: cli
 primary_tool: SHAPEIT5
 ---
@@ -22,7 +22,7 @@ SHAPEIT4 to SHAPEIT5 changed the CLI substantially: SHAPEIT5 is a SUITE of binar
 **"Resolve which alleles sit together on each chromosome"** -> Estimate haplotype phase from population linkage disequilibrium via the Li-Stephens HMM - because phase is INFERRED statistically from how haplotypes are shared across a population, not read off the genotype, so a switch error is a model uncertainty (the rate, not zero, is the deliverable), not a typo.
 - CLI: `phase_common --input target.bcf --filter-maf 0.001 --map chr20.b38.gmap.gz --region chr20 --output scaffold.bcf` then `ligate` then `phase_rare` (SHAPEIT5), or Eagle2/Beagle for common-variant phasing
 
-Scope: population/statistical phasing of array or sequence genotypes for imputation input, compound-het/ASE/HLA, and population genetics. Read-backed / molecular single-sample phasing (long reads, Hi-C, 10x linked reads) is a PHYSICALLY DIFFERENT signal -> long-read-sequencing/haplotype-phasing (the two are easily conflated; do not run SHAPEIT on long-read evidence or trust statistical phase for a private clinical variant). Panel choice -> reference-panels. Imputation against a panel -> genotype-imputation. The input VCF and biallelic normalization -> variant-calling/variant-normalization. Pipeline order and strategy -> foundations.
+Scope: population/statistical phasing of array or sequence genotypes for imputation input, compound-het/ASE/HLA, and population genetics. Read-backed / molecular single-sample phasing (long reads, Hi-C, 10x linked reads) is a PHYSICALLY DIFFERENT signal -> long-read-sequencing/haplotype-phasing (the two are easily conflated; do not run SHAPEIT on long-read evidence or trust statistical phase for a private clinical variant). Panel choice -> reference-panels. Imputation against a panel -> genotype-imputation. The input VCF and biallelic normalization -> variant-calling/variant-normalization. End-to-end orchestration -> workflows/gwas-pipeline.
 
 ## The Single Most Important Modern Insight -- A Phased Haplotype Is a Statistical Estimate, and Its Error Concentrates Exactly Where the Biology of Interest Lives
 
@@ -133,7 +133,6 @@ Reference-based phasing wins when the cohort is small (a few thousand samples ca
 
 ## Related Skills
 
-- foundations - The pipeline order, the copying-HMM model, and why phasing is committed once
 - reference-panels - Select the ancestry-matched panel that reference-based phasing copies from
 - genotype-imputation - Imputation consumes the phased haplotypes (pre-phasing)
 - imputation-qc - Switch-error benchmarking sits alongside imputation quality QC
