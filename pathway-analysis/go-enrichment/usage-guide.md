@@ -91,7 +91,6 @@ Fold enrichment = GeneRatio / BgRatio. Both denominators are restricted to ANNOT
 
 ## Related Skills
 
-- enrichment-foundations - The ORA-vs-FCS-vs-topology fork, null theory, and method-selection spine
 - gsea - Ranked-list GSEA alternative when a full ranking exists
 - kegg-pathways - KEGG pathway and module enrichment
 - reactome-pathways - Reactome curated-pathway enrichment

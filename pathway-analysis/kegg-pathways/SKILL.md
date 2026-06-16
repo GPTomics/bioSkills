@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-kegg-pathways
-description: Tests gene lists, ranked vectors, and fold-change vectors against KEGG pathways and modules with clusterProfiler enrichKEGG/enrichMKEGG (ORA), gseKEGG (GSEA), and SPIA/graphite (signed-topology perturbation) in R. Owns the third pathway-analysis generation because KEGG ships signed directed signaling topology (KGML). Covers why a KEGG result is a timestamped join against a live REST API (irreproducible unless pinned with a gson snapshot, not the stale 2012 KEGG.db), why enrichKEGG keyType is kegg/ncbi-geneid not OrgDb ENSEMBL/SYMBOL (zero hits), why organism is a KEGG code (hsa, pae) with prokaryotic locus tags, and why SPIA works only on signaling maps. Use when finding enriched KEGG pathways or modules, scoring signed pathway perturbation, analyzing prokaryotes or non-model organisms via locus tags or KO, comparing conditions with compareCluster, or overlaying data with pathview. For the generation taxonomy see enrichment-foundations; the hypergeometric universe in go-enrichment; the GSEA engine in gsea.
+description: Tests gene lists, ranked vectors, and fold-change vectors against KEGG pathways and modules with clusterProfiler enrichKEGG/enrichMKEGG (ORA), gseKEGG (GSEA), and SPIA/graphite (signed-topology perturbation) in R. Owns the third pathway-analysis generation because KEGG ships signed directed signaling topology (KGML). Covers why a KEGG result is a timestamped join against a live REST API (irreproducible unless pinned with a gson snapshot, not the stale 2012 KEGG.db), why enrichKEGG keyType is kegg/ncbi-geneid not OrgDb ENSEMBL/SYMBOL (zero hits), why organism is a KEGG code (hsa, pae) with prokaryotic locus tags, and why SPIA works only on signaling maps. Use when finding enriched KEGG pathways or modules, scoring signed pathway perturbation, analyzing prokaryotes or non-model organisms via locus tags or KO, comparing conditions with compareCluster, or overlaying data with pathview. The hypergeometric universe lives in go-enrichment; the GSEA engine in gsea.
 tool_type: r
 primary_tool: clusterProfiler
 ---
@@ -22,7 +22,7 @@ KEGG is a LIVE DATABASE, not a package. enrichKEGG/enrichMKEGG/gseKEGG query the
 **"Which KEGG pathways are perturbed in my data?"** -> Join genes to KEGG's curated pathway/module gene sets (ORA or GSEA), or propagate fold-changes through KEGG's signed wiring (SPIA) - and pin the KEGG release, because the result is a timestamped query against a moving curation, not a fact about the biology.
 - R: `enrichKEGG(gene, organism, keyType)` | `gseKEGG(geneList, organism)` | `spia(de, all, organism)`
 
-Scope: KEGG-specific enrichment across all three generations - membership ORA (enrichKEGG/enrichMKEGG), ranked GSEA (gseKEGG), and signed-topology perturbation (SPIA/graphite). KEGG ID mapping (organism codes, keyType, bitr_kegg, prokaryotic locus tags, KO routing), reproducibility/pinning, and pathview map overlay live here. The generation taxonomy and null theory -> enrichment-foundations. The hypergeometric test and the universe problem -> go-enrichment. The GSEA running-sum engine and ranking-metric choice -> gsea. Reactome/WikiPathways gene sets -> reactome-pathways, wikipathways. Generic dot/cnet/emap plots -> enrichment-visualization. The DE list and fold-changes -> differential-expression/de-results.
+Scope: KEGG-specific enrichment across all three generations - membership ORA (enrichKEGG/enrichMKEGG), ranked GSEA (gseKEGG), and signed-topology perturbation (SPIA/graphite). KEGG ID mapping (organism codes, keyType, bitr_kegg, prokaryotic locus tags, KO routing), reproducibility/pinning, and pathview map overlay live here. The hypergeometric test and the universe problem -> go-enrichment. The GSEA running-sum engine and ranking-metric choice -> gsea. Reactome/WikiPathways gene sets -> reactome-pathways, wikipathways. Generic dot/cnet/emap plots -> enrichment-visualization. The DE list and fold-changes -> differential-expression/de-results.
 
 ## The Single Most Important Modern Insight -- A KEGG Result Is a Timestamped Join Against a Moving, Partially-Paywalled Curation, Not a Fact About Biology
 
@@ -42,7 +42,7 @@ Two consequences follow, and both are invisible until someone reruns the analysi
 | SPIA | 3rd (pathway topology) | pNDE (ORA) x pPERT (perturbation) -> pG | yes (named log2FC) | YES (signed KGML) | SIGNALING only | Tarca 2009 *Bioinformatics* 25:75; Draghici 2007 *Genome Res* 17:1537 |
 | graphite + runSPIA | 3rd | SPIA over harmonized graphs | yes | YES | signaling (KEGG/Reactome) | Sales 2012 *BMC Bioinformatics* 13:20 |
 
-The three-generations framing (ORA -> FCS -> pathway topology) is Khatri 2012 *PLoS Comput Biol* 8:e1002375 and is owned by enrichment-foundations; this skill is the KEGG instantiation of all three.
+The three-generations framing (ORA -> FCS -> pathway topology) is Khatri 2012 *PLoS Comput Biol* 8:e1002375; this skill is the KEGG instantiation of all three (the category README compares the generations across databases).
 
 ## Decision Tree by Scenario
 
@@ -245,6 +245,5 @@ pathview(gene.data=vals, pathway.id='hsa04110', species='hsa', gene.idtype='entr
 - reactome-pathways - Reactome curated-pathway enrichment (reproducible local DB)
 - wikipathways - WikiPathways community-pathway enrichment
 - enrichment-visualization - Dot/bar/cnet/emap/ridge plots of enrichment results
-- enrichment-foundations - The ORA/FCS/topology generation taxonomy and null theory
 - differential-expression/de-results - Source of the gene list and the fold-changes
 - workflows/expression-to-pathways - End-to-end DE-to-enrichment pipeline

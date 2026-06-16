@@ -10,7 +10,6 @@ Statistical haplotype phasing and reference-panel genotype imputation for array 
 
 | Skill | Description |
 |-------|-------------|
-| foundations | The copying-HMM model, ordered pipeline, dosage philosophy, and array-vs-low-coverage-WGS strategy |
 | reference-panels | Select and prepare 1000G/HRC/TOPMed panels; ancestry-match, build, strand, server access |
 | haplotype-phasing | Statistical phasing with SHAPEIT5/Eagle2/Beagle; switch error; the substrate for imputation |
 | genotype-imputation | Impute untyped variants with Beagle/Minimac4/IMPUTE5/GLIMPSE2; dosages |
@@ -20,8 +19,8 @@ Statistical haplotype phasing and reference-panel genotype imputation for array 
 
 | Scenario | Method | Skill |
 |----------|--------|-------|
-| Common-variant GWAS, well-paneled ancestry | array + impute against a matched panel | foundations, genotype-imputation |
-| Rare variants / under-represented ancestry | low-coverage WGS + GLIMPSE2 | foundations, genotype-imputation |
+| Common-variant GWAS, well-paneled ancestry | array + impute against a matched panel | genotype-imputation |
+| Rare variants / under-represented ancestry | low-coverage WGS + GLIMPSE2 | genotype-imputation |
 | Biobank-scale phasing (100k+), rare variants | SHAPEIT5 | haplotype-phasing |
 | Moderate cohort, one tool for phase + impute | Beagle | haplotype-phasing, genotype-imputation |
 | Diverse / admixed target | TOPMed panel (server) | reference-panels |
@@ -58,7 +57,6 @@ conda install -c bioconda shapeit5 minimac4 bcftools
 
 ## Related Skills
 
-- **foundations** - Start here for the pipeline order and genotyping strategy
 - **variant-calling** - Generate and normalize input VCF files
 - **population-genetics** - Association testing, population structure, LD
 - **long-read-sequencing** - Read-backed / molecular single-sample phasing

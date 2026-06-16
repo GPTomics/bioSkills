@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-gsea
-description: Tests a ranked gene vector for coordinated expression shifts in GO, KEGG, Reactome, or MSigDB gene sets with clusterProfiler's gseGO, gseKEGG, gsePathway, and GSEA (fgseaMultilevel engine), and scores per-sample pathway activity with ssGSEA and GSVA. Covers why a GSEA result is a deterministic function of three implicit choices (the ranking STATISTIC, the weight exponent p, and which LABELS are permuted), why the input must be a NAMED vector sorted DECREASING by a signed variance-calibrated metric (DESeq2 stat, limma t) not a raw p-value that erases direction, why preranked gene-permutation is anti-conservative for correlated sets (CAMERA is the fix), why nPerm is gone (eps governs tiny p), and why set.seed is required. Use when every gene carries a DE statistic, when a hard cutoff is arbitrary, or when ORA finds nothing. For gene-list ORA see go-enrichment; for the ORA-vs-FCS-vs-topology fork and null theory see enrichment-foundations; the ranking statistic comes from differential-expression/de-results.
+description: Tests a ranked gene vector for coordinated expression shifts in GO, KEGG, Reactome, or MSigDB gene sets with clusterProfiler's gseGO, gseKEGG, gsePathway, and GSEA (fgseaMultilevel engine), and scores per-sample pathway activity with ssGSEA and GSVA. Covers why a GSEA result is a deterministic function of three implicit choices (the ranking STATISTIC, the weight exponent p, and which LABELS are permuted), why the input must be a NAMED vector sorted DECREASING by a signed variance-calibrated metric (DESeq2 stat, limma t) not a raw p-value that erases direction, why preranked gene-permutation is anti-conservative for correlated sets (CAMERA is the fix), why nPerm is gone (eps governs tiny p), and why set.seed is required. Use when every gene carries a DE statistic, when a hard cutoff is arbitrary, or when ORA finds nothing. For gene-list ORA see go-enrichment; the ranking statistic comes from differential-expression/de-results.
 tool_type: r
 primary_tool: clusterProfiler
 ---
@@ -22,14 +22,14 @@ gseKEGG queries the live KEGG REST API, so the same code returns different resul
 **"Which pathways shift coordinately across my full ranked gene list, with no cutoff?"** -> Walk a weighted running-sum down the genome-wide ranking and test whether each gene set piles up at one END - because that score reports the structure of YOUR ranking, so the ranking metric and the permutation type, not the gene sets, decide the result.
 - R: `gseGO(geneList, OrgDb, ont)`, `gseKEGG(geneList, organism)`, `GSEA(geneList, TERM2GENE)`
 
-Scope: threshold-free Functional Class Scoring (FCS) of a RANKED vector - the running-sum ES, the ranking-metric choice, the permutation null, NES/FDR, the leading edge, and per-sample ssGSEA/GSVA scores. A pre-selected unranked gene LIST -> go-enrichment (ORA). The ORA-vs-FCS-vs-topology fork and competitive/self-contained null theory -> enrichment-foundations. The ranking statistic source -> differential-expression/de-results. KEGG/Reactome/WikiPathways database semantics -> kegg-pathways, reactome-pathways, wikipathways. Plots -> enrichment-visualization.
+Scope: threshold-free Functional Class Scoring (FCS) of a RANKED vector - the running-sum ES, the ranking-metric choice, the permutation null, NES/FDR, the leading edge, and per-sample ssGSEA/GSVA scores. A pre-selected unranked gene LIST -> go-enrichment (ORA). The ranking statistic source -> differential-expression/de-results. KEGG/Reactome/WikiPathways database semantics -> kegg-pathways, reactome-pathways, wikipathways. Plots -> enrichment-visualization.
 
 ## The Single Most Important Modern Insight -- A GSEA Result Is a Deterministic Function of Three Usually-Implicit Choices: the Ranking Statistic, the Weight Exponent p, and the Permuted Labels
 
 GSEA is not a discovery about biology - it is the running-sum's report on the ranking it was handed. The weighted enrichment score (Subramanian 2005; the default `exponent=1` weights each hit by the gene's statistic magnitude) asks exactly one question: do the members of a set pile up at one END of YOUR ranking. So the result is fixed by three decisions tutorials usually leave silent, and Wijesooriya 2022 found most published GSEA papers report none of them.
 
 1. **The ranking statistic IS the experiment.** Rank by a signed, variance-calibrated metric (DESeq2 `stat`, limma moderated `t`) - sign gives direction, variance-calibration sinks noisy low-information genes to the middle. Ranking by a RAW p-value erases the sign, so up- and down-regulated genes collapse together and NES becomes uninterpretable. Ranking by bare log2FC lets a handful of low-count genes with huge unstable fold changes hijack the leading edge. A bad ranking is faithfully reported as a ranking artifact.
-2. **The permutation type sets validity.** Phenotype (sample-label) permutation preserves the gene-gene correlation that co-regulated pathways are made of - it is the gold standard for type-I error control because it preserves that correlation, but needs the expression matrix and adequate n per group (~>=7); below that n its validity degrades. clusterProfiler/fgsea preranked are FORCED into GENE permutation, which treats genes as independent, destroys that correlation, and is ANTI-CONSERVATIVE: it returns "significant" pathways that are nothing but co-expression. Accept it, report it, and prefer CAMERA when the design matrix is available (full competitive/self-contained theory in enrichment-foundations).
+2. **The permutation type sets validity.** Phenotype (sample-label) permutation preserves the gene-gene correlation that co-regulated pathways are made of - it is the gold standard for type-I error control because it preserves that correlation, but needs the expression matrix and adequate n per group (~>=7); below that n its validity degrades. clusterProfiler/fgsea preranked are FORCED into GENE permutation, which treats genes as independent, destroys that correlation, and is ANTI-CONSERVATIVE: it returns "significant" pathways that are nothing but co-expression. Accept it, report it, and prefer CAMERA when the design matrix is available (full competitive/self-contained theory in the category README).
 3. **The honesty is bounded by reporting.** Log the ranking metric, the exponent p, the permutation type, the gene-set collection and its version/date, the size filters, and the multiple-testing method. Without those, the result is unfalsifiable.
 
 ## Tool Taxonomy
@@ -55,7 +55,7 @@ GSEA is not a discovery about biology - it is the running-sum's report on the ra
 | Reaction-level, reproducible offline | `gsePathway` -> reactome-pathways | local reactome.db |
 | Curated MSigDB hallmark / C2 / C5 | `GSEA(TERM2GENE)` + msigdbr | generic-input GSEA on any collection |
 | Matrix + design, want competitive + correlation-honest | `limma::camera` | VIF-corrects the inter-gene correlation gene-permutation ignores |
-| Matrix + design, tiny n / covariates, "is set DE at all" | `limma::roast`/`fry` -> enrichment-foundations | self-contained rotation, valid at any n |
+| Matrix + design, tiny n / covariates, "is set DE at all" | `limma::roast`/`fry` | self-contained rotation, valid at any n |
 | Per-sample pathway-activity matrix for clustering/ML | ssGSEA / GSVA | scores each sample, not a contrast test |
 | The DE statistic / ranking itself | -> differential-expression/de-results | upstream, not enrichment |
 
@@ -210,6 +210,5 @@ Use GSEA (preranked or phenotype) for a CONTRAST and a pathway-level p-value; us
 - reactome-pathways - Reactome curated-pathway enrichment (local DB)
 - wikipathways - WikiPathways community-pathway enrichment
 - enrichment-visualization - gseaplot2, ridgeplot, and dotplot of GSEA results
-- enrichment-foundations - The ORA-vs-FCS-vs-topology fork and competitive/self-contained null theory
 - differential-expression/de-results - Source of the ranking statistic and the padj column conventions
 - workflows/expression-to-pathways - End-to-end DE-to-enrichment pipeline

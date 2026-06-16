@@ -59,7 +59,6 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- foundations - The pipeline order, dosage philosophy, and the array-vs-low-coverage-WGS fork
 - haplotype-phasing - Pre-phasing the target (required by Minimac4 and IMPUTE5)
 - reference-panels - Select and prepare the panel and align build/strand
 - imputation-qc - Filter by DR2/R2/INFO and MAF; the metric is an estimate, not truth

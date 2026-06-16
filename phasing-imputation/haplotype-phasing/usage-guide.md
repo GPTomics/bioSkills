@@ -58,7 +58,6 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- foundations - The pipeline order, the copying-HMM model, and why phasing is committed once
 - reference-panels - Select the ancestry-matched panel that reference-based phasing copies from
 - genotype-imputation - Imputation consumes the phased haplotypes (pre-phasing)
 - imputation-qc - Switch-error benchmarking alongside imputation quality QC

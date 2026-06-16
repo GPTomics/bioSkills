@@ -1,6 +1,6 @@
 ---
 name: bio-phasing-imputation-genotype-imputation
-description: Imputes untyped genotypes against a phased reference panel with Beagle, Minimac4, or IMPUTE5 (array data) or from genotype likelihoods with GLIMPSE2, QUILT2, or STITCH (low-coverage WGS), producing per-variant dosages (DS) with a self-estimated quality (Beagle DR2, Minimac R2, IMPUTE INFO). Covers why the honest output is a dosage posterior not a hard call, why GWAS regresses on DS, why the quality metric is an ESTIMATE of r2 from posterior spread (not validation against truth), the DS/GP/HDS fields, the phasing prerequisite, chunking, chrX ploidy, the Michigan/TOPMed servers (the only access to HRC/TOPMed), and low-coverage WGS as the modern array replacement. Use when increasing variant density for GWAS, harmonizing arrays, inferring untyped variants, or imputing low-coverage sequence. Phase first with haplotype-phasing; prepare the panel with reference-panels; filter with imputation-qc; the GWAS test is population-genetics/association-testing; strategy is foundations.
+description: Imputes untyped genotypes against a phased reference panel with Beagle, Minimac4, or IMPUTE5 (array data) or from genotype likelihoods with GLIMPSE2, QUILT2, or STITCH (low-coverage WGS), producing per-variant dosages (DS) with a self-estimated quality (Beagle DR2, Minimac R2, IMPUTE INFO). Covers why the honest output is a dosage posterior not a hard call, why GWAS regresses on DS, why the quality metric is an ESTIMATE of r2 from posterior spread (not validation against truth), the DS/GP/HDS fields, the phasing prerequisite, chunking, chrX ploidy, the Michigan/TOPMed servers (the only access to HRC/TOPMed), and low-coverage WGS as the modern array replacement. Use when increasing variant density for GWAS, harmonizing arrays, inferring untyped variants, or imputing low-coverage sequence. Phase first with haplotype-phasing; prepare the panel with reference-panels; filter with imputation-qc; the GWAS test is population-genetics/association-testing; end-to-end orchestration is workflows/gwas-pipeline.
 tool_type: cli
 primary_tool: Beagle
 ---
@@ -22,7 +22,7 @@ Minimac4 (4.x) uses POSITIONAL arguments (`minimac4 panel.msav target.vcf.gz`); 
 **"Fill in the variants I did not directly measure"** -> Align the (phased or low-coverage) sample to a reference panel of phased haplotypes and infer the untyped alleles via the Li-Stephens HMM - because the output is a posterior over genotypes summarized as a dosage with a self-estimated quality, not a measured call, so the uncertainty must be carried downstream.
 - CLI: `java -jar beagle.jar gt=phased.vcf.gz ref=panel.bref3 map=plink.chr20.map out=imputed` (or `minimac4 panel.msav phased.vcf.gz`, or GLIMPSE2 for low-coverage WGS)
 
-Scope: imputing untyped genotypes from a panel (array data) or from genotype likelihoods (low-coverage WGS), the dosage/quality output, chunking, chrX, and the servers. Phasing the input -> haplotype-phasing. Panel selection/preparation/strand -> reference-panels. Quality metrics and filtering thresholds -> imputation-qc. The GWAS test on the dosages -> population-genetics/association-testing. The genotype likelihoods that low-coverage imputation consumes -> variant-calling/vcf-basics. Pipeline order and strategy -> foundations.
+Scope: imputing untyped genotypes from a panel (array data) or from genotype likelihoods (low-coverage WGS), the dosage/quality output, chunking, chrX, and the servers. Phasing the input -> haplotype-phasing. Panel selection/preparation/strand -> reference-panels. Quality metrics and filtering thresholds -> imputation-qc. The GWAS test on the dosages -> population-genetics/association-testing. The genotype likelihoods that low-coverage imputation consumes -> variant-calling/vcf-basics. End-to-end orchestration -> workflows/gwas-pipeline.
 
 ## The Single Most Important Modern Insight -- An Imputed Genotype Is a Posterior, and the Deliverable Is a Dosage Plus a Self-Estimated Quality, Not a Hard Call
 
@@ -30,7 +30,7 @@ Imputation aligns a sparsely-genotyped (or low-coverage-sequenced) sample to a d
 
 1. **Downstream analysis uses dosages, not hard genotypes.** The dosage DS is the conditional expectation E[genotype | data, panel], the minimum-variance summary; hard-calling forces an uncertain 0.5 dosage to 0 or 1, injecting genotype error that attenuates effects and inflates standard errors. GWAS regresses the trait on DS -> population-genetics/association-testing.
 2. **The quality metric (Beagle DR2, Minimac R2, IMPUTE INFO) is an ESTIMATE of r2 from the posterior spread, computed without ever seeing the truth.** Poorly-imputed dosages shrink toward the allele-frequency mean 2p, so low posterior variance relative to the binomial expectation 2p(1-p) flags a low-confidence site. This is NOT a validation against held-out genotypes (that is empirical r2 / EmpRsq, a masked-site quantity). Say "DR2/R2/INFO is an estimate of imputation quality," never "the imputation accuracy was 0.9" as if measured. The metric also cannot detect panel-ancestry mismatch -> imputation-qc.
-3. **Low-coverage WGS (0.5-4x) plus GLIMPSE2 has become a credible array replacement.** Because it samples the whole genome rather than a fixed ascertained SNP set, it imputes rare variants and under-represented ancestries better than a dense array at comparable cost (Rubinacci 2023 *Nat Genet* 55:1088). The input is genotype likelihoods, not calls; the strategy fork lives in foundations.
+3. **Low-coverage WGS (0.5-4x) plus GLIMPSE2 has become a credible array replacement.** Because it samples the whole genome rather than a fixed ascertained SNP set, it imputes rare variants and under-represented ancestries better than a dense array at comparable cost (Rubinacci 2023 *Nat Genet* 55:1088). The input is genotype likelihoods, not calls; the array-vs-low-coverage-WGS choice is an ascertainment decision (see Array vs Low-Coverage WGS below).
 
 ## Tool Taxonomy
 
@@ -58,6 +58,20 @@ Imputation aligns a sparsely-genotyped (or low-coverage-sequenced) sample to a d
 | Need the input phased first (Minimac4, IMPUTE5) | -> haplotype-phasing | those engines require a phased target |
 | Filter the imputed output before analysis | -> imputation-qc | DR2/R2/INFO + MAF floor |
 | The GWAS test on the dosages | -> population-genetics/association-testing | downstream |
+
+## Array vs Low-Coverage WGS: the Imputation-Input Fork
+
+The upstream decision is how to generate the genotypes that will be imputed, and it is an ascertainment question, not just an accuracy one. An array assays a fixed, designed SNP set (biased to its design population); low-coverage WGS samples whatever is in the genome.
+
+| | SNP array + pre-phase + impute | Low-coverage WGS (~0.5-4x) + impute from genotype likelihoods |
+|---|---|---|
+| Input to the HMM | hard genotype calls (array error is tiny) | genotype LIKELIHOODS (PL/GL); a hard call at 1x is mostly noise |
+| Ascertainment | FIXED - only the designed SNPs, biased to the design population | UNBIASED - whatever is in the genome is observed |
+| Rare variants | limited by the array scaffold and panel | matches or beats dense arrays (Rubinacci 2021 *Nat Genet* 53:120) |
+| Under-represented ancestry | poor (no good array, panel-mismatched) | the main route around array/panel bias |
+| Tools | Beagle / Minimac4 / IMPUTE5 | GLIMPSE2 (panel) / STITCH (no panel) |
+
+The judgment: common-variant GWAS in a well-paneled ancestry -> array plus imputation is cheap and adequate; rare variants, under-represented ancestry, or a need for unbiased genome-wide ascertainment -> low-coverage WGS plus genotype-likelihood imputation, the direction the field is moving as sequencing costs fall. Low-coverage WGS is only as good as its panel and its likelihoods (bad mapping, contamination, or damage produce garbage GLs that impute garbage).
 
 ## Output Formats and Why Dosages
 
@@ -153,7 +167,6 @@ The Michigan (now MIS2) and TOPMed servers run Eagle2 phasing + Minimac4 imputat
 
 ## Related Skills
 
-- foundations - The pipeline order, dosage philosophy, and the array-vs-low-coverage-WGS fork
 - haplotype-phasing - Pre-phasing the target (required by Minimac4 and IMPUTE5)
 - reference-panels - Select and prepare the panel (the prior) and align build/strand
 - imputation-qc - Filter by DR2/R2/INFO and MAF; the metric is an estimate, not truth

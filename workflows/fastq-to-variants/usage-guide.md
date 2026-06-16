@@ -84,4 +84,4 @@ Tell your AI agent what you want to do:
 - variant-calling/gatk-variant-calling - GATK HaplotypeCaller and DRAGEN mode
 - variant-calling/filtering-best-practices - VQSR and hard filtering
 - read-qc/fastp-workflow - Read QC details
-- read-alignment/bwa-alignment - Alignment details
+- read-alignment/bwa-alignment - Alignment details, read groups, ALT/decoy analysis set, the dedup ordering

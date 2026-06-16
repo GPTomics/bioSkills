@@ -1,6 +1,6 @@
 ---
 name: bio-pathway-go-enrichment
-description: Runs Gene Ontology over-representation analysis (ORA) on a gene LIST with clusterProfiler enrichGO, the one-sided hypergeometric/Fisher 2x2 test phyper(k-1, M, N-M, n, lower.tail=FALSE). Covers why the BACKGROUND universe (not the gene list) is the null and decides significance, why omitting universe= is a bug, why enrichGO defaults to ont='MF' not 'BP', why pvalueCutoff filters p.adjust not raw p, why ORA discards effect magnitude and inherits GO-DAG true-path redundancy (simplify, topGO), why RNA-seq gene-length bias inflates long-gene terms (GOseq Wallenius), plus GeneRatio/BgRatio, bitr ID mapping, minGSSize/maxGSSize, groupGO. Use when a pre-selected gene list (DE hits, co-expression module, screen, GWAS-mapped) needs GO annotation. For a ranked no-cutoff analysis see gsea; for null theory and the method-selection spine see enrichment-foundations; for other databases see kegg-pathways, reactome-pathways, wikipathways; DE source is differential-expression/de-results; plots in enrichment-visualization.
+description: Runs Gene Ontology over-representation analysis (ORA) on a gene LIST with clusterProfiler enrichGO, the one-sided hypergeometric/Fisher 2x2 test phyper(k-1, M, N-M, n, lower.tail=FALSE). Covers why the BACKGROUND universe (not the gene list) is the null and decides significance, why omitting universe= is a bug, why enrichGO defaults to ont='MF' not 'BP', why pvalueCutoff filters p.adjust not raw p, why ORA discards effect magnitude and inherits GO-DAG true-path redundancy (simplify, topGO), why RNA-seq gene-length bias inflates long-gene terms (GOseq Wallenius), plus GeneRatio/BgRatio, bitr ID mapping, minGSSize/maxGSSize, groupGO. Use when a pre-selected gene list (DE hits, co-expression module, screen, GWAS-mapped) needs GO annotation. For a ranked no-cutoff analysis see gsea; for other databases see kegg-pathways, reactome-pathways, wikipathways; DE source is differential-expression/de-results; plots in enrichment-visualization.
 tool_type: r
 primary_tool: clusterProfiler
 ---
@@ -22,7 +22,7 @@ GO annotation lives in the local org.*.eg.db OrgDb and GO.db, both pinned to the
 **"Which biological processes are enriched in my gene list?"** -> Test each GO term for over-representation of the query genes against a defined background with the one-sided hypergeometric test - because the BACKGROUND universe, not the gene list, is what decides which terms look significant.
 - R: `enrichGO(gene, universe, OrgDb, keyType='ENTREZID', ont='BP')`
 
-Scope: hypergeometric ORA of a gene LIST against GO terms, with background-universe selection, ID conversion, GO-DAG redundancy reduction, RNA-seq length-bias correction, and the generic `enricher` test for custom gene sets. A ranked-list / no-cutoff analysis -> gsea. The ORA-vs-FCS-vs-topology fork and null theory -> enrichment-foundations. KEGG/Reactome/WikiPathways gene sets -> kegg-pathways, reactome-pathways, wikipathways. The DE list source -> differential-expression/de-results. Plots -> enrichment-visualization.
+Scope: hypergeometric ORA of a gene LIST against GO terms, with background-universe selection, ID conversion, GO-DAG redundancy reduction, RNA-seq length-bias correction, and the generic `enricher` test for custom gene sets. A ranked-list / no-cutoff analysis -> gsea. KEGG/Reactome/WikiPathways gene sets -> kegg-pathways, reactome-pathways, wikipathways. The DE list source -> differential-expression/de-results. Plots -> enrichment-visualization.
 
 ## The Single Most Important Modern Insight -- ORA Is a Competitive 2x2 Hypergeometric Test Whose Null IS the Chosen Universe
 
@@ -36,7 +36,7 @@ Three consequences drive every misuse:
 
 ## ORA vs GSEA (the central fork)
 
-ORA needs a pre-selected LIST plus a BACKGROUND and binarizes significant/not; GSEA needs a RANKED vector of ALL genes and no cutoff. Pick by whether a ranking exists and whether the cutoff would be arbitrary. The full three-generations taxonomy (ORA vs FCS vs topology) and competitive-vs-self-contained null theory live in enrichment-foundations - this skill owns the ORA/GO slice.
+ORA needs a pre-selected LIST plus a BACKGROUND and binarizes significant/not; GSEA needs a RANKED vector of ALL genes and no cutoff. Pick by whether a ranking exists and whether the cutoff would be arbitrary. The full three-generations taxonomy (ORA vs FCS vs topology) and competitive-vs-self-contained null theory live in the category README - this skill owns the ORA/GO slice.
 
 | Scenario | Method | Why |
 |----------|--------|-----|
@@ -220,7 +220,6 @@ Swap the OrgDb: `org.Mm.eg.db` (mouse), `org.Dr.eg.db` (zebrafish), `org.Sc.sgd.
 
 ## Related Skills
 
-- enrichment-foundations - The ORA-vs-FCS-vs-topology fork, null theory, and method-selection spine
 - gsea - Ranked-list GSEA alternative when a full ranking exists and a cutoff is arbitrary
 - kegg-pathways - KEGG pathway and module enrichment
 - reactome-pathways - Reactome curated-pathway enrichment

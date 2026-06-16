@@ -91,7 +91,6 @@ For GSEA results read `NES` (sign = direction along the ranking) and `core_enric
 - See the enrichment-visualization skill for `dotplot()`, `cnetplot()`, and other plots.
 
 ## Related Skills
-- enrichment-foundations - The ORA/GSEA method decision and the background-universe doctrine
 - go-enrichment - Gene Ontology enrichment
 - kegg-pathways - KEGG pathway enrichment
 - reactome-pathways - Reactome pathway enrichment

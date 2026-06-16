@@ -57,7 +57,6 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- foundations - The dosage philosophy and why the quality score is a self-estimate
 - genotype-imputation - Produces the dosages and the quality field this skill filters
 - haplotype-phasing - Switch-error benchmarking of the phasing that precedes imputation
 - reference-panels - Panel ancestry mismatch, which the quality metric cannot detect

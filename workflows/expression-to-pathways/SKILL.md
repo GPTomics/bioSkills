@@ -1,11 +1,10 @@
 ---
 name: bio-workflows-expression-to-pathways
-description: 'Orchestrates the full path from differential expression results to redundancy-collapsed functional enrichment: choose ORA vs GSEA, convert gene IDs per method, run enrichGO/enrichKEGG/enrichPathway/enrichWP or gseGO/gseKEGG (clusterProfiler, ReactomePA, rWikiPathways), and visualize. Routes the ORA-vs-GSEA generation fork and the null/universe/reproducibility theory to pathway-analysis/enrichment-foundations. Use when a DESeq2/edgeR/limma result must become enriched GO terms, KEGG/Reactome/WikiPathways pathways, or a GSEA leading edge; when deciding whether a ranking exists for all genes (GSEA, named decreasing vector) or only a pre-selected list (ORA plus a defensible background universe); or when assembling DE-to-pathway end to end. The DE list and ranking statistic come from differential-expression/de-results; per-method nuance lives in the pathway-analysis skills.'
+description: 'Orchestrates the full path from differential expression results to redundancy-collapsed functional enrichment: choose ORA vs GSEA, convert gene IDs per method, run enrichGO/enrichKEGG/enrichPathway/enrichWP or gseGO/gseKEGG (clusterProfiler, ReactomePA, rWikiPathways), and visualize. Use when a DESeq2/edgeR/limma result must become enriched GO terms, KEGG/Reactome/WikiPathways pathways, or a GSEA leading edge; when the input is a full ranking for all genes (GSEA, named decreasing vector) or only a pre-selected list (ORA plus a defensible background universe); or when assembling DE-to-pathway end to end. The DE list and ranking statistic come from differential-expression/de-results; per-method nuance lives in the pathway-analysis skills.'
 tool_type: r
 primary_tool: clusterProfiler
 workflow: true
 depends_on:
-  - pathway-analysis/enrichment-foundations
   - pathway-analysis/go-enrichment
   - pathway-analysis/gsea
   - pathway-analysis/kegg-pathways
@@ -33,7 +32,7 @@ package and adapt the example to match the actual API rather than retrying.
 **"Find enriched pathways from my differential expression results"** -> Decide the generation (ORA vs GSEA) FIRST, then convert IDs to the form each method needs, run enrichment against the chosen database, and collapse redundancy before interpreting - because the enrichment result is a claim conditioned on the method, the background universe, and the database version, not a discovery the algorithm hands back.
 - R: `enrichGO(...)` / `gseGO(...)` / `enrichKEGG(...)` / `enrichPathway(...)` (clusterProfiler, ReactomePA)
 
-Scope: the ORCHESTRATION of a DE-to-enrichment pipeline - the generation fork, per-method ID conversion, the universe decision, the live-vs-local database caveat, and the handoff to redundancy-collapsed visualization. This workflow does NOT re-teach each method. The null/universe/reproducibility theory and the master method-selection tree -> pathway-analysis/enrichment-foundations. ORA mechanics -> go-enrichment; GSEA mechanics -> gsea; per-database IDs and live-DB behavior -> kegg-pathways, reactome-pathways, wikipathways; the DE list and ranking statistic -> differential-expression/de-results; plotting -> enrichment-visualization.
+Scope: the ORCHESTRATION of a DE-to-enrichment pipeline - the generation fork, per-method ID conversion, the universe decision, the live-vs-local database caveat, and the handoff to redundancy-collapsed visualization. This workflow does NOT re-teach each method. The null/universe/reproducibility theory and the master method-selection tree -> the pathway-analysis README and the per-method skills (go-enrichment, gsea). ORA mechanics -> go-enrichment; GSEA mechanics -> gsea; per-database IDs and live-DB behavior -> kegg-pathways, reactome-pathways, wikipathways; the DE list and ranking statistic -> differential-expression/de-results; plotting -> enrichment-visualization.
 
 ## The Single Most Important Modern Insight -- The First Decision Is the Generation, and It Is Set by the Input, Not by Preference
 
@@ -42,7 +41,7 @@ Pathway analysis has three generations (Khatri 2012 *PLoS Comput Biol* 8:e100237
 1. **Is there a meaningful per-gene ranking for (nearly) ALL measured genes?** A signed test statistic, the DESeq2 Wald `stat`, or `-sign(log2FC)*log10(p)` for every tested gene -> **GSEA** (a NAMED vector sorted in DECREASING order; the ranking metric IS the experiment). No arbitrary cutoff; detects coordinated weak shifts that ORA misses.
 2. **Only a pre-selected LIST (DE hits past a cutoff, a co-expression module, GWAS loci, screen hits)?** -> **ORA**, and the deliverable hinges on a defensible **background universe** - the genes that were testable, not the whole genome. ORA's p-value is whatever the denominator says it is.
 
-The dangerous default is running ORA on data that has a full ranking (binarizing away the signal) or running ORA against the genome (measuring expression, not enrichment). Decide the fork out loud, record it, and route the why to pathway-analysis/enrichment-foundations - this workflow owns the routing, not the derivation.
+The dangerous default is running ORA on data that has a full ranking (binarizing away the signal) or running ORA against the genome (measuring expression, not enrichment). Decide the fork out loud, record it, and record the why (see the pathway-analysis README) - this workflow owns the routing, not the derivation.
 
 ## Pipeline Overview
 
@@ -50,7 +49,7 @@ The dangerous default is running ORA on data that has a full ranking (binarizing
 DE results (differential-expression/de-results)
     |
     v
-[0. Decide the generation: ranking for all genes? -> GSEA | pre-selected list? -> ORA]   (enrichment-foundations)
+[0. Decide the generation: ranking for all genes? -> GSEA | pre-selected list? -> ORA]
     |
     +--> ORA branch: define the TESTABLE-gene universe, convert IDs per method
     |        +--> enrichGO     (OrgDb keyType)        -> go-enrichment
@@ -72,7 +71,7 @@ A claim conditioned on universe + method + database version (record provenance)
 
 | Stage | Goal | Owns the nuance |
 |-------|------|-----------------|
-| 0. Decide generation | ORA vs GSEA from the available input | pathway-analysis/enrichment-foundations |
+| 0. Decide generation | ORA vs GSEA from the available input | pathway-analysis README (method selection) |
 | 1. Prepare input | Build the gene list AND/OR the named ranked vector; define the universe | differential-expression/de-results (the stat); foundations (the universe rule) |
 | 2. Convert IDs | Map to the form each method needs (OrgDb keyType / kegg-id / ENTREZ) | go-enrichment, kegg-pathways, reactome-pathways |
 | 3a. ORA | Hypergeometric test of the list vs background | go-enrichment, kegg-pathways, reactome-pathways, wikipathways |
@@ -93,7 +92,7 @@ A claim conditioned on universe + method + database version (record provenance)
 | RNA-seq with strong gene-length bias | GOseq -> go-enrichment | length-aware ORA null |
 | Multiple conditions/clusters side by side | compareCluster -> any DB | one model, faceted dotplot; never compare p across separate runs |
 | The DE list / ranking statistic itself | -> differential-expression/de-results | that is upstream, not enrichment |
-| Why this null, which universe, version reporting | -> pathway-analysis/enrichment-foundations | the conceptual spine |
+| Why this null, which universe, version reporting | -> go-enrichment (universe), gsea (null) | per-method theory owned by each skill |
 
 ## Stage 1: Prepare the Input (list, ranked vector, and the universe)
 
@@ -173,7 +172,7 @@ reactome <- enrichPathway(sig_entrez$ENTREZID, organism = 'human', pvalueCutoff 
 
 **Goal:** Find gene sets whose genes shift coordinately across the full ranking, without a significance cutoff.
 
-**Approach:** Run on the named decreasing `ranked_list`, fix the permutation seed so p-values are reproducible, then read the leading edge as the interpretable core. clusterProfiler GSEA is preranked / gene-permutation (the inter-gene-correlation-UNcorrected null) - a discovery screen; see pathway-analysis/gsea and enrichment-foundations for the calibration caveat (CAMERA/ROAST).
+**Approach:** Run on the named decreasing `ranked_list`, fix the permutation seed so p-values are reproducible, then read the leading edge as the interpretable core. clusterProfiler GSEA is preranked / gene-permutation (the inter-gene-correlation-UNcorrected null) - a discovery screen; see pathway-analysis/gsea for the calibration caveat (CAMERA/ROAST).
 
 ```r
 set.seed(123)   # permutation reproducibility; without it p-values drift across runs
@@ -270,7 +269,6 @@ dotplot(cc, showCategory = 10)
 
 ## Related Skills
 
-- pathway-analysis/enrichment-foundations - The ORA-vs-GSEA generation fork, null theory, the universe rule, and reproducibility (NEW spine skill)
 - pathway-analysis/go-enrichment - GO over-representation, background universe, redundancy reduction, length bias
 - pathway-analysis/gsea - Ranked-list GSEA, named decreasing vector, ranking metric, leading edge, NES
 - pathway-analysis/kegg-pathways - KEGG pathway/module enrichment, live DB, prokaryotes, multi-condition

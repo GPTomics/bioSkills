@@ -7,6 +7,7 @@ workflow: true
 depends_on:
   - read-qc/fastp-workflow
   - rna-quantification/alignment-free-quant
+  - read-alignment/star-alignment
   - rna-quantification/tximport-workflow
   - differential-expression/deseq2-basics
   - differential-expression/de-visualization
@@ -192,13 +193,15 @@ write.csv(as.data.frame(sig_genes), 'significant_genes.csv')
 
 ### Step 2 Alternative: STAR Alignment
 
+Set `--sjdbOverhang` to read length - 1 (149 for 2x150 reads), not a blanket 100 (read-alignment/star-alignment). `--quantMode GeneCounts` also reveals strandedness: sum columns 3 vs 4 of ReadsPerGene.out.tab to pick the featureCounts `-s` value (col 4 dominant = reverse = `-s 2`, the dUTP/TruSeq case).
+
 ```bash
-# Build STAR index (once)
+# Build STAR index (once); sjdbOverhang = read length - 1
 STAR --runMode genomeGenerate \
     --genomeDir star_index \
     --genomeFastaFiles genome.fa \
     --sjdbGTFfile genes.gtf \
-    --sjdbOverhang 100 \
+    --sjdbOverhang 149 \
     --runThreadN 8
 
 # Align each sample
@@ -333,6 +336,7 @@ write.csv(as.data.frame(sig), 'significant_genes.csv')
 - database-access/geo-data - Find a GSE on GEO, detect SuperSeries, link to SRA
 - database-access/sra-data - Download paired-end FASTQ from SRA / ENA / STRIDES cloud
 - read-qc/fastp-workflow - Detailed QC options and parameters
+- read-alignment/star-alignment - STAR index/sjdbOverhang, two-pass, GeneCounts strandedness (the align path)
 - rna-quantification/alignment-free-quant - Salmon and kallisto details
 - rna-quantification/tximport-workflow - tximport options and tx2gene creation
 - differential-expression/deseq2-basics - Complete DESeq2 reference
