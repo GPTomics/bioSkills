@@ -1,98 +1,110 @@
-'''Proteomics QC analysis workflow'''
-# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scikit-learn 1.4+, seaborn 0.13+ | Verify API if version differs
-import pandas as pd
+'''Three-level proteomics QC: inspect raw signal and remove contaminants BEFORE normalizing.
+
+Self-contained: synthesizes a small protein matrix with one deliberately low-loaded
+sample and one contaminant row, then runs experiment-level QC the way the skill mandates.
+Writes nothing to disk.'''
+# Reference: pandas 2.2+, numpy 1.26+, scikit-learn 1.4+ | Verify API if version differs
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import pandas as pd
+from itertools import combinations
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from scipy.stats import f_oneway
 
-intensity_matrix = pd.read_csv('normalized_imputed.csv', index_col=0)
-sample_info = pd.read_csv('sample_info.csv', index_col=0)
+rng = np.random.default_rng(0)
 
-print('=== Proteomics QC Report ===\n')
-print(f'Samples: {intensity_matrix.shape[1]}')
-print(f'Proteins: {intensity_matrix.shape[0]}')
+n_proteins = 400
+samples = [f'{cond}_{rep}' for cond in ['ctrl', 'treat'] for rep in range(1, 4)]
+sample_groups = pd.Series([s.split('_')[0] for s in samples], index=samples)
 
-# Missing values
-missing_pct = 100 * intensity_matrix.isna().sum().sum() / intensity_matrix.size
-print(f'\nOverall missing: {missing_pct:.1f}%')
+# log-normal abundances; treat shifts a subset of proteins
+base = rng.normal(20, 2, n_proteins)
+linear = pd.DataFrame({s: 2.0 ** (base + rng.normal(0, 0.3, n_proteins)) for s in samples},
+                      index=[f'P{i:04d}' for i in range(n_proteins)])
+treat_up = rng.choice(n_proteins, 40, replace=False)
+for s in [c for c in samples if c.startswith('treat')]:
+    linear.iloc[treat_up, linear.columns.get_loc(s)] *= 3.0
 
-missing_per_sample = 100 * intensity_matrix.isna().sum() / len(intensity_matrix)
-print(f'Missing per sample: {missing_per_sample.min():.1f}% - {missing_per_sample.max():.1f}%')
+# inject realistic faults: ctrl_3 loaded ~3x low; one dominant keratin contaminant row
+linear['ctrl_3'] *= 0.33
+linear.loc['CON_KRT1'] = linear.iloc[0].values * 40.0
 
-# Correlation analysis
-corr_matrix = intensity_matrix.corr()
-upper_tri = corr_matrix.values[np.triu_indices_from(corr_matrix, k=1)]
-print(f'\nMedian pairwise correlation: {np.median(upper_tri):.3f}')
-print(f'Min correlation: {np.min(upper_tri):.3f}')
+# MNAR-style missingness: drop the lowest-abundance values
+threshold = linear.stack().quantile(0.10)
+linear = linear.mask(linear < threshold)
 
-# Identify potential outliers (low correlation)
-mean_corr = corr_matrix.mean()
-outliers = mean_corr[mean_corr < mean_corr.mean() - 2 * mean_corr.std()]
-if len(outliers) > 0:
-    print(f'\nPotential outliers (low correlation): {list(outliers.index)}')
+protein_groups = linear.copy()
+protein_groups['Potential contaminant'] = ['+' if idx.startswith('CON_') else '' for idx in protein_groups.index]
+protein_groups['Reverse'] = ''
+intensity_cols = samples
 
-# PCA for batch effects
-imputed = intensity_matrix.fillna(intensity_matrix.median())
+print('=== Level 3 QC: inspect-before-normalize ===\n')
+
+# Step 1: RAW per-sample signal BEFORE any transform -- this is where loading failures are visible
+raw = protein_groups[intensity_cols]
+raw_qc = pd.DataFrame({'n_quantified': raw.notna().sum(),
+                       'total_signal': raw.sum(),
+                       'median_intensity': raw.median()})
+group_median_total = raw_qc['total_signal'].median()
+raw_qc['fold_vs_median'] = raw_qc['total_signal'] / group_median_total
+print('Raw per-sample signal (loading failures show HERE, before normalization):')
+print(raw_qc.round(2), '\n')
+loading_failures = raw_qc.index[raw_qc['fold_vs_median'] < 0.5].tolist()  # <0.5x group median = loading/injection failure
+print(f'Flagged loading failures (>2x low): {loading_failures}\n')
+
+# Step 2: contaminant fraction, then strip contaminant/decoy rows BEFORE log + normalize
+contaminant_flags = ['Potential contaminant', 'Reverse', 'Only identified by site']
+keep = pd.Series(True, index=protein_groups.index)
+for col in contaminant_flags:
+    match = next((c for c in protein_groups.columns if c.lower() == col.lower()), None)
+    if match is not None:
+        keep &= protein_groups[match].fillna('') != '+'
+contaminant_frac = 100 * raw[~keep.values].sum().sum() / raw.sum().sum()
+print(f'Contaminant fraction of summed intensity: {contaminant_frac:.1f}% (PTXQC flags >1%)')
+clean = protein_groups[keep][intensity_cols]
+print(f'Rows after contaminant removal: {len(clean)} (was {len(protein_groups)})\n')
+
+# Step 3: NOW log2-transform and median-normalize on survivors (mechanics route to quantification)
+log2 = np.log2(clean)
+survivors = [s for s in intensity_cols if s not in loading_failures]
+normalized = log2[survivors] - log2[survivors].median()
+
+# Replicate correlation on log2
+corr = normalized.corr(method='pearson')
+print('Within-group replicate correlation (log2):')
+groups_kept = sample_groups[survivors]
+for group in groups_kept.unique():
+    members = groups_kept[groups_kept == group].index
+    for s1, s2 in combinations(members, 2):
+        print(f'  {group}: r({s1}, {s2}) = {corr.loc[s1, s2]:.3f}')
+
+# CV on the LINEAR scale (base formula is only valid on linear intensity)
+print('\nMedian CV per condition (linear scale):')
+for group in groups_kept.unique():
+    block = clean[groups_kept[groups_kept == group].index]
+    cv = block.std(axis=1) / block.mean(axis=1)
+    print(f'  {group}: {100 * cv.median():.1f}%')
+
+# Missingness mechanism: present-fraction vs abundance (rising = MNAR)
+present_frac = normalized.notna().mean(axis=1)
+mean_abundance = normalized.mean(axis=1)
+low, high = mean_abundance.quantile(0.25), mean_abundance.quantile(0.75)
+print(f'\nMissingness: present-fraction low-abundance={present_frac[mean_abundance <= low].mean():.2f} '
+      f'high-abundance={present_frac[mean_abundance >= high].mean():.2f} (rising-with-abundance = MNAR -> impute LOW)')
+
+# PCA / batch (impute temporarily for projection only; drop rows missing across all survivors)
+complete = normalized.dropna(how='all')
+imputed = complete.apply(lambda r: r.fillna(r.median()), axis=1)
 scaled = StandardScaler().fit_transform(imputed.T)
-pca = PCA(n_components=5)
-pcs = pca.fit_transform(scaled)
+pca = PCA(n_components=3).fit(scaled)
+coords = pd.DataFrame(pca.transform(scaled), columns=['PC1', 'PC2', 'PC3'], index=survivors)
+coords['condition'] = groups_kept.values
+print('\nPCA variance explained:', [f'{100 * v:.1f}%' for v in pca.explained_variance_ratio_])
+cond_groups = [coords[coords['condition'] == c]['PC1'] for c in coords['condition'].unique()]
+_, p = f_oneway(*cond_groups)
+print(f'PC1 ~ condition: p={p:.4f} (low p = biology drives PC1, good)')
 
-print(f'\nPCA variance explained:')
-for i, var in enumerate(pca.explained_variance_ratio_[:3]):
-    print(f'  PC{i+1}: {100*var:.1f}%')
-
-# Plots
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-# Correlation heatmap
-sns.heatmap(corr_matrix, cmap='RdBu_r', center=1, vmin=0.8, vmax=1, ax=axes[0, 0], annot=False)
-axes[0, 0].set_title('Sample Correlation')
-
-# PCA
-pc_df = pd.DataFrame({'PC1': pcs[:, 0], 'PC2': pcs[:, 1]}, index=intensity_matrix.columns)
-if 'condition' in sample_info.columns:
-    pc_df['condition'] = sample_info['condition']
-    for cond in pc_df['condition'].unique():
-        mask = pc_df['condition'] == cond
-        axes[0, 1].scatter(pc_df.loc[mask, 'PC1'], pc_df.loc[mask, 'PC2'], label=cond, s=50)
-    axes[0, 1].legend()
-else:
-    axes[0, 1].scatter(pc_df['PC1'], pc_df['PC2'], s=50)
-axes[0, 1].set_xlabel(f'PC1 ({100*pca.explained_variance_ratio_[0]:.1f}%)')
-axes[0, 1].set_ylabel(f'PC2 ({100*pca.explained_variance_ratio_[1]:.1f}%)')
-axes[0, 1].set_title('PCA')
-
-# Intensity distributions
-for col in intensity_matrix.columns[:10]:
-    axes[1, 0].hist(intensity_matrix[col].dropna(), bins=50, alpha=0.5, label=col)
-axes[1, 0].set_xlabel('Log2 Intensity')
-axes[1, 0].set_ylabel('Frequency')
-axes[1, 0].set_title('Intensity Distributions')
-
-# Missing values per sample
-axes[1, 1].bar(range(len(missing_per_sample)), missing_per_sample.values)
-axes[1, 1].axhline(30, color='red', linestyle='--', label='30% threshold')
-axes[1, 1].set_xlabel('Sample')
-axes[1, 1].set_ylabel('Missing %')
-axes[1, 1].set_title('Missing Values per Sample')
-
-plt.tight_layout()
-plt.savefig('qc_report.pdf')
-print('\nSaved: qc_report.pdf')
-
-# QC summary
-print('\n=== QC Summary ===')
-flags = []
-if missing_pct > 30:
-    flags.append('HIGH_MISSING')
-if np.min(upper_tri) < 0.8:
-    flags.append('LOW_CORRELATION')
-if len(outliers) > 0:
-    flags.append('OUTLIERS_DETECTED')
-
-if flags:
-    print(f'Flags: {", ".join(flags)}')
-else:
-    print('Status: PASS - No QC issues detected')
+print('\n=== Summary ===')
+print(f'Excluded loading failures: {loading_failures}')
+print(f'Removed {len(protein_groups) - len(clean)} contaminant/decoy rows before normalization')
+print('Normalized and ran correlation/CV/PCA on survivors only')

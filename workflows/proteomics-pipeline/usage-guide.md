@@ -7,8 +7,8 @@ End-to-end workflow for label-free proteomics analysis from MaxQuant/DIA-NN outp
 ## Prerequisites
 
 ```r
-BiocManager::install(c('limma', 'DEqMS', 'ashr', 'DEP', 'MSstats'))
-install.packages(c('pheatmap', 'ggplot2'))
+BiocManager::install(c('limma', 'DEqMS', 'proDA', 'MSstats', 'MSstatsTMT', 'ashr'))
+install.packages(c('pheatmap', 'ggplot2', 'arrow', 'iq'))
 ```
 
 ## Quick Start
@@ -28,7 +28,7 @@ Tell your AI agent what you want to do:
 ### QC and Preprocessing
 > "Check sample quality with PCA and correlation heatmap"
 
-> "Impute missing values in my proteomics data using MinProb"
+> "Handle missing values correctly by modeling the dropout rather than imputing"
 
 ### Differential Analysis
 > "Run limma to find proteins changed between treatment and control"
@@ -38,23 +38,23 @@ Tell your AI agent what you want to do:
 ## Pipeline Stages
 
 ### 1. Data Import
-- Load proteinGroups.txt (MaxQuant) or report.tsv (DIA-NN)
-- Filter contaminants and decoys
-- Extract intensity columns
+- Load proteinGroups.txt (MaxQuant) or report.parquet (DIA-NN 1.9+)
+- Filter contaminants, reverse, and only-identified-by-site BEFORE normalizing
+- Extract intensity columns (LFQ intensity, not raw Intensity, for between-sample work)
 
 ### 2. Transformation
 - Replace 0 with NA
 - Log2 transform
 - Median centering normalization
 
-### 3. Filtering
-- Remove proteins with >50% missing values
-- Filter low-variance proteins (optional)
+### 3. Completeness Filtering
+- Keep proteins valid in >= ~60% of replicates in at least one condition
+- Filter before any missing-value handling, so only shallow gaps remain
 
-### 4. Imputation
-- MinProb: Left-censored Gaussian (for MNAR)
-- KNN: K-nearest neighbors (for MAR)
-- Perseus-style: Downshifted Gaussian
+### 4. Missing-Value Handling
+- Preferred: MODEL the left-censored MNAR dropout (proDA / msqrob2 / MSstats-AFT); no imputation
+- Fallback only: downshift imputation, which manufactures false positives for on/off proteins near the detection limit
+- Report a protein fully missing in one group as "undetected", not as a fold change
 
 ### 5. Quality Control
 - PCA: Check replicate clustering
@@ -62,9 +62,10 @@ Tell your AI agent what you want to do:
 - Missing value patterns: Random or systematic
 
 ### 6. Differential Analysis
-- limma: Empirical Bayes moderated t-test
-- MSstats: Mixed-effects models
-- DEP: Complete workflow package
+- limma: empirical-Bayes moderated t-test (trend=TRUE, robust=TRUE); treat() for a minimum fold change
+- DEqMS: count-aware moderation when quantification depth varies
+- proDA: probabilistic dropout model (no imputation)
+- MSstats / MSstatsTMT: feature-level mixed models, plus the IRS bridge for multi-batch TMT
 
 ### 7. Output
 - Differential proteins table
@@ -106,8 +107,8 @@ Sample4,Treatment,2
 
 ## Tips
 
-- **Missing values**: Use MinProb for MNAR (abundance-dependent), KNN for MAR
-- **Normalization**: Median centering is standard; quantile if distributions vary
-- **Filtering**: Remove proteins with >50% missing values before imputation
-- **Replicates**: Minimum 3 biological replicates per condition
-- **Contaminants**: Always filter MaxQuant contaminants and reverse sequences
+- **Missing values**: model the MNAR dropout (proDA/msqrob2/MSstats-AFT) rather than impute; downshift imputation manufactures systematic false positives
+- **Normalization**: median centering is the default for balanced designs; never normalize an AP-MS/enrichment pulldown this way
+- **Completeness**: filter on per-group completeness before any missing-value handling, not a blanket >50% rule
+- **Replicates**: minimum 3 biological replicates per condition
+- **Contaminants**: filter MaxQuant contaminants, reverse, and only-identified-by-site BEFORE log + normalize

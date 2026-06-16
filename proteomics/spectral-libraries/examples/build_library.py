@@ -1,61 +1,63 @@
-'''Build and validate a spectral library from search results'''
-# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
+'''Calibrate predicted iRT, merge libraries on the full transition key, and QC.
+
+Operates on a small in-memory library so it runs without network or input files.
+Koina, MS2PIP, and DeepLC prediction calls are shown in comments for reference;
+swap the in-memory table for real predictions in production.
+'''
+# Reference: pandas 2.2+, numpy 1.26+, scipy 1.12+ | Verify API if version differs
+import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+from scipy import stats
 
-# Load search results (MaxQuant evidence.txt format)
-evidence = pd.read_csv('evidence.txt', sep='\t')
+# --- Predicted-library generation (reference; needs network/local model) ---
+# from koinapy import Koina  # verify constructor signature with help(Koina)
+# inputs = pd.DataFrame({'peptide_sequences': ['LGGNEQVTR'], 'precursor_charges': [2], 'collision_energies': [30]})
+# fragments = Koina('Prosit_2019_intensity', 'koina.wilhelmlab.org:443').predict(inputs)
+# import ms2pip; result = ms2pip.predict_batch(psms, model='HCD')  # v4 module-level API, ProcessingResult objects
+# from deeplc import DeepLC; dlc = DeepLC(); dlc.calibrate_preds(seq_df=cal_df); rt = dlc.make_preds(seq_df=pep_df)
 
-# Filter for high-quality PSMs
-high_quality = evidence[
-    (evidence['Score'] > 80) &
-    (evidence['PEP'] < 0.01) &
-    (evidence['Reverse'] != '+') &
-    (evidence['Potential contaminant'] != '+')
-].copy()
+R2_MIN = 0.95  # below this the iRT-to-RT fit is untrustworthy and extraction windows misplace
+FRAGMENTS_PER_PRECURSOR = 6  # confident peak-group scoring without inviting interference
+TRANSITION_KEY = ['ModifiedSequence', 'PrecursorCharge', 'FragmentType', 'FragmentSeriesNumber', 'FragmentCharge']
 
-# Select best spectrum per precursor (highest score)
-best_psms = high_quality.sort_values('Score', ascending=False)
-best_psms = best_psms.drop_duplicates(subset=['Modified sequence', 'Charge'])
+IRT_PEPTIDES = {'LGGNEQVTR': -24.92, 'GAGSSEPVTGLDAK': 0.00, 'VEATFGVDESNAK': 12.39,
+                'YILAGVENSK': 19.79, 'TPVISGGPYEYR': 28.71, 'TPVITGAPYEYR': 33.38,
+                'DGLDAASYYAPVR': 42.26, 'ADVTPADFSEWSK': 54.62, 'GTFIIDPGGVIR': 70.52,
+                'GTFIIDPAAVIR': 87.23, 'LFLQFGAQGSPFLK': 100.00}
 
-print(f'High-quality precursors: {len(best_psms)}')
-print(f'Unique proteins: {best_psms["Proteins"].nunique()}')
+def calibrate_irt(anchor_irt, observed_rt):
+    slope, intercept, r, _, _ = stats.linregress(anchor_irt, observed_rt)
+    if r ** 2 < R2_MIN:
+        raise ValueError(f'iRT fit R^2={r**2:.3f} < {R2_MIN}; gradient may be nonlinear, use LOWESS')
+    return slope, intercept, r ** 2
 
-# Create library format (simplified)
-library = pd.DataFrame({
-    'ModifiedSequence': best_psms['Modified sequence'],
-    'PrecursorCharge': best_psms['Charge'],
-    'PrecursorMz': best_psms['m/z'],
-    'NormalizedRetentionTime': best_psms['Retention time'] / best_psms['Retention time'].max(),
-    'ProteinId': best_psms['Proteins'],
-    'GeneName': best_psms['Gene names']
-})
+def merge_libraries(libs):
+    combined = pd.concat(libs, ignore_index=True)
+    combined['precursor_total'] = combined.groupby(['ModifiedSequence', 'PrecursorCharge'])['LibraryIntensity'].transform('sum')
+    combined = combined.sort_values('precursor_total', ascending=False)
+    return combined.drop_duplicates(subset=TRANSITION_KEY).drop(columns='precursor_total')
 
-# Save library
-library.to_csv('empirical_library.tsv', sep='\t', index=False)
+def library_stats(lib):
+    n_prec = lib.groupby(['ModifiedSequence', 'PrecursorCharge']).ngroups
+    return {'precursors': n_prec, 'proteins': lib['ProteinId'].nunique(),
+            'transitions_per_precursor': round(len(lib) / n_prec, 1)}
 
-# QC plots
-fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+anchors = pd.DataFrame({'peptide': list(IRT_PEPTIDES), 'irt': list(IRT_PEPTIDES.values())})
+anchors['observed_rt'] = 5.0 + 0.18 * anchors['irt'] + np.random.default_rng(0).normal(0, 0.1, len(anchors))
+slope, intercept, r2 = calibrate_irt(anchors['irt'], anchors['observed_rt'])
+print(f'iRT calibration: RT = {slope:.3f} * iRT + {intercept:.3f}, R^2 = {r2:.3f}')
 
-# RT distribution
-axes[0].hist(library['NormalizedRetentionTime'], bins=50)
-axes[0].set_xlabel('Normalized RT')
-axes[0].set_ylabel('Precursors')
-axes[0].set_title('RT Distribution')
+rng = np.random.default_rng(1)
+def make_lib(seq, charge, protein, n):
+    return pd.DataFrame({'ModifiedSequence': seq, 'PrecursorCharge': charge, 'ProteinId': protein,
+                         'FragmentType': ['y'] * n, 'FragmentSeriesNumber': np.arange(1, n + 1),
+                         'FragmentCharge': 1, 'LibraryIntensity': rng.uniform(0.1, 1.0, n)})
 
-# Charge distribution
-charge_counts = library['PrecursorCharge'].value_counts().sort_index()
-axes[1].bar(charge_counts.index, charge_counts.values)
-axes[1].set_xlabel('Charge State')
-axes[1].set_ylabel('Precursors')
-axes[1].set_title('Charge Distribution')
+lib1 = make_lib('LGGNEQVTR', 2, 'P1', FRAGMENTS_PER_PRECURSOR)
+lib2 = pd.concat([make_lib('LGGNEQVTR', 3, 'P1', FRAGMENTS_PER_PRECURSOR),
+                  make_lib('VEATFGVDESNAK', 2, 'P2', FRAGMENTS_PER_PRECURSOR)], ignore_index=True)
 
-# m/z distribution
-axes[2].hist(library['PrecursorMz'], bins=50)
-axes[2].set_xlabel('Precursor m/z')
-axes[2].set_ylabel('Precursors')
-axes[2].set_title('m/z Distribution')
-
-plt.tight_layout()
-plt.savefig('library_qc.png', dpi=150)
-print('Library QC plot saved to library_qc.png')
+merged = merge_libraries([lib1, lib2])
+print('Merged library stats:', library_stats(merged))
+print(f'Charge-2 and charge-3 of LGGNEQVTR both retained: '
+      f'{set(merged.loc[merged.ModifiedSequence == "LGGNEQVTR", "PrecursorCharge"]) == {2, 3}}')

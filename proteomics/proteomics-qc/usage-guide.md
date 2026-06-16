@@ -1,82 +1,78 @@
 # Proteomics QC - Usage Guide
 
 ## Overview
-Assess data quality before statistical analysis through sample correlation, missing value patterns, batch effects, and replicate reproducibility.
+Quality control for bottom-up proteomics framed as a three-level funnel: instrument/raw-signal QC (mass accuracy, RT/iRT fit, FWHM, TIC vs injection time, % MS2 identified), identification/run QC (missed cleavages, charge states, sample-handling PTM artifacts, contaminants), and experiment/quantitative QC (replicate correlation on log2, CV on the linear scale, completeness, missingness mechanism, PCA/batch, TMT channel balance, DIA q-values). The deliverable matrix is the LAST place a fault becomes visible, so the agent inspects raw signal and removes contaminants BEFORE normalizing, because median normalization erases loading failures.
 
 ## Prerequisites
 ```bash
 pip install numpy pandas scipy scikit-learn matplotlib seaborn
-# R packages: BiocManager::install(c("limma", "sva", "pcaMethods"))
+# R packages: install.packages('PTXQC')   # PTXQC is on CRAN, NOT Bioconductor
+# BiocManager::install(c('limma', 'MSstatsTMT'))
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Run QC on my protein matrix and identify outlier samples"
-- "Check for batch effects in my proteomics data"
-- "Generate a QC report with correlation heatmap and PCA"
+- "Plot raw per-sample boxplots and ID counts before I normalize, and flag loading failures"
+- "Strip MaxQuant contaminant and decoy rows before log-transform and normalization"
+- "Compute replicate correlation on log2 and CV on the linear scale, then run PCA colored by batch"
+- "Diagnose whether my missing values are MNAR or MCAR before I pick an imputer"
 
 ## Example Prompts
 
-### Sample Quality
-> "Calculate the correlation matrix between samples and identify any with correlation < 0.9"
+### Inspect Before Normalizing
+> "Show raw, un-normalized boxplots per sample with ID counts and total signal, and flag any sample shifted more than 2-3x below its group"
 
-> "Count proteins identified per sample and flag samples with significantly fewer"
+> "Remove rows flagged Potential contaminant, Reverse, or Only identified by site from my MaxQuant proteinGroups before I normalize"
 
-> "Check median intensity per sample for outliers"
+> "What fraction of summed intensity is keratin and trypsin, and is it higher in my low-input samples?"
+
+### Reproducibility
+> "Calculate within-group Pearson correlation on log2 intensities and tell me if any sample correlates better with a different group"
+
+> "Compute median CV per condition on the linear scale, not on log data"
+
+> "Are my technical replicates above r 0.98 and is the biological CV in the 20-40% range?"
 
 ### Missing Values
-> "Analyze the missing value pattern - is it random or systematic?"
+> "Plot present-fraction versus abundance to decide if missingness is MNAR or MCAR"
 
-> "Create a heatmap showing missing values by sample and protein"
+> "Filter to proteins valid in at least 70% of replicates in one condition before imputing"
 
-> "Calculate the percentage of missing values per sample and per protein"
+> "Which imputation method matches my missingness mechanism, and why would the wrong one corrupt my results?"
 
-### Batch Effects
-> "Run PCA and color by batch to check for batch effects"
+### Batch and Outliers
+> "Run PCA on the normalized survivors and test whether PC1 or PC2 associates with batch rather than condition"
 
-> "Test if PC1 or PC2 separates by run date rather than biology"
+> "Is batch the dominant axis of variance, and should I correct it before differential testing?"
 
-> "Recommend whether ComBat or SVA is needed for my data"
+### TMT and DIA
+> "Check TMT channel-loading balance on raw reporter intensities and flag any channel deviating more than 2x"
 
-### Replicate Reproducibility
-> "Calculate CV per protein across technical replicates"
-
-> "Check if biological replicates cluster together in PCA"
-
-> "Compare intensity distributions between replicate groups"
-
-### QC Report
-> "Generate a comprehensive QC report with all standard metrics"
-
-> "Create QC plots: correlation heatmap, PCA, intensity boxplots, missing values"
+> "How many protein groups pass at 1% global q-value, and why is precursor q not enough?"
 
 ## What the Agent Will Do
-1. Load and log2-transform protein matrix
-2. Calculate sample-level metrics (proteins, missing %, median intensity)
-3. Compute correlation matrix and flag outliers
-4. Run PCA and check for batch effects
-5. Analyze missing value patterns
-6. Calculate replicate CV
-7. Generate QC report and visualizations
-
-## Key QC Metrics
-
-### Sample-Level
-| Metric | Good | Warning | Action |
-|--------|------|---------|--------|
-| Proteins identified | >2000 | <1500 | Check MS performance |
-| Missing values | <30% | >50% | Consider exclusion |
-| Replicate correlation | >0.95 | <0.90 | Check sample prep |
-| Median CV | <20% tech | >40% | Check variability source |
-
-### Batch Effect Signs
-- PC1/PC2 separates by batch, not biology
-- Samples cluster by run date
-- Different intensity distributions by batch
+1. Load the un-normalized search output and intensity matrix
+2. Plot raw per-sample boxplots, ID counts, total signal, and missing fraction; flag loading/injection failures
+3. Filter contaminant, reverse, and only-identified-by-site rows before any transform
+4. Log2-transform and normalize on the surviving good samples (mechanics route to quantification)
+5. Compute replicate Pearson r on log2 and median CV on the linear scale
+6. Diagnose the missingness mechanism and apply a completeness filter before imputing
+7. Run PCA, test for batch association, and flag outlier samples
+8. For TMT, inspect channel balance and isolation interference; for DIA, summarize global q-value counts
 
 ## Tips
-- Always run QC before statistical analysis
-- Document and justify any sample exclusions
-- Include batch as covariate if effects detected
-- Consider sensitivity analysis with/without borderline samples
-- Technical CV <20%, biological CV <40% are typical thresholds
+- Inspect raw signal first; once the matrix is median-normalized the evidence of a loading failure is mathematically gone.
+- Almost no metric has a universal cutoff; trend each metric against your own per-instrument rolling baseline (Levey-Jennings, +/-2 SD warn, +/-3 SD action).
+- Read every metric with its co-readouts: a protein-count drop means spray, column, or sample depending on what co-moves.
+- Correlate on log2, never raw; a few abundant proteins make raw r meaningless.
+- Compute CV on linear intensity (or geometric CV on logs); always state normalization, transform, and software or the CV is uninterpretable.
+- Diagnose MNAR vs MCAR before choosing an imputer; the wrong one either kills or fabricates differences.
+- Document and justify every sample exclusion, and run a sensitivity check with and without borderline samples.
+
+## Related Skills
+- data-import - Load search-engine output and intensity matrices before QC
+- quantification - Normalization and imputation mechanics that QC mandates running AFTER inspection
+- differential-abundance - The moderated statistical test QC gates
+- dia-analysis - DIA q-value/FDR internals behind the protein-count QC
+- data-visualization/dimensionality-reduction-plots - PCA/MDS projection plotting
+- workflows/proteomics-pipeline - End-to-end pipeline placing QC before differential testing
