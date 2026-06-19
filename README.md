@@ -142,7 +142,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
 | **metagenomics** | 8 | Kraken2, MetaPhlAn, Bracken, HUMAnN, AMRFinderPlus, inStrain, decontam | Read-based taxonomic/functional profiling, abundance, resistome, strain tracking, contamination controls |
 | **long-read-sequencing** | 8 | Dorado, minimap2, Clair3, modkit, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, methylation, Iso-Seq |
-| **read-qc** | 7 | FastQC, MultiQC, fastp, Trimmomatic, Cutadapt | Quality reports, adapter trimming, filtering, UMIs |
+| **read-qc** | 7 | FastQC, MultiQC, fastp, Cutadapt, FastQ Screen, umi_tools, RSeQC | Quality reports, adapter/quality trimming, contamination screening, UMI processing, RNA-seq QC |
 | **genome-intervals** | 8 | bedtools, pybedtools, pyranges, gffutils, deepTools, pyBigWig | Coordinate systems, interval arithmetic, overlap significance, GTF/GFF, proximity, coverage, bedGraph/bigWig tracks |
 | **population-genetics** | 7 | PLINK 1.9/2.0, BOLT-LMM, SAIGE, regenie, ADMIXTURE, scikit-allel | Allele-aware QC, LD pruning/clumping, PCA/admixture with ratio-of-averages FST, single-variant GWAS and mixed models (PC-vs-LMM, SPA/Firth, LOCO), rare-variant gene-based tests (burden/SKAT/SKAT-O/ACAT/STAAR), demography-aware selection scans |
 | **rna-quantification** | 4 | featureCounts, Salmon, kallisto, tximport | Gene/transcript quantification, count matrix QC |
