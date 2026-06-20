@@ -2,66 +2,71 @@
 
 ## Overview
 
-Calculate translation efficiency (TE) as the ratio of ribosome occupancy to mRNA abundance, enabling detection of translational regulation independent of transcription.
+Quantify translation efficiency (TE = ribosome occupancy / mRNA abundance) and test for differential TE between conditions. The key decisions are counting both assays over the CDS, using count-based GLMs rather than ratio tests, and distinguishing genuine translational control from buffering.
 
 ## Prerequisites
 
 ```r
-# R
-BiocManager::install(c('riborex', 'DESeq2'))
+# R (differential TE)
+BiocManager::install(c("riborex", "xtail", "anota2seq", "DESeq2"))
 ```
 
 ```bash
-# Python
-pip install plastid pandas numpy
+# Python (quick ranking screen)
+pip install pandas numpy statsmodels
 ```
 
 ## Quick Start
 
-Tell your AI agent:
-- "Calculate translation efficiency from my Ribo-seq and RNA-seq"
-- "Find genes with differential TE between conditions"
-- "Run riborex on my count matrices"
-- "Identify translationally regulated genes"
+Tell your AI agent what you want to do:
+- "Calculate translation efficiency from my Ribo-seq and RNA-seq CDS counts"
+- "Find genes with differential TE with riborex"
+- "Tell translational control from buffering with anota2seq"
+- "Run a DESeq2 interaction model for TE"
 
 ## Example Prompts
 
 ### Calculate TE
 
-> "Calculate TE for each gene using Ribo-seq and RNA-seq counts"
+> "Compute per-gene log2 TE over the CDS for ranking"
 
-> "Normalize counts and compute log2 translation efficiency"
-
-> "Create a TE matrix for all samples"
+> "Why do my long-UTR genes have systematically low TE?"
 
 ### Differential TE
 
-> "Find genes with significantly different TE between treatment and control"
+> "Run riborex to find genes with significantly changed TE"
 
-> "Run riborex to detect differential translation"
+> "Use anota2seq to classify genes as translation, buffering, or abundance"
 
-> "Use DESeq2 interaction model for TE analysis"
+> "Set up a DESeq2 condition-by-assay interaction and pick the right coefficient"
 
 ### Interpretation
 
-> "Which genes are translationally upregulated?"
+> "Which genes are translationally activated versus buffered?"
 
-> "Find genes with increased mRNA but decreased TE"
-
-> "Identify genes regulated only at translation level"
+> "Is this TE change real translational control or secondary to a uORF?"
 
 ## What the Agent Will Do
 
-1. Load Ribo-seq and RNA-seq count matrices
-2. Normalize counts (TPM or RPKM)
-3. Calculate TE per gene per sample
-4. Run statistical test for differential TE
-5. Filter by significance (padj < 0.05)
+1. Load matched Ribo-seq and RNA-seq CDS count matrices
+2. For ranking, compute per-gene log2 TE with a pseudocount
+3. For testing, run a count-based GLM (riborex/Xtail/anota2seq/DESeq2 interaction)
+4. With anota2seq, classify each gene's mode of regulation
+5. Filter by adjusted p-value and check uORF/isoform confounders
 
 ## Tips
 
-- **Match samples** - Ribo-seq and RNA-seq must be from same biological samples
-- **CDS counts for Ribo-seq** - only count in coding sequence
-- **Full transcript for RNA-seq** - include UTRs
-- **Pseudocounts** avoid division by zero
-- **Log2 TE** is more interpretable for fold changes
+- **Count both over the CDS** - full-transcript RNA against CDS RPF biases long-UTR genes
+- **Ratios rank, GLMs test** - never t-test log-TE for inference
+- **Buffering looks like control** - only anota2seq separates them
+- **Do not hardcode the DESeq2 interaction name** - pick it from resultsNames(dds)
+- **Per-assay size factors** - assume median TE unchanged; use spike-ins for global shifts
+- **Trim codons** - exclude first ~15 / last ~5 codons from the RPF count
+- **Replicates** - count GLMs and anota2seq RVM want >=3 per condition per assay; n=2 is illustrative only
+
+## Related Skills
+
+- ribosome-periodicity - Calibrate P-site offsets for CDS counts
+- orf-detection - Rule out uORF-driven TE changes
+- rna-quantification/featurecounts-counting - Matched RNA-seq CDS counts
+- differential-expression/deseq2-basics - Count-based DE foundations

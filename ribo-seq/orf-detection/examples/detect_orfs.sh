@@ -1,68 +1,42 @@
 #!/bin/bash
-# Reference: BioPython 1.83+, DESeq2 1.42+, pandas 2.2+ | Verify API if version differs
-# ORF detection from Ribo-seq using RiboCode
+# Reference: RiboCode 1.2+ | Verify API if version differs
+# De novo ORF detection from Ribo-seq with RiboCode (periodicity-based).
 
-BAM=$1
+set -euo pipefail
+
+BAM=$1           # transcriptome-aligned, P-site-calibratable Ribo-seq BAM
 GTF=$2
 GENOME=$3
-OUTPUT_DIR=${4:-"ribocode_output"}
+OUTDIR=${4:-ribocode_output}
+ALT_STARTS=${5:-CTG,GTG}   # near-cognate starts for uORF discovery; "" to disable
 
-mkdir -p $OUTPUT_DIR
+mkdir -p "$OUTDIR"
 
-echo "ORF detection with RiboCode"
-echo "Input: $BAM"
+# Step 1: prepare transcript annotation
+prepare_transcripts -g "$GTF" -f "$GENOME" -o "$OUTDIR/annot"
 
-# One-step RiboCode analysis
-# -l: Read lengths to use (28-30 nt are typical ribosome footprints)
-# Adjust based on your library's read length distribution
-RiboCode_onestep \
-    -g $GTF \
-    -r $BAM \
-    -f $GENOME \
-    -l 27,28,29,30 \
-    -o $OUTPUT_DIR \
-    2>&1 | tee ${OUTPUT_DIR}/ribocode.log
+# Step 2: metaplots selects periodic read lengths AND their P-site offsets into a config.
+# Read lengths come from THIS step, NOT a -l flag.
+metaplots -a "$OUTDIR/annot" -r "$BAM" -o "$OUTDIR/metaplots"
 
-# Alternative: Step-by-step approach
-# # Step 1: Prepare annotation
-# prepare_transcripts \
-#     -g $GTF \
-#     -f $GENOME \
-#     -o ${OUTPUT_DIR}/ribocode_annot
+# Step 3: call ORFs. -l is the longest-ORF toggle (yes/no), not read lengths.
+# -A adds near-cognate starts so uORFs at CUG/GUG are found.
+ALT_ARG=""
+if [ -n "$ALT_STARTS" ]; then
+    ALT_ARG="-A $ALT_STARTS"
+fi
+RiboCode -a "$OUTDIR/annot" -c "$OUTDIR/metaplots_pre_config.txt" \
+    $ALT_ARG -l no -p 0.05 -o "$OUTDIR/ribocode_result"
 
-# # Step 2: Create config file
-# echo -e "sample\t${BAM}\tyes" > ${OUTPUT_DIR}/config.txt
-
-# # Step 3: Run RiboCode
-# RiboCode \
-#     -a ${OUTPUT_DIR}/ribocode_annot \
-#     -c ${OUTPUT_DIR}/config.txt \
-#     -l 27,28,29,30 \
-#     -o ${OUTPUT_DIR}/ribocode
-
-# Summarize results
-RESULT_FILE=$(ls ${OUTPUT_DIR}/*_ORF_result.txt 2>/dev/null | head -1)
-
-if [ -f "$RESULT_FILE" ]; then
-    echo ""
-    echo "ORF detection complete!"
-    echo ""
-
-    # Count ORFs by type
+# Summarize by ORF type. RiboCode emits:
+#   annotated / uORF / dORF / Overlap_uORF / Overlap_dORF / Internal / novel
+# The result table is <output_name>.txt (here ribocode_result.txt).
+RESULT="$OUTDIR/ribocode_result.txt"
+if [ -f "$RESULT" ]; then
     echo "ORF counts by type:"
-    # ORF types:
-    # - annotated: Matches known CDS
-    # - uORF: Upstream of main CDS (regulatory)
-    # - dORF: Downstream of main CDS
-    # - novel: In unannotated regions (potential micropeptides)
-    awk -F'\t' 'NR>1 {types[$7]++} END {for (t in types) print "  "t": "types[t]}' $RESULT_FILE
-
-    TOTAL=$(wc -l < $RESULT_FILE)
-    echo "Total ORFs: $((TOTAL - 1))"
-
-    echo ""
-    echo "Output files:"
-    ls -lh ${OUTPUT_DIR}/*ORF*
+    awk -F'\t' 'NR==1{for(i=1;i<=NF;i++) if($i=="ORF_type") c=i; next}
+                {types[$c]++} END{for(t in types) print "  "t": "types[t]}' "$RESULT"
+    echo "Total ORFs: $(($(wc -l < "$RESULT") - 1))"
 else
-    echo "No results found. Check ribocode.log for errors."
+    echo "No ORF_result.txt found; check the RiboCode logs."
 fi
