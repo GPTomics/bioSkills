@@ -8,22 +8,30 @@ format:
     toc-depth: 3
     code-fold: true
     theme: flatly
+    embed-resources: true
     fig-width: 10
     fig-height: 6
 jupyter: python3
-params:
-  input_file: "adata.h5ad"
-  n_top_genes: 2000
+execute:
+  freeze: auto
 ---
+
+<!-- Reference: Quarto 1.4+, scanpy 1.10+ | Verify API if version differs -->
+<!-- jupyter-engine doc: parameters come from a cell tagged `parameters`, NOT a YAML params: block -->
+
+```{python}
+#| tags: [parameters]
+input_file = "adata.h5ad"
+n_top_genes = 2000
+```
 
 ## Overview
 
-This report presents single-cell RNA-seq analysis results.
+This report presents single-cell RNA-seq analysis results, parameterized by `input_file`.
 
 ```{python}
 #| label: setup
 #| include: false
-
 import scanpy as sc
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -37,8 +45,7 @@ sc.settings.set_figure_params(dpi=100, frameon=False)
 
 ```{python}
 #| label: load-data
-
-adata = sc.read_h5ad('adata.h5ad')
+adata = sc.read_h5ad(input_file)
 print(f"Cells: {adata.n_obs:,}")
 print(f"Genes: {adata.n_vars:,}")
 ```
@@ -49,10 +56,8 @@ print(f"Genes: {adata.n_vars:,}")
 
 ```{python}
 #| label: fig-qc
-#| fig-cap: "Quality control metrics"
-
-sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],
-             jitter=0.4, multi_panel=True)
+#| fig-cap: "Quality control metrics per cell"
+sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'], jitter=0.4, multi_panel=True)
 ```
 
 ### Filtering Summary
@@ -60,12 +65,9 @@ sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],
 ```{python}
 #| label: tbl-filtering
 #| tbl-cap: "Filtering statistics"
-
 qc_stats = pd.DataFrame({
     'Metric': ['Total cells', 'Median genes/cell', 'Median counts/cell'],
-    'Value': [adata.n_obs,
-              int(np.median(adata.obs['n_genes_by_counts'])),
-              int(np.median(adata.obs['total_counts']))]
+    'Value': [adata.n_obs, int(np.median(adata.obs['n_genes_by_counts'])), int(np.median(adata.obs['total_counts']))],
 })
 qc_stats
 ```
@@ -74,8 +76,7 @@ qc_stats
 
 ```{python}
 #| label: fig-umap
-#| fig-cap: "UMAP embedding colored by cluster"
-
+#| fig-cap: "UMAP embedding colored by Leiden cluster"
 sc.pl.umap(adata, color='leiden', legend_loc='on data')
 ```
 
@@ -85,8 +86,7 @@ sc.pl.umap(adata, color='leiden', legend_loc='on data')
 
 ```{python}
 #| label: fig-markers
-#| fig-cap: "Marker gene expression"
-
+#| fig-cap: "Marker gene expression by cluster"
 marker_genes = ['CD3D', 'CD14', 'CD19', 'NKG7', 'FCGR3A']
 sc.pl.dotplot(adata, marker_genes, groupby='leiden', standard_scale='var')
 ```
@@ -97,36 +97,20 @@ sc.pl.dotplot(adata, marker_genes, groupby='leiden', standard_scale='var')
 #| label: fig-heatmap
 #| fig-cap: "Top marker genes per cluster"
 #| fig-height: 8
-
 sc.tl.rank_genes_groups(adata, 'leiden', method='wilcoxon')
 sc.pl.rank_genes_groups_heatmap(adata, n_genes=5, show_gene_labels=True)
 ```
 
-## Cell Type Distribution
-
-```{python}
-#| label: fig-composition
-#| fig-cap: "Cell type composition"
-
-cell_counts = adata.obs['leiden'].value_counts()
-plt.figure(figsize=(10, 6))
-cell_counts.plot(kind='bar')
-plt.xlabel('Cluster')
-plt.ylabel('Number of cells')
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
-```
+The QC overview is @fig-qc; cluster structure is @fig-umap.
 
 ::: {.callout-note}
-Cluster annotations should be validated with known marker genes.
+Cluster annotations should be validated with known marker genes before downstream interpretation.
 :::
 
 ## Session Info
 
 ```{python}
 #| label: session-info
-
 print(f"Scanpy version: {sc.__version__}")
 print(f"AnnData shape: {adata.shape}")
 ```

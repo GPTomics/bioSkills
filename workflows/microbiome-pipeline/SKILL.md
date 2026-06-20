@@ -264,6 +264,7 @@ picrust2_pipeline.py -s asv_seqs.fna -i asv_table.biom -o picrust2_out -p 8 --ma
 ## Related Skills
 
 - microbiome/amplicon-processing - Primer removal, per-run error model, truncLen budget, chimeras, ITS
+- reporting/automated-qc-reports - Aggregate FastQC/MultiQC across samples (sample-name resolution; the report is a snapshot, not a gate)
 - microbiome/taxonomy-assignment - Region-matched classifier and reference-database choice
 - microbiome/diversity-analysis - Sampling depth, tree choice, metric choice, adonis2 + betadisper
 - microbiome/differential-abundance - Compositional DA tools and the consensus deliverable

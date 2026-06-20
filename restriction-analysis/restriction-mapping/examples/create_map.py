@@ -1,5 +1,5 @@
 '''Create a restriction map'''
-# Reference: biopython 1.83+ | Verify API if version differs
+# Reference: biopython 1.83+ (API verified on 1.86) | Verify API if version differs
 
 from Bio import SeqIO
 from Bio.Restriction import RestrictionBatch, Analysis
@@ -18,9 +18,11 @@ analysis = Analysis(enzymes, seq)
 
 print('\nMap format:')
 analysis.print_as('map')
+analysis.print_that()      # print_as only SETS the format; print_that() renders it
 
 print('\n\nLinear format:')
 analysis.print_as('linear')
+analysis.print_that()
 
 print('\n\nDetailed site list:')
 results = analysis.full()

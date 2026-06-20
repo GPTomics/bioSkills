@@ -29,9 +29,11 @@ FASTQ -> cutadapt trim -> miRDeep2 -> Quantification -> DESeq2 -> Target predict
 ## Step 1: Preprocessing
 
 ```bash
-# Adapter trimming and size selection
+# Adapter trimming and size selection. Small-RNA inserts (~22 nt) are shorter than the read,
+# so the 3' adapter is on EVERY real read -> --discard-untrimmed drops adapter-dimer / no-insert
+# junk (the inverse of genomic DNA, where no-adapter reads are the good ones). See read-qc/adapter-trimming.
 cutadapt -a TGGAATTCTCGGGTGCCAAGG \
-    --minimum-length 18 --maximum-length 30 \
+    --minimum-length 18 --maximum-length 30 --discard-untrimmed \
     -o trimmed.fastq.gz reads.fastq.gz
 ```
 

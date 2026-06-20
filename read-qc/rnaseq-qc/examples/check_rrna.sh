@@ -1,6 +1,7 @@
 #!/bin/bash
-# Reference: NCBI BLAST+ 2.15+, numpy 1.26+, picard 3.1+, pysam 0.22+, samtools 1.19+ | Verify API if version differs
-# Check rRNA contamination with SortMeRNA
+# Reference: SortMeRNA 4.3+ | Verify API if version differs
+# Check rRNA contamination with SortMeRNA. High rRNA = failed depletion / poly-A selection
+# (a prep-efficiency readout); filter only to recover usable depth, the real fix is re-prep.
 
 FASTQ=$1
 RRNA_DB=${2:-/path/to/sortmerna/rRNA_databases/smr_v4.3_default_db.fasta}
@@ -25,15 +26,14 @@ sortmerna \
     --threads $THREADS \
     --workdir sortmerna_tmp
 
-total=$(zcat $FASTQ | grep -c "^@" || cat $FASTQ | grep -c "^@")
+# Count reads as lines/4 (a quality line can start with '@', so grep '^@' overcounts).
+# SortMeRNA mirrors the input compression by default, so the aligned file may be .fastq, .fastq.gz,
+# .fq, or .fq.gz -- glob for whichever exists and zcat -f handles both compressed and plain.
+total=$(( $(zcat -f $FASTQ | wc -l) / 4 ))
 
-if [ -f "${NAME}_rRNA.fastq" ]; then
-    rrna=$(grep -c "^@" ${NAME}_rRNA.fastq)
-elif [ -f "${NAME}_rRNA.fq" ]; then
-    rrna=$(grep -c "^@" ${NAME}_rRNA.fq)
-else
-    rrna=0
-fi
+rrna_file=$(ls ${NAME}_rRNA.fastq.gz ${NAME}_rRNA.fastq ${NAME}_rRNA.fq.gz ${NAME}_rRNA.fq 2>/dev/null | head -1)
+rrna=0
+[ -n "$rrna_file" ] && rrna=$(( $(zcat -f "$rrna_file" | wc -l) / 4 ))
 
 pct=$(echo "scale=2; $rrna / $total * 100" | bc)
 

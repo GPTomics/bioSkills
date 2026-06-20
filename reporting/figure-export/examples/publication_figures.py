@@ -1,173 +1,95 @@
 #!/usr/bin/env python3
-"""
-Publication-ready figure export examples
-Demonstrates proper sizing, resolution, and formatting for journal submission
-"""
+"""Publication-ready figure export: editable fonts, hybrid rasterization, byte-stable output."""
 # Reference: matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
-# =============================================================================
-# Publication Default Settings
-# =============================================================================
+# Okabe-Ito Color Universal Design palette (CVD-safe categorical)
+OKABE_ITO = ['#000000', '#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2', '#D55E00', '#CC79A7']
+
+# Journal column widths in mm; design at the exact target width, never rescale later
+JOURNAL_WIDTH_MM = {'nature_single': 89, 'nature_double': 183, 'cell_single': 85, 'cell_double': 174}
+
 
 def set_publication_style():
-    """Configure matplotlib for publication-quality figures."""
-    plt.rcParams.update({
-        # Font settings
+    """Publication rcParams: editable TrueType fonts, constrained layout, no tight-bbox."""
+    mpl.rcParams.update({
+        'pdf.fonttype': 42,            # TrueType -> editable/selectable text in PDF (default 3 is not)
+        'ps.fonttype': 42,            # same for EPS/PS
+        'svg.fonttype': 'none',        # SVG emits real <text> referencing the font
         'font.family': 'sans-serif',
         'font.sans-serif': ['Arial', 'Helvetica', 'DejaVu Sans'],
-        'font.size': 8,
-        'axes.labelsize': 8,
-        'axes.titlesize': 9,
-        'xtick.labelsize': 7,
-        'ytick.labelsize': 7,
-        'legend.fontsize': 7,
-
-        # Line settings
-        'axes.linewidth': 0.5,
-        'lines.linewidth': 1,
-        'lines.markersize': 4,
-
-        # Figure settings
-        'figure.dpi': 150,  # Screen display
-        'savefig.dpi': 300,  # File output
-        'savefig.bbox': 'tight',
-        'savefig.pad_inches': 0.05,
-
-        # Remove top/right spines
-        'axes.spines.top': False,
-        'axes.spines.right': False,
+        'font.size': 8, 'axes.labelsize': 8, 'axes.titlesize': 9,
+        'xtick.labelsize': 7, 'ytick.labelsize': 7, 'legend.fontsize': 7,
+        'axes.linewidth': 0.5, 'lines.linewidth': 1, 'lines.markersize': 4,
+        'figure.dpi': 150, 'savefig.dpi': 600,
+        'figure.constrained_layout.use': True,   # reproducible spacing; do NOT use savefig bbox='tight'
+        'axes.spines.top': False, 'axes.spines.right': False,
     })
 
-set_publication_style()
 
-# =============================================================================
-# Journal Figure Sizes
-# =============================================================================
-
-# Common journal column widths (inches)
-JOURNAL_WIDTHS = {
-    'nature_single': 89 / 25.4,      # 89mm = 3.5"
-    'nature_double': 183 / 25.4,     # 183mm = 7.2"
-    'cell_single': 85 / 25.4,        # 85mm
-    'cell_double': 174 / 25.4,       # 174mm
-    'pnas_single': 3.42,             # 8.7cm
-    'pnas_double': 7.0,              # 17.8cm
-    'default_single': 3.5,
-    'default_double': 7.0,
-}
+# Byte-stable PDFs: drop the embedded CreationDate so identical runs match
+STABLE_PDF_METADATA = {'CreationDate': None}
 
 
-def create_figure(width_type='default_single', height_ratio=0.75):
-    """Create figure with journal-appropriate dimensions.
-
-    Args:
-        width_type: Key from JOURNAL_WIDTHS
-        height_ratio: Height as fraction of width
-    """
-    width = JOURNAL_WIDTHS.get(width_type, 3.5)
-    height = width * height_ratio
-    return plt.subplots(figsize=(width, height))
+def mm_to_in(mm):
+    return mm / 25.4
 
 
-# =============================================================================
-# Example: Single Panel Figure
-# =============================================================================
+def save_all(fig, stem):
+    """Save vector PDF (byte-stable) + editable SVG + raster PNG."""
+    fig.savefig(f'{stem}.pdf', metadata=STABLE_PDF_METADATA)
+    fig.savefig(f'{stem}.svg')
+    fig.savefig(f'{stem}.png')
 
-def example_single_panel():
-    """Create a single-panel publication figure."""
-    fig, ax = create_figure('nature_single', height_ratio=0.8)
 
-    # Sample data (volcano plot style)
-    np.random.seed(42)
-    x = np.random.randn(1000)
-    y = np.random.randn(1000)
-    colors = np.where((np.abs(x) > 1.5) & (np.abs(y) > 1.5), 'red', 'gray')
-
-    ax.scatter(x, y, c=colors, s=10, alpha=0.6, edgecolors='none')
-    ax.axhline(1.5, ls='--', color='gray', lw=0.5)
-    ax.axhline(-1.5, ls='--', color='gray', lw=0.5)
-    ax.axvline(1.5, ls='--', color='gray', lw=0.5)
-    ax.axvline(-1.5, ls='--', color='gray', lw=0.5)
-
-    ax.set_xlabel('log$_2$ Fold Change')
-    ax.set_ylabel('-log$_{10}$ p-value')
-    ax.set_title('Differential Expression')
-
-    # Export multiple formats
-    fig.savefig('figure_volcano.pdf')   # Vector (preferred)
-    fig.savefig('figure_volcano.png')   # Raster
-    fig.savefig('figure_volcano.svg')   # Editable vector
-
+def example_hybrid_scatter():
+    """Dense scatter: rasterize the data layer, keep axes and text vector."""
+    rng = np.random.default_rng(42)
+    n = 200_000
+    x, y = rng.standard_normal(n), rng.standard_normal(n)
+    w = mm_to_in(JOURNAL_WIDTH_MM['nature_single'])
+    fig, ax = plt.subplots(figsize=(w, w * 0.85))
+    ax.scatter(x, y, s=1, alpha=0.3, edgecolors='none', rasterized=True, zorder=0)  # -> embedded raster
+    ax.axhline(0, color=OKABE_ITO[5], lw=0.5, zorder=2)                              # stays vector
+    ax.set_xlabel('UMAP1')
+    ax.set_ylabel('UMAP2')
+    save_all(fig, 'figure_hybrid_scatter')
     plt.close(fig)
-    print('Single panel figure saved')
 
-
-# =============================================================================
-# Example: Multi-panel Figure
-# =============================================================================
 
 def example_multipanel():
-    """Create a multi-panel figure with labels."""
-    from matplotlib.gridspec import GridSpec
-
-    fig = plt.figure(figsize=(JOURNAL_WIDTHS['default_double'], 4))
-    gs = GridSpec(2, 3, figure=fig, hspace=0.4, wspace=0.4)
-
-    # Panel A: Large plot spanning 2 columns
-    ax_a = fig.add_subplot(gs[0, :2])
-    ax_a.plot(np.random.randn(100).cumsum())
-    ax_a.set_xlabel('Time')
-    ax_a.set_ylabel('Value')
-
-    # Panel B: Small plot
-    ax_b = fig.add_subplot(gs[0, 2])
-    ax_b.bar([1, 2, 3], [4, 5, 3])
-
-    # Panel C: Bottom row
-    ax_c = fig.add_subplot(gs[1, 0])
-    ax_c.hist(np.random.randn(500), bins=20, edgecolor='white')
-
-    # Panel D
-    ax_d = fig.add_subplot(gs[1, 1])
-    ax_d.scatter(np.random.rand(50), np.random.rand(50))
-
-    # Panel E
-    ax_e = fig.add_subplot(gs[1, 2])
-    ax_e.boxplot([np.random.randn(30) for _ in range(4)])
-
-    # Add panel labels
-    panels = [(ax_a, 'A'), (ax_b, 'B'), (ax_c, 'C'), (ax_d, 'D'), (ax_e, 'E')]
-    for ax, label in panels:
-        ax.text(-0.15, 1.1, label, transform=ax.transAxes,
-                fontsize=10, fontweight='bold', va='top')
-
-    fig.savefig('figure_multipanel.pdf')
+    """Multi-panel figure with bold panel labels and CVD-safe colors."""
+    w = mm_to_in(JOURNAL_WIDTH_MM['nature_double'])
+    fig = plt.figure(figsize=(w, w * 0.55))
+    gs = fig.add_gridspec(2, 3)
+    rng = np.random.default_rng(0)
+    ax_a = fig.add_subplot(gs[0, :2]); ax_a.plot(rng.standard_normal(100).cumsum(), color=OKABE_ITO[5])
+    ax_b = fig.add_subplot(gs[0, 2]); ax_b.bar([1, 2, 3], [4, 5, 3], color=OKABE_ITO[1])
+    ax_c = fig.add_subplot(gs[1, 0]); ax_c.hist(rng.standard_normal(500), bins=20, color=OKABE_ITO[3], edgecolor='white')
+    ax_d = fig.add_subplot(gs[1, 1]); ax_d.scatter(rng.random(50), rng.random(50), color=OKABE_ITO[6], s=6)
+    ax_e = fig.add_subplot(gs[1, 2]); ax_e.boxplot([rng.standard_normal(30) for _ in range(4)])
+    for ax, label in zip([ax_a, ax_b, ax_c, ax_d, ax_e], 'ABCDE'):
+        ax.text(-0.15, 1.1, label, transform=ax.transAxes, fontsize=10, fontweight='bold', va='top')
+    fig.savefig('figure_multipanel.pdf', metadata=STABLE_PDF_METADATA)
     fig.savefig('figure_multipanel.png')
     plt.close(fig)
-    print('Multi-panel figure saved')
 
 
-# =============================================================================
-# Colorblind-safe Palettes
-# =============================================================================
+def example_tiff_for_raster_journal():
+    """TIFF with LZW for journals that demand flattened raster (Cell, PLOS)."""
+    w = mm_to_in(JOURNAL_WIDTH_MM['cell_single'])
+    fig, ax = plt.subplots(figsize=(w, w * 0.8))
+    ax.imshow(np.random.default_rng(1).random((50, 50)), cmap='cividis', aspect='auto')  # CVD-safe sequential
+    fig.savefig('figure_heatmap.tiff', dpi=300, pil_kwargs={'compression': 'tiff_lzw'})
+    plt.close(fig)
 
-# Recommended colorblind-safe palettes
-COLORBLIND_PALETTES = {
-    'categorical': ['#0077BB', '#33BBEE', '#009988', '#EE7733', '#CC3311', '#EE3377'],
-    'diverging': plt.cm.RdBu,
-    'sequential': plt.cm.viridis,
-}
-
-
-# =============================================================================
-# Main
-# =============================================================================
 
 if __name__ == '__main__':
-    example_single_panel()
+    set_publication_style()
+    example_hybrid_scatter()
     example_multipanel()
-    print('\nAll figures exported successfully')
-    print('Formats: PDF (vector), PNG (300 DPI), SVG (editable)')
+    example_tiff_for_raster_journal()
+    print('Figures exported: hybrid scatter (PDF/SVG/PNG), multipanel, TIFF-LZW heatmap')

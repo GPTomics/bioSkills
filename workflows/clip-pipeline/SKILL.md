@@ -328,4 +328,5 @@ See clip-seq/differential-clip for full DEWSeq workflow and the htseq-clip prepr
 - clip-seq/ago-clip-mirna-targets - chimeric eCLIP for direct miRNA-target pairs
 - clip-seq/clip-deep-learning - RBPNet / RNAProt for variant-effect prediction
 - read-qc/quality-reports - FastQC / MultiQC upstream QC
+- reporting/automated-qc-reports - MultiQC aggregates the per-tool QC into one report; gating stays in the five-gate framework, not MultiQC
 - alternative-splicing/differential-splicing - Cassette exon tables for RBP-Maps

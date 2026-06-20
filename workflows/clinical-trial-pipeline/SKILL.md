@@ -107,7 +107,7 @@ print(analysis['ARM'].value_counts())
 
 **Goal:** Summarize demographics and baseline variables by treatment arm.
 
-**Approach:** Use TableOne to generate a publication-ready table with p-values and standardized mean differences.
+**Approach:** Use TableOne to generate a baseline table by arm with standardized mean differences and explicit missingness. Omit the baseline p-value column: in a randomized trial any imbalance is by definition due to chance, so a baseline p-value tests a null already known to be true (Senn 1994; CONSORT 2010/2025). Report SMD for balance instead. Table-construction and export mechanics (gtsummary/tableone, Word export, gene-symbol-safe supplements) live in reporting/publication-tables.
 
 ```python
 from tableone import TableOne
@@ -115,11 +115,11 @@ from tableone import TableOne
 columns = ['AGE', 'SEX', 'RACE']
 categorical = ['SEX', 'RACE']
 table1 = TableOne(analysis, columns=columns, categorical=categorical,
-                  groupby='ARM', pval=True, smd=True, missing=True)
+                  groupby='ARM', pval=False, smd=True, missing=True)
 print(table1.tabulate(tablefmt='github'))
 ```
 
-Interpret SMD > 0.1 as meaningful imbalance rather than relying on p-values, which test whether randomization worked (a known mechanism, not a hypothesis).
+Interpret SMD > 0.1 as meaningful imbalance. The response to a worrying imbalance on a prognostic covariate is to adjust for it (a pre-specified ANCOVA/model covariate), not to test it.
 
 ## Step 3: Primary Analysis -- Logistic Regression
 
@@ -296,3 +296,4 @@ This pipeline covers the typical binary-endpoint RCT workflow. For specific desi
 - clinical-biostatistics/power-and-sample-size - Schoenfeld/Lakatos, NI double discount, crossover, MCID
 - clinical-biostatistics/adaptive-designs - Group-sequential, SSR, RAR consensus, BOIN, platform trials
 - clinical-biostatistics/bayesian-trials - MAP/EXNEX/RWE, FDA Bayesian Jan 2026 draft, psborrow2
+- reporting/publication-tables - Table 1 construction (SMD not baseline p-values, show missingness) and Word/LaTeX export

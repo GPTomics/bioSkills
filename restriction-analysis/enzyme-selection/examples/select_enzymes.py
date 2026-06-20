@@ -1,5 +1,8 @@
 '''Select enzymes based on criteria'''
-# Reference: biopython 1.83+ | Verify API if version differs
+# Reference: biopython 1.83+ (API verified on 1.86) | Verify API if version differs
+# Cut-count API: with_N_sites(n) for an exact count, without_site() for non-cutters,
+# with_sites() for any cutter. The older once_cutters()/twice_cutters()/only_dont_cut()
+# names raise AttributeError in current BioPython.
 
 from Bio import SeqIO
 from Bio.Restriction import Analysis, CommOnly
@@ -12,9 +15,9 @@ print('=' * 50)
 
 analysis = Analysis(CommOnly, seq)
 
-once = analysis.once_cutters()
-twice = analysis.twice_cutters()
-non = analysis.only_dont_cut()
+once = analysis.with_N_sites(1)
+twice = analysis.with_N_sites(2)
+non = analysis.without_site()
 
 print(f'\nSingle-cutters ({len(once)}):')
 for enzyme, sites in list(once.items())[:10]:
@@ -29,9 +32,9 @@ for enzyme, sites in list(twice.items())[:10]:
 print(f'\nNon-cutters: {len(non)} enzymes')
 
 print('\n\nGrouped by overhang type (single-cutters only):')
-blunt = [e for e in once.keys() if e.is_blunt()]
-five_prime = [e for e in once.keys() if e.is_5overhang()]
-three_prime = [e for e in once.keys() if e.is_3overhang()]
+blunt = [e for e in once if e.is_blunt()]
+five_prime = [e for e in once if e.is_5overhang()]
+three_prime = [e for e in once if e.is_3overhang()]
 
 print(f"  Blunt ({len(blunt)}): {[str(e) for e in blunt[:5]]}")
 print(f"  5' overhang ({len(five_prime)}): {[str(e) for e in five_prime[:5]]}")
@@ -39,5 +42,5 @@ print(f"  3' overhang ({len(three_prime)}): {[str(e) for e in three_prime[:5]]}"
 
 print('\n\nGrouped by recognition site length:')
 for length in [4, 6, 8]:
-    enzymes = [e for e in once.keys() if len(e.site) == length]
+    enzymes = [e for e in once if len(e.site) == length]
     print(f'  {length}-cutters ({len(enzymes)}): {[str(e) for e in enzymes[:5]]}')

@@ -1,320 +1,172 @@
 ---
-name: bio-rnaseq-qc
-description: RNA-seq specific quality control including rRNA contamination detection, strandedness verification, gene body coverage, and transcript integrity metrics. Use when validating RNA-seq libraries before differential expression analysis.
+name: bio-read-qc-rnaseq-qc
+description: Runs RNA-seq-specific post-alignment QC - strandedness inference, gene-body 5'-3' coverage, read distribution (exonic/intronic/intergenic), rRNA/globin/mitochondrial rate, transcript integrity (TIN), and saturation - with RSeQC, Qualimap, RNA-SeQC, and Picard. Use when validating RNA-seq libraries before quantification or differential expression, diagnosing degradation or gDNA contamination, or determining library strandedness. For raw-FASTQ QC use quality-reports; for UMI dedup use umi-processing.
 tool_type: mixed
 primary_tool: RSeQC
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: NCBI BLAST+ 2.15+, numpy 1.26+, picard 3.1+, pysam 0.22+, samtools 1.19+
+Reference examples tested with: RSeQC 5.0+, Qualimap 2.3+, RNA-SeQC 2.4+, Picard 3.1+, salmon 1.10+, samtools 1.19+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Python: `pip show <package>` then `help(module.function)` to check signatures
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
-# RNA-seq Quality Control
+# RNA-seq QC -- post-alignment metrics that have no DNA analogue
 
-RNA-seq specific QC metrics beyond general read quality.
+Assess strandedness, integrity, feature distribution, and enrichment on the ALIGNED BAM, using RSeQC / Qualimap / RNA-SeQC / Picard against a gene model.
 
-**"Check RNA-seq alignment quality"** -> Assess gene body coverage, read distribution (exonic/intronic/intergenic), strand specificity, and rRNA contamination rate.
-- CLI: `infer_experiment.py`, `read_distribution.py` (RSeQC)
-- CLI: `picard CollectRnaSeqMetrics`
+**"Run RNA-seq QC"** -> Infer strandedness, gene-body coverage, exonic/intronic/intergenic distribution, rRNA rate, and TIN from the BAM.
+- CLI: `infer_experiment.py -i aligned.bam -r genes.bed12` (strandedness)
+- CLI: `picard CollectRnaSeqMetrics` / `qualimap rnaseq` / `rnaseqc collapsed.gtf in.bam out/`
 
-## rRNA Contamination Detection
+Scope: this skill OWNS transcriptome QC on the aligned BAM. Raw-FASTQ QC (adapters, base quality) -> read-qc/quality-reports. UMI dedup -> read-qc/umi-processing. Quantification -> rna-quantification/featurecounts-counting. OUT OF SCOPE: differential expression (differential-expression/deseq2-basics).
 
-High rRNA content indicates failed rRNA depletion or polyA selection.
+## The Single Most Important Modern Insight
 
-### SortMeRNA (NCBI BLAST+)
+1. **These are POST-ALIGNMENT QC: every metric needs an aligned BAM AND a gene model (BED12 / GTF / refFlat / collapsed-GTF), which is the line that separates them from FastQC.** FastQC answers "is the sequencer output clean?"; RNA-seq QC answers "did I sequence the transcriptome I think I sequenced, in the orientation I think, with the integrity I think?" The metrics below (strand, exonic rate, rRNA rate, 5'-3' bias) have no DNA analogue because DNA has no exons, no strand of transcription, and no rRNA fraction. The most common setup error is feeding the wrong gene-model format (RSeQC wants BED12; Qualimap a GTF; RNA-SeQC a COLLAPSED GTF; Picard a refFlat + ribosomal_intervals).
 
-```bash
-sortmerna \
-    --ref rRNA_databases/smr_v4.3_default_db.fasta \
-    --reads sample.fastq.gz \
-    --aligned rRNA_reads \
-    --other non_rRNA_reads \
-    --fastx \
-    --threads 8
+2. **Getting strandedness wrong SILENTLY HALVES OR ZEROS the counts -- no error is thrown.** dUTP (TruSeq Stranded mRNA, most rRNA-depletion kits) is fr-firststrand = REVERSE = featureCounts `-s 2` = htseq `reverse` = salmon `ISR` = STAR ReadsPerGene column 4. Run it as "forward" and reads land on the antisense gene: counts collapse toward zero and the antisense neighbor inflates (running stranded data as UNSTRANDED, by contrast, roughly doubles counts). The tell is a huge "assigned to no feature" fraction or counts ~2x below the unstranded run. ALWAYS infer strandedness empirically (`infer_experiment.py`, salmon `-l A`, or how_are_we_stranded_here) before quantifying -- never assume from the kit name.
 
-rrna_count=$(grep -c "^@" rRNA_reads.fastq 2>/dev/null || echo 0)
-total_count=$(zcat sample.fastq.gz | grep -c "^@")
-rrna_pct=$(echo "scale=2; $rrna_count / $total_count * 100" | bc)
-echo "rRNA: ${rrna_pct}%"
-```
+3. **In standard bulk RNA-seq WITHOUT UMIs, do NOT mark or remove duplicates.** A highly expressed gene legitimately produces many fragments sharing identical coordinates; at the read level a PCR duplicate and a natural duplicate are INDISTINGUISHABLE. Coordinate dedup (Picard MarkDuplicates) preferentially deletes reads from the most abundant and shortest transcripts, introducing an expression- and length-dependent bias. This is the OPPOSITE of DNA-seq. Duplication rate is a DIAGNOSTIC ("low complexity / over-sequenced / low input"), never a remove step. The only correct way to remove RNA PCR duplicates is UMIs (read-qc/umi-processing); UMI-protocol RNA-seq (QuantSeq, 10x) inverts the rule.
 
-### BLAST Against rRNA (NCBI BLAST+)
+Integrity bonus: RIN is an electrophoresis estimate measured BEFORE library prep; gene-body coverage and TIN are the post-hoc TRUTH measured from the aligned reads. Use DV200 (% fragments >200 nt), not RIN, for FFPE/archival. In a cohort with variable quality, regress medTIN out as a covariate rather than discarding samples.
 
-```bash
-seqkit sample -n 10000 sample.fastq.gz | seqkit fq2fa > sample_10k.fasta
-blastn -query sample_10k.fasta -db rrna_db -outfmt 6 -evalue 1e-10 -max_target_seqs 1 | wc -l
-```
+## Tool Taxonomy
 
-### Expected rRNA Levels
+| Tool | Gene model | Role |
+|------|-----------|------|
+| RSeQC | BED12 | The script suite: infer_experiment, geneBody_coverage, read_distribution, tin, junction_saturation, read_duplication |
+| Qualimap 2 | GTF | `qualimap rnaseq`: feature distribution + transcript 5'-3' profile + junctions in one HTML (bamqc is the generic, non-RNA mode) |
+| RNA-SeQC 2 | COLLAPSED GTF | GTEx/TOPMed tool; scales to tens of thousands of samples; exonic/intronic/intergenic + rRNA rate + TPM |
+| Picard CollectRnaSeqMetrics | refFlat + ribosomal_intervals | PCT_CODING/UTR/INTRONIC/INTERGENIC/RIBOSOMAL, MEDIAN_5PRIME_TO_3PRIME_BIAS (cannot compute rRNA without the intervals) |
+| SortMeRNA | rRNA database | Filter/quantify rRNA reads directly |
 
-| Library Type | Expected rRNA |
-|--------------|---------------|
-| PolyA selected | < 5% |
-| rRNA depleted | < 10% |
-| Total RNA | 50-80% |
+QC-gate order: (1) FastQC on raw FASTQ -> (2) align (STAR/HISAT2) -> (3) post-alignment QC: strandedness FIRST (it gates correct quantification), then read distribution, gene-body + TIN, rRNA/globin/MT, duplication + saturation -> (4) aggregate with MultiQC and judge each sample against the cohort.
 
-## Strandedness Verification
-
-### RSeQC infer_experiment (NCBI BLAST+)
+## Strandedness -- infer, then set every tool to match
 
 ```bash
-infer_experiment.py -i aligned.bam -r genes.bed
+infer_experiment.py -i aligned.bam -r genes.bed12     # samples reads, reports the two fractions
+salmon quant -i index -l A -r sample.fq.gz -o quant/  # -l A auto-detects; see lib_format_counts.json
 ```
 
-### Output Interpretation
+| Protocol | infer_experiment dominant fraction | salmon -l (PE/SE) | featureCounts -s | htseq | STAR ReadsPerGene col |
+|----------|------------------------------------|-------------------|------------------|-------|-----------------------|
+| Unstranded | both ~0.5 | IU / U | 0 | no | 2 |
+| fr-secondstrand (forward) | "1++,1--,2+-,2-+" | ISF / SF | 1 | yes | 3 |
+| fr-firststrand (reverse, dUTP -- common) | "1+-,1-+,2++,2--" | ISR / SR | 2 | reverse | 4 |
 
-```
-Fraction of reads explained by "1++,1--,2+-,2-+": 0.9856  # Forward stranded
-Fraction of reads explained by "1+-,1-+,2++,2--": 0.0144  # Reverse (should be low)
-```
+Single-end infer_experiment drops the read-number prefix: forward = "++,--", reverse = "+-,-+". A STAR sanity check: the ReadsPerGene column with the most counts and fewest N_noFeature is the correct strand (the wrong column makes N_noFeature blow up). Picard STRAND_SPECIFICITY is a notorious inversion: NONE / FIRST_READ_TRANSCRIPTION_STRAND (= forward/fr-secondstrand) / SECOND_READ_TRANSCRIPTION_STRAND (= dUTP/reverse/fr-firststrand, the common case).
 
-### Strand Inference
-
-| Tool Setting | 1++,1--,2+-,2-+ | 1+-,1-+,2++,2-- |
-|--------------|-----------------|-----------------|
-| Forward (dUTP) | ~0 | ~1 |
-| Reverse (Illumina) | ~1 | ~0 |
-| Unstranded | ~0.5 | ~0.5 |
-
-### Salmon Strandedness (NCBI BLAST+)
+## Gene-body coverage and integrity
 
 ```bash
-salmon quant -i index -l A -r sample.fastq.gz -o quant/
-grep "library_types" quant/lib_format_counts.json
+geneBody_coverage.py -i aligned.bam -r genes.bed12 -o coverage   # 5'->3' uniformity curve
+tin.py -i aligned.bam -r genes.bed12 > tin.txt                   # per-transcript integrity; medTIN = sample score
 ```
 
-## Gene Body Coverage
+3' bias (coverage piling at the 3' end) = RNA degradation OR oligo-dT priming of degraded/FFPE RNA -- which is why poly-A protocols fail on FFPE and rRNA-depletion + random priming is preferred there. 5' bias is rarer (5'-capture protocols / artifacts). Flat = intact RNA. RIN/DV200/TIN: RIN (1-10, pre-prep, electrophoresis) predicts degradation; DV200 (% >200 nt) is the FFPE metric because fragmented RNA has no rRNA peaks for RIN; TIN is measured from the data and can be used as a DE covariate.
 
-Check for 3' or 5' bias indicating RNA degradation.
-
-### RSeQC geneBody_coverage (NCBI BLAST+)
+## Read distribution and enrichment
 
 ```bash
-geneBody_coverage.py \
-    -i aligned.bam \
-    -r housekeeping_genes.bed \
-    -o coverage
+read_distribution.py -i aligned.bam -r genes.bed12 > distribution.txt
 ```
 
-### Interpretation
+- High INTRONIC = pre-mRNA / nuclear RNA or gDNA contamination (in snRNA-seq it is SIGNAL, not a fail).
+- High INTERGENIC = gDNA contamination or annotation gaps. gDNA drives intronic AND intergenic up together; an annotation gap drives only intergenic.
+- rRNA rate = the readout of poly-A-selection / rRNA-depletion efficiency (high = wasted reads, failed depletion).
+- Globin (HBA/HBB) crowds whole-blood PAXgene libraries -- deplete (GLOBINclear); globin% is the readout.
+- Mitochondrial %: high = degradation (bulk) or dying cells / ambient contamination (single-cell; in snRNA-seq it should be LOW).
 
-| Pattern | Indicates |
-|---------|-----------|
-| Even coverage | Good quality |
-| 3' bias | Degradation or polyA artifacts |
-| 5' bias | Incomplete reverse transcription |
-| Steep drop | Severe degradation |
-
-## Read Distribution
-
-### RSeQC read_distribution (NCBI BLAST+)
+## Duplication and saturation -- diagnostic, not a remove step
 
 ```bash
-read_distribution.py -i aligned.bam -r genes.bed > distribution.txt
+# Duplication as a DIAGNOSTIC only -- do NOT remove duplicates in non-UMI bulk RNA-seq
+read_duplication.py -i aligned.bam -o dup                         # sequence- and mapping-based curves
+junction_saturation.py -i aligned.bam -r genes.bed12 -o junc_sat  # enough depth for splicing?
 ```
 
-### Expected Distribution
+## Complete QC pipeline
 
-| Region | Good Library |
-|--------|--------------|
-| CDS_Exons | 60-80% |
-| UTRs | 10-20% |
-| Introns | 5-20% |
-| Intergenic | < 10% |
+**Goal:** Produce a per-sample RNA-seq QC summary covering strandedness, distribution, integrity, and Picard metrics.
 
-## Transcript Integrity Number (TIN)
-
-Measure of RNA degradation per transcript.
-
-### RSeQC tin (NCBI BLAST+)
-
-```bash
-tin.py -i aligned.bam -r genes.bed > tin_scores.txt
-```
-
-### TIN Interpretation
-
-| TIN Score | Quality |
-|-----------|---------|
-| > 70 | Good |
-| 50-70 | Moderate |
-| < 50 | Poor |
-
-## Duplication Rate
-
-### Picard MarkDuplicates (NCBI BLAST+)
-
-```bash
-java -jar picard.jar MarkDuplicates \
-    I=aligned.bam \
-    O=marked.bam \
-    M=dup_metrics.txt \
-    REMOVE_DUPLICATES=false
-
-grep -A 1 "LIBRARY" dup_metrics.txt | tail -1 | cut -f9
-```
-
-### RNA-seq Expected Duplication
-
-| Library | Expected |
-|---------|----------|
-| High complexity | < 20% |
-| Low input | 20-50% |
-| Concerning | > 50% |
-
-## Insert Size (Paired-End)
-
-### Picard CollectInsertSizeMetrics (NCBI BLAST+)
-
-```bash
-java -jar picard.jar CollectInsertSizeMetrics \
-    I=aligned.bam \
-    O=insert_metrics.txt \
-    H=insert_histogram.pdf
-```
-
-## Saturation Analysis
-
-### Subsampling Analysis
-
-```bash
-for frac in 0.1 0.25 0.5 0.75 1.0; do
-    samtools view -bs $frac aligned.bam > sub_${frac}.bam
-    featureCounts -a genes.gtf -o counts_${frac}.txt sub_${frac}.bam
-    detected=$(awk '$7 > 0' counts_${frac}.txt | wc -l)
-    echo "$frac: $detected genes"
-done
-```
-
-## Picard CollectRnaSeqMetrics
-
-Comprehensive RNA-seq metrics from Picard.
-
-```bash
-java -jar picard.jar CollectRnaSeqMetrics \
-    I=aligned.bam \
-    O=rnaseq_metrics.txt \
-    REF_FLAT=refFlat.txt \
-    STRAND=SECOND_READ_TRANSCRIPTION_STRAND \
-    RIBOSOMAL_INTERVALS=rRNA.interval_list
-```
-
-### Key Metrics
-
-| Metric | Description |
-|--------|-------------|
-| PCT_CODING_BASES | % in coding regions |
-| PCT_UTR_BASES | % in UTRs |
-| PCT_INTRONIC_BASES | % in introns |
-| PCT_INTERGENIC_BASES | % intergenic |
-| PCT_RIBOSOMAL_BASES | % rRNA |
-| MEDIAN_5PRIME_TO_3PRIME_BIAS | 3' bias |
-
-## MultiQC Report
-
-Aggregate all QC metrics.
-
-```bash
-multiqc fastqc/ star_output/ featurecounts/ -o multiqc_report/
-```
-
-## Complete RNA-seq QC Pipeline (NCBI BLAST+)
-
-**Goal:** Generate a comprehensive RNA-seq QC report covering strandedness, read distribution, gene body coverage, transcript integrity, duplication, and RNA-seq metrics.
-
-**Approach:** Run RSeQC tools (infer_experiment, read_distribution, geneBody_coverage, TIN) and Picard (MarkDuplicates, CollectRnaSeqMetrics) sequentially, appending all results to a single summary report file.
+**Approach:** Infer strandedness first, run the RSeQC suite, then Picard with STRAND_SPECIFICITY set to the inferred protocol, and append to one report (do NOT dedup).
 
 ```bash
 #!/bin/bash
-SAMPLE=$1
-BAM=$2
-GENES_BED=$3
-REF_FLAT=$4
+set -euo pipefail
+SAMPLE=$1; BAM=$2; BED12=$3; REFFLAT=$4; RRNA_INTERVALS=$5
+STRAND=${6:-SECOND_READ_TRANSCRIPTION_STRAND}   # SECOND = dUTP/reverse (common); FIRST = forward; NONE = unstranded
 
-echo "=== RNA-seq QC: $SAMPLE ===" > qc_report.txt
+REPORT="${SAMPLE}_rnaseq_qc.txt"
+echo "=== RNA-seq QC: $SAMPLE ===" > "$REPORT"
 
-echo -e "\n--- Strandedness ---" >> qc_report.txt
-infer_experiment.py -i $BAM -r $GENES_BED >> qc_report.txt
+echo "--- Strandedness (set downstream tools to match) ---" >> "$REPORT"
+infer_experiment.py -i "$BAM" -r "$BED12" >> "$REPORT"
 
-echo -e "\n--- Read Distribution ---" >> qc_report.txt
-read_distribution.py -i $BAM -r $GENES_BED >> qc_report.txt
+echo "--- Read distribution ---" >> "$REPORT"
+read_distribution.py -i "$BAM" -r "$BED12" >> "$REPORT"
 
-echo -e "\n--- Gene Body Coverage ---" >> qc_report.txt
-geneBody_coverage.py -i $BAM -r $GENES_BED -o coverage
+geneBody_coverage.py -i "$BAM" -r "$BED12" -o "${SAMPLE}_genebody"
+tin.py -i "$BAM" -r "$BED12"                       # writes <bam>.summary.txt (mean/median TIN) + <bam>.tin.xls
+echo "--- TIN (medTIN = median column of the summary) ---" >> "$REPORT"
+cat *.summary.txt >> "$REPORT" 2>/dev/null
 
-echo -e "\n--- TIN Scores ---" >> qc_report.txt
-tin.py -i $BAM -r $GENES_BED > tin.txt
-awk '{sum+=$3; count++} END {print "Mean TIN:", sum/count}' tin.txt >> qc_report.txt
+echo "--- Picard RNA-seq metrics (STRAND=$STRAND) ---" >> "$REPORT"
+picard CollectRnaSeqMetrics I="$BAM" O="${SAMPLE}_picard.txt" \
+    REF_FLAT="$REFFLAT" STRAND_SPECIFICITY="$STRAND" RIBOSOMAL_INTERVALS="$RRNA_INTERVALS"
 
-echo -e "\n--- Duplication ---" >> qc_report.txt
-java -jar picard.jar MarkDuplicates I=$BAM O=/dev/null M=dup.txt 2>/dev/null
-grep -A 1 "LIBRARY" dup.txt | tail -1 | awk '{print "Duplication rate:", $9}' >> qc_report.txt
-
-echo -e "\n--- RNA-seq Metrics ---" >> qc_report.txt
-java -jar picard.jar CollectRnaSeqMetrics I=$BAM O=rnaseq.txt REF_FLAT=$REF_FLAT STRAND=SECOND_READ_TRANSCRIPTION_STRAND 2>/dev/null
-grep -A 2 "## METRICS CLASS" rnaseq.txt >> qc_report.txt
-
-cat qc_report.txt
+cat "$REPORT"
 ```
 
-## Python QC Summary
+## The collapsed gene model
 
-```python
-import pysam
-import numpy as np
-from collections import Counter
+A standard GTF lists many overlapping isoforms per gene, so a read that is exonic in isoform A but intronic in B is ambiguous and overlapping isoforms double-count the same base. RNA-SeQC 2 REQUIRES a COLLAPSED model (one flattened transcript per gene, inter-gene overlaps excluded), built with GTEx `collapse_annotation.py`. Mismatched or un-collapsed models are a leading cause of "my exonic rate looks wrong". Picard `PCT_*` metrics are FRACTIONS (0-1), not percentages, despite the name.
 
-def rnaseq_qc(bam_file, sample_size=100000):
-    bam = pysam.AlignmentFile(bam_file, 'rb')
+## Quantitative Thresholds
 
-    strand_counts = Counter()
-    insert_sizes = []
+| Metric | Anchor | Source / rationale |
+|--------|--------|--------------------|
+| Mapping rate | > 0.2 exclude below (GTEx); > 85% typical | GTEx v8 RNA-SeQC gate |
+| Intergenic rate | < 0.3 | GTEx; above = gDNA / annotation |
+| rRNA rate | < 0.3 (GTEx); <5% polyA, <10% depleted in practice | depletion efficiency |
+| Uniquely mapped reads | >= 30M (ENCODE human) | ENCODE long-RNA standard |
+| medTIN | > 70 good, 50-70 moderate, < 50 poor | RSeQC TIN |
+| 5'-to-3' bias | near 1 flat; > 2 strong degradation | Picard MEDIAN_5PRIME_TO_3PRIME_BIAS |
 
-    for i, read in enumerate(bam.fetch()):
-        if i >= sample_size:
-            break
-        if not read.is_unmapped:
-            if read.is_read1:
-                if read.is_reverse:
-                    strand_counts['1-'] += 1
-                else:
-                    strand_counts['1+'] += 1
-            if read.is_proper_pair and read.template_length > 0:
-                insert_sizes.append(read.template_length)
+Thresholds are protocol-specific: an intronic rate that fails a poly-A bulk sample is normal/required for snRNA-seq (nuclei are >50% intronic); a 3' bias that condemns fresh poly-A is expected for FFPE. Apply cohort-relative outlier logic on top.
 
-    bam.close()
+## Common Errors
 
-    total = sum(strand_counts.values())
-    print(f'Read 1 forward: {strand_counts["1+"]/total:.2%}')
-    print(f'Read 1 reverse: {strand_counts["1-"]/total:.2%}')
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| Counts ~halved / huge "no feature" fraction | Wrong strandedness | Infer first; set featureCounts/htseq/salmon/Picard to match |
+| RNA-seq DE has odd length bias | Marked duplicates on non-UMI bulk RNA-seq | Do not dedup; report duplication as a diagnostic |
+| Exonic rate looks wrong in RNA-SeQC | Un-collapsed multi-isoform GTF | Use a collapsed GTF (GTEx collapse_annotation.py) |
+| Picard rRNA metric is 0/blank | No ribosomal_intervals supplied | Build the interval list from rRNA features + BAM dict |
+| snRNA-seq "fails" high intronic rate | Bulk gate applied to nuclear RNA | Intronic reads are signal in snRNA; use an intron-inclusive reference |
+| Picard percentages look 100x too small | PCT_* are fractions (0-1) | Multiply by 100 for display |
 
-    if insert_sizes:
-        print(f'Median insert: {np.median(insert_sizes):.0f}')
+## References
 
-rnaseq_qc('aligned.bam')
-```
-
-## QC Thresholds Summary
-
-| Metric | Good | Warning | Fail |
-|--------|------|---------|------|
-| Mapping rate | > 85% | 70-85% | < 70% |
-| rRNA % | < 10% | 10-20% | > 20% |
-| Exonic % | > 60% | 40-60% | < 40% |
-| Duplication | < 20% | 20-40% | > 40% |
-| Mean TIN | > 70 | 50-70 | < 50 |
-| 3' bias | < 1.5 | 1.5-2 | > 2 |
+Wang L, Wang S, Li W. 2012. RSeQC: quality control of RNA-seq experiments. Bioinformatics 28(16):2184-2185.
+Okonechnikov K, Conesa A, Garcia-Alcalde F. 2016. Qualimap 2: advanced multi-sample quality control for high-throughput sequencing data. Bioinformatics 32(2):292-294.
+Graubert A, Aguet F, Ravi A, Ardlie KG, Getz G. 2021. RNA-SeQC 2: efficient RNA-seq quality control and quantification for large cohorts. Bioinformatics 37(18):3048-3050.
+Schroeder A, Mueller O, Stocker S, et al. 2006. The RIN: an RNA integrity number for assigning integrity values to RNA measurements. BMC Molecular Biology 7:3.
+Wang L, Nie J, Sicotte H, et al. 2016. Measure transcript integrity using RNA-seq data. BMC Bioinformatics 17:58.
+Smith T, Heger A, Sudbery I. 2017. UMI-tools: modeling sequencing errors in Unique Molecular Identifiers to improve quantification accuracy. Genome Research 27(3):491-499.
 
 ## Related Skills
 
-- quality-reports - General FastQC
-- fastp-workflow - Read trimming
-- alignment-files/alignment-validation - General BAM QC
-- rna-quantification/featurecounts-counting - Quantification after QC
+read-qc/quality-reports - Raw-FASTQ QC before alignment
+read-qc/umi-processing - Molecule-accurate dedup for UMI RNA-seq
+read-qc/contamination-screening - rRNA and cross-species contamination
+read-alignment/star-alignment - Aligner that emits ReadsPerGene strandedness columns
+rna-quantification/featurecounts-counting - Strand-aware quantification after QC
+differential-expression/deseq2-basics - Use medTIN as a covariate in the design

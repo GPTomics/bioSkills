@@ -1,8 +1,9 @@
 '''Simulate gel electrophoresis pattern'''
-# Reference: biopython 1.83+ | Verify API if version differs
+# Reference: biopython 1.83+ (API verified on 1.86) | Verify API if version differs
+# A band size shared by two fragments co-migrates as one brighter band (intensity ~ mass).
 
 from Bio import SeqIO
-from Bio.Restriction import EcoRI, BamHI, HindIII, RestrictionBatch, Analysis
+from Bio.Restriction import EcoRI, BamHI, HindIII
 
 record = SeqIO.read('sequence.fasta', 'fasta')
 seq = record.seq
@@ -10,7 +11,7 @@ seq = record.seq
 ladder = [10000, 8000, 6000, 5000, 4000, 3000, 2500, 2000, 1500, 1000, 750, 500, 250]
 
 def get_fragment_sizes(seq, enzyme, linear=True):
-    fragments = enzyme.catalyze(seq, linear=linear)[0]
+    fragments = enzyme.catalyze(seq, linear=linear)   # tuple of fragments; no [0]
     return sorted([len(f) for f in fragments], reverse=True)
 
 digests = {

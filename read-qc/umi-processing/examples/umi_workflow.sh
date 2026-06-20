@@ -1,6 +1,8 @@
 #!/bin/bash
-# Reference: pandas 2.2+, samtools 1.19+ | Verify API if version differs
-# UMI processing workflow for RNA-seq
+# Reference: umi_tools 1.1+, STAR 2.7+, samtools 1.19+, Subread 2.0+ | Verify API if version differs
+# UMI processing workflow for UMI-tagged RNA-seq. Order is mandatory: extract UMI (FASTQ) ->
+# align -> dedup (dedup needs mapping coordinates). Only run this on libraries that HAVE UMIs;
+# standard non-UMI bulk RNA-seq must NOT be deduplicated.
 set -euo pipefail
 
 SAMPLE=$1
@@ -48,9 +50,10 @@ umi_tools dedup \
 # Step 5: Index deduplicated BAM
 samtools index ${SAMPLE}_deduplicated.bam
 
-# Step 6: Count reads
+# Step 6: Count features. Since Subread 2.0.2, -p only declares paired-end input; counting
+# FRAGMENTS (not reads) also requires --countReadPairs, else properly-paired fragments count ~2x.
 echo "Counting features..."
-featureCounts -T 8 -p \
+featureCounts -T 8 -p --countReadPairs \
     -a ${GTF} \
     -o ${SAMPLE}_counts.txt \
     ${SAMPLE}_deduplicated.bam

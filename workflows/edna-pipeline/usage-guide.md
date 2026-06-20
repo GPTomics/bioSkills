@@ -97,4 +97,5 @@ Tell your AI agent what you want to do:
 - ecological-genomics/biodiversity-metrics - Hill-number diversity and Baselga/Podani beta partitions
 - ecological-genomics/community-ecology - PERMANOVA + PERMDISP, JSDMs, RLQ + fourth-corner
 - read-qc/quality-reports - Raw read quality assessment
+- reporting/automated-qc-reports - Aggregate FastQC across samples with MultiQC
 - microbiome/amplicon-processing - 16S clinical alternative

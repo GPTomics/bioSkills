@@ -453,4 +453,5 @@ summary(indval, alpha = 0.05)
 - ecological-genomics/biodiversity-metrics - Diversity analysis details
 - ecological-genomics/community-ecology - Ordination and indicator species
 - read-qc/quality-reports - Raw read quality assessment
+- reporting/automated-qc-reports - Aggregate FastQC across samples with MultiQC (a triage snapshot, not a pass/fail gate)
 - microbiome/amplicon-processing - 16S clinical alternative
