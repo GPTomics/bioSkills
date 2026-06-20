@@ -1,66 +1,78 @@
 # R Markdown Reports - Usage Guide
 
 ## Overview
-R Markdown combines code, results, and narrative into reproducible documents. Output to HTML, PDF, Word, or presentations.
+
+R Markdown combines R code, results, and narrative into reproducible documents (HTML, PDF, Word, slides) via knitr then pandoc. The decisions that actually matter are making the document self-sufficient so it knits the same way a colleague's fresh session does, invalidating the cache when the data changes, resolving relative paths from the right directory, and reaching for bookdown when cross-references are needed.
 
 ## Prerequisites
+
 ```r
-install.packages(c('rmarkdown', 'knitr', 'DT', 'kableExtra'))
-# For PDF: install tinytex
+install.packages(c('rmarkdown', 'knitr', 'bookdown', 'DT', 'kableExtra', 'here'))
+# For PDF output:
 tinytex::install_tinytex()
 ```
 
 ## Quick Start
+
 Tell your AI agent what you want to do:
-- "Create an RMarkdown template for RNA-seq analysis"
-- "Add interactive tables to my report"
-- "Set up parameterized reports for multiple samples"
+- "Create an R Markdown template for my DESeq2 RNA-seq analysis"
+- "My report knits differently than it runs interactively - make it self-sufficient"
+- "My cached chunk won't update after I changed the counts file"
+- "Add cross-referenced figures and tables to my report"
+- "Generate a parameterized report for each sample"
 
 ## Example Prompts
 
 ### Basic Reports
-> "Create an RMarkdown document for my DESeq2 analysis results"
 
-> "Generate a PDF report summarizing my variant calling pipeline"
+> "Create an R Markdown document for my DESeq2 results with code folding and a TOC"
 
-### Interactive Elements
-> "Add interactive DT tables to display my gene expression results"
+> "Generate a PDF report summarizing my variant-calling pipeline"
 
-> "Include collapsible code chunks in my analysis report"
+### Reproducibility and Caching
 
-### Parameterized Reports
-> "Set up a parameterized RMarkdown that generates reports for each sample"
+> "Make this report render in a fresh session the way the Knit button does"
 
-> "Create a template report that accepts a sample ID as input"
+> "Cache the long DESeq2 step but invalidate it when the count matrix changes"
 
-### Advanced Features
-> "Cache the long-running PCA computation in my report"
+### Cross-References and Parameters
 
-> "Add tabbed sections for different comparisons in my DE analysis"
+> "Add numbered, cross-referenced figures using bookdown"
+
+> "Set up a parameterized template that accepts a sample ID and FDR threshold"
+
+### Tables
+
+> "Add an interactive DT table for exploration and a static kableExtra table for the PDF"
 
 ## What the Agent Will Do
-1. Create an .Rmd file with appropriate YAML header for your output format
-2. Structure code chunks with proper options (eval, echo, cache)
-3. Add narrative sections explaining the analysis
-4. Configure output-specific features (interactive tables, code folding)
-5. Set up figure and table cross-references if needed
+
+1. Structure the `.Rmd` with a setup chunk, YAML output format, and self-sufficient chunks
+2. Bind expensive cached chunks to their input files with `cache.extra`
+3. Resolve paths with `here::here()` so the report knits from any directory
+4. Switch to a bookdown `*_document2` format when cross-references are requested
+5. Parameterize with `params:` and pair the report with renv for environment pinning
 
 ## Document Types
 
-| Output | Best For |
+| Output | Best for |
 |--------|----------|
-| html_document | Interactive reports, sharing |
-| pdf_document | Publication, archiving |
-| word_document | Collaborator editing |
-| ioslides_presentation | Slides |
+| `html_document` / `bookdown::html_document2` | interactive reports; the `*2` form adds cross-refs |
+| `pdf_document` / `bookdown::pdf_document2` | publication, archiving; needs LaTeX |
+| `word_document` | collaborator editing |
+| `ioslides_presentation` / `xaringan` | slides |
 
 ## Tips
-- Use `cache=TRUE` on expensive code chunks to speed up re-knitting
-- Set `code_folding: hide` in YAML to collapse code by default
-- Use DT::datatable() for interactive tables in HTML output
-- Parameters in YAML header enable batch report generation
-- Use `fig.width` and `fig.height` chunk options to control figure sizing
+
+- `render()` from the console sees the caller's global objects; the Knit button uses a fresh session. Make every object chunk-created, and test with `envir=new.env()`.
+- `cache=TRUE` keys on chunk code, not data; add `cache.extra=tools::md5sum('file')` so a data edit invalidates it.
+- knit working directory is the `.Rmd` folder, not the project root; use `here::here()` for relative paths.
+- Base rmarkdown cannot cross-reference; use bookdown `*_document2` with a labeled, captioned chunk.
+- DT tables are interactive HTML widgets, not for print; use kableExtra for static publication tables.
+- The document does not pin packages - add renv.lock (and a container for full reproducibility); end with `sessionInfo()`.
 
 ## Related Skills
-- reporting/quarto-reports - Next-gen alternative with multi-language support
+
+- reporting/quarto-reports - Successor with native cross-references and multi-language support
+- reporting/publication-tables - Formatted static tables for reports
 - data-visualization/ggplot2-fundamentals - Creating publication-quality figures

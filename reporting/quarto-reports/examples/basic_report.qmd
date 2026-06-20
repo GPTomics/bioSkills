@@ -10,7 +10,10 @@ format:
 execute:
   echo: true
   warning: false
+  freeze: auto
 ---
+
+<!-- Reference: Quarto 1.4+, matplotlib 3.8+ | Verify API if version differs -->
 
 ## Overview
 

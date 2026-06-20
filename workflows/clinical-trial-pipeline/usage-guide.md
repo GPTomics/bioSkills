@@ -111,3 +111,4 @@ Tell your AI agent what you want to do:
 - clinical-biostatistics/adaptive-designs - Group-sequential, SSR, platform trials
 - clinical-biostatistics/bayesian-trials - BOIN, MAP priors, RWE
 - reporting/rmarkdown-reports - Formatted statistical report generation
+- reporting/publication-tables - Table 1 (SMD not baseline p-values, show missingness) and Word/LaTeX export

@@ -17,6 +17,8 @@ params:
   lfc_threshold: 1
 ---
 
+<!-- Reference: rmarkdown 2.25+, knitr 1.45+, DESeq2 1.42+ | Verify API if version differs -->
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
     echo = TRUE, message = FALSE, warning = FALSE,
@@ -84,7 +86,9 @@ ggplot(lib_sizes, aes(reorder(sample, total_counts), total_counts, fill = condit
 
 ## Differential Expression Analysis
 
-```{r de-analysis, cache=TRUE}
+```{r de-analysis, cache=TRUE, cache.extra=tools::md5sum(params$count_file)}
+# cache.extra binds the cache to the data file: editing counts.csv invalidates the
+# cache even though the chunk code is unchanged (cache keys on code, not data).
 dds <- DESeqDataSetFromMatrix(countData = counts, colData = metadata, design = ~ condition)
 dds <- dds[rowSums(counts(dds)) >= 10, ]
 dds <- DESeq(dds)

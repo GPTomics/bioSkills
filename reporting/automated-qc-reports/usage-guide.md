@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers generating standardized QC reports using MultiQC to aggregate metrics from multiple tools.
+This guide covers aggregating per-tool QC metrics into one MultiQC report. The central idea: MultiQC does not measure anything - it scrapes the metrics other tools already wrote and presents them. The report is a human-triage snapshot, not a pass/fail gate, so the real decisions are how to scope detection, how to keep sample names from colliding, and how to turn the parsed data into an actual gate when one is needed.
 
 ## Prerequisites
 
@@ -13,46 +13,61 @@ pip install multiqc
 conda install -c bioconda multiqc
 ```
 
+Generate the upstream QC outputs first (FastQC/falco, fastp, STAR/Picard logs, salmon, bcftools, etc.). MultiQC has nothing to aggregate without them.
+
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Generate a QC report from my FastQC and alignment results"
-- "Create a MultiQC report for my RNA-seq pipeline outputs"
-- "Aggregate QC metrics across all samples in my project"
-- "Set up automated QC reporting for my workflow"
+- "Generate a MultiQC report from my FastQC and alignment results"
+- "Aggregate QC metrics across all samples and tell me which ones look off"
+- "My MultiQC report merged two samples into one row - fix the sample names"
+- "Build a QC gate that fails the pipeline when mapping rate drops below 70%"
+- "Pin a reproducible MultiQC config for my pipeline"
 
 ## Example Prompts
 
 ### Basic Reports
 
-> "Run MultiQC on my results directory and generate an HTML report"
+> "Run MultiQC on my results directory and produce a shareable HTML report"
 
-> "Create a QC summary combining FastQC, STAR, and featureCounts outputs"
+> "Combine FastQC, STAR, and featureCounts outputs into one QC summary"
 
-### Customization
+### Scoping and Sample Names
 
-> "Configure MultiQC to highlight samples with less than 70% mapping rate"
+> "MultiQC is picking up files that aren't real tool outputs - scope it to just the modules I ran"
 
-> "Create a MultiQC report with custom sample name cleaning"
+> "Two lanes of the same sample collapsed into one row; configure sample-name cleaning so they stay separate"
 
-### Integration
+### From Report to Gate
 
-> "Add MultiQC report generation to my Snakemake workflow"
+> "Parse multiqc_data.json and fail the job if any sample has under 50% mapped reads"
 
-> "Generate a QC report comparing pre and post-filtering metrics"
+> "Set up MultiQC in my Snakemake workflow with a pinned config and a separate QC-gating step"
+
+### Governance
+
+> "Generate the report but make sure no sample names or data leave our network"
 
 ## What the Agent Will Do
 
-1. Identify QC tool outputs in the specified directory
-2. Run MultiQC with appropriate configuration
-3. Customize report title and sections if requested
-4. Apply sample name cleaning rules
-5. Generate HTML report with interactive plots
+1. Confirm which upstream QC outputs exist and check the expected sample roster
+2. Scope detection with `-m`/`--ignore`/`sp:` so only intended modules and files are parsed
+3. Resolve sample-name collisions via `extra_fn_clean_exts`, `--fn_as_s_name`, `--dirs`, or `--replace-names`, verifying against `multiqc_sources.txt`
+4. Pin a `multiqc_config.yaml` (title, `module_order`, formatting) for reproducible reports
+5. When gating is requested, emit `multiqc_data.json` and apply thresholds in a separate parse-and-exit step rather than expecting MultiQC to fail on bad QC
+6. Disable AI summaries for sensitive data
 
 ## Tips
 
-- MultiQC auto-detects most tool outputs by filename patterns
-- Use config files for reproducible report formatting
-- Place config in project root as `multiqc_config.yaml`
-- Custom data can be added via TSV files
-- Reports are self-contained HTML (shareable without dependencies)
+- An empty report usually means "nothing matched," not "QC passed" - check the header sample count against what was expected.
+- Read `multiqc_data/multiqc_sources.txt` first when rows are merged, split, or missing; it maps every file to the sample name it produced.
+- Conditional-formatting colors are configured thresholds, not biological verdicts - own the thresholds before trusting the colors.
+- `--data-format json` gives the machine-readable `multiqc_data.json`; build automation on that, not on the HTML.
+- Pin the MultiQC version alongside the tool versions - parsers and defaults shift between releases.
+- AI summaries are off by default and send metrics plus sample names off-network when enabled; use `--no-ai` for clinical or embargoed data.
+
+## Related Skills
+
+- read-qc/quality-reports - Generate the FastQC/falco inputs MultiQC aggregates
+- read-qc/fastp-workflow - Preprocessing QC that feeds the report
+- workflows/rnaseq-to-de - Full workflow that emits a MultiQC report

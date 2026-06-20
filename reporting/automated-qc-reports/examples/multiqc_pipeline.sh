@@ -1,62 +1,46 @@
 #!/bin/bash
-# Reference: Cell Ranger 8.0+, FastQC 0.12+, GATK 4.5+, HISAT2 2.2.1+, MultiQC 1.21+, STAR 2.7.11+, Subread 2.0+, bcftools 1.19+, fastp 0.23+, kallisto 0.50+ | Verify API if version differs
-# MultiQC Report Generation Examples
-# Demonstrates various QC report configurations
+# Reference: MultiQC 1.21+ | Verify API if version differs
+# MultiQC report generation, scoping, and turning the report into a QC gate.
+# MultiQC aggregates metrics other tools wrote; it does not gate. Gating is the
+# separate parse-and-exit step at the bottom.
+
+set -euo pipefail
 
 # =============================================================================
-# Basic Usage
+# Basic report
 # =============================================================================
 
-# Generate report from all QC outputs in directory
-multiqc results/ -o qc_report/
-
-# Specify custom report name
-multiqc results/ -n "project_xyz_qc" -o qc_report/
+multiqc results/ -o qc_report/                 # writes qc_report/multiqc_report.html + multiqc_data/
+multiqc results/ -n project_xyz_qc -o qc_report/
 
 # =============================================================================
-# Selective Module Inclusion
+# Scope detection (avoid phantom samples / false module matches)
 # =============================================================================
 
-# RNA-seq specific modules
+# Run ONLY the modules for an RNA-seq run, and ignore scratch/work dirs.
 multiqc results/ \
-    --module fastqc \
-    --module star \
-    --module featurecounts \
-    --module salmon \
-    -o qc_report/
-
-# Variant calling modules
-multiqc results/ \
-    --module fastqc \
-    --module bwa \
-    --module samtools \
-    --module bcftools \
+    --ignore "work/" --ignore "*_tmp/" \
+    -m fastqc -m star -m featurecounts -m salmon \
     -o qc_report/
 
 # =============================================================================
-# Configuration File
+# Reproducible config (pin title, order, sample-name cleaning, thresholds)
 # =============================================================================
 
-# Create configuration file for reproducible reports
 cat > multiqc_config.yaml << 'EOF'
 title: "RNA-seq QC Report"
 subtitle: "Project XYZ - Batch 1"
 intro_text: "Quality control metrics for all samples in batch 1."
 
-# Report options
-report_comment: "Generated automatically by pipeline"
 show_analysis_paths: False
-show_analysis_time: True
 
-# Sample name cleaning
+# Append suffixes to strip from sample names. extra_fn_clean_exts APPENDS to the
+# ~100 defaults; overriding fn_clean_exts would REPLACE them and break cleaning.
 extra_fn_clean_exts:
   - '.sorted'
   - '.dedup'
   - '.trimmed'
-  - '_R1'
-  - '_R2'
 
-# Module order (top to bottom in report)
 module_order:
   - fastqc:
       name: "Read Quality (FastQC)"
@@ -65,68 +49,60 @@ module_order:
   - featurecounts:
       name: "Quantification"
 
-# Highlight problematic samples
+# Conditional formatting is a CONFIGURED convenience, not a biological verdict.
+# These thresholds color cells; they do not stop the pipeline.
 table_cond_formatting_rules:
-  percent_gc:
-    warn: [{lt: 35}, {gt: 65}]
-  percent_duplicates:
-    warn: [{gt: 50}]
   percent_mapped:
     fail: [{lt: 50}]
     warn: [{lt: 70}]
+  percent_duplicates:
+    warn: [{gt: 50}]
 
-# Custom color scheme
-custom_plot_config:
-  percent_mapped:
-    min: 0
-    max: 100
+# Disable AI summaries so no metrics or sample names leave the network.
+ai_summary: False
 EOF
 
-# Run with config
-multiqc results/ -c multiqc_config.yaml -o qc_report/
+multiqc results/ -c multiqc_config.yaml -o qc_report/ --force --quiet
 
 # =============================================================================
-# Comparing Multiple Runs
+# Pre vs post-trimming comparison (one report, two FastQC passes)
 # =============================================================================
 
-# Compare pre and post-trimming FastQC
-multiqc \
-    raw_fastqc/ \
-    trimmed_fastqc/ \
-    -o comparison_report/ \
-    -n "trim_comparison"
+multiqc raw_fastqc/ trimmed_fastqc/ -o comparison_report/ -n trim_comparison
 
 # =============================================================================
-# Export Data
+# QC GATE - the decision MultiQC does not make
 # =============================================================================
+# MultiQC always exits 0. To actually fail on bad QC, emit the machine-readable
+# multiqc_data.json and apply thresholds in a separate step.
 
-# Export parsed data as TSV
-multiqc results/ -o qc_report/ --export
+multiqc results/ -o qc_report/ --data-format json --force --quiet
 
-# Flat data format (easier to parse)
-multiqc results/ -o qc_report/ --data-format tsv --flat
-
-# =============================================================================
-# Integration with Workflows
-# =============================================================================
-
-# Function for Snakemake/Nextflow integration
-generate_qc_report() {
-    local results_dir=$1
-    local output_dir=$2
-    local project_name=$3
-
-    multiqc "$results_dir" \
-        -o "$output_dir" \
-        -n "$project_name" \
-        -c multiqc_config.yaml \
-        --force \
-        --quiet
-
-    echo "QC report generated: $output_dir/$project_name.html"
+gate_on_mapping_rate() {
+    local data_json=$1
+    local min_mapped=$2
+    python3 - "$data_json" "$min_mapped" << 'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+min_mapped = float(sys.argv[2])
+stats = data.get('report_general_stats_data', [])
+failed = []
+for block in stats:
+    for sample, metrics in block.items():
+        # general-stats keys are module-specific: STAR=uniquely_mapped_percent, samtools=reads_mapped_percent
+        mapped = (metrics.get('uniquely_mapped_percent')
+                  or metrics.get('mapped_percent')
+                  or metrics.get('reads_mapped_percent'))
+        if mapped is not None and mapped < min_mapped:
+            failed.append((sample, mapped))
+if failed:
+    for sample, mapped in failed:
+        print(f'FAIL {sample}: {mapped:.1f}% mapped (< {min_mapped}%)', file=sys.stderr)
+    sys.exit(1)
+print('QC gate passed')
+PY
 }
 
-# Example call
-# generate_qc_report "results/" "qc_reports/" "rnaseq_batch1"
+# gate_on_mapping_rate qc_report/multiqc_data/multiqc_data.json 70
 
 echo "MultiQC examples complete"

@@ -103,3 +103,4 @@ Tell your AI agent what you want to do:
 - clip-seq/ago-clip-mirna-targets - For miRNA targets
 - clip-seq/clip-deep-learning - For variant-effect prediction
 - read-qc/quality-reports - Upstream FastQC / MultiQC
+- reporting/automated-qc-reports - MultiQC aggregation (a triage snapshot, not a gate)

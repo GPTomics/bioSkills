@@ -97,5 +97,6 @@ Tell your AI agent what you want to do:
 - microbiome/functional-prediction - PICRUSt2 predicted potential gated on NSTI
 - microbiome/qiime2-workflow - The QIIME2 artifact/provenance route for the whole chain
 - read-qc/adapter-trimming - cutadapt primer removal mechanics before DADA2
+- reporting/automated-qc-reports - Aggregate FastQC/MultiQC across samples
 - metagenomics/abundance-estimation - Shared compositional/normalization/rarefaction theory
 - workflows/metagenomics-pipeline - The shotgun (WGS) equivalent of this amplicon pipeline
