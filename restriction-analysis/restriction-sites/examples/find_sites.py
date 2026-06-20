@@ -1,5 +1,5 @@
 '''Find restriction sites in a sequence'''
-# Reference: biopython 1.83+ | Verify API if version differs
+# Reference: biopython 1.83+ (API verified on 1.86) | Verify API if version differs
 
 from Bio import SeqIO
 from Bio.Restriction import EcoRI, BamHI, HindIII, XhoI, RestrictionBatch, Analysis
@@ -9,23 +9,19 @@ seq = record.seq
 print(f'Sequence: {record.id}, Length: {len(seq)} bp')
 
 ecori_sites = EcoRI.search(seq)
-print(f'\nEcoRI sites: {ecori_sites}')
+print(f'\nEcoRI sites (1-based cut positions): {ecori_sites}')
 
 common_enzymes = RestrictionBatch([EcoRI, BamHI, HindIII, XhoI])
 analysis = Analysis(common_enzymes, seq)
 
 print('\nAll cut sites:')
-results = analysis.full()
-for enzyme, sites in results.items():
-    if sites:
-        print(f'  {enzyme}: {sites}')
+for enzyme, sites in analysis.with_sites().items():
+    print(f'  {enzyme}: {sites}')
 
-print('\nEnzymes that cut once:')
-once_cutters = analysis.once_cutters()
-for enzyme, sites in once_cutters.items():
+print('\nEnzymes that cut exactly once:')
+for enzyme, sites in analysis.with_N_sites(1).items():
     print(f'  {enzyme}: position {sites[0]}')
 
 print('\nEnzymes that do not cut:')
-non_cutters = analysis.only_dont_cut()
-for enzyme in non_cutters:
+for enzyme in analysis.without_site():
     print(f'  {enzyme}')

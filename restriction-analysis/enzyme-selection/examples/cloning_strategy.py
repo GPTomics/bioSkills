@@ -1,5 +1,7 @@
 '''Find enzyme pairs for directional cloning'''
-# Reference: biopython 1.83+ | Verify API if version differs
+# Reference: biopython 1.83+ (API verified on 1.86) | Verify API if version differs
+# Directional cloning needs two DIFFERENT ends: the insert goes in one orientation and
+# the vector's two incompatible ends cannot self-ligate (the biggest background reducer).
 
 from Bio import SeqIO
 from Bio.Restriction import Analysis, CommOnly
@@ -14,8 +16,8 @@ print('=' * 60)
 vec_analysis = Analysis(CommOnly, vector.seq, linear=False)
 ins_analysis = Analysis(CommOnly, insert.seq)
 
-vec_once = set(vec_analysis.once_cutters().keys())
-ins_non = set(ins_analysis.only_dont_cut())
+vec_once = set(vec_analysis.with_N_sites(1))
+ins_non = set(ins_analysis.without_site())
 
 candidates = vec_once & ins_non
 

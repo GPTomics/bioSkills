@@ -1,26 +1,41 @@
 ---
 name: bio-restriction-fragment-analysis
-description: Analyze restriction digest fragments using Biopython Bio.Restriction. Predict fragment sizes, get fragment sequences, simulate gel electrophoresis patterns, and perform double digests. Use when analyzing restriction digest fragment patterns.
+description: Predict restriction digest fragment sizes and gel patterns using Biopython Bio.Restriction. Computes fragment lengths and sequences for single and double digests on linear or circular DNA, and interprets them against an agarose gel. Use when predicting the fragments from a digest, planning a diagnostic digest to verify a clone, or matching observed gel bands to an expected pattern.
 tool_type: python
 primary_tool: Bio.Restriction
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+
+Reference examples tested with: BioPython 1.83+ (API verified on 1.86)
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
+- Python: `pip show biopython`, then check the return shape with `from Bio.Restriction import EcoRI; from Bio.Seq import Seq; EcoRI.catalyze(Seq('GAATTCGAATTC'))` (a tuple of fragment Seqs)
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
-# Fragment Analysis
+# Restriction Fragment Analysis
 
-**"Predict fragment sizes from a restriction digest"** -> Simulate enzyme digestion to get fragment lengths, sequences, and gel electrophoresis patterns including double digests.
-- Python: `Bio.Restriction` analysis with `catalyze()` for fragment details
+**"What fragments will this digest produce?"** -> Simulate the cut and return fragment lengths (and sequences), for one enzyme or a double digest, on linear or circular DNA.
+- Python: `enzyme.catalyze(seq, linear=...)` returns a tuple of fragment `Seq` objects directly.
 
-## Get Fragment Sizes
+Two facts decide whether the prediction is right. First, **`catalyze()` returns the tuple of fragments itself** -- `EcoRI.catalyze(seq)` is `(Seq(...), Seq(...), Seq(...))`. Do NOT write `catalyze(seq)[0]` to "get the fragments": that returns only the first fragment, and iterating it then counts its bases, producing nonsense sizes like `[1, 1, 1, ...]`. Second, **topology sets the fragment count**: a linear molecule with n cuts yields n+1 fragments; a circular molecule with n cuts yields n. Passing the default `linear=True` to a plasmid invents one extra fragment that does not exist on the bench.
+
+## Fragment Count By Topology
+
+| Molecule | n cut sites yields | Why |
+|----------|--------------------|-----|
+| Linear (PCR product, genomic fragment, lambda) | n + 1 fragments | Cut once -> two pieces |
+| Circular (plasmid, many viral genomes) | n fragments | Cut once -> one linearized piece; the origin-spanning fragment wraps |
+
+A plasmid showing three bands on a single-enzyme digest has three sites, not two. Counting plasmid bands as if the molecule were linear is the most common digest-interpretation error.
+
+## Predict Fragment Sizes
+
+**Goal:** Turn a digest into the band sizes a gel would show.
+
+**Approach:** Call `catalyze()` with the correct topology, take the lengths of the returned fragments, sort descending. The summed sizes must equal the molecule length -- a built-in correctness check.
 
 ```python
 from Bio import SeqIO
@@ -29,13 +44,10 @@ from Bio.Restriction import EcoRI
 record = SeqIO.read('sequence.fasta', 'fasta')
 seq = record.seq
 
-# catalyze() returns tuple: (fragments_5prime, fragments_3prime)
-# For standard use, take the first element
-fragments = EcoRI.catalyze(seq)[0]
-
-# fragments is tuple of Seq objects
-sizes = [len(f) for f in fragments]
-print(f'Fragment sizes: {sorted(sizes, reverse=True)}')
+fragments = EcoRI.catalyze(seq, linear=True)   # tuple of Seq; NO [0]
+sizes = sorted((len(f) for f in fragments), reverse=True)
+assert sum(sizes) == len(seq)                  # fragments must account for the whole molecule
+print(f'{len(sizes)} fragments: {sizes}')
 ```
 
 ## Linear vs Circular Digestion
@@ -43,210 +55,129 @@ print(f'Fragment sizes: {sorted(sizes, reverse=True)}')
 ```python
 from Bio.Restriction import EcoRI
 
-# Linear DNA
-fragments_linear = EcoRI.catalyze(seq, linear=True)[0]
-
-# Circular DNA (plasmid)
-fragments_circular = EcoRI.catalyze(seq, linear=False)[0]
-
-# Circular produces one fewer fragment (ends join)
-print(f'Linear: {len(fragments_linear)} fragments')
-print(f'Circular: {len(fragments_circular)} fragments')
-```
-
-## Get Fragment Sequences
-
-```python
-from Bio.Restriction import EcoRI
-
-fragments = EcoRI.catalyze(seq)[0]
-
-for i, frag in enumerate(fragments, 1):
-    print(f'Fragment {i}: {len(frag)} bp')
-    print(f'  5\' end: {frag[:20]}...')
-    print(f'  3\' end: ...{frag[-20:]}')
+linear_frags   = EcoRI.catalyze(seq, linear=True)
+circular_frags = EcoRI.catalyze(seq, linear=False)   # plasmid: one fewer fragment
+print(f'Linear: {len(linear_frags)} fragments; Circular: {len(circular_frags)} fragments')
 ```
 
 ## Double Digest
 
-```python
-from Bio.Restriction import EcoRI, BamHI, RestrictionBatch
+**Goal:** Predict fragments when two enzymes cut the same molecule.
 
-# Method 1: Sequential digestion
-frags_ecori = EcoRI.catalyze(seq)[0]
-final_fragments = []
-for frag in frags_ecori:
-    sub_frags = BamHI.catalyze(frag)[0]
-    final_fragments.extend(sub_frags)
-
-# Method 2: Using RestrictionBatch
-batch = RestrictionBatch([EcoRI, BamHI])
-# Note: RestrictionBatch doesn't have catalyze, use Analysis
-
-# Method 3: Manual calculation from positions
-ecori_sites = EcoRI.search(seq)
-bamhi_sites = BamHI.search(seq)
-all_sites = sorted(set(ecori_sites + bamhi_sites))
-
-fragment_sizes = []
-for i in range(len(all_sites) - 1):
-    fragment_sizes.append(all_sites[i + 1] - all_sites[i])
-# Add terminal fragments
-fragment_sizes.insert(0, all_sites[0])
-fragment_sizes.append(len(seq) - all_sites[-1])
-```
-
-## Calculate Fragment Sizes from Positions
+**Approach:** A double digest cuts at the union of both site sets. The robust way is to build a `RestrictionBatch` and let `Analysis` collect every position, then compute fragments from the sorted positions (this generalizes to any number of enzymes and to circular DNA). Sequential `catalyze` calls also work but are easy to get wrong on circular DNA.
 
 ```python
-def fragments_from_positions(seq_len, cut_positions, linear=True):
-    '''Calculate fragment sizes from cut positions'''
-    if not cut_positions:
+from Bio.Restriction import EcoRI, BamHI, RestrictionBatch, Analysis
+
+def fragments_from_positions(seq_len, positions, linear=True):
+    '''Fragment sizes (bp) from a set of 1-based cut positions.'''
+    cuts = sorted(set(positions))
+    if not cuts:
         return [seq_len]
-
-    positions = sorted(cut_positions)
-    fragments = []
-
+    spans = [cuts[i + 1] - cuts[i] for i in range(len(cuts) - 1)]
     if linear:
-        # First fragment: start to first cut
-        fragments.append(positions[0])
-        # Middle fragments
-        for i in range(len(positions) - 1):
-            fragments.append(positions[i + 1] - positions[i])
-        # Last fragment: last cut to end
-        fragments.append(seq_len - positions[-1])
-    else:
-        # Circular: all fragments between cuts
-        for i in range(len(positions) - 1):
-            fragments.append(positions[i + 1] - positions[i])
-        # Wrap-around fragment
-        fragments.append((seq_len - positions[-1]) + positions[0])
+        return [cuts[0]] + spans + [seq_len - cuts[-1]]
+    return spans + [(seq_len - cuts[-1]) + cuts[0]]    # circular: wrap-around fragment
 
-    return fragments
-
-# Usage
-sites = EcoRI.search(seq)
-sizes = fragments_from_positions(len(seq), sites, linear=True)
-print(f'Fragment sizes: {sorted(sizes, reverse=True)}')
+batch = RestrictionBatch([EcoRI, BamHI])
+positions = [p for sites in Analysis(batch, seq).with_sites().values() for p in sites]
+sizes = sorted(fragments_from_positions(len(seq), positions, linear=True), reverse=True)
+print(f'Double digest: {len(sizes)} fragments: {sizes}')
+assert sum(sizes) == len(seq)
 ```
 
-## Simulate Gel Pattern
+## Interpreting The Gel: Size, Resolution, And Topology
+
+Fragment sizes are not what a gel directly reports; migration distance is. The decisions below come from gel physics, not from BioPython, and they determine whether predicted bands are actually resolvable.
+
+| Reality | Consequence for interpretation |
+|---------|--------------------------------|
+| Migration distance is ~linear in -log10(size) only within a gel's resolving window | Sizing is reliable only against a ladder run on the same gel; never reuse a standard curve across gels |
+| Agarose percent sets the window (approximate, buffer- and voltage-dependent: ~0.7% resolves ~0.8-12 kb; ~1% ~0.5-10 kb; ~2% ~0.1-2 kb) | Choose the percent for the bands of interest; small fragments run off a low-percent gel, large fragments pile up on a high-percent one |
+| Above ~20-50 kb fragments co-migrate (reptation); resolving them needs pulsed-field (PFGE) | Two large predicted bands may appear as one on a conventional gel |
+| Two fragments of similar size co-migrate as one band of doubled intensity (intensity ~ mass) | A "missing" predicted band is often a co-migrating doublet, not an error -- check the sum |
+| Uncut plasmid runs as supercoiled (fast, anomalous) + nicked (slow), same molecule | Do not size a supercoiled band off a linear ladder; only a linearized (single-cut) plasmid sizes correctly |
+
+## Simulate A Gel Pattern (Text)
+
+**Goal:** Lay predicted digests next to a ladder to see which bands resolve and which co-migrate.
+
+**Approach:** Pool all band sizes and the ladder, sort descending, and mark each lane. Co-migration shows up as multiple marks at one size.
 
 ```python
-def simulate_gel(fragment_sizes, ladder=None):
-    '''Print a text-based gel simulation'''
-    if ladder is None:
-        ladder = [10000, 8000, 6000, 5000, 4000, 3000, 2000, 1500, 1000, 750, 500, 250]
+def simulate_gel(digests, ladder=None):
+    '''digests: {lane_name: [sizes]} -> print a text gel against a ladder.'''
+    ladder = ladder or [10000, 8000, 6000, 5000, 4000, 3000, 2000, 1500, 1000, 750, 500, 250]
+    bands = sorted(set(ladder).union(*[set(s) for s in digests.values()]), reverse=True)
+    header = f'{"size":>6} | {"ladder":^6} | ' + ' | '.join(f'{n:^8}' for n in digests)
+    print(header); print('-' * len(header))
+    for b in bands:
+        row = f'{b:>6} | {"---" if b in ladder else "":^6} | '
+        row += ' | '.join(f'{"=" * 4 * lane.count(b):^8}' for lane in digests.values())
+        print(row)
 
-    max_size = max(max(fragment_sizes), max(ladder))
-
-    print('Ladder  |  Digest')
-    print('-' * 30)
-
-    for size in sorted(ladder + fragment_sizes, reverse=True):
-        ladder_mark = f'{size:>6}' if size in ladder else '      '
-        digest_mark = '====' if size in fragment_sizes else ''
-        print(f'{ladder_mark}  |  {digest_mark}')
-
-# Usage
-sizes = [len(f) for f in EcoRI.catalyze(seq)[0]]
-simulate_gel(sizes)
+simulate_gel({'EcoRI': sizes})
 ```
 
-## Detailed Fragment Report
+## Diagnostic Digest Report
+
+**Goal:** Document an expected digest to plan a clone-verification gel.
+
+**Approach:** Report site count, positions, fragment sizes, and the total; flag any pair of fragments too close to resolve.
 
 ```python
-from Bio.Restriction import EcoRI, BamHI
-
-def fragment_report(seq, enzyme, linear=True):
-    '''Generate detailed fragment analysis'''
+def fragment_report(seq, enzyme, linear=True, resolution=0.10):
     sites = enzyme.search(seq, linear=linear)
-    fragments = enzyme.catalyze(seq, linear=linear)[0]
-
-    print(f'Enzyme: {enzyme}')
-    print(f'Recognition site: {enzyme.site}')
-    print(f'Number of sites: {len(sites)}')
-    print(f'Cut positions: {sites}')
-    print(f'\nFragments ({len(fragments)}):')
-
-    sizes = sorted([len(f) for f in fragments], reverse=True)
-    total = sum(sizes)
-
-    for i, size in enumerate(sizes, 1):
-        pct = (size / total) * 100
-        print(f'  {i}. {size:6d} bp ({pct:5.1f}%)')
-
-    print(f'\nTotal: {total} bp')
+    sizes = sorted((len(f) for f in enzyme.catalyze(seq, linear=linear)), reverse=True)
+    print(f'{enzyme} ({enzyme.site}): {len(sites)} site(s) at {sites}')
+    print(f'  {len(sizes)} fragments, total {sum(sizes)} bp: {sizes}')
+    close = [(a, b) for a, b in zip(sizes, sizes[1:]) if a and (a - b) / a < resolution]
+    if close:
+        print(f'  WARNING likely co-migrating (<{resolution:.0%} apart): {close}')
     return sizes
 
-# Usage
-sizes = fragment_report(seq, EcoRI)
+fragment_report(seq, EcoRI)
 ```
 
-## Compare Expected vs Observed Fragments
+## Compare Expected vs Observed Bands
 
 ```python
 def compare_fragments(expected, observed, tolerance=50):
-    '''Compare expected fragment sizes with observed (from gel)'''
-    matched = []
-    unmatched_exp = list(expected)
-    unmatched_obs = list(observed)
-
+    '''Match predicted sizes to gel-measured sizes within a tolerance (bp).'''
+    obs = list(observed)
+    matched, missing = [], []
     for exp in expected:
-        for obs in observed:
-            if abs(exp - obs) <= tolerance:
-                matched.append((exp, obs))
-                if exp in unmatched_exp:
-                    unmatched_exp.remove(exp)
-                if obs in unmatched_obs:
-                    unmatched_obs.remove(obs)
-                break
+        hit = next((o for o in obs if abs(exp - o) <= tolerance), None)
+        if hit is None:
+            missing.append(exp)
+        else:
+            matched.append((exp, hit)); obs.remove(hit)
+    print('matched:', matched)
+    if missing: print('missing (predicted, not seen -- co-migration or partial digest?):', missing)
+    if obs:     print('extra (seen, not predicted -- star activity, contaminant, or wrong map?):', obs)
 
-    print('Matched fragments:')
-    for exp, obs in matched:
-        print(f'  Expected: {exp}, Observed: {obs}')
-
-    if unmatched_exp:
-        print(f'\nMissing (expected but not observed): {unmatched_exp}')
-    if unmatched_obs:
-        print(f'\nExtra (observed but not expected): {unmatched_obs}')
-
-# Usage
-expected = [3000, 2000, 1500, 500]
-observed = [3050, 2000, 1480, 510, 200]  # From gel
-compare_fragments(expected, observed)
+compare_fragments(expected=[3000, 2000, 1500, 500], observed=[3050, 2000, 1480, 510, 200])
 ```
 
-## Fragment with Sequence Context
+Extra bands and a smeary ladder of intermediate sizes often signal a **partial digest** (not every site cut), which produces sums of adjacent complete-digest fragments. Drive the reaction to completion (more enzyme or time) before concluding the map is wrong.
 
-```python
-from Bio.Restriction import EcoRI
+## Common Errors
 
-def annotated_fragments(seq, enzyme, context=50):
-    '''Get fragments with surrounding sequence context'''
-    sites = enzyme.search(seq)
-    fragments = enzyme.catalyze(seq)[0]
-
-    print(f'{enzyme} digest ({len(fragments)} fragments):')
-
-    for i, (frag, site) in enumerate(zip(fragments, [0] + sites), 1):
-        print(f'\nFragment {i}: {len(frag)} bp (starts at {site})')
-        print(f"  5' sequence: {str(frag[:context])}...")
-        print(f"  3' sequence: ...{str(frag[-context:])}")
-
-# Usage
-annotated_fragments(seq, EcoRI)
-```
-
-## Notes
-
-- **catalyze() returns tuple** - use `[0]` to get 5' fragments
-- **Fragment order** - fragments returned in 5' to 3' order
-- **Circular DNA** - produces n fragments from n cuts (not n+1)
-- **Double digest** - combine cut positions, then calculate fragments
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Fragment sizes are all 1 (or wildly wrong) | `catalyze(seq)[0]` returns the first fragment, then `len(f) for f in it` counts bases | Use `fragments = enzyme.catalyze(seq, linear=...)` with no `[0]` |
+| Predicted one fragment too many for a plasmid | Digested a circular molecule with `linear=True` | Pass `linear=False`; circular gives n fragments from n cuts |
+| Fragment sizes do not sum to the molecule length | A band was missed or two co-migrate | The `sum(sizes) == len(seq)` check is mandatory; a shortfall means a hidden doublet or run-off fragment |
+| Two predicted bands never separate on the gel | Sizes within the gel's resolving limit, or both >20-50 kb | Adjust agarose percent, or use PFGE for very large fragments |
 
 ## Related Skills
 
-- restriction-sites - Find cut positions for fragment calculation
-- restriction-mapping - Visualize fragment positions
-- enzyme-selection - Choose enzymes for desired fragments
+- restriction-sites - Find the cut positions that drive fragment calculation
+- restriction-mapping - Order sites and compute inter-site distances
+- enzyme-selection - Choose enzymes that give a resolvable, diagnostic band pattern
+- sequence-manipulation/seq-objects - Work with the fragment Seq objects
+
+## References
+
+- Smith HO, Birnstiel ML. A simple method for DNA restriction site mapping. Nucleic Acids Res. 1976;3(9):2387-2398. doi:10.1093/nar/3.9.2387
+- Schwartz DC, Cantor CR. Separation of yeast chromosome-sized DNAs by pulsed field gradient gel electrophoresis. Cell. 1984;37(1):67-75. doi:10.1016/0092-8674(84)90301-5

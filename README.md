@@ -137,7 +137,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
 | **single-cell** | 14 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication |
 | **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot, SPIA | Decision-grade functional enrichment: ORA, GSEA, and SPIA pathway topology across GO/KEGG/Reactome/WikiPathways/MSigDB, background-universe selection, ranking-metric choice, live-DB reproducibility, redundancy-collapse visualization |
-| **restriction-analysis** | 4 | Bio.Restriction | Restriction sites, mapping, enzyme selection |
+| **restriction-analysis** | 5 | Bio.Restriction | Restriction sites, mapping, enzyme selection, fragment/gel analysis, Golden Gate (Type IIS) assembly |
 | **methylation-analysis** | 10 | Bismark, methylKit, dmrseq, sesame, minfi, EpiDISH, methylclock, meffil | Bisulfite + Infinium array DNA methylation: alignment, calling, per-CpG testing, DMRs, array preprocessing/QC, cell-type deconvolution, epigenetic clocks, EWAS design |
 | **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
 | **metagenomics** | 8 | Kraken2, MetaPhlAn, Bracken, HUMAnN, AMRFinderPlus, inStrain, decontam | Read-based taxonomic/functional profiling, abundance, resistome, strain tracking, contamination controls |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 544 skills across 63 categories**
+**Total: 545 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 544 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 545 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
