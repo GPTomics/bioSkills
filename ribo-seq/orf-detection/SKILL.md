@@ -1,13 +1,13 @@
 ---
 name: bio-ribo-seq-orf-detection
-description: Detect and quantify translated ORFs from Ribo-seq data including uORFs and novel ORFs using RiboCode and ORFquant. Use when identifying translated regions beyond annotated coding sequences or quantifying ORF-level translation.
+description: Detect and quantify translated ORFs from Ribo-seq using 3-nucleotide periodicity, including uORFs, internal ORFs, dORFs, and novel ORFs. Use when finding actively translated regions beyond annotated CDS, classifying ORFs by the 2022 community standard, quantifying ORF-level translation, or choosing between periodicity-based callers.
 tool_type: mixed
 primary_tool: RiboCode
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, DESeq2 1.42+, pandas 2.2+
+Reference examples tested with: RiboCode 1.2+, ORFquant 1.0+, ORFik 1.22+, DESeq2 1.42+, pandas 2.2+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -19,285 +19,179 @@ package and adapt the example to match the actual API rather than retrying.
 
 # ORF Detection
 
-**"Detect translated ORFs from my Ribo-seq data"** -> Identify actively translated open reading frames including uORFs and novel ORFs using 3-nucleotide periodicity as evidence of active translation.
-- CLI: `RiboCode` for periodicity-based ORF detection
-- R: `ORFik` for ORF quantification and annotation
+**"Detect translated ORFs from my Ribo-seq data"** -> Identify actively translated open reading frames (uORFs, internal ORFs, dORFs, novel ORFs) using 3-nucleotide periodicity (not mere coverage) as the evidence of translation, then classify and quantify them.
+- CLI: `RiboCode` for periodicity-based de novo ORF calling
+- R: `ORFquant` for isoform-aware quantification; `ORFik` as the general toolkit
 
-## RiboCode Workflow
+The discriminating signal is PERIODICITY: a translated ORF shows footprint P-sites in frame 0 (F0 >> F1, F2). Coverage alone is not evidence of translation. Every method needs a correct per-read-length P-site offset first (see ribosome-periodicity).
 
-**Goal:** Detect actively translated ORFs from Ribo-seq data using 3-nucleotide periodicity as evidence of translation.
+## ORF-type nomenclature (Mudge 2022 standard)
 
-**Approach:** Prepare transcript annotations, then run RiboCode with specified read lengths to identify ORFs with significant periodicity.
+The GENCODE-led standard (Mudge et al 2022) defines the umbrella term "Ribo-seq ORF" and six positional categories. These are positional, not modification-based (N-terminal extensions are not part of the scheme).
+
+| Category | Definition (transcript-relative) |
+|----------|----------------------------------|
+| uORF | Entirely within the 5' UTR, not overlapping the CDS |
+| uoORF | Upstream-overlapping: starts in 5' UTR, overlaps CDS start out-of-frame |
+| intORF | Internal/nested: within the CDS in a different frame |
+| dORF | Entirely within the 3' UTR, not overlapping the CDS |
+| doORF | Downstream-overlapping: overlaps the CDS stop into the 3' UTR |
+| lncRNA-ORF | ORF on a transcript annotated as long non-coding RNA |
+
+Related terms: sORF/smORF (<100 codons, product = microprotein), annotated CDS, novel. Catalogs: sORFs.org, OpenProt.
+
+## Near-cognate start codons (the ATG-only blind spot)
+
+Initiation occurs at AUG and at near-cognate codons differing from AUG by one base; the biologically used set is CUG, GUG, ACG, UUG, AUU, AUC, AUA (AAG/AGG also differ by one base but initiate negligibly). CUG is the dominant near-cognate start (~16% of mapped initiation sites; AUG remains >50%). uORFs ESPECIALLY use near-cognate starts, so an ATG-only scanner misses the majority of real uORFs. Periodicity-based callers can be configured with alternative starts (RiboCode `-A`); the manual finder below is ATG-only and is a teaching toy unless extended.
+
+## Tool selection
+
+| Situation | Tool | Why |
+|-----------|------|-----|
+| De novo discovery (uORFs, novel ORFs), standard Ribo-seq | RiboCode | Periodicity-based, maintained, supports alternative starts |
+| Isoform-aware detection + per-ORF quantification | ORFquant | Resolves ORFs across overlapping isoforms; built on Ribo-seQC |
+| General R toolkit (uORF finding, P-site shift, TE, plots) | ORFik | Comprehensive; NOT a dedicated de novo caller |
+| Initiation-site / non-AUG mapping (needs harringtonine/LTM) | Ribo-TISH, PRICE | TI-seq-aware (see initiation-site-mapping) |
+| Assay-agnostic, no TI-seq, short + long ORFs | ribotricer | Phasing-only, species-calibrated cutoff |
+| Bacteria/prokaryotes | DeepRibo, smORFer | Prokaryote-trained (eukaryote periodicity tools fit poorly) |
+| Differential ORF translation | P-site counts per ORF then DESeq2 | Count-based DE on ORF-level counts |
+
+ORFik and ORFquant are DISTINCT packages (different authors, repos, methods): ORFik (Tjeldnes 2021, general toolkit) is not the same as ORFquant (Calviello 2020, dedicated isoform-aware caller). Do not install ORFik expecting ORFquant.
+
+## Call ORFs de novo with RiboCode
+
+**Goal:** Identify periodicity-significant ORFs, including uORFs at near-cognate starts.
+
+**Approach:** Prepare transcript annotation, run `metaplots` to select periodic read lengths and their P-site offsets, then run `RiboCode` with optional alternative starts.
 
 ```bash
-# Step 1: Prepare annotation
-prepare_transcripts \
-    -g annotation.gtf \
-    -f genome.fa \
-    -o ribocode_annot
+# Step 1: annotation
+prepare_transcripts -g annotation.gtf -f genome.fa -o ribocode_annot
 
-# Step 2: Run RiboCode
-RiboCode \
-    -a ribocode_annot \
-    -c config.txt \
-    -l 27,28,29,30 \
-    -o output_prefix
+# Step 2: metaplots picks periodic read lengths + per-length P-site offsets -> config .txt
+#   (read lengths come from THIS step, NOT from a -l flag)
+metaplots -a ribocode_annot -r transcriptome.bam -o metaplots_out
 
-# config.txt format:
-# SampleName  AlignmentFile  Stranded
-# sample1     sample1.bam    yes
+# Step 3: call ORFs. -A adds near-cognate starts; -l is the longest-ORF toggle (yes/no)
+RiboCode -a ribocode_annot -c metaplots_out_pre_config.txt \
+    -A CTG,GTG -l no -p 0.05 -o ribocode_result
 ```
 
-## One-Step RiboCode
+RiboCode works in transcript coordinates, so the `-r` input is the TRANSCRIPTOME-projected BAM (`Aligned.toTranscriptome.out.bam`), not the genome BAM; a genome BAM silently misbehaves. Its core test is a MODIFIED WILCOXON SIGNED-RANK test on the per-codon P-site frame distribution (a separate binomial file is a secondary output). The `-l` flag toggles longest-ORF selection; it is NOT a read-length list.
 
-**Goal:** Run the complete ORF detection pipeline in a single command without separate annotation preparation.
+## Parse and classify RiboCode output
 
-**Approach:** Use RiboCode_onestep which combines annotation preparation, offset determination, and ORF calling.
+**Goal:** Split called ORFs by the standard categories.
 
-```bash
-# All-in-one command
-RiboCode_onestep \
-    -g annotation.gtf \
-    -r riboseq.bam \
-    -f genome.fa \
-    -l 27,28,29,30 \
-    -o output_dir
-```
-
-## RiboCode Output
-
-| File | Description |
-|------|-------------|
-| *_ORF_result.txt | Detected ORFs with coordinates |
-| *_ORF_result.html | Interactive visualization |
-| *_binomial_test.txt | Statistical test results |
-
-## Parse RiboCode Results
-
-**Goal:** Load RiboCode ORF predictions and categorize them by type (annotated, uORF, dORF, novel).
-
-**Approach:** Read the tabular output into a DataFrame and split by the ORF_type column.
+**Approach:** Read the tabular result and group on the `ORF_type` column, whose RiboCode values are `annotated`, `uORF`, `dORF`, `Overlap_uORF`, `Overlap_dORF`, `Internal`, `novel`.
 
 ```python
 import pandas as pd
 
-def load_ribocode_orfs(filepath):
-    '''Load RiboCode ORF predictions'''
-    df = pd.read_csv(filepath, sep='\t')
-
-    # ORF categories
-    categories = {
-        'annotated': df[df['ORF_type'] == 'annotated'],
-        'uORF': df[df['ORF_type'] == 'uORF'],
-        'dORF': df[df['ORF_type'] == 'dORF'],
-        'novel': df[df['ORF_type'].isin(['novel', 'noncoding'])]
-    }
-
-    return df, categories
+def load_ribocode_orfs(path):
+    '''Load the RiboCode result table (<output_name>.txt) and group by ORF_type.'''
+    df = pd.read_csv(path, sep='\t')
+    groups = {t: df[df['ORF_type'] == t] for t in df['ORF_type'].unique()}
+    return df, groups
 ```
 
-## Alternative: RibORF
+RiboCode writes the result as `<output_name>.txt` (plus a `<output_name>_collapsed.txt`), e.g. `ribocode_result.txt` for `-o ribocode_result`; its columns include `ORF_ID`, `ORF_type`, transcript/genome start-stop, `pval_combined`, and `adjusted_pval`.
 
-**Goal:** Detect translated ORFs using a machine learning classifier as an alternative to periodicity-based methods.
+## Quantify ORFs isoform-aware with ORFquant
 
-**Approach:** Run RibORF's random forest model on aligned Ribo-seq reads and genome annotation.
+**Goal:** Quantify ORF-level translation while resolving footprints across overlapping isoforms.
 
-```bash
-# RibORF uses random forest classifier
-RibORF.py \
-    -f genome.fa \
-    -r riboseq.bam \
-    -g annotation.gtf \
-    -o output_dir
+**Approach:** Prepare annotation once, feed Ribo-seQC-prepared input, then run the master function.
+
+```r
+library(ORFquant)
+
+prepare_annotation_files(annotation_directory = "annot/",
+                         twobit_file = "genome.2bit",
+                         gtf_file = "annotation.gtf")
+# Ribo-seQC writes a for_ORFquant object from the Ribo-seq BAM; pass it here
+run_ORFquant(for_ORFquant_file = "sample_for_ORFquant",
+             annotation_file = "annot/annotation.gtf_Rannot",
+             n_cores = 4)
 ```
 
-## Manual ORF Detection
+For uORF discovery in a general R workflow, ORFik provides `findUORFs()` and the true P-site shift is `detectRibosomeShifts()` then `shiftFootprints()` (there are no `p_offsets`/`lengths` arguments on `fimport`).
 
-**Goal:** Find all potential ORFs in a sequence and filter by Ribo-seq coverage to identify translated ones.
+## Manual ORF scan (teaching reference, ATG-only)
 
-**Approach:** Scan all three reading frames for start-to-stop codon pairs, then retain ORFs with sufficient ribosome footprint coverage.
+**Goal:** Illustrate ORF finding mechanics; not a substitute for a periodicity caller.
+
+**Approach:** Scan three frames for start-to-stop pairs. This finds only ATG starts and uses coverage, not periodicity, so it misses near-cognate uORFs and cannot confirm active translation on its own.
 
 ```python
-from Bio import SeqIO
-from Bio.Seq import Seq
-
-def find_orfs(sequence, min_length=30):
-    '''Find all ORFs in a sequence'''
-    start_codon = 'ATG'
-    stop_codons = ['TAA', 'TAG', 'TGA']
-
+def find_orfs(seq, min_codons=10):
+    '''Find ATG-to-stop ORFs in all three frames (ATG-only: a teaching toy).'''
+    seq = str(seq).upper()
+    stops = {'TAA', 'TAG', 'TGA'}
     orfs = []
-    seq = str(sequence).upper()
-
     for frame in range(3):
-        for i in range(frame, len(seq) - 2, 3):
-            codon = seq[i:i+3]
-            if codon == start_codon:
-                # Find next stop codon
+        i = frame
+        while i < len(seq) - 2:
+            if seq[i:i+3] == 'ATG':
                 for j in range(i + 3, len(seq) - 2, 3):
-                    if seq[j:j+3] in stop_codons:
-                        orf_length = j - i + 3
-                        if orf_length >= min_length:
-                            orfs.append({
-                                'start': i,
-                                'end': j + 3,
-                                'frame': frame,
-                                'length': orf_length,
-                                'sequence': seq[i:j+3]
-                            })
+                    if seq[j:j+3] in stops:
+                        if (j + 3 - i) >= min_codons * 3:
+                            orfs.append({'start': i, 'end': j + 3, 'frame': frame})
+                        i = j
                         break
-
+            i += 3
     return orfs
-
-def detect_translated_orfs(orfs, coverage_data, min_coverage=10):
-    '''Filter ORFs by Ribo-seq coverage'''
-    translated = []
-    for orf in orfs:
-        cov = coverage_data[orf['start']:orf['end']]
-        if sum(cov) >= min_coverage:
-            translated.append(orf)
-    return translated
 ```
 
-## uORF Analysis
+## Validate called ORFs
 
-**Goal:** Identify upstream open reading frames in the 5' UTR that may regulate main CDS translation.
+**Goal:** Separate genuine translation from coverage artifacts.
 
-**Approach:** Extract the 5' UTR before the annotated CDS start and scan for ORFs, classifying each as contained or overlapping.
+**Approach:** Check the in-frame (frame-0) fraction within the ORF; compare the ORF's footprint read-length distribution to annotated CDS with FLOSS; use ORFscore for frame bias; add PhyloCSF/conservation or mass-spec peptide evidence for novel microproteins.
 
-```python
-def find_uorfs(transcript, cds_start):
-    '''Find upstream ORFs before main CDS'''
-    utr5 = transcript[:cds_start]
-    uorfs = find_orfs(utr5)
+FLOSS (Ingolia 2014) is half the summed absolute difference between an ORF's footprint length-fraction histogram and the CDS reference; a high-coverage region whose length distribution is non-CDS-like is likely not genuine translation. A called ORF with no frame-0 enrichment, a non-ribosomal FLOSS, and no conservation/peptide support should be treated as a candidate, not a finding.
 
-    # Classify uORFs
-    for uorf in uorfs:
-        if uorf['end'] <= cds_start:
-            uorf['type'] = 'contained'  # Fully in 5' UTR
-        else:
-            uorf['type'] = 'overlapping'  # Overlaps main CDS
+## Differential ORF translation
 
-    return uorfs
-```
+**Goal:** Compare ORF-level translation across conditions.
 
-## ORF Categories
-
-| Type | Description |
-|------|-------------|
-| annotated | Known CDS in annotation |
-| uORF | Upstream of main CDS |
-| dORF | Downstream of main CDS |
-| internal | Within CDS, different frame |
-| noncoding | In annotated non-coding RNA |
-| novel | Unannotated region |
-
-## ORFquant for ORF Quantification
-
-ORFquant provides transcript-level and ORF-level quantification from Ribo-seq data.
-
-### Installation
-
-```r
-# Install from Bioconductor
-BiocManager::install('ORFik')
-# ORFquant is part of the ORFik ecosystem
-```
-
-### Basic ORF Quantification
-
-```r
-library(ORFik)
-library(GenomicFeatures)
-
-# Load annotation
-txdb <- makeTxDbFromGFF('annotation.gtf')
-
-# Load Ribo-seq data
-riboseq <- fimport('riboseq.bam')
-
-# Get CDS regions
-cds <- cdsBy(txdb, by = 'tx', use.names = TRUE)
-
-# Calculate ORF-level RPKM
-# fpkm: Fragments Per Kilobase per Million mapped reads
-orf_counts <- countOverlaps(cds, riboseq)
-orf_lengths <- sum(width(cds))
-total_reads <- length(riboseq)
-orf_fpkm <- (orf_counts * 1e9) / (orf_lengths * total_reads)
-```
-
-### P-site Corrected Quantification
-
-```r
-library(ORFik)
-
-# Load with P-site offset correction
-# p_offsets=c(12,12,12): P-site offset for 28-30nt reads. Determine from metagene.
-riboseq <- fimport('riboseq.bam', p_offsets = c(12, 12, 12), lengths = 28:30)
-
-# Count P-sites per ORF
-psite_counts <- countOverlaps(cds, riboseq)
-```
-
-### Detect and Quantify Novel ORFs
-
-```r
-library(ORFik)
-
-# Find candidate ORFs in 5' UTRs
-utr5 <- fiveUTRsByTranscript(txdb, use.names = TRUE)
-uorf_candidates <- findORFs(utr5, startCodon = 'ATG', longestORF = FALSE,
-                            minimumLength = 9)  # 9 codons minimum
-
-# Quantify uORFs
-uorf_counts <- countOverlaps(uorf_candidates, riboseq)
-
-# Filter by coverage
-# min_count=10: Minimum reads for confident detection.
-active_uorfs <- uorf_candidates[uorf_counts >= 10]
-```
-
-### ORFquant Output Interpretation
-
-```r
-# Create ORF summary table
-orf_summary <- data.frame(
-    orf_id = names(cds),
-    length = sum(width(cds)),
-    counts = orf_counts,
-    fpkm = orf_fpkm
-)
-
-# Classify by expression
-# fpkm>1: Low expression threshold. Adjust based on library depth.
-orf_summary$expressed <- orf_summary$fpkm > 1
-
-write.csv(orf_summary, 'orf_quantification.csv', row.names = FALSE)
-```
-
-### Compare ORF Expression Across Conditions
+**Approach:** Count offset-corrected P-sites per ORF per sample into an integer matrix, then run DESeq2.
 
 ```r
 library(DESeq2)
-
-# Build count matrix for multiple samples
-orf_count_matrix <- cbind(
-    sample1 = countOverlaps(cds, riboseq1),
-    sample2 = countOverlaps(cds, riboseq2),
-    sample3 = countOverlaps(cds, riboseq3),
-    sample4 = countOverlaps(cds, riboseq4)
-)
-
-# Run DESeq2 for differential translation
-coldata <- data.frame(condition = c('control', 'control', 'treatment', 'treatment'))
-dds <- DESeqDataSetFromMatrix(orf_count_matrix, coldata, ~ condition)
+dds <- DESeqDataSetFromMatrix(orf_psite_counts, coldata, ~ condition)
 dds <- DESeq(dds)
-results <- results(dds)
+res <- results(dds)   # adjusted p-value is res$padj
 ```
+
+Ribosome occupancy is not translation efficiency; a TE change needs an RNA-seq denominator (see translation-efficiency).
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| RiboCode runs but uses wrong read lengths | `-l 27,28,29,30` passed as read lengths | `-l` is the longest-ORF toggle; read lengths come from `metaplots` config |
+| KeyError on `ORF_type == 'noncoding'` | Wrong category names | RiboCode emits `Overlap_uORF/Overlap_dORF/Internal/novel`, not `noncoding` |
+| `library(ORFik)` cannot find ORFquant functions | ORFik and ORFquant conflated | They are different packages; install ORFquant from its own repo |
+| `fimport(p_offsets=, lengths=)` errors | Those arguments do not exist | Use `detectRibosomeShifts()` then `shiftFootprints()` |
+| `RibORF.py -f -r -g -o` not found | Fabricated single-command CLI | RibORF is a Perl multi-script pipeline (logistic regression) |
+| Most uORFs missing | ATG-only scan | Use a periodicity caller with `-A` near-cognate starts |
+| High-coverage "ORF" is not real | Coverage used as the translation signal | Require frame-0 enrichment + FLOSS/ORFscore validation |
 
 ## Related Skills
 
-- ribosome-periodicity - Validate ORF calling
-- translation-efficiency - Quantify ORF translation
-- differential-expression/deseq2-basics - Compare ORF expression
+- ribosome-periodicity - Calibrate the per-length P-site offsets ORF callers consume
+- initiation-site-mapping - Map start codons (including non-AUG) from harringtonine/LTM data
+- translation-efficiency - Add an RNA-seq denominator to turn occupancy into TE
+- ribosome-stalling - Interpret pause sites within called ORFs
+- differential-expression/deseq2-basics - Differential ORF-level translation
+
+## References
+
+- Mudge JM, Ruiz-Orera J, Prensner JR, et al. 2022. Standardized annotation of translated open reading frames. Nat Biotechnol 40(7):994-999. doi:10.1038/s41587-022-01369-0
+- Xiao Z, Huang R, Xing X, Chen Y, Deng H, Yang X. 2018. De novo annotation and characterization of the translatome with ribosome profiling data. Nucleic Acids Res 46(10):e61. doi:10.1093/nar/gky179
+- Calviello L, Hirsekorn A, Ohler U. 2020. Quantification of translation uncovers the functions of the alternative transcriptome. Nat Struct Mol Biol 27(8):717-725. doi:10.1038/s41594-020-0450-4
+- Tjeldnes H, Labun K, Torres Cleuren Y, Chyżyńska K, Świrski M, Valen E. 2021. ORFik: a comprehensive R toolkit for the analysis of translation. BMC Bioinformatics 22:336. doi:10.1186/s12859-021-04254-w
+- Choudhary S, Li W, Smith AD. 2020. Accurate detection of short and long active ORFs using Ribo-seq data. Bioinformatics 36(7):2053-2059. doi:10.1093/bioinformatics/btz878
+- Ingolia NT, Brar GA, Stern-Ginossar N, et al. 2014. Ribosome profiling reveals pervasive translation outside of annotated protein-coding genes. Cell Rep 8(5):1365-1379. doi:10.1016/j.celrep.2014.07.045
+- Bazzini AA, Johnstone TG, Christiano R, et al. 2014. Identification of small ORFs in vertebrates using ribosome footprinting and evolutionary conservation. EMBO J 33(9):981-993. doi:10.1002/embj.201488411

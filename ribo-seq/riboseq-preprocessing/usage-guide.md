@@ -2,60 +2,70 @@
 
 ## Overview
 
-Preprocess ribosome profiling data including adapter trimming, size selection for ribosome-protected fragments, rRNA depletion, and alignment.
+Preprocess ribosome profiling data from raw FASTQ: UMI extraction, adapter trimming, rRNA/tRNA contaminant depletion, footprint-aware alignment, deduplication (only when UMIs allow it), and read-length QC. The hard decisions are how the sample was harvested, which nuclease was used, whether to deduplicate, and which aligner fits the genome.
 
 ## Prerequisites
 
 ```bash
-conda install -c bioconda cutadapt sortmerna bowtie2 star samtools
+conda install -c bioconda cutadapt umi_tools sortmerna bowtie2 star samtools
 ```
 
 ## Quick Start
 
-Tell your AI agent:
+Tell your AI agent what you want to do:
 - "Preprocess my Ribo-seq FASTQ files"
-- "Remove rRNA contamination from my reads"
-- "Filter reads to ribosome footprint length"
-- "Align Ribo-seq reads to the transcriptome"
+- "Extract UMIs and deduplicate my ribosome profiling reads"
+- "Remove rRNA contamination from my footprints"
+- "Align Ribo-seq reads with end-to-end settings"
 
 ## Example Prompts
 
-### Trimming and Filtering
+### UMIs and Deduplication
 
-> "Trim adapters and select 28-32 nt reads from my Ribo-seq data"
+> "My library has UMIs - extract them and deduplicate after alignment"
 
-> "What percentage of reads are in the footprint size range?"
+> "Should I deduplicate my Ribo-seq data? It has no UMIs"
 
-> "Filter my trimmed reads by length"
+> "Why are my high-occupancy codons flattened after marking duplicates?"
 
-### rRNA Removal
+### Trimming and Contaminant Removal
 
-> "Remove rRNA contamination with SortMeRNA"
+> "Trim the 3' linker and discard reads with no adapter"
 
-> "What fraction of reads map to rRNA?"
+> "Remove rRNA contamination and report the percentage removed"
 
-> "Build an rRNA index for depletion"
+> "Build a combined rRNA plus tRNA index for depletion"
 
-### Alignment
+### Alignment and QC
 
-> "Align Ribo-seq reads to the human transcriptome"
+> "Align my footprints with STAR using Ribo-seq-appropriate flags"
 
-> "Generate a BAM file with uniquely mapped reads only"
+> "My data is from bacteria with MNase - how should I align it?"
 
-> "Check alignment statistics"
+> "Plot the read-length distribution and check for the 28-30 nt peak"
 
 ## What the Agent Will Do
 
-1. Trim 3' adapters from raw reads
-2. Filter to ribosome footprint size (28-32 nt)
-3. Remove rRNA-mapping reads
-4. Align remaining reads to transcriptome
-5. Generate sorted, indexed BAM
+1. Extract UMIs to the read name (if present) before any trimming
+2. Trim the 3' linker with a permissive length floor and discard untrimmed reads
+3. Deplete rRNA/tRNA contaminants before alignment
+4. Align with STAR end-to-end (no soft-clipping) and transcriptome projection
+5. Deduplicate on the BAM only when UMIs are present
+6. QC the read-length distribution, contaminant fraction, and mapping rate
 
 ## Tips
 
-- **28-32 nt reads** are typical ribosome footprints; adjust per organism
-- **rRNA removal** is critical - Ribo-seq has high rRNA contamination
-- **Unique mapping** recommended for precise positioning
-- **Read length peak** should be ~30 nt for good library
-- **Multimapping** - disable or handle carefully for paralogs
+- **Harvest method matters** - CHX pre-treatment distorts downstream dwell-time work; record drug and freezing
+- **UMIs decide dedup** - with UMIs deduplicate; without UMIs do not (same position and length is mostly real)
+- **rRNA is 50-90%** of raw reads - effective mRNA depth is a small fraction of the total
+- **End-to-end alignment** - soft-clipping corrupts P-site offsets; the most important STAR change
+- **Do not over-narrow size selection early** - plot the length distribution first, keep the 20-22 nt population
+- **RNase I vs MNase** - bacteria need MNase and 3'-end anchoring; eukaryote-tuned settings break on bacterial data
+
+## Related Skills
+
+- ribosome-periodicity - Validate 3-nt periodicity and calibrate P-site offsets
+- orf-detection - Detect translated ORFs from aligned footprints
+- translation-efficiency - Requires matched, consistently processed RNA-seq
+- read-qc/quality-reports - General read quality control
+- read-alignment/star-alignment - General STAR alignment background

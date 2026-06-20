@@ -2,60 +2,68 @@
 
 ## Overview
 
-Detect ribosome pausing and stalling sites at codon resolution to study translational regulation, rare codon effects, and nascent chain interactions.
+Detect ribosome pausing and stalling at codon resolution to study elongation dynamics, codon dwell times, pause motifs, and ribosome collisions. The decisive judgment is whether a pause is real biology or a cycloheximide artifact, followed by using local-relative occupancy metrics at the A-site rather than a global z-score.
 
 ## Prerequisites
 
 ```bash
-pip install plastid numpy scipy biopython
+pip install plastid numpy scipy biopython twobitreader
 ```
 
 ## Quick Start
 
-Tell your AI agent:
-- "Find ribosome pause sites in my Ribo-seq data"
-- "Calculate codon-specific ribosome occupancy"
-- "Identify stalling at rare codons"
-- "Analyze pause motifs"
+Tell your AI agent what you want to do:
+- "Find ribosome pause sites with a local pause score"
+- "Calculate A-site codon occupancy"
+- "Check whether my pauses are real or a cycloheximide artifact"
+- "Look for polyproline and poly-basic stalling"
 
 ## Example Prompts
 
-### Pause Site Detection
+### Pause Detection
 
-> "Find positions with elevated ribosome occupancy (z-score > 3)"
+> "Score pauses as occupancy over the gene mean, not a global z-score"
 
-> "Identify stalling sites in my genes of interest"
+> "Was my library cycloheximide-treated? Can I trust the dwell times?"
 
-> "How many pause sites are there per gene?"
+> "Which pauses also show up as disome peaks?"
 
 ### Codon Analysis
 
-> "Calculate average ribosome occupancy per codon"
+> "Calculate A-site codon occupancy across the transcriptome"
 
-> "Which codons have highest pause frequency?"
+> "How strong is the correlation between codon occupancy and tRNA abundance?"
 
-> "Correlate pausing with tRNA abundance"
+> "Normalize each gene to its own mean before pooling codons"
 
 ### Motif Analysis
 
-> "What amino acid motifs are enriched at pause sites?"
+> "What amino-acid motifs are enriched at my pause sites?"
 
 > "Find polyproline-associated stalling"
 
-> "Analyze context around pause sites"
+> "Extract the A-site-centered context around pauses"
 
 ## What the Agent Will Do
 
-1. Map reads to P-site positions using offset
-2. Calculate codon-level ribosome occupancy
-3. Identify positions with elevated occupancy (z-score)
-4. Aggregate by codon type
-5. Analyze sequence/motif context
+1. Confirm the harvest protocol (drug, freezing) before any dwell claim
+2. Map footprints to the calibrated A-site offset
+3. Compute per-codon occupancy and local-relative pause scores
+4. Require an adequate per-gene coverage floor
+5. Extract motif context and cross-check disome/collision evidence
 
 ## Tips
 
-- **Correct P-site offset** is critical for codon assignment
-- **Z-score > 3** is a typical threshold for pause sites
-- **Normalize by gene expression** to compare across genes
-- **Polyproline** (PPP) is a well-known pause motif
-- **Rare codons** correlate with pausing (tRNA limitation)
+- **Cycloheximide flips conclusions** - dwell times are only valid on flash-frozen no-drug data
+- **A-site for decoding** - tRNA/codon effects register at the A-site (P-site + 3)
+- **Local-relative metrics** - pause score = occupancy / gene mean, not a global z-score
+- **Normalize per gene first** - then pool codons (mean-of-ratios)
+- **Coverage floor** - need a few hundred in-frame footprints per gene, not 100
+- **Disomes confirm pauses** - a collision peak coinciding with a monosome pause is strong evidence
+
+## Related Skills
+
+- ribosome-periodicity - Calibrate the A-site offset
+- orf-detection - Locate ORFs containing pause sites
+- initiation-site-mapping - Separate initiation drugs from elongation pausing
+- translation-efficiency - Gene-level translation context

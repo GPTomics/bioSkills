@@ -1,152 +1,77 @@
-'''Analyze 3-nucleotide periodicity in Ribo-seq data'''
-# Reference: matplotlib 3.8+, numpy 1.26+, pysam 0.22+, scipy 1.12+ | Verify API if version differs
+'''Score 3-nucleotide periodicity from CDS-body P-site coverage.
 
-import pysam
+The defensible metric is the frame-0 fraction over the CDS body. The start
+(initiation) and stop (termination) peaks dwarf the body and carry their own
+phase, so they are trimmed before scoring. A spectral check (power at period 3)
+is reported as a secondary signal. For real P-site offset calibration use
+riboWaltz (psite/psite_info) or plastid's metagene+psite CLI scripts; this
+script demonstrates the scoring once a per-nucleotide P-site coverage vector exists.
+'''
+# Reference: numpy 1.26+, scipy 1.12+ | Verify API if version differs
+
 import numpy as np
-import matplotlib.pyplot as plt
-from collections import defaultdict
+from scipy.fft import rfft, rfftfreq
 
-def get_reads_around_start(bam_path, gtf_path, upstream=50, downstream=100):
-    '''Extract read positions relative to start codons'''
-    from plastid import GTF2_TranscriptAssembler
+# Trim windows: start-codon initiation peak spans the first ~15 codons; the stop
+# (termination) peak the last ~5 codons. Trimming in nucleotides (codons x 3).
+TRIM_START_NT = 45
+TRIM_STOP_NT = 15
+# Frame-0 fraction thresholds (fraction of in-CDS body P-sites in frame 0; null = 0.33)
+GOOD_FRAME0 = 0.60
+MARGINAL_FRAME0 = 0.45
 
-    # Load transcripts
-    transcripts = {}
-    for tx in GTF2_TranscriptAssembler(gtf_path):
-        if tx.cds_start is not None:
-            transcripts[tx.get_name()] = tx
 
-    # Count reads by position
-    position_counts = defaultdict(int)
+def body_frame_fraction(psite_coverage, trim_start=TRIM_START_NT, trim_stop=TRIM_STOP_NT):
+    '''Fraction of CDS-body P-sites in each reading frame; frame 0 should dominate.'''
+    body = psite_coverage[trim_start:len(psite_coverage) - trim_stop]
+    frames = np.array([body[f::3].sum() for f in range(3)], dtype=float)
+    total = frames.sum()
+    return frames / total if total else frames
 
-    with pysam.AlignmentFile(bam_path, 'rb') as bam:
-        for read in bam:
-            if read.is_unmapped:
-                continue
 
-            # Get 5' position (where ribosome sits)
-            if read.is_reverse:
-                pos_5p = read.reference_end
-            else:
-                pos_5p = read.reference_start
+def period3_power(psite_coverage, trim_start=TRIM_START_NT, trim_stop=TRIM_STOP_NT):
+    '''Relative spectral power at period 3 over CDS-body coverage (secondary metric).
 
-            # Map to transcript and get relative position
-            # (simplified - full implementation needs transcript mapping)
-
-    return position_counts
-
-def calculate_periodicity_score(frame_counts):
-    '''Calculate periodicity score from frame counts
-
-    Score = (frame0 - mean(frame1, frame2)) / total
-    Higher score = stronger periodicity
-
-    Good libraries: score > 0.5
-    Marginal: 0.3-0.5
-    Poor: < 0.3
+    Runs on uniform body coverage, NOT the start-codon metagene (which is one peak).
     '''
-    total = sum(frame_counts.values())
-    if total == 0:
-        return 0
+    body = psite_coverage[trim_start:len(psite_coverage) - trim_stop]
+    body = body - body.mean()
+    if not np.any(body):
+        return 0.0
+    power = np.abs(rfft(body)) ** 2
+    freq = rfftfreq(len(body))
+    idx3 = np.argmin(np.abs(freq - 1.0 / 3.0))
+    return float(power[idx3] / power.sum())
 
-    frame0 = frame_counts.get(0, 0)
-    frame1 = frame_counts.get(1, 0)
-    frame2 = frame_counts.get(2, 0)
 
-    # Frame 0 should dominate in good Ribo-seq
-    frame0_fraction = frame0 / total
-    other_mean = (frame1 + frame2) / 2 / total
+def classify(frame0_fraction):
+    if frame0_fraction >= GOOD_FRAME0:
+        return 'good'
+    if frame0_fraction >= MARGINAL_FRAME0:
+        return 'marginal'
+    return 'poor'
 
-    return frame0_fraction - other_mean
 
-def analyze_periodicity_by_length(bam_path, gtf_path):
-    '''Analyze periodicity for each read length
+def _simulate_cds(n_codons=300, frame0_weight=0.75, depth=40, seed=0):
+    '''Simulate per-nt P-site coverage with frame-0 enrichment plus start/stop peaks.'''
+    rng = np.random.default_rng(seed)
+    n_nt = n_codons * 3
+    base = np.zeros(n_nt)
+    in_frame = rng.poisson(depth * frame0_weight, n_codons)
+    off_frame = rng.poisson(depth * (1 - frame0_weight) / 2, (n_codons, 2))
+    base[0::3][:n_codons] = in_frame
+    base[1::3][:n_codons] = off_frame[:, 0]
+    base[2::3][:n_codons] = off_frame[:, 1]
+    base[0:3] += depth * 30      # initiation peak
+    base[-6:-3] += depth * 12    # termination peak
+    return base
 
-    Returns optimal P-site offset per length.
-    '''
-    # Group reads by length
-    reads_by_length = defaultdict(list)
 
-    with pysam.AlignmentFile(bam_path, 'rb') as bam:
-        for read in bam:
-            if not read.is_unmapped:
-                reads_by_length[read.query_length].append(read)
-
-    # Analyze each length
-    results = []
-    for length, reads in sorted(reads_by_length.items()):
-        if len(reads) < 1000:  # Need sufficient reads
-            continue
-
-        # Count frames at CDS starts
-        frame_counts = {0: 0, 1: 0, 2: 0}
-        # (simplified frame counting)
-
-        score = calculate_periodicity_score(frame_counts)
-
-        # Typical P-site offset from 5' end
-        # Ribosome covers ~28 nt, P-site at position 12-15
-        offset = 12 if length <= 29 else 13 if length <= 31 else 14
-
-        results.append({
-            'length': length,
-            'count': len(reads),
-            'periodicity_score': score,
-            'psite_offset': offset
-        })
-        print(f'Length {length}: {len(reads)} reads, periodicity={score:.3f}, offset={offset}')
-
-    return results
-
-def plot_metagene_profile(position_counts, output='metagene.pdf'):
-    '''Plot metagene profile around start codons'''
-    positions = sorted(position_counts.keys())
-    counts = [position_counts[p] for p in positions]
-
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-    # Position plot colored by frame
-    colors = ['#e41a1c', '#377eb8', '#4daf4a']  # Red, blue, green for frames 0,1,2
-    for frame in range(3):
-        frame_pos = [p for p in positions if p % 3 == frame]
-        frame_counts = [position_counts[p] for p in frame_pos]
-        axes[0].bar(frame_pos, frame_counts, alpha=0.7, color=colors[frame],
-                   label=f'Frame {frame}')
-
-    axes[0].axvline(0, color='black', linestyle='--', linewidth=2, label='Start codon')
-    axes[0].set_xlabel('Position relative to start codon (nt)')
-    axes[0].set_ylabel('Normalized read count')
-    axes[0].set_title('Metagene Profile')
-    axes[0].legend()
-
-    # Periodicity spectrum (FFT)
-    if len(counts) > 10:
-        from scipy.fft import fft, fftfreq
-        fft_result = np.abs(fft(counts))
-        freq = fftfreq(len(counts))
-        # Only positive frequencies
-        pos_freq = freq[1:len(freq)//2]
-        pos_fft = fft_result[1:len(fft_result)//2]
-        period = 1 / pos_freq
-
-        axes[1].plot(period, pos_fft, 'b-', linewidth=1.5)
-        axes[1].axvline(3, color='red', linestyle='--', linewidth=2, label='3-nt period')
-        axes[1].set_xlabel('Period (nucleotides)')
-        axes[1].set_ylabel('Power')
-        axes[1].set_title('Periodicity Spectrum')
-        axes[1].set_xlim(1, 10)
-        axes[1].legend()
-
-    plt.tight_layout()
-    plt.savefig(output, dpi=300)
-    print(f'Saved metagene plot to {output}')
-
-# Example usage
 if __name__ == '__main__':
-    print('Ribo-seq periodicity analysis')
-    print('Load your BAM and GTF files to analyze periodicity')
-    print('')
-    print('Quality thresholds:')
-    print('  Periodicity score > 0.5: Good library')
-    print('  Periodicity score 0.3-0.5: Marginal')
-    print('  Periodicity score < 0.3: Poor - check digestion')
+    print('Ribosome periodicity scoring (simulated CDS-body coverage)')
+    for label, weight in [('good library', 0.78), ('marginal', 0.50), ('no periodicity', 0.34)]:
+        cov = _simulate_cds(frame0_weight=weight, seed=hash(label) % 100)
+        frames = body_frame_fraction(cov)
+        f0 = frames[0]
+        print(f'  {label:16s} frame fractions={np.round(frames, 3)} '
+              f'frame0={f0:.3f} ({classify(f0)}) period3_power={period3_power(cov):.3f}')

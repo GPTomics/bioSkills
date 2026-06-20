@@ -35,7 +35,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | multi-omics-pipeline | Multi-omics integration via MOFA2/mixOmics |
 | tcr-pipeline | TCR/BCR repertoire from FASTQ to clonotype diversity |
 | smrna-pipeline | Small RNA-seq from FASTQ to differential miRNAs |
-| riboseq-pipeline | Ribo-seq from FASTQ to translation efficiency |
+| riboseq-pipeline | Ribo-seq from FASTQ to ORF detection and translation efficiency |
 | merip-pipeline | MeRIP-seq from FASTQ to m6A peaks |
 | clip-pipeline | CLIP-seq (eCLIP/iCLIP/iCLIP2/iCLIP3/irCLIP/PAR-CLIP) from FASTQ to ENCODE-stringent binding sites (log2 FC >= 3 AND -log10 p >= 3), single-nt crosslink maps, ChIPseeker annotation, motif registration (HOMER + mCross), with optional DEWSeq differential binding |
 | neoantigen-pipeline | Somatic variants to ranked vaccine candidates |

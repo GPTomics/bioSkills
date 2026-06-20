@@ -1,90 +1,60 @@
 #!/bin/bash
-# Reference: Bowtie2 2.5.3+, STAR 2.7.11+, cutadapt 4.4+, numpy 1.26+ | Verify API if version differs
-# Complete Ribo-seq analysis pipeline
+# Reference: cutadapt 4.4+, umi_tools 1.1+, STAR 2.7.11+, bowtie2 2.5.3+, samtools 1.19+ | Verify API if version differs
+# End-to-end Ribo-seq pipeline: preprocess -> periodicity QC -> P-site -> ORF -> TE.
+
+set -euo pipefail
 
 FASTQ=$1
-RRNA_INDEX=$2      # bowtie2 index for rRNA
-STAR_INDEX=$3      # STAR genome index
-ANNOTATION=$4      # GTF file
-OUTPUT_DIR=${5:-"riboseq_results"}
-ADAPTER=${6:-"CTGTAGGCACCATCAAT"}  # Common Ribo-seq adapter
+RRNA_INDEX=$2        # bowtie2 contaminant index (rRNA + tRNA + snoRNA)
+STAR_INDEX=$3
+ANNOTATION=$4        # GTF
+OUTDIR=${5:-riboseq_results}
+ADAPTER=${6:-CTGTAGGCACCATCAAT}
+HAS_UMI=${7:-no}
 
-mkdir -p ${OUTPUT_DIR}/{trimmed,aligned,plastid}
+mkdir -p "${OUTDIR}"/{trimmed,aligned,psite}
 
-echo "=== Step 1: Adapter Trimming ==="
-# Ribo-seq fragments are typically 25-35nt (28-30nt peak)
-cutadapt \
-    -a $ADAPTER \
-    --minimum-length 25 \
-    --maximum-length 35 \
-    -o ${OUTPUT_DIR}/trimmed/trimmed.fastq.gz \
-    $FASTQ \
-    > ${OUTPUT_DIR}/trimmed/cutadapt_report.txt
+echo "=== Step 1: UMI extract (if present) + trim ==="
+READS=$FASTQ
+if [ "$HAS_UMI" = "yes" ]; then
+    umi_tools extract --bc-pattern=NNNNN --stdin "$FASTQ" \
+        --stdout "${OUTDIR}/trimmed/umi.fastq.gz" --log "${OUTDIR}/trimmed/umi.log"
+    READS="${OUTDIR}/trimmed/umi.fastq.gz"
+fi
+# Permissive floor + discard untrimmed (read-through is universal for footprints)
+cutadapt -a "$ADAPTER" --discard-untrimmed -m 15 -M 40 \
+    -o "${OUTDIR}/trimmed/trimmed.fastq.gz" "$READS" > "${OUTDIR}/trimmed/cutadapt.log"
 
-echo "Size distribution after trimming:"
-zcat ${OUTPUT_DIR}/trimmed/trimmed.fastq.gz | \
-    awk 'NR%4==2 {print length}' | sort -n | uniq -c
+echo "=== Step 2: rRNA removal (often >80% of reads) ==="
+bowtie2 -x "$RRNA_INDEX" -U "${OUTDIR}/trimmed/trimmed.fastq.gz" \
+    --un-gz "${OUTDIR}/trimmed/noncontam.fastq.gz" -S /dev/null \
+    2> "${OUTDIR}/trimmed/rrna.log"
 
-echo "=== Step 2: rRNA Removal ==="
-# Remove rRNA reads (can be >80% of raw reads)
-bowtie2 \
-    -x $RRNA_INDEX \
-    -U ${OUTPUT_DIR}/trimmed/trimmed.fastq.gz \
-    --un-gz ${OUTPUT_DIR}/trimmed/non_rrna.fastq.gz \
-    -S /dev/null \
-    2> ${OUTPUT_DIR}/trimmed/rrna_removal.log
+echo "=== Step 3: Alignment (EndToEnd; no soft-clipping) ==="
+STAR --genomeDir "$STAR_INDEX" \
+    --readFilesIn "${OUTDIR}/trimmed/noncontam.fastq.gz" --readFilesCommand zcat \
+    --alignEndsType EndToEnd --seedSearchStartLmax 15 --outFilterMismatchNmax 2 \
+    --quantMode TranscriptomeSAM --outSAMtype BAM SortedByCoordinate \
+    --outFileNamePrefix "${OUTDIR}/aligned/" --runThreadN 8
+BAM="${OUTDIR}/aligned/Aligned.sortedByCoord.out.bam"
+samtools index "$BAM"
 
-echo "rRNA removal stats:"
-grep "overall alignment rate" ${OUTPUT_DIR}/trimmed/rrna_removal.log
+# Deduplicate only with UMIs (same position+length is mostly real co-occupancy)
+if [ "$HAS_UMI" = "yes" ]; then
+    umi_tools dedup --stdin "$BAM" --stdout "${OUTDIR}/aligned/dedup.bam" \
+        --method directional --log "${OUTDIR}/aligned/dedup.log"
+    BAM="${OUTDIR}/aligned/dedup.bam"
+    samtools index "$BAM"
+fi
 
-echo "=== Step 3: Alignment ==="
-# Align to genome/transcriptome
-# --outFilterMismatchNmax 2: allow up to 2 mismatches
-# --alignEndsType EndToEnd: no soft clipping (important for Ribo-seq)
-STAR \
-    --genomeDir $STAR_INDEX \
-    --readFilesIn ${OUTPUT_DIR}/trimmed/non_rrna.fastq.gz \
-    --readFilesCommand zcat \
-    --outFilterMismatchNmax 2 \
-    --alignEndsType EndToEnd \
-    --outSAMtype BAM SortedByCoordinate \
-    --outFileNamePrefix ${OUTPUT_DIR}/aligned/ \
-    --runThreadN 8
+echo "=== Step 4: P-site calibration (plastid CLI) ==="
+metagene generate "${OUTDIR}/psite/cds_start" --landmark cds_start --annotation_files "$ANNOTATION"
+psite "${OUTDIR}/psite/cds_start_rois.txt" "${OUTDIR}/psite/offsets" \
+    --min_length 26 --max_length 34 --require_upstream --count_files "$BAM"
 
-samtools index ${OUTPUT_DIR}/aligned/Aligned.sortedByCoord.out.bam
-
-echo "=== Step 4: P-site Calibration (Plastid) ==="
-# Generate metagene profile around start codons
-cd ${OUTPUT_DIR}/plastid
-
-metagene generate \
-    $ANNOTATION \
-    --landmark cds_start \
-    --upstream 50 \
-    --downstream 100 \
-    metagene_cds_start
-
-# Count reads in metagene windows
-metagene count \
-    metagene_cds_start_rois.txt \
-    ${OUTPUT_DIR}/aligned/Aligned.sortedByCoord.out.bam \
-    metagene_profile
-
-# Calculate P-site offsets
-# Should see 3-nt periodicity starting ~12nt from 5' end
-psite metagene_profile_metagene_profile.txt psite_offsets.txt \
-    --min 25 --max 35
-
-cd -
-
-echo "=== Pipeline Complete ==="
-echo "Results in: $OUTPUT_DIR"
+echo "=== Pipeline scaffold complete ==="
+echo "Read-length distribution (frame-0 fraction gates downstream analysis):"
+samtools view "$BAM" | awk '{print length($10)}' | sort -n | uniq -c
 echo ""
-echo "Key outputs:"
-echo "  - Aligned BAM: ${OUTPUT_DIR}/aligned/Aligned.sortedByCoord.out.bam"
-echo "  - P-site offsets: ${OUTPUT_DIR}/plastid/psite_offsets.txt"
-echo ""
-echo "Next steps:"
-echo "  - Apply P-site offsets for precise positioning"
-echo "  - Calculate translation efficiency (requires paired RNA-seq)"
-echo "  - Run ORF detection with RiboCode"
+echo "Transcriptome BAM for RiboCode/riboWaltz: ${OUTDIR}/aligned/Aligned.toTranscriptome.out.bam"
+echo "Next: periodicity QC (riboWaltz) -> RiboCode ORFs -> riborex TE (see the ribo-seq skills)."
