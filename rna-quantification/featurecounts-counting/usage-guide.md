@@ -65,9 +65,11 @@ Tell your AI agent what you want to do:
 
 | Library Type | `-s` Value | Examples |
 |--------------|------------|----------|
-| Unstranded | 0 | Standard Illumina |
-| Forward | 1 | Directional, some dUTP |
-| Reverse | 2 | TruSeq Stranded, dUTP |
+| Unstranded | 0 | Older non-directional Illumina |
+| Forward (read 1 sense) | 1 | Ligation/directional (e.g. NSR) |
+| Reverse (read 1 antisense) | 2 | dUTP, Illumina TruSeq Stranded, NEBNext Directional (most common) |
+
+The wrong `-s` does not error; it silently assigns ~5-20% instead of ~80-90%. Determine it empirically (RSeQC `infer_experiment.py`, the STAR `ReadsPerGene.out.tab` columns 3 vs 4, or trying `-s 0/1/2` and picking the highest Assigned), never from the kit name alone.
 
 ## Typical Workflows
 
@@ -92,17 +94,8 @@ featureCounts \
     *.bam
 ```
 
-### Transcript-Level Counting
-```bash
-featureCounts \
-    -p --countReadPairs \
-    -t exon \
-    -g transcript_id \
-    -O \
-    -a annotation.gtf \
-    -o transcript_counts.txt \
-    *.bam
-```
+### Do Not Use featureCounts for Transcript Quantification
+featureCounts is a gene-level counter. Grouping by `-g transcript_id` with `-O` is NOT valid transcript quantification: isoform-ambiguous reads (most reads) are either discarded or double-counted across shared exons, so the per-transcript numbers are biased. For transcript-level abundance and DTE/DTU, use alignment-free EM quantification (rna-quantification/alignment-free-quant) and the transcript-aware testing in alternative-splicing/isoform-switching. Use `-g` overrides only for genuinely distinct meta-features (e.g. custom intervals), not isoforms.
 
 ## Understanding Output
 

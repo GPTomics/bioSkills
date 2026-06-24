@@ -1,14 +1,16 @@
-# Reference: DESeq2 1.42+, Salmon 1.10+, edgeR 4.0+, kallisto 0.50+, scanpy 1.10+ | Verify API if version differs
+# Reference: GenomicFeatures 1.54+, txdbmaker 1.0+ (Bioconductor >= 3.19) | Verify API if version differs
 library(GenomicFeatures)
 
 gtf_file <- 'Homo_sapiens.GRCh38.110.gtf.gz'
 
 cat('Creating TxDb from GTF...\n')
-txdb <- makeTxDbFromGFF(gtf_file)
+# makeTxDbFromGFF moved to txdbmaker in Bioconductor >= 3.19 (defunct in GenomicFeatures >= 1.61.1)
+make_txdb <- if (requireNamespace('txdbmaker', quietly = TRUE)) txdbmaker::makeTxDbFromGFF else GenomicFeatures::makeTxDbFromGFF
+txdb <- make_txdb(gtf_file)
 
 cat('Extracting transcript-gene mapping...\n')
 k <- keys(txdb, keytype = 'TXNAME')
-tx2gene <- select(txdb, k, 'GENEID', 'TXNAME')
+tx2gene <- AnnotationDbi::select(txdb, k, c('TXNAME', 'GENEID'), 'TXNAME')
 tx2gene <- tx2gene[, c('TXNAME', 'GENEID')]
 
 cat('Saving tx2gene.csv...\n')

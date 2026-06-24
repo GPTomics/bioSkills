@@ -2,7 +2,7 @@
 
 ## Overview
 
-Quantify gene and transcript expression from RNA-seq data. Covers BAM-based counting with featureCounts and alignment-free quantification with Salmon/kallisto, plus import to R for differential expression.
+Quantify gene and transcript expression from RNA-seq data. Covers BAM-based counting with featureCounts and alignment-free quantification with Salmon/kallisto, plus import to R with the correct length offset and QC of the count matrix before differential expression. Two paths exist: align-then-count (deterministic) and quantify-then-import (probabilistic, resolves multi-mapping). Both feed gene-level DE through tximport; choose counting for specified features (exons, custom intervals) or when an EM model is unwanted, and alignment-free for accuracy on multi-isoform genes and any transcript-level work.
 
 **Tool type:** mixed | **Primary tools:** featureCounts, Salmon, kallisto, tximport
 
@@ -10,25 +10,25 @@ Quantify gene and transcript expression from RNA-seq data. Covers BAM-based coun
 
 | Skill | Description |
 |-------|-------------|
-| featurecounts-counting | Count reads per gene from BAM files |
-| alignment-free-quant | Pseudo-alignment quantification with Salmon/kallisto |
-| tximport-workflow | Import transcript estimates to R for DESeq2/edgeR |
-| count-matrix-qc | QC and combine sample counts, detect outliers |
+| featurecounts-counting | Count reads per gene from BAM files; strandedness, fragments, multimappers, summary QC |
+| alignment-free-quant | Salmon/kallisto quantification; decoy index, library type, bias, inferential replicates |
+| tximport-workflow | Import transcript estimates with the length offset; countsFromAbundance, version IDs |
+| count-matrix-qc | Normalization, VST/rlog, PCA, Cook's outliers, batch and sample-swap checks |
 
 ## Example Prompts
 
 - "Count reads per gene from my BAM files"
-- "Run featureCounts with paired-end data"
-- "Count multi-mapping reads fractionally"
-- "Quantify transcripts with Salmon"
-- "Build a Salmon index from my transcriptome"
-- "Run kallisto on paired-end RNA-seq"
-- "Import Salmon results into R for DESeq2"
-- "Use tximport to prepare data for edgeR"
-- "Combine multiple sample counts into a matrix"
-- "Check for sample outliers before DE analysis"
-- "Generate PCA of my count matrix"
-- "Normalize counts for visualization"
+- "Determine the strandedness of my RNA-seq before counting"
+- "Decide whether my paralog-heavy genes need EM quantification instead of counting"
+- "Quantify transcripts without aligning to the genome"
+- "Build a decoy-aware index and explain why it matters"
+- "Generate inferential replicates for transcript-level testing"
+- "Import Salmon results into R with the correct length offset"
+- "Choose a countsFromAbundance mode for my 3'-tag library"
+- "Resolve a transcript-ID version mismatch on import"
+- "Check my count matrix for outliers and batch effects before DE"
+- "Decide whether to drop a suspected outlier sample"
+- "Diagnose whether PC1 is biology or sequencing depth"
 
 ## Requirements
 
@@ -51,5 +51,7 @@ BiocManager::install(c('tximport', 'tximeta'))
 
 - **read-qc** - Upstream quality control
 - **alignment-files** - BAM file processing
-- **differential-expression** - Downstream DE analysis
+- **differential-expression** - Downstream gene-level DE (and catchSalmon transcript DTE)
+- **alternative-splicing** - DTU and swish transcript-level testing from quantification
+- **expression-matrix** - Count ingestion, sleuth, and ID mapping
 - **genome-intervals** - GTF/GFF annotation handling

@@ -71,8 +71,8 @@ grep "^>" genome.fa | cut -d " " -f 1 | sed 's/>//g' > decoys.txt
 # Concatenate (transcriptome first!)
 cat transcripts.fa genome.fa > gentrome.fa
 
-# Build index
-salmon index -t gentrome.fa -d decoys.txt -i salmon_index -p 8
+# Build index (k=31 suits reads >=75 bp; lower to ~23-25 for ~50 bp reads)
+salmon index -t gentrome.fa -d decoys.txt -i salmon_index -k 31 -p 8
 ```
 
 ## Understanding Output
@@ -96,12 +96,19 @@ salmon index -t gentrome.fa -d decoys.txt -i salmon_index -p 8
 | tpm | Transcripts per million |
 
 ## TPM vs Counts
-- **TPM** - Normalized, comparable across samples, use for visualization
-- **Counts** - Use with tximport for DESeq2/edgeR (they need raw counts)
+- **TPM** - A within-sample proportion (sums to 1e6 in every sample). Good for ranking/visualization, but invalid for cross-sample differential expression because a few up-regulated genes inflate the fixed total and depress every other TPM (composition bias).
+- **Counts** - Import the estimated counts (NumReads / est_counts), not TPM, into DESeq2/edgeR via tximport, which carries the average-transcript-length offset.
+
+## Why the decoy-aware index matters
+A transcriptome-only index has no home for reads from introns, unannotated transcription, or intergenic DNA, so they get misassigned to whatever transcript shares sequence, inflating its count. The genome added as decoys lets the quantifier discard those reads instead. This is the single highest-impact accuracy choice; always use it when the genome is available.
+
+## Verifying library strandedness
+- `-l A` auto-detects, but a library with weak strand signal can be miscalled. Always read `lib_format_counts.json` and confirm one consistent type across samples.
+- dUTP / Illumina TruSeq Stranded / NEBNext Directional report as `ISR` (maps to featureCounts `-s 2`, reverse). Forward is `ISF` (`-s 1`); unstranded is `IU` (`-s 0`).
 
 ## Tips
-- Use decoy-aware Salmon index for best accuracy
-- Enable bias correction with `--gcBias --seqBias` in Salmon
-- Generate bootstraps (`-b 100`) if using sleuth for DE
-- Check mapping rates - should be >70%
-- Match transcriptome version to your GTF annotation
+- Use the decoy-aware Salmon index for best accuracy; do not pass the deprecated no-op `--validateMappings`.
+- Enable bias correction with `--gcBias --seqBias`; it matters most when library-prep batch is confounded with condition.
+- Generate inferential replicates (`--numGibbsSamples 20` for Salmon, `-b 100` for kallisto) ONLY for transcript-level DTE/DTU downstream (swish, sleuth, catchSalmon); gene-level work does not need them.
+- Check mapping rates - should be >70% for a matched reference.
+- Match transcriptome version to the GTF annotation release.

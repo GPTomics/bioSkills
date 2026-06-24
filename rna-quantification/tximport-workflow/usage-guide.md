@@ -10,7 +10,7 @@ if (!require('BiocManager', quietly = TRUE))
 
 BiocManager::install('tximport')
 BiocManager::install('tximeta')  # Optional: metadata-aware import
-BiocManager::install('GenomicFeatures')  # For creating tx2gene from GTF
+BiocManager::install('txdbmaker')  # For makeTxDbFromGFF (Bioconductor >= 3.19; older: GenomicFeatures)
 ```
 
 ## Quick Start
@@ -44,10 +44,10 @@ Tell your AI agent what you want to do:
 
 ## Why tximport?
 
-1. **Corrects for transcript length bias** - Longer genes get more reads
-2. **Aggregates transcripts to genes** - Most DE tools work at gene level
-3. **Preserves uncertainty** - Passes length information to DESeq2/edgeR
-4. **Fast** - No re-counting required
+1. **Computes a per-gene, per-sample length offset** - The gene's average effective length changes across samples when isoform usage shifts; tximport returns that length matrix so the DE model corrects a condition-correlated bias a naive sum would miss.
+2. **Aggregates transcripts to genes** - Most DE tools work at gene level, where per-isoform assignment uncertainty cancels.
+3. **Hands the offset to DESeq2/edgeR** - DESeqDataSetFromTximport applies it automatically; edgeR takes it via scaleOffset.
+4. **Fast** - No re-counting required.
 
 ## Creating tx2gene
 
@@ -57,17 +57,17 @@ The tx2gene data frame must have exactly two columns:
 
 ### Method 1: From Ensembl GTF
 ```r
-library(GenomicFeatures)
+library(txdbmaker)  # makeTxDbFromGFF moved here in Bioconductor >= 3.19 (older Bioc: GenomicFeatures)
 txdb <- makeTxDbFromGFF('Homo_sapiens.GRCh38.110.gtf.gz')
 k <- keys(txdb, keytype = 'TXNAME')
-tx2gene <- select(txdb, k, 'GENEID', 'TXNAME')
+tx2gene <- AnnotationDbi::select(txdb, k, c('TXNAME', 'GENEID'), 'TXNAME')
 write.csv(tx2gene, 'tx2gene.csv', row.names = FALSE)
 ```
 
 ### Method 2: From biomaRt
 ```r
 library(biomaRt)
-mart <- useMart('ensembl', dataset = 'hsapiens_gene_ensembl')
+mart <- useEnsembl(biomart = 'genes', dataset = 'hsapiens_gene_ensembl')  # useMart is deprecated
 tx2gene <- getBM(
     attributes = c('ensembl_transcript_id_version', 'ensembl_gene_id_version'),
     mart = mart
@@ -142,8 +142,9 @@ gse <- addIds(gse, 'SYMBOL', gene = TRUE)
 ```
 
 ## Tips
-- Match versions - tx2gene IDs must exactly match quant file IDs
-- Use `ignoreTxVersion = TRUE` if transcript versions don't match
-- Save tx2gene once and reuse for all analyses with the same annotation
-- Check import results - verify row counts match expected gene count
-- Use tximeta for automatic annotation linking when working with standard references
+- Match versions - tx2gene IDs must exactly match quant file IDs; a partial mismatch silently drops transcripts and deflates genes (the most common failure). Use `ignoreTxVersion = TRUE`.
+- Pick countsFromAbundance by protocol: `'no'` (default) for full-length + DESeq2/edgeR; `'lengthScaledTPM'` for limma-voom; `'scaledTPM'` with `txOut=TRUE` for DTU; for 3'-tag build the DDS via `DESeqDataSetFromMatrix(round(txi$counts), ...)` so the length offset is not applied.
+- Never double-apply the offset: a length-scaled import already contains the correction; do not also attach a length offset.
+- Save tx2gene once and reuse for all analyses with the same annotation.
+- For transcript-level DTE/DTU, generate inferential replicates upstream and use catchSalmon/swish/sleuth rather than plain DESeq2 on transcript counts.
+- Use tximeta for automatic, checksum-verified annotation provenance with standard references.

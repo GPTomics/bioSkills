@@ -106,22 +106,30 @@ dds <- dds[, colnames(dds) != 'outlier_sample']
 
 ### Batch Effects
 ```r
-# Add batch to design
+# Known batch: put it in the design (never pre-correct counts for DESeq2/edgeR)
 design(dds) <- ~ batch + condition
 ```
+- removeBatchEffect/ComBat output is for visualization only; feeding it to the count model double-corrects.
+- Unknown batch: estimate surrogate variables (sva/svaseq) or factors of unwanted variation (RUVSeq) and add to the design.
+- Confounding is fatal: if batch tracks condition, regressing it out removes biology too. Cross-tabulate batch against condition first; a perfect confound is unfixable.
+
+### Sample Swaps
+- Check sex genes (XIST for XX; RPS4Y1/UTY/DDX3Y for XY) against recorded sex; a mismatch is a swap until proven otherwise.
 
 ### Low Library Size
-- Consider excluding samples with <1M reads
-- Or use weighted analysis
+- Consider excluding samples with very low depth, but document the reason.
+- Do not deduplicate standard RNA-seq (high duplication is expected); deduplicate only with UMIs.
 
 ## Recommended Thresholds
 
 | Metric | Good | Concerning |
 |--------|------|------------|
 | Library size | >5M | <1M |
-| Genes detected | >12,000 | <8,000 |
+| Genes detected (human poly-A bulk) | >12,000 | <8,000 |
 | Replicate correlation | >0.95 | <0.85 |
-| Mapping rate | >70% | <50% |
+| Mapping rate (upstream quant check) | >70% | <50% |
+
+Gene-detection numbers are organism-, tissue-, and protocol-specific; the values above are typical for human poly-A bulk RNA-seq. Calibrate against the cohort rather than treating them as universal cutoffs.
 
 ## Tips
 - Always run QC before differential expression analysis
