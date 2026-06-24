@@ -3,6 +3,7 @@ name: bio-workflows-rnaseq-to-de
 description: End-to-end RNA-seq workflow from FASTQ files to differential expression results. Covers QC, quantification (Salmon or STAR+featureCounts), and DESeq2 analysis with visualization. Use when running RNA-seq from FASTQ to DE results.
 tool_type: mixed
 primary_tool: DESeq2
+goal_approach_exempt: true
 workflow: true
 depends_on:
   - read-qc/fastp-workflow
@@ -88,8 +89,10 @@ done
 ### Step 2: Salmon Quantification
 
 ```bash
-# Build index (once per transcriptome)
-salmon index -t transcriptome.fa -i salmon_index -k 31
+# Build a DECOY-AWARE index (once); a transcriptome-only index misassigns intron/pseudogene reads
+grep "^>" genome.fa | cut -d " " -f 1 | sed 's/>//g' > decoys.txt
+cat transcriptome.fa genome.fa > gentrome.fa
+salmon index -t gentrome.fa -d decoys.txt -i salmon_index -k 31 -p 8
 
 # Quantify each sample (selective alignment is the default since Salmon 1.0.0;
 # the historical --validateMappings flag is now a no-op)
@@ -219,8 +222,10 @@ done
 ### Step 3 Alternative: featureCounts
 
 ```bash
-# Count reads per gene
+# Count reads per gene. Set -s to the library strandedness (verify from STAR ReadsPerGene.out.tab
+# columns 3 vs 4, or RSeQC infer_experiment.py); -s 2 is the dUTP/TruSeq default below.
 featureCounts -T 8 -p --countReadPairs \
+    -s 2 \
     -a genes.gtf \
     -o counts.txt \
     aligned/*_Aligned.sortedByCoord.out.bam
@@ -338,7 +343,9 @@ write.csv(as.data.frame(sig), 'significant_genes.csv')
 - read-qc/fastp-workflow - Detailed QC options and parameters
 - read-alignment/star-alignment - STAR index/sjdbOverhang, two-pass, GeneCounts strandedness (the align path)
 - rna-quantification/alignment-free-quant - Salmon and kallisto details
-- rna-quantification/tximport-workflow - tximport options and tx2gene creation
+- rna-quantification/tximport-workflow - tximport options, countsFromAbundance, tx2gene creation
+- rna-quantification/count-matrix-qc - Pre-DE QC: normalization, PCA, Cook's outliers, batch checks
+- alternative-splicing/isoform-switching - Transcript-level DTE/DTU (swish) when gene-level is not enough
 - differential-expression/deseq2-basics - Complete DESeq2 reference
 - differential-expression/de-visualization - Advanced visualization options
 - pathway-analysis/go-enrichment - Next step: functional enrichment

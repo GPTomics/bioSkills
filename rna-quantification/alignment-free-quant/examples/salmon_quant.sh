@@ -23,12 +23,12 @@ for r1 in *_R1.fastq.gz; do
 
     if [ ! -d "${sample}_quant" ]; then
         echo "Quantifying $sample..."
+        # selective alignment is the default since Salmon 1.0.0; --validateMappings is a no-op
         salmon quant -i $INDEX -l A \
             -1 $r1 -2 $r2 \
             -o ${sample}_quant \
             -p $THREADS \
-            --gcBias --seqBias \
-            --validateMappings
+            --gcBias --seqBias
     fi
 done
 

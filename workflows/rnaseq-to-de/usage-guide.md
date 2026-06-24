@@ -75,6 +75,8 @@ Tell your AI agent what you want to do:
 
 - **Replicates**: Minimum 3 biological replicates per condition (more is better)
 - **Sequencing depth**: 20-30M reads per sample is typical for DE analysis
-- **Library type**: Salmon auto-detects, but verify with --libType A
-- **Batch effects**: If samples were processed in batches, include batch in the design formula
-- **Outliers**: Check PCA plot; remove severe outliers or investigate sample swaps
+- **Decoy index**: Build the Salmon index with genome decoys; a transcriptome-only index misassigns intron and pseudogene reads
+- **Library type**: Salmon auto-detects with `-l A`; verify the call by reading `lib_format_counts.json`, and set featureCounts `-s` to match (dUTP/TruSeq is reverse, `-s 2`)
+- **Batch effects**: If samples were processed in batches, include batch in the design formula, unless batch is confounded with condition (then the design is unfixable)
+- **Outliers**: Check PCA; let DESeq2 handle single-gene outliers via Cook's distance, and remove a whole-sample outlier only with a documented technical cause
+- **Transcript-level**: For differential transcript expression or usage, generate Salmon Gibbs samples and use the transcript-aware tools in alternative-splicing/isoform-switching
