@@ -71,6 +71,7 @@ Tell your AI agent what you want to do:
 - genome-annotation/repeat-annotation - Soft-masking before gene prediction
 - genome-annotation/functional-annotation - eggNOG-mapper and InterProScan
 - genome-annotation/ncrna-annotation - Infernal/Rfam and tRNAscan-SE detail
+- rna-structure/ncrna-search - Covariance-model search, gathering thresholds, and clan resolution
 - genome-annotation/annotation-qc - BUSCO genome-vs-proteome, OMArk, CheckM2 gates
 - genome-assembly/assembly-qc - Pre-annotation assembly quality checks
 - genome-intervals/gtf-gff-handling - GFF3/GTF hierarchy traversal, AGAT sanitizing/validation, coordinate conversion, and seqid-consistency checks on the merged annotation

@@ -1,70 +1,65 @@
 #!/usr/bin/env python3
 '''
-RNA secondary structure prediction using ViennaRNA Python API.
-Demonstrates MFE folding, partition function analysis, constrained folding,
-and structure comparison.
+RNA secondary structure prediction using the ViennaRNA Python API.
+Treats the Boltzmann ensemble as the object: MFE, partition function,
+centroid, MEA, per-base positional entropy, ensemble defect, and stochastic
+sampling of alternative conformations, plus constrained and SHAPE-directed folding.
 '''
-# Reference: infernal 1.1+, matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
+# Reference: ViennaRNA 2.6+, matplotlib 3.8+, numpy 1.26+ | Verify API if version differs
 
 import RNA
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 
-def fold_sequence(sequence):
-    '''Fold a single RNA sequence and return all structure predictions.'''
+def fold_ensemble(sequence):
+    '''Fold one sequence and return ensemble quantities, not just the MFE.'''
     fc = RNA.fold_compound(sequence)
 
     mfe_struct, mfe = fc.mfe()
-    pf_struct, pf_energy = fc.pf()
-    centroid_struct, centroid_dist = fc.centroid()
-    mea_struct, mea_val = fc.MEA()
+    _, ensemble_g = fc.pf()                 # partition function; required before the quantities below
+    centroid_struct, _ = fc.centroid()      # conservative, ensemble-representative
+    mea_struct, _ = fc.MEA()                # maximum expected accuracy
 
-    # Ensemble diversity: low values indicate well-defined structure
-    ensemble_diversity = fc.mean_bp_distance()
+    diversity = fc.mean_bp_distance()       # ensemble diversity: low = well-defined (read RELATIVE to length)
+    defect = fc.ensemble_defect(mfe_struct) # expected wrongly-paired positions of the MFE vs the ensemble
 
-    return {
-        'mfe_structure': mfe_struct,
-        'mfe_energy': mfe,
-        'pf_structure': pf_struct,
-        'ensemble_energy': pf_energy,
-        'centroid_structure': centroid_struct,
-        'centroid_distance': centroid_dist,
-        'mea_structure': mea_struct,
-        'mea_value': mea_val,
-        'ensemble_diversity': ensemble_diversity
-    }
+    return {'mfe_structure': mfe_struct, 'mfe_energy': mfe, 'ensemble_energy': ensemble_g,
+            'centroid_structure': centroid_struct, 'mea_structure': mea_struct,
+            'ensemble_diversity': diversity, 'ensemble_defect': defect}
+
+
+def positional_confidence(sequence):
+    '''Per-base Shannon entropy over pairing partners; low entropy = confident position.'''
+    fc = RNA.fold_compound(sequence)
+    fc.pf()
+    entropy = fc.positional_entropy()       # index 0 is a placeholder; positions are 1-indexed
+    return list(entropy)[1:len(sequence) + 1]
 
 
 def get_bpp_matrix(sequence):
-    '''Compute base-pair probability matrix.'''
+    '''Base-pair probability matrix (the dot plot); pairs with bpp > 0.9 are trustworthy.'''
     fc = RNA.fold_compound(sequence)
     fc.pf()
     bpp = fc.bpp()
-
     n = len(sequence)
     matrix = np.zeros((n, n))
     for i in range(1, n + 1):
         for j in range(i + 1, n + 1):
-            matrix[i-1][j-1] = bpp[i][j]
-            matrix[j-1][i-1] = bpp[i][j]
+            matrix[i - 1][j - 1] = bpp[i][j]
+            matrix[j - 1][i - 1] = bpp[i][j]
     return matrix
 
 
 def plot_bpp_dotplot(sequence, output_file='bpp_dotplot.png'):
-    '''Generate base-pair probability dot plot.'''
+    '''Render the base-pair probability matrix.'''
     matrix = get_bpp_matrix(sequence)
     n = len(sequence)
-
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.imshow(matrix, cmap='YlOrRd', origin='lower', vmin=0, vmax=1)
-
     if n <= 80:
-        tick_positions = range(0, n, 10)
-        ax.set_xticks(tick_positions)
-        ax.set_yticks(tick_positions)
-
+        ax.set_xticks(range(0, n, 10))
+        ax.set_yticks(range(0, n, 10))
     ax.set_xlabel('Position')
     ax.set_ylabel('Position')
     ax.set_title('Base-pair probability matrix')
@@ -76,114 +71,53 @@ def plot_bpp_dotplot(sequence, output_file='bpp_dotplot.png'):
 
 
 def fold_with_constraints(sequence, forced_unpaired=None, forced_pairs=None):
+    '''Fold with hard positional constraints (1-indexed).'''
+    fc = RNA.fold_compound(sequence)
+    for pos in forced_unpaired or []:
+        fc.hc_add_up(pos, RNA.CONSTRAINT_CONTEXT_ALL_LOOPS)
+    for i, j in forced_pairs or []:
+        fc.hc_add_bp(i, j, RNA.CONSTRAINT_CONTEXT_ALL_LOOPS)
+    return fc.mfe()
+
+
+def fold_with_shape(sequence, reactivities, m=1.8, b=-0.6):
     '''
-    Fold with positional constraints.
+    Fold under a Deigan SHAPE pseudo-energy restraint.
 
-    forced_unpaired: list of 1-indexed positions to force unpaired
-    forced_pairs: list of (i, j) 1-indexed position tuples to force paired
-    '''
-    md = RNA.md()
-    md.uniq_ML = 1
-    fc = RNA.fold_compound(sequence, md)
-
-    if forced_unpaired:
-        for pos in forced_unpaired:
-            fc.hc_add_up(pos, RNA.CONSTRAINT_CONTEXT_ALL_LOOPS)
-
-    if forced_pairs:
-        for i, j in forced_pairs:
-            fc.hc_add_bp(i, j, RNA.CONSTRAINT_CONTEXT_ALL_LOOPS)
-
-    structure, mfe = fc.mfe()
-    return structure, mfe
-
-
-def fold_with_shape(sequence, shape_reactivities, m=1.8, b=-0.6):
-    '''
-    Fold with SHAPE reactivity constraints.
-
-    shape_reactivities: list of per-nucleotide reactivities (1-indexed).
-                        Use -999 for missing data positions.
-    m, b: Deigan et al. (2009) slope and intercept parameters.
-          m=1.8, b=-0.6 are standard for SHAPE-MaP.
+    reactivities is 1-indexed: index 0 is a -999 placeholder; -999 elsewhere means no data, not zero.
+    m=1.8, b=-0.6 is the standard SHAPE pair (Hajdin 2013, the ViennaRNA default).
     '''
     fc = RNA.fold_compound(sequence)
-    fc.sc_add_SHAPE_deigan(shape_reactivities, m, b)
-    structure, mfe = fc.mfe()
-    return structure, mfe
-
-
-def compare_structures(struct1, struct2):
-    '''Compare two structures using base-pair and tree edit distances.'''
-    bp_dist = RNA.bp_distance(struct1, struct2)
-
-    tree1 = RNA.make_tree(RNA.expand_Full(struct1))
-    tree2 = RNA.make_tree(RNA.expand_Full(struct2))
-    tree_dist = RNA.tree_edit_distance(tree1, tree2)
-
-    return {'bp_distance': bp_dist, 'tree_edit_distance': tree_dist}
-
-
-def structure_to_pairs(structure):
-    '''Convert dot-bracket to list of base pairs (1-indexed).'''
-    pt = RNA.ptable(structure)
-    return [(i, pt[i]) for i in range(1, len(pt)) if pt[i] > i]
-
-
-def compute_mfe_zscore(sequence, n_shuffles=100):
-    '''
-    Compute z-score of MFE relative to dinucleotide-shuffled controls.
-
-    z-score < -2.0: sequence folds significantly better than random,
-    suggesting functional structure.
-    '''
-    _, native_mfe = RNA.fold(sequence)
-
-    shuffled_mfes = []
-    for _ in range(n_shuffles):
-        shuffled = RNA.sequence_shuffle(sequence)
-        _, shuf_mfe = RNA.fold(shuffled)
-        shuffled_mfes.append(shuf_mfe)
-
-    mean_shuf = np.mean(shuffled_mfes)
-    std_shuf = np.std(shuffled_mfes)
-
-    # Avoid division by zero for very short sequences
-    zscore = (native_mfe - mean_shuf) / std_shuf if std_shuf > 0 else 0.0
-    return zscore, native_mfe, mean_shuf, std_shuf
+    fc.sc_add_SHAPE_deigan(reactivities, m, b)
+    return fc.mfe()
 
 
 if __name__ == '__main__':
-    # Example: tRNA-Phe sequence
-    trna_seq = 'GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGGUCCUGUGUUCGAUCCACAGAAUUCGCACCA'
+    trna = 'GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGGUCCUGUGUUCGAUCCACAGAAUUCGCACCA'
 
-    print('=== MFE Folding ===')
-    results = fold_sequence(trna_seq)
-    for key, val in results.items():
-        if isinstance(val, float):
-            print(f'  {key}: {val:.2f}')
-        else:
-            print(f'  {key}: {val}')
+    print('=== Ensemble folding ===')
+    for key, val in fold_ensemble(trna).items():
+        print(f'  {key}: {round(val, 2) if isinstance(val, float) else val}')
 
-    print('\n=== Structure Comparison ===')
-    struct_unconstrained = results['mfe_structure']
-    struct_constrained, constrained_mfe = fold_with_constraints(
-        trna_seq, forced_unpaired=[35, 36, 37]
-    )
-    print(f'  Unconstrained: {struct_unconstrained}')
-    print(f'  Constrained:   {struct_constrained} ({constrained_mfe:.2f} kcal/mol)')
+    print('\n=== Per-base confidence (positional entropy) ===')
+    entropy = positional_confidence(trna)
+    print(f'  mean entropy: {np.mean(entropy):.3f}  (low = confident; high = ambiguous)')
 
-    distances = compare_structures(struct_unconstrained, struct_constrained)
-    print(f'  BP distance: {distances["bp_distance"]}')
-    print(f'  Tree edit distance: {distances["tree_edit_distance"]}')
+    print('\n=== Constrained folding (force the acceptor stem open) ===')
+    unconstrained = fold_ensemble(trna)['mfe_structure']
+    constrained, c_mfe = fold_with_constraints(trna, forced_unpaired=[2, 3, 4])
+    print(f'  unconstrained: {unconstrained}')
+    print(f'  constrained:   {constrained} ({c_mfe:.2f} kcal/mol)')
+    print(f'  base-pair distance: {RNA.bp_distance(unconstrained, constrained)}')
 
-    print('\n=== MFE Z-score ===')
-    zscore, native, mean_shuf, std_shuf = compute_mfe_zscore(trna_seq, n_shuffles=50)
-    print(f'  Native MFE: {native:.2f} kcal/mol')
-    print(f'  Shuffled mean: {mean_shuf:.2f} +/- {std_shuf:.2f}')
-    print(f'  Z-score: {zscore:.2f}')
+    print('\n=== SHAPE-directed folding ===')
+    # Toy reactivities: low where the unconstrained fold pairs, high where it does not.
+    react = [-999.0] + [0.15 if c in '()' else 0.8 for c in unconstrained]
+    shape_struct, shape_mfe = fold_with_shape(trna, react)
+    # The reported energy INCLUDES the SHAPE pseudo-energy, so it is NOT comparable to the unconstrained MFE.
+    print(f'  SHAPE-guided: {shape_struct} ({shape_mfe:.2f} kcal/mol, includes SHAPE pseudo-energy)')
 
-    print('\n=== Base-pair Probability Dot Plot ===')
-    plot_bpp_dotplot(trna_seq, 'trna_bpp_dotplot.png')
+    print('\n=== Base-pair probability dot plot ===')
+    plot_bpp_dotplot(trna, 'trna_bpp_dotplot.png')
 
     print('\nDone.')

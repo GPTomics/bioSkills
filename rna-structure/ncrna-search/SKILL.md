@@ -1,246 +1,166 @@
 ---
 name: bio-rna-structure-ncrna-search
-description: Searches for non-coding RNA homologs and classifies RNA families using Infernal covariance model searches against the Rfam database. Identifies structured RNAs by sequence and secondary structure conservation. Use when querying sequences against Rfam, building custom covariance models for novel RNA families, or classifying non-coding transcripts by family.
+description: Searches for non-coding RNA homologs and classifies RNA families with Infernal covariance models against Rfam, scoring sequence AND secondary-structure conservation jointly. Use when deciding whether a covariance model is the right tool versus BLAST/nhmmer (structured ncRNA versus lncRNA or mature miRNA); choosing the Rfam gathering threshold over a flat E-value; resolving clan overlaps; building and calibrating a custom CM from a structure-annotated alignment; or preferring a family-specialized tool (tRNAscan-SE, barrnap) over a generic Rfam scan.
 tool_type: cli
 primary_tool: Infernal
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, Infernal 1.1+, pandas 2.2+
+Reference examples tested with: Infernal 1.1.4+, BioPython 1.83+, pandas 2.2+
 
 Before using code patterns, verify installed versions match. If versions differ:
-- Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
+- Python: `pip show <package>` then `help(module.function)` to check signatures
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # ncRNA Search
 
-**"Search my sequences for known non-coding RNA families"** -> Query sequences against the Rfam database using covariance models that score both sequence and secondary structure conservation, or build custom CMs for novel RNA families.
-- CLI: `cmscan` for searching against Rfam CMs
-- CLI: `cmbuild` + `cmcalibrate` for building custom covariance models
+**"Search my sequences for known non-coding RNA families"** -> Score candidates against Rfam covariance models that capture both sequence and consensus secondary structure, or build a custom model for a novel family.
+- CLI: `cmscan` for querying sequences against the Rfam CM database
+- CLI: `cmsearch` for one CM against a sequence database
+- CLI: `cmbuild` + `cmcalibrate` + `cmpress` for a custom covariance model
 
-Search for non-coding RNA homologs and classify RNA families using covariance models (CMs). Infernal scores both sequence and secondary structure conservation, making it more sensitive than sequence-only methods for structured RNAs.
+## The governing principle: a covariance model is only worth it for STRUCTURED RNA
 
-## Rfam Database Setup
+A covariance model (CM) is a profile stochastic context-free grammar that models a family's consensus secondary structure AND primary sequence jointly. Its power source is covariation: a base pair is scored by a joint distribution over pair states, so a compensatory double mutation (C-G to G-C, or a G-U wobble) that PRESERVES the pair scores well even though both positions changed -- a BLAST or profile-HMM sees two mismatches and loses the signal. This is why Infernal detects remote homologs of structured RNAs (tRNA, rRNA, riboswitches, SRP, RNase P, ribozymes, snoRNA) past the sequence twilight zone.
+
+The decisive corollary: a CM offers NO advantage when there is little conserved secondary structure to exploit. Many lncRNAs (R-scape finds no significant covariation in HOTAIR/Xist/SRA), mature miRNAs (~22 nt, no base-pairing in the mature strand), and primary-sequence-only motifs gain nothing from a CM -- it is slow and calibration-heavy, and a profile-HMM (nhmmer) or BLASTN is the correct, faster tool. A CM built from a structure-FREE alignment (no real `#=GC SS_cons` pairs) collapses to an HMM and buys nothing but runtime.
+
+| Query / target property | Right tool | Why |
+|---|---|---|
+| Structured ncRNA, remote homology (tRNA, rRNA, riboswitch, ribozyme, SRP, snoRNA) | Infernal CM (Rfam) | covariation recovers pairs across sequence divergence |
+| Structured RNA with a family-specialized tool | the specialist (table below) | tuned models + biology logic beat a generic scan |
+| Close homolog, high identity, any RNA | BLASTN / nhmmer | sequence signal suffices, 100-1000x faster |
+| lncRNA, mature miRNA, sequence-only motif | nhmmer / BLASTN | no conserved structure to exploit -> CM is overhead |
+| Novel structured RNA, no Rfam family | build a custom CM, AFTER validating structure with R-scape | a CM is only as good as its SS_cons |
+
+## Infernal toolchain
+
+- `cmbuild model.cm aln.sto` -- build a CM from a structure-annotated Stockholm alignment; REQUIRES a `#=GC SS_cons` line.
+- `cmcalibrate model.cm` -- fit E-value statistics; SLOW (minutes to hours) but MANDATORY before any E-value is meaningful. Without it, search still runs but only bit-score thresholding is valid.
+- `cmpress model.cm` -- build the binary index `cmscan` requires (cmsearch does not need it).
+- `cmsearch CM seqdb` -- one CM vs a sequence database (e.g. one family vs a genome).
+- `cmscan CMdb seqs` -- query sequences vs a CM database (e.g. all of Rfam.cm); this is the genome/transcript ncRNA-annotation layout.
+- `cmalign CM seqs` -- align/fold hits back to the CM consensus to recover each hit's secondary structure.
+
+Rfam.cm ships PRE-CALIBRATED: run `cmpress` on it, but do NOT `cmcalibrate` it. Calibration is only for locally built custom models, and must be re-run after every rebuild.
+
+## E-values depend on database size; gathering thresholds do not
+
+A CM E-value scales linearly with the searched database size (Z): the SAME hit gets a different E-value depending on what was searched. `cmsearch` Z defaults to the target sequence-DB size counted on both strands (total residues x2); `cmscan` Z defaults to (query length x2 x number of models). So a cmscan E-value and a cmsearch E-value for the same locus are NOT comparable, and a flat `-E 1e-5` is exactly what curated thresholds replace. Fix Z explicitly with `-Z <Mb>` for reproducible cross-run comparison.
+
+Bit scores are DB-size-INDEPENDENT, which is precisely why Rfam stores its curated cutoffs as bit scores:
+
+| Flag | Threshold (bit-score cutoff stored in the CM) | When |
+|---|---|---|
+| `--cut_ga` | GA (gathering): the curated family-membership cutoff | the correct DEFAULT for Rfam annotation |
+| `--cut_tc` | TC (trusted): lowest score of any known true positive | most conservative |
+| `--cut_nc` | NC (noise): highest score of a known false positive | most permissive, exploratory |
+| `-E` / `--incE` | flat E-value (reporting / inclusion) | custom CM, or a non-Rfam DB with no curated GA |
+| `-T` / `--incT` | flat bit score | custom CM with no calibration, or DB-size-robust cut |
+
+`--cut_ga` beats a flat E-value for Rfam because each family has a different signal-to-noise profile (a 70 nt tRNA vs a 2900 nt rRNA vs a short riboswitch); one flat cutoff over- or under-calls per family, and reintroduces the DB-size dependence GA was designed to avoid.
+
+## The canonical Rfam annotation command
 
 ```bash
-# Download current Rfam covariance models (~500 MB compressed)
-wget https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/Rfam.cm.gz
-gunzip Rfam.cm.gz
-
-# Press the CM database (required before searching)
-cmpress Rfam.cm
-
-# Download clan information (for resolving overlapping hits)
+# One-time setup
+wget https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/Rfam.cm.gz && gunzip Rfam.cm.gz
 wget https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/Rfam.clanin
+cmpress Rfam.cm   # NOT cmcalibrate -- Rfam.cm is pre-calibrated
+
+# Annotate a genome. -Z = 2 x genome size in Mb keeps E-values reproducible; --rfam is the
+# large-DB strict filter; --nohmmonly forces CM mode so GA cutoffs stay valid for every model.
+cmscan -Z 100 --cut_ga --rfam --nohmmonly --fmt 2 --clanin Rfam.clanin \
+    --tblout genome.tblout Rfam.cm genome.fa > genome.cmscan
+
+# Clan deoverlapping: --fmt 2 adds the 'olp' column; the documented Rfam filter drops hits
+# marked '=' (dominated by a higher-scoring clanmate), keeping '^' (best of an overlap) and '*' (no overlap).
+grep -v ' = ' genome.tblout > genome.deoverlapped.tblout
 ```
 
-## cmscan: Query Sequences Against Rfam
+`--clanin` with `--fmt 2` plus the `grep -v ' = '` post-filter is the documented deoverlap path; `--oclan` is a valid in-tool alternative but not what the modern Rfam pipeline uses, so do not treat it as mandatory.
 
-Search one or more query sequences against the full Rfam database to classify ncRNAs by family.
+## Reading --fmt 2 output (the column shift that breaks fmt-1 parsers)
 
-```bash
-# Basic cmscan against Rfam
-cmscan --cpu 8 --tblout results.tbl --fmt 2 Rfam.cm query.fa > results.out
+`--fmt 2` prepends an `idx` column and inserts a `clan name` column versus the default `--fmt 1`, so every downstream field index shifts -- a parser written for fmt 1 silently reads the wrong columns. Verified 0-based fmt-2 cmscan indices: idx 0, target/family name 1, accession 2, query/seq name 3, query accession 4, clan 5, mdl type 6, mdl_from 7, mdl_to 8, seq_from 9, seq_to 10, strand 11, trunc 12, pass 13, gc 14, bias 15, score 16, E-value 17, inc 18, olp 19. In cmscan the model name is column 1 and the sequence name is column 3; in cmsearch they are reversed -- a parser must branch on which tool produced the file.
 
-# With clan overlap resolution (removes redundant hits from same clan)
-cmscan --cpu 8 --tblout results.tbl --fmt 2 --clanin Rfam.clanin --oclan Rfam.cm query.fa > results.out
+Interpretive columns: `trunc` is `no`, `5'`, `3'`, or `5'&3'` for hits running off a contig end (often REAL incomplete genes worth keeping, not a discard flag; `--anytrunc` allows truncation at any internal position (E-values become less accurate), `--notrunc` disables it entirely); `bias` is the composition correction already subtracted (a large bias flags a low-complexity hit); mdl_from/mdl_to are consensus coordinates, so a small model span is a partial match even when `trunc` is `no`.
 
-# Strict E-value threshold for high-confidence hits
-cmscan --cpu 8 --tblout results.tbl --fmt 2 --clanin Rfam.clanin --oclan \
-    -E 1e-5 --incE 1e-5 Rfam.cm query.fa > results.out
-```
+## Recovering the structure of a hit (the CM payoff over BLAST)
 
-### cmscan Key Options
-
-| Option | Description |
-|--------|-------------|
-| `--tblout` | Tabular output (easier to parse) |
-| `--fmt 2` | Format 2 tabular output (includes model coordinates) |
-| `-E` | Report E-value threshold (default: 10.0) |
-| `--incE` | Inclusion E-value for significant hits (default: 0.01) |
-| `--clanin` | Clan file for resolving overlapping family hits |
-| `--oclan` | Enable clan overlap resolution |
-| `--cut_ga` | Use Rfam gathering threshold (curated per-family cutoff) |
-| `--cpu` | Number of threads |
-| `--noali` | Skip alignment output (faster for large searches) |
-
-### Gathering Threshold vs E-value
+A significant CM hit yields not just a family label but an implied secondary structure -- the distinctive payoff a BLAST hit cannot give. Fold the hit sequences back to the model with `cmalign` to map the consensus structure onto them.
 
 ```bash
-# Gathering threshold: curated per-family cutoff, recommended for Rfam
-# Provides consistent sensitivity per family as calibrated by Rfam curators
-cmscan --cut_ga --tblout results.tbl --fmt 2 --clanin Rfam.clanin --oclan \
-    Rfam.cm query.fa > results.out
-
-# E-value based: unified threshold, useful for custom databases
-cmscan -E 1e-3 --tblout results.tbl Rfam.cm query.fa > results.out
-```
-
-## cmsearch: Search Specific CM Against Sequence Database
-
-Search a specific covariance model against a sequence database (inverse of cmscan).
-
-```bash
-# Extract a single family CM from Rfam
+# Pull the family CM from Rfam, then align hits to recover their consensus structure
 cmfetch Rfam.cm RF00005 > tRNA.cm
-cmpress tRNA.cm
-
-# Search for tRNAs in a genome
-cmsearch --cpu 8 --tblout trna_hits.tbl tRNA.cm genome.fa > trna_hits.out
-
-# Search with bit score threshold instead of E-value
-cmsearch --cpu 8 -T 30.0 --tblout hits.tbl tRNA.cm genome.fa > hits.out
+cmalign --outformat Pfam tRNA.cm hits.fa > hits.sto   # Stockholm with #=GC SS_cons per hit
 ```
 
-## Building Custom Covariance Models
+The `#=GC SS_cons` line in the output is the structural hypothesis for each hit -- the prior to feed to probing (structure-probing) or to validate with covariation (covariation-analysis).
 
-**Goal:** Create a covariance model for a novel RNA family not represented in Rfam, enabling sensitive homolog searches that leverage both sequence and structure conservation.
+## A hit is a family assignment, not a functional call
 
-**Approach:** Prepare a Stockholm-format alignment with secondary structure annotation, build and calibrate a covariance model from the alignment, then search target sequences with the custom CM.
+A significant CM hit means the locus has sequence + structure consistent with the family; it does NOT prove the RNA is expressed, processed, or functional. Pseudogenes (tRNA-derived SINEs, rRNA pseudogenes) score well. tRNAscan-SE's high-confidence-set logic exists precisely to separate likely-functional tRNAs from numerous genomic pseudogenes. Frame a CM hit as a family assignment plus a structural hypothesis; confirm function with orthogonal evidence (expression, conservation, synteny, probing).
 
-For novel RNA families not in Rfam, build a custom CM from a structure-annotated alignment.
+## Specialized tool beats a generic Rfam scan (when one exists)
 
-### Step 1: Prepare Stockholm Alignment
+| RNA class | Use this, not a generic Rfam scan | Why |
+|---|---|---|
+| tRNA | tRNAscan-SE 2.0 | tRNA-specific isotype/anticodon models, pseudogene filtering, high-confidence set |
+| rRNA (5S/16S/18S/23S/28S) | barrnap or RNAmmer | per-kingdom HMM models tuned for rRNA; fast |
+| C/D-box snoRNA | snoscan | models the guide-target duplex + box C/D a generic CM cannot |
+| H/ACA + C/D snoRNA (ab initio) | snoReport 2.0 | RNA-fold + SVM on box/structure features |
+| miRNA | miRBase lookup / miRDeep2 | CMs are poor on mature miRNA; precursors need read support |
 
-```
-# STOCKHOLM 1.0
-#=GF AC   MYFAM00001
-#=GF DE   My novel RNA family
-seq1   GGGCUAUUAGCUCAGUUGGUUAGAGC
-seq2   GGGCUAUAAGCUCAGUUGGAUAGAGC
-seq3   GGGCUAUUAGCUCAGUUGGUUAGAGC
-#=GC SS_cons  ((((....((((......))))))))
-//
-```
+Use the generic Rfam cmscan for broad "what ncRNA families are in here" sweeps and for classes without a dedicated tool.
 
-### Step 2: Build and Calibrate
+## Building a custom CM well
 
 ```bash
-# Build CM from alignment
-cmbuild my_family.cm alignment.sto
-
-# Calibrate E-value statistics (compute-intensive but essential for accurate E-values)
-cmcalibrate --cpu 8 my_family.cm
-
-# Press for searching
-cmpress my_family.cm
+# The Stockholm alignment MUST carry a #=GC SS_cons line in WUSS notation: <> or () = nested pairs,
+# [] and {} = additional pseudoknot layers, . = unpaired (a structure-free alignment yields only an
+# HMM-equivalent model). Validate the SS_cons covariation with R-scape FIRST (covariation-analysis).
+cmbuild -n MYFAM myfam.cm alignment.sto
+cmcalibrate --cpu 8 myfam.cm     # required for E-values; re-run after every rebuild
+cmpress myfam.cm
+cmsearch --cpu 8 -T 30 --tblout hits.tbl myfam.cm target.fa > hits.out
 ```
 
-### Step 3: Search
+If `cmcalibrate` is skipped, thresholding MUST use bit score (`-T <bits>`), not E-value. The iterative search-align-rebuild loop (`cmsearch -A new_hits.sto`) grows a family but risks homology overextension and model drift -- gate each round on score and retained covariation, and recalibrate after every rebuild.
 
-```bash
-# Search genome with custom CM
-cmsearch --cpu 8 --tblout custom_hits.tbl my_family.cm target_sequences.fa > custom_hits.out
+## Common Errors
 
-# Iterative search: use hits to refine alignment and rebuild CM
-cmsearch -A new_hits.sto my_family.cm target_sequences.fa
-# Then manually curate new_hits.sto and rebuild
-```
-
-### cmbuild Options
-
-| Option | Description |
-|--------|-------------|
-| `--hand` | Use reference annotation for consensus (trust SS_cons exactly) |
-| `--enone` | Turn off entropy weighting |
-| `-n` | Name the CM |
-| `--ere` | Target mean match state relative entropy |
-
-## Parsing Infernal Output
-
-### Tabular Output (--tblout --fmt 2)
-
-```python
-import pandas as pd
-
-def parse_cmscan_tblout(tblout_file):
-    '''Parse Infernal cmscan --fmt 2 tabular output.'''
-    rows = []
-    with open(tblout_file) as f:
-        for line in f:
-            if line.startswith('#'):
-                continue
-            fields = line.strip().split()
-            if len(fields) < 18:
-                continue
-            rows.append({
-                'target_name': fields[0],
-                'target_accession': fields[1],
-                'query_name': fields[2],
-                'query_accession': fields[3],
-                'mdl_type': fields[4],
-                'mdl_from': int(fields[5]),
-                'mdl_to': int(fields[6]),
-                'seq_from': int(fields[7]),
-                'seq_to': int(fields[8]),
-                'strand': fields[9],
-                'trunc': fields[10],
-                'pass': fields[11],
-                'gc': float(fields[12]),
-                'bias': float(fields[13]),
-                'score': float(fields[14]),
-                'evalue': float(fields[15]),
-                'inc': fields[16],
-                'description': ' '.join(fields[17:])
-            })
-    df = pd.DataFrame(rows)
-    return df
-
-
-def filter_significant_hits(df, evalue_threshold=1e-5):
-    '''Filter for significant hits and sort by score.'''
-    significant = df[df['evalue'] <= evalue_threshold].copy()
-    significant = significant.sort_values('score', ascending=False)
-    return significant
-
-
-def summarize_families(df):
-    '''Summarize ncRNA family assignments.'''
-    summary = df.groupby('target_name').agg(
-        count=('query_name', 'count'),
-        best_score=('score', 'max'),
-        best_evalue=('evalue', 'min')
-    ).sort_values('count', ascending=False)
-    return summary
-```
-
-### Extract Hit Sequences
-
-```python
-from Bio import SeqIO
-
-def extract_hit_sequences(fasta_file, hits_df, output_file):
-    '''Extract sequences for cmscan/cmsearch hits.'''
-    seqs = SeqIO.to_dict(SeqIO.parse(fasta_file, 'fasta'))
-    records = []
-    for _, hit in hits_df.iterrows():
-        seq_record = seqs[hit['query_name']]
-        start, end = sorted([hit['seq_from'], hit['seq_to']])
-        subseq = seq_record[start-1:end]
-        if hit['strand'] == '-':
-            subseq = subseq.reverse_complement()
-        subseq.id = f'{hit["query_name"]}_{start}_{end}_{hit["target_name"]}'
-        subseq.description = f'family={hit["target_name"]} score={hit["score"]:.1f} E={hit["evalue"]:.1e}'
-        records.append(subseq)
-    SeqIO.write(records, output_file, 'fasta')
-    print(f'Extracted {len(records)} hit sequences to {output_file}')
-```
-
-## Quality Thresholds
-
-| Metric | Threshold | Rationale |
-|--------|-----------|-----------|
-| E-value (Rfam scan) | < 1e-5 | High-confidence family assignment |
-| Gathering threshold | --cut_ga | Rfam-curated per-family cutoffs, recommended default |
-| Bit score | > 20 | Minimum for reportable hits in custom searches |
-| Truncation | != 5'/3' | Hits at sequence edges may be truncated; check completeness |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Parsed `score`/`evalue` are nonsense numbers | parsing `--fmt 2` output with fmt-1 indices | use fmt-2 indices (score 16, E-value 17), or run `--fmt 1` |
+| `Error: failed to open ... .i1m` (cmscan) | Rfam.cm not pressed | `cmpress Rfam.cm` |
+| E-values look meaningful on a custom CM but are not | `cmcalibrate` was skipped | calibrate, or threshold on bit score `-T` |
+| Recalibrating Rfam.cm takes hours | Rfam.cm is already calibrated | press it, never calibrate it |
+| Same hit, different E-value across runs | E-value scales with database size Z | use `--cut_ga`, or fix `-Z <Mb>` |
+| Redundant overlapping hits from related families | clan overlap not resolved | `--fmt 2 --clanin` then `grep -v ' = '` |
+| A CM search on a lncRNA finds nothing useful | no conserved structure to exploit | use nhmmer/BLASTN instead of a CM |
+| tRNA search misses or over-calls genes | generic Rfam tRNA model lacks tRNA logic | use tRNAscan-SE 2.0 |
 
 ## Related Skills
 
-- secondary-structure-prediction - Predict structures for novel ncRNA candidates
+- secondary-structure-prediction - Predict structure for novel ncRNA candidates with no Rfam hit
+- covariation-analysis - Validate a custom CM's SS_cons with R-scape before building
+- structure-probing - Experimental reactivities to corroborate a CM's consensus structure
 - genome-annotation/ncrna-annotation - Genome-wide ncRNA annotation pipelines
-- alignment/msa-statistics - Evaluate alignment quality for CM building
+- alignment/msa-statistics - Evaluate alignment quality before CM building
+- database-access/entrez-fetch - Fetch Rfam/RNAcentral records
+
+## References
+
+- Eddy SR, Durbin R. 1994. RNA sequence analysis using covariance models. Nucleic Acids Res 22(11):2079-2088. doi:10.1093/nar/22.11.2079
+- Nawrocki EP, Eddy SR. 2013. Infernal 1.1: 100-fold faster RNA homology searches. Bioinformatics 29(22):2933-2935. doi:10.1093/bioinformatics/btt509
+- Griffiths-Jones S, Bateman A, Marshall M, Khanna A, Eddy SR. 2003. Rfam: an RNA family database. Nucleic Acids Res 31(1):439-441. doi:10.1093/nar/gkg006
+- Kalvari I, Nawrocki EP, Ontiveros-Palacios N, Argasinska J, Lamkiewicz K, Marz M, Griffiths-Jones S, Toffano-Nioche C, Gautheret D, Weinberg Z, Rivas E, Eddy SR, Finn RD, Bateman A, Petrov AI. 2021. Rfam 14: expanded coverage of metagenomic, viral and microRNA families. Nucleic Acids Res 49(D1):D192-D200. doi:10.1093/nar/gkaa1047
+- Chan PP, Lin BY, Mak AJ, Lowe TM. 2021. tRNAscan-SE 2.0: improved detection and functional classification of transfer RNA genes. Nucleic Acids Res 49(16):9077-9096. doi:10.1093/nar/gkab688
+- Lagesen K, Hallin P, Rodland EA, Staerfeldt HH, Rognes T, Ussery DW. 2007. RNAmmer: consistent and rapid annotation of ribosomal RNA genes. Nucleic Acids Res 35(9):3100-3108. doi:10.1093/nar/gkm160
+- Lowe TM, Eddy SR. 1999. A computational screen for methylation guide snoRNAs in yeast. Science 283(5405):1168-1171. doi:10.1126/science.283.5405.1168
+- Rivas E, Clements J, Eddy SR. 2017. A statistical test for conserved RNA structure shows lack of evidence for structure in lncRNAs. Nat Methods 14(1):45-48. doi:10.1038/nmeth.4066

@@ -105,14 +105,18 @@ tRNAscan-SE \
     --gff ncrna_out/trna.gff \
     $GENOME
 
-# Infernal for Rfam-based ncRNA annotation
+# Infernal for Rfam-based ncRNA annotation. Rfam.cm is pre-calibrated: cmpress it, never recalibrate.
+# --cut_ga (curated per-family gathering thresholds) is the correct Rfam default over a flat E-value.
+cmpress -F Rfam.cm
 cmscan \
     --cpu $THREADS \
+    --cut_ga --rfam --nohmmonly \
     --tblout ncrna_out/rfam_results.tbl \
     --fmt 2 \
     --clanin Rfam.clanin \
     Rfam.cm \
     $GENOME
+grep -v ' = ' ncrna_out/rfam_results.tbl > ncrna_out/rfam_results.deoverlapped.tbl
 
 TRNA_COUNT=$(grep -c 'tRNA' ncrna_out/trna.gff || echo 0)
 echo "tRNAs detected: $TRNA_COUNT"
