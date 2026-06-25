@@ -3,6 +3,7 @@ name: bio-workflows-genome-annotation-pipeline
 description: End-to-end genome annotation pipeline from assembled contigs to functional annotation, covering repeat masking, gene prediction, and functional assignment for both prokaryotic and eukaryotic genomes. Use when annotating a newly assembled genome from scratch.
 tool_type: mixed
 primary_tool: Bakta
+goal_approach_exempt: true
 workflow: true
 depends_on:
   - genome-annotation/prokaryotic-annotation
@@ -332,15 +333,20 @@ tRNAscan-SE \
     --gff trna.gff \
     assembly.fasta
 
-# Infernal for Rfam-based ncRNA annotation
-# Download Rfam covariance models first
+# Infernal for Rfam-based ncRNA annotation. Rfam.cm ships pre-calibrated: cmpress it, never recalibrate.
+# --cut_ga uses the curated per-family bit-score gathering thresholds (the correct Rfam default over a
+# flat E-value); --rfam is the large-DB strict filter; --nohmmonly keeps GA valid for every model.
+cmpress Rfam.cm
 cmscan \
     --cpu 8 \
+    --cut_ga --rfam --nohmmonly \
     --tblout rfam_results.tbl \
     --fmt 2 \
     --clanin Rfam.clanin \
     Rfam.cm \
     assembly.fasta
+# Clan deoverlapping: drop hits marked '=' (dominated by a higher-scoring clanmate)
+grep -v ' = ' rfam_results.tbl > rfam_results.deoverlapped.tbl
 ```
 
 ## Merging Annotations
@@ -420,7 +426,7 @@ else
 
     echo "Step 5: ncRNA annotation"
     tRNAscan-SE -E --thread $THREADS -o trna_out.txt --gff trna.gff $GENOME
-    cmscan --cpu $THREADS --tblout rfam.tbl --fmt 2 Rfam.cm $GENOME
+    cmscan --cpu $THREADS --cut_ga --rfam --nohmmonly --tblout rfam.tbl --fmt 2 --clanin Rfam.clanin Rfam.cm $GENOME
 
     echo "Done. Check braker_out/, eggnog_out*, trna.gff, rfam.tbl"
 fi
@@ -433,6 +439,7 @@ fi
 - genome-annotation/repeat-annotation - Soft-masking before gene prediction
 - genome-annotation/functional-annotation - eggNOG-mapper and InterProScan
 - genome-annotation/ncrna-annotation - Infernal/Rfam and tRNAscan-SE detail
+- rna-structure/ncrna-search - Covariance-model search, gathering thresholds, and clan resolution
 - genome-annotation/annotation-qc - BUSCO genome-vs-proteome, OMArk, CheckM2 gates
 - genome-assembly/assembly-qc - Pre-annotation assembly quality checks
 - genome-intervals/gtf-gff-handling - GFF3/GTF hierarchy traversal, AGAT sanitizing/validation, coordinate conversion, and seqid-consistency checks on the merged annotation

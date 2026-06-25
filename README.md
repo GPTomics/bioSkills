@@ -128,7 +128,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 |----------|--------|---------------|-------------|
 | **sequence-io** | 9 | Bio.SeqIO | Read, write, convert FASTA/FASTQ/GenBank and 40+ formats |
 | **sequence-manipulation** | 7 | Bio.Seq, Bio.SeqUtils | Transcription, translation, motif search, sequence properties |
-| **database-access** | 11 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API, STRINGdb | NCBI/UniProt queries, SRA downloads, BLAST, homology searches, interaction databases |
+| **database-access** | 15 | Bio.Entrez, BLAST+, SRA toolkit, UniProt API, STRINGdb | NCBI/UniProt queries, SRA downloads, BLAST, homology searches, interaction databases |
 | **alignment-files** | 10 | samtools, pysam | SAM/BAM/CRAM viewing, sorting, filtering, statistics, validation, amplicon clipping |
 | **variant-calling** | 13 | bcftools, GATK, DeepVariant, Manta, Delly, VEP | Germline/SV calling, DRAGEN-GATK mode, VQSR/hard filtering, MANE annotation, ACMG interpretation |
 | **alignment** | 7 | Bio.Align, MAFFT, MUSCLE5, Foldseek, ClipKIT | MSA tools (incl. BAli-Phy joint MSA+tree co-estimation), pairwise alignment, structural alignment (Foldseek/Foldseek-Multimer/TM-align/US-align/DALI/Foldmason), post-MSA trimming (ClipKIT/trimAl/BMGE/PhyIN), alignment I/O, MSA statistics |
@@ -139,9 +139,9 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot, SPIA | Decision-grade functional enrichment: ORA, GSEA, and SPIA pathway topology across GO/KEGG/Reactome/WikiPathways/MSigDB, background-universe selection, ranking-metric choice, live-DB reproducibility, redundancy-collapse visualization |
 | **restriction-analysis** | 5 | Bio.Restriction | Restriction sites, mapping, enzyme selection, fragment/gel analysis, Golden Gate (Type IIS) assembly |
 | **methylation-analysis** | 10 | Bismark, methylKit, dmrseq, sesame, minfi, EpiDISH, methylclock, meffil | Bisulfite + Infinium array DNA methylation: alignment, calling, per-CpG testing, DMRs, array preprocessing/QC, cell-type deconvolution, epigenetic clocks, EWAS design |
-| **chip-seq** | 7 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
+| **chip-seq** | 12 | MACS3, ChIPseeker, DiffBind | Peak calling, annotation, differential binding, motifs, QC, super-enhancers |
 | **metagenomics** | 8 | Kraken2, MetaPhlAn, Bracken, HUMAnN, AMRFinderPlus, inStrain, decontam | Read-based taxonomic/functional profiling, abundance, resistome, strain tracking, contamination controls |
-| **long-read-sequencing** | 8 | Dorado, minimap2, Clair3, modkit, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, methylation, Iso-Seq |
+| **long-read-sequencing** | 9 | Dorado, minimap2, Clair3, modkit, IsoSeq3 | Basecalling, alignment, polishing, variant calling, SV calling, methylation, Iso-Seq |
 | **read-qc** | 7 | FastQC, MultiQC, fastp, Cutadapt, FastQ Screen, umi_tools, RSeQC | Quality reports, adapter/quality trimming, contamination screening, UMI processing, RNA-seq QC |
 | **genome-intervals** | 8 | bedtools, pybedtools, pyranges, gffutils, deepTools, pyBigWig | Coordinate systems, interval arithmetic, overlap significance, GTF/GFF, proximity, coverage, bedGraph/bigWig tracks |
 | **population-genetics** | 7 | PLINK 1.9/2.0, BOLT-LMM, SAIGE, regenie, ADMIXTURE, scikit-allel | Allele-aware QC, LD pruning/clumping, PCA/admixture with ratio-of-averages FST, single-variant GWAS and mixed models (PC-vs-LMM, SPA/Firth, LOCO), rare-variant gene-based tests (burden/SKAT/SKAT-O/ACAT/STAAR), demography-aware selection scans |
@@ -162,11 +162,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **proteomics** | 9 | pyOpenMS, DIA-NN, limma, DEqMS, MSstats | Mass spec data import, peptide ID, protein inference, quantification, QC, differential abundance, PTM, DIA, spectral libraries |
 | **microbiome** | 6 | DADA2, phyloseq, ALDEx2, QIIME2 | 16S/ITS amplicon: ASV inference, taxonomy, diversity, compositional differential abundance, PICRUSt2 functional prediction, QIIME2 provenance |
 | **multi-omics-integration** | 5 | MOFA2, mixOmics, SNFtool | Integration design, cross-omic harmonization, factor analysis, supervised signatures, network fusion |
-| **crispr-screens** | 8 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, base/prime editing |
+| **crispr-screens** | 15 | MAGeCK, JACKS, CRISPResso2, BAGEL2 | Pooled screen analysis, sgRNA efficacy modeling, hit calling, base/prime editing |
 | **metabolomics** | 9 | XCMS, MS-DIAL, matchms, SIRIUS, ropls, lipidr, IsoCor | Decision-grade LC-MS/GC-MS: feature detection, confidence-level annotation (MSI/Schymanski), QC/drift/normalization, permutation-validated multivariate stats, mummichog/ORA pathway mapping, lipidomics structural-resolution honesty, MRM/ICH-M10 targeted quant, 13C/15N isotope tracing |
 | **imaging-mass-cytometry** | 7 | steinbock, CATALYST, deepcell, squidpy, napari, diffcyt | IMC preprocessing, NNLS spillover compensation, segmentation, phenotyping, spatial analysis, patient-level differential analysis, annotation, QC |
 | **flow-cytometry** | 8 | flowCore, CATALYST, CytoML | FCS handling, compensation, gating, clustering, differential, QC |
-| **reporting** | 5 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
+| **reporting** | 6 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
 | **experimental-design** | 5 | designit, RNASeqPower, ssizeRNA, qvalue, sva | Randomization/blocking, pseudoreplication, power analysis, sample size, multiple testing (FDR), batch design |
 | **workflow-management** | 4 | Snakemake, Nextflow, cwltool, Cromwell | Scalable pipeline frameworks with containers |
 | **data-visualization** | 20 | ggplot2, matplotlib, plotly, ComplexHeatmap, patchwork, scico (Crameri), Okabe-Ito, EnhancedVolcano, apeglm/ashr, qqman, locuszoomr, metafor, ggalluvial, ComplexUpset, ggseqlogo, maftools, NetworkX, pyGenomeTracks | PhD-grade figures: perceptual-effectiveness (Cleveland-McGill 1984), Crameri/cividis CVD-safe palettes (Wong 2011, Crameri 2020), ward.D2 + Optimal Leaf Ordering (Murtagh-Legendre 2014, Bar-Joseph 2001), apeglm LFC shrinkage (Zhu 2019), Manhattan/QQ with lambdaGC + LDSC (Bulik-Sullivan 2015), oncoprint + lollipop + sequence logos for cohort genomics, raincloud (Allen 2019) + Weissgerber 2015 bar critique, forest/funnel with REML and contour-enhanced bias (Egger 1997), CONSORT 2010 + alluvial flow, UMAP/t-SNE with Kobak-Berens 2019 init + Chari-Pachter 2023 caveats, ChIP-Rx spike-in via --scaleFactor (NOT --normalizeUsing), Kaleido v1 static export, Type-42 font embedding |
@@ -184,17 +184,17 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **genome-annotation** | 7 | Bakta, BRAKER3, RepeatModeler2, Infernal, eggNOG-mapper, BUSCO, Liftoff | Repeat masking, prokaryotic/eukaryotic gene prediction, ncRNA, functional assignment, annotation QC (BUSCO/OMArk/CheckM2), annotation transfer |
 | **gene-regulatory-networks** | 6 | pySCENIC, SCENIC+, WGCNA, CellOracle, VIPER | Co-expression networks, bulk GRN inference and TF activity, regulon inference, multiomics GRN, perturbation simulation |
 | **causal-genomics** | 11 | TwoSampleMR, MendelianRandomization, coloc, susieR, CAUSE, LHC-MR, LDSC, LDAK, HDL, LAVA, FUSION, MetaXcan, FOCUS, MAGMA, PoPS, GenomicSEM, MTAG | Mendelian randomization (incl. MVMR, cis-MR drug-target, CHP-aware CAUSE/LHC-MR/LCV), colocalization (coloc.abf/susie, SMR/HEIDI, eCAVIAR, PWCoCo, moloc, HyPrColoc), fine-mapping (SuSiE/SuSiE-inf, FINEMAP, PolyFun, SuSiEx), mediation (CMAverse 4-way, HIMA2 high-D EWAS, MR-mediation), pleiotropy (UHP vs CHP), TWAS with triangulation, heritability partitioning (LDSC/LDAK, baseline-LD, Finucane 2018 cell-type), proteome MR for drug targets (UKB-PPP/deCODE), effector-gene prioritization (L2G/MAGMA/PoPS/cS2G), genetic correlation (LDSC/HDL/LAVA), GenomicSEM common-factor GWAS |
-| **rna-structure** | 3 | ViennaRNA, Infernal, ShapeMapper2 | RNA secondary structure prediction, ncRNA search, structure probing |
+| **rna-structure** | 4 | ViennaRNA, Infernal, ShapeMapper2, R-scape | RNA secondary structure prediction (ensemble vs MFE/centroid/MEA, pseudoknot and long-RNA routes), ncRNA homology search with covariance models (Rfam GA/clan resolution), SHAPE-MaP/DMS-MaPseq structure probing, and covariation validation of conserved structure (R-scape power-aware verdict) |
 | **temporal-genomics** | 5 | CosinorPy, Mfuzz, mgcv, statsmodels, scipy | Circadian rhythms, temporal clustering, trajectory modeling, dynamic GRN inference, periodicity detection |
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 546 skills across 63 categories**
+**Total: 547 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 546 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 547 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

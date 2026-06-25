@@ -1,72 +1,75 @@
 # Structure Probing - Usage Guide
 
 ## Overview
-Process experimental RNA structure probing data from SHAPE-MaP and DMS-MaPseq experiments. ShapeMapper2 converts raw sequencing reads into per-nucleotide reactivity profiles that reflect single-stranded vs base-paired status, which can then constrain computational structure prediction.
+Process experimental RNA structure probing data (SHAPE-MaP, DMS-MaPseq) into per-nucleotide reactivity profiles with ShapeMapper2, then use the reactivities as soft restraints on thermodynamic folding. Reactivity reports nucleotide flexibility/accessibility, not base pairing per se, and it is a constraint on folding, not a structure. A single profile is a population average; multi-conformation RNAs need per-read clustering.
 
 ## Prerequisites
 ```bash
 # ShapeMapper2 (Linux only; use Docker on macOS)
 conda install -c bioconda shapemapper2
+docker pull shapemapper2/shapemapper2   # macOS alternative
 
-# Docker alternative for macOS
-docker pull shapemapper2/shapemapper2
-
-# DMS-MaPseq analysis
+# DMS-MaPseq and multi-conformation clustering
 pip install seismic-rna
 
-# ViennaRNA for SHAPE-constrained folding
+# RNA Framework (alternative MaP/RT-stop pipeline)
+conda install -c bioconda rnaframework
+
+# ViennaRNA for reactivity-restrained folding
 conda install -c bioconda viennarna
 
-# Visualization
+# Python dependencies
 pip install matplotlib pandas numpy
 ```
 
 ## Quick Start
 Tell your AI agent what you want to do:
-- "Process my SHAPE-MaP sequencing data to get reactivity profiles"
-- "Run ShapeMapper2 on my modified and untreated FASTQ files"
-- "Use my SHAPE reactivities to constrain RNA structure prediction"
-- "Analyze my DMS-MaPseq data with SEISMIC-RNA"
-- "Plot the reactivity profile for my RNA"
+- "Process my SHAPE-MaP reads into reactivity profiles"
+- "Use my SHAPE reactivities to constrain folding"
+- "My data is DMS-MaPseq, handle the A/C-only signal correctly"
+- "My reactivity profile fits no single structure; find the conformations"
+- "Is this protected region base-paired or protein-bound?"
 
 ## Example Prompts
 
 ### SHAPE-MaP Analysis
-> "I have SHAPE-MaP paired-end reads for modified and untreated samples targeting my RNA. Run ShapeMapper2 to get reactivities."
+> "I have SHAPE-MaP paired-end reads for modified and untreated samples targeting my RNA. Run ShapeMapper2 to get normalized reactivities."
 
 > "Process my amplicon SHAPE-MaP data and plot the reactivity profile."
 
-### Structure-Constrained Folding
-> "Use my SHAPE reactivity data to constrain RNAfold and predict a more accurate secondary structure."
+### Reactivity-Restrained Folding
+> "Use my SHAPE reactivities to restrain RNAfold and compare with the unrestrained structure."
 
-> "Compare the unconstrained MFE structure with the SHAPE-constrained prediction for my RNA."
+> "I have DMS-MaPseq data; fold with the right A/C-only parameters and mask G/U."
 
-### DMS-MaPseq
-> "Process my DMS-MaPseq data using SEISMIC-RNA to get mutation rates at A and C positions."
+### Multiple Conformations
+> "My reactivity profile looks inconsistent with one structure. Cluster the reads to find coexisting conformations."
 
-> "Cluster my DMS-MaPseq data to detect multiple RNA conformations."
-
-### Visualization
-> "Plot the SHAPE reactivity profile with color coding for paired and unpaired regions."
-
-> "Generate an arc diagram of my RNA structure colored by SHAPE reactivity."
+### In-Cell Interpretation
+> "I probed in cells; help me tell apart base-pairing from protein protection."
 
 ## What the Agent Will Do
-1. Run ShapeMapper2 (or SEISMIC-RNA for DMS) with modified and control samples
-2. Assess data quality (read depth, mutation rates, modification efficiency)
-3. Generate per-nucleotide reactivity profiles
-4. Use reactivities to constrain ViennaRNA folding
-5. Visualize reactivity profiles and structure predictions
+1. Identify the readout (MaP vs RT-stop) and reagent (SHAPE vs DMS) and pick the matching tool/scoring
+2. Run ShapeMapper2 (or SEISMIC-RNA / RNA Framework) with modified, untreated, and optional denatured samples
+3. Assess QC (effective depth, untreated vs modified mutation rates) and carry low-depth positions as no-data
+4. Use normalized reactivities to restrain ViennaRNA folding with reagent-correct parameters
+5. Flag multi-conformation or in-cell occupancy cases that a single profile cannot resolve
 
 ## Tips
-- **Read depth** - Minimum 5,000 reads per nucleotide recommended for reliable mutation rate estimation
-- **Controls** - An untreated control is required; a denatured control improves normalization
-- **macOS** - ShapeMapper2 is Linux-only; use Docker or Singularity on macOS
-- **DMS coverage** - DMS only probes A and C residues (~50% of positions), so structure constraints are sparser than SHAPE
-- **Multiple conformations** - SEISMIC-RNA can cluster mutations to detect alternative RNA structures; consider this if reactivity profiles seem inconsistent with a single structure
-- **Reagent parameters** - Use m=1.8, b=-0.6 for standard SHAPE reagents (1M7, NAI); adjust for DMS (m=1.1, b=-0.3)
+- **Reactivity is flexibility, not pairing** - High reactivity = flexible/accessible; low = constrained, which can mean base-paired OR tertiary-contacted, protein-bound, or stacked. Do not equate low reactivity with "base-paired".
+- **MaP vs RT-stop** - Mutational profiling (ShapeMapper2, SEISMIC-RNA) encodes modifications as mutations; RT-stop methods (icSHAPE, Structure-seq, DMS-seq) encode them as truncations. They need different scoring; do not mix pipelines.
+- **Normalize per transcript** - Raw reactivities are on an arbitrary, experiment-specific scale; the 2-8%/box-plot normalization makes them comparable WITHIN a transcript only. Never pool or compare raw reactivities across transcripts/experiments; compare conditions with delta-SHAPE and standard errors.
+- **Parameter attribution** - The m=1.8, b=-0.6 SHAPE pair is Hajdin et al. 2013 (the ViennaRNA default), not Deigan et al. 2009's own m=2.6/b=-0.8. There is no separate DMS-specific standard pair; reuse 1.8/-0.6 (Cordero et al. 2012 showed SHAPE parameters transfer to DMS) or tune, applying the restraint only to A/C and masking G/U to -999.
+- **Controls** - The untreated control is mandatory (background subtraction); the denatured control improves sequence-bias normalization.
+- **Depth and no-data** - Aim for >=5000 effective depth; carry low-depth nucleotides as -999, never as 0.
+- **Multiple conformations** - If a profile fits no single structure, cluster MaP reads with SEISMIC-RNA / DREEM rather than forcing one fold.
+- **In-cell** - In cells, protection can mean protein/ligand occupancy, and mRNA is actively unfolded; the in-cell-minus-in-vitro difference maps binding.
+- **macOS** - ShapeMapper2 is Linux-only; use Docker or Singularity.
 
 ## Related Skills
-- secondary-structure-prediction - Unconstrained and SHAPE-constrained RNA folding
-- clip-seq/binding-site-annotation - Protein-RNA binding site annotation
-- epitranscriptomics/m6a-peak-calling - RNA modification detection
+- secondary-structure-prediction - The folding engine the reactivities restrain
+- ncrna-search - Identify the RNA family and a CM consensus structure to probe against
+- covariation-analysis - Independent evolutionary evidence for the suggested pairs
+- epitranscriptomics/m6a-peak-calling - RNA modifications that confound DMS/SHAPE reactivity
+- clip-seq/binding-site-annotation - In-cell protection as an RBP footprint
+- read-qc/quality-reports - QC of the underlying sequencing reads

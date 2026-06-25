@@ -1,6 +1,6 @@
 # Contributing
 
-bioSkills is a collection of 425 skills across 62 categories that guide AI coding agents (Claude Code, OpenAI Codex, Google Gemini, OpenClaw) through bioinformatics tasks. Skills cover everything from basic sequence I/O to single-cell RNA-seq, variant calling, and population genetics. Each skill includes agent instructions (SKILL.md), human-readable documentation (usage-guide.md), and working example scripts.
+bioSkills is a collection of 547 skills across 63 categories that guide AI coding agents (Claude Code, OpenAI Codex, Google Gemini, OpenClaw) through bioinformatics tasks. Skills cover everything from basic sequence I/O to single-cell RNA-seq, variant calling, and population genetics. Each skill includes agent instructions (SKILL.md), human-readable documentation (usage-guide.md), and working example scripts.
 
 Contributions are welcome. Because these skills guide AI agents through real scientific work, every contribution must have clear scientific value and verified accuracy.
 
@@ -45,7 +45,7 @@ Common hallucination patterns:
 AI tools are fine to use. You are responsible for every line. If an AI wrote it, you still need to understand it, test it, and verify every API against official docs.
 
 - Disclose AI usage in your PR description.
-- Write the scientific use case yourself — do not paste AI-generated descriptions.
+- Write the scientific use case yourself -- do not paste AI-generated descriptions.
 - PRs showing signs of unverified AI generation (vague rationale, plausible-but-wrong APIs, fully authored by AI with no human written acknowledgement of review) will be closed without review.
 
 The bar is understanding, not authorship.
@@ -63,7 +63,7 @@ PRs must include `[bioSkills]` at the start of the title. PRs without this tag w
 
 ### APIs verified
 [List each tool/function referenced with a link to the official docs.]
-- `function()` — <link to docs>
+- `function()` -- <link to docs>
 
 ### Checklist
 - [ ] Opened an issue first (or this is an accuracy fix)

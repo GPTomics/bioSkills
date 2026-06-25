@@ -1,7 +1,6 @@
 #!/bin/bash
-# Reference: STAR 2.7.11+, eggNOG-mapper 2.1+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
-# SHAPE-MaP analysis with ShapeMapper2.
-# Processes modified and untreated samples to generate per-nucleotide reactivities.
+# Reference: ShapeMapper2 2.1.5+, ViennaRNA 2.6+ | Verify API if version differs
+# SHAPE-MaP analysis with ShapeMapper2: modified + untreated samples -> per-nucleotide reactivities.
 
 TARGET_FA=$1
 NAME=${2:-"my_rna"}
@@ -9,24 +8,20 @@ MOD_R1=$3
 MOD_R2=$4
 UNMOD_R1=$5
 UNMOD_R2=$6
-OUTPUT_DIR=${7:-"shapemapper_results"}
+OUTPUT_DIR=${7:-"results"}
 THREADS=${8:-8}
 
 if [ -z "$TARGET_FA" ] || [ -z "$MOD_R1" ]; then
     echo "Usage: $0 <target.fa> <name> <mod_R1.fq.gz> <mod_R2.fq.gz> <unmod_R1.fq.gz> <unmod_R2.fq.gz> [output_dir] [threads]"
     echo ""
-    echo "Runs ShapeMapper2 on SHAPE-MaP data to generate reactivity profiles."
-    echo "Note: ShapeMapper2 is Linux-only. Use Docker on macOS:"
+    echo "ShapeMapper2 is Linux-only. On macOS use Docker:"
     echo "  docker run -v \$(pwd):/data shapemapper2/shapemapper2 shapemapper \\"
     echo "    --target /data/target.fa --modified --R1 /data/mod_R1.fq.gz ..."
     exit 1
 fi
 
 echo "=== Running ShapeMapper2 ==="
-echo "Target: $TARGET_FA"
-echo "Name: $NAME"
-echo "Output: $OUTPUT_DIR"
-
+# Three samples: modified = signal, untreated = background subtraction, denatured (optional) = normalization.
 shapemapper \
     --target "$TARGET_FA" \
     --name "$NAME" \
@@ -38,17 +33,16 @@ shapemapper \
     --overwrite
 
 echo ""
-echo "=== QC Summary ==="
-if [ -f "$OUTPUT_DIR/${NAME}_shapemapper_log.txt" ]; then
-    grep -E "Effective read depth|Mutation rate|quality" "$OUTPUT_DIR/${NAME}_shapemapper_log.txt"
-fi
+echo "=== QC (effective depth, mutation rates) ==="
+LOG="$OUTPUT_DIR/${NAME}_shapemapper_log.txt"
+[ -f "$LOG" ] && grep -E "Effective read depth|Mutation rate|quality" "$LOG"
 
 echo ""
-echo "=== Output files ==="
-echo "  ${OUTPUT_DIR}/${NAME}_profile.txt        - Reactivity profile"
-echo "  ${OUTPUT_DIR}/${NAME}_map.shape           - SHAPE file for RNAfold"
-echo "  ${OUTPUT_DIR}/${NAME}_profile.pdf         - Reactivity bar plot"
+echo "=== Output files (note: .shape and .map are SEPARATE files) ==="
+echo "  ${OUTPUT_DIR}/${NAME}_${NAME}_profile.txt   - reactivity table (Norm_profile column)"
+echo "  ${OUTPUT_DIR}/${NAME}_${NAME}.shape          - 2 columns (position, normalized reactivity) for RNAfold"
+echo "  ${OUTPUT_DIR}/${NAME}_${NAME}.map            - 4 columns (position, reactivity, stderr, base)"
 
 echo ""
-echo "=== Use reactivities to constrain folding ==="
-echo "  RNAfold --shape=${OUTPUT_DIR}/${NAME}_map.shape < ${TARGET_FA}"
+echo "=== Restrain folding with the reactivities (already normalized) ==="
+echo "  RNAfold --shape=${OUTPUT_DIR}/${NAME}_${NAME}.shape --shapeMethod=\"Dm1.8b-0.6\" --noPS < ${TARGET_FA}"
