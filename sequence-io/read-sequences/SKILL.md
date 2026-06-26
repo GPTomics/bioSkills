@@ -1,6 +1,6 @@
 ---
 name: bio-read-sequences
-description: Read biological sequence files (FASTA, FASTQ, GenBank, EMBL, ABI, SFF) using Biopython Bio.SeqIO. Use when parsing sequence files, iterating multi-sequence files, random access to large files, or high-performance parsing.
+description: Read biological sequence files (FASTA, FASTQ, GenBank, EMBL, ABI, SFF) with Biopython Bio.SeqIO, choosing between streaming, in-memory, and on-disk-indexed access. Use when parsing sequence files, iterating multi-record files, randomly accessing records by ID in large files, or maximizing parse throughput.
 tool_type: python
 primary_tool: Bio.SeqIO
 ---
@@ -19,84 +19,118 @@ package and adapt the example to match the actual API rather than retrying.
 
 Read biological sequence data from files using Biopython's Bio.SeqIO module.
 
-**"Read sequences from a file"** -> Parse file into a collection of SeqRecord objects with IDs, sequences, and annotations accessible.
-- Python: `SeqIO.parse()` or `SeqIO.read()` (BioPython)
-- R: `readDNAStringSet()` or `readAAStringSet()` (Biostrings)
+**"Read sequences from a file"** -> Parse a file into SeqRecord objects exposing id, sequence, and annotations.
+- Python: `SeqIO.parse()` / `SeqIO.read()` (BioPython)
+- R: `readDNAStringSet()` / `readAAStringSet()` (Biostrings)
+
+## The Governing Principle
+
+Stream by default. `SeqIO.parse()` yields one record at a time and never holds the whole file in RAM, so it scales to any size. Reach for an in-memory or indexed structure only when the access pattern demands it: load all records (`to_dict`) only for small files needing random access; build an index (`index` / `index_db`) for random access into large files. Never `list()` a huge file or `to_dict()` it - that defeats streaming and can exhaust memory.
+
+## Which Function to Use
+
+| Method | Returns | Memory model | Random access | Persists | Multi-file |
+|--------|---------|--------------|---------------|----------|------------|
+| `parse(handle, format)` | generator of SeqRecord | one record at a time | no | no | no |
+| `read(handle, format)` | one SeqRecord | one record | n/a | no | no |
+| `to_dict(records)` | real `dict` | ALL records in RAM | yes | no | feed combined iterators |
+| `index(filename, format)` | dict-like (read-only) | byte offsets only, re-parses on access | yes | no | no |
+| `index_db(idx_file, files, format)` | dict-like (read-only) | on-disk SQLite index | yes | yes | yes |
+
+Decision rule: `parse` for streaming; `read` for a known single-record file; `to_dict` when the file is small and random access by ID is needed; `index` for random access into one large file; `index_db` for files larger than RAM, many files indexed together, or an index reused across runs.
+
+Behavioral traps these methods hide:
+- `parse()` is a one-pass generator. It is NOT subscriptable (`parse(...)[3]` raises TypeError), and it EXHAUSTS SILENTLY: a second `for` loop over the same generator object yields nothing with no error. Re-call `parse()` for each pass, or `list()` it once if the file is small.
+- `read()` fails LOUDLY: zero records raise `ValueError: No records found in handle`; more than one raises `ValueError: More than one record found in handle`. Use it as an assertion that the file holds exactly one sequence.
+- `to_dict()`, `index()`, and `index_db()` all raise `ValueError` on a DUPLICATE id (`Duplicate key '...'`). Supply a `key_function` to derive unique keys when ids collide.
+- `index()` needs a FILENAME, not a handle (it must seek). It stores only byte offsets and re-parses the record from disk on every access, so it returns a fresh object each time and mutations do not persist. It is read-only (`__setitem__` raises NotImplementedError).
+- `index_db()` stores the offset index in an on-disk SQLite file. It PERSISTS across sessions (reopen later with just the index filename), and scales beyond RAM and across multiple files (pass a list of filenames). This is the right answer for data larger than memory.
+
+The `alphabet=` argument still appears in some signatures for back-compatibility but is a no-op since BioPython 1.78; leave it `None`.
 
 ## Required Import
 
-#### Core import
 ```python
 from Bio import SeqIO
 ```
 
-## Core Functions
+## Reading Records
 
-### SeqIO.parse() - Multiple Records
-Use for files with one or more sequences. Returns an iterator of SeqRecord objects.
+### SeqIO.parse() - Stream Multiple Records
+Returns a one-pass iterator of SeqRecord objects. Always pass the format explicitly as the second argument.
 
 ```python
 for record in SeqIO.parse('sequences.fasta', 'fasta'):
     print(record.id, len(record.seq))
 ```
 
-**Important:** Always specify the format explicitly as the second argument.
-
-### SeqIO.read() - Single Record
-Use when file contains exactly one sequence. Raises error if zero or multiple records.
+### SeqIO.read() - Exactly One Record
+Use when the file must contain a single sequence; raises on zero or multiple records.
 
 ```python
 record = SeqIO.read('single.fasta', 'fasta')
 ```
 
-### SeqIO.to_dict() - Load All Into Memory
-Use for random access by record ID. Loads entire file into memory.
+## Random Access
+
+### SeqIO.to_dict() - Small Files
+Loads every record into a dictionary keyed by id. Fast random access, but holds all records in RAM.
 
 ```python
 records = SeqIO.to_dict(SeqIO.parse('sequences.fasta', 'fasta'))
 seq = records['sequence_id'].seq
 ```
 
-### SeqIO.index() - Large File Random Access
-Use for large files when random access is needed without loading everything into memory.
+### SeqIO.index() - One Large File
 
+**Goal:** Random access by id into a large file without loading every record into memory.
+
+**Approach:** Build an in-memory map of byte offsets keyed by id; each lookup re-parses one record from disk.
+
+**Reference (BioPython 1.83+):**
 ```python
 records = SeqIO.index('large.fasta', 'fasta')
 seq = records['sequence_id'].seq
 records.close()
 ```
 
-### SeqIO.index_db() - SQLite-Backed Indexing
-Use for very large files or multiple files. Creates persistent SQLite index.
-
+A `key_function` maps the id STRING to a custom key (note: `to_dict`'s key_function receives the whole record instead):
 ```python
-# Create index (first time - parses file)
+def get_accession(identifier):
+    return identifier.split('.')[0]  # drop the version suffix
+
+records = SeqIO.index('sequences.fasta', 'fasta', key_function=get_accession)
+```
+
+### SeqIO.index_db() - Huge / Multiple Files
+
+**Goal:** Random access into data larger than RAM, or across many files, with the index reusable across runs.
+
+**Approach:** Persist the offset index in an on-disk SQLite database; reopen it later without re-parsing.
+
+**Reference (BioPython 1.83+):**
+```python
+# First call parses the file(s) and builds the SQLite index
 records = SeqIO.index_db('index.sqlite', 'large.fasta', 'fasta')
 seq = records['sequence_id'].seq
 records.close()
 
-# Reuse existing index (instant load)
+# Later sessions reopen instantly with just the index filename
 records = SeqIO.index_db('index.sqlite')
 
-# Index multiple files together
+# Index multiple files as one database
 records = SeqIO.index_db('combined.sqlite', ['file1.fasta', 'file2.fasta'], 'fasta')
 ```
 
-**Advantages over index():**
-- Persistent index survives program restarts
-- Can index multiple files as one database
-- Lower memory for extremely large files
-- SQLite file can be shared across processes
-
 ## High-Performance Parsing
 
-For maximum throughput on large files, use low-level parsers (3-6x faster than SeqIO.parse):
+For maximum throughput on large files, low-level parsers (SimpleFastaParser, FastqGeneralIterator) yield raw tuples and skip SeqRecord construction, so they run substantially faster than SeqIO.parse.
 
 ### SimpleFastaParser
 
 **Goal:** Parse large FASTA files at maximum speed without SeqRecord overhead.
 
-**Approach:** Use low-level tuple-based parser returning (title, sequence) strings.
+**Approach:** Iterate `(title, sequence)` string tuples directly from the handle.
 
 **Reference (BioPython 1.83+):**
 ```python
@@ -105,16 +139,14 @@ from Bio.SeqIO.FastaIO import SimpleFastaParser
 with open('large.fasta') as handle:
     for title, sequence in SimpleFastaParser(handle):
         if len(sequence) > 1000:
-            print(title.split()[0])  # First word is usually ID
+            seq_id = title.split()[0]  # first whitespace token is the id
 ```
-
-Returns `(title, sequence)` tuples as strings (no SeqRecord overhead).
 
 ### FastqGeneralIterator
 
 **Goal:** Parse large FASTQ files at maximum speed.
 
-**Approach:** Use low-level tuple-based parser returning (title, sequence, quality_string) strings.
+**Approach:** Iterate `(title, sequence, quality_string)` string tuples; decode quality manually if needed.
 
 **Reference (BioPython 1.83+):**
 ```python
@@ -122,10 +154,26 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 with open('reads.fastq') as handle:
     for title, sequence, quality in FastqGeneralIterator(handle):
-        avg_qual = sum(ord(c) - 33 for c in quality) / len(quality)
+        avg_qual = sum(ord(c) - 33 for c in quality) / len(quality)  # Phred+33
 ```
 
-Returns `(title, sequence, quality_string)` tuples.
+## SeqRecord Attributes
+
+After parsing, each record exposes:
+
+```python
+record.id          # first whitespace token of the header (string)
+record.name        # same first token (for FASTA, name == id)
+record.description # the ENTIRE header after '>', including the id token
+record.seq         # sequence data (Seq object; case-preserving)
+record.features    # list of SeqFeature objects (GenBank/EMBL)
+record.annotations # dict of annotations (organism, molecule_type, ...)
+record.letter_annotations  # per-letter dict (e.g. 'phred_quality' list)
+record.dbxrefs     # database cross-references
+```
+
+### id vs name vs description - the first-space split
+A FASTA header `>FIRST rest of the line` parses to: `id` = `FIRST` (the first whitespace token), `name` = `FIRST` (same token), `description` = `FIRST rest of the line` (the WHOLE header after `>`, including the id). So `>seq1 some desc` gives id `seq1`, name `seq1`, description `seq1 some desc`. The id is therefore the leading word of the description, not a separate field - relevant when writing records back out.
 
 ## Common Formats
 
@@ -133,12 +181,14 @@ Returns `(title, sequence, quality_string)` tuples.
 |--------|--------|-------------------|-------|
 | FASTA | `'fasta'` | .fasta, .fa, .fna, .faa | Most common |
 | FASTA 2-line | `'fasta-2line'` | .fasta | One line per sequence (no wrapping) |
-| FASTQ | `'fastq'` | .fastq, .fq | With quality scores |
-| FASTQ Solexa | `'fastq-solexa'` | .fastq | Old Solexa/Illumina (pre-1.3) |
-| FASTQ Illumina | `'fastq-illumina'` | .fastq | Illumina 1.3-1.7 |
+| FASTQ | `'fastq'` | .fastq, .fq | Alias of fastq-sanger (Phred+33) |
+| FASTQ Solexa | `'fastq-solexa'` | .fastq | Old Solexa (Solexa+64, scores -5..62) |
+| FASTQ Illumina | `'fastq-illumina'` | .fastq | Illumina 1.3-1.7 (Phred+64) |
 | GenBank | `'genbank'` or `'gb'` | .gb, .gbk | With features/annotations |
 | EMBL | `'embl'` | .embl | European format with features |
 | Swiss-Prot | `'swiss'` | .dat | UniProt format |
+
+FASTQ quality encoding cannot be auto-detected reliably: the same quality line can be valid Phred+33 and Phred+64. Picking the wrong string can silently shift every score by 31. Confirm the encoding before parsing; see fastq-quality for the full encoding decision.
 
 ## Specialized Formats
 
@@ -149,98 +199,44 @@ Returns `(title, sequence, quality_string)` tuples.
 | SFF | `'sff'` | 454/Ion Torrent flowgram data |
 | SFF Trimmed | `'sff-trim'` | SFF with adapter/quality trimming |
 | QUAL | `'qual'` | Quality scores file (pairs with FASTA) |
-| PHD | `'phd'` | Phred/Phrap/Consed output |
-| ACE | `'ace'` | Assembly format (Consed) |
-| PDB SEQRES | `'pdb-seqres'` | Protein sequences from PDB files |
+| PDB SEQRES | `'pdb-seqres'` | Protein sequences from PDB SEQRES records |
 | PDB ATOM | `'pdb-atom'` | Sequences from ATOM records in PDB |
 | SnapGene | `'snapgene'` | SnapGene .dna files |
-| GCK | `'gck'` | Gene Construction Kit files |
-| XDNA | `'xdna'` | DNA Strider / SerialCloner files |
 
 ### Reading ABI Trace Files
-
 ```python
-# Read Sanger sequencing trace with quality
 record = SeqIO.read('sample.ab1', 'abi')
-print(f'Sequence: {record.seq}')
 qualities = record.letter_annotations['phred_quality']
-
-# Auto-trim low quality ends
-record_trimmed = SeqIO.read('sample.ab1', 'abi-trim')
+record_trimmed = SeqIO.read('sample.ab1', 'abi-trim')  # low-quality ends removed
 ```
 
 ### Reading 454/Ion Torrent SFF
-
 ```python
 for record in SeqIO.parse('reads.sff', 'sff'):
-    print(record.id, len(record.seq))
-
-# With trimming applied
-for record in SeqIO.parse('reads.sff', 'sff-trim'):
     print(record.id, len(record.seq))
 ```
 
 ### Reading PDB Sequences
-
 ```python
-# Get sequences from SEQRES records
 for record in SeqIO.parse('structure.pdb', 'pdb-seqres'):
-    print(f'Chain {record.id}: {record.seq}')
-
-# Get sequences from ATOM coordinates
-for record in SeqIO.parse('structure.pdb', 'pdb-atom'):
-    print(f'Chain {record.id}: {record.seq}')
+    print(record.id, record.seq)
 ```
 
 ## Alignment Formats (Read-Only)
 
 | Format | String | Notes |
 |--------|--------|-------|
-| PHYLIP | `'phylip'` | Interleaved phylip |
-| PHYLIP Sequential | `'phylip-sequential'` | Sequential phylip |
-| PHYLIP Relaxed | `'phylip-relaxed'` | Longer names allowed |
+| PHYLIP | `'phylip'` | Interleaved; `'phylip-relaxed'` allows longer names |
 | Clustal | `'clustal'` | ClustalW output |
 | Stockholm | `'stockholm'` | Rfam/Pfam alignments |
 | NEXUS | `'nexus'` | PAUP/MrBayes format |
 | MAF | `'maf'` | Multiple Alignment Format |
 
-## SeqRecord Object Attributes
-
-After parsing, each record has these key attributes:
-
-```python
-record.id          # Sequence identifier (string)
-record.name        # Sequence name (string)
-record.description # Full description line (string)
-record.seq         # Sequence data (Seq object)
-record.features    # List of SeqFeature objects (GenBank/EMBL)
-record.annotations # Dictionary of annotations
-record.letter_annotations  # Per-letter annotations (quality scores)
-record.dbxrefs     # Database cross-references
-```
-
 ## Code Patterns
-
-### Collect All Sequences Into a List
-```python
-records = list(SeqIO.parse('sequences.fasta', 'fasta'))
-```
 
 ### Count Records Without Loading All
 ```python
 count = sum(1 for _ in SeqIO.parse('sequences.fasta', 'fasta'))
-```
-
-### Fast Count (FASTA only)
-```python
-from Bio.SeqIO.FastaIO import SimpleFastaParser
-with open('sequences.fasta') as f:
-    count = sum(1 for _ in SimpleFastaParser(f))
-```
-
-### Get Sequence IDs Only
-```python
-ids = [record.id for record in SeqIO.parse('sequences.fasta', 'fasta')]
 ```
 
 ### Read GenBank with Features
@@ -248,8 +244,8 @@ ids = [record.id for record in SeqIO.parse('sequences.fasta', 'fasta')]
 for record in SeqIO.parse('sequence.gb', 'genbank'):
     for feature in record.features:
         if feature.type == 'CDS':
-            print(feature.qualifiers.get('product', ['Unknown'])[0])
-            cds_seq = feature.extract(record.seq)  # Get feature sequence
+            product = feature.qualifiers.get('product', ['Unknown'])[0]
+            cds_seq = feature.extract(record.seq)  # spliced feature sequence
 ```
 
 ### Access FASTQ Quality Scores
@@ -259,61 +255,36 @@ for record in SeqIO.parse('reads.fastq', 'fastq'):
     avg_quality = sum(qualities) / len(qualities)
 ```
 
-### Read From File Handle
+### Read From a File Handle
 ```python
-with open('sequences.fasta', 'r') as handle:
+with open('sequences.fasta') as handle:
     for record in SeqIO.parse(handle, 'fasta'):
         print(record.id)
 ```
 
-### Custom ID Function for Indexing
-```python
-def get_accession(identifier):
-    return identifier.split('.')[0]  # Remove version
-
-records = SeqIO.index('sequences.fasta', 'fasta', key_function=get_accession)
-```
-
 ## Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `ValueError: More than one record` | Used `read()` on multi-record file | Use `parse()` instead |
-| `ValueError: No records found` | Used `read()` on empty file | Check file exists and has content |
-| `ValueError: unknown format` | Typo in format string | Check format string spelling |
-| `UnicodeDecodeError` | Binary file or wrong encoding | Open with `encoding='latin-1'` or check file |
-| `sqlite3.OperationalError` | index_db file locked | Close other connections first |
-
-## Decision Tree
-
-```
-Need to read sequences?
-├── Single record in file?
-│   └── Use SeqIO.read()
-├── Multiple records?
-│   ├── Need all in memory at once?
-│   │   └── Use list(SeqIO.parse()) or SeqIO.to_dict()
-│   ├── Process one at a time (memory efficient)?
-│   │   └── Use SeqIO.parse() iterator
-│   ├── Large file, need random access by ID?
-│   │   ├── Single session? -> Use SeqIO.index()
-│   │   └── Persistent/multi-file? -> Use SeqIO.index_db()
-│   └── Maximum throughput needed?
-│       └── Use SimpleFastaParser or FastqGeneralIterator
-├── Sanger sequencing trace?
-│   └── Use 'abi' or 'abi-trim' format
-├── 454/Ion Torrent data?
-│   └── Use 'sff' or 'sff-trim' format
-└── Protein from structure?
-    └── Use 'pdb-seqres' or 'pdb-atom' format
-```
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Second loop over a parser yields nothing, no error | `parse()` generator exhausted after the first pass | Re-call `parse()` per pass, or `list()` once for small files |
+| `TypeError: 'generator' object is not subscriptable` | Indexed/sliced a `parse()` result | Wrap in `list()`, or use `to_dict`/`index` for keyed access |
+| `ValueError: More than one record found in handle` | `read()` on a multi-record file | Use `parse()` |
+| `ValueError: No records found in handle` | `read()` on an empty/zero-record file | Check the file and format string; use `parse()` if multi-record |
+| `ValueError: Duplicate key '...'` | `to_dict`/`index`/`index_db` hit a repeated id | Pass a `key_function` that derives unique keys |
+| Random access by id silently slow / re-reads disk | `index()` re-parses each access; mutations don't persist | Expected; cache needed records, or use `to_dict` for small files |
+| MemoryError / process killed on a huge file | `list()` or `to_dict()` loaded everything into RAM | Stream with `parse()`; use `index_db()` for random access |
+| `ValueError: unknown format` | Misspelled format string | Use a lowercase string from the format tables |
+| `ValueError`/`AssertionError` naming the LOCUS line | GenBank parser reads fixed LOCUS columns (molecule type ~44-54, topology ~55-63); ICE/SnapGene/Ensembl/assembler LOCUS lines violate the spec | Biologically valid content can still fail the strict column parse; fix the LOCUS columns or re-export from a spec-compliant writer |
+| FASTQ scores all off by ~31 with no error | Wrong FASTQ variant string (Phred+33 vs +64 overlap) | Confirm encoding; see fastq-quality |
+| `AttributeError` referencing `.alphabet` | Code assumes pre-1.78 alphabet API | Drop alphabet usage; molecule type lives in `annotations['molecule_type']` |
 
 ## Related Skills
 
 - write-sequences - Write parsed sequences to new files
 - filter-sequences - Filter sequences by criteria after reading
-- format-conversion - Convert between formats
-- compressed-files - Read gzip/bzip2/BGZF compressed sequence files
-- sequence-manipulation/seq-objects - Work with parsed SeqRecord objects
+- format-conversion - Convert between formats (GenBank->FASTA silently drops annotations)
+- compressed-files - Read gzip/bzip2/BGZF compressed files; only BGZF supports indexed random access
+- fastq-quality - FASTQ encoding (Phred vs Solexa) and offset selection
+- sequence-manipulation/seq-objects - Work with parsed SeqRecord and Seq objects
 - database-access/entrez-fetch - Fetch sequences from NCBI instead of local files
 - alignment-files/sam-bam-basics - For SAM/BAM/CRAM alignment files, use samtools/pysam

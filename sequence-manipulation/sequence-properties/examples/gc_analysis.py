@@ -1,5 +1,5 @@
 '''GC content analysis across sequences and windows'''
-# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.SeqUtils import gc_fraction
 from collections import Counter

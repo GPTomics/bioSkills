@@ -1,13 +1,13 @@
 ---
 name: bio-sequence-slicing
-description: Slice, extract, and concatenate biological sequences using Biopython. Use when extracting subsequences, joining sequences, or manipulating sequence regions by position.
+description: Slice, extract, and concatenate biological sequences and annotated records using Biopython. Use when extracting subsequences by position, splicing exons into a transcript, joining sequences, or carrying a sub-region of an annotated record (with quality scores and features) into a new record.
 tool_type: python
 primary_tool: Bio.Seq
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, samtools 1.19+
+Reference examples tested with: BioPython 1.83+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,216 +17,200 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Sequence Slicing
 
-Extract, slice, and concatenate sequences using Biopython's Seq objects.
+Extract sub-regions, splice non-contiguous regions, and concatenate sequences and annotated records.
 
-**"Extract a subsequence"** -> Use Python slicing on Seq objects with 0-based half-open coordinates.
-- Python: `seq[start:end]` (BioPython Seq)
+**"Extract a subsequence"** -> Slice a Seq with 0-based half-open coordinates.
+- Python: `seq[start:end]` (Bio.Seq)
 
-**"Join exons into mRNA"** -> Extract multiple regions and concatenate them.
-- Python: `sum((seq[s:e] for s, e in coords), Seq(''))` or `+` operator
+**"Pull out a sub-region but keep its quality scores and features"** -> Slice the SeqRecord, not the bare Seq.
+- Python: `record[start:end]` (Bio.SeqRecord)
 
-## Required Import
+**"Splice exons into a transcript"** -> Extract each region and concatenate.
+- Python: `sum((seq[s:e] for s, e in coords), Seq(''))` or the `+` operator
+
+## The Governing Principle
+
+Slicing a bare `Seq` is pure string math: `seq[start:end]` returns a new `Seq`, half-open, with no metadata to lose. Slicing a `SeqRecord` carries metadata, and the rule for WHAT survives is the single most error-prone part of this skill:
+
+`record[start:end]` (verified against `Bio/SeqRecord.__getitem__`):
+- PRESERVES `id`, `name`, `description`, and `molecule_type`.
+- AUTO-SLICES `letter_annotations` (per-letter data such as PHRED `phred_quality`) to match the new coordinates -- this is why a FASTQ slice keeps the right per-base qualities for free.
+- KEEPS only features FULLY CONTAINED in `[start:end]`; their locations are recalculated relative to the new start.
+- SILENTLY DROPS the `annotations` dict (organism, taxonomy, references, comments), the `dbxrefs` list, and any feature that STRADDLES the slice boundary (dropped whole, never truncated). A non-trivial stride (`record[::2]`) drops features entirely.
+
+Nothing warns when annotations vanish. The GenBank `source` feature spans the whole record, so it straddles almost any slice and disappears along with organism/taxonomy. To carry that metadata across, copy it explicitly:
+
+```python
+sub = record[start:end]
+sub.annotations = record.annotations.copy()
+```
+
+and re-add any boundary-straddling feature manually (with a clamped, recalculated location) if a truncated copy is needed.
+
+## Required Imports
 
 ```python
 from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio import SeqIO
 ```
 
-## Core Operations
+## Coordinate Systems: the 0-based vs 1-based trap
 
-### Indexing (Single Position)
+Python and Biopython slicing is 0-based and half-open: `seq[start:end]` includes `start`, excludes `end`, and returns `end - start` letters. File formats disagree, and mixing them is a SILENT off-by-one (no error, just the wrong bases):
 
-```python
-seq = Seq('ATGCGATCG')
-seq[0]      # 'A' - first base (0-indexed)
-seq[-1]     # 'G' - last base
-seq[3]      # 'C' - fourth base
-```
+| Source | Convention | Position 1234..5678 means |
+|--------|------------|---------------------------|
+| Python / Bio.Seq slice | 0-based, half-open | `seq[1234:5678]` |
+| GenBank / EMBL / GFF / VCF feature line | 1-based, INCLUSIVE | `seq[1233:5678]` (subtract 1 from start only) |
+| BED file | 0-based, half-open | `seq[1234:5678]` (already matches Python) |
 
-### Slicing (Extract Region)
+The asymmetry is the catch: convert a 1-based inclusive interval by subtracting 1 from the START only; the end already lands correctly because Python's exclusive end cancels the inclusive end. Reading a coordinate straight off a GFF and slicing `seq[start:end]` without the `-1` silently shifts everything one base left.
 
-```python
-seq = Seq('ATGCGATCGATCG')
-seq[0:3]     # Seq('ATG') - first 3 bases
-seq[3:6]     # Seq('CGA') - positions 3-5
-seq[:5]      # Seq('ATGCG') - first 5
-seq[-5:]     # Seq('GATCG') - last 5
-seq[::2]     # Seq('AGGTGTG') - every 2nd base
-seq[::-1]    # Seq('GCTAGCTAGCGTA') - reversed
-```
-
-**Note:** Slicing returns a Seq object, not a string.
-
-### Concatenation
-
-```python
-seq1 = Seq('ATGC')
-seq2 = Seq('GGGG')
-combined = seq1 + seq2  # Seq('ATGCGGGG')
-```
-
-Can also concatenate with strings:
-```python
-seq = Seq('ATGC')
-extended = seq + 'NNNN'  # Seq('ATGCNNNN')
-```
-
-## Code Patterns
-
-### Extract CDS by Coordinates
-
-```python
-genome = Seq('NNNNATGCGATCGATCGTAANNN')
-cds_start, cds_end = 4, 21
-cds = genome[cds_start:cds_end]
-```
-
-### Extract with 1-Based Coordinates
-
-Biology often uses 1-based coordinates. Convert to 0-based:
+`Bio.SeqFeature` locations sidestep this entirely: they store a 0-based start and a Python-style end, so `int(feature.location.start):int(feature.location.end)` slices the parent directly, and `feature.extract(record.seq)` does the same automatically (handling strand and compound/joined locations).
 
 ```python
 def extract_1based(seq, start, end):
-    '''Extract using 1-based inclusive coordinates'''
+    '''Extract a 1-based inclusive interval (GenBank/GFF style).'''
     return seq[start - 1:end]
-
-genome = Seq('ATGCGATCGATCG')
-region = extract_1based(genome, 1, 3)  # Seq('ATG')
 ```
 
-### Split Sequence into Codons
+## Slicing a Bare Seq
+
+Slicing returns a `Seq` (not a string); negative indices and strides behave exactly like `str` (Seq has behaved like `str` since BioPython 1.78).
 
 ```python
-def split_codons(seq):
-    return [seq[i:i+3] for i in range(0, len(seq) - len(seq) % 3, 3)]
-
 seq = Seq('ATGCGATCGATCG')
-codons = split_codons(seq)  # [Seq('ATG'), Seq('CGA'), ...]
+seq[0]       # 'A'  single base, 0-indexed -> returns a str
+seq[-1]      # 'G'  last base
+seq[0:3]     # Seq('ATG')   first 3 bases
+seq[-5:]     # Seq('GATCG')  last 5
+seq[::2]     # Seq('AGGTGTG')  every 2nd base (stride)
+seq[::-1]    # Seq('GCTAGCTAGCGTA')  reversed (not the reverse complement)
 ```
 
-### Split into Fixed-Length Chunks
+`str(record.seq)` returns the raw string, but raises `UndefinedSequenceError` when the record's sequence content is undefined (e.g. `Seq(None, length=n)` from a header-only FASTA or a pysam-backed record). Guard with `len()` (always defined) before forcing the content to a string.
 
-```python
-def chunk_sequence(seq, size):
-    return [seq[i:i+size] for i in range(0, len(seq), size)]
+## Code Patterns
 
-seq = Seq('ATGCGATCGATCGATCGATCG')
-chunks = chunk_sequence(seq, 10)
-```
+### Splice Non-Contiguous Regions (Exons -> Transcript)
 
-### Join Sequences with Linker
+**Goal:** Join several separated regions of a genomic sequence into one continuous sequence.
 
-```python
-seqs = [Seq('ATGC'), Seq('GGGG'), Seq('TTTT')]
-linker = Seq('NNN')
-joined = linker.join(seqs)  # Seq('ATGCNNNGGGGNNTTTT')
-```
-
-Or manually:
-```python
-linker = 'NNN'
-joined = Seq(linker.join(str(s) for s in seqs))
-```
-
-### Extract Multiple Regions
-
-**Goal:** Splice non-contiguous regions (e.g., exons) into a single continuous sequence.
-
-**Approach:** Extract each region by coordinates and concatenate with `+` or `sum()`.
+**Approach:** Extract each region with half-open coordinates and concatenate. `sum()` needs an explicit `Seq('')` start value because the default `0` cannot be added to a `Seq`.
 
 ```python
 def extract_regions(seq, regions):
-    '''Extract and concatenate multiple regions'''
+    '''Concatenate multiple [start, end) regions in order.'''
     return sum((seq[start:end] for start, end in regions), Seq(''))
 
 exon_coords = [(0, 50), (100, 150), (200, 250)]
 mrna = extract_regions(genomic_seq, exon_coords)
 ```
 
-### Extract Flanking Regions
+For a real annotated transcript, let the feature do the work -- `feature.extract` honors strand and joined exon locations:
 
 ```python
-def get_flanking(seq, position, flank_size):
-    '''Get sequence around a position'''
-    start = max(0, position - flank_size)
-    end = min(len(seq), position + flank_size + 1)
-    return seq[start:end]
-
-seq = Seq('ATGCGATCGATCGATCGATCG')
-flanking = get_flanking(seq, 10, 5)  # 5 bp on each side of position 10
+for feature in record.features:
+    if feature.type == 'mRNA':
+        transcript = feature.extract(record.seq)
 ```
 
-### Tile Sequence into Overlapping Windows
+### Carry a Sub-Region into a New Annotated Record
+
+**Goal:** Keep id, per-base quality, and contained features when extracting a window, and decide deliberately what metadata to carry.
+
+**Approach:** Slice the `SeqRecord` (qualities and contained features ride along automatically), then explicitly copy the `annotations` dict, which slicing always drops.
+
+```python
+sub = record[100:400]                      # qualities + contained features auto-sliced
+sub.annotations = record.annotations.copy()  # organism/taxonomy/refs would be lost otherwise
+sub.id = f'{record.id}:101-400'            # 1-based label for humans
+```
+
+To build a fresh record from a bare Seq slice instead (no source metadata to carry):
+
+```python
+sub = SeqRecord(record.seq[100:400], id=f'{record.id}_sub', description='positions 101-400')
+```
+
+### Extract a Feature by Type
+
+```python
+for record in SeqIO.parse('sequence.gb', 'genbank'):
+    for feature in record.features:
+        if feature.type == 'CDS':
+            cds = feature.extract(record.seq)      # strand-aware
+            gene = feature.qualifiers.get('gene', ['?'])[0]
+```
+
+### Concatenate Sequences and Records
+
+```python
+seq1 + seq2                      # Seq + Seq -> Seq
+seq1 + 'NNNN'                    # Seq + str -> Seq
+Seq('NNN').join([s1, s2, s3])   # linker between each -> Seq
+```
+
+Adding `SeqRecord` objects works (`rec1 + rec2` concatenates sequences and per-letter annotations), but follows the same rule as slicing: the result keeps `id`/`name`/`description` only when both share them, and the `annotations` dict is reset. Set metadata on the result explicitly.
+
+### Split into Codons or Fixed Chunks
+
+```python
+def split_codons(seq):
+    '''Whole codons only; trailing 1-2 nt remainder is dropped.'''
+    return [seq[i:i + 3] for i in range(0, len(seq) - len(seq) % 3, 3)]
+
+def chunk_sequence(seq, size):
+    '''Fixed-size chunks; final chunk may be shorter.'''
+    return [seq[i:i + size] for i in range(0, len(seq), size)]
+```
+
+### Tile Overlapping Windows
 
 ```python
 def sliding_windows(seq, window_size, step=1):
     for i in range(0, len(seq) - window_size + 1, step):
-        yield seq[i:i + window_size]
-
-seq = Seq('ATGCGATCGATCG')
-for window in sliding_windows(seq, 5, 2):
-    print(window)
+        yield i, seq[i:i + window_size]
 ```
 
-### Extract Feature from SeqRecord
+### Flanking Region Around a Position
 
 ```python
-from Bio import SeqIO
-
-for record in SeqIO.parse('sequence.gb', 'genbank'):
-    for feature in record.features:
-        if feature.type == 'CDS':
-            cds_seq = feature.extract(record.seq)
-            print(f'{feature.qualifiers.get("gene", ["?"])[0]}: {cds_seq[:30]}...')
+def get_flanking(seq, position, flank):
+    '''Clamp to sequence ends so the slice never runs past the edges.'''
+    start = max(0, position - flank)
+    end = min(len(seq), position + flank + 1)
+    return seq[start:end]
 ```
-
-### Create New SeqRecord from Slice
-
-```python
-from Bio.SeqRecord import SeqRecord
-
-original = SeqRecord(Seq('ATGCGATCGATCGATCG'), id='full', description='Full sequence')
-subset = SeqRecord(original.seq[5:15], id='subset', description=f'Positions 5-15 of {original.id}')
-```
-
-## Coordinate Systems
-
-| System | Position 1 | Example |
-|--------|------------|---------|
-| 0-based (Python) | Index 0 | `seq[0:3]` gets positions 0, 1, 2 |
-| 1-based (Biology) | Index 1 | Position 1-3 = `seq[0:3]` |
-| 0-based half-open | Start inclusive, end exclusive | Standard Python slicing |
 
 ## Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `IndexError` | Index out of range | Check sequence length first |
-| Unexpected length | Off-by-one error | Remember end index is exclusive |
-| Empty result | Start >= end | Check coordinate order |
-| Wrong positions | 1-based vs 0-based confusion | Convert coordinates explicitly |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Organism/taxonomy/references gone from a sub-record | `record[start:end]` silently drops the `annotations` dict and `dbxrefs` | `sub.annotations = record.annotations.copy()` after slicing |
+| A feature spanning the cut is missing from the slice | Features straddling the boundary are dropped whole, not truncated | Re-add manually with a clamped, recalculated location |
+| All features gone after `record[::2]` | A non-trivial stride drops features entirely | Slice without a stride, or rebuild features by hand |
+| Everything shifted one base left | GFF/GenBank 1-based start sliced as if 0-based | Subtract 1 from the START only: `seq[start-1:end]` |
+| `UndefinedSequenceError` on `str(record.seq)` | Sequence content undefined (`Seq(None, length=n)`) | Use `len(record)`; do not force undefined content to a string |
+| `TypeError` from `sum(slices)` | Default start `0` cannot add to a `Seq` | Pass a start: `sum(slices, Seq(''))` |
+| Reversed but wrong strand | `seq[::-1]` reverses only; it does not complement | Use `seq.reverse_complement()` (see reverse-complement) |
+| `IndexError` on single-base index | Position past the end | Check `len(seq)` first; slices clamp but `seq[i]` does not |
 
-## Decision Tree
+## Decision Guide
 
-```
-Need to extract or combine sequences?
-├── Single position?
-│   └── Use indexing: seq[i]
-├── Contiguous region?
-│   └── Use slicing: seq[start:end]
-├── Multiple non-contiguous regions?
-│   └── Extract each, concatenate with +
-├── Join sequences?
-│   ├── No linker: seq1 + seq2
-│   └── With linker: linker.join(seqs)
-├── Split into parts?
-│   └── List comprehension with slicing
-└── From GenBank features?
-    └── Use feature.extract(record.seq)
-```
+- Bare sequence, no metadata to keep -> slice the `Seq`: `seq[start:end]`.
+- Need per-base quality or contained features to ride along -> slice the `SeqRecord`: `record[start:end]`, then copy `annotations`.
+- Coordinates came from a GFF/GenBank/EMBL/VCF line -> subtract 1 from the start before slicing.
+- Coordinates came from a BED file -> use as-is (already 0-based half-open).
+- Strand-aware or joined/compound location -> `feature.extract(record.seq)`, never a manual slice.
+- Joining separated regions -> `sum((seq[s:e] for s, e in coords), Seq(''))`.
 
 ## Related Skills
 
-- seq-objects - Create Seq and SeqRecord objects
-- sequence-io/read-sequences - Parse GenBank files with features to extract
-- transcription-translation - Translate extracted CDS regions
-- alignment-files/sam-bam-basics - Extract sequences from BAM using samtools fasta/fastq
+- seq-objects - Create Seq/SeqRecord objects and handle undefined sequence content
+- reverse-complement - Reverse-complement an extracted region (slicing reverses but does not complement)
+- transcription-translation - Translate an extracted CDS or spliced transcript
+- sequence-io/read-sequences - Parse GenBank/FASTQ records (with features and qualities) to slice
+- genome-intervals/gtf-gff-handling - Read 1-based GFF/GTF feature coordinates before slicing
+- alignment-files/sam-bam-basics - Extract sequences from BAM regions with samtools

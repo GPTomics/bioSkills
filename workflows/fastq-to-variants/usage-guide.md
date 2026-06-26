@@ -84,4 +84,6 @@ Tell your AI agent what you want to do:
 - variant-calling/gatk-variant-calling - GATK HaplotypeCaller and DRAGEN mode
 - variant-calling/filtering-best-practices - VQSR and hard filtering
 - read-qc/fastp-workflow - Read QC details
+- sequence-io/fastq-quality - Confirm the FASTQ quality encoding before trimming public or legacy data
+- sequence-io/paired-end-fastq - Keep R1/R2 mates synchronized so filtering does not corrupt mapping
 - read-alignment/bwa-alignment - Alignment details, read groups, ALT/decoy analysis set, the dedup ordering

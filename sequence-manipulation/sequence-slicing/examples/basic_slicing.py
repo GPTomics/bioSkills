@@ -1,5 +1,5 @@
 '''Basic sequence slicing and indexing operations'''
-# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 
 seq = Seq('ATGCGATCGATCGATCGATCG')

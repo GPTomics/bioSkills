@@ -1,63 +1,72 @@
 #!/usr/bin/env python3
-'''Analyze FASTQ quality scores'''
+'''Read FASTQ quality scores and demonstrate the encoding/offset distinction'''
 # Reference: biopython 1.83+ | Verify API if version differs
 
-from Bio import SeqIO
-import numpy as np
 import gzip
+import io
+from collections import defaultdict
+from Bio import SeqIO
 
-def parse_fastq(filepath):
-    '''Parse FASTQ, handling gzip'''
+
+def parse_fastq(filepath, fmt='fastq'):
+    '''Stream FASTQ records, transparently handling gzip. fmt names the encoding explicitly.'''
     opener = gzip.open if str(filepath).endswith('.gz') else open
     with opener(filepath, 'rt') as handle:
-        for record in SeqIO.parse(handle, 'fastq'):
+        for record in SeqIO.parse(handle, fmt):
             yield record
 
-def calculate_quality_stats(filepath, sample_size=10000):
-    '''Calculate quality statistics'''
-    qualities = []
-    lengths = []
-    gc_contents = []
 
-    for i, record in enumerate(parse_fastq(filepath)):
-        if i >= sample_size:
-            break
+def quality_stats(records):
+    '''Per-read mean quality, length, and Q30 fraction from letter_annotations.'''
+    means, lengths = [], []
+    for record in records:
         quals = record.letter_annotations['phred_quality']
-        qualities.append(np.mean(quals))
+        means.append(sum(quals) / len(quals))
         lengths.append(len(record))
-        gc = (record.seq.count('G') + record.seq.count('C')) / len(record) * 100
-        gc_contents.append(gc)
+    n = len(means)
+    return {'n_reads': n, 'mean_quality': sum(means) / n, 'mean_length': sum(lengths) / n,
+            'q30_read_fraction': sum(m >= 30 for m in means) / n}
 
-    return {
-        'n_reads': i + 1,
-        'mean_quality': np.mean(qualities),
-        'mean_length': np.mean(lengths),
-        'mean_gc': np.mean(gc_contents),
-        'q30_fraction': np.mean([q >= 30 for q in qualities])
-    }
 
-def per_position_quality(filepath, sample_size=10000):
-    '''Calculate per-position quality'''
-    max_len = 0
-    position_quals = {}
-
-    for i, record in enumerate(parse_fastq(filepath)):
-        if i >= sample_size:
-            break
-        quals = record.letter_annotations['phred_quality']
-        for pos, q in enumerate(quals):
-            if pos not in position_quals:
-                position_quals[pos] = []
+def per_position_mean(records):
+    '''Mean quality at each read position across all reads.'''
+    position_quals = defaultdict(list)
+    for record in records:
+        for pos, q in enumerate(record.letter_annotations['phred_quality']):
             position_quals[pos].append(q)
+    return {pos: sum(qs) / len(qs) for pos, qs in sorted(position_quals.items())}
 
-    positions = sorted(position_quals.keys())
-    means = [np.mean(position_quals[p]) for p in positions]
-    return positions, means
+
+# A single FASTQ record whose quality line uses only ASCII >= 64 (the overlap region).
+# The SAME bytes decode to different Phred scores under different offsets, which is why
+# the encoding must come from instrument metadata and never be guessed.
+overlap_fastq = '@read1\nACGTACGT\n+\nIIIIDDDD\n'
+
+
+def encoding_distinction():
+    '''Same bytes, two offsets: Phred+33 vs Phred+64 differ by exactly 31 (silent corruption).'''
+    sanger = next(SeqIO.parse(io.StringIO(overlap_fastq), 'fastq'))
+    illumina = next(SeqIO.parse(io.StringIO(overlap_fastq), 'fastq-illumina'))
+    return sanger.letter_annotations['phred_quality'], illumina.letter_annotations['phred_quality']
+
+
+# Solexa uses an ODDS score that can go negative (floor -5); it lives under 'solexa_quality'.
+solexa_fastq = '@read1\nACGT\n+\n;;;;\n'
+
+
+def solexa_scores():
+    record = next(SeqIO.parse(io.StringIO(solexa_fastq), 'fastq-solexa'))
+    return record.letter_annotations['solexa_quality']
+
 
 if __name__ == '__main__':
-    import sys
-    filepath = sys.argv[1] if len(sys.argv) > 1 else 'reads.fastq.gz'
-    stats = calculate_quality_stats(filepath)
-    print(f'Quality stats for {filepath}:')
-    for k, v in stats.items():
-        print(f'  {k}: {v:.2f}' if isinstance(v, float) else f'  {k}: {v}')
+    phred33, phred64 = encoding_distinction()
+    print('Same quality bytes "IIIIDDDD" decoded two ways:')
+    print(f'  as Phred+33 (fastq):          {phred33}')
+    print(f'  as Phred+64 (fastq-illumina): {phred64}')
+    print(f'  every score differs by exactly {phred33[0] - phred64[0]} -> silent 31-shift if mislabeled')
+    print(f'\nSolexa ";;;;" decoded as fastq-solexa: {solexa_scores()} (odds score, negative allowed)')
+
+    records = list(SeqIO.parse(io.StringIO(overlap_fastq * 3), 'fastq'))
+    print(f'\nQuality stats: {quality_stats(records)}')
+    print(f'Per-position mean: {per_position_mean(records)}')

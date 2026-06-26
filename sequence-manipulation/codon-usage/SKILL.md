@@ -1,8 +1,8 @@
 ---
 name: bio-codon-usage
-description: Analyze codon usage, calculate CAI (Codon Adaptation Index), and examine synonymous codon bias using Biopython. Use when analyzing coding sequences for expression optimization or evolutionary analysis.
+description: Analyze codon usage and calculate CAI (Codon Adaptation Index), RSCU, and Nc with Biopython, and produce naive max-CAI codon-optimized sequences. Use when scoring a gene's codon bias against a host, optimizing a CDS for heterologous expression, or studying synonymous codon selection.
 tool_type: python
-primary_tool: Bio.SeqUtils.CodonUsage
+primary_tool: Bio.SeqUtils.CodonAdaptationIndex
 ---
 
 ## Version Compatibility
@@ -17,347 +17,238 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Codon Usage
 
-Analyze codon usage patterns and calculate codon adaptation metrics using Biopython.
+Analyze codon usage patterns, score adaptation to a host, and optimize coding sequences for expression.
 
 **"Analyze codon usage"** -> Count codons in a coding sequence, compute frequencies and bias metrics.
-- Python: `Counter` on 3-mers + `CodonAdaptationIndex` (BioPython)
+- Python: `Counter` on in-frame triplets + RSCU/Nc helpers (BioPython + standard library)
 
-**"Optimize codons for expression"** -> Replace codons with host-preferred synonymous codons using a preference table.
-- Python: custom mapping dict + `Seq()` (BioPython)
+**"Score this gene against a host"** -> Compute the Codon Adaptation Index from a reference set of highly expressed genes.
+- Python: `CodonAdaptationIndex(reference_seqs).calculate(query)` (BioPython)
+
+**"Optimize codons for expression"** -> Replace each codon with the host's single most-preferred synonymous codon.
+- Python: `CodonAdaptationIndex(reference_seqs).optimize(seq)` (BioPython)
+
+## The governing principle
+
+CAI is meaningless without an expression-biased reference. The relative-adaptiveness weights (w) must be built from the **highly expressed genes of the TARGET organism** (ribosomal proteins, elongation factors). A CAI computed against a whole-genome average, or against the wrong organism, is a number with no biological meaning. There is no bundled reference index in modern Biopython, so the reference set is always the caller's responsibility.
+
+Two silent traps dominate this skill:
+- **Out-of-frame input is silently corrupted.** `calculate` blindly steps `range(0, len, 3)` from position 0; it never checks the reading frame. A frame-shifted CDS returns a plausible CAI computed from garbage codons. Frame correctness is the caller's job (length divisible by 3, starts at the first base of codon 1).
+- **Naive max-CAI optimization can REDUCE expression.** `optimize()` is the textbook max-CAI output (single most-frequent codon per amino acid). It is blind to the translation ramp, 5' mRNA structure, GC extremes, cryptic regulatory elements, and codon-pair bias. It is a starting point to screen, never a final design. Failure is silent: correct protein, high CAI, poor expression.
+
+## CRITICAL API migration (Biopython 1.82)
+
+`Bio.SeqUtils.CodonUsage` and `Bio.SeqUtils.CodonUsageIndices` were **removed in Biopython 1.82**. Any code calling `generate_index()`, `set_cai_index()`, `cai_for_gene()`, `print_index()`, or importing `SharpEcoliIndex` raises ImportError on any modern install. The replacement is a redesigned class imported directly from `Bio.SeqUtils`:
+
+```python
+from Bio.SeqUtils import CodonAdaptationIndex  # NOT Bio.SeqUtils.CodonUsage (removed)
+```
+
+| Removed (<=1.81) | Replacement (>=1.82) |
+|------------------|----------------------|
+| `CodonAdaptationIndex()` then `generate_index(fasta)` | `CodonAdaptationIndex(reference_seqs, table=...)` constructor |
+| `cai.cai_for_gene(seq)` | `cai.calculate(seq)` |
+| `cai.set_cai_index(d)` | `cai.update(d)` (it is a dict subclass) |
+| `SharpEcoliIndex` (bundled) | none -- build from a supplied reference CDS set |
+| `cai.print_index()` | iterate the object: `for codon, w in cai.items()` |
 
 ## Required Imports
 
 ```python
+from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.SeqUtils import GC123
-from Bio.SeqUtils.CodonUsage import CodonAdaptationIndex
+from Bio.SeqUtils import CodonAdaptationIndex, GC123
+from Bio.Data.CodonTable import standard_dna_table
 from Bio.Data import CodonTable
 from collections import Counter
-```
-
-## Basic Codon Counting
-
-**Goal:** Tabulate codon frequencies in a coding sequence.
-
-**Approach:** Split the sequence into triplets from the reading frame start, then count with `Counter`.
-
-### Count Codons in Sequence
-
-```python
-from collections import Counter
-
-def count_codons(seq):
-    seq_str = str(seq).upper()
-    codons = [seq_str[i:i+3] for i in range(0, len(seq_str) - 2, 3)]
-    return Counter(codons)
-
-seq = Seq('ATGCGATCGATCGATCGTAA')
-codon_counts = count_codons(seq)
-```
-
-### Codon Frequencies (Relative)
-
-```python
-def codon_frequencies(seq):
-    counts = count_codons(seq)
-    total = sum(counts.values())
-    return {codon: count / total for codon, count in counts.items()}
 ```
 
 ## Codon Adaptation Index (CAI)
 
-**Goal:** Measure how well a gene's codon usage matches highly expressed genes in a target organism.
+**Goal:** Measure how closely a gene's codon usage matches the highly expressed genes of a host organism.
 
-**Approach:** Train a CAI index from a reference set of highly expressed genes, then score query sequences (0-1 scale, higher = better adapted).
-
-### Using CodonUsage Module
-
-```python
-from Bio.SeqUtils.CodonUsage import CodonAdaptationIndex
-
-# Create CAI calculator with reference set
-cai = CodonAdaptationIndex()
-
-# Generate index from highly expressed genes
-cai.generate_index('highly_expressed_genes.fasta')
-
-# Calculate CAI for a sequence
-seq = Seq('ATGCGATCGATCGATCGTAA')
-cai_value = cai.cai_for_gene(str(seq))
-print(f'CAI: {cai_value:.3f}')  # Range 0-1, higher = better adapted
-```
-
-### CAI with Custom Codon Index
-
-```python
-from Bio.SeqUtils.CodonUsage import CodonAdaptationIndex
-
-cai = CodonAdaptationIndex()
-
-# Set custom index (relative adaptiveness for each codon)
-custom_index = {
-    'TTT': 0.5, 'TTC': 1.0,  # Phe
-    'TTA': 0.1, 'TTG': 0.5, 'CTT': 0.3, 'CTC': 1.0, 'CTA': 0.1, 'CTG': 1.0,  # Leu
-    # ... define all 64 codons
-}
-cai.set_cai_index(custom_index)
-```
-
-## Synonymous Codon Usage
-
-**Goal:** Quantify bias in synonymous codon usage to detect selection or mutational pressure.
-
-**Approach:** Calculate RSCU — the ratio of observed to expected frequency assuming equal usage of synonymous codons. RSCU = 1.0 means no bias; >1 overused, <1 underused.
-
-### RSCU (Relative Synonymous Codon Usage)
-
-```python
-from Bio.Data import CodonTable
-
-def calculate_rscu(seq, table_id=1):
-    codon_table = CodonTable.unambiguous_dna_by_id[table_id]
-    counts = count_codons(seq)
-
-    # Group codons by amino acid
-    aa_to_codons = {}
-    for codon in counts:
-        if codon in codon_table.stop_codons:
-            continue
-        try:
-            aa = codon_table.forward_table[codon]
-            aa_to_codons.setdefault(aa, []).append(codon)
-        except KeyError:
-            continue
-
-    # Calculate RSCU for each codon
-    rscu = {}
-    for aa, codons in aa_to_codons.items():
-        total = sum(counts.get(c, 0) for c in codons)
-        n_synonymous = len(codons)
-        expected = total / n_synonymous if n_synonymous > 0 else 0
-        for codon in codons:
-            observed = counts.get(codon, 0)
-            rscu[codon] = observed / expected if expected > 0 else 0
-    return rscu
-```
-
-### Identify Rare Codons
-
-```python
-def find_rare_codons(seq, threshold=0.1):
-    freq = codon_frequencies(seq)
-    return {codon: f for codon, f in freq.items() if f < threshold}
-```
-
-### Codon Bias by Position (GC123)
-
-```python
-from Bio.SeqUtils import GC123
-
-seq = Seq('ATGCGATCGATCGATCGATCGATCGATCGTAA')
-gc_total, gc_pos1, gc_pos2, gc_pos3 = GC123(seq)
-
-print(f'Total GC: {gc_total:.1f}%')
-print(f'1st position GC: {gc_pos1:.1f}%')
-print(f'2nd position GC: {gc_pos2:.1f}%')
-print(f'3rd position GC: {gc_pos3:.1f}% (wobble position)')
-```
-
-## Codon Tables
-
-### Access Codon Tables
-
-```python
-from Bio.Data import CodonTable
-
-# Get standard table
-std_table = CodonTable.unambiguous_dna_by_id[1]
-
-# List all available tables
-for id, table in CodonTable.unambiguous_dna_by_id.items():
-    print(f'{id}: {table.names[0]}')
-```
-
-### Common Codon Tables
-
-| ID | Name | Organism |
-|----|------|----------|
-| 1 | Standard | Most organisms |
-| 2 | Vertebrate Mitochondrial | Human, mouse mito |
-| 4 | Mold Mitochondrial | Fungi, protozoa mito |
-| 5 | Invertebrate Mitochondrial | Insects, worms mito |
-| 11 | Bacterial/Plastid | E. coli, chloroplasts |
-
-### Codon Table Properties
-
-```python
-table = CodonTable.unambiguous_dna_by_id[1]
-
-print(f'Start codons: {table.start_codons}')
-print(f'Stop codons: {table.stop_codons}')
-
-# Forward table: codon -> amino acid
-print(table.forward_table['ATG'])  # 'M'
-
-# Back table: amino acid -> list of codons
-back_table = {}
-for codon, aa in table.forward_table.items():
-    back_table.setdefault(aa, []).append(codon)
-print(f'Leucine codons: {back_table["L"]}')
-```
-
-## Code Patterns
-
-### Full Codon Usage Report
-
-```python
-def codon_usage_report(seq, table_id=1):
-    from Bio.Data import CodonTable
-
-    table = CodonTable.unambiguous_dna_by_id[table_id]
-    counts = count_codons(seq)
-    total = sum(counts.values())
-
-    # Group by amino acid
-    aa_groups = {}
-    for codon, aa in table.forward_table.items():
-        aa_groups.setdefault(aa, []).append(codon)
-
-    report = {}
-    for aa, codons in sorted(aa_groups.items()):
-        aa_total = sum(counts.get(c, 0) for c in codons)
-        report[aa] = {
-            'total': aa_total,
-            'codons': {c: {'count': counts.get(c, 0),
-                          'freq': counts.get(c, 0) / aa_total if aa_total > 0 else 0}
-                      for c in codons}
-        }
-    return report
-```
-
-### Compare Codon Usage Between Sequences
-
-```python
-def compare_codon_usage(seq1, seq2):
-    freq1 = codon_frequencies(seq1)
-    freq2 = codon_frequencies(seq2)
-
-    all_codons = set(freq1.keys()) | set(freq2.keys())
-    comparison = {}
-    for codon in sorted(all_codons):
-        f1, f2 = freq1.get(codon, 0), freq2.get(codon, 0)
-        comparison[codon] = {'seq1': f1, 'seq2': f2, 'diff': f1 - f2}
-    return comparison
-```
-
-### Optimize Codons for Expression
-
-**Goal:** Replace codons with host-preferred synonymous alternatives to maximize protein expression.
-
-**Approach:** Map each amino acid to its most-preferred codon in the target host, then reconstruct the DNA sequence.
-
-```python
-def optimize_codons(protein_seq, preferred_codons):
-    '''Replace codons with preferred synonymous codons'''
-    optimized = []
-    for aa in str(protein_seq):
-        if aa in preferred_codons:
-            optimized.append(preferred_codons[aa])
-        else:
-            optimized.append('NNN')  # Unknown
-    return Seq(''.join(optimized))
-
-# E. coli preferred codons
-ecoli_preferred = {
-    'A': 'GCG', 'R': 'CGT', 'N': 'AAC', 'D': 'GAT', 'C': 'TGC',
-    'Q': 'CAG', 'E': 'GAA', 'G': 'GGT', 'H': 'CAC', 'I': 'ATT',
-    'L': 'CTG', 'K': 'AAA', 'M': 'ATG', 'F': 'TTC', 'P': 'CCG',
-    'S': 'TCT', 'T': 'ACC', 'W': 'TGG', 'Y': 'TAC', 'V': 'GTT',
-}
-```
-
-### Codon Usage from FASTA File
+**Approach:** Build a `CodonAdaptationIndex` from a reference set of highly expressed CDS (the constructor computes per-codon relative adaptiveness w), then score query sequences with `calculate` (0-1, higher = better adapted).
 
 ```python
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqUtils import CodonAdaptationIndex
+from Bio.Data.CodonTable import standard_dna_table
 
-def analyze_fasta_codon_usage(filename):
-    all_counts = Counter()
-    for record in SeqIO.parse(filename, 'fasta'):
-        all_counts.update(count_codons(record.seq))
+# Reference = highly expressed genes of the TARGET host (ribosomal proteins, EFs).
+# Parse a FASTA yourself; there is no bundled index. Pass str/Seq/SeqRecord.
+reference_seqs = list(SeqIO.parse('highly_expressed_genes.fasta', 'fasta'))
+cai = CodonAdaptationIndex(reference_seqs, table=standard_dna_table)
 
-    total = sum(all_counts.values())
-    return {codon: count / total for codon, count in all_counts.items()}
+query = Seq('ATGAAACGTGCTGAAGCTAAATAA')
+score = cai.calculate(query)   # 0-1; the query MUST be in-frame (see governing principle)
+print(f'CAI: {score:.3f}')
 ```
+
+`CodonAdaptationIndex` **is a dict subclass** -- the codon->w mapping is the object itself. Inspect or override weights directly:
+
+```python
+print(cai['GCT'])         # relative adaptiveness of Ala codon GCT
+cai.update({'GCT': 0.9})  # override a weight (replaces the old set_cai_index)
+```
+
+Verified behavior (Biopython >=1.82):
+- **ATG (Met) and TGG (Trp) are excluded** from CAI -- single-codon families, w is always 1.
+- **Stop codons are excluded.**
+- **Unobserved codons get w = 0.5** (Sharp & Li), softly down-weighted; no division-by-zero.
+- **Case-insensitive** -- both the constructor and `calculate` uppercase internally.
+- An illegal codon (non-ACGT) in a reference raises `ValueError`; an illegal or trailing-partial codon in a query raises `TypeError`. Out-of-frame input does NOT raise -- it is silently mis-scored.
+
+## RSCU = w is built from these ratios
+
+CAI weights come from RSCU. w_ij = RSCU_ij / RSCU_jmax = (codon count) / (count of the most-used synonymous codon in that family); CAI = exp((1/L) * sum ln w). RSCU itself = observed count / expected-if-uniform within a synonymous family (=1 no bias, >1 over-used, <1 under-used). RSCU normalizes away amino-acid composition, which is why w is built from RSCU ratios rather than raw frequencies.
+
+**Goal:** Quantify synonymous codon bias to detect translational selection or mutational pressure.
+
+**Approach:** Group codons by amino acid via the codon table, then divide each codon's observed count by the family mean.
+
+```python
+from Bio.Data import CodonTable
+from collections import Counter
+
+def count_codons(seq):
+    s = str(seq).upper()
+    return Counter(s[i:i+3] for i in range(0, len(s) - 2, 3))
+
+def calculate_rscu(seq, table_id=1):
+    '''RSCU per codon: observed / expected-if-uniform within its synonymous family'''
+    table = CodonTable.unambiguous_dna_by_id[table_id]
+    counts = count_codons(seq)
+    back_table = {}
+    for codon, aa in table.forward_table.items():
+        back_table.setdefault(aa, []).append(codon)
+    rscu = {}
+    for aa, codons in back_table.items():
+        total = sum(counts.get(c, 0) for c in codons)
+        expected = total / len(codons) if codons else 0
+        for codon in codons:
+            rscu[codon] = counts.get(codon, 0) / expected if expected > 0 else 0
+    return rscu
+```
+
+## Codon optimization for expression
+
+**Goal:** Generate a host-adapted CDS that preserves the protein.
+
+**Approach:** `optimize()` swaps each amino acid for the host's single most-preferred synonymous codon (max-CAI). Always confirm the protein is unchanged, then screen the design against the tradeoffs below.
+
+```python
+opt = cai.optimize(query, seq_type='DNA', strict=True)
+assert opt.translate() == query.translate()   # protein must be identical
+```
+
+`optimize(sequence, seq_type='DNA'|'RNA'|'protein', strict=True)`: `strict=True` **raises ValueError on a tie** (two equally-preferred codons, e.g. `'TTT and TTC are equally preferred.'`); `strict=False` warns and picks one.
+
+### Why naive max-CAI can HURT expression
+
+`optimize()` is blind to everything except single-codon frequency. Screen the output for:
+- **The translation ramp** (Tuller et al. 2010): a conserved profile of slow (rare) codons over the first ~30-50 codons spaces ribosomes; flattening it can lower yield and increase misfolding.
+- **5' mRNA secondary structure:** strong folding near the start codon impedes initiation. Minimize 5' free energy, sometimes against CAI.
+- **GC extremes:** swaps that push GC very high create stable hairpins; very low GC destabilizes.
+- **Cryptic elements created by swaps:** splice sites, internal Shine-Dalgarno/RBS, polyadenylation signals, restriction sites, AU-rich destabilizing elements -- silent in protein, corrupting in expression.
+- **Codon-pair bias:** decoding efficiency depends on adjacent codon pairs; CAI scores single codons only.
+
+### tAI -- the supply-side alternative
+
+The tRNA Adaptation Index (dos Reis et al. 2004) weights each codon by **tRNA gene copy number** (a proxy for tRNA abundance) scaled by wobble-pairing efficiency at the third position. Where tRNA copy number is a good abundance proxy, tAI tracks expression and elongation speed better than CAI. tAI is **not in Biopython** -- use the R `tAI` package or reimplement.
+
+## Synonymous bias by other metrics
 
 ### Effective Number of Codons (Nc)
 
-A measure of codon bias (lower = more biased, range 20-61):
+A reference-free bias measure (lower = more biased; range ~20 fully biased to 61 unbiased). The helper below is a simplified per-amino-acid approximation: Wright's published estimator averages the homozygosity F WITHIN each degeneracy class (2-, 3-, 4-, 6-fold) before combining as `Nc = 2 + 9/F2 + 1/F3 + 5/F4 + 3/F6`. The endpoints agree, but intermediate values will not match codonW/standard Nc when families in a class have unequal F. For comparable Nc, average F by class per Wright (1990) or use codonW.
 
 ```python
 import math
+from Bio.Data import CodonTable
 
 def effective_nc(seq, table_id=1):
-    from Bio.Data import CodonTable
     table = CodonTable.unambiguous_dna_by_id[table_id]
     counts = count_codons(seq)
-
-    # Group by degeneracy class
     aa_groups = {}
     for codon, aa in table.forward_table.items():
         aa_groups.setdefault(aa, []).append(codon)
-
-    # Calculate F for each amino acid
     nc_sum = 0
     for aa, codons in aa_groups.items():
         n = sum(counts.get(c, 0) for c in codons)
         if n <= 1:
             continue
-        pi_sq_sum = sum((counts.get(c, 0) / n) ** 2 for c in codons)
-        F = (n * pi_sq_sum - 1) / (n - 1)
+        pi_sq = sum((counts.get(c, 0) / n) ** 2 for c in codons)
+        F = (n * pi_sq - 1) / (n - 1)
         nc_sum += 1 / F if F > 0 else len(codons)
-
     return nc_sum if nc_sum > 0 else 61
 ```
 
-## Property Reference
+### GC at codon positions (GC123)
 
-| Metric | Range | Interpretation |
-|--------|-------|----------------|
-| CAI | 0-1 | Higher = better adapted to host |
-| RSCU | 0-N | 1.0 = no bias, >1 = overused, <1 = underused |
-| Nc | 20-61 | Lower = more biased |
-| GC3 | 0-100% | GC at wobble position |
+```python
+from Bio.SeqUtils import GC123
+
+gc_total, gc_pos1, gc_pos2, gc_pos3 = GC123(seq)  # four PERCENTAGES (0-100)
+print(f'GC3 (wobble): {gc_pos3:.1f}%')             # correlates with genome GC
+```
+
+GC123 returns percentages (0-100), unlike `gc_fraction` which returns 0-1. GC3 at the wobble position usually tracks overall genome GC content.
+
+## Codon tables
+
+```python
+from Bio.Data import CodonTable
+
+table = CodonTable.unambiguous_dna_by_id[1]   # standard genetic code
+print(table.start_codons, table.stop_codons)
+print(table.forward_table['ATG'])             # 'M'
+```
+
+| ID | Name | Organism |
+|----|------|----------|
+| 1 | Standard | Most nuclear genomes |
+| 2 | Vertebrate Mitochondrial | Human/mouse mito |
+| 4 | Mold/Protozoan Mitochondrial | Fungi, protozoa mito |
+| 5 | Invertebrate Mitochondrial | Insects, worms mito |
+| 11 | Bacterial/Plastid | E. coli, chloroplasts |
+
+Pass the matching `table=` to `CodonAdaptationIndex` when scoring mitochondrial or bacterial genes.
+
+## Metric reference
+
+| Metric | Range | Reference needed | Interpretation |
+|--------|-------|------------------|----------------|
+| CAI | 0-1 | Highly expressed genes of the host | Higher = better adapted |
+| RSCU | 0-N | None (within-sequence) | 1 = no bias, >1 over-used |
+| Nc | ~20-61 | None | Lower = more biased |
+| GC3 | 0-100% | None | GC at wobble position |
+| tAI | 0-1 | tRNA gene copy numbers | Higher = better tRNA supply |
 
 ## Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `KeyError` | Non-standard codon | Handle N-containing codons |
-| Wrong counts | Sequence not in frame | Ensure length is multiple of 3 |
-| No index set | Called CAI without training | Call `generate_index()` first |
-
-## Decision Tree
-
-```
-Need to analyze codon usage?
-├── Count codon frequencies?
-│   └── Use Counter on 3-mers
-├── Calculate adaptation to host?
-│   └── Use CodonAdaptationIndex (CAI)
-├── Identify synonymous bias?
-│   └── Calculate RSCU
-├── Check wobble position bias?
-│   └── Use GC123()
-├── Measure overall bias?
-│   └── Calculate Nc (effective number of codons)
-└── Optimize for expression?
-    └── Replace with preferred synonymous codons
-```
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `ImportError: cannot import name 'CodonUsage'` | `Bio.SeqUtils.CodonUsage` removed in 1.82 | `from Bio.SeqUtils import CodonAdaptationIndex` |
+| `AttributeError: 'CodonAdaptationIndex' object has no attribute 'generate_index'` | Old API on new class | Build in the constructor; score with `calculate` |
+| Plausible CAI from a frame-shifted CDS | Out-of-frame input silently mis-scored | Confirm frame: length divisible by 3, starts at codon 1 |
+| CAI near 1 for every gene | Reference set is whole-genome, not expression-biased | Use only highly expressed genes of the target host |
+| `ValueError: ... equally preferred` | `optimize(strict=True)` hit a tie | Pass `strict=False`, or curate weights with `update` |
+| High CAI but poor expression in the lab | Max-CAI ignores ramp / 5' structure / cryptic sites | Screen `optimize()` output; treat it as a draft |
 
 ## Related Skills
 
-- transcription-translation - Translate sequences and understand codon tables
-- sequence-properties - GC123 for wobble position GC content
-- sequence-io/read-sequences - Parse CDS sequences from GenBank files
-- database-access/entrez-fetch - Fetch reference gene sets from NCBI for CAI training
+- transcription-translation - Translate CDS and select the correct codon table
+- sequence-properties - GC123 and per-position GC content
+- sequence-io/read-sequences - Parse reference CDS from FASTA/GenBank for CAI training
+- database-access/entrez-fetch - Fetch highly expressed gene sets from NCBI for CAI references
+
+## References
+
+Sharp PM, Li WH (1987) The codon adaptation index -- a measure of directional synonymous codon usage bias, and its potential applications. Nucleic Acids Res 15(3):1281-1295.
+
+dos Reis M, Savva R, Wernisch L (2004) Solving the riddle of codon usage preferences: a test for translational selection. Nucleic Acids Res 32(17):5036-5044.
+
+Tuller T, Carmi A, Vestsigian K, Navon S, Dorfan Y, Zaborske J, Pan T, Dahan O, Furman I, Pilpel Y (2010) An evolutionarily conserved mechanism for controlling the efficiency of protein translation. Cell 141(2):344-354.
+
+Wright F (1990) The 'effective number of codons' used in a gene. Gene 87(1):23-29.

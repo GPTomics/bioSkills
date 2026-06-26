@@ -1,6 +1,6 @@
 ---
 name: bio-motif-search
-description: Find patterns, motifs, and subsequences in biological sequences using Biopython. Use when searching for transcription factor binding sites, regulatory elements, or any sequence pattern. For restriction enzyme analysis, use the restriction-analysis skill.
+description: Find sequence motifs, degenerate IUPAC patterns, and transcription-factor binding sites in DNA/RNA using Biopython and regex, including position weight matrix (PWM/PSSM) scoring. Use when locating regulatory elements, counting overlapping motif occurrences, scanning for binding-site matches above a significance threshold, or reading motif matrices from JASPAR/MEME/TRANSFAC files. For restriction enzyme sites, use restriction-analysis/restriction-sites.
 tool_type: python
 primary_tool: Bio.motifs
 ---
@@ -17,280 +17,160 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Motif Search
 
-**"Search for a sequence motif or binding site pattern"** -> Scan sequences for patterns using IUPAC ambiguity codes, regex, or position weight matrices to locate transcription factor binding sites, regulatory elements, or custom motifs.
-- Python: `Bio.motifs` for PWM scanning, `re` for regex pattern matching
+**"Search for a sequence motif or binding-site pattern"** -> Scan sequences for a fixed motif, a degenerate IUPAC consensus, or a probabilistic PWM, on one or both strands, and locate transcription-factor binding sites, regulatory elements, or custom patterns.
+- Python: `Bio.SeqUtils.nt_search` (IUPAC + overlaps), `re` (regex/lookahead), `Bio.motifs` (PWM/PSSM scoring + matrix file parsing)
 
-Find patterns and motifs in biological sequences using Biopython and regex.
+## The Governing Principle
 
-## Required Imports
+Two silent failures dominate motif searching; both return a plausible-but-wrong answer with no error:
 
-```python
-from Bio.Seq import Seq
-from Bio import motifs
-import re
-```
+1. **Overlapping matches are dropped.** `str.count`, `str.find`, and `re.findall` consume the string left to right, so a motif that overlaps its own next occurrence is undercounted. Target `AAGCGCGCGAA`, motif `GCGC`: `str.count` returns 1, the true answer is 2 (starts at positions 2 and 4). Use a zero-width lookahead `re.finditer(r'(?=(GCGC))', target)` or `Bio.SeqUtils.nt_search`, both of which report overlaps.
+2. **A PSSM score is a likelihood in bits, not a probability.** `pssm.calculate` returns log2-odds versus background. A "high-looking" threshold chosen by eye is arbitrary and non-reproducible; derive the threshold from the score distribution at a chosen false-positive rate. And a PSSM scans only the strand it is given, so scoring just the forward strand silently misses roughly half of real sites on double-stranded DNA.
 
-## Core Methods
+## Which Approach for Which Question
 
-### find() - First Occurrence
+| Question | Tool |
+|----------|------|
+| Position of first exact hit | `str.find` / `Seq.find` (returns -1 if absent) |
+| All exact hits, possibly overlapping | `re.finditer(r'(?=(motif))', seq)` |
+| Degenerate IUPAC consensus (e.g. `GATNNTC`), with overlaps | `Bio.SeqUtils.nt_search(seq, motif)` |
+| Flexible / repeat / variable-spacer pattern | `re` with explicit character classes and quantifiers |
+| Graded match to many aligned sites (binding sites) | `Bio.motifs` PWM -> PSSM, score and threshold |
+| Match significance / false-positive control | `pssm.distribution(...).threshold_fpr(fpr)` |
+| Restriction enzyme recognition sites | restriction-analysis/restriction-sites |
 
-```python
-seq = Seq('ATGCGAATTCGATCGAATTCGATC')
-pos = seq.find('GAATTC')  # Returns 4 (first position)
-```
+## IUPAC Degenerate Motifs
 
-Returns -1 if not found.
+A degenerate motif expands each ambiguity code to a regex character class:
 
-### count() - Count Occurrences
+| Code | Class | Code | Class | Code | Class |
+|------|-------|------|-------|------|-------|
+| N | `[ACGT]` | R | `[AG]` | Y | `[CT]` |
+| W | `[AT]` | S | `[GC]` | K | `[GT]` |
+| M | `[AC]` | B | `[CGT]` | D | `[AGT]` |
+| H | `[ACT]` | V | `[ACG]` | | |
 
-```python
-seq = Seq('ATGCGAATTCGATCGAATTCGATC')
-n = seq.count('GAATTC')  # Returns 2
-```
-
-### find() with Start Position
-
-```python
-seq = Seq('ATGCGAATTCGATCGAATTCGATC')
-first = seq.find('GAATTC')        # 4
-second = seq.find('GAATTC', 5)    # 14 (search from position 5)
-```
-
-## Code Patterns
-
-### Find All Occurrences
+B, D, H, V each exclude A, C, G, T respectively (the code preceding the one they drop is a mnemonic).
 
 ```python
-def find_all(seq, pattern):
-    pattern = str(pattern)
-    seq_str = str(seq)
-    positions = []
-    pos = seq_str.find(pattern)
-    while pos != -1:
-        positions.append(pos)
-        pos = seq_str.find(pattern, pos + 1)
-    return positions
-
-seq = Seq('ATGCGAATTCGATCGAATTCGATC')
-positions = find_all(seq, 'GAATTC')  # [4, 14]
-```
-
-### Search Both Strands
-
-```python
-def find_both_strands(seq, pattern):
-    results = []
-    for pos in find_all(seq, pattern):
-        results.append(('+', pos))
-    rc = seq.reverse_complement()
-    for pos in find_all(rc, pattern):
-        results.append(('-', len(seq) - pos - len(pattern)))
-    return results
-```
-
-### Regex Pattern Search
-
-For ambiguous or flexible patterns:
-
-```python
-def regex_search(seq, pattern):
-    seq_str = str(seq)
-    return [(m.start(), m.group()) for m in re.finditer(pattern, seq_str)]
-
-# Find all ATG start codons
-matches = regex_search(seq, 'ATG')
-
-# Find TATA box variants (TATAAA with possible variations)
-matches = regex_search(seq, 'TATA[AT]A[AT]')
-```
-
-### IUPAC Ambiguity Pattern
-
-```python
-IUPAC_DNA = {
-    'R': '[AG]', 'Y': '[CT]', 'S': '[GC]', 'W': '[AT]',
-    'K': '[GT]', 'M': '[AC]', 'B': '[CGT]', 'D': '[AGT]',
-    'H': '[ACT]', 'V': '[ACG]', 'N': '[ACGT]'
-}
+IUPAC_DNA = {'N': '[ACGT]', 'R': '[AG]', 'Y': '[CT]', 'W': '[AT]', 'S': '[GC]',
+             'K': '[GT]', 'M': '[AC]', 'B': '[CGT]', 'D': '[AGT]', 'H': '[ACT]', 'V': '[ACG]'}
 
 def iupac_to_regex(pattern):
-    regex = ''
-    for char in pattern:
-        regex += IUPAC_DNA.get(char, char)
-    return regex
+    return ''.join(IUPAC_DNA.get(base, base) for base in pattern)
 
-# Search for pattern with ambiguous bases
-pattern = 'GATNNTC'  # N = any base
-regex = iupac_to_regex(pattern)  # 'GAT[ACGT][ACGT]TC'
-matches = regex_search(seq, regex)
+# 'GATNNTC' -> 'GAT[ACGT][ACGT]TC'
 ```
 
-### Find ORFs (Start to Stop)
+`Bio.SeqUtils.nt_search` expands IUPAC ambiguity in the query motif automatically and reports overlapping hits, so it is the shortest correct path for a degenerate consensus.
 
-```python
-def find_orfs(seq, start='ATG', stops=['TAA', 'TAG', 'TGA'], min_length=30):
-    seq_str = str(seq)
-    orfs = []
-    start_positions = find_all(seq, start)
-    for start_pos in start_positions:
-        for frame_offset in range(3):
-            if (start_pos - frame_offset) % 3 == 0:
-                for stop in stops:
-                    stop_pos = start_pos + 3
-                    while stop_pos <= len(seq) - 3:
-                        codon = seq_str[stop_pos:stop_pos + 3]
-                        if codon == stop:
-                            if stop_pos - start_pos >= min_length:
-                                orfs.append((start_pos, stop_pos + 3, seq[start_pos:stop_pos + 3]))
-                            break
-                        stop_pos += 3
-                break
-    return orfs
-```
+## Overlapping Matches (the count trap)
 
-### Find Repeats
+**Goal:** Report every start position of a motif, including self-overlapping occurrences.
 
-```python
-def find_tandem_repeats(seq, unit_length, min_copies=2):
-    seq_str = str(seq)
-    repeats = []
-    for i in range(len(seq) - unit_length * min_copies + 1):
-        unit = seq_str[i:i + unit_length]
-        copies = 1
-        pos = i + unit_length
-        while pos <= len(seq) - unit_length and seq_str[pos:pos + unit_length] == unit:
-            copies += 1
-            pos += unit_length
-        if copies >= min_copies:
-            repeats.append((i, unit, copies))
-    return repeats
-
-seq = Seq('ATGCAGCAGCAGCAGTTT')
-repeats = find_tandem_repeats(seq, 3, 2)  # Find CAG repeats
-```
-
-## Bio.motifs Module
-
-### Create Motif from Instances
-
-```python
-from Bio import motifs
-from Bio.Seq import Seq
-
-instances = [Seq('TACAA'), Seq('TACGA'), Seq('TACTA'), Seq('TGCAA')]
-m = motifs.create(instances)
-```
-
-### Motif Properties
-
-```python
-# Consensus sequences
-m.consensus              # Most common base at each position
-m.degenerate_consensus   # IUPAC degenerate consensus
-m.anticonsensus          # Least likely sequence
-
-# Counts and matrices
-m.counts                 # Position frequency matrix (counts)
-pwm = m.counts.normalize(pseudocounts=0.5)  # Position weight matrix
-pssm = pwm.log_odds()    # Position-specific scoring matrix
-```
-
-### Information Content
-
-```python
-# Per-position information content
-pwm = m.counts.normalize(pseudocounts=0.5)
-pssm = pwm.log_odds()
-
-# Mean information content (bits)
-mean_ic = pssm.mean()
-
-# Score range
-max_score = pssm.max
-min_score = pssm.min
-
-# Relative entropy
-print(f'Mean IC: {mean_ic:.3f} bits')
-print(f'Max score: {max_score:.3f}')
-print(f'Min score: {min_score:.3f}')
-```
-
-### PSSM Search
-
-**Goal:** Scan a sequence for matches to a position-specific scoring matrix (motif model) above a significance threshold.
-
-**Approach:** Build a PSSM from a normalized position weight matrix, then search the target sequence (optionally both strands).
+**Approach:** Use a zero-width lookahead so the regex engine never consumes the matched text; recover the match string from the inner capture group. For IUPAC motifs, prefer `nt_search`, which both expands ambiguity and reports overlaps.
 
 **Reference (BioPython 1.83+):**
 ```python
-seq = Seq('ATGCTACAAGCTACGATACTA')
+import re
+from Bio.SeqUtils import nt_search
 
-for position, score in pssm.search(seq, threshold=3.0):
-    match = seq[position:position + len(m.consensus)]
-    print(f'Position {position}: {match} (score: {score:.2f})')
+target = 'AAGCGCGCGAA'
 
-for position, score in pssm.search(seq, threshold=3.0, both=True):
-    print(f'Position {position}: score {score:.2f}')
+starts = [match.start(1) for match in re.finditer(r'(?=(GCGC))', target)]  # [2, 4]
+hits = [(match.start(1), match.group(1)) for match in re.finditer(r'(?=([AG]CG[CT]))', target)]
+
+result = nt_search(target, 'GCGC')  # ['GCGC', 2, 4]
+pattern, positions = result[0], result[1:]
 ```
 
-### Calculate Threshold from Distribution
+`nt_search` returns a heterogeneous list: `result[0]` is the (expanded) pattern string and `result[1:]` are the 0-based start positions. When there are no hits it returns just `[pattern]` (length 1), so test `len(result) > 1` before indexing rather than truthiness.
+
+## Bio.motifs PWM / PSSM Pipeline
+
+**Goal:** Build a probabilistic model from a set of aligned binding sites and score a target sequence for graded matches.
+
+**Approach:** Create a motif from instances or a matrix file, set pseudocounts and background, read the recomputed PSSM, then scan. The count matrix `m.counts['A', 0]` is indexed `[base, position]`.
+
+**Reference (BioPython 1.83+):**
+```python
+from Bio import motifs
+from Bio.Seq import Seq
+
+m = motifs.create([Seq('TACAA'), Seq('TACGA'), Seq('TACTA'), Seq('TGCAA')])  # alphabet defaults to ACGT
+
+m.pseudocounts = 0.5        # set BEFORE reading m.pssm (see trap below)
+m.background = None         # None gives uniform 0.25; or pass a dict of base frequencies
+
+pwm = m.pwm                 # normalized frequencies (property)
+pssm = m.pssm               # log2-odds vs background (property; RECOMPUTED on each access)
+
+m.consensus                 # most frequent base per column
+m.degenerate_consensus      # IUPAC-degenerate consensus
+```
+
+`m.counts.normalize(pseudocounts=0.5)` returns a position weight matrix and `pwm.log_odds()` returns a PSSM; these are equivalent to reading `m.pwm` / `m.pssm` after setting `m.pseudocounts`.
+
+### The Pseudocount / -inf Trap (silent)
+
+A column where some base has count 0 gives that base frequency 0 and a log-odds of negative infinity; any target carrying that base at that position then scores `-inf` and is unmatchable. This is common with short motifs or few instances. Setting `m.pseudocounts` (a flat 0.5, or sqrt(N) with N the number of instances; scalar or per-base dict) makes every cell finite by shrinking toward background.
+
+Critically, `m.pssm` is recomputed from `m.pseudocounts` and `m.background` on every access. Set both BEFORE reading `m.pssm` (or `pwm.log_odds()`), or the matrix is silently wrong.
+
+### Score, Threshold, and P-value
+
+`pssm.calculate(seq)` returns the log2-odds score in bits for each window (a relative likelihood, not a probability). `pssm.search(seq, threshold=...)` yields `(position, score)` pairs at or above the threshold.
+
+To convert a bit score into a false-positive rate, build the null distribution and ask it for a threshold:
 
 ```python
-# Calculate score distribution from PSSM
-sd = pssm.distribution()
-
-# Get threshold for specific false positive rate
-threshold = sd.threshold_fpr(0.01)  # 1% FPR
-
-# Get threshold for specific false negative rate
-threshold = sd.threshold_fnr(0.1)   # 10% FNR
-
-# Balanced threshold
-threshold = sd.threshold_balanced(1000)  # For sequence of length 1000
+dist = pssm.distribution(background=m.background, precision=10**4)
+threshold = dist.threshold_fpr(0.01)        # 1% false-positive rate
+threshold = dist.threshold_fnr(0.1)         # 10% false-negative rate
+threshold = dist.threshold_balanced(1000)   # rate_proportion = FNR:FPR ratio (FNR = FPR x rate_proportion), NOT a sequence length; default 1.0 gives FPR=FNR
 ```
 
-## Reading Motif Files
+Choosing a threshold "because it looks high" is the classic non-reproducible error. Higher `precision` gives finer threshold resolution at the cost of memory.
 
-### JASPAR Format
+### Both Strands
+
+`pssm.calculate` scans only the strand it is handed. `pssm.search` defaults to `both=True`, scanning both strands in one call; with `both=True` a hit at negative position `p` lies on the reverse strand and its forward-coordinate start is `len(seq) + p`. To handle strands separately, set `both=False` and scan the reverse-complemented PSSM explicitly:
+
+```python
+combined = list(pssm.search(seq, threshold=3.0))  # both strands; reverse hits have NEGATIVE positions
+
+rc_pssm = pssm.reverse_complement()
+forward = list(pssm.search(seq, threshold=3.0, both=False))
+reverse = list(rc_pssm.search(seq, threshold=3.0, both=False))
+```
+
+## Reading Motif Matrix Files
+
+`motifs.read(handle, fmt)` reads exactly one motif; `motifs.parse(handle, fmt)` returns an iterator over many. The format string must match the file layout exactly.
+
+| `fmt` string | File type / source |
+|--------------|--------------------|
+| `jaspar` | multi-motif JASPAR PFM collection (use `parse`) |
+| `pfm` | single JASPAR-style PFM (use `read`) |
+| `pfm-four-columns` | CIS-BP, HOMER, HOCOMOCO (A C G T as columns) |
+| `pfm-four-rows` | ScerTF, YeTFaSCo (A C G T as rows) |
+| `sites` | JASPAR sites file (use `read`) |
+| `meme` | MEME program output (use `parse`) |
+| `minimal` | MEME minimal text format |
+| `transfac` | TRANSFAC matrices |
+| `mast`, `alignace`, `clusterbuster`, `xms` | respective tool outputs |
+
+`'cisbp'`, `'homer'`, and `'hocomoco'` are NOT valid strings; those databases use `pfm-four-columns`. The four-columns versus four-rows distinction is the most common mix-up: a 4-column matrix read as `pfm-four-rows` parses without error but produces a meaningless transposed motif.
 
 ```python
 from Bio import motifs
 
-with open('motif.jaspar') as f:
-    m = motifs.read(f, 'jaspar')
-print(f'Name: {m.name}')
-print(f'Matrix ID: {m.matrix_id}')
-print(m.counts)
-```
+with open('collection.jaspar') as handle:
+    for m in motifs.parse(handle, 'jaspar'):
+        print(m.matrix_id, m.name, m.consensus)
 
-### MEME Format
-
-```python
-with open('meme.txt') as f:
-    record = motifs.parse(f, 'meme')
-for m in record:
-    print(f'{m.name}: {m.consensus}')
-```
-
-### TRANSFAC Format
-
-```python
-with open('motif.transfac') as f:
-    record = motifs.parse(f, 'transfac')
-for m in record:
-    print(f'{m.name}: {m.consensus}')
-```
-
-### Write Motifs
-
-```python
-# Write to JASPAR format
-with open('output.jaspar', 'w') as f:
-    f.write(m.format('jaspar'))
-
-# Write to TRANSFAC format
-with open('output.transfac', 'w') as f:
-    f.write(m.format('transfac'))
+m.format('jaspar')      # serialize back out
+m.format('transfac')
 ```
 
 ## Common Motif Patterns
@@ -298,53 +178,32 @@ with open('output.transfac', 'w') as f:
 | Motif | Pattern | Description |
 |-------|---------|-------------|
 | Start codon | `ATG` | Translation initiation |
-| Stop codons | `TAA\|TAG\|TGA` | Translation termination |
 | Kozak | `[AG]CCATGG` | Eukaryotic translation initiation |
-| TATA box | `TATA[AT]A[AT]` | Promoter element |
-| GC box | `GGGCGG` | Promoter element (Sp1) |
+| TATA box | `TATA[AT]A[AT]` | Core promoter element |
+| GC box (Sp1) | `GGGCGG` | Promoter element |
 | CAAT box | `CCAAT` | Promoter element |
 | Poly-A signal | `AATAAA` | mRNA polyadenylation |
-| E-box | `CA[ACGT]{2}TG` | bHLH TF binding |
-| CpG island | High CG density | Promoter regions |
+| E-box (bHLH) | `CA[ACGT]{2}TG` | bHLH TF binding |
 
 ## Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| No matches found | Case mismatch | Use `.upper()` on both |
-| Missing matches | Pattern on opposite strand | Search reverse complement too |
-| `TypeError` | Mixing Seq and string | Use `str()` conversion |
-| `ValueError` parsing motif | Wrong format specified | Check file format |
-
-## Decision Tree
-
-```
-Need to find patterns in sequence?
-├── Exact match?
-│   ├── Just need position of first? -> seq.find()
-│   ├── Need count? -> seq.count()
-│   └── Need all positions? -> loop with find()
-├── Fuzzy/ambiguous pattern?
-│   └── Use regex with re.finditer()
-├── IUPAC pattern?
-│   └── Convert to regex, then search
-├── Both strands?
-│   └── Search original and reverse_complement
-├── Probabilistic (PWM/PSSM)?
-│   └── Use Bio.motifs
-│       ├── Create from instances -> motifs.create()
-│       ├── Read from file -> motifs.read() / parse()
-│       ├── Get consensus -> m.consensus, m.degenerate_consensus
-│       ├── Search sequence -> pssm.search()
-│       └── Calculate threshold -> distribution.threshold_fpr()
-└── Restriction sites?
-    └── Use restriction-analysis skill (Bio.Restriction)
-```
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Count is too low | `str.count`/`re.findall` skip overlaps | `re.finditer(r'(?=(motif))', seq)` or `nt_search` |
+| `IndexError` on `nt_search` result | No hits returns `[pattern]` (length 1) | Test `len(result) > 1` before reading `result[1:]` |
+| Every target scores `-inf` | Count-0 cell gives -inf log-odds | Set `m.pseudocounts` (0.5 or sqrt(N)) before reading `m.pssm` |
+| PSSM scores look wrong | Pseudocounts/background set after reading `m.pssm` | Set them first; `m.pssm` is recomputed on each access |
+| Roughly half of sites missed | Only forward strand scanned | Score `pssm.reverse_complement()` or pass `both=True` |
+| Threshold not reproducible | Cutoff chosen by eye | `pssm.distribution(...).threshold_fpr(fpr)` |
+| `ValueError` parsing matrix | Wrong `fmt` (4-column vs 4-row, `jaspar` vs `pfm`) | Match `fmt` to the actual layout |
+| No matches | Case or strand mismatch | `.upper()` both; check reverse complement |
 
 ## Related Skills
 
 - seq-objects - Create Seq objects for searching
-- reverse-complement - Search both strands for motifs
-- sequence-io/filter-sequences - Filter sequences that contain specific motifs
-- restriction-analysis/restriction-sites - For restriction enzyme site searching
-- database-access/entrez-fetch - Download motif databases from NCBI/JASPAR
+- reverse-complement - Reverse-complement the target to search the opposite strand
+- transcription-translation - ORF and codon-context motifs in coding sequences
+- sequence-properties - GC content and per-sequence properties around hits
+- restriction-analysis/restriction-sites - Restriction enzyme recognition sites
+- chip-seq/motif-analysis - De novo motif discovery and enrichment in peak sets
+- database-access/entrez-fetch - Download motif matrices from JASPAR/NCBI

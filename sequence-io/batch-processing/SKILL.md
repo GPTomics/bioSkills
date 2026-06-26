@@ -1,13 +1,13 @@
 ---
 name: bio-batch-processing
-description: Process multiple sequence files in batch using Biopython. Use when working with many files, merging/splitting sequences, or automating file operations across directories.
+description: Process many sequence files in batch (count, merge, split, convert, summarize) with memory-safe streaming and on-disk indexing using Biopython, pysam, or pyfastx. Use when iterating over a directory of FASTA/FASTQ files, merging or splitting datasets, building random access across many or huge files, or automating per-file operations without exhausting RAM.
 tool_type: python
 primary_tool: Bio.SeqIO
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+
+Reference examples tested with: BioPython 1.83+ (alternatives: pysam 0.22+, pyfastx 2.0+)
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,10 +17,29 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Batch Processing
 
-**"Process all my sequence files in a directory"** -> Iterate, merge, split, convert, and generate summary statistics across multiple sequence files.
-- Python: `SeqIO.parse()`, `Path.glob()` (BioPython, pathlib)
+**"Process all my sequence files in a directory"** -> Iterate, merge, split, convert, and summarize across multiple sequence files without loading everything into RAM.
+- Python: `SeqIO.parse()` + `Path.glob()` (BioPython, pathlib) for streaming
+- Python: `SeqIO.index_db()` (BioPython) for persistent random access across many files
+- Python: `pysam.FastxFile` (pysam) or `pyfastx` for fast iteration over huge FASTQ
 
-Process multiple sequence files efficiently using Biopython.
+## The Governing Principle
+
+`list(SeqIO.parse(...))` materializes every `SeqRecord` in RAM at once. On a directory of large files this causes OOM. `SeqIO.parse()` itself returns a generator that holds one record at a time, so streaming is the default for batch work: iterate, never `list()`, unless the file is known-small and needs multiple passes.
+
+For random access across many or huge files, do not load them. `SeqIO.index_db()` builds one on-disk SQLite index over a list of files that persists across sessions. That, not `to_dict()`, is the batch random-access tool.
+
+For tens of millions of reads, `SeqIO` is slow by design: it constructs a full `SeqRecord` (a `Seq`, id/name/description, and a `letter_annotations` dict of per-base qualities) for every read. When the job is plain linear iteration, a thinner reader wins.
+
+## Choosing a Reader
+
+| Reader | Per-record object | Random access | Best for |
+|--------|-------------------|---------------|----------|
+| `Bio.SeqIO.parse` | full `SeqRecord` (rich API) | no (one-pass generator) | small/medium data needing the Biopython record API |
+| `Bio.SeqIO.index_db` | reparsed `SeqRecord` on access | yes, on-disk SQLite, multi-file, persists | batch random access across many/huge files |
+| `pysam.FastxFile` | thin entry (`.name/.sequence/.comment/.quality`) | no (linear, gzip sequential) | fast linear iteration over huge FASTQ |
+| `pyfastx` | tuple/object via SQLite index | yes, into plain or gzipped FASTA/Q | random access + indexed reuse of gzipped files |
+
+`pysam.FastxFile` exposes `.name`, `.sequence`, `.comment`, `.quality`, and `.get_quality_array()` (offset-removed int Phred, but it always subtracts 33, so it is correct only for Phred+33 data - for legacy Phred+64/Solexa stay on `SeqIO` with the explicit variant string). `pyfastx` builds a persistent `.fxi`/`.fqi` SQLite index and reads random records out of plain or gzipped files without re-bgzipping.
 
 ## Required Imports
 
@@ -29,52 +48,79 @@ from pathlib import Path
 from Bio import SeqIO
 ```
 
-## Process Multiple Files
+## Iterate and Count Across Files
 
-### Iterate Over Files in Directory
+Count by iterating, never by building a list. `len(list(SeqIO.parse(f)))` loads the whole file; `sum(1 for _ in ...)` holds one record at a time.
+
 ```python
-from pathlib import Path
-
 for fasta_file in Path('data/').glob('*.fasta'):
-    records = list(SeqIO.parse(fasta_file, 'fasta'))
-    print(f'{fasta_file.name}: {len(records)} sequences')
+    count = sum(1 for _ in SeqIO.parse(fasta_file, 'fasta'))
+    print(f'{fasta_file.name}: {count} sequences')
 ```
 
-### Process All FASTQ Files
-```python
-for fq_file in Path('.').glob('*.fastq'):
-    count = sum(1 for _ in SeqIO.parse(fq_file, 'fastq'))
-    print(f'{fq_file.name}: {count} reads')
-```
+Recursive search uses `rglob`:
 
-### Recursive File Search
 ```python
 for gb_file in Path('data/').rglob('*.gb'):
     print(f'Found: {gb_file}')
 ```
 
-## Merge Files
+For huge FASTQ where only sequence content matters, skip `SeqRecord` construction entirely:
 
-### Merge All FASTA Files
+```python
+import pysam
+
+with pysam.FastxFile('reads.fastq.gz') as fh:
+    count = sum(1 for _ in fh)
+```
+
+## Random Access Across Many Files
+
+**Goal:** Look up records by id across a whole directory of files, repeatedly, without holding them in RAM.
+
+**Approach:** Build one persistent on-disk SQLite index over the file list with `index_db`. Reopen later with just the index path; lookups reparse single records from disk on demand.
+
+**Reference (BioPython 1.83+):**
+
 ```python
 from pathlib import Path
+from Bio import SeqIO
 
+files = [str(p) for p in Path('data/').glob('*.fasta')]
+records = SeqIO.index_db('combined.idx', files, 'fasta')
+
+print(len(records))            # total across all files
+record = records['seq_00042']  # random access by id
+records.close()
+```
+
+The index file persists. A later session calls `SeqIO.index_db('combined.idx')` with no file list and reopens instantly. Ids must be unique across the merged set: a collision raises `ValueError: Duplicate key`. `index_db` also indexes BGZF-compressed files; plain gzip is not seekable and cannot be indexed.
+
+## Merge Files
+
+**Goal:** Concatenate sequences from many files into one output without loading them all.
+
+**Approach:** Chain per-file generators with `yield from` and stream straight into `SeqIO.write`, which consumes the generator one record at a time.
+
+**Reference (BioPython 1.83+):**
+
+```python
 def all_records(directory, pattern, format):
     for filepath in Path(directory).glob(pattern):
         yield from SeqIO.parse(filepath, format)
 
-records = all_records('data/', '*.fasta', 'fasta')
-count = SeqIO.write(records, 'merged.fasta', 'fasta')
+count = SeqIO.write(all_records('data/', '*.fasta', 'fasta'), 'merged.fasta', 'fasta')
 print(f'Merged {count} records')
 ```
 
 ### Merge with Source Tracking
 
-**Goal:** Combine sequences from multiple files into one, tagging each record with its source filename.
+**Goal:** Combine sequences from multiple files, tagging each record with its source filename.
 
-**Approach:** Stream records from each file through a generator that appends source metadata to the description.
+**Approach:** Stream records through a generator that appends source metadata to the description before writing.
 
 **Reference (BioPython 1.83+):**
+
 ```python
 def records_with_source(directory, pattern, format):
     for filepath in Path(directory).glob(pattern):
@@ -82,30 +128,21 @@ def records_with_source(directory, pattern, format):
             record.description = f'{record.description} [source={filepath.name}]'
             yield record
 
-records = records_with_source('data/', '*.fasta', 'fasta')
-SeqIO.write(records, 'merged_tracked.fasta', 'fasta')
+SeqIO.write(records_with_source('data/', '*.fasta', 'fasta'), 'merged_tracked.fasta', 'fasta')
 ```
 
-### Merge Specific Files
-```python
-files = ['sample1.fasta', 'sample2.fasta', 'sample3.fasta']
-
-def merge_files(file_list, format):
-    for filepath in file_list:
-        yield from SeqIO.parse(filepath, format)
-
-SeqIO.write(merge_files(files, 'fasta'), 'combined.fasta', 'fasta')
-```
+When merging files that may share ids, decide upfront: write-then-merge tolerates duplicates (FASTA allows repeated ids), but any later `index_db`/`to_dict` over the merged file raises on the duplicate.
 
 ## Split Files
 
 ### Split by Number of Records
 
-**Goal:** Divide a large sequence file into smaller chunks of N records each.
+**Goal:** Divide a large file into chunks of N records each.
 
-**Approach:** Consume the iterator in fixed-size batches using `islice`, writing each batch to a numbered output file.
+**Approach:** Consume the parse generator in fixed-size batches with `islice`, writing each batch to a numbered file. `islice` pulls only N records into memory per chunk, so an arbitrarily large input streams safely.
 
 **Reference (BioPython 1.83+):**
+
 ```python
 from itertools import islice
 
@@ -124,136 +161,86 @@ def split_file(input_file, format, records_per_file, output_prefix):
 split_file('large.fasta', 'fasta', 1000, 'split')
 ```
 
+On Python 3.12+, `itertools.batched(records, records_per_file)` yields the same fixed-size tuples without the manual `while`/`islice` loop.
+
 ### Split by Sequence ID Prefix
 
-**Goal:** Group sequences into separate files based on a shared ID prefix (e.g., sample or chromosome).
+**Goal:** Group sequences into separate files by a shared id prefix (sample or chromosome).
 
-**Approach:** Parse all records into a prefix-keyed dictionary, then write each group to its own file.
+**Approach:** Route each record to a per-prefix open output handle while streaming, so no group is fully held in RAM.
 
 **Reference (BioPython 1.83+):**
-```python
-from collections import defaultdict
 
-records_by_prefix = defaultdict(list)
+```python
+handles = {}
 for record in SeqIO.parse('input.fasta', 'fasta'):
     prefix = record.id.split('_')[0]
-    records_by_prefix[prefix].append(record)
+    if prefix not in handles:
+        handles[prefix] = open(f'{prefix}.fasta', 'w')
+    SeqIO.write(record, handles[prefix], 'fasta')
 
-for prefix, records in records_by_prefix.items():
-    SeqIO.write(records, f'{prefix}.fasta', 'fasta')
-```
-
-### One Sequence Per File
-```python
-for record in SeqIO.parse('multi.fasta', 'fasta'):
-    SeqIO.write(record, f'{record.id}.fasta', 'fasta')
+for handle in handles.values():
+    handle.close()
 ```
 
 ## Batch Convert
 
-### Convert All Files in Directory
 ```python
-from pathlib import Path
-
 for gb_file in Path('genbank/').glob('*.gb'):
     fasta_file = Path('fasta/') / gb_file.with_suffix('.fasta').name
     count = SeqIO.convert(str(gb_file), 'genbank', str(fasta_file), 'fasta')
     print(f'{gb_file.name} -> {fasta_file.name}: {count} records')
 ```
 
-### Batch Convert with Summary
-```python
-from pathlib import Path
-
-results = []
-for input_file in Path('input/').glob('*.gb'):
-    output_file = Path('output/') / input_file.with_suffix('.fasta').name
-    count = SeqIO.convert(str(input_file), 'genbank', str(output_file), 'fasta')
-    results.append({'file': input_file.name, 'records': count})
-
-print(f'Converted {len(results)} files, {sum(r["records"] for r in results)} total records')
-```
+`SeqIO.convert` streams internally and never loads the whole file. GenBank-to-FASTA silently drops features, annotations, and qualifiers (FASTA stores only id, description, and sequence); see sequence-io/format-conversion before converting away annotated formats.
 
 ## Parallel Processing
 
-### Using multiprocessing
+For CPU-bound per-file work, distribute whole files across processes. Each worker streams its own file, so peak memory is one file's records per process, not the whole directory.
+
 ```python
 from multiprocessing import Pool
-from pathlib import Path
 
 def process_file(filepath):
-    records = list(SeqIO.parse(filepath, 'fasta'))
-    return {'file': filepath.name, 'count': len(records), 'total_bp': sum(len(r.seq) for r in records)}
+    total = 0
+    bp = 0
+    for record in SeqIO.parse(filepath, 'fasta'):
+        total += 1
+        bp += len(record.seq)
+    return {'file': filepath.name, 'count': total, 'total_bp': bp}
 
 files = list(Path('data/').glob('*.fasta'))
 with Pool(4) as pool:
     results = pool.map(process_file, files)
-
-for r in results:
-    print(f'{r["file"]}: {r["count"]} seqs, {r["total_bp"]} bp')
 ```
 
-### Using concurrent.futures
-```python
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-
-def count_records(filepath):
-    return filepath.name, sum(1 for _ in SeqIO.parse(filepath, 'fasta'))
-
-files = list(Path('data/').glob('*.fasta'))
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = executor.map(count_records, files)
-
-for name, count in results:
-    print(f'{name}: {count}')
-```
+Use `concurrent.futures.ThreadPoolExecutor` instead for I/O-bound work (gzip decode, network filesystems); the GIL makes threads pointless for CPU-bound parsing.
 
 ## Summary Statistics
 
-### Aggregate Stats Across Files
-```python
-from pathlib import Path
+**Goal:** Build a per-file CSV of counts and length stats for a directory.
 
-total_seqs = 0
-total_bp = 0
-file_count = 0
-
-for fasta_file in Path('data/').glob('*.fasta'):
-    for record in SeqIO.parse(fasta_file, 'fasta'):
-        total_seqs += 1
-        total_bp += len(record.seq)
-    file_count += 1
-
-print(f'Files: {file_count}')
-print(f'Sequences: {total_seqs}')
-print(f'Total bp: {total_bp}')
-print(f'Average length: {total_bp / total_seqs:.0f}')
-```
-
-### Per-File Summary Report
-
-**Goal:** Generate a CSV summary of sequence counts and length statistics for every file in a directory.
-
-**Approach:** Iterate files, compute per-file stats, collect into a list of dicts, and write as CSV.
+**Approach:** Stream each file once, accumulating count, total, min, and max as integers rather than collecting a length list per file.
 
 **Reference (BioPython 1.83+):**
+
 ```python
-from pathlib import Path
 import csv
 
 summaries = []
 for fasta_file in Path('data/').glob('*.fasta'):
-    records = list(SeqIO.parse(fasta_file, 'fasta'))
-    lengths = [len(r.seq) for r in records]
-    summaries.append({
-        'file': fasta_file.name,
-        'sequences': len(records),
-        'total_bp': sum(lengths),
-        'min_len': min(lengths) if lengths else 0,
-        'max_len': max(lengths) if lengths else 0,
-        'avg_len': sum(lengths) / len(lengths) if lengths else 0
-    })
+    count = total = 0
+    min_len = None
+    max_len = 0
+    for record in SeqIO.parse(fasta_file, 'fasta'):
+        n = len(record.seq)
+        count += 1
+        total += n
+        max_len = max(max_len, n)
+        min_len = n if min_len is None else min(min_len, n)
+    summaries.append({'file': fasta_file.name, 'sequences': count, 'total_bp': total,
+                      'min_len': min_len or 0, 'max_len': max_len,
+                      'avg_len': total / count if count else 0})
 
 with open('summary.csv', 'w', newline='') as f:
     writer = csv.DictWriter(f, fieldnames=summaries[0].keys())
@@ -261,43 +248,23 @@ with open('summary.csv', 'w', newline='') as f:
     writer.writerows(summaries)
 ```
 
-## File Organization
+## Common Errors
 
-### Organize by Criteria
-```python
-from pathlib import Path
-from Bio.SeqUtils import gc_fraction
-
-Path('high_gc').mkdir(exist_ok=True)
-Path('low_gc').mkdir(exist_ok=True)
-
-for fasta_file in Path('input/').glob('*.fasta'):
-    records = list(SeqIO.parse(fasta_file, 'fasta'))
-    avg_gc = sum(gc_fraction(r.seq) for r in records) / len(records)
-
-    if avg_gc >= 0.5:
-        dest = Path('high_gc') / fasta_file.name
-    else:
-        dest = Path('low_gc') / fasta_file.name
-
-    SeqIO.write(records, dest, 'fasta')
-```
-
-## Common Patterns
-
-| Task | Approach |
-|------|----------|
-| Merge files | Generator yielding from each file |
-| Split file | islice with batch size |
-| Convert all | Loop with SeqIO.convert |
-| Parallel processing | multiprocessing.Pool or ThreadPoolExecutor |
-| Summary stats | Accumulate while iterating |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `MemoryError` / process killed on a directory | `list(SeqIO.parse(...))` materializes every record at once | Stream the generator; iterate or `sum(1 for _ in ...)`; never `list()` a large file |
+| Counting/merge job runs for minutes on tens of millions of reads | `SeqIO` builds a full `SeqRecord` per read | Use `pysam.FastxFile` for linear iteration, or `pyfastx` for indexed access |
+| `ValueError: Duplicate key` from `index_db`/`to_dict` | Same id appears in more than one merged file | Make ids unique (prefix by filename) or supply a `key_function` |
+| Second loop over `SeqIO.parse(...)` yields nothing | The generator is one-pass and exhausts silently | Re-create the generator per pass, or use `index_db` for repeated access |
+| `index_db` fails on a `.gz` file | Plain gzip is not seekable | Re-compress with `bgzip`; only BGZF is indexable (sequence-io/compressed-files) |
+| Annotations missing after batch convert | GenBank-to-FASTA drops all features silently | Keep an annotated format, or extract needed qualifiers first |
 
 ## Related Skills
 
-- read-sequences - Core parsing functions for each file
-- write-sequences - Write processed outputs
-- sequence-statistics - Generate per-file statistics
-- format-conversion - Batch format conversion
-- compressed-files - Handle compressed files in batch
-- database-access/entrez-fetch - Batch download sequences from NCBI
+- read-sequences - parse, index, and index_db semantics for each file
+- filter-sequences - apply per-record filters while streaming a batch
+- sequence-statistics - N50 and length distributions across files
+- format-conversion - batch format conversion and its data-loss traps
+- compressed-files - BGZF vs plain gzip for indexable batch random access
+- paired-end-fastq - keep R1/R2 synchronized when batch-filtering mates
+- database-access/entrez-fetch - batch download sequences from NCBI

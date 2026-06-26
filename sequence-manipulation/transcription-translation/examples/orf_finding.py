@@ -17,7 +17,8 @@ def find_orfs(seq, min_protein_length=10):
     orfs = []
     for strand, s in [('+', seq), ('-', seq.reverse_complement())]:
         for frame in range(3):
-            trans = str(s[frame:].translate())
+            end = frame + 3 * ((len(s) - frame) // 3)
+            trans = str(s[frame:end].translate())
             aa_start = 0
             while True:
                 start = trans.find('M', aa_start)
