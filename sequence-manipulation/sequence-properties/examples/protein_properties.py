@@ -1,5 +1,5 @@
 '''Protein sequence property calculations'''
-# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 protein_seq = 'MAEGEITTFTALTEKFNLPPGNYKKPKLLYCSNGGHFLRILPDGTVDGTRDRSDQHIQLQLSAESVGEVYIKSTETGQYLAMDTSGLLYGSQTPSEECLFLERLEENHYNTYTSKKHAEKNWFVGMKNGKKIELKDLVSGFLAEKQGSPTFFGYMKFLSNSEIVVLPNNVAPNVRYIIQQYGFYHHVGTWNNNSHAKIGLIILYLNKEKTLFNNNVQNKRTSHLLSQMYDPKK'
@@ -44,7 +44,7 @@ print(f'Cystine bridges: {eps[1]} M^-1 cm^-1')
 
 # Amino acid composition (top 5)
 print('\n=== Amino Acid Composition (Top 5) ===')
-aa_pct = protein.amino_acids_percent
+aa_pct = protein.amino_acids_percent  # attribute returns percentages summing to 100
 sorted_aa = sorted(aa_pct.items(), key=lambda x: x[1], reverse=True)[:5]
 for aa, pct in sorted_aa:
-    print(f'{aa}: {pct * 100:.1f}%')
+    print(f'{aa}: {pct:.1f}%')

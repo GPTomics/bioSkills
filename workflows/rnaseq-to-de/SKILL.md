@@ -341,6 +341,8 @@ write.csv(as.data.frame(sig), 'significant_genes.csv')
 - database-access/geo-data - Find a GSE on GEO, detect SuperSeries, link to SRA
 - database-access/sra-data - Download paired-end FASTQ from SRA / ENA / STRIDES cloud
 - read-qc/fastp-workflow - Detailed QC options and parameters
+- sequence-io/fastq-quality - Confirm the FASTQ quality encoding (Phred+33 vs legacy Phred+64/Solexa) before trimming public or pre-2011 data
+- sequence-io/paired-end-fastq - Keep R1/R2 mates synchronized; independent per-mate filtering silently desyncs pairs and corrupts quantification
 - read-alignment/star-alignment - STAR index/sjdbOverhang, two-pass, GeneCounts strandedness (the align path)
 - rna-quantification/alignment-free-quant - Salmon and kallisto details
 - rna-quantification/tximport-workflow - tximport options, countsFromAbundance, tx2gene creation

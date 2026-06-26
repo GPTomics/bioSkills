@@ -370,6 +370,8 @@ echo "Filtered VCF: ${OUTDIR}/variants/cohort.filtered.vcf.gz"
 - database-access/ncbi-datasets-cli - Pull reference genome assembly via Datasets v2 CLI
 - database-access/ensembl-rest - Pull annotated reference and Compara orthologs for cross-species variants
 - read-qc/fastp-workflow - Detailed QC options
+- sequence-io/fastq-quality - Confirm the FASTQ quality encoding (Phred+33 vs legacy Phred+64/Solexa) before trimming public or pre-2011 data
+- sequence-io/paired-end-fastq - Keep R1/R2 mates synchronized; independent per-mate filtering silently desyncs pairs and corrupts mapping/insert sizes
 - read-alignment/bwa-alignment - BWA-MEM2 parameters, read groups, ALT/decoy analysis set, the dedup ordering
 - alignment-files/duplicate-handling - Duplicate marking details
 - variant-calling/variant-calling - bcftools calling options

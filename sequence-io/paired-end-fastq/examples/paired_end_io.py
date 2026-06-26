@@ -1,64 +1,108 @@
 #!/usr/bin/env python3
-'''Handle paired-end FASTQ files'''
+'''Synchronized paired-end FASTQ filtering, interleaving, and deinterleaving.
+
+Keeps R1/R2 mates in lockstep: a pair survives only if both mates pass, and a
+read whose mate was discarded is routed to a separate orphan file rather than
+silently desyncing the two streams (the #1 paired-end correctness trap).'''
 # Reference: biopython 1.83+ | Verify API if version differs
 
-from Bio import SeqIO
 import gzip
 from pathlib import Path
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
-def parse_paired_fastq(r1_path, r2_path):
-    '''Parse paired FASTQ files together'''
-    open_r1 = gzip.open if str(r1_path).endswith('.gz') else open
-    open_r2 = gzip.open if str(r2_path).endswith('.gz') else open
+def opener(path, mode):
+    '''Open a plain or gzipped FASTQ in text mode based on the .gz suffix.'''
+    if str(path).endswith('.gz'):
+        return gzip.open(path, mode)
+    return open(path, mode)
 
-    with open_r1(r1_path, 'rt') as f1, open_r2(r2_path, 'rt') as f2:
-        for rec1, rec2 in zip(SeqIO.parse(f1, 'fastq'), SeqIO.parse(f2, 'fastq')):
-            yield rec1, rec2
+def mate_key(record):
+    '''Shared mate ID: record.id drops anything after the first space (CASAVA 1.8+); rsplit drops a /1 or /2 suffix (pre-1.8).'''
+    return record.id.rsplit('/', 1)[0]
 
-def validate_pairs(r1_path, r2_path):
-    '''Validate paired-end files have matching IDs'''
-    mismatches = 0
-    total = 0
+def parse_paired(r1_path, r2_path):
+    with opener(r1_path, 'rt') as f1, opener(r2_path, 'rt') as f2:
+        for r1, r2 in zip(SeqIO.parse(f1, 'fastq'), SeqIO.parse(f2, 'fastq')):
+            if mate_key(r1) != mate_key(r2):
+                raise ValueError(f'Pair mismatch: {r1.id} vs {r2.id}')
+            yield r1, r2
 
-    for rec1, rec2 in parse_paired_fastq(r1_path, r2_path):
-        total += 1
-        id1 = rec1.id.split('/')[0].split(' ')[0]
-        id2 = rec2.id.split('/')[0].split(' ')[0]
-        if id1 != id2:
-            mismatches += 1
-            if mismatches <= 5:
-                print(f'Mismatch: {rec1.id} vs {rec2.id}')
+def mean_quality(record):
+    return sum(record.letter_annotations['phred_quality']) / len(record.seq)
 
-    print(f'Total pairs: {total}')
-    print(f'Mismatches: {mismatches}')
-    return mismatches == 0
+def filter_pairs_synced(r1_in, r2_in, r1_out, r2_out, r1_orphan, r2_orphan, min_qual=25):
+    '''Keep a pair only if both mates pass; route lone survivors to orphan files.
 
-def interleave_fastq(r1_path, r2_path, output_path):
-    '''Interleave paired FASTQ files'''
-    opener = gzip.open if str(output_path).endswith('.gz') else open
+    min_qual=25 is a common Phred cutoff (~0.3% error); tune per experiment.'''
+    counts = {'paired': 0, 'r1_orphan': 0, 'r2_orphan': 0}
+    with opener(r1_out, 'wt') as p1, opener(r2_out, 'wt') as p2, \
+         opener(r1_orphan, 'wt') as o1, opener(r2_orphan, 'wt') as o2:
+        for r1, r2 in parse_paired(r1_in, r2_in):
+            r1_ok = mean_quality(r1) >= min_qual
+            r2_ok = mean_quality(r2) >= min_qual
+            if r1_ok and r2_ok:
+                SeqIO.write(r1, p1, 'fastq')
+                SeqIO.write(r2, p2, 'fastq')
+                counts['paired'] += 1
+            elif r1_ok:
+                SeqIO.write(r1, o1, 'fastq')
+                counts['r1_orphan'] += 1
+            elif r2_ok:
+                SeqIO.write(r2, o2, 'fastq')
+                counts['r2_orphan'] += 1
+    return counts
 
-    count = 0
-    with opener(output_path, 'wt') as out:
-        for rec1, rec2 in parse_paired_fastq(r1_path, r2_path):
-            SeqIO.write([rec1, rec2], out, 'fastq')
-            count += 1
+def interleave_pairs(r1_in, r2_in, out_path):
+    def records():
+        for r1, r2 in parse_paired(r1_in, r2_in):
+            yield r1
+            yield r2
+    with opener(out_path, 'wt') as out:
+        return SeqIO.write(records(), out, 'fastq') // 2
 
-    print(f'Wrote {count} pairs to {output_path}')
+def deinterleave(in_path, r1_out, r2_out):
+    pairs = 0
+    with opener(in_path, 'rt') as fin, opener(r1_out, 'wt') as f1, opener(r2_out, 'wt') as f2:
+        for i, record in enumerate(SeqIO.parse(fin, 'fastq')):
+            if i % 2 == 0:
+                SeqIO.write(record, f1, 'fastq')
+            else:
+                SeqIO.write(record, f2, 'fastq')
+                pairs += 1
+    return pairs
 
-def deinterleave_fastq(interleaved_path, r1_path, r2_path):
-    '''Split interleaved FASTQ to paired files'''
-    open_in = gzip.open if str(interleaved_path).endswith('.gz') else open
-    open_r1 = gzip.open if str(r1_path).endswith('.gz') else open
-    open_r2 = gzip.open if str(r2_path).endswith('.gz') else open
+def _make_record(name, seq, qual):
+    rec = SeqRecord(Seq(seq), id=name, description=f'{name} 1:N:0:ATCACG')
+    rec.letter_annotations['phred_quality'] = qual
+    return rec
 
-    with open_in(interleaved_path, 'rt') as fin, \
-         open_r1(r1_path, 'wt') as f1, open_r2(r2_path, 'wt') as f2:
-        records = SeqIO.parse(fin, 'fastq')
-        for rec1, rec2 in zip(records, records):
-            SeqIO.write(rec1, f1, 'fastq')
-            SeqIO.write(rec2, f2, 'fastq')
+def _demo():
+    work = Path(__file__).parent / '_demo'
+    work.mkdir(exist_ok=True)
+    r1, r2 = work / 'R1.fastq', work / 'R2.fastq'
+
+    high = [38] * 20
+    low = [10] * 20  # well below min_qual to force an orphan
+    with open(r1, 'w') as f1, open(r2, 'w') as f2:
+        SeqIO.write(_make_record('read1', 'ACGT' * 5, high), f1, 'fastq')
+        SeqIO.write(_make_record('read1', 'TTGG' * 5, high), f2, 'fastq')
+        SeqIO.write(_make_record('read2', 'GGCC' * 5, high), f1, 'fastq')      # R1 passes
+        SeqIO.write(_make_record('read2', 'AATT' * 5, low), f2, 'fastq')       # R2 fails -> R1 orphan
+
+    counts = filter_pairs_synced(r1, r2, work / 'p_R1.fastq', work / 'p_R2.fastq',
+                                 work / 'orphan_R1.fastq', work / 'orphan_R2.fastq')
+    print(f'Filter: {counts}')
+
+    n = interleave_pairs(work / 'p_R1.fastq', work / 'p_R2.fastq', work / 'inter.fastq')
+    print(f'Interleaved {n} pairs')
+    back = deinterleave(work / 'inter.fastq', work / 'back_R1.fastq', work / 'back_R2.fastq')
+    print(f'Deinterleaved {back} pairs')
+
+    for child in work.iterdir():
+        child.unlink()
+    work.rmdir()
 
 if __name__ == '__main__':
-    import sys
-    if len(sys.argv) >= 3:
-        validate_pairs(sys.argv[1], sys.argv[2])
+    _demo()

@@ -1,53 +1,55 @@
 #!/usr/bin/env python3
-'''Filter sequences by various criteria'''
-# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
+'''Stream-filter sequences by length and GC content'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
-from Bio import SeqIO
+import sys
+import os
 import gzip
+import tempfile
+from Bio import SeqIO
+from Bio.SeqUtils import gc_fraction
 
-def filter_by_length(records, min_length=0, max_length=float('inf')):
-    '''Filter by sequence length'''
-    for record in records:
-        if min_length <= len(record) <= max_length:
-            yield record
+def open_maybe_gzip(path, mode):
+    '''Open plain or gzipped files in text mode for SeqIO'''
+    opener = gzip.open if path.endswith('.gz') else open
+    return opener(path, mode)
 
-def filter_by_quality(records, min_mean_quality=20):
-    '''Filter FASTQ by mean quality'''
-    for record in records:
-        quals = record.letter_annotations.get('phred_quality', [])
-        if quals and sum(quals) / len(quals) >= min_mean_quality:
-            yield record
+def passes(record, min_length, min_gc, max_gc, gc_mode):
+    '''Length and GC predicate; gc_fraction returns a fraction 0-1'''
+    if len(record.seq) < min_length:
+        return False
+    gc = gc_fraction(record.seq, ambiguous=gc_mode)
+    return min_gc <= gc <= max_gc
 
-def filter_by_gc(records, min_gc=0, max_gc=100):
-    '''Filter by GC content'''
-    for record in records:
-        gc = (record.seq.count('G') + record.seq.count('C')) / len(record) * 100
-        if min_gc <= gc <= max_gc:
-            yield record
-
-def filter_by_id(records, ids_to_keep):
-    '''Filter by sequence ID'''
-    ids_set = set(ids_to_keep)
-    for record in records:
-        if record.id in ids_set:
-            yield record
-
-def filter_fastq(input_path, output_path, min_length=50, min_quality=20):
-    '''Filter FASTQ file'''
-    opener_in = gzip.open if input_path.endswith('.gz') else open
-    opener_out = gzip.open if output_path.endswith('.gz') else open
-
-    with opener_in(input_path, 'rt') as fin, opener_out(output_path, 'wt') as fout:
-        records = SeqIO.parse(fin, 'fastq')
-        filtered = filter_by_length(records, min_length=min_length)
-        filtered = filter_by_quality(filtered, min_mean_quality=min_quality)
-        count = SeqIO.write(filtered, fout, 'fastq')
-
+def filter_stream(input_path, output_path, fmt='fasta', min_length=100, min_gc=0.3, max_gc=0.7, gc_mode='ignore'):
+    '''Stream records through the predicate so the whole file never loads'''
+    with open_maybe_gzip(input_path, 'rt') as fin, open_maybe_gzip(output_path, 'wt') as fout:
+        records = SeqIO.parse(fin, fmt)
+        survivors = (rec for rec in records if passes(rec, min_length, min_gc, max_gc, gc_mode))
+        count = SeqIO.write(survivors, fout, fmt)
     print(f'Wrote {count} sequences to {output_path}')
     return count
 
+DEMO_FASTA = '''>keep_midGC_long
+ATGCGATCGATCGATCGGCGCATATGCGCGCATGCATGCATCGGCATCGATCGATCGATCGATCGATCGATCGATCGCATGCATCGATCGATCGATCGATCG
+>drop_short
+ATGCGATCGATCG
+>keep_softmasked
+atgcgatcgatcgatcggcgcatatgcgcgcatgcatgcatcggcatcgatcgatcgatcgatcgatcgatcgatcgcatgcatcgatcgatcgatcgatcg
+>drop_lowGC
+ATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATAT
+'''
+
 if __name__ == '__main__':
-    import sys
-    input_path = sys.argv[1] if len(sys.argv) > 1 else 'input.fastq.gz'
-    output_path = sys.argv[2] if len(sys.argv) > 2 else 'filtered.fastq.gz'
-    filter_fastq(input_path, output_path)
+    if len(sys.argv) > 1:
+        filter_stream(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else 'filtered.fasta')
+    else:
+        workdir = tempfile.mkdtemp(prefix='filter_seqs_')
+        demo_in = os.path.join(workdir, 'input.fasta')
+        demo_out = os.path.join(workdir, 'filtered.fasta')
+        with open(demo_in, 'w') as fh:
+            fh.write(DEMO_FASTA)
+        filter_stream(demo_in, demo_out)
+        os.remove(demo_in)
+        os.remove(demo_out)
+        os.rmdir(workdir)

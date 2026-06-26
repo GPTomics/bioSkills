@@ -43,6 +43,6 @@ for pos, match in matches:
 # Find start codons with Kozak context
 print('\n=== Kozak Consensus ===')
 seq2 = Seq('ATGCGCCATGGCTACCATGGATGC')
-kozak_pattern = '[AG]CC(ATG)G'  # Capture group for ATG
+kozak_pattern = '[AG]CC(ATG)G'  # Capture group 1 isolates the ATG start codon
 for m in re.finditer(kozak_pattern, str(seq2)):
-    print(f'Position {m.start()}: {m.group()} (ATG at {m.start(3)})')
+    print(f'Position {m.start()}: {m.group()} (ATG at {m.start(1)})')

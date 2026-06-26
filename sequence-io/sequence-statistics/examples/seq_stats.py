@@ -1,52 +1,60 @@
 #!/usr/bin/env python3
-'''Calculate sequence statistics'''
-# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
+'''Calculate assembly and sequence statistics (N50/L50, auN, GC content).'''
+# Reference: biopython 1.83+ | Verify API if version differs
 
 from Bio import SeqIO
 from Bio.SeqUtils import gc_fraction
 import gzip
-import numpy as np
+import statistics
+import sys
+import os
+import tempfile
+
+def n50_l50(sorted_lengths):
+    '''N50 = minimal length covering >=50% of total; L50 = contig count to reach it.'''
+    half = sum(sorted_lengths) / 2
+    cumsum = 0
+    for count, length in enumerate(sorted_lengths, start=1):
+        cumsum += length
+        if cumsum >= half:
+            return length, count
+    return 0, 0
 
 def calculate_stats(filepath, format_type='fasta'):
-    '''Calculate comprehensive statistics'''
+    '''Compute contiguity and composition stats in a single pass.'''
     opener = gzip.open if str(filepath).endswith('.gz') else open
 
     lengths = []
-    gc_contents = []
+    gc_values = []
     n_counts = []
-
     with opener(filepath, 'rt') as handle:
         for record in SeqIO.parse(handle, format_type):
-            seq = str(record.seq).upper()
-            lengths.append(len(seq))
-            gc_contents.append(gc_fraction(record.seq) * 100)
-            n_counts.append(seq.count('N'))
+            lengths.append(len(record.seq))
+            gc_values.append(gc_fraction(record.seq, ambiguous='remove'))
+            n_counts.append(str(record.seq).upper().count('N'))
 
-    lengths = np.array(lengths)
     total_bases = sum(lengths)
-
-    # N50 calculation
-    sorted_lengths = np.sort(lengths)[::-1]
-    cumsum = np.cumsum(sorted_lengths)
-    n50_idx = np.searchsorted(cumsum, total_bases / 2)
-    n50 = sorted_lengths[n50_idx]
+    sorted_lengths = sorted(lengths, reverse=True)
+    n50, l50 = n50_l50(sorted_lengths)
+    aun = sum(length * length for length in lengths) / total_bases if total_bases else 0
 
     return {
         'num_sequences': len(lengths),
         'total_bases': total_bases,
-        'min_length': int(np.min(lengths)),
-        'max_length': int(np.max(lengths)),
-        'mean_length': np.mean(lengths),
-        'median_length': np.median(lengths),
-        'n50': int(n50),
-        'mean_gc': np.mean(gc_contents),
+        'min_length': min(lengths),
+        'max_length': max(lengths),
+        'mean_length': statistics.mean(lengths),
+        'median_length': statistics.median(lengths),
+        'n50': n50,
+        'l50': l50,
+        'aun': aun,
+        'mean_gc_pct': statistics.mean(gc_values) * 100,
         'total_ns': sum(n_counts),
-        'n_fraction': sum(n_counts) / total_bases * 100
+        'n_fraction_pct': sum(n_counts) / total_bases * 100 if total_bases else 0,
     }
 
 def print_stats(stats):
-    '''Pretty print statistics'''
-    print(f"{'Metric':<20} {'Value':>15}")
+    print(f'{"Metric":<20} {"Value":>15}')
     print('-' * 36)
     for key, value in stats.items():
         if isinstance(value, float):
@@ -54,8 +62,17 @@ def print_stats(stats):
         else:
             print(f'{key:<20} {value:>15,}')
 
+DEMO_CONTIGS = {'contig1': 1500, 'contig2': 800, 'contig3': 800, 'contig4': 400, 'contig5': 200}
+
 if __name__ == '__main__':
-    import sys
-    filepath = sys.argv[1] if len(sys.argv) > 1 else 'sequences.fasta'
-    stats = calculate_stats(filepath)
-    print_stats(stats)
+    if len(sys.argv) > 1:
+        print_stats(calculate_stats(sys.argv[1]))
+    else:
+        workdir = tempfile.mkdtemp(prefix='seq_stats_')
+        demo = os.path.join(workdir, 'sequences.fasta')
+        with open(demo, 'w') as fh:
+            for name, length in DEMO_CONTIGS.items():
+                fh.write(f'>{name}\n' + 'ATGC' * (length // 4) + '\n')
+        print_stats(calculate_stats(demo))
+        os.remove(demo)
+        os.rmdir(workdir)

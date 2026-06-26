@@ -1,5 +1,5 @@
 '''Advanced sequence property analysis: GC123, GC skew, amino acid codes'''
-# Reference: biopython 1.83+, samtools 1.19+ | Verify API if version differs
+# Reference: biopython 1.83+ | Verify API if version differs
 from Bio.Seq import Seq
 from Bio.SeqUtils import GC123, GC_skew, nt_search, seq1, seq3
 
@@ -39,9 +39,7 @@ print(f'3-letter: {three_letter}')
 print(f'1-letter: {one_letter}')
 
 back_to_three = seq3(one_letter)
-with_separator = seq3(one_letter, join='-')
 print(f'Back to 3-letter: {back_to_three}')
-print(f'With separator: {with_separator}')
 
 # Protein charge profile
 print('\n=== Protein Charge at Different pH ===')
