@@ -1,204 +1,185 @@
 ---
 name: bio-small-rna-seq-mirge3-analysis
-description: Fast miRNA quantification with isomiR detection and A-to-I editing analysis using miRge3. Use when quantifying known miRNAs quickly or analyzing isomiR variants and RNA editing.
+description: Quantifies known miRNAs, isomiRs, tRFs, and A-to-I editing fast with miRge3.0 by aligning collapsed reads to curated miRBase or MirGeneDB libraries. Use when choosing miRBase versus MirGeneDB as the reference; deciding whether to collapse isomiRs to the parent miRNA or keep 5'-isomiRs separate (they shift the seed and retarget); confirming the organism is among the six supported species; or remembering that RPM output is for display only and raw counts go to DESeq2/edgeR.
 tool_type: python
 primary_tool: miRge3
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: numpy 1.26+, pandas 2.2+
+Reference examples tested with: miRge3.0 0.1.4+, numpy 1.26+, pandas 2.2+
 
 Before using code patterns, verify installed versions match. If versions differ:
+- CLI: `miRge3.0 annotate --help` to confirm flag names (they have drifted across versions)
 - Python: `pip show <package>` then `help(module.function)` to check signatures
-- CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # miRge3 Analysis
 
-**"Quantify miRNAs with isomiR detection"** -> Fast miRNA annotation and quantification with isomiR variant detection and A-to-I RNA editing analysis from small RNA-seq reads.
-- CLI: `miRge3.0 annotate -s sample.fastq -lib human -db mirgenedb -o results/`
+**"Quantify my miRNAs and isomiRs fast"** -> Align collapsed reads to a hierarchy of curated small-RNA libraries and tabulate per-miRNA counts, isomiR variants, tRFs, and A-to-I editing.
+- CLI: `miRge3.0 annotate -s sample.fastq.gz -lib LIBS -on human -db miRBase -a illumina -gff -ai -cpu 8 -o out/`
 
-## Basic Quantification
+## The governing principle: miRge3 quantifies what is already known, fast, and isomiRs are biology
 
-**Goal:** Quantify known miRNA expression from small RNA-seq FASTQ files.
+miRge3.0 does not do genome-wide de novo discovery as its main job; it Bowtie-aligns collapsed reads against small curated libraries (mature miRBase or MirGeneDB, hairpin, tRNA, rRNA, snoRNA, mRNA, spike-ins) hierarchically and assigns each read to the first matching class. That is why it is fast, and why it is the default for a routine differential-expression study on a supported species - and why it cannot help on an unsupported organism (it ships pre-built libraries for only six species: human, mouse, rat, zebrafish, nematode, fruitfly). For serious NOVEL discovery prefer miRDeep2; miRge3's optional `-nmir` SVM module is a convenience, not its strength.
 
-**Approach:** Run miRge3 annotation pipeline with adapter trimming, organism-specific libraries, and multi-sample input.
+Two judgments carry the analysis. First, isomiRs are real biology, not noise: a 5' isomiR shifts the seed (positions 2-7) and therefore the target set, so collapsing all isomiRs to the canonical miRNA can hide function - keep 5' isomiRs separate when isomiR identity is the question, and collapse to the parent only for a standard "which miRNAs changed" analysis. But the precision floor cuts the other way: low-count 3' and internal isomiRs are frequently sequencing/ligation artifacts (per-base error ~0.1-1% plus ligation bias), so filter them aggressively and demand replicate or UMI support, and trust 5' isomiRs more. A germline seed SNP (a polymiR) masquerades as an isomiR or edit; with genotypes available, fold them into the reference (e.g. OptimiR) rather than calling them isomiRs. Second, miRge3 emits both raw counts and RPM, but RPM is for display and cross-sample viewing only; differential testing takes RAW counts into DESeq2/edgeR, which model the count distribution themselves.
+
+## Decision: miRBase vs MirGeneDB reference (`-db`)
+
+| Reference | Size | Character | Choose when |
+|-----------|------|-----------|-------------|
+| miRBase (v22) | large (~1900 human miRNAs) | permissive; includes many dubious entries (mis-annotated tRFs/fragments) | maximizing recall / comparability with legacy studies |
+| MirGeneDB | small (~550 human genes) | conservatively curated; every entry passes the biogenesis signature | conservative, high-confidence claims; cleaner DE feature set |
+
+The reference choice changes results: counting against miRBase yields more "miRNA" rows, some of which are not bona fide miRNAs; against MirGeneDB the rows are fewer and defensible. miRge3 can emit both side by side - report which one a result came from, and pin the version.
+
+## Library installation (no built-in download command)
 
 ```bash
-# Run miRge3 on FASTQ files
+# miRge3.0 has NO '--download-library' subcommand. Fetch the pre-built libraries from
+# SourceForge and extract them, then point -lib at the extracted directory.
+wget https://sourceforge.net/projects/mirge3/files/miRge3_Lib/human.tar.gz
+tar -xzf human.tar.gz          # creates a 'human' library tree
+# For an unsupported organism, build a custom library with the separate miRge3_build tool.
+```
+
+## Quantify known miRNAs (+ isomiRs, A-to-I)
+
+**Goal:** Produce a per-miRNA count matrix with isomiR and editing detail for one or more samples.
+
+**Approach:** Run `miRge3.0 annotate` with the curated library, organism, database, and adapter, switching on mirGFF3 isomiR output and A-to-I detection.
+
+```bash
 miRge3.0 annotate \
     -s sample1.fastq.gz,sample2.fastq.gz \
-    -lib miRge3_libs \
+    -lib /path/to/miRge3_Lib \
     -on human \
-    -db mirbase \
-    -o output_dir \
-    -a TGGAATTCTCGGGTGCCAAGG \
-    --threads 8
-
-# Key options:
-# -s: Input FASTQ files (comma-separated)
-# -lib: Path to miRge3 library
-# -on: Organism name
-# -db: Database (mirbase or mirgenedb)
-# -a: 3' adapter sequence
-```
-
-## Install miRge3 Libraries
-
-**Goal:** Download organism-specific reference libraries required for miRge3 annotation.
-
-**Approach:** Use miRge3 built-in download command to fetch pre-built bowtie indices and annotations.
-
-```bash
-# Download pre-built libraries
-miRge3.0 --download-library human mirbase
-
-# Libraries include:
-# - Bowtie indices for miRNAs, tRNAs, rRNAs
-# - miRBase or MirGeneDB annotations
-# - A-to-I editing sites
-```
-
-## IsomiR Detection
-
-**Goal:** Identify and quantify isomiR variants including 5'/3' additions, deletions, and internal modifications.
-
-**Approach:** Enable miRge3 isomiR mode to classify reads by their deviation from canonical miRNA sequences.
-
-```bash
-# Enable isomiR analysis
-miRge3.0 annotate \
-    -s sample.fastq.gz \
-    -lib miRge3_libs \
-    -on human \
-    -db mirbase \
-    --isomir \
+    -db miRBase \
+    -a illumina \
+    -gff \
+    -ai \
+    -cpu 8 \
     -o output_dir
 
-# IsomiRs include:
-# - 5' variants (templated and non-templated)
-# - 3' variants (templated and non-templated)
-# - Internal modifications
+# -s: comma-separated FASTQs (raw or already adapter-known)
+# -on: organism (human|mouse|rat|zebrafish|nematode|fruitfly)
+# -db: miRBase or MirGeneDB
+# -a: adapter as a name ('illumina') OR a raw sequence (e.g. TGGAATTCTCGGGTGCCAAGG)
+# -gff: emit isomiR results in mirGFF3 (the community-standard isomiR format)
+# -ai: A-to-I editing. A seed A->I edit RETARGETS the miRNA (inosine reads as G), and
+#      mismatch-permissive alignment silently merges edited reads into the canonical
+#      count - keep -ai on and treat seed edits as distinct species, not noise.
+# -cpu: threads
 ```
 
-## A-to-I RNA Editing
-
-**Goal:** Detect adenosine-to-inosine RNA editing events in miRNA sequences.
-
-**Approach:** Enable miRge3 A-to-I detection mode which identifies editing sites and calculates editing frequencies.
+## UMI and novel-miRNA options
 
 ```bash
-# Detect A-to-I editing
-miRge3.0 annotate \
-    -s sample.fastq.gz \
-    -lib miRge3_libs \
-    -on human \
-    -db mirbase \
-    --AtoI \
-    -o output_dir
+# QIAseq UMI library: -qumi removes Qiagen PCR duplicates; -umi gives the 5',3' trim lengths
+miRge3.0 annotate -s qiaseq.fastq.gz -lib LIBS -on human -db miRBase \
+    -a AACTGTAGGCACCATCAAT -umi 0,12 -qumi -o out_umi
 
-# Outputs editing sites and frequencies
+# Optional novel-miRNA prediction (SVM); needs the genome; prefer miRDeep2 for real discovery
+miRge3.0 annotate -s sample.fastq.gz -lib LIBS -on human -db miRBase -a illumina -nmir -o out_novel
 ```
 
-## Output Files
+## Output files
 
 | File | Description |
 |------|-------------|
-| miR.Counts.csv | Raw read counts per miRNA |
-| miR.RPM.csv | RPM normalized counts |
-| isomiR.Counts.csv | IsomiR-level counts |
-| isomiR.summary.csv | IsomiR summary per miRNA |
-| annotation.report.html | Interactive QC report |
+| miR.Counts.csv | Raw read counts per miRNA (this feeds DESeq2/edgeR) |
+| miR.RPM.csv | RPM-normalized counts (display only, NOT for DE testing) |
+| *.gff3 | isomiR variants in mirGFF3 (with `-gff`) |
+| annotation.report.html / .csv | RNA-class composition and QC report |
+| a2i / editing report | A-to-I editing sites and frequencies (with `-ai`) |
 
-## Python API
+## Run from Python via subprocess
 
-**Goal:** Run miRge3 quantification programmatically from Python.
+**Goal:** Orchestrate miRge3 from a Python pipeline and load its outputs.
 
-**Approach:** Call the miRge3 annotate function directly with configuration parameters instead of CLI invocation.
+**Approach:** miRge3.0 is a command-line tool with no documented Python API, so invoke it with subprocess, then read the CSV outputs with pandas.
 
 ```python
-from mirge3.annotate import annotate
+import subprocess
 
-# Run programmatically
-annotate(
-    samples=['sample1.fastq.gz', 'sample2.fastq.gz'],
-    lib_path='miRge3_libs',
-    organism='human',
-    database='mirbase',
-    adapter='TGGAATTCTCGGGTGCCAAGG',
-    output_dir='results',
-    threads=8
-)
+def run_mirge3(samples, lib_path, out_dir, organism='human', db='miRBase', adapter='illumina', threads=8):
+    cmd = ['miRge3.0', 'annotate',
+           '-s', ','.join(samples),
+           '-lib', lib_path,
+           '-on', organism,
+           '-db', db,
+           '-a', adapter,
+           '-gff', '-ai',
+           '-cpu', str(threads),
+           '-o', out_dir]
+    subprocess.run(cmd, check=True)
 ```
 
-## Parse miRge3 Output
+## Load and filter counts
 
-**Goal:** Load miRge3 count matrices and isomiR tables into pandas for downstream analysis.
+**Goal:** Read the miRge3 count matrix and remove near-zero noise before downstream analysis.
 
-**Approach:** Read CSV output files and apply minimum count filtering to remove lowly-expressed miRNAs.
+**Approach:** Load `miR.Counts.csv`, then filter to miRNAs with a minimum total count (most miRBase entries are near-zero noise).
 
 ```python
 import pandas as pd
 
 def load_mirge3_counts(output_dir):
-    '''Load miRge3 count matrix'''
-    counts = pd.read_csv(f'{output_dir}/miR.Counts.csv', index_col=0)
-    return counts
+    return pd.read_csv(f'{output_dir}/miR.Counts.csv', index_col=0)
 
-def load_isomirs(output_dir):
-    '''Load isomiR-level counts'''
-    isomirs = pd.read_csv(f'{output_dir}/isomiR.Counts.csv', index_col=0)
-    return isomirs
-
-# Filter low-expressed miRNAs
 def filter_low_counts(counts, min_total=10):
-    '''Keep miRNAs with total count >= threshold'''
+    # Lower than an mRNA threshold because miRNA libraries have fewer total counts;
+    # hand the SURVIVING RAW counts (not RPM) to DESeq2/edgeR for testing.
     return counts[counts.sum(axis=1) >= min_total]
 ```
 
-## Compare Multiple Samples
+## Aggregate isomiRs deliberately
 
-**Goal:** Normalize and transform miRNA counts for cross-sample comparison.
+**Goal:** Decide whether to collapse isomiRs to the parent miRNA or keep seed-shifting 5' variants separate.
 
-**Approach:** Apply RPM normalization to account for library size, then log2-transform for variance stabilization.
-
-```python
-def normalize_rpm(counts):
-    '''Normalize to reads per million'''
-    total_per_sample = counts.sum(axis=0)
-    rpm = counts / total_per_sample * 1e6
-    return rpm
-
-def log_transform(rpm, pseudocount=1):
-    '''Log2 transform with pseudocount'''
-    import numpy as np
-    return np.log2(rpm + pseudocount)
-```
-
-## IsomiR Analysis
-
-**Goal:** Summarize isomiR diversity metrics per canonical miRNA.
-
-**Approach:** Group isomiR-level counts by parent miRNA and compute total reads, variant count, and dominant isoform.
+**Approach:** Parse the mirGFF3 isomiR table, classify each variant by 5' vs 3' change, and aggregate to the parent only for variants that preserve the seed.
 
 ```python
 def summarize_isomirs(isomir_counts):
-    '''Summarize isomiR diversity per miRNA'''
-    # Group by canonical miRNA
-    isomir_counts['miRNA'] = isomir_counts.index.str.extract(r'(hsa-\w+-\d+[a-z]*)')[0]
-
-    summary = isomir_counts.groupby('miRNA').agg({
-        'count': ['sum', 'count', lambda x: x.idxmax()]
-    })
-    summary.columns = ['total_reads', 'n_isomirs', 'dominant_isomir']
+    # 5' isomiRs shift the seed and retarget -> keep separate when isomiR identity is
+    # the biology; 3' isomiRs mostly tune stability -> safe to collapse to the parent.
+    # KEEP the -5p/-3p arm in the parent key: the two arms have different seeds and
+    # targets and must never be merged (the dominant arm also switches across tissues).
+    # .values assigns positionally - index.str.extract returns a fresh RangeIndex that
+    # would otherwise misalign to all-NaN against the string index.
+    isomir_counts['miRNA'] = isomir_counts.index.str.extract(r'(hsa-\w+-\d+[a-z]*(?:-[35]p)?)')[0].values
+    summary = isomir_counts.groupby('miRNA').agg(
+        total_reads=('count', 'sum'),
+        n_isomirs=('count', 'count'),
+        dominant_isomir=('count', lambda x: x.idxmax()))
     return summary
 ```
 
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `unrecognized arguments: --isomir` | Flag does not exist | isomiR counts are produced by default; use `-gff` for mirGFF3 output |
+| `unrecognized arguments: --download-library` | No such subcommand | Download libraries from SourceForge and `tar -xzf`; point `-lib` at the tree |
+| `ModuleNotFoundError: mirge3.annotate` | No documented Python API | Call the CLI with `subprocess.run([...])` |
+| Empty or tiny count matrix | Wrong `-on`, wrong `-db` case, or wrong adapter | Confirm a supported species; `-db miRBase`/`MirGeneDB`; check the adapter name/sequence |
+| Organism not supported | Only six species ship libraries | Build a custom library with miRge3_build, or use miRDeep2/sRNAbench |
+| Inflated DE significance on tiny miRNAs | RPM fed to the DE test | Feed RAW `miR.Counts.csv`, not `miR.RPM.csv`, to DESeq2/edgeR |
+
 ## Related Skills
 
-- smrna-preprocessing - Prepare reads for miRge3
-- mirdeep2-analysis - Alternative with novel miRNA discovery
-- differential-mirna - DE analysis of miRge3 counts
+- smrna-preprocessing - Adapter and UMI handling; miRge3 can also trim internally
+- mirdeep2-analysis - Use when de novo novel-miRNA discovery is the goal
+- differential-mirna - Differential expression from the raw count matrix
+- trf-pirna-profiling - Deeper tRF/piRNA analysis beyond miRge3's tRF module
+
+## References
+
+- Patil AH, Halushka MK. 2021. miRge3.0: a comprehensive microRNA and tRF sequencing analysis pipeline. *NAR Genom Bioinform* 3:lqab068. doi:10.1093/nargab/lqab068
+- Desvignes T, Loher P, Eilbeck K, et al. 2020. Unification of miRNA and isomiR research: the mirGFF3 format and the mirtop API. *Bioinformatics* 36:698-703. doi:10.1093/bioinformatics/btz675
+- Kozomara A, Birgaoanu M, Griffiths-Jones S. 2019. miRBase: from microRNA sequences to function. *Nucleic Acids Res* 47:D155-D162. doi:10.1093/nar/gky1141
+- Fromm B, Domanska D, Høye E, et al. 2020. MirGeneDB 2.0: the metazoan microRNA complement. *Nucleic Acids Res* 48:D1172-D1180. doi:10.1093/nar/gkz885
+- Tan GC, Chan E, Molnar A, et al. 2014. 5' isomiR variation is of functional and evolutionary importance. *Nucleic Acids Res* 42:9424-9435. doi:10.1093/nar/gku656

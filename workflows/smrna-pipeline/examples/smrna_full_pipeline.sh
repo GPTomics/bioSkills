@@ -32,7 +32,7 @@ zcat ${OUTPUT_DIR}/trimmed/trimmed.fastq.gz | \
 echo "=== Step 2: miRDeep2 Alignment ==="
 # Collapse identical reads and align to genome
 # -e: FASTQ input
-# -h: parse FASTQ
+# -h: parse to FASTA
 # -i: convert RNA to DNA
 # -j: remove reads with non-canonical letters
 # -l 18: minimum read length

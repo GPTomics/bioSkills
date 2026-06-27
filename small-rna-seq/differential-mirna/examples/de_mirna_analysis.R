@@ -1,9 +1,10 @@
-# Reference: DESeq2 1.42+, edgeR 4.0+, ggplot2 3.5+, scanpy 1.10+ | Verify API if version differs
+# Reference: DESeq2 1.42+, edgeR 4.0+, apeglm 1.24+, EnhancedVolcano 1.20+, pheatmap 1.0.12+ | Verify API if version differs
 # Differential expression analysis of miRNAs using DESeq2
 
 library(DESeq2)
 
-# Load count matrix (from miRge3 or miRDeep2)
+# Load RAW count matrix (from miRge3 miR.Counts.csv or miRDeep2) - NOT RPM.
+# RPM is for display; DESeq2 models the raw count distribution itself.
 # Rows = miRNAs, Columns = samples
 counts <- read.csv('miR.Counts.csv', row.names = 1)
 
@@ -33,6 +34,11 @@ cat('Kept', sum(keep), 'of', length(keep), 'miRNAs\n')
 
 # Run DESeq2
 dds <- DESeq(dds)
+
+# Compositional check: a few miRNAs can be >50% of reads, so a size factor far from 1
+# or one runaway miRNA warns that median-of-ratios may be distorted (try upper-quartile
+# or remove the dominant miRNA from size-factor estimation if so).
+print(sizeFactors(dds))
 
 # Get results with apeglm shrinkage
 # apeglm provides better log2FC estimates for low-count genes
@@ -84,8 +90,10 @@ ggsave('volcano_plot.pdf', width = 10, height = 8)
 if (nrow(sig) > 0) {
     library(pheatmap)
 
-    # Variance-stabilized counts for visualization
-    vsd <- vst(dds, blind = FALSE)
+    # Variance-stabilized counts for visualization.
+    # vst() subsets 1000 genes to fit the dispersion trend and ERRORS on miRNA-sized
+    # data (hundreds of features); use the full varianceStabilizingTransformation.
+    vsd <- varianceStabilizingTransformation(dds, blind = FALSE)
 
     # Select significant miRNAs
     sig_mirnas <- rownames(sig)

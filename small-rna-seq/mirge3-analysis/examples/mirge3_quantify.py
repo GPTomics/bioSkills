@@ -5,26 +5,30 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 
-def run_mirge3(samples, output_dir, organism='human', adapter='TGGAATTCTCGGGTGCCAAGG', threads=8):
-    '''Run miRge3 annotation pipeline
+def run_mirge3(samples, output_dir, lib_path='/path/to/miRge3_Lib', organism='human',
+               db='miRBase', adapter='illumina', threads=8):
+    '''Run the miRge3.0 annotate pipeline via subprocess (no Python API exists)
 
     Args:
-        samples: List of FASTQ file paths
-        output_dir: Output directory
-        organism: Organism name (human, mouse, etc.)
-        adapter: 3' adapter sequence (Illumina TruSeq default)
-        threads: Number of threads
+        samples: list of FASTQ file paths
+        output_dir: output directory
+        lib_path: directory holding the SourceForge-downloaded miRge3 libraries
+        organism: human|mouse|rat|zebrafish|nematode|fruitfly (only these ship libraries)
+        db: miRBase or MirGeneDB
+        adapter: adapter name ('illumina') or raw 3' sequence
+        threads: cpu count
     '''
     cmd = [
         'miRge3.0', 'annotate',
         '-s', ','.join(samples),
-        '-lib', 'miRge3_libs',
+        '-lib', lib_path,
         '-on', organism,
-        '-db', 'mirbase',
+        '-db', db,
         '-a', adapter,
         '-o', output_dir,
-        '--threads', str(threads),
-        '--isomir'  # Enable isomiR detection
+        '-cpu', str(threads),
+        '-gff',  # emit isomiR results as mirGFF3 (there is no --isomir flag)
+        '-ai'    # A-to-I editing
     ]
 
     print(f'Running: {" ".join(cmd)}')
@@ -85,9 +89,10 @@ def summarize_isomirs(isomir_counts):
     Returns number of isomiRs and dominant variant per miRNA.
     High isomiR diversity may indicate active modification.
     '''
-    # Extract canonical miRNA name from isomiR ID
-    # Format: hsa-miR-21-5p_variant
-    canonical = isomir_counts.index.str.extract(r'(hsa-\w+-\d+[a-z]*-[35]p)')[0]
+    # Extract canonical miRNA name (keeping the -5p/-3p arm) from the isomiR ID.
+    # .values assigns positionally: index.str.extract returns a fresh RangeIndex that
+    # would otherwise misalign to all-NaN against the string index.
+    canonical = isomir_counts.index.str.extract(r'(hsa-\w+-\d+[a-z]*(?:-[35]p)?)')[0].values
     isomir_counts = isomir_counts.copy()
     isomir_counts['canonical'] = canonical
 

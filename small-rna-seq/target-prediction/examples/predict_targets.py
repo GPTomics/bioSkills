@@ -55,7 +55,8 @@ def parse_miranda_output(filepath):
     results = []
     with open(filepath) as f:
         for line in f:
-            if line.startswith('>'):
+            # '>>' lines are miRanda's per-pair summary (total/max), different columns - skip them
+            if line.startswith('>') and not line.startswith('>>'):
                 parts = line.strip().split('\t')
                 if len(parts) >= 4:
                     results.append({
@@ -72,17 +73,17 @@ def parse_miranda_output(filepath):
     filtered = df[(df['score'] >= SCORE_THRESHOLD) & (df['energy'] <= ENERGY_THRESHOLD)]
     return filtered
 
-def load_targetscan(filepath, mirna_family):
-    '''Load TargetScan predictions for a miRNA family
+def load_targetscan(filepath, mirbase_id):
+    '''Load TargetScan context-scores predictions for a miRNA
 
-    TargetScan context++ score:
-    - < -0.4: Very high confidence
-    - < -0.2: High confidence
-    - < 0: Predicted target
+    Verified column names in Predicted_Targets_Context_Scores.default_predictions.txt:
+    the miRNA column is 'Mirbase ID' (NOT 'miRNA family'), the gene column is 'Gene ID'.
+    Rank a UTR by 'weighted context++ score' (more negative = stronger repression);
+    it is a relative ranking within a miRNA, not an absolute confidence cutoff.
     '''
     df = pd.read_csv(filepath, sep='\t')
-    targets = df[df['miRNA family'] == mirna_family].copy()
-    targets = targets.sort_values('context++ score')
+    targets = df[df['Mirbase ID'] == mirbase_id].copy()
+    targets = targets.sort_values('weighted context++ score')
     return targets
 
 def load_mirdb(filepath, mirna_id, score_threshold=80):

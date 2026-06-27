@@ -13,6 +13,11 @@ SAMPLE=$(basename $INPUT .fastq.gz)
 echo "Processing: $SAMPLE"
 echo "Adapter: $ADAPTER"
 
+# Kit handling not shown here: NEXTflex 4N libraries need a second pass
+# (cutadapt -u 4 -u -4) AFTER adapter removal to strip the random spacer;
+# QIAseq UMI libraries need umi_tools extract before, and dedup after, alignment.
+# This invariant-end recipe trims the adapter only and does NOT PCR-deduplicate.
+
 # Step 1: Trim adapters and filter by size
 # -m 18: Minimum length - miRNAs are 18-25 nt, piRNAs 26-32 nt
 # -M 35: Maximum length - excludes degradation products and longer ncRNAs
