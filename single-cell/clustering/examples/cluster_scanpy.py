@@ -11,7 +11,7 @@ sc.pl.pca_variance_ratio(adata, n_pcs=50, save='_variance.png')
 
 sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
 
-sc.tl.leiden(adata, resolution=0.5)
+sc.tl.leiden(adata, resolution=0.5, flavor='igraph', n_iterations=2, directed=False)
 print(f'Found {adata.obs["leiden"].nunique()} clusters')
 print(adata.obs['leiden'].value_counts())
 

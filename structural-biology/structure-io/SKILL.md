@@ -3,6 +3,7 @@ name: bio-pdb-structure-io
 description: Parse and write protein structure files using Biopython Bio.PDB. Use when reading PDB, mmCIF, and MMTF files, downloading structures from RCSB PDB, or writing structures to various formats.
 tool_type: python
 primary_tool: Bio.PDB
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility

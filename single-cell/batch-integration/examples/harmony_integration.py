@@ -35,7 +35,7 @@ def integrate_with_harmony(h5ad_files, output_prefix='integrated'):
     print('Post-integration...')
     sc.pp.neighbors(adata, use_rep='X_pca_harmony')
     sc.tl.umap(adata)
-    sc.tl.leiden(adata, resolution=0.5)
+    sc.tl.leiden(adata, resolution=0.5, flavor='igraph', n_iterations=2, directed=False)
 
     print('Plotting...')
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))

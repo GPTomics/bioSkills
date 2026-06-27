@@ -3,6 +3,7 @@ name: bio-workflows-smrna-pipeline
 description: End-to-end small RNA-seq analysis from FASTQ to differential miRNA expression. Use when analyzing miRNA, piRNA, or other small RNA sequencing data.
 tool_type: mixed
 primary_tool: miRDeep2
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility

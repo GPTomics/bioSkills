@@ -3,6 +3,7 @@ name: bio-tcr-bcr-analysis-repertoire-visualization
 description: Create publication-quality visualizations of immune repertoire data including circos plots, clone tracking, diversity plots, and network graphs. Use when generating figures for repertoire comparisons, clonal dynamics, or V(D)J gene usage.
 tool_type: mixed
 primary_tool: VDJtools
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility

@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, scanpy 1.10+ | Verify API if version differs
+# Reference: Seurat 5.0+, scran 1.30+ | Verify API if version differs
 # Preprocess single-cell data with Seurat
 
 library(Seurat)
@@ -13,7 +13,8 @@ seurat_obj <- subset(seurat_obj,
     subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & percent.mt < 20)
 cat('Filtered:', ncol(seurat_obj), 'cells\n')
 
-seurat_obj <- SCTransform(seurat_obj, vars.to.regress = 'percent.mt', verbose = FALSE)
+# Do not reflexively regress out percent.mt: it is confounded with real cell state and erases biology
+seurat_obj <- SCTransform(seurat_obj, verbose = FALSE)
 cat('HVGs:', length(VariableFeatures(seurat_obj)), '\n')
 
 saveRDS(seurat_obj, file = 'preprocessed.rds')

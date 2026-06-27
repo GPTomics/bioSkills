@@ -3,6 +3,7 @@ name: bio-workflows-scrnaseq-pipeline
 description: End-to-end single-cell RNA-seq workflow from 10X Genomics data to annotated cell types. Covers QC, normalization, clustering, marker detection, and cell type annotation. Use when analyzing single-cell RNA-seq data.
 tool_type: mixed
 primary_tool: Seurat
+goal_approach_exempt: true
 workflow: true
 depends_on:
   - single-cell/data-io
@@ -33,6 +34,18 @@ package and adapt the example to match the actual API rather than retrying.
 **"Analyze my single-cell RNA-seq data from counts to cell types"** -> Orchestrate QC filtering, normalization (scanpy/Seurat), batch integration (scVI/Harmony), clustering, marker detection, cell type annotation, and trajectory inference.
 
 Complete workflow from 10X Genomics Cell Ranger output to annotated cell types.
+
+## Pipeline orchestration: the ordering decisions that make or break the result
+
+Stage order is not arbitrary; getting it wrong silently corrupts every downstream step. Six cross-cutting decisions this pipeline must get right:
+- Multiplexed (hashed) pools are demultiplexed FIRST. When samples are pooled with cell hashing (HTO/MULTI-seq) or genotype multiplexing, assign each cell to its sample of origin and remove cross-sample doublets before any per-sample step; the per-sample QC and doublet operations below assume the pool is already split by sample. See single-cell/hashing-demultiplexing.
+- Per-sample QC and doublet detection come BEFORE any merge or integration. Ambient-RNA cleanup (SoupX/CellBender), mito/gene-count filtering, and doublet calling (expected rate ~0.8% per 1,000 recovered cells) are per-capture operations; running them on a pooled object lets one lane's artifacts contaminate the shared null and lets surviving doublets form fake intermediate clusters. See single-cell/preprocessing and single-cell/doublet-detection.
+- Integrate, THEN cluster, THEN annotate - never reorder. For multi-sample designs, batch-correct on a shared embedding (Harmony/scVI/RPCA) and cluster on the corrected graph; clustering before correction makes clusters track samples or lanes instead of biology, and annotation has nothing to label until clusters exist. See single-cell/batch-integration, single-cell/clustering, single-cell/cell-annotation.
+- Over-integration erases biology. Batch-mixing metrics (kBET, iLISI) are maximized by destroying structure, so a method that flattens real cell states scores perfectly; pair every batch metric with a bio-conservation metric and re-inspect rare populations after correction. Batch-corrected expression is for embedding and clustering only - never feed it to differential expression. See single-cell/batch-integration.
+- Condition-level DE must use pseudobulk, not cells-as-replicates. Testing thousands of cells per donor as independent replicates is pseudoreplication and inflates false positives by orders of magnitude (Squair 2021); aggregate RAW counts per sample x cell type and hand them to DESeq2/edgeR/limma-voom. Step 7 marker p-values are descriptive ranking for labeling, not condition inference. See single-cell/markers-annotation and differential-expression/deseq2-basics.
+- Composition shifts are tested separately and masquerade as DE. A cluster-level expression change between conditions can be a pure proportion shift (a mixed cluster's substates re-balance with no gene changing per cell), invisible if only DE is run; always pair condition DE with a differential-abundance test (Milo cluster-free, or scCODA/sccomp/propeller cluster-based). See single-cell/differential-abundance.
+
+The Seurat and Scanpy paths below are written single-sample for clarity. A multiplexed design demultiplexes the pool first (single-cell/hashing-demultiplexing); a multi-sample design then inserts per-sample QC and doublet removal, a merge, and an integration step between normalization (Step 4) and dimensionality reduction (Step 5); the rest of the order is unchanged.
 
 ## Workflow Overview
 
@@ -131,15 +144,17 @@ cat('Cells after doublet removal:', ncol(seurat_obj), '\n')
 
 ```r
 # SCTransform (recommended for most analyses)
-seurat_obj <- SCTransform(seurat_obj, vars.to.regress = 'percent.mt', verbose = FALSE)
+seurat_obj <- SCTransform(seurat_obj, verbose = FALSE)
 ```
 
 Alternative: Standard normalization
 ```r
 seurat_obj <- NormalizeData(seurat_obj)
 seurat_obj <- FindVariableFeatures(seurat_obj, selection.method = 'vst', nfeatures = 2000)
-seurat_obj <- ScaleData(seurat_obj, vars.to.regress = 'percent.mt')
+seurat_obj <- ScaleData(seurat_obj)
 ```
+
+Regressing out `percent.mt` (or `nCount`/cell-cycle) is NOT reflexive: those covariates are confounded with real cell state and regressing them can erase biology, so only pass `vars.to.regress` for a covariate verified not confounded with the signal of interest. See single-cell/preprocessing.
 
 ### Step 5: Dimensionality Reduction
 
@@ -228,14 +243,15 @@ adata.var_names_make_unique()
 adata.var['mt'] = adata.var_names.str.startswith('MT-')
 sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
 
-# Filter
+# Filter (flat cutoffs are illustrative; prefer MAD-adaptive, tissue-aware thresholds, see single-cell/preprocessing)
 sc.pp.filter_cells(adata, min_genes=200)
 sc.pp.filter_genes(adata, min_cells=3)
 adata = adata[adata.obs.n_genes_by_counts < 5000, :]
 adata = adata[adata.obs.pct_counts_mt < 20, :]
 
-# Doublet detection
-sc.pp.scrublet(adata)
+# Doublet detection (rate from recovered cells, not the 0.05 placeholder, see single-cell/doublet-detection)
+expected_rate = 0.008 * adata.n_obs / 1000
+sc.pp.scrublet(adata, expected_doublet_rate=expected_rate)
 adata = adata[~adata.obs['predicted_doublet'], :]
 
 # Normalize and HVGs
@@ -249,8 +265,8 @@ sc.tl.pca(adata, n_comps=50)
 sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
 sc.tl.umap(adata)
 
-# Clustering
-sc.tl.leiden(adata, resolution=0.5)
+# Clustering (pin the backend for reproducibility; default flips to igraph)
+sc.tl.leiden(adata, resolution=0.5, flavor='igraph', n_iterations=2, directed=False)
 
 # Markers
 sc.tl.rank_genes_groups(adata, 'leiden', method='wilcoxon')
@@ -266,11 +282,13 @@ adata.write('scanpy_annotated.h5ad')
 |------|-----------|----------------|
 | QC | min.features | 200-500 |
 | QC | max.features | 2500-5000 (depends on data) |
-| QC | percent.mt | <10-20% |
-| SCTransform | vars.to.regress | percent.mt |
+| QC | percent.mt | <10-20% (tissue-dependent) |
+| SCTransform | vars.to.regress | none by default; only a validated non-confounded covariate |
 | PCA | npcs | 30-50 |
 | UMAP | dims | 15-30 (check elbow plot) |
 | Clustering | resolution | 0.4-0.8 (start with 0.5) |
+
+QC cutoffs above are illustrative starting points, not universal thresholds: set min/max features and mito % per dataset from the data (MAD-adaptive, tissue-aware) rather than porting flat values, since healthy mito fraction varies by tissue. See single-cell/preprocessing.
 
 ## Troubleshooting
 
@@ -311,8 +329,8 @@ seurat_obj$doublet <- sce$scDblFinder.class
 seurat_obj <- subset(seurat_obj, doublet == 'singlet')
 cat('After doublet removal:', ncol(seurat_obj), '\n')
 
-# Normalize
-seurat_obj <- SCTransform(seurat_obj, vars.to.regress = 'percent.mt', verbose = FALSE)
+# Normalize (no reflexive vars.to.regress; regress only a validated non-confounded covariate)
+seurat_obj <- SCTransform(seurat_obj, verbose = FALSE)
 
 # Dimension reduction
 seurat_obj <- RunPCA(seurat_obj, npcs = 50, verbose = FALSE)
@@ -341,9 +359,17 @@ cat('Pipeline complete. Object saved to:', output_dir, '\n')
 
 - database-access/geo-data - Resolve GSE to SRA; detect SuperSeries before processing
 - database-access/sra-data - Download 10x records with --include-technical for barcodes/UMIs
-- single-cell/data-io - Loading different formats
-- single-cell/preprocessing - QC details
-- single-cell/doublet-detection - Doublet methods comparison
-- single-cell/clustering - Clustering parameters
-- single-cell/markers-annotation - Annotation strategies
-- single-cell/multimodal-integration - CITE-seq, multiome
+- single-cell/data-io - Loading 10X, h5ad, RDS, and h5mu formats
+- single-cell/preprocessing - QC thresholds, ambient-RNA removal, normalization choice
+- single-cell/doublet-detection - Per-sample doublet calling before integration
+- single-cell/hashing-demultiplexing - Assign multiplexed pools to samples and call cross-sample doublets before QC
+- single-cell/batch-integration - Multi-sample integration and over-correction diagnosis
+- single-cell/clustering - Resolution sweep and cluster validation
+- single-cell/markers-annotation - Marker discovery, manual labeling, and pseudobulk condition DE
+- single-cell/cell-annotation - Automated reference-based label transfer
+- single-cell/differential-abundance - Test whether cell-type proportions shifted between conditions
+- single-cell/trajectory-inference - Pseudotime and lineage reconstruction for continuous processes
+- single-cell/multimodal-integration - CITE-seq and multiome joint analysis
+- differential-expression/deseq2-basics - Pseudobulk condition DE engine for aggregated counts
+- differential-expression/de-results - Shrink, filter, and interpret pseudobulk DE results
+- pathway-analysis/go-enrichment - Functional interpretation of marker and DE gene lists

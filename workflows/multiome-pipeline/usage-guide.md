@@ -51,6 +51,12 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
+- **Paired-cell anchor**: Keep only barcodes passing QC in BOTH modalities; the surviving cell set is the intersection of RNA and ATAC filters
+- **ATAC doublets**: RNA-based callers miss ATAC doublets; add a fragment-based detector (AMULET) before the joint embedding
+- **WNN vs MultiVI**: WNN weights precomputed PCA + LSI per cell and needs both modalities present; MultiVI models RNA + ATAC counts jointly and handles batch and mosaic cells better
+- **Stage order**: Per-modality QC and doublet removal first, then WNN embedding, then clustering, then annotation
+- **Annotate from RNA**: Cell-type labels come from RNA markers; ATAC gene-activity scores approximate expression and inform regulatory state, not identity
+- **Condition comparisons**: Aggregate to pseudobulk per sample for DE, and test proportion shifts separately with a differential-abundance method
 - **LSI component 1**: Often depth-correlated, skip it (always use `dims=2:30`)
 - **WNN weights**: Check modality contribution per cluster; ATAC sparseness can dominate noise
 - **Gene-peak links**: Signac LinkPeaks for direct correlation; for full ABC enhancer-gene see atac-seq/enhancer-gene-linking
@@ -61,10 +67,16 @@ Tell your AI agent what you want to do:
 
 ## Related Skills
 
-- single-cell/data-io - 10X data loading
-- single-cell/preprocessing - QC and normalization
-- single-cell/multimodal-integration - WNN details
-- single-cell/scatac-analysis - ATAC-specific processing
+- single-cell/data-io - 10X, h5ad, RDS, and h5mu loading
+- single-cell/preprocessing - Per-modality QC and normalization
+- single-cell/doublet-detection - RNA-based and hashing doublet removal
+- single-cell/clustering - Cluster validation on the joint graph
+- single-cell/markers-annotation - Marker discovery and pseudobulk condition DE
+- single-cell/cell-annotation - Reference-based label transfer from the RNA modality
+- single-cell/differential-abundance - Test whether cell-type proportions shifted between conditions
+- single-cell/multimodal-integration - WNN, totalVI/MultiVI, and MOFA details
+- single-cell/scatac-analysis - ATAC-specific processing and AMULET fragment-based doublet detection
+- differential-expression/deseq2-basics - Pseudobulk condition DE engine for aggregated counts
 - atac-seq/single-cell-atac - Signac / ArchR / SnapATAC2 ecosystem decision
 - atac-seq/co-accessibility - Cicero / ArchR getCoAccessibility for cis-regulatory inference
 - atac-seq/enhancer-gene-linking - ABC, ENCODE-rE2G for enhancer-gene mapping

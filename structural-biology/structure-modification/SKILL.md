@@ -3,6 +3,7 @@ name: bio-pdb-structure-modification
 description: Modify protein structures using Biopython Bio.PDB. Use when transforming coordinates, removing atoms or residues, adding new entities, modifying B-factors and occupancies, or building structures programmatically.
 tool_type: python
 primary_tool: Bio.PDB
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility

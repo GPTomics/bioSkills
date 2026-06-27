@@ -3,6 +3,7 @@ name: bio-liquid-biopsy-pipeline
 description: Cell-free DNA analysis pipeline from plasma sequencing to tumor monitoring. Preprocesses cfDNA reads, analyzes fragment patterns, estimates tumor fraction from sWGS, and optionally detects mutations from targeted panels. Use when analyzing liquid biopsy samples for cancer detection or monitoring.
 tool_type: mixed
 primary_tool: ichorCNA
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility

@@ -14,45 +14,18 @@ sc.pp.pca(adata)
 sc.pp.neighbors(adata)
 sc.tl.umap(adata)
 
-# Initialize CoSpar
-cs.settings.set_figure_params()
+# CoSpar expects time_info, state_info, and a clonal matrix X_clone on the AnnData
+# initialize_adata_object wires those fields into the object CoSpar operates on
+adata = cs.pp.initialize_adata_object(adata, X_clone=adata.obsm['X_clone'], time_info=adata.obs['time_info'])
 
-# Prepare clonal data
-# Converts clone IDs to sparse matrix format
-cs.tl.prepare_clones(
-    adata,
-    clone_key='clone_id',  # Column with barcode/clone ID
-    min_clone_size=2       # Min cells per clone
-)
+# Infer the transition map jointly from clones at multiple timepoints and state similarity
+# smooth_array applies multi-scale smoothing; results land in adata.uns['transition_map']
+adata = cs.tmap.infer_Tmap_from_multitime_clones(adata, smooth_array=[15, 10, 5], sparsity_threshold=0.1)
 
-# Infer transition map (fate probabilities)
-# smooth_array: smoothing parameters for refinement
-cs.tl.infer_Tmap(
-    adata,
-    smooth_array=[15, 10, 5],  # Multi-scale smoothing
-    max_iter=3
-)
+# Fate map: probability of reaching each terminal state, propagated onto cells lacking clones
+cs.tl.fate_map(adata, selected_fates=['Monocyte', 'Neutrophil'], source='transition_map')
+cs.pl.fate_map(adata, selected_fates=['Monocyte', 'Neutrophil'], source='transition_map')
 
-# Compute fate map from progenitor to terminal state
-# Requires cell_type annotation
-cs.tl.fate_map(
-    adata,
-    source='Progenitor',  # Starting cell type
-    map_key='Tmap'
-)
-
-# Visualize fate probabilities
-cs.pl.fate_map(adata, source='Progenitor')
-
-# Clone expansion analysis
-# Track how individual clones grow over time
-if 'time_point' in adata.obs.columns:
-    cs.tl.clone_dynamics(
-        adata,
-        time_key='time_point',
-        clone_key='clone_id'
-    )
-    cs.pl.clone_dynamics(adata)
-
-# Export results
-adata.write('cospar_results.h5ad')
+# Fate bias recovers the early, transcriptomically-hidden bias Weinreb 2020 showed state cannot predict
+cs.tl.fate_bias(adata, selected_fates=['Monocyte', 'Neutrophil'], source='transition_map')
+cs.pl.fate_bias(adata, selected_fates=['Monocyte', 'Neutrophil'], source='transition_map')

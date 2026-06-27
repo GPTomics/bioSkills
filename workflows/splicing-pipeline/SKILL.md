@@ -3,6 +3,7 @@ name: bio-splicing-pipeline
 description: End-to-end alternative splicing analysis from FASTQ to differential splicing results for short-read bulk RNA-seq. Aligns with STAR 2-pass cohort-style, performs junction QC (RSeQC, MaxEntScan, SpliceAI), runs rMATS-turbo and leafcutter for concordant differential analysis, optionally MAJIQ V3 for complex events / heterogeneous cohorts, isoform-switching with NMD/ORF/domain consequences (IsoformSwitchAnalyzeR v2 + DRIMSeq+DEXSeq+stageR DTU), and sashimi visualizations. Use when performing comprehensive splicing analysis from raw bulk RNA-seq data; for variant-driven splice prediction see splice-variant-prediction; for rare-disease single-patient outlier detection see outlier-splicing-detection; for full-isoform PacBio/ONT analysis see long-read-splicing.
 tool_type: mixed
 primary_tool: rMATS-turbo
+goal_approach_exempt: true
 ---
 
 ## Version Compatibility

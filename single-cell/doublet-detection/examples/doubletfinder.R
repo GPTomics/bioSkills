@@ -1,4 +1,4 @@
-# Reference: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+ | Verify API if version differs
+# Reference: Seurat 5.0+, DoubletFinder 2.0+ | Verify API if version differs
 library(Seurat)
 library(DoubletFinder)
 
@@ -25,8 +25,12 @@ bcmvn <- find.pK(sweep.stats)
 optimal_pk <- as.numeric(as.character(bcmvn$pK[which.max(bcmvn$BCmetric)]))
 cat('Optimal pK:', optimal_pk, '\n')
 
-nExp_poi <- round(0.06 * ncol(seurat_obj))
-cat('Expected doublets:', nExp_poi, '\n')
+# Set the expected rate from recovered cells (~0.008 per 1000), not a flat placeholder
+rate <- 0.008 * ncol(seurat_obj) / 1000
+nExp_poi <- round(rate * ncol(seurat_obj))
+# Discount the homotypic fraction (same-type doublets are undetectable by expression)
+nExp_poi <- round(nExp_poi * (1 - modelHomotypic(seurat_obj$seurat_clusters)))
+cat('Expected detectable doublets:', nExp_poi, '\n')
 
 seurat_obj <- doubletFinder(seurat_obj, PCs = 1:20, pN = 0.25, pK = optimal_pk,
                              nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)

@@ -1,11 +1,11 @@
-# Reference: numpy 1.26+, scanpy 1.10+ | Verify API if version differs
+# Reference: muon 0.1+, scanpy 1.10+ | Verify API if version differs
 import muon as mu
 import scanpy as sc
 import anndata as ad
 import numpy as np
 
-# Read 10X multiome data (RNA + ADT)
-# muon reads 10X filtered_feature_bc_matrix folder with both modalities
+# Read 10X CITE-seq data (RNA + ADT protein); multiome would be RNA + ATAC
+# muon reads the 10X filtered_feature_bc_matrix folder with both modalities
 mdata = mu.read_10x_h5('filtered_feature_bc_matrix.h5')
 
 # Access individual modalities
@@ -33,8 +33,8 @@ sc.pp.highly_variable_genes(rna, n_top_genes=2000)
 sc.pp.scale(rna, max_value=10)
 sc.tl.pca(rna, n_comps=30)
 
-# ADT preprocessing (CLR normalization)
-# margin=0: normalize across cells (standard for ADT)
+# ADT preprocessing: CLR rescales but does NOT remove background; prefer DSB when empty droplets are available
+# axis is genuinely ambiguous across versions (axis=0 ~ per-feature ~ Seurat margin=2); verify with the muon docs
 mu.prot.pp.clr(adt, axis=0)
 sc.pp.scale(adt, max_value=10)
 # Use all ADT features for PCA (typically 10-200 markers)

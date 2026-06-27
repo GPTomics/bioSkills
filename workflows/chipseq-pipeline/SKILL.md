@@ -3,6 +3,7 @@ name: bio-workflows-chipseq-pipeline
 description: End-to-end ChIP-seq workflow from FASTQ files to annotated peaks. Covers QC, alignment, peak calling with MACS3 (or HOMER), and peak annotation with ChIPseeker. Use when processing ChIP-seq data from alignment through peak annotation.
 tool_type: mixed
 primary_tool: MACS3
+goal_approach_exempt: true
 workflow: true
 depends_on:
   - read-qc/fastp-workflow

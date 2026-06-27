@@ -2,73 +2,78 @@
 
 ## Overview
 
-This skill covers reading, writing, and creating single-cell data objects using both Seurat (R) and Scanpy (Python). Use it for loading 10X Genomics data, importing/exporting files, and managing cell and gene metadata.
+This skill covers reading, writing, creating, and converting single-cell objects across AnnData (Python), Seurat (R), and SingleCellExperiment (R). It emphasizes the decisions that prevent silent data loss: keeping the raw 10X matrix, choosing stable gene identifiers, picking a storage format, and converting between Python and R without dropping layers or transposing the matrix incorrectly.
 
 ## Prerequisites
 
-**Python (Scanpy):**
+**Python (Scanpy/AnnData):**
 ```bash
 pip install scanpy anndata
+# multimodal: pip install muon mudata
 ```
 
-**R (Seurat):**
+**R (Seurat + conversion):**
 ```r
 install.packages('Seurat')
-# For format conversion:
-remotes::install_github('mojaveazure/seurat-disk')
+# Conversion (prefer maintained tools; SeuratDisk is abandoned):
+remotes::install_github('scverse/anndataR')          # pure-R h5ad/zarr I/O + conversion
+BiocManager::install('zellkonverter')                # SCE <-> AnnData
+remotes::install_github('cellgeni/schard')           # robust pure-R h5ad reading
 ```
 
 ## Quick Start
 
-Ask your AI agent:
-- "Load my 10X data into Scanpy"
-- "Create a Seurat object from this count matrix"
-- "Convert my h5ad file to Seurat format"
+Tell the AI agent what is needed:
+- "Load the raw 10X matrix and keep the antibody-capture features"
+- "Create an AnnData object from this count matrix and store raw counts"
+- "Convert this h5ad to a Seurat object without losing the UMAP and layers"
 
 ## Example Prompts
 
 ### Loading Data
-> "Read the 10X filtered_feature_bc_matrix folder"
+> "Read the raw_feature_bc_matrix folder using Ensembl gene IDs"
 
-> "Load this h5ad file and show the cell count"
+> "Load this Cell Ranger h5 and report cells x genes"
 
-> "Import the cellranger h5 output"
+> "Load the 10X output but keep CRISPR guide and antibody features"
 
 ### Creating Objects
-> "Create an AnnData object from this count matrix CSV"
+> "Build an AnnData from this matrix, put integer counts in a counts layer"
 
-> "Make a Seurat object from this sparse matrix"
+> "Create a Seurat v5 object from this sparse matrix with min.cells 3"
 
-### Metadata
-> "Add sample labels to the cell metadata"
+### Converting
+> "Convert this AnnData to a SingleCellExperiment, keeping reducedDims and raw"
 
-> "Show me all the cell metadata columns"
+> "Move this Seurat object to h5ad for Python and verify no layers were dropped"
 
-### Saving/Converting
-> "Save this AnnData as h5ad"
-
-> "Convert this Seurat object to h5ad for use in Python"
+> "Why did my gene and cell axes swap after conversion?"
 
 ## What the Agent Will Do
 
-1. Identify data format and choose appropriate reader
-2. Load data into Seurat object or AnnData object
-3. Add requested metadata
-4. Save in requested format
-
-## Tool Comparison
-
-| Task | Scanpy (Python) | Seurat (R) |
-|------|-----------------|------------|
-| Read 10X | `sc.read_10x_mtx()` | `Read10X()` |
-| Create object | `ad.AnnData()` | `CreateSeuratObject()` |
-| Native format | `.h5ad` | `.rds` |
-| Access counts | `adata.X` | `LayerData(obj, layer='counts')` |
+1. Identify the input format and whether the raw (unfiltered) 10X matrix is available
+2. Choose gene identifiers (Ensembl IDs for reproducibility) and whether to retain non-GEX features
+3. Read into AnnData or Seurat, placing counts/normalized/embeddings in conventional slots
+4. For conversion, select a maintained converter, apply the transpose, and remap metadata axes
+5. Diff slot inventories before and after conversion to confirm nothing was silently dropped
+6. Write to the appropriate format (h5ad/zarr/RDS/h5mu) and keep the original
 
 ## Tips
 
-- **Use h5ad for Python workflows** - Native AnnData format, efficient for large datasets
-- **Use RDS for R workflows** - Preserves all Seurat object structure
-- **Store raw counts** - Use `adata.raw` or `adata.layers['counts']` before normalization
-- **Seurat v5 uses layers** - Not slots; use `LayerData()` instead of `GetAssayData()`
-- **SeuratDisk for conversion** - Required for Seurat <-> AnnData conversion
+- **Keep the raw matrix** - EmptyDrops, SoupX, CellBender, and DecontX all need the unfiltered Cell Ranger output; filtered-only storage is irreversible.
+- **Filtered is not decontaminated** - Cell Ranger filtered output is cell-CALLED, not ambient-corrected; that is a separate step.
+- **Use gene IDs for joins** - gene symbols are non-unique and change across annotation releases; Ensembl IDs are stable.
+- **Mind the transpose** - AnnData is cells x genes; Seurat/SCE are genes x cells. Conversion transposes the matrix AND swaps which axis the metadata annotates.
+- **Conversion is lossy by default** - layers, obsp/varp, nested uns, and categoricals can vanish; diff slots before and after.
+- **Avoid SeuratDisk** - abandoned since 2023 and broken on Seurat v5; prefer anndataR, zellkonverter, or schard.
+- **Keep matrices sparse** - dense materialization of a large object exhausts memory; check `scipy.sparse.issparse(adata.X)`.
+- **Set drop_single_values=FALSE** - sceasy deletes constant metadata columns by default, losing single-sample batch labels.
+
+## Related Skills
+
+- single-cell/preprocessing - QC, normalization, and HVG selection after loading
+- single-cell/doublet-detection - per-sample doublet calling on raw counts after loading
+- single-cell/clustering - dimensionality reduction and clustering on the loaded object
+- single-cell/multimodal-integration - MuData/h5mu handling for CITE-seq and Multiome
+- spatial-transcriptomics/spatial-data-io - SpatialData/zarr I/O for spatial omics
+- workflows/scrnaseq-pipeline - end-to-end scRNA-seq pipeline that starts from data loading

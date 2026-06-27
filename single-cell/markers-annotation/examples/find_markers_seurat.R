@@ -1,14 +1,18 @@
-# Reference: DESeq2 1.42+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
-# Find marker genes with Seurat
+# Reference: Seurat 5.0+ | Verify API if version differs
+# Find cluster marker genes with Seurat. Install presto so Wilcoxon is fast;
+# without it Seurat silently falls back to slow base-R. Seurat v5 lowered the
+# defaults to logfc.threshold=0.1 / min.pct=0.01, so an explicit higher threshold
+# plus a pct.1-pct.2 specificity filter restores a marker-grade shortlist.
 
 library(Seurat)
 library(dplyr)
 
 seurat_obj <- readRDS('clustered.rds')
 
-all_markers <- FindAllMarkers(seurat_obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+all_markers <- FindAllMarkers(seurat_obj, only.pos = TRUE, logfc.threshold = 0.25, min.pct = 0.1)
 
 top_markers <- all_markers %>%
+    filter(p_val_adj < 0.05, avg_log2FC > 1, (pct.1 - pct.2) > 0.2) %>%
     group_by(cluster) %>%
     slice_max(n = 5, order_by = avg_log2FC)
 print(top_markers)
