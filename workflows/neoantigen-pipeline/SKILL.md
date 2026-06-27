@@ -3,6 +3,7 @@ name: bio-workflows-neoantigen-pipeline
 description: End-to-end neoantigen discovery from somatic variants to ranked vaccine candidates. Integrates HLA typing, MHC binding prediction, pVACtools neoantigen calling, and immunogenicity scoring. Use when identifying tumor neoantigens for personalized vaccine design or checkpoint biomarkers.
 tool_type: mixed
 primary_tool: pVACtools
+goal_approach_exempt: true
 workflow: true
 depends_on:
   - clinical-databases/hla-typing

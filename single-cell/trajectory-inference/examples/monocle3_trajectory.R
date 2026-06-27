@@ -1,5 +1,6 @@
-# Reference: Cell Ranger 8.0+, scanpy 1.10+ | Verify API if version differs
+# Reference: monocle3 1.3+, Seurat 5.0+, SeuratWrappers 0.3+ | Verify API if version differs
 library(Seurat)
+library(SeuratWrappers)
 library(monocle3)
 library(dplyr)
 

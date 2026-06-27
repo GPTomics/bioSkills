@@ -1,4 +1,4 @@
-# Reference: pandas 2.2+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
+# Reference: SingleR 2.4+, celldex 1.12+, Seurat 5.0+ | Verify API if version differs
 library(SingleR)
 library(celldex)
 library(Seurat)

@@ -1,4 +1,4 @@
-# Reference: MACS2 2.2+, scanpy 1.10+ | Verify API if version differs
+# Reference: Signac 1.13+ | Verify API if version differs
 # scATAC-seq analysis with Signac
 library(Signac)
 library(Seurat)
@@ -53,9 +53,9 @@ obj <- RunTFIDF(obj)
 obj <- FindTopFeatures(obj, min.cutoff = 'q0')
 obj <- RunSVD(obj)
 
-# Check depth correlation (skip first component if correlated)
-depth_cor <- DepthCor(obj)
-dims_use <- if(abs(depth_cor[1]) > 0.5) 2:30 else 1:30
+# DepthCor() returns a ggplot; compute the LSI_1 vs depth correlation directly to decide which dims to drop
+comp1_depth_cor <- cor(Embeddings(obj, 'lsi')[, 1], obj$nCount_peaks)
+dims_use <- if(abs(comp1_depth_cor) > 0.5) 2:30 else 1:30
 
 # Clustering
 obj <- RunUMAP(obj, reduction = 'lsi', dims = dims_use)

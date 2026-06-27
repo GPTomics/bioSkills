@@ -1,8 +1,8 @@
-# Marker Genes and Cell Type Annotation - Usage Guide
+# Marker Gene Detection and Manual Annotation - Usage Guide
 
 ## Overview
 
-This skill covers finding differentially expressed marker genes and annotating cell types in single-cell RNA-seq data using both Seurat (R) and Scanpy (Python).
+This skill covers discovering cluster marker genes and hand-labeling clusters from canonical markers in single-cell RNA-seq using Seurat (R) and Scanpy (Python). Marker detection is descriptive ranking, not inference: it labels clusters, it does not prove a cluster is a real cell type, and it is distinct from cross-condition DE (which needs pseudobulk + biological replicates). Automated reference-based label transfer lives in single-cell/cell-annotation.
 
 ## Prerequisites
 
@@ -55,18 +55,26 @@ Ask your AI agent:
 
 ## What the Agent Will Do
 
-1. Run differential expression test
-2. Filter for significant markers
-3. Visualize marker expression patterns
-4. Suggest cell type annotations
-5. Add annotations to object
-6. Export results
+1. Run a marker ranking test (Wilcoxon for scanpy/Seurat; pass it explicitly)
+2. Filter markers by specificity (effect size + in/out fraction), not p-value alone
+3. Visualize marker expression patterns (dot plot, heatmap, UMAP)
+4. Map clusters to cell type labels from canonical markers (manual labeling)
+5. Add labels to the object and flag unmapped clusters
+6. For cross-condition DE, aggregate to pseudobulk and hand off to differential-expression/deseq2-basics
 
 ## Tips
 
-- **Use wilcoxon** for quick marker detection
-- **Use MAST** (Seurat) for rigorous DE analysis
-- **Check known markers** before automatic annotation
-- **Lower min.pct/logfc thresholds** if few markers found
-- **Visualize before annotating** - use dot plots and UMAPs
-- **Store raw counts** - needed for some DE methods
+- **Marker detection is not condition DE** - one-cluster-vs-rest ranking uses Wilcoxon; treatment-vs-control needs pseudobulk + DESeq2/edgeR across biological replicates.
+- **Rank markers by specificity, not p-value** - require a large positive log fold change and a high in-group / low out-group fraction; tiny p-values just reflect large n.
+- **Cluster-marker p-values are double-dipping** - they label clusters, they do not prove a cluster is a real cell type; significance-test a suspicious split (scSHC/ClusterDE) before naming it.
+- **scanpy defaults to t-test** - pass `method='wilcoxon'` explicitly; Seurat v5 thresholds dropped to logfc 0.1 / min.pct 0.01, so refilter.
+- **Install presto** - Seurat's Wilcoxon silently falls back to slow base-R without it.
+- **Markers are context-dependent** - re-validate any panel ported across tissue or condition; aggregate raw counts (never normalized) for pseudobulk.
+
+## Related Skills
+
+- clustering - Cluster cells before finding markers
+- cell-annotation - Automated reference-based label transfer
+- differential-abundance - Test whether cell-type proportions changed between conditions
+- differential-expression/deseq2-basics - Pseudobulk condition DE engine
+- pathway-analysis/go-enrichment - Functional interpretation of marker / DE gene lists

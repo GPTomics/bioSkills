@@ -4,7 +4,10 @@
 import scanpy as sc
 
 # Load from directory (MTX format - Cell Ranger output)
-adata = sc.read_10x_mtx('filtered_feature_bc_matrix/', var_names='gene_symbols', cache=True)
+# cache=True keys the cache by PATH only: re-reading the same path after switching var_names returns the STALE object;
+# delete the *.h5ad cache (or omit cache) when re-reading with different var_names
+adata = sc.read_10x_mtx('filtered_feature_bc_matrix/', var_names='gene_symbols')
+adata.var_names_make_unique()  # duplicate symbols get -1/-2 suffixes
 print(f'Loaded {adata.n_obs} cells x {adata.n_vars} genes from MTX')
 
 # Load from H5 file (Cell Ranger v3+ output)
@@ -14,8 +17,11 @@ print(f'Loaded {adata_h5.n_obs} cells x {adata_h5.n_vars} genes from H5')
 # Load H5 with genome specification (for multi-species references)
 adata_h5_genome = sc.read_10x_h5('filtered_feature_bc_matrix.h5', genome='GRCh38')
 
-# Load H5 with gene IDs instead of symbols
-adata_h5_ids = sc.read_10x_h5('filtered_feature_bc_matrix.h5', gex_only=True)
+# Use stable Ensembl IDs instead of ambiguous symbols (MTX only; read_10x_h5 has no var_names arg, IDs land in var['gene_ids'])
+adata_ids = sc.read_10x_mtx('filtered_feature_bc_matrix/', var_names='gene_ids')
+
+# Keep non-GEX features (antibody capture, CRISPR guides); gex_only=True (default) drops them
+adata_all = sc.read_10x_h5('filtered_feature_bc_matrix.h5', gex_only=False)
 
 # Load raw counts (unfiltered) vs filtered
 adata_raw = sc.read_10x_h5('raw_feature_bc_matrix.h5')

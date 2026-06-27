@@ -3,6 +3,7 @@ name: bio-workflows-spatial-pipeline
 description: End-to-end spatial transcriptomics workflow for Visium/Xenium data. Covers data loading, preprocessing, spatial analysis, domain detection, and visualization with Squidpy. Use when analyzing spatial transcriptomics data.
 tool_type: python
 primary_tool: Squidpy
+goal_approach_exempt: true
 workflow: true
 depends_on:
   - spatial-transcriptomics/spatial-data-io

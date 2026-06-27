@@ -1,59 +1,48 @@
-# Reference: MAGeCK 0.5+, pandas 2.2+, pertpy 0.7+, scanpy 1.10+ | Verify API if version differs
-# Perturb-seq analysis with Seurat Mixscape
+# Reference: Seurat 5.0+ | Verify API if version differs
+# Perturb-seq escaper removal with Seurat Mixscape
 
 library(Seurat)
 
-# Load data (assumes guide_ID in metadata)
+# Assumes guide_ID and gene columns in metadata (gene = target, 'NT' = non-targeting)
 seurat <- Read10X('filtered_feature_bc_matrix/')
 seurat <- CreateSeuratObject(counts = seurat, project = 'perturb_seq')
-
-# Add guide info
 guide_calls <- read.csv('guide_calls.csv', row.names = 1)
 seurat <- AddMetaData(seurat, guide_calls)
 
-# Standard preprocessing
 seurat <- NormalizeData(seurat)
 seurat <- FindVariableFeatures(seurat, nfeatures = 2000)
 seurat <- ScaleData(seurat)
 seurat <- RunPCA(seurat)
-seurat <- RunUMAP(seurat, dims = 1:20)
 
-# Mixscape: classify cells as perturbed or escaped
-# Escaped cells received guide but show no perturbation effect
+# Local perturbation signature: subtract each cell's NT neighbors to cancel shared cell-state structure
 seurat <- CalcPerturbSig(
     seurat,
     assay = 'RNA',
-    layer = 'data',
-    gd.class = 'guide_ID',  # Guide identity column
-    nt.cell.class = 'NT',   # Non-targeting label
-    new.class.name = 'mixscape_class'
+    slot = 'data',
+    gd.class = 'guide_ID',
+    nt.cell.class = 'NT',
+    num.neighbors = 20,
+    reduction = 'pca',
+    ndims = 15,
+    new.assay.name = 'PRTB'
 )
 
-# Run Mixscape classification
+# The slot bug: CalcPerturbSig writes PRTB 'data' but RunMixscape reads PRTB 'scale.data' -- scale it first
+DefaultAssay(seurat) <- 'PRTB'
+seurat <- ScaleData(seurat, assay = 'PRTB')
+
+# Per-target 2-component mixture classifies KO vs NP (non-perturbed); NP cells are escapers to remove before DE
 seurat <- RunMixscape(
     seurat,
-    assay = 'RNA',
-    layer = 'scale.data',
-    labels = 'gene',        # Target gene column
+    assay = 'PRTB',
+    slot = 'scale.data',
+    labels = 'gene',
     nt.class.name = 'NT',
-    min.de.genes = 5,       # Min DE genes to classify as perturbed
-    iter.num = 10
+    min.de.genes = 5,
+    iter.num = 10,
+    de.assay = 'RNA',
+    prtb.type = 'KO'
 )
 
-# View classification results
-table(seurat$mixscape_class)
-
-# Perturbation vs NT differential expression for specific gene
-de_results <- FindMarkers(
-    seurat,
-    ident.1 = 'GENE_KO',    # Target gene knockout
-    ident.2 = 'NT',
-    group.by = 'guide_ID'
-)
-
-# Save results
-write.csv(de_results, 'de_GENE_vs_NT.csv')
-
-# Visualize
-DimPlot(seurat, group.by = 'mixscape_class')
-ggsave('mixscape_classification.pdf')
+# Report the perturbed fraction; an all-NP target is confounded with low guide efficiency, not proof of no function
+table(seurat$mixscape_class.global)

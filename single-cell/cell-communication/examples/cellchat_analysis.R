@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+, scanpy 1.10+ | Verify API if version differs
+# Reference: CellChat 2.1+ | Verify API if version differs
 library(CellChat)
 library(Seurat)
 library(patchwork)

@@ -2,25 +2,21 @@
 
 ## Overview
 
-Automated cell type annotation uses reference datasets or trained classifiers to consistently label cells, reducing manual effort and improving reproducibility compared to marker-based annotation.
+Automated reference-based annotation transfers cell type labels from an annotated reference or pretrained model onto query cells. It is closed-world: every cell is forced toward the nearest reference label, so the output is a hypothesis to be triangulated with markers and triaged for artifacts, never a measurement. This skill covers CellTypist, SingleR, Azimuth, scANVI/scArches, and scmap; manual marker-based labeling lives in single-cell/markers-annotation.
 
 ## Prerequisites
 
 ```bash
-# CellTypist (Python)
-pip install celltypist
+# CellTypist and scANVI (Python)
+pip install scanpy celltypist scvi-tools
 ```
 
 ```r
-# SingleR
-BiocManager::install('SingleR')
-BiocManager::install('celldex')
+# SingleR, scmap (Bioconductor)
+BiocManager::install(c('SingleR', 'celldex', 'scmap'))
 
 # Azimuth
 remotes::install_github('satijalab/azimuth')
-
-# scPred
-devtools::install_github('powellgenomicslab/scPred')
 ```
 
 ## Quick Start
@@ -47,10 +43,10 @@ Tell your AI agent what you want to do:
 > "Which cells have low confidence predictions?"
 > "Compare automated labels to my manual annotations"
 
-### Custom Training
-> "Train a scPred model on my annotated reference"
-> "Create a custom CellTypist model from my data"
-> "Apply my trained classifier to new data"
+### Atlas Mapping
+> "Map my query onto a reference atlas with scANVI"
+> "Create a custom CellTypist model from my annotated data"
+> "Use scmap with an explicit unassigned category"
 
 ### Refinement
 > "Re-annotate cluster 5 with finer labels"
@@ -59,28 +55,38 @@ Tell your AI agent what you want to do:
 
 ## What the Agent Will Do
 
-1. Normalize query data appropriately
-2. Select matching reference (tissue/species)
-3. Run annotation algorithm
-4. Assess prediction confidence
-5. Filter low-quality predictions
-6. Add labels to cell metadata
-7. Validate against canonical markers
+1. Normalize the query to each tool's required input (CellTypist=CP10K log1p, scANVI=raw counts)
+2. Select a reference matching tissue, species, and platform
+3. Run the annotation method and transfer labels
+4. Assess per-cell confidence and apply a calibrated rejection threshold
+5. Triage poorly-mapped clusters (doublet / low-quality / batch / ambient) before claiming novelty
+6. Add labels to cell metadata and flag disagreements as ambiguous
+7. Validate against canonical markers (triangulation, not proof)
 
 ## Tool Selection
 
-| Tool | Strengths | Language | Reference |
-|------|-----------|----------|-----------|
-| CellTypist | Fast, many immune models | Python | Pre-trained models |
-| SingleR | Correlation-based, flexible | R | Any reference dataset |
-| Azimuth | Seurat integration, mapping | R | Curated references |
-| scPred | SVM classifier, trainable | R | Train your own |
+| Method | Model | Language | Reference | World |
+|--------|-------|----------|-----------|-------|
+| CellTypist | Logistic regression (pretrained) | Python | Pretrained immune/cross-tissue models | Closed (+probability) |
+| SingleR | Spearman correlation | R | celldex bulk or single-cell refs | Closed (+pruning) |
+| Azimuth | Supervised PCA + anchors | R | Curated Seurat atlases | Closed (+mapping.score) |
+| scANVI/scArches | Semi-supervised VAE | Python | Annotated atlas + raw counts | Closed (+latent uncertainty) |
+| scmap | Nearest centroid/cell | R | Single-cell reference | Open (explicit unassigned) |
+| LLM (GPTCelltype) | Prompted from markers | R/Python | None (uses marker list) | Open-ish |
 
 ## Tips
 
-- **Reference quality matters** - annotations are only as good as the reference
-- **Match tissue and species** - use appropriate reference for your data
-- **Check confidence scores** - filter predictions below threshold (e.g., 0.5)
-- **Validate with markers** - confirm that marker genes match predicted types
-- **Fine vs coarse labels** - choose granularity appropriate for your question
-- **Combine methods** - consensus across tools increases confidence
+- **Annotation is a hypothesis** - reference-based methods are closed-world and force every cell to the nearest label, often confidently wrong for novel states.
+- **Match the input normalization** - CellTypist needs CP10K log1p, scANVI needs raw counts; wrong input degrades labels silently with no error.
+- **Triage before claiming novelty** - rule out doublets, low-quality, batch, and ambient RNA before naming an unexpected cluster a new cell type.
+- **Calibrate rejection per dataset** - inspect score/delta distributions; a hard universal probability cutoff is not principled across models.
+- **Marker confirmation is circular** - canonical markers are a prior, not independent proof; triangulate automated + markers + expert curation.
+- **Annotate hierarchically** - report coarse compartments confidently, fine subtypes as hypotheses sensitive to reference and resolution.
+
+## Related Skills
+
+- markers-annotation - Manual marker discovery and hand-labeling
+- clustering - Cluster cells before annotating
+- batch-integration - Reference mapping vs de-novo integration
+- differential-abundance - Test whether annotated proportions changed between conditions
+- pathway-analysis/go-enrichment - Characterize a de-novo / novel population

@@ -64,7 +64,7 @@ Tell your AI agent what you want to do:
 ## Related Skills
 
 - single-cell/preprocessing - QC, normalization, and HVG selection before mapping
-- single-cell/cell-annotation - De novo clustering and manual marker annotation without a reference
+- single-cell/markers-annotation - Manual marker-based cluster annotation without a reference
 - single-cell/batch-integration - Integrating datasets without a labeled reference
 - single-cell/doublet-detection - Removing doublets that map to spurious intermediates
 - differential-expression/de-results - Pseudobulk validation of mapping-derived populations

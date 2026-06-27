@@ -55,7 +55,7 @@ Cross-cutting: linear methods (Symphony, Azimuth-sPCA) give a *fixed, reproducib
 | Just need fast immune labels, no integration | CellTypist (`Immune_All_Low`, `majority_voting=True`) | Calibrated classifier, no embedding needed; QC the query first |
 | Multimodal reference (CITE-seq/ATAC) | Azimuth/Seurat WNN or totalVI+scArches | Anchor framework natively weights modalities |
 | Considering scGPT/Geneformer | Only if fine-tuning with labels, or cross-modality/species, or data too scarce | Zero-shot foundation embeddings are not a justified default for same-tissue transfer |
-| De novo clustering, no reference, or manual marker annotation | -> single-cell/cell-annotation, single-cell/clustering | Out of scope here |
+| De novo clustering, no reference, or manual marker annotation | -> single-cell/markers-annotation, single-cell/clustering | Out of scope here |
 
 ## scArches Surgery: Embedding (scVI)
 
@@ -220,7 +220,7 @@ print(f'Flagged Unknown: {(uncertainty > 0.2).mean():.1%}')
 ## Related Skills
 
 - single-cell/preprocessing - QC, normalization, and HVG selection the query needs before mapping
-- single-cell/cell-annotation - De novo clustering and manual marker annotation when there is no reference
+- single-cell/markers-annotation - Manual marker-based cluster annotation when there is no reference
 - single-cell/batch-integration - Integrating datasets without a labeled reference
 - single-cell/doublet-detection - Removing doublets that map to spurious intermediates
 - differential-expression/de-results - Pseudobulk validation of mapping-derived populations

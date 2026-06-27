@@ -3,6 +3,7 @@ name: bio-workflows-metabolic-modeling-pipeline
 description: End-to-end genome-scale metabolic modeling from genome sequence to flux predictions. Covers automated reconstruction with CarveMe, model validation with memote, FBA/FVA analysis, and gene essentiality prediction. Use when building metabolic models or predicting metabolic phenotypes from genomic data.
 tool_type: mixed
 primary_tool: cobrapy
+goal_approach_exempt: true
 workflow: true
 depends_on:
   - systems-biology/metabolic-reconstruction

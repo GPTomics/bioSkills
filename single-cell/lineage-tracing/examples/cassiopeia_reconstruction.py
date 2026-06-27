@@ -16,38 +16,29 @@ tree = cas.data.CassiopeiaTree(
     cell_meta=cell_meta
 )
 
-print(f'Cells: {tree.n_cell}')
-print(f'Characters: {tree.n_character}')
+print(f'cells {tree.n_cell}  characters {tree.n_character}  missing {(char_matrix == -1).mean():.2%}')
 
-# Tree reconstruction with Greedy solver
-# Fast, suitable for most datasets
-solver = cas.solver.VanillaGreedySolver()
-solver.solve(tree)
+# HybridSolver is the scalable default: greedy top split, ILP on small subclades
+# collapse_mutationless_edges removes internal edges with no supporting mutation
+solver = cas.solver.HybridSolver(
+    top_solver=cas.solver.VanillaGreedySolver(),
+    bottom_solver=cas.solver.ILPSolver(),
+    cell_cutoff=200
+)
+solver.solve(tree, collapse_mutationless_edges=True)
 
-# Alternative: Neighbor-joining (faster, less accurate)
-# solver = cas.solver.NeighborJoiningSolver()
-
-# Alternative: ILP solver (optimal but slow for large trees)
-# solver = cas.solver.ILPSolver()
-
-# Get tree in Newick format
 newick = tree.get_newick()
-with open('lineage_tree.newick', 'w') as f:
-    f.write(newick)
 
-# Compute tree statistics
-# Tree depth, balance, etc.
-tree.compute_tree_statistics()
-print(f'Tree depth: {tree.tree_statistics["depth"]}')
-
-# Annotate internal nodes
-# Infer ancestral states
+# Infer ancestral states on internal nodes
 tree.reconstruct_ancestral_characters()
 
-# Visualize with cell type annotations
+# Compare against a neighbor-joining tree to gauge topology robustness
+nj_tree = cas.data.CassiopeiaTree(character_matrix=char_matrix, cell_meta=cell_meta)
+cas.solver.NeighborJoiningSolver(
+    dissimilarity_function=cas.solver.dissimilarity_functions.weighted_hamming_distance
+).solve(nj_tree)
+rf, rf_max = cas.critique.robinson_foulds(tree, nj_tree)
+print(f'Robinson-Foulds {rf}/{rf_max}  triplets-correct {cas.critique.triplets_correct(tree, nj_tree)}')
+
 if 'cell_type' in cell_meta.columns:
-    cas.pl.tree_plot(
-        tree,
-        color_column='cell_type',
-        save='lineage_tree_celltypes.png'
-    )
+    cas.pl.plot_matplotlib(tree, meta_data=['cell_type'])

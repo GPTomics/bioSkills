@@ -397,7 +397,7 @@ obj <- RunUMAP(obj, nn.name='weighted.nn', reduction.name='wnn.umap')
 - atac-seq/allele-specific-accessibility - sc allelic imbalance for cis-effects
 - single-cell/preprocessing - General sc QC patterns
 - single-cell/clustering - Cluster definition
-- single-cell/cell-annotation - Marker-based annotation
+- single-cell/cell-annotation - Automated reference-based label transfer
 - single-cell/multimodal-integration - Multiome RNA+ATAC integration
 - single-cell/scatac-analysis - Cross-reference single-cell ATAC-specific patterns
 - single-cell/batch-integration - scArches reference mapping; Harmony

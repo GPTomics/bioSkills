@@ -139,6 +139,6 @@ Run two; intersection of flagged cells is high-confidence doublet set.
 - atac-seq/co-accessibility - Cicero / SCENIC+
 - single-cell/preprocessing - General sc patterns
 - single-cell/clustering - Cluster definition
-- single-cell/cell-annotation - Marker-based annotation
+- single-cell/cell-annotation - Automated reference-based label transfer
 - single-cell/multimodal-integration - Multiome integration
 - single-cell/scatac-analysis - Cross-reference single-cell ATAC-specific patterns

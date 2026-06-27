@@ -80,3 +80,21 @@ Tell your AI agent what you want to do:
 - **Mitochondrial**: >20% suggests dying cells
 - **Resolution**: Start at 0.5, adjust based on cluster quality
 - **Annotation**: Check canonical markers for your tissue type
+- **Stage order**: QC and doublet removal run per sample BEFORE integration; integrate, then cluster, then annotate, never reorder
+- **Multi-sample designs**: Batch-correct on a shared embedding (Harmony/scVI/RPCA) and watch for over-correction; batch-mixing metrics alone reward flattening real biology, so pair them with a bio-conservation metric
+- **Condition DE**: Aggregate raw counts to pseudobulk per sample and cell type, then use DESeq2/edgeR; cluster-marker p-values are descriptive labels, not condition inference
+- **Composition vs expression**: A "DE" signal between conditions can be a proportion shift, so pair condition DE with a differential-abundance test (Milo or scCODA/sccomp/propeller)
+
+## Related Skills
+
+- single-cell/preprocessing - QC thresholds, ambient-RNA removal, normalization choice
+- single-cell/doublet-detection - Per-sample doublet calling before integration
+- single-cell/hashing-demultiplexing - Demultiplex hashed/multiplexed pools to samples before QC
+- single-cell/batch-integration - Multi-sample integration and over-correction diagnosis
+- single-cell/clustering - Resolution sweep and cluster validation
+- single-cell/markers-annotation - Marker discovery, manual labeling, and pseudobulk condition DE
+- single-cell/cell-annotation - Automated reference-based label transfer
+- single-cell/differential-abundance - Test whether cell-type proportions shifted between conditions
+- single-cell/trajectory-inference - Pseudotime and lineage reconstruction for continuous processes
+- differential-expression/deseq2-basics - Pseudobulk condition DE engine for aggregated counts
+- pathway-analysis/go-enrichment - Functional interpretation of marker and DE gene lists
