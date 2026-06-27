@@ -5,6 +5,9 @@
 COLLAPSED_READS=$1
 GENOME_FA=$2
 SPECIES=${3:-"Human"}
+# Score cutoff is NOT universal: choose it from survey.pl signal-to-noise / estimated
+# FDR for THIS dataset (Friedlander used the lowest cutoff giving SNR >= 5), then report it.
+SCORE_CUTOFF=${4:-1}
 
 # miRBase files (download if not present)
 MIRBASE_DIR="mirbase"
@@ -68,16 +71,15 @@ miRDeep2.pl \
 # Results are in result_*.html and result_*.csv
 echo "miRDeep2 complete!"
 
-# Parse high-confidence novel miRNAs
-# Score thresholds:
-# >10: High confidence - likely real novel miRNA
-# 5-10: Medium confidence - may need validation
-# <5: Low confidence - likely false positive
+# Parse novel candidates above the chosen cutoff. There is no fixed 'score > 10' rule;
+# the threshold comes from the survey.pl signal-to-noise / FDR table for this run.
+# Every candidate above the cutoff is a HYPOTHESIS: still filter against tRNA/rRNA loci,
+# require star-arm read support, and confirm reproducibility before trusting it.
 echo ""
-echo "High-confidence novel miRNAs (score > 10):"
+echo "Novel miRNA candidates (miRDeep2 score >= $SCORE_CUTOFF):"
 RESULT_CSV=$(ls -t result_*.csv 2>/dev/null | head -1)
 if [ -f "$RESULT_CSV" ]; then
-    awk -F'\t' 'NR>1 && $2>10 {print $1, "score="$2, "reads="$5}' "$RESULT_CSV" | head -20
+    awk -F'\t' -v c="$SCORE_CUTOFF" 'NR>1 && $2>=c {print $1, "score="$2, "reads="$5}' "$RESULT_CSV" | head -20
 fi
 
 echo ""
