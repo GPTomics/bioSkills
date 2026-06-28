@@ -39,7 +39,9 @@ plt.tight_layout()
 plt.savefig(f'{output_dir}/plots/qc_metrics.pdf')
 plt.close()
 
-# Filter
+# Filter. These floors are VISIUM defaults (a spot is a 1-10-cell mixture). For
+# IMAGING data (Xenium/MERFISH) use ~10 transcripts/cell, NOT 500, or this deletes
+# nearly every real cell; mito QC is usually impossible (mito off-panel).
 print(f'Before filtering: {adata.n_obs} spots')
 sc.pp.filter_cells(adata, min_counts=500)
 sc.pp.filter_cells(adata, min_genes=200)
@@ -50,6 +52,8 @@ print(f'After filtering: {adata.n_obs} spots')
 # === Step 3: Normalization ===
 print('=== Step 3: Normalization ===')
 adata.layers['counts'] = adata.X.copy()
+# Library size partly carries biology in spatial data (cells-per-spot); total-count
+# normalization is a Visium starting point, not a universal default (see spatial-preprocessing).
 sc.pp.normalize_total(adata, target_sum=1e4)
 sc.pp.log1p(adata)
 sc.pp.highly_variable_genes(adata, n_top_genes=2000)
@@ -78,8 +82,9 @@ print(f'Clusters: {adata.obs["leiden"].nunique()}')
 # === Step 5: Spatial Analysis ===
 print('=== Step 5: Spatial Analysis ===')
 
-# Spatial neighbors
-sq.gr.spatial_neighbors(adata, coord_type='generic', n_neighs=6)
+# Spatial neighbors. Visium is a hex lattice -> coord_type='grid' (n_neighs=6);
+# 'generic' kNN is for imaging point clouds (see spatial-neighbors).
+sq.gr.spatial_neighbors(adata, coord_type='grid', n_neighs=6)
 
 # Neighborhood enrichment
 sq.gr.nhood_enrichment(adata, cluster_key='leiden')
@@ -93,12 +98,15 @@ sq.pl.co_occurrence(adata, cluster_key='leiden', clusters=['0', '1'])
 plt.savefig(f'{output_dir}/plots/co_occurrence.pdf')
 plt.close()
 
-# Spatially variable genes
+# Spatially variable genes. Gate on FDR (not raw I); and a top-Moran gene is usually
+# a marker of a spatially-clustered cell TYPE (composition), not a gene regulated
+# WITHIN a type -- intersect with non-HVG for the latter (see spatial-statistics).
 print('Finding spatially variable genes...')
 sq.gr.spatial_autocorr(adata, mode='moran', n_perms=100, n_jobs=4)
-svg = adata.uns['moranI'].sort_values('I', ascending=False)
+moran = adata.uns['moranI']
+svg = moran[moran['pval_norm_fdr_bh'] < 0.05].sort_values('I', ascending=False)
 top_svg = svg.head(20).index.tolist()
-print(f'Top SVGs: {top_svg[:5]}')
+print(f'Top SVGs (FDR<0.05): {top_svg[:5]}')
 
 # Plot top SVGs
 sc.pl.spatial(adata, color=top_svg[:4], ncols=2, spot_size=1.5, cmap='viridis')
@@ -106,6 +114,8 @@ plt.savefig(f'{output_dir}/plots/top_svg.pdf')
 plt.close()
 
 # === Step 6: Cluster Markers ===
+# On Visium these are markers of spot REGIONS/niches (mixtures), not pure cell types;
+# for cell-type composition deconvolve first (see spatial-deconvolution).
 print('=== Step 6: Cluster Markers ===')
 sc.tl.rank_genes_groups(adata, 'leiden', method='wilcoxon')
 markers = sc.get.rank_genes_groups_df(adata, group=None)

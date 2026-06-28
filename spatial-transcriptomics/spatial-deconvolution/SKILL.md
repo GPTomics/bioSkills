@@ -1,314 +1,225 @@
 ---
 name: bio-spatial-transcriptomics-spatial-deconvolution
-description: Estimate cell type composition in spatial transcriptomics spots using reference-based deconvolution. Use cell2location, RCTD, SPOTlight, or Tangram to infer cell type proportions from scRNA-seq references. Use when estimating cell type composition in spatial spots.
+description: Estimates per-spot cell type composition of spatial transcriptomics mixtures (Visium, Slide-seq, Stereo-seq) from an scRNA-seq reference with cell2location, RCTD, SPOTlight, stereoscope, SpatialDWLS, or reference-free STdeconvolve. Use when deciding whether a platform even needs deconvolution (the resolution fork -- a 55um Visium spot is a 1-10-cell MIXTURE -> deconvolve, but a Xenium/MERFISH/CosMx cell is already single -> segment instead, and running deconvolution there invents fractions that do not exist); choosing cell2location (absolute abundance) vs RCTD/SPOTlight/stereoscope/SpatialDWLS (proportions only) by output and runtime; matching the scRNA reference to tissue and condition (the reference IS the result -- a missing cell type is silently misassigned to its nearest neighbor with no error flag); and handling compositional outputs that sum to 1 with CLR/ILR rather than naive per-type t-tests.
 tool_type: python
 primary_tool: cell2location
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: anndata 0.10+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+
+Reference examples tested with: cell2location 0.1.4+, scvi-tools 1.0+, scanpy 1.10+, anndata 0.10+, numpy 1.26+
+
+RCTD/SPOTlight/STdeconvolve are R packages (spacexr, SPOTlight, STdeconvolve via Bioconductor); call them from R or via rpy2.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
+- R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Deconvolution
 
-Estimate cell type composition in spatial spots using scRNA-seq references.
+**"What cell types are in each spot?"** -> Decompose a multi-cell capture spot into the fractions (or absolute numbers) of each cell type, using an annotated scRNA-seq reference as the basis.
+- Python: cell2location (`RegressionModel` -> `Cell2location`), stereoscope/DestVI (scvi-tools), Tangram (`tg.map_cells_to_space`), STdeconvolve (reference-free, R)
+- R: RCTD (`spacexr::create.RCTD`/`run.RCTD`), SPOTlight, SpatialDWLS (Giotto), CARD
 
-## Required Imports
+The operation BRANCHES on the platform before any tool is chosen. The first question is not "which method" but "does this data even contain mixtures?" -- answered by the resolution fork below.
 
-```python
-import scanpy as sc
-import anndata as ad
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-```
+## The resolution fork
 
-## Overview
+Deconvolution recovers the cell-type composition of a MIXTURE. Whether a mixture exists is set by the capture unit size relative to a mammalian cell (~8-30um diameter), and it sorts every dataset into three regimes. Choosing the wrong regime is the most expensive error in spatial analysis -- far more damaging than picking the second-best method within a regime.
 
-Deconvolution estimates cell type proportions in each spatial spot using a reference single-cell dataset. Essential for Visium data where spots contain multiple cells.
+| Platform | Unit size | Single cell? | Regime |
+|----------|-----------|--------------|--------|
+| Visium v1/v2 | 55um spot, 100um pitch | No (~1-10+ cells/spot) | DECONVOLVE |
+| GeoMx DSP | region of interest | No (many cells) | DECONVOLVE (SpatialDecon) |
+| Visium HD | 2um bins, analyzed at 8/16um | 8um still mixes cells | AMBIGUOUS (reconstruct OR deconvolve) |
+| Stereo-seq | ~220nm spots, binned (bin50/bin100) | binned to cell scale | AMBIGUOUS |
+| Slide-seqV2 | 10um beads | near single-cell | AMBIGUOUS (RCTD doublet-mode common) |
+| Xenium | transcript point cloud + DAPI | YES (segmented) | SEGMENT + annotate -- do NOT deconvolve |
+| MERFISH / MERSCOPE | subcellular | YES | SEGMENT + annotate -- do NOT deconvolve |
+| CosMx SMI | subcellular | YES | SEGMENT + annotate -- do NOT deconvolve |
 
-## Using cell2location
+- DECONVOLVE: a capture array has no per-transcript cell assignment, so the spot is an unavoidable mixture and only mixture modeling recovers composition. The H&E underlay can count nuclei but cannot say which transcript came from which cell.
+- SEGMENT (imaging platforms): the data are already single cells. The work is segmentation (assign transcripts to cells) then annotation (cluster + markers, or label-transfer). Running deconvolution here is conceptually WRONG -- it fabricates fractional mixtures inside cells that are already pure. See image-analysis for segmentation and single-cell/cell-annotation for label transfer.
+- AMBIGUOUS (the near-single-cell middle): bins/beads still hold partial or multiple cells. When a high-quality registered image exists (Visium HD), morphology-driven cell RECONSTRUCTION (Bin2cell, StarDist/Cellpose nuclei expansion) is increasingly preferred over treating bins as fixed mixtures; without per-bead morphology (Slide-seqV2), assignment/deconvolution (often RCTD doublet-mode) remains standard. No settled consensus -- see high-resolution-binning.
 
-**Goal:** Estimate cell type abundances per spatial spot using a probabilistic model trained on scRNA-seq reference signatures.
+## Governing Principle
 
-**Approach:** Train a regression model on reference scRNA-seq to extract cell type signatures, then decompose spatial spots using those signatures.
+A deconvolution result is a PROJECTION of the single-cell reference onto the spatial data. The reference is not a neutral input -- it is the dominant determinant of the answer, more than the algorithm.
 
-**"Deconvolve my Visium spots into cell types"** -> Train a reference signature model on scRNA-seq, then map cell type abundances to spatial locations using cell2location.
+The #1 trap is the missing or mismatched cell type. If a real type is ABSENT from the reference, its transcripts are forced onto the transcriptionally nearest type that IS present. The proportions still sum to 1 and look clean, and there is no internal warning -- garbage reference produces confident garbage proportions. The reference must match the TISSUE, the CONDITION (a healthy reference mis-estimates activated-immune or malignant states whose expression has shifted), and ideally the technology/protocol (snRNA-seq vs whole-cell dissociation bias propagates straight into the numbers). The reference is NOT ground truth.
+
+Every benchmark reinforces the same lesson: reference quality and the cell-type abundance pattern swing results MORE than method choice, and a plain NNLS baseline outperforms nearly half the dedicated methods (Sang-Aram 2024 *eLife* 12:RP88431; Li 2022 *Nat Methods* 19:662-670). Method-shopping is the wrong lever; reference quality is the right one. Rare-type fractions (below a few percent) are the least reliable numbers in the output -- corroborate any rare type with its spatial marker genes before believing it. More tools is not more confidence: two NB-regression methods agreeing is pseudo-replication, not orthogonal validation. The defensible confidence move is reference-sensitivity analysis (perturb or swap the reference) plus an orthogonal modality.
+
+Outputs are COMPOSITIONAL: per-spot proportions live on a simplex (sum to 1), so an increase in one type mechanically decreases the others. Downstream comparison must use CLR/ILR or compositional tests -- naive per-type t-tests/correlations on raw proportions are mis-specified.
+
+## Choosing a method
+
+The first axis is output: cell2location uniquely returns ABSOLUTE cell abundance (expected cell numbers per spot); the rest return proportions only. "Number of cells of type X" and "fraction of the spot that is type X" answer different biological questions. The second axis is runtime and whether spatial coordinates or a platform-shift correction are modeled. When competing methods exist, verify current best practice against the latest benchmark before committing -- this field moves fast.
+
+| Method | Model | Reference | Output | Best when | Fails when |
+|--------|-------|-----------|--------|-----------|------------|
+| cell2location | Bayesian hierarchical NB (variational, pyro/scvi-tools) | yes | ABSOLUTE abundance | absolute counts wanted; large atlases; models platform shift | GPU-light setups (slow VI); over-trusting rare types |
+| RCTD (spacexr) | Poisson + per-gene platform-effect random effect | yes | proportions | fast, widely used; doublet-mode for Slide-seq/high-res | non-R pipelines without rpy2 |
+| stereoscope | Negative-binomial MLE of spot mixtures | yes | proportions | principled NB; in scvi-tools | speed (among slowest) |
+| SPOTlight | Seeded NMF + NNLS | yes | proportions | fast, transparent, R/Bioconductor | mid-pack accuracy |
+| SpatialDWLS | Dampened weighted least squares + marker enrichment | yes | proportions | fastest tier; consistently top in Li 2022 | needs Giotto |
+| CARD | CAR-prior spatially-informed NMF regression | yes (can run ref-free) | proportions (smoothed) | spatially structured tissue; coordinates help | sharp composition boundaries (over-smooths) |
+| Tangram | Deep-learning alignment (cell->voxel mapping) | yes | mapping (proportions as by-product) | transcript imputation; flexible platforms | pure proportion accuracy (it is a mapper) |
+| STdeconvolve | Reference-FREE LDA topic model | NO | proportions + topic profiles | no matched reference exists; sanity check | types co-occurring in fixed ratios; topics need post-hoc annotation |
+
+cell2location and RCTD are reliably top-tier across independent benchmarks (Li 2022; Sang-Aram 2024; *Nat Commun* 2023 14:1548). When no matched reference exists, STdeconvolve is the escape hatch -- it is immune to the missing-type trap because it uses no reference, but its topics are de novo and must be annotated afterward.
+
+## cell2location step 1: reference signatures
+
+**Goal:** Learn each cell type's per-gene expression signature from the annotated scRNA-seq reference, correcting for the technical/batch structure of the reference.
+
+**Approach:** Filter genes to informative ones, fit a negative-binomial RegressionModel with the cell-type label and any batch as covariates, then export the posterior per-cluster mean expression. cell2location consumes RAW integer counts -- do NOT pass log-normalized data.
 
 ```python
 import cell2location
+import numpy as np
+import scanpy as sc
 from cell2location.utils.filtering import filter_genes
 from cell2location.models import RegressionModel
 
-# Load reference scRNA-seq
-adata_ref = sc.read_h5ad('reference_scrna.h5ad')
+adata_ref = sc.read_h5ad('reference_scrna.h5ad')           # raw counts in .X
 adata_ref.obs['cell_type'] = adata_ref.obs['cell_type'].astype('category')
 
-# Load spatial data
-adata_vis = sc.read_h5ad('spatial_data.h5ad')
-
-# Find shared genes
-intersect = np.intersect1d(adata_vis.var_names, adata_ref.var_names)
-adata_ref = adata_ref[:, intersect].copy()
-adata_vis = adata_vis[:, intersect].copy()
-```
-
-## Train Reference Signature Model
-
-**Goal:** Learn cell type gene expression signatures from annotated single-cell reference data.
-
-**Approach:** Filter genes, set up a regression model on the scRNA-seq reference, train it, and export per-cell-type mean expression signatures.
-
-```python
-# Select genes for deconvolution
-selected = filter_genes(adata_ref, cell_count_cutoff=5, cell_percentage_cutoff2=0.03,
-                        nonz_mean_cutoff=1.12)
+selected = filter_genes(adata_ref, cell_count_cutoff=5, cell_percentage_cutoff2=0.03, nonz_mean_cutoff=1.12)
 adata_ref = adata_ref[:, selected].copy()
 
-# Prepare reference
-cell2location.models.RegressionModel.setup_anndata(
-    adata_ref,
-    labels_key='cell_type',
-)
-
-# Train reference model
+# batch_key absorbs technical structure across reference samples; drop if a single batch
+RegressionModel.setup_anndata(adata_ref, labels_key='cell_type', batch_key='sample')
 mod = RegressionModel(adata_ref)
-mod.train(max_epochs=250, use_gpu=True)
-
-# Export reference signatures
+mod.train(max_epochs=250, accelerator='gpu')               # use_gpu= is deprecated; accelerator in {'gpu','cpu','auto'}
 adata_ref = mod.export_posterior(adata_ref, sample_kwargs={'num_samples': 1000})
-ref_sig = adata_ref.varm['means_per_cluster_mu_fg']
+
+factors = adata_ref.uns['mod']['factor_names']
+if 'means_per_cluster_mu_fg' in adata_ref.varm:
+    inf_aver = adata_ref.varm['means_per_cluster_mu_fg'][[f'means_per_cluster_mu_fg_{f}' for f in factors]].copy()
+else:
+    inf_aver = adata_ref.var[[f'means_per_cluster_mu_fg_{f}' for f in factors]].copy()
+inf_aver.columns = factors                                 # genes x cell_types signature matrix
 ```
 
-## Run Spatial Deconvolution
+## cell2location step 2: spatial mapping
 
-**Goal:** Decompose each spatial spot into cell type abundances using trained reference signatures.
+**Goal:** Decompose each spatial spot into absolute cell-type abundances using the reference signatures.
 
-**Approach:** Set up the Cell2location model with reference signatures and expected cells per spot, then train on the spatial data.
+**Approach:** Restrict both objects to shared genes, set up the Cell2location model with the signature matrix and the expected cells-per-spot, then train. N_cells_per_location is a tissue-dependent prior (Visium ~10-30, denser tissue higher); detection_alpha controls within-experiment normalization (20 is the tutorial default; raise toward 200 if technical variability in total counts is high).
 
 ```python
-# Ensure spatial data has same genes
-adata_vis = adata_vis[:, adata_ref.var_names].copy()
+adata_vis = sc.read_h5ad('visium.h5ad')                    # raw counts
+shared = np.intersect1d(adata_vis.var_names, inf_aver.index)
+adata_vis = adata_vis[:, shared].copy()
+inf_aver = inf_aver.loc[shared, :]
 
-# Setup spatial data
-cell2location.models.Cell2location.setup_anndata(adata_vis)
+cell2location.models.Cell2location.setup_anndata(adata_vis, batch_key='sample')
+mod_sp = cell2location.models.Cell2location(adata_vis, cell_state_df=inf_aver,
+                                            N_cells_per_location=30, detection_alpha=20)
+mod_sp.train(max_epochs=30000, batch_size=None, train_size=1, accelerator='gpu')
+adata_vis = mod_sp.export_posterior(adata_vis, sample_kwargs={'num_samples': 1000, 'batch_size': mod_sp.adata.n_obs})
 
-# Train deconvolution model
-mod_spatial = cell2location.models.Cell2location(
-    adata_vis,
-    cell_state_df=ref_sig,
-    N_cells_per_location=10,  # Expected cells per spot
-    detection_alpha=20,
-)
-mod_spatial.train(max_epochs=30000, use_gpu=True)
-
-# Export results
-adata_vis = mod_spatial.export_posterior(adata_vis, sample_kwargs={'num_samples': 1000})
+# q05 = 5% posterior quantile = 'at least this many cells of this type are present' (conservative)
+abundance = adata_vis.obsm['q05_cell_abundance_w_sf']      # ABSOLUTE expected cell numbers per spot
+abundance.columns = factors
+adata_vis.obs[abundance.columns] = abundance.values
 ```
 
-## Access Deconvolution Results
+cell2location returns absolute abundances. Convert to proportions only if proportions are the question -- doing so discards the information that distinguishes cell2location from the proportion-only methods.
+
+## Handling compositional outputs
+
+**Goal:** Compare cell-type composition across spots, regions, or conditions without the spurious negative correlations that the sum-to-1 constraint manufactures.
+
+**Approach:** Map proportions out of the simplex with the centered log-ratio (CLR) before any correlation, t-test, or linear model. Add a small pseudocount because CLR is undefined at zero.
 
 ```python
-# Cell type abundances stored in obsm
-abundances = adata_vis.obsm['q05_cell_abundance_w_sf']
-print(f'Cell types: {abundances.shape[1]}')
+import numpy as np
 
-# Convert to proportions
-proportions = abundances / abundances.sum(axis=1, keepdims=True)
-adata_vis.obsm['cell_type_proportions'] = proportions
+def clr(proportions, pseudocount=1e-6):
+    p = proportions + pseudocount
+    p = p / p.sum(axis=1, keepdims=True)
+    log_p = np.log(p)
+    return log_p - log_p.mean(axis=1, keepdims=True)       # subtract per-spot geometric-mean log
 
-# Add dominant cell type
-cell_types = adata_ref.obs['cell_type'].cat.categories
-adata_vis.obs['dominant_cell_type'] = cell_types[proportions.argmax(axis=1)]
+abund = adata_vis.obsm['q05_cell_abundance_w_sf'].values
+proportions = abund / abund.sum(axis=1, keepdims=True)
+clr_comp = clr(proportions)                                # now safe for downstream correlation / DE / t-tests
 ```
 
-## Using Tangram (Alternative)
+For differential abundance between conditions, prefer a compositional method (ALDEx2, scCODA, or a Dirichlet-multinomial model) over per-type t-tests on raw fractions; the same closed-data logic that breaks naive correlations breaks naive DA.
 
-**Goal:** Map single-cell reference data to spatial locations using optimal transport.
+## Reference-free sanity check
 
-**Approach:** Find marker genes from the reference, align single cells to spatial spots using Tangram's mapping algorithm, then project cell type annotations.
+**Goal:** Detect a missing-reference-type problem and recover composition when no matched scRNA-seq reference exists.
+
+**Approach:** Run STdeconvolve (LDA topic model, R) on the spatial data alone, then check whether any de novo topic matches no reference cell type -- a topic with strong spatial structure and marker genes for a type absent from the reference is direct evidence the reference is incomplete.
+
+```r
+library(STdeconvolve)
+counts <- cleanCounts(spatial_counts_matrix, min.lib.size = 100)   # genes x spots
+corpus <- restrictCorpus(counts, removeAbove = 1.0, removeBelow = 0.05)
+ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(8, 15))              # K = number of topics, scan a range
+opt <- optimalModel(models = ldas, opt = 'min')
+res <- getBetaTheta(opt, perc.filt = 0.05)
+deconv_prop <- res$theta                                          # spots x topics proportions
+# annotate topics post hoc via res$beta (topic gene profiles) against known markers
+```
+
+## Validating against marker genes
+
+**Goal:** Confirm that an estimated cell-type fraction tracks the in-situ expression of that type's canonical markers, not the reference's wishful thinking.
+
+**Approach:** For each type, correlate its estimated proportion across spots with the mean spatial expression of its marker genes; weak or negative correlation flags a misassignment or a reference mismatch.
 
 ```python
-import tangram as tg
-
-# Load data
-adata_sc = sc.read_h5ad('reference_scrna.h5ad')
-adata_sp = sc.read_h5ad('spatial_data.h5ad')
-
-# Preprocess
-sc.pp.normalize_total(adata_sc)
-sc.pp.log1p(adata_sc)
-
-# Find marker genes
-sc.tl.rank_genes_groups(adata_sc, groupby='cell_type', method='wilcoxon')
-markers = sc.get.rank_genes_groups_df(adata_sc, group=None)
-markers = markers[markers['pvals_adj'] < 0.01].groupby('group').head(100)
-marker_genes = markers['names'].unique().tolist()
-
-# Prepare for Tangram
-tg.pp_adatas(adata_sc, adata_sp, genes=marker_genes)
-
-# Map single cells to spatial locations
-ad_map = tg.map_cells_to_space(
-    adata_sc,
-    adata_sp,
-    mode='clusters',
-    cluster_label='cell_type',
-    device='cuda:0',
-)
-
-# Get cell type proportions
-tg.project_cell_annotations(ad_map, adata_sp, annotation='cell_type')
-# Results in adata_sp.obsm['tangram_ct_pred']
+markers = {'T_cell': ['CD3D', 'CD3E', 'CD8A'], 'Macrophage': ['CD68', 'CD14', 'CSF1R'], 'Epithelial': ['EPCAM', 'KRT8']}
+for ct, genes in markers.items():
+    present = [g for g in genes if g in adata_vis.var_names]
+    if not present or ct not in proportions_df.columns:
+        continue
+    expr = np.asarray(adata_vis[:, present].X.mean(axis=1)).ravel()
+    corr = np.corrcoef(expr, proportions_df[ct].values)[0, 1]
+    print(f'{ct}: marker-vs-proportion r = {corr:.3f}')        # low r -> suspect reference or misassignment
 ```
 
-## Using RCTD (via R)
+## Common Errors
 
-```python
-# RCTD runs in R; use rpy2 for integration
-import rpy2.robjects as ro
-from rpy2.robjects import pandas2ri
-pandas2ri.activate()
-
-# Save data for R
-adata_vis.write_h5ad('spatial_for_rctd.h5ad')
-adata_ref.write_h5ad('reference_for_rctd.h5ad')
-
-# R code for RCTD
-r_code = '''
-library(spacexr)
-library(Seurat)
-
-# Load data (convert from h5ad first)
-# ... R-specific loading code ...
-
-# Create RCTD object
-rctd <- create.RCTD(puck, reference, max_cores=4)
-rctd <- run_RCTD(rctd, doublet_mode='full')
-
-# Get results
-results <- rctd@results
-weights <- normalize_weights(results$weights)
-'''
-```
-
-## Visualize Cell Type Proportions
-
-**Goal:** Display estimated cell type abundances as spatial heatmaps across the tissue.
-
-**Approach:** Plot each cell type's proportion as a separate spatial panel using Scanpy's spatial plot.
-
-```python
-# Plot cell type abundances spatially
-cell_types_to_plot = ['T_cell', 'Macrophage', 'Epithelial', 'Fibroblast']
-
-fig, axes = plt.subplots(2, 2, figsize=(12, 12))
-for ax, ct in zip(axes.flatten(), cell_types_to_plot):
-    ct_idx = list(adata_ref.obs['cell_type'].cat.categories).index(ct)
-    adata_vis.obs[f'{ct}_proportion'] = proportions[:, ct_idx]
-    sc.pl.spatial(adata_vis, color=f'{ct}_proportion', ax=ax, show=False,
-                  title=ct, cmap='Reds', vmin=0, vmax=1)
-plt.tight_layout()
-plt.savefig('cell_type_proportions.png', dpi=150)
-```
-
-## Pie Chart Per Spot (Advanced)
-
-```python
-from matplotlib.patches import Wedge
-
-def plot_pie_spatial(adata, proportions, cell_types, spot_size=0.5):
-    fig, ax = plt.subplots(figsize=(12, 12))
-    colors = plt.cm.tab20(np.linspace(0, 1, len(cell_types)))
-
-    coords = adata.obsm['spatial']
-    for i in range(adata.n_obs):
-        x, y = coords[i]
-        props = proportions[i]
-        start_angle = 0
-        for j, prop in enumerate(props):
-            if prop > 0.01:  # Skip tiny proportions
-                wedge = Wedge((x, y), spot_size * 50, start_angle,
-                             start_angle + prop * 360, color=colors[j])
-                ax.add_patch(wedge)
-                start_angle += prop * 360
-
-    ax.set_xlim(coords[:, 0].min() - 100, coords[:, 0].max() + 100)
-    ax.set_ylim(coords[:, 1].min() - 100, coords[:, 1].max() + 100)
-    ax.set_aspect('equal')
-    ax.invert_yaxis()
-
-    # Legend
-    handles = [plt.Rectangle((0, 0), 1, 1, color=colors[i]) for i in range(len(cell_types))]
-    ax.legend(handles, cell_types, loc='upper right')
-    plt.savefig('pie_chart_spatial.png', dpi=150)
-```
-
-## Evaluate Deconvolution Quality
-
-**Goal:** Validate deconvolution results by correlating estimated proportions with known marker gene expression.
-
-**Approach:** For each cell type, compute correlation between its estimated proportion and mean expression of canonical marker genes.
-
-```python
-# Check correlation between expected and observed cell counts
-# (if you have known cell type markers)
-
-marker_genes = {
-    'T_cell': ['CD3D', 'CD3E', 'CD4', 'CD8A'],
-    'Macrophage': ['CD68', 'CD14', 'CSF1R'],
-    'Epithelial': ['EPCAM', 'KRT8', 'KRT18'],
-}
-
-for ct, markers in marker_genes.items():
-    available_markers = [m for m in markers if m in adata_vis.var_names]
-    if available_markers:
-        marker_expr = adata_vis[:, available_markers].X.mean(axis=1)
-        ct_idx = list(cell_types).index(ct)
-        ct_prop = proportions[:, ct_idx]
-        corr = np.corrcoef(marker_expr.flatten(), ct_prop)[0, 1]
-        print(f'{ct}: marker-proportion correlation = {corr:.3f}')
-```
-
-## Compare Deconvolution Methods
-
-```python
-# Store results from different methods
-adata_vis.obsm['cell2location'] = cell2location_proportions
-adata_vis.obsm['tangram'] = tangram_proportions
-
-# Correlation between methods
-for ct_idx, ct in enumerate(cell_types):
-    c2l = adata_vis.obsm['cell2location'][:, ct_idx]
-    tg = adata_vis.obsm['tangram'][:, ct_idx]
-    corr = np.corrcoef(c2l, tg)[0, 1]
-    print(f'{ct}: cell2location vs tangram = {corr:.3f}')
-```
-
-## Export Results
-
-```python
-# Save proportions as CSV
-prop_df = pd.DataFrame(
-    proportions,
-    index=adata_vis.obs_names,
-    columns=cell_types
-)
-prop_df.to_csv('cell_type_proportions.csv')
-
-# Save annotated AnnData
-adata_vis.write_h5ad('spatial_deconvolved.h5ad')
-```
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Deconvolution "works" on Xenium/MERFISH/CosMx but fractions are nonsensical | Ran deconvolution on single-cell-resolution imaging data, inventing mixtures inside pure cells | Segment then annotate (image-analysis, single-cell/cell-annotation); deconvolution does not apply |
+| A histologically present cell type appears in NO spot | Type is absent from the reference; its signal was silently reassigned to the nearest present type | Add the missing type to the reference; cross-check with STdeconvolve for an unmatched topic |
+| Confident proportions, but disease/activated states look wrong | Condition mismatch -- healthy reference deconvolving diseased tissue | Use a condition-matched reference; activated/malignant states are transcriptionally far from healthy |
+| Per-type t-test finds "everything changes oppositely" | Naive test on compositional (sum-to-1) proportions creates spurious negative correlation | CLR/ILR transform first; use ALDEx2/scCODA/Dirichlet-multinomial for differential abundance |
+| Rare cell type fraction swings wildly between runs/references | Rare-type fractions are the least reliable output; abundance-pattern sensitivity | Treat <few-percent fractions skeptically; corroborate with spatial markers; do reference-sensitivity analysis |
+| `ValueError`/garbage from cell2location after normalizing | Passed log-normalized data; cell2location needs RAW integer counts | Feed raw counts; stash normalized layers separately |
+| `TypeError: unexpected keyword 'use_gpu'` | `use_gpu` deprecated in current scvi-tools | Use `accelerator='gpu'` (or 'cpu'/'auto') |
+| Two methods agree, reported as validation | Two NB-regression methods are pseudo-replication, not orthogonal | Validate by perturbing the reference and against an orthogonal modality (matched imaging, in-situ markers) |
+| Every spot contains a little of every immune type | Spot-edge transcript spillover / diffusion inflates apparent co-localization | RCTD doublet-mode or spillover-aware segmentation; treat ubiquitous low fractions with suspicion |
 
 ## Related Skills
 
-- spatial-data-io - Load spatial data
-- single-cell/data-io - Load scRNA-seq reference
-- spatial-visualization - Visualize deconvolution results
-- single-cell/markers-annotation - Annotate reference cell types
+- spatial-domains - group spots into tissue regions; a domain is a region, not a cell type or a niche
+- high-resolution-binning - the AMBIGUOUS regime (Visium HD, Stereo-seq, Slide-seq): reconstruct cells vs deconvolve bins
+- image-analysis - segment cells from imaging platforms, where deconvolution does not apply
+- single-cell/cell-annotation - annotate the imaging cells after segmentation, and label the scRNA-seq reference
+- single-cell/preprocessing - build a clean reference; the reference IS the result
+- spatial-preprocessing - QC and normalize the spatial data before deconvolution
+- spatial-visualization - map estimated proportions and abundances onto the tissue
+
+## References
+
+- Kleshchevnikov V, Shmatko A, Dann E, et al. (2022) Cell2location maps fine-grained cell types in spatial transcriptomics. Nature Biotechnology 40:661-671. DOI 10.1038/s41587-021-01139-4
+- Cable DM, Murray E, Zou LS, et al. (2022) Robust decomposition of cell type mixtures in spatial transcriptomics (RCTD). Nature Biotechnology 40:517-526. DOI 10.1038/s41587-021-00830-w
+- Andersson A, Bergenstrahle J, Asp M, et al. (2020) Single-cell and spatial transcriptomics enables probabilistic inference of cell type topography (stereoscope). Communications Biology 3:565. DOI 10.1038/s42003-020-01247-y
+- Elosua-Bayes M, Nieto P, Mereu E, Gut I, Heyn H (2021) SPOTlight: seeded NMF regression to deconvolute spatial transcriptomics spots with single-cell transcriptomes. Nucleic Acids Research 49(9):e50. DOI 10.1093/nar/gkab043
+- Biancalani T, Scalia G, Buffoni L, et al. (2021) Deep learning and alignment of spatially resolved single-cell transcriptomes with Tangram. Nature Methods 18(11):1352-1362. DOI 10.1038/s41592-021-01264-7
+- Ma Y, Zhou X (2022) Spatially informed cell-type deconvolution for spatial transcriptomics (CARD). Nature Biotechnology 40:1349-1359. DOI 10.1038/s41587-022-01273-7
+- Dong R, Yuan GC (2021) SpatialDWLS: accurate deconvolution of spatial transcriptomic data. Genome Biology 22:145. DOI 10.1186/s13059-021-02362-7
+- Miller BF, Huang F, Atta L, Sahoo A, Fan J (2022) Reference-free cell type deconvolution of multi-cellular pixel-resolution spatially resolved transcriptomics data (STdeconvolve). Nature Communications 13:2339. DOI 10.1038/s41467-022-30033-z
+- Sang-Aram C, Browaeys R, Seurinck R, Saeys Y (2024) Spotless, a reproducible pipeline for benchmarking cell type deconvolution in spatial transcriptomics. eLife 12:RP88431. DOI 10.7554/eLife.88431
+- Li B, Zhang W, Guo C, et al. (2022) Benchmarking spatial and single-cell transcriptomics integration methods for transcript distribution prediction and cell type deconvolution. Nature Methods 19:662-670. DOI 10.1038/s41592-022-01480-9

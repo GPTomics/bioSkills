@@ -1,13 +1,13 @@
 ---
 name: bio-spatial-transcriptomics-spatial-visualization
-description: Visualize spatial transcriptomics data using Squidpy and Scanpy. Create tissue plots with gene expression, clusters, and annotations overlaid on histology images. Use when visualizing spatial expression patterns.
+description: Plots spatial transcriptomics expression, clusters, and annotations on tissue using Squidpy and Scanpy. Use when choosing the plotter and spot size by platform fork (sc.pl.spatial / sq.pl.spatial_scatter with real scalefactors and capture diameter for spot/capture data like Visium and Slide-seq, versus molecule/segmentation overlays for imaging/FOV data like Xenium, MERFISH, and CosMx); getting the histology coordinate-frame transform right (micron<->pixel, scalefactors) so points land on the image; and avoiding the honest-visualization traps where interpolation/KDE manufactures spatial pattern not in the data, oversized markers fake tissue coverage, jet and other non-uniform colormaps distort structure, and non-metric UMAP/tSNE distances are misread as spatial conclusions.
 tool_type: python
 primary_tool: squidpy
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, squidpy 1.3+
+Reference examples tested with: squidpy 1.4+, scanpy 1.10+, anndata 0.10+, matplotlib 3.8+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,271 +17,146 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Visualization
 
-**"Plot gene expression on my tissue section"** -> Overlay gene expression, cluster assignments, or continuous scores on spatial coordinates with optional histology image background.
-- Python: `squidpy.pl.spatial_scatter(adata, color='gene')`, `scanpy.pl.spatial(adata, color='leiden')`
+**"Plot expression / clusters / a score on my tissue section"** -> Render per-feature values at their real spatial coordinates, optionally over the histology image, without inventing structure the assay did not measure.
+- Spot/capture fork (Visium, Visium HD, Slide-seq): `scanpy.pl.spatial` or `squidpy.pl.spatial_scatter` WITH the dataset's `scalefactors` and a `spot_size`/`size` set to the real capture diameter.
+- Imaging/FOV fork (Xenium, MERFISH/MERSCOPE, CosMx): `squidpy.pl.spatial_scatter` with `shape=None` for the cell/molecule point cloud, or polygon shapes for segmentation overlays, or a platform viewer (Xenium Explorer, napari, Vitessce, TissUUmaps).
 
-Create visualizations for spatial transcriptomics data.
+## Governing Principle
 
-## Required Imports
+Plotting differs by the platform-class fork, and rendering choices can manufacture pattern that is not in the data.
+
+The first decision is which side of the fork the data sits on, because it selects the plotter and the meaning of marker size. Spot/capture data carries a histology image and a `scalefactors` block that maps array coordinates to image pixels; the plotted spot stands for a real capture spot (a 55 um Visium spot is a 1-10-cell mixture, not a cell) and the marker size should reflect that capture diameter. Imaging/FOV data is a point cloud of segmented cells or individual transcript molecules with no Visium-style hex lattice; forcing it through a spot plotter or oversizing markers paints continuous tissue coverage over what is actually sparse, discrete detections. Using the wrong plotter or an arbitrary spot size silently misrepresents the tissue.
+
+The deeper trap is that several common rendering choices invent structure. Smoothing, kernel-density, kriging, or contouring a sparse spatial field produces a continuous surface that looks like high-resolution biology but is interpolated -- the apparent gradients and domains can be artifacts of the kernel, and any spatial statistic (Moran's I, domain calls) computed on the smoothed field is partly circular. Oversized markers are rhetorical: in `scanpy.pl.spatial` `size` is a scaling factor on the spot diameter, so inflating it merges neighbors and fakes contiguity the assay never resolved. A perceptually non-uniform colormap (jet/rainbow) invents banding and edges in a smooth gradient and is unreadable under color-vision deficiency, and silent `vmin`/`vmax` clipping can erase or exaggerate differences. Finally, UMAP/tSNE distances are NOT metric (the same caveat as single-cell/clustering) -- gaps and cluster spacing in an embedding carry no spatial meaning and must not be read as tissue conclusions. Honest spatial visualization shows the raw points, names the transform and any clipping, and never lets a plotting parameter assert biology the measurement did not contain.
+
+## Plot genre by platform fork
+
+| Plot genre | Spot/capture fork (Visium, Slide-seq) | Imaging/FOV fork (Xenium, MERFISH, CosMx) | Honesty pitfall to avoid |
+|------------|----------------------------------------|--------------------------------------------|--------------------------|
+| Expression / cluster on tissue | `sc.pl.spatial` (uses `scalefactors`) or `sq.pl.spatial_scatter` | `sq.pl.spatial_scatter(shape=None)` point cloud | Oversized `spot_size`/`size` faking coverage |
+| Histology overlay | `sc.pl.spatial(img_key='hires')`; scalefactor maps coords->pixels | `sq.pl.spatial_scatter(img=True, img_res_key=...)` with the registered image | Wrong coordinate frame (micron vs pixel) -> points off image |
+| Single-molecule / transcript map | not applicable (no molecule table) | scatter the transcript x,y table, or Xenium Explorer / napari | Treating segmented matrix as raw molecules |
+| Segmentation / boundary overlay | not applicable | `sq.pl.spatial_scatter` polygon shapes, or napari/TissUUmaps | Hiding segmentation error behind tidy cell polygons |
+| Continuous field / heatmap | per-spot color, NO interpolation | per-cell color, NO interpolation | KDE/kriging/contour manufacturing gradients |
+| Embedding (UMAP/tSNE) | `sc.pl.umap` for QC only | `sc.pl.umap` for QC only | Reading non-metric embedding distance as spatial |
+
+When competing rendering options exist (point cloud vs polygon overlay, sequential vs diverging colormap), verify the current platform viewer and Squidpy plotting docs before committing -- spatial tooling and platform exports change quickly.
+
+## Spot/Capture Plot with Real Scalefactors and Spot Size
+
+**Goal:** Show expression or cluster labels at true spot positions on a spot/capture section with a marker size that reflects the capture geometry, not a guess.
+
+**Approach:** Let `sc.pl.spatial` read the `uns['spatial']` `scalefactors` so spot coordinates align to the histology image; size markers from the recorded spot diameter rather than an arbitrary constant.
 
 ```python
-import squidpy as sq
 import scanpy as sc
+import squidpy as sq
+
+# scalefactors live in adata.uns['spatial'][library_id]; sc.pl.spatial reads them automatically.
+sc.pl.spatial(adata, color=['leiden', 'total_counts'], img_key='hires', alpha_img=0.6, ncols=2)
+
+# A spot is a 1-10-cell MIXTURE, not a cell -- do not relabel spot clusters as cell types.
+# squidpy resolves the scalefactor from library_id; size here is relative to the spot diameter.
+sq.pl.spatial_scatter(adata, color='leiden', library_id='V1_Human_Lymph_Node', size=1.0)
+```
+
+## Imaging/FOV Overlay (Point Cloud and Segmentation)
+
+**Goal:** Render imaging-platform cells or molecules in their real micron coordinates without imposing a spot lattice they do not have.
+
+**Approach:** Use `sq.pl.spatial_scatter` with `shape=None` for the segmented-cell point cloud (or polygon shapes when boundaries are stored), and overlay the registered image only when its transform is known.
+
+```python
+# Imaging data is a point cloud, not a hex grid: shape=None plots cells as points in micron space.
+# With no image, `size` is the ACTUAL dot size, not a scaling factor -- keep it small so sparse
+# detections do not visually merge into fake continuous tissue.
+sq.pl.spatial_scatter(adata, color='cell_type', shape=None, size=8, img=False)
+
+# Overlay the registered morphology image only when the coordinate frame is trusted.
+sq.pl.spatial_scatter(adata, color='EPCAM', shape=None, size=8, img=True, img_alpha=0.5)
+```
+
+## Histology Coordinate-Frame Overlay
+
+**Goal:** Place transcripts/spots on the H&E or DAPI image so each point lands on the histological structure it came from.
+
+**Approach:** Map array/micron coordinates into image-pixel space with the correct scalefactor (or platform affine); never plot raw micron coordinates onto a pixel image. Inspect the alignment before trusting any structure read off the overlay.
+
+```python
+# Spot/capture: hires-image pixel coords = spatial coords * tissue_hires_scalef.
+library_id = list(adata.uns['spatial'].keys())[0]
+scalef = adata.uns['spatial'][library_id]['scalefactors']['tissue_hires_scalef']
+img = adata.uns['spatial'][library_id]['images']['hires']
+
 import matplotlib.pyplot as plt
-```
-
-## Basic Spatial Plot
-
-**Goal:** Create a spatial scatter plot with spots colored by a variable of interest.
-
-**Approach:** Use Squidpy's `spatial_scatter` to overlay expression or metadata values on tissue coordinates.
-
-```python
-# Plot spots colored by a variable
-sq.pl.spatial_scatter(adata, color='total_counts', size=1.3)
-
-# Multiple variables
-sq.pl.spatial_scatter(adata, color=['total_counts', 'n_genes_by_counts'], ncols=2)
-```
-
-## Plot with Scanpy
-
-```python
-# Scanpy's spatial plot
-sc.pl.spatial(adata, color='leiden', spot_size=1.5)
-
-# Multiple genes
-sc.pl.spatial(adata, color=['GENE1', 'GENE2', 'GENE3'], ncols=3)
-```
-
-## Show Tissue Image
-
-```python
-# Plot with tissue background
-sc.pl.spatial(adata, color='leiden', img_key='hires', alpha_img=0.5)
-
-# Without tissue
-sc.pl.spatial(adata, color='leiden', img_key=None)
-```
-
-## Customize Appearance
-
-```python
-# Adjust spot size and colors
-sc.pl.spatial(
-    adata,
-    color='leiden',
-    spot_size=1.5,
-    palette='tab20',
-    title='Cluster assignments',
-    frameon=False,
-)
-```
-
-## Gene Expression on Tissue
-
-**Goal:** Visualize gene expression patterns overlaid on tissue spatial coordinates.
-
-**Approach:** Plot individual or multiple genes using Scanpy's spatial plot with configurable colormaps and value ranges.
-
-```python
-# Single gene
-sc.pl.spatial(adata, color='CD3D', cmap='viridis', vmin=0, vmax='p99')
-
-# Multiple genes side by side
-genes = ['CD3D', 'MS4A1', 'CD14', 'NKG7']
-sc.pl.spatial(adata, color=genes, ncols=2, cmap='Reds', vmin=0)
-```
-
-## Expression with Colorbar Control
-
-```python
-fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-for ax, gene in zip(axes, ['GENE1', 'GENE2']):
-    sc.pl.spatial(adata, color=gene, ax=ax, show=False, vmin=0, vmax=5, cmap='viridis')
-    ax.set_title(gene)
-
-plt.tight_layout()
-plt.savefig('gene_expression.png', dpi=300)
-```
-
-## Compare Conditions/Samples
-
-```python
-# Split by sample
-sc.pl.spatial(adata, color='leiden', groups=['sample1', 'sample2'], ncols=2)
-
-# Or manually
-samples = adata.obs['sample'].unique()
-fig, axes = plt.subplots(1, len(samples), figsize=(5*len(samples), 5))
-
-for ax, sample in zip(axes, samples):
-    adata_sub = adata[adata.obs['sample'] == sample]
-    sc.pl.spatial(adata_sub, color='leiden', ax=ax, show=False, title=sample)
-
-plt.tight_layout()
-```
-
-## Overlay Annotations
-
-```python
-# Plot with custom annotations
 fig, ax = plt.subplots(figsize=(8, 8))
-sc.pl.spatial(adata, color='leiden', ax=ax, show=False)
-
-# Add text annotations
-for cluster in adata.obs['leiden'].unique():
-    mask = adata.obs['leiden'] == cluster
-    coords = adata.obsm['spatial'][mask].mean(axis=0)
-    ax.annotate(f'C{cluster}', coords, fontsize=12, ha='center')
-
-plt.savefig('annotated.png', dpi=300)
+ax.imshow(img)                                   # image is in pixel space
+coords_px = adata.obsm['spatial'] * scalef       # transform microns/array units -> pixels
+ax.scatter(coords_px[:, 0], coords_px[:, 1], s=6, c='red')
+ax.set_axis_off()                                # a small misalignment puts expression in the wrong structure
 ```
 
-## Co-expression Plot
+## Honest Continuous Field (Colormap and No Interpolation)
 
-**Goal:** Visualize co-localization of two genes using dual-channel RGB encoding.
+**Goal:** Show a continuous score across the section truthfully -- visible raw points, a perceptually uniform colormap, and disclosed clipping.
 
-**Approach:** Normalize expression of each gene to [0,1], assign to red and green channels, and render as a scatter plot.
+**Approach:** Color each measured spot/cell directly (never interpolate between them), pick a perceptually uniform map, and state any `vmin`/`vmax` clip rather than letting it silently reshape the gradient.
 
 ```python
-# Visualize co-expression of two genes
-import numpy as np
+# Color the MEASURED points only. Do NOT KDE/kriging/contour a sparse field -- that manufactures
+# gradients and any Moran's I / domain call computed on the smoothed surface is partly circular.
+sc.pl.spatial(adata, color='CD3D', cmap='viridis', vmin=0, vmax='p99')   # 'p99' clip is disclosed, not hidden
 
-gene1, gene2 = 'CD3D', 'CD8A'
-expr1 = adata[:, gene1].X.toarray().flatten()
-expr2 = adata[:, gene2].X.toarray().flatten()
-
-# Create RGB image (red=gene1, green=gene2)
-from matplotlib.colors import Normalize
-norm = Normalize(vmin=0, vmax=np.percentile(np.concatenate([expr1, expr2]), 99))
-colors = np.zeros((adata.n_obs, 3))
-colors[:, 0] = norm(expr1)  # Red channel
-colors[:, 1] = norm(expr2)  # Green channel
-
-fig, ax = plt.subplots(figsize=(8, 8))
-coords = adata.obsm['spatial']
-ax.scatter(coords[:, 0], coords[:, 1], c=colors, s=10)
-ax.set_aspect('equal')
-ax.set_title(f'{gene1} (red) + {gene2} (green)')
-plt.savefig('coexpression.png', dpi=300)
+# Avoid jet/rainbow: perceptually non-uniform maps invent banding and fail color-vision-deficiency
+# readers. Scientific colour maps (Crameri) are perceptually uniform; install cmcrameri to use them.
+# import cmcrameri.cm as cmc; sc.pl.spatial(adata, color='CD3D', cmap=cmc.batlow)
 ```
 
-## Visualize Spatial Statistics
+## Interactive Exploration
 
-```python
-# Plot Moran's I results
-sq.pl.spatial_scatter(adata, color='GENE1', size=1.3)
-
-# Plot neighborhood enrichment
-sq.pl.nhood_enrichment(adata, cluster_key='leiden')
-
-# Plot co-occurrence
-sq.pl.co_occurrence(adata, cluster_key='leiden')
-```
-
-## Interactive Visualization with Napari
-
-**Goal:** Explore spatial data interactively with zoomable tissue images and spot overlays.
-
-**Approach:** Load tissue images and spot coordinates into napari layers for pan-and-zoom exploration.
+Large imaging sections and multi-resolution images are better explored interactively than in static panels. napari (image + points + shapes layers), Vitessce (web, multimodal), TissUUmaps (large image-plus-marker viewing), and the vendor Xenium Explorer / Xenium Panel viewer all pan-and-zoom over the full-resolution data. The same coordinate-frame discipline applies: points must be transformed into the viewer's pixel space (for spot/capture, multiply spatial coordinates by the relevant `tissue_*_scalef`).
 
 ```python
 import napari
-
-# Create viewer
-viewer = napari.Viewer()
-
-# Add tissue image
 library_id = list(adata.uns['spatial'].keys())[0]
 img = adata.uns['spatial'][library_id]['images']['hires']
-viewer.add_image(img, name='tissue')
-
-# Add spots
-coords = adata.obsm['spatial']
 scalef = adata.uns['spatial'][library_id]['scalefactors']['tissue_hires_scalef']
-viewer.add_points(coords * scalef, size=10, name='spots')
-
+viewer = napari.Viewer()
+viewer.add_image(img, name='tissue')
+viewer.add_points(adata.obsm['spatial'] * scalef, size=10, name='spots')   # transform into pixel space
 napari.run()
 ```
 
-## Save Publication-Quality Figures
+## Embedding Caveat
 
-**Goal:** Export high-resolution spatial plots suitable for publication.
+`sc.pl.umap`/`sc.pl.tsne` are legitimate for QC and cluster sanity-checks, but UMAP/tSNE distances are not metric: the size of gaps between clusters and the apparent spacing of points carry no quantitative meaning, and nothing spatial can be concluded from them. Read tissue structure off the spatial plot, never off the embedding (see single-cell/clustering for the full caveat).
 
-**Approach:** Configure frameless spatial plots with appropriate DPI and save as both PDF and PNG.
+## Common Errors
 
-```python
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(figsize=(8, 8))
-sc.pl.spatial(
-    adata,
-    color='leiden',
-    ax=ax,
-    show=False,
-    frameon=False,
-    title='',
-    legend_loc='right margin',
-)
-plt.savefig('figure.pdf', dpi=300, bbox_inches='tight')
-plt.savefig('figure.png', dpi=300, bbox_inches='tight')
-```
-
-## Multi-Panel Figure
-
-**Goal:** Assemble a composite figure combining spatial plots, gene expression, UMAP, and violin plots.
-
-**Approach:** Create a 2x3 subplot grid with different visualization types for comprehensive data overview.
-
-```python
-fig = plt.figure(figsize=(15, 10))
-
-# Tissue with clusters
-ax1 = fig.add_subplot(2, 3, 1)
-sc.pl.spatial(adata, color='leiden', ax=ax1, show=False, title='Clusters')
-
-# Gene 1
-ax2 = fig.add_subplot(2, 3, 2)
-sc.pl.spatial(adata, color='CD3D', ax=ax2, show=False, title='CD3D', cmap='Reds')
-
-# Gene 2
-ax3 = fig.add_subplot(2, 3, 3)
-sc.pl.spatial(adata, color='MS4A1', ax=ax3, show=False, title='MS4A1', cmap='Blues')
-
-# QC metrics
-ax4 = fig.add_subplot(2, 3, 4)
-sc.pl.spatial(adata, color='total_counts', ax=ax4, show=False, title='Total counts')
-
-# UMAP
-ax5 = fig.add_subplot(2, 3, 5)
-sc.pl.umap(adata, color='leiden', ax=ax5, show=False, title='UMAP')
-
-# Violin plot
-ax6 = fig.add_subplot(2, 3, 6)
-sc.pl.violin(adata, ['CD3D', 'MS4A1'], groupby='leiden', ax=ax6, show=False)
-
-plt.tight_layout()
-plt.savefig('multi_panel.png', dpi=300)
-```
-
-## Crop and Zoom
-
-```python
-# Zoom into a region
-x_min, x_max = 2000, 4000
-y_min, y_max = 2000, 4000
-
-fig, ax = plt.subplots(figsize=(8, 8))
-sc.pl.spatial(adata, color='leiden', ax=ax, show=False)
-ax.set_xlim(x_min, x_max)
-ax.set_ylim(y_max, y_min)  # Note: y is inverted in images
-plt.savefig('zoomed.png', dpi=300)
-```
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Spots overlap into a solid sheet; sparse signal looks continuous | `spot_size`/`size` set far above the real capture diameter | Size markers from the spot diameter; for imaging keep `size` small (it is the actual dot size when no image) |
+| Points land off the image or in the wrong tissue region | Plotting micron/array coordinates onto a pixel image without the scalefactor/affine | Transform coords -> pixels (`* tissue_hires_scalef`, or the platform affine) before overlay |
+| Smooth gradients/domains that vanish on the raw points | Field was KDE/kriged/contoured/imputed; pattern is the kernel, not the tissue | Plot measured points only; show raw alongside any smoothed view and disclose the kernel |
+| Banding/edges appear in a smooth field; figure unreadable in grayscale | jet/rainbow or other perceptually non-uniform colormap | Use a perceptually uniform map (viridis, or Crameri scientific colour maps via cmcrameri) |
+| Two conditions look very different for the same expression | Inconsistent or silent `vmin`/`vmax` between panels | Fix and disclose the color scale across panels (shared `vmin`/`vmax`) |
+| Imaging cells plotted on a hex/grid lattice or with empty image background | Spot plotter (`sc.pl.spatial`) or default `shape` used on imaging point-cloud data | Use `sq.pl.spatial_scatter(shape=None)`; pass the registered image only with a known transform |
+| Conclusions drawn from gaps between UMAP clusters | Treating non-metric embedding distance as spatial/quantitative | Restrict spatial claims to the spatial plot; use UMAP for QC only |
+| Spot clusters labeled as cell types | A capture spot is a 1-10-cell mixture, not a cell | Label spot clusters as regions/niches; deconvolve for composition (spatial-deconvolution) |
+| Per-spot proportion/scatterpie map read as measured composition | Deconvolution output is a model estimate carrying reference and fit uncertainty | Present proportion maps as estimates; rare-type fractions are least reliable, so corroborate before reading them off the map (spatial-deconvolution) |
 
 ## Related Skills
 
-- spatial-data-io - Load spatial data
-- spatial-statistics - Compute statistics to visualize
-- single-cell/clustering - Generate cluster labels
+- spatial-data-io - load the platform data and the histology image plus scalefactors that plotting depends on
+- spatial-domains - produce the region labels rendered on the section
+- spatial-statistics - compute Moran's I / neighborhood enrichment whose results are plotted here
+- data-visualization/heatmaps-clustering - general perceptually-uniform colormap and figure conventions
+- single-cell/clustering - the non-metric UMAP/tSNE distance caveat that applies to embeddings
+
+## References
+
+- Palla G, Spitzer H, Klein M, et al. (2022) Squidpy: a scalable framework for spatial omics analysis. Nature Methods 19(2):171-178. DOI 10.1038/s41592-021-01358-2
+- Wolf FA, Angerer P, Theis FJ (2018) SCANPY: large-scale single-cell gene expression data analysis. Genome Biology 19:15. DOI 10.1186/s13059-017-1382-0
+- Marconato L, Palla G, Yamauchi KA, et al. (2025) SpatialData: an open and universal data framework for spatial omics. Nature Methods 22(1):58-62. DOI 10.1038/s41592-024-02212-x
+- Crameri F, Shephard GE, Heron PJ (2020) The misuse of colour in science communication. Nature Communications 11:5444. DOI 10.1038/s41467-020-19160-7
+- Chari T, Pachter L (2023) The specious art of single-cell genomics. PLoS Computational Biology 19(8):e1011288. DOI 10.1371/journal.pcbi.1011288
