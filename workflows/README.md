@@ -22,7 +22,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | longread-sv-pipeline | Long reads to structural variants |
 | gwas-pipeline | VCF to genome-wide associations, including phasing/imputation and population-structure correction |
 | cnv-pipeline | BAM to copy number variants |
-| spatial-pipeline | Spatial transcriptomics end-to-end |
+| spatial-pipeline | Spatial transcriptomics end-to-end (fork-aware QC, spatial stats, domains), handing off to deconvolution and communication |
 | hic-pipeline | Hi-C data to compartments, TADs, and loops |
 | multiome-pipeline | Joint scRNA + scATAC analysis |
 | somatic-variant-pipeline | Tumor-normal somatic calling with Mutect2/Strelka2 |

@@ -1,41 +1,38 @@
-'''Ligand-receptor analysis for cell-cell communication'''
-# Reference: matplotlib 3.8+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, squidpy 1.3+ | Verify API if version differs
+'''Ligand-receptor co-expression as a hypothesis, with honest multiple testing.
+
+A ligrec hit is co-expression of ligand mRNA in a sender and receptor mRNA in a
+receiver against a permutation null -- NOT signaling. squidpy ligrec is space-blind
+(it permutes cluster labels); for distance-modeled inference use COMMOT (see SKILL.md).
+'''
+# Reference: squidpy 1.4+, scanpy 1.10+, statsmodels 0.14+ | Verify API if version differs
 
 import squidpy as sq
-import scanpy as sc
-import pandas as pd
+from statsmodels.stats.multitest import multipletests
 
-adata = sc.read_h5ad('clustered_spatial.h5ad')
-print(f'Loaded: {adata.n_obs} cells/spots')
-print(f'Cell types: {adata.obs["cell_type"].nunique()}')
+adata = sq.datasets.seqfish()
+print(f'Loaded: {adata.n_obs} cells, {adata.obs["celltype_mapped_refined"].nunique()} cell types')
 
-sq.gr.spatial_neighbors(adata, coord_type='generic', n_neighs=6)
+# CellPhoneDB permutation engine. threshold is the FRACTION of cells in a cluster that
+# must express the gene (an expression floor), NOT a p-value cutoff. seqfish has no .raw.
+res = sq.gr.ligrec(
+    adata,
+    cluster_key='celltype_mapped_refined',
+    n_perms=100,
+    threshold=0.01,
+    use_raw=False,
+    seed=0,
+    n_jobs=1,
+    show_progress_bar=False,
+    copy=True,
+)
 
-print('\nRunning ligand-receptor analysis...')
-sq.gr.ligrec(adata, cluster_key='cell_type', n_perms=100, threshold=0.01)
+pvalues = res['pvalues']
+flat = pvalues.stack([0, 1], future_stack=True).rename('pval').reset_index().dropna(subset=['pval'])
+flat['padj'] = multipletests(flat['pval'].values, method='fdr_bh')[1]
+hits = flat[flat['padj'] < 0.05].sort_values('padj')
 
-results = adata.uns['cell_type_ligrec']
-pvalues = results['pvalues']
-means = results['means']
-
-sig_count = (pvalues < 0.05).sum().sum()
-print(f'\nSignificant interactions (p < 0.05): {sig_count}')
-
-interactions = []
-for source_target in pvalues.index:
-    for lr_pair in pvalues.columns:
-        if pvalues.loc[source_target, lr_pair] < 0.05:
-            source, target = source_target
-            ligand, receptor = lr_pair
-            interactions.append({
-                'source': source, 'target': target,
-                'ligand': ligand, 'receptor': receptor,
-                'mean': means.loc[source_target, lr_pair],
-                'pvalue': pvalues.loc[source_target, lr_pair],
-            })
-
-df = pd.DataFrame(interactions).sort_values('pvalue')
-df.to_csv('significant_interactions.csv', index=False)
-print(f'\nSaved {len(df)} interactions to significant_interactions.csv')
-print('\nTop 10 interactions:')
-print(df.head(10))
+print(f'\n{len(hits)} co-expression hypotheses survive BH-FDR out of {len(flat)} tests')
+print('These are candidates, not signaling: validate short-range hits against segmentation,')
+print('then climb the confidence ladder (receiver-response -> protein co-localization -> perturbation).')
+print('\nTop 10 by adjusted p-value:')
+print(hits.head(10).to_string(index=False))

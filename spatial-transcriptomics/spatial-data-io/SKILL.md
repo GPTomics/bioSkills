@@ -1,13 +1,13 @@
 ---
 name: bio-spatial-transcriptomics-spatial-data-io
-description: Load spatial transcriptomics data from Visium, Xenium, MERFISH, Slide-seq, and other platforms using Squidpy and SpatialData. Read Space Ranger outputs, convert formats, and access spatial coordinates. Use when loading Visium, Xenium, MERFISH, or other spatial data.
+description: Loads spatial transcriptomics data from Visium, Visium HD, Xenium, MERFISH/MERSCOPE, CosMx, Slide-seq/Curio, and Stereo-seq into AnnData or SpatialData using spatialdata-io and Squidpy. Use when deciding which platform class is in hand (imaging/in-situ vs sequencing/capture), which reader matches the platform (spatialdata_io.xenium/merscope/cosmx vs squidpy.read.visium/vizgen/nanostring), whether to work from the per-transcript molecule table (the re-segmentable source of truth) or the segmentation-derived per-cell matrix (quality-filtered, inherits all segmentation error), whether a molecule table even exists (spot platforms have none), and how to keep coordinate frames and units (pixel vs micron) registered to histology.
 tool_type: python
-primary_tool: squidpy
+primary_tool: spatialdata
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+, spatialdata 0.1+, squidpy 1.3+
+Reference examples tested with: spatialdata 0.2+, spatialdata-io 0.1.5+, squidpy 1.4+, scanpy 1.10+, anndata 0.10+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,256 +17,166 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Spatial Data I/O
 
-**"Load my Visium spatial data"** -> Read spatial transcriptomics outputs (Visium, Xenium, MERFISH, Slide-seq) into AnnData objects with spatial coordinates and tissue images.
-- Python: `squidpy.read.visium('spaceranger_out/')`, `spatialdata.read_zarr()`
+**"Load my spatial data"** -> Parse a platform's output bundle into one coordinate frame holding the expression matrix, coordinates, images, and (for imaging) the molecule table and segmentation shapes.
+- Imaging/in-situ (Xenium, MERSCOPE/MERFISH, CosMx, seqFISH): `spatialdata_io.{xenium, merscope, cosmx}` -> SpatialData with a per-transcript `points` table AND a derived per-cell `tables` matrix.
+- Sequencing/capture (Visium, Visium HD, Slide-seq/Curio, Stereo-seq): `squidpy.read.visium` or `spatialdata_io.{visium, visium_hd, curio, stereoseq}` -> spot/bin matrix + coordinates; NO molecule table.
 
-Load and work with spatial transcriptomics data from various platforms.
+## Governing Principle
 
-## Required Imports
+The single most consequential I/O fact is that the two platform classes emit different primary objects, and one class emits two of them that are easy to confuse.
+
+Imaging/in-situ platforms emit TWO physically distinct primary objects. The first is a per-TRANSCRIPT molecule table -- one row per decoded molecule with x, y (and often z), gene, a decoding-quality value, and a cell-assignment-or-unassigned. The second is a per-CELL expression matrix, genes-by-cells, DERIVED by overlaying a segmentation and counting the molecules that fall inside each boundary. The matrix looks exactly like scRNA-seq and is therefore wrongly trusted as ground truth, but it is a downstream product: it inherits every segmentation error and is usually quality-filtered (Xenium keeps Q>=20 in the matrix while the transcript table keeps everything). The molecule table is the source of truth and the ONLY object that lets the analyst re-segment, recover unassigned molecules, or do subcellular work. A loader that returns only the cell matrix has silently discarded the re-segmentable layer.
+
+Sequencing/capture platforms (Visium, Slide-seq, Stereo-seq) have NO molecule table -- a spot/bead/bin is mini-bulk over the cells beneath it, captured as a single barcoded profile. Do not go looking for a transcript table that does not exist; the only objects are the barcode-by-gene matrix, the coordinates, and the tissue image.
+
+A second trap is coordinate frames. Images, spot/cell coordinates, and molecule points each live in their own intrinsic pixel or array axes; overlaying transcripts on histology, or building a neighbor graph with a micron radius, requires the right transform (Visium scalefactors; imaging micron-to-pixel matrices). SpatialData makes the frames explicit (intrinsic vs a shared extrinsic "global" system); the legacy AnnData layout hides them in `uns['spatial'][library_id]['scalefactors']`. Mixing frames silently places points off the image or builds a graph at the wrong scale.
+
+## The Platform-Class Fork
+
+The first question of any spatial dataset is which side of the fork it sits on, because it decides what objects exist and what the rest of the pipeline must do.
+
+| Class | Platforms | Primary objects | Molecule table? | Cell unit | Downstream |
+|---|---|---|---|---|---|
+| Imaging / in-situ | Xenium, MERSCOPE/MERFISH, CosMx, seqFISH | molecule table + segmentation-derived cell matrix + images + shapes | YES (source of truth) | from segmentation (a hypothesis) | segment, then label-transfer typing |
+| Sequencing / capture | Visium, Visium HD, Slide-seq/Curio, Stereo-seq, GeoMx | barcode/bin-by-gene matrix + coordinates + image | NO | spot/bin = 1-10-cell MIXTURE (GeoMx ROI = many-cell region; sub-cell bins = fraction of a cell) | deconvolution (or bin/segment-up for sub-cell bins) |
+
+## Object-Model Landscape
+
+Each toolkit is a strategy for co-storing four things in one frame: an expression matrix, geometry (spot circles, cell/nucleus polygons, centroids), raster images (H&E, DAPI, multiplex IF -- often gigapixel), and (imaging only) the molecule point cloud. They differ in how separately they keep these and which is the forward path.
+
+| Framework (language) | Core object | Molecule table | Per-cell matrix | Segmentation geometry | Images | Best when |
+|---|---|---|---|---|---|---|
+| SpatialData / scverse (Python) | `SpatialData` of elements | `points` (dask -> Parquet) | `tables` (AnnData) | `labels` (masks) + `shapes` (geopandas polygons) | `images` (xarray, OME-NGFF/Zarr, lazy) | Multimodal, larger-than-memory, multiple platforms in one store; re-segmentation |
+| Squidpy + AnnData (Python) | `AnnData` | via SpatialData/readers | `adata.X` | in `obs`/external | `uns['spatial']` (legacy) | Standard AnnData spatial graph stats on spot or cell matrices |
+| Seurat v5 (R) | `Seurat`, geometry in `@images` | `FOV@molecules` | `Assay5` counts | `FOV@boundaries` (Centroids + Segmentation) | platform `SpatialImage` | R single-cell users; v5 integration |
+| SpatialExperiment / SFE-Voyager (Bioc, R) | `SpatialExperiment` / `SpatialFeatureExperiment` | `rowGeometries` (sf points, SFE only) | SCE assay | `colGeometries` (cellSeg/nucSeg/spotPoly) | `imgData()` | Bioconductor scran/scater; geospatial ESDA (Moran's I) |
+| Giotto Suite (R) | `giotto` (multi-scale) | subcellular molecule layer | aggregated cell layer | polygon/cell layers | image layers | One technology-agnostic object spanning molecule -> cell -> region |
+
+SpatialData is the forward-path Python standard because it is the only framework that natively keeps the molecule table, multiscale OME-NGFF images, and segmentation shapes as first-class, frame-aware elements. Because a SpatialData `table` IS an AnnData, all of `squidpy.gr.*` runs on it unchanged.
+
+## Platform-to-Reader Map
+
+| Platform | spatialdata-io reader | squidpy.read | Key I/O fact |
+|---|---|---|---|
+| Visium | `visium` | `visium` | spot, no molecule table; `tissue_positions.csv` gained a header at Space Ranger v2.0 (readers handle both) |
+| Visium HD | `visium_hd` | -- | bins (2/8/16um); `tissue_positions.parquet` (PARQUET, not CSV); 8um bin still spans ~2 cells |
+| Xenium | `xenium` | -- (none) | molecule table `transcripts.parquet` (all Q) + Q>=20 cell matrix; needs `experiment.xenium` manifest |
+| MERSCOPE / MERFISH | `merscope` | `vizgen` | there is NO `merfish` reader -- `merscope` handles both; boundaries went hdf5-folder -> single `cell_boundaries.parquet` at instrument SW v232 |
+| CosMx | `cosmx` | `nanostring` | flat CSVs with a run/slide prefix; `tx_file` (molecule table) absent for protein-only panels |
+| Slide-seq / Curio | `curio` | -- (none) | bead, no molecule table |
+| Stereo-seq | `stereoseq` | -- | DNB sub-cellular; binned up to cells |
+
+`squidpy.read` provides ONLY `visium`, `vizgen`, and `nanostring` -- it has no `xenium` or `slideseq` reader. For Xenium, Slide-seq/Curio, Stereo-seq, and Visium HD, use the `spatialdata_io` reader. `scanpy.read_visium` is deprecated as of scanpy 1.11 -- prefer `squidpy.read.visium` (identical obsm/uns layout) or `spatialdata_io.visium`.
+
+## Load Visium (Spot/Capture)
+
+**Goal:** Read a Space Ranger bundle into an AnnData with coordinates, image, and scalefactors, without reaching for the deprecated scanpy reader.
+
+**Approach:** Use `squidpy.read.visium`; coordinates land in `obsm['spatial']` (pixels of the full-res image), image and scalefactors in `uns['spatial'][library_id]`.
 
 ```python
 import squidpy as sq
-import scanpy as sc
-import anndata as ad
-import spatialdata as sd
-import spatialdata_io as sdio
-```
 
-## Load 10X Visium Data
-
-**Goal:** Load Visium spatial transcriptomics data from Space Ranger output into an AnnData object.
-
-**Approach:** Use Squidpy's `read.visium` to parse the output directory, which loads expression, spatial coordinates, and tissue images.
-
-```python
-# Load Space Ranger output (standard method)
-adata = sq.read.visium('path/to/spaceranger/output/')
-print(f'Loaded {adata.n_obs} spots, {adata.n_vars} genes')
-
-# Spatial coordinates are in adata.obsm['spatial']
-print(f"Spatial coords shape: {adata.obsm['spatial'].shape}")
-
-# Image is in adata.uns['spatial']
+adata = sq.read.visium('spaceranger_out/')         # filtered matrix + spatial/; NOT a cell -- each spot is a 1-10-cell mixture
 library_id = list(adata.uns['spatial'].keys())[0]
-print(f'Library ID: {library_id}')
-```
-
-## Load Visium with Scanpy
-
-**Goal:** Load Visium data using Scanpy's built-in reader as an alternative to Squidpy.
-
-**Approach:** Use `sc.read_visium` to parse Space Ranger output, then access images and scale factors from `adata.uns['spatial']`.
-
-```python
-# Alternative using Scanpy directly
-adata = sc.read_visium('path/to/spaceranger/output/')
-
-# Access tissue image
-img = adata.uns['spatial'][library_id]['images']['hires']
-scale_factor = adata.uns['spatial'][library_id]['scalefactors']['tissue_hires_scalef']
-```
-
-## Load 10X Xenium Data
-
-**Goal:** Load single-cell resolution Xenium spatial data.
-
-**Approach:** Use Squidpy's `read.xenium` to parse Xenium output, yielding per-cell expression and coordinates.
-
-```python
-# Load Xenium output
-adata = sq.read.xenium('path/to/xenium/output/')
-print(f'Loaded {adata.n_obs} cells')
-
-# Xenium has single-cell resolution
-print(f"Cell coordinates: {adata.obsm['spatial'].shape}")
-```
-
-## Load with SpatialData (Recommended for New Projects)
-
-**Goal:** Load spatial data into SpatialData objects for unified multi-modal representation.
-
-**Approach:** Use spatialdata-io readers per platform, which organize expression, shapes, and images into a single object.
-
-```python
-import spatialdata_io as sdio
-
-# Load Visium as SpatialData object
-sdata = sdio.visium('path/to/spaceranger/output/')
-print(sdata)
-
-# Load Xenium
-sdata = sdio.xenium('path/to/xenium/output/')
-
-# Access components
-table = sdata.tables['table']  # AnnData with expression
-shapes = sdata.shapes  # Spatial shapes (spots, cells)
-images = sdata.images  # Tissue images
-```
-
-## Load MERFISH Data
-
-**Goal:** Load MERFISH (Vizgen MERSCOPE) spatial data.
-
-**Approach:** Use spatialdata-io or Squidpy readers to parse MERSCOPE output with cell-by-gene counts and metadata.
-
-```python
-# MERFISH (Vizgen MERSCOPE)
-sdata = sdio.merscope('path/to/merscope/output/')
-
-# Or as AnnData
-adata = sq.read.vizgen('path/to/vizgen/output/', counts_file='cell_by_gene.csv', meta_file='cell_metadata.csv')
-```
-
-## Load Slide-seq Data
-
-```python
-# Slide-seq / Slide-seqV2
-adata = sq.read.slideseq('beads.csv', coordinates_file='coords.csv')
-```
-
-## Load Nanostring CosMx
-
-```python
-# CosMx spatial molecular imaging
-sdata = sdio.cosmx('path/to/cosmx/output/')
-```
-
-## Load Stereo-seq Data
-
-```python
-# Stereo-seq (BGI)
-sdata = sdio.stereoseq('path/to/stereoseq/output/')
-```
-
-## Load from H5AD with Spatial Coordinates
-
-```python
-# If you have h5ad with spatial already stored
-adata = sc.read_h5ad('spatial_data.h5ad')
-
-# Verify spatial data exists
-if 'spatial' in adata.obsm:
-    print('Has spatial coordinates')
-if 'spatial' in adata.uns:
-    print('Has image data')
-```
-
-## Create Spatial AnnData from Scratch
-
-**Goal:** Construct a spatial AnnData object from raw expression and coordinate arrays.
-
-**Approach:** Build an AnnData with spatial coordinates in `obsm['spatial']` and minimal metadata in `uns['spatial']` for Squidpy compatibility.
-
-```python
-import numpy as np
-import pandas as pd
-
-# Expression matrix
-X = np.random.poisson(5, size=(1000, 500))
-
-# Spatial coordinates
-spatial_coords = np.random.rand(1000, 2) * 1000  # x, y in pixels
-
-# Create AnnData
-adata = ad.AnnData(X)
-adata.obs_names = [f'spot_{i}' for i in range(1000)]
-adata.var_names = [f'gene_{i}' for i in range(500)]
-adata.obsm['spatial'] = spatial_coords
-
-# Add minimal spatial metadata for Squidpy
-adata.uns['spatial'] = {
-    'library_id': {
-        'scalefactors': {'tissue_hires_scalef': 1.0, 'spot_diameter_fullres': 50},
-    }
-}
-```
-
-## Access Spatial Coordinates
-
-```python
-# Get coordinates as numpy array
-coords = adata.obsm['spatial']
-x_coords = coords[:, 0]
-y_coords = coords[:, 1]
-
-# Get coordinates as DataFrame
-coord_df = pd.DataFrame(adata.obsm['spatial'], index=adata.obs_names, columns=['x', 'y'])
-```
-
-## Access Tissue Images
-
-```python
-# Get high-resolution image
-library_id = list(adata.uns['spatial'].keys())[0]
-hires_img = adata.uns['spatial'][library_id]['images']['hires']
-lowres_img = adata.uns['spatial'][library_id]['images']['lowres']
-
-# Scale factors
 scalef = adata.uns['spatial'][library_id]['scalefactors']
-print(f"Hires scale: {scalef['tissue_hires_scalef']}")
-print(f"Spot diameter: {scalef['spot_diameter_fullres']}")
+# obsm['spatial'] is in FULL-RES pixels; multiply by tissue_hires_scalef to index the hires image
+print(adata.n_obs, 'spots', adata.n_vars, 'genes', '| spot diameter (px):', scalef['spot_diameter_fullres'])
 ```
 
-## Convert Between Formats
+## Load Imaging Data and Keep the Molecule Table
 
-**Goal:** Convert spatial data between SpatialData and AnnData representations.
+**Goal:** Load Xenium (or MERSCOPE/CosMx) so BOTH the per-transcript molecule table and the derived cell matrix are available, not just the matrix.
 
-**Approach:** Extract tables and coordinate arrays from SpatialData, then save as h5ad or zarr.
+**Approach:** Use the `spatialdata_io` reader, which returns a SpatialData object; the molecule table lives in `sdata.points`, the cell matrix in `sdata.tables`, segmentation polygons in `sdata.shapes`, images in `sdata.images`. Inspect element names with `print(sdata)` -- they vary by platform and reader version.
 
 ```python
-# SpatialData to AnnData
-sdata = sdio.visium('path/to/data/')
+import spatialdata_io as sdio
+
+sdata = sdio.xenium('xenium_out/')                 # needs experiment.xenium manifest
+print(sdata)                                       # lists points/tables/shapes/images element names
+
+transcripts = sdata.points['transcripts']          # dask DataFrame: x, y, z, feature_name, qv, cell_id -- ALL Q-scores
+adata = sdata.tables['table']                      # AnnData cell matrix -- Q>=20 filtered, inherits segmentation error
+# the matrix is a DERIVED product; the molecule table is the re-segmentable source of truth
+print('molecules:', transcripts.shape[0].compute(), '| cells in matrix:', adata.n_obs)
+```
+
+For MERSCOPE substitute `sdio.merscope('merscope_out/')`; for CosMx `sdio.cosmx('cosmx_out/')`. As an AnnData-only alternative for MERSCOPE, `sq.read.vizgen(path, counts_file='cell_by_gene.csv', meta_file='cell_metadata.csv')` returns the cell matrix but discards the molecule table.
+
+## Load Other Capture Platforms
+
+**Goal:** Load Visium HD bins, Slide-seq/Curio beads, or Stereo-seq into a SpatialData object.
+
+**Approach:** Use the matching `spatialdata_io` reader; none of these has a molecule table, and Visium HD / Stereo-seq bins are smaller than a cell (the inverse-of-deconvolution regime -- see spatial-deconvolution).
+
+```python
+import spatialdata_io as sdio
+
+sdata_hd = sdio.visium_hd('visium_hd_out/')        # tissue_positions are PARQUET; pick a bin (8um default still ~2 cells)
+sdata_ss = sdio.stereoseq('stereoseq_out/')        # DNB sub-cellular spots, binned up to cells
+sdata_bead = sdio.curio('slideseq_out/')           # Slide-seq/Curio beads; ~1 cell but ~1/3 carry >=2 types
+```
+
+## Inspect and Register Coordinate Frames
+
+**Goal:** Confirm whether coordinates are in pixels or microns before building a graph or overlaying on histology, so a neighbor radius or a plotted point lands at the right scale.
+
+**Approach:** In SpatialData read the element transformations (intrinsic vs the shared "global" extrinsic frame); in the AnnData layout read the scalefactors. Never assume `obsm['spatial']` units -- Visium is full-res pixels, most imaging readers place a micron "global" frame.
+
+```python
+from spatialdata.transformations import get_transformation
+
+# SpatialData: every element carries transforms into shared coordinate systems
+print(sdata.coordinate_systems)                    # e.g. ['global']
+print(get_transformation(sdata['transcripts'], get_all=True))   # intrinsic -> global (often micron scaling)
+```
+
+## Convert SpatialData to AnnData
+
+**Goal:** Extract the cell/spot matrix as a plain AnnData for tools that expect one, while keeping coordinates.
+
+**Approach:** Copy the `table`, set `obsm['spatial']` from the matching shapes/centroids. Persist via `sdata.write(...)` ONLY to a scratch path -- a `.zarr` store is a DIRECTORY, not a file, so it must never be committed.
+
+```python
 adata = sdata.tables['table'].copy()
-adata.obsm['spatial'] = np.array(sdata.shapes['spots'][['x', 'y']])
-
-# Save as h5ad
-adata.write_h5ad('spatial_converted.h5ad')
-
-# Save SpatialData
-sdata.write('spatial_data.zarr')
+# write a zarr STORE (a directory) to scratch, never the repo; rm -rf when done
+# sdata.write('/tmp/scratch/store.zarr')
 ```
 
-## Load Multiple Samples
+## Common Errors
 
-**Goal:** Load and merge spatial data from multiple Visium samples into a single AnnData.
-
-**Approach:** Iterate over sample directories, tag each with a sample label, then concatenate with `ad.concat`.
-
-```python
-# Load and concatenate multiple Visium samples
-samples = ['sample1', 'sample2', 'sample3']
-adatas = []
-
-for sample in samples:
-    adata = sq.read.visium(f'data/{sample}/')
-    adata.obs['sample'] = sample
-    adatas.append(adata)
-
-# Concatenate
-adata_combined = ad.concat(adatas, label='sample', keys=samples)
-print(f'Combined: {adata_combined.n_obs} spots')
-```
-
-## Subset by Spatial Region
-
-**Goal:** Extract spots within a rectangular spatial region of interest.
-
-**Approach:** Apply coordinate-based boolean masking on `obsm['spatial']` to filter spots by x/y bounds.
-
-```python
-# Select spots in a rectangular region
-x_min, x_max = 1000, 2000
-y_min, y_max = 1500, 2500
-
-coords = adata.obsm['spatial']
-in_region = (coords[:, 0] >= x_min) & (coords[:, 0] <= x_max) & (coords[:, 1] >= y_min) & (coords[:, 1] <= y_max)
-
-adata_region = adata[in_region].copy()
-print(f'Selected {adata_region.n_obs} spots')
-```
+| Symptom | Cause | Fix |
+|---|---|---|
+| `AttributeError: module 'squidpy.read' has no attribute 'xenium'` (or `slideseq`) | `squidpy.read` only has `visium`, `vizgen`, `nanostring` | Use `spatialdata_io.xenium` / `spatialdata_io.curio` for those platforms |
+| `spatialdata_io` has no `merfish` reader | The reader is named for the instrument, not the chemistry | Use `spatialdata_io.merscope` (handles MERFISH and MERSCOPE) |
+| `DeprecationWarning` / future removal on `scanpy.read_visium` | Deprecated as of scanpy 1.11 | Use `squidpy.read.visium` or `spatialdata_io.visium` (same layout) |
+| Cell matrix has far fewer transcripts than the molecule table | Imaging cell matrix is Q>=20 filtered and segmentation-derived | Treat the matrix as provisional; use `sdata.points` (all Q) to re-segment or audit |
+| Trusting the cell matrix as ground truth; weird co-expression | The matrix inherits all segmentation/spillover error | Validate against the molecule table; re-segment (see image-analysis) |
+| Looking for a transcript table in Visium/Slide-seq and finding none | Capture platforms have no molecule table | Stop -- a spot is mini-bulk; there is nothing to re-segment |
+| Visium HD reader fails reading `tissue_positions.csv` | Visium HD positions are PARQUET (`tissue_positions.parquet`) | Use `spatialdata_io.visium_hd`, which expects the parquet bundle |
+| Older Visium positions parse with a shifted header | `tissue_positions.csv` gained a header at Space Ranger v2.0 | Current readers handle both; upgrade `spatialdata-io`/`squidpy` if parsing legacy files |
+| MERSCOPE boundaries not found | hdf5-folder boundaries became single `cell_boundaries.parquet` at SW v232 | Match reader version to instrument software; point at the parquet if present |
+| Seurat `@coordinates` slot missing (R interop) | Seurat 5.1 `VisiumV2` has no `coordinates` slot (V1 did) | Use `GetTissueCoordinates()`; there is no V1->V2 converter |
+| Transcripts plot off the image | Points and image in different frames/units (pixel vs micron) | Apply the reader's transform / scalefactor before overlaying |
+| A stray `.zarr` directory left in the repo after writing | `sdata.write` makes a directory store; `git status` hides untracked dirs | Write to scratch; `rm -rf` the store; run `git status --porcelain | grep '/$'` |
 
 ## Related Skills
 
-- spatial-preprocessing - QC and normalization after loading
-- spatial-visualization - Plot spatial data
-- single-cell/data-io - Non-spatial scRNA-seq data loading
+- spatial-preprocessing - QC floors and normalization that differ by platform class after loading
+- image-analysis - re-segment the molecule table; the cell matrix is a segmentation hypothesis
+- spatial-deconvolution - recover cell-type proportions from spot mixtures that have no molecule table
+- high-resolution-binning - bin/segment-up sub-cellular Visium HD and Stereo-seq captures
+- spatial-visualization - plot spots vs imaging FOVs with the correct coordinate frame
+- single-cell/data-io - non-spatial scRNA-seq loading for the deconvolution/label-transfer reference
+
+## References
+
+- Marconato L, Palla G, Yamauchi KA, et al. (2025) SpatialData: an open and universal data framework for spatial omics. Nature Methods 22(1):58-62. DOI 10.1038/s41592-024-02212-x
+- Palla G, Spitzer H, Klein M, et al. (2022) Squidpy: a scalable framework for spatial omics analysis. Nature Methods 19(2):171-178. DOI 10.1038/s41592-021-01358-2
+- Wolf FA, Angerer P, Theis FJ (2018) SCANPY: large-scale single-cell gene expression data analysis. Genome Biology 19:15. DOI 10.1186/s13059-017-1382-0
+- Virshup I, Rybakov S, Theis FJ, Angerer P, Wolf FA (2024) anndata: Access and store annotated data matrices. Journal of Open Source Software 9(101):4371. DOI 10.21105/joss.04371
+- Hao Y, Stuart T, Kowalski MH, et al. (2024) Dictionary learning for integrative, multimodal and scalable single-cell analysis. Nature Biotechnology 42(2):293-304. DOI 10.1038/s41587-023-01767-y
+- Righelli D, Weber LM, Crowell HL, et al. (2022) SpatialExperiment: infrastructure for spatially-resolved transcriptomics data in R using Bioconductor. Bioinformatics 38(11):3128-3131. DOI 10.1093/bioinformatics/btac299
+- Moore J, Allan C, Besson S, et al. (2021) OME-NGFF: a next-generation file format for expanding bioimaging data-access strategies. Nature Methods 18:1496-1498. DOI 10.1038/s41592-021-01326-w
+- Janesick A, Shelansky R, Gottscho AD, et al. (2023) High resolution mapping of the tumor microenvironment using integrated single-cell, spatial and in situ analysis (Xenium). Nature Communications 14:8353. DOI 10.1038/s41467-023-43458-x
