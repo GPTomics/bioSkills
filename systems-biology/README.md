@@ -2,39 +2,43 @@
 
 ## Overview
 
-Constraint-based metabolic modeling including flux balance analysis, genome-scale model reconstruction, curation, and context-specific model building.
+Constraint-based / genome-scale metabolic modeling: draft reconstruction from genomes, curation and gap-filling, FBA/FVA flux prediction, gene essentiality, context-specific model building, multi-species community modeling, and computational strain design.
 
-**Tool type:** mixed | **Primary tools:** cobrapy, CarveMe, memote, gapseq
+**Tool type:** mixed | **Primary tools:** cobrapy, CarveMe, gapseq, memote, MICOM, StrainDesign
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| flux-balance-analysis | FBA and FVA for metabolic flux prediction with COBRApy |
-| metabolic-reconstruction | Build draft models from genomes with CarveMe, gapseq |
-| model-curation | Validate and gap-fill models with memote |
-| gene-essentiality | In silico gene knockouts and synthetic lethality |
-| context-specific-models | Tissue-specific models with GIMME, iMAT algorithms |
+| metabolic-reconstruction | Build draft genome-scale models from genomes with CarveMe / gapseq |
+| model-curation | Validate, gap-fill, and standardize models with memote (consistency vs predictive validity) |
+| flux-balance-analysis | Predict growth and flux distributions (FBA/FVA/pFBA/sampling) with COBRApy |
+| gene-essentiality | In-silico single/double knockouts, synthetic lethality, FBA vs MOMA/ROOM |
+| context-specific-models | Tissue/condition-specific models via GIMME/iMAT/CORDA (troppo, corda) |
+| community-metabolic-modeling | Multi-species community FBA and cross-feeding with MICOM / SMETANA |
+| strain-design | Growth-coupled knockout design with StrainDesign (OptKnock/RobustKnock/MCS) |
 
 ## Example Prompts
 
-- "Run FBA on the E. coli core model"
-- "Predict growth rate on glucose minimal media"
-- "Find essential genes in my metabolic model"
-- "Build a metabolic model from this genome sequence"
-- "Create a liver-specific model using GTEx expression data"
-- "Identify synthetic lethal gene pairs"
+- "Build a metabolic model from this bacterial genome"
+- "Curate my model and check it can't make ATP from nothing"
+- "Run FBA and predict growth on glucose minimal media"
+- "Find the essential genes in my model on M9"
+- "Build a liver-specific model from my expression data"
+- "Model my gut microbiome community and predict cross-feeding"
+- "Design knockouts to overproduce succinate, coupled to growth"
 
 ## Requirements
 
 ```bash
-pip install cobra escher
-# CarveMe requires diamond and cplex/gurobi (or use glpk for open-source)
-pip install carveme memote
+pip install cobra memote carveme micom straindesign escher
+# CarveMe needs diamond + an LP solver (CPLEX/Gurobi academic, or glpk/HiGHS open-source)
+# gapseq is cloned from GitHub (github.com/jotech/gapseq); SMETANA/COMETS are separate installs
 ```
 
 ## Related Skills
 
-- **pathway-analysis** - Pathway enrichment context
-- **metabolomics** - Integrate with metabolomics data
-- **metagenomics** - Community metabolic models
+- **metabolomics** - Integrate measured metabolite/flux data (isotope-tracing for 13C-MFA)
+- **pathway-analysis** - Pathway/functional context for model genes
+- **metagenomics** - Member abundances and functional potential for community models
+- **genome-annotation** - Produce the annotated protein FASTA CarveMe/gapseq consume

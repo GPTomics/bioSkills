@@ -1,139 +1,73 @@
-'''Build tissue and condition-specific metabolic models'''
-# Reference: cobrapy 0.29+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
+'''Context-specific extraction: GPR mapping, an illustrative GIMME-style stub, and the threshold sweep.
+
+For real extraction use troppo (GIMME/iMAT/tINIT/FASTCORE) or corda (CORDA) in Python, or the
+MATLAB COBRA Toolbox / RAVEN. The stub here only illustrates the objective-protected pruning shape.
+'''
+# Reference: cobrapy 0.29+, numpy 1.26+ | Verify API if version differs
 
 import cobra
 import numpy as np
 
-
-def gimme(model, expression_data, threshold_percentile=25, min_growth_fraction=0.1):
-    '''Gene Inactivity Moderated by Metabolism and Expression (GIMME)
-
-    Creates context-specific model by penalizing flux through lowly-expressed
-    reactions while maintaining minimum growth.
-
-    Args:
-        expression_data: dict mapping gene_id -> normalized expression (0-1)
-        threshold_percentile: Percentile below which genes considered inactive
-                             25 = bottom quartile inactive (typical)
-        min_growth_fraction: Minimum growth as fraction of wild-type
-                            0.1 = at least 10% of max growth required
-
-    This is the simplest context-specific algorithm. Use when:
-    - Quick analysis needed
-    - Expression data quality is moderate
-    - Interpretability is important
-    '''
-    # Get wild-type growth
-    wt_growth = model.optimize().objective_value
-
-    # Calculate expression threshold
-    values = list(expression_data.values())
-    cutoff = np.percentile(values, threshold_percentile)
-
-    # Create context model
-    context_model = model.copy()
-
-    # Set minimum growth
-    for rxn in context_model.reactions:
-        if rxn.objective_coefficient > 0:  # Biomass reaction
-            rxn.lower_bound = min_growth_fraction * wt_growth
-
-    # Constrain lowly-expressed reactions
-    constrained = 0
-    for rxn in context_model.reactions:
-        if not rxn.genes:
-            continue
-
-        # Get expression for reaction (max of gene expressions)
-        gene_expr = [expression_data.get(g.id, 0.5) for g in rxn.genes]
-        rxn_expr = max(gene_expr)
-
-        if rxn_expr < cutoff:
-            # Constrain to minimal flux
-            rxn.upper_bound = min(rxn.upper_bound, 0.1)
-            rxn.lower_bound = max(rxn.lower_bound, -0.1)
-            constrained += 1
-
-    print(f'Constrained {constrained} reactions based on low expression')
-    return context_model
+SEED = 1
+LOW_QUANTILES = (0.10, 0.25, 0.50)   # threshold strategy dominates the model; always sweep it
+GROWTH_FLOOR = 0.1                    # GIMME-family protects the objective at >= this fraction of WT
 
 
-def simulate_expression_data(model, active_pathways=None):
-    '''Generate simulated expression data for testing
+def reaction_activity(rxn, gene_expr, default=0.5):
+    '''min over AND (complex, limiting subunit), max over OR (isozyme). Simplified OR aggregation.'''
+    if not rxn.genes:
+        return default
+    return max(gene_expr.get(g.id, default) for g in rxn.genes)
 
-    Args:
-        active_pathways: List of pathway keywords that should be highly expressed
-    '''
-    if active_pathways is None:
-        active_pathways = ['glycolysis', 'tca', 'oxidative']
 
-    expression = {}
+def gimme_style_stub(model, gene_expr, low_quantile, growth_floor=GROWTH_FLOOR):
+    '''Illustrative objective-protected pruning. NOT a faithful GIMME; do not report as GIMME output.'''
+    cutoff = np.quantile(list(gene_expr.values()), low_quantile)
+    low = {g for g, v in gene_expr.items() if v < cutoff}
+    ctx = model.copy()
+    biomass = str(model.objective.expression).split('*')[1].split()[0]
+    ctx.reactions.get_by_id(biomass).lower_bound = growth_floor * model.slim_optimize()
+    pruned = 0
+    for rxn in ctx.reactions:
+        genes = {g.id for g in rxn.genes}
+        if genes and genes <= low:
+            rxn.bounds = (max(rxn.lower_bound, -1.0), min(rxn.upper_bound, 1.0))
+            pruned += 1
+    return ctx, pruned
+
+
+def simulate_expression(model, active=('glycolysis', 'pentose')):
+    rng = np.random.default_rng(SEED)
+    expr = {}
     for gene in model.genes:
-        # Check if gene is in active pathway
-        rxns = list(gene.reactions)
-        in_active = any(any(pw in rxn.name.lower() for pw in active_pathways) for rxn in rxns)
-
-        if in_active:
-            expression[gene.id] = np.random.uniform(0.7, 1.0)
-        else:
-            expression[gene.id] = np.random.uniform(0.0, 0.5)
-
-    return expression
+        in_active = any(any(a in r.name.lower() for a in active) for r in gene.reactions)
+        expr[gene.id] = rng.uniform(0.7, 1.0) if in_active else rng.uniform(0.0, 0.5)
+    return expr
 
 
-def compare_models(original, context):
-    '''Compare flux distributions between models'''
-    orig_sol = original.optimize()
-    context_sol = context.optimize()
+def main():
+    model = cobra.io.load_model('textbook')
+    expr = simulate_expression(model)
 
-    comparison = {
-        'original_growth': orig_sol.objective_value,
-        'context_growth': context_sol.objective_value,
-        'growth_ratio': context_sol.objective_value / orig_sol.objective_value
-    }
+    print('=== GPR-mapped reaction activity (min-AND / max-OR) ===')
+    for rid in ['PFK', 'CS', 'PGI']:
+        r = model.reactions.get_by_id(rid)
+        print(f'  {rid}: activity {reaction_activity(r, expr):.2f}  GPR: {r.gene_reaction_rule or "(none)"}')
 
-    # Find reactions with changed flux
-    changed = []
-    for rxn_id in original.reactions.list_attr('id'):
-        orig_flux = orig_sol.fluxes[rxn_id]
-        context_flux = context_sol.fluxes.get(rxn_id, 0)
-        if abs(orig_flux - context_flux) > 0.1:
-            changed.append({
-                'reaction': rxn_id,
-                'original': orig_flux,
-                'context': context_flux,
-                'change': context_flux - orig_flux
-            })
+    print('\n=== Threshold sweep: the same data, three thresholds, different models ===')
+    kept_sets = {}
+    for q in LOW_QUANTILES:
+        ctx, pruned = gimme_style_stub(model, expr, low_quantile=q)
+        kept_sets[q] = {r.id for r in ctx.reactions if ctx.reactions.get_by_id(r.id).bounds != (-1.0, 1.0)}
+        growth = ctx.slim_optimize()
+        state = f'{growth:.4f} /h' if np.isfinite(growth) else 'INFEASIBLE (floor unmet after pruning)'
+        print(f'  quantile {q:.2f}: pruned {pruned} reactions, context growth {state}')
 
-    comparison['changed_reactions'] = len(changed)
-    comparison['top_changes'] = sorted(changed, key=lambda x: abs(x['change']), reverse=True)[:10]
-
-    return comparison
+    stable = set.intersection(*kept_sets.values())
+    threshold_dependent = set.union(*kept_sets.values()) - stable
+    print(f'\nReactions stable across thresholds: {len(stable)}')
+    print(f'Threshold-dependent (report as hypotheses): {len(threshold_dependent)}')
 
 
 if __name__ == '__main__':
-    model = cobra.io.load_model('textbook')
-
-    print('Context-Specific Model Building')
-    print('=' * 50)
-
-    # Simulate expression data
-    print('\nGenerating simulated expression data...')
-    expression = simulate_expression_data(model, active_pathways=['glycolysis', 'pentose'])
-
-    # Create context model
-    print('\nApplying GIMME algorithm...')
-    context_model = gimme(model, expression, threshold_percentile=25)
-
-    # Compare models
-    print('\nComparing models:')
-    comparison = compare_models(model, context_model)
-    print(f"  Original growth: {comparison['original_growth']:.4f}")
-    print(f"  Context growth: {comparison['context_growth']:.4f}")
-    print(f"  Growth ratio: {comparison['growth_ratio']:.2%}")
-    print(f"  Changed reactions: {comparison['changed_reactions']}")
-
-    # Show top flux changes
-    print('\nTop flux changes:')
-    for change in comparison['top_changes'][:5]:
-        print(f"  {change['reaction']}: {change['original']:.2f} -> {change['context']:.2f}")
+    main()

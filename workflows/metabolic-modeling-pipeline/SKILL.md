@@ -77,14 +77,14 @@ conda install -c bioconda diamond
 ### Step 1: Automated Reconstruction with CarveMe
 
 ```bash
-# Basic reconstruction from protein sequences
+# Basic reconstruction from a PROTEIN FASTA (CarveMe rejects raw/GenBank genomes)
 carve genome.faa -o model_draft.xml
 
-# With gram type specification (improves biomass composition)
-carve genome.faa -o model_draft.xml --gram-neg
+# Gram type / universe is a VALUE of -u/--universe, NOT a --gram-neg flag
+carve genome.faa -o model_draft.xml -u gramneg
 
-# Gap-fill for specific media
-carve genome.faa -o model_draft.xml --gram-neg --gapfill M9
+# Gap-fill for a specific medium (opt-in; the medium determines what gets added)
+carve genome.faa -o model_draft.xml -u gramneg --gapfill M9
 ```
 
 ```python
@@ -105,30 +105,20 @@ print(f'Growth rate: {solution.objective_value:.4f} h^-1')
 ### Step 2: Model Validation with Memote
 
 ```bash
-# Run memote QC
-memote run --filename model_draft_report.html model_draft.xml
+# Run the memote test suite (results stored as JSON when --filename is given)
+memote run --filename model_result.json.gz model_draft.xml
 
-# Generate snapshot for comparison
-memote report snapshot --filename model_snapshot.json model_draft.xml
+# Generate the human-readable HTML snapshot report
+memote report snapshot --filename model_report.html model_draft.xml
 ```
 
 ```python
-import json
-
-with open('model_snapshot.json') as f:
-    report = json.load(f)
-
-# Key metrics to check
-metrics = report['tests']['basic']
-print('=== Model QC Metrics ===')
-print(f"Reactions with genes: {metrics.get('test_gene_reaction_rule_presence', {}).get('metric', 'N/A')}")
-print(f"Metabolites in reactions: {metrics.get('test_metabolites_not_produced', {}).get('metric', 'N/A')}")
-print(f"Stoichiometry balance: {metrics.get('test_stoichiometric_consistency', {}).get('result', 'N/A')}")
-
-# Target: memote score >50% for usable model
-# Score >70% indicates well-curated model
-total_score = report.get('score', {}).get('total_score', 0)
-print(f'Total memote score: {total_score:.1%}')
+# The memote SCORE measures consistency and annotation (well-formedness), NOT biological
+# correctness -- a model can score high and mispredict every knockout. Read WHICH tests fail
+# (stoichiometric consistency, mass/charge balance, energy-generating cycles) in the HTML report,
+# and validate predictions separately (see systems-biology/model-curation). Programmatic access:
+from memote.suite.api import test_model
+code, result = test_model(model, results=True)   # result is a MemoteResult of the raw outcomes
 ```
 
 ### Step 3: Model Curation (Iterative)
@@ -168,7 +158,7 @@ for issue in issues[:10]:
 
 ```python
 # Gap-filling for growth on specific media
-from cobra.medium import minimal_medium
+from cobra.flux_analysis import gapfill
 
 # Load universal reaction database for gap-filling
 universal = cobra.io.read_sbml_model('universal_model.xml')
@@ -182,22 +172,20 @@ target_medium = {
     'EX_so4_e': 100,     # Sulfate
 }
 
-# Apply medium
-for rxn_id in model.exchanges:
-    rxn = model.reactions.get_by_id(rxn_id)
-    if rxn_id in target_medium:
-        rxn.lower_bound = -target_medium[rxn_id]
-    else:
-        rxn.lower_bound = 0  # Block other uptakes
+# Apply medium (model.exchanges yields Reaction objects, not id strings)
+for rxn in model.exchanges:
+    rxn.lower_bound = -target_medium[rxn.id] if rxn.id in target_medium else 0  # block other uptakes
 
 # Gap-fill to enable growth
 # Gap-filling adds minimal reactions from universal model to enable growth
 gapfill_solution = gapfill(model, universal, demand_reactions=False)
 print(f'Gap-fill added {len(gapfill_solution[0])} reactions')
 
+# Gap-filled reactions are the LEAST-evidenced part of the model (added to force growth on this
+# medium, not because homology supports them) -- flag them low-confidence, do not treat as validated.
 for rxn in gapfill_solution[0]:
     model.add_reactions([rxn])
-    print(f'  Added: {rxn.id} - {rxn.name}')
+    print(f'  Added (low-confidence): {rxn.id} - {rxn.name}')
 
 # Verify growth
 solution = model.optimize()
@@ -266,79 +254,54 @@ plt.savefig('glycolysis_fva.pdf')
 ```python
 from cobra.flux_analysis import single_gene_deletion, double_gene_deletion
 
-# Single gene knockouts
+# Single gene knockouts. Result columns: ids (a SET of gene-id strings), growth, status.
 single_ko = single_gene_deletion(model)
 single_ko['growth_ratio'] = single_ko['growth'] / solution.objective_value
 
-# Essential genes: knockout abolishes growth (<10% of WT)
-# Threshold 0.1 is standard for essentiality
+# Essential genes: knockout drops growth below the cutoff (a policy, not a library default).
+# Report and sweep the cutoff; match the medium to any experiment being compared. Essentiality
+# is model- and medium-relative (see systems-biology/gene-essentiality).
 essential = single_ko[single_ko['growth_ratio'] < 0.1]
-print(f'Essential genes: {len(essential)} / {len(model.genes)}')
+print(f'Essential genes: {len(essential)} / {len(model.genes)} on this medium')
 
-# Export essential genes
-essential_list = [list(g)[0].id for g in essential.index]
+# ids elements are gene-id STRINGS (a set), so list(s)[0] gives the id -- there is no .id attribute.
+essential_list = [list(s)[0] for s in essential['ids']]
 with open('essential_genes.txt', 'w') as f:
     f.write('\n'.join(essential_list))
-
-# Compare to experimental data (if available)
-# Typically expect >70% overlap with experimental essentiality screens
 ```
 
 ```python
 # Double gene knockouts (synthetic lethality)
 # WARNING: Computationally intensive for large models
 
-# Focus on non-essential genes only
+# Focus on non-essential genes only (a synthetic lethal needs both singles viable)
 non_essential = [g.id for g in model.genes if g.id not in essential_list]
 
-# Run pairwise deletions
-double_ko = double_gene_deletion(model, gene_list=non_essential[:100])  # Subset for speed
+# Run pairwise deletions (positional gene_list1/gene_list2; cap the O(n^2) sweep)
+double_ko = double_gene_deletion(model, non_essential[:100], non_essential[:100])
 
-# Find synthetic lethal pairs
-# Synthetic lethality: neither single KO is lethal, but double KO is
+# Synthetic lethality: neither single KO is lethal, but the double KO is
 synthetic_lethal = double_ko[double_ko['growth'] < 0.01]
 print(f'Synthetic lethal pairs: {len(synthetic_lethal)}')
 ```
 
 ### Step 5b: Context-Specific Models
 
+Use a validated extraction method rather than ad-hoc pruning. COBRApy has no native GIMME/iMAT/INIT; the real Python options are troppo and corda, and the threshold/method choice dominates the result more than the data does. See systems-biology/context-specific-models for the method decision table and the threshold-sensitivity discipline.
+
 ```python
-# Build tissue-specific model using expression data
-def build_context_model(model, expression_data, threshold_percentile=25):
-    '''Build context-specific model by removing lowly-expressed reactions.
+# corda is the most turnkey native-Python extraction method.
+from corda import CORDA, reaction_confidence
 
-    threshold_percentile: reactions below this expression percentile are candidates for removal
-    '''
-    import numpy as np
-
-    context_model = model.copy()
-    threshold = np.percentile(list(expression_data.values()), threshold_percentile)
-
-    reactions_to_remove = []
-    for rxn in context_model.reactions:
-        if rxn.gene_reaction_rule:
-            genes_in_rxn = [g.id for g in rxn.genes]
-            # Get expression for genes in reaction
-            expr_values = [expression_data.get(g, 0) for g in genes_in_rxn]
-
-            # If all genes below threshold, candidate for removal
-            if all(e < threshold for e in expr_values):
-                # Check if removal breaks growth
-                with context_model:
-                    rxn.knock_out()
-                    sol = context_model.optimize()
-                    if sol.objective_value > 0.01:
-                        reactions_to_remove.append(rxn.id)
-
-    for rxn_id in reactions_to_remove:
-        context_model.reactions.get_by_id(rxn_id).remove_from_model()
-
-    return context_model
-
-# Example: liver-specific model
-liver_expression = {'gene1': 100, 'gene2': 5, 'gene3': 50}  # TPM values
-liver_model = build_context_model(model, liver_expression)
-print(f'Liver model: {len(liver_model.reactions)} reactions')
+# Translate expression into CORDA confidence classes (-1 absent, 0 unknown, 1 low, 2 med, 3 high)
+# through the GPR, then build the context model.
+gene_conf = {g.id: 2 for g in model.genes}                       # derive from expression quantiles
+rxn_conf = {r.id: reaction_confidence(r, gene_conf) for r in model.reactions}   # pass the Reaction, not its GPR string
+opt = CORDA(model, rxn_conf)
+opt.build()
+context_model = opt.cobra_model('tissue')
+print(f'Context model: {len(context_model.reactions)} reactions')
+# Rebuild at 2-3 thresholds and report which reactions are threshold-dependent (hypotheses).
 ```
 
 ## Visualization with Escher
@@ -393,10 +356,16 @@ builder.save_html('flux_map.html')
 | `fva_results.tsv` | Flux variability ranges |
 | `flux_map.html` | Escher visualization |
 
+## Extensions
+
+Beyond the core genome-to-flux path, the model feeds two further analyses: build a multi-species community from several reconstructions (systems-biology/community-metabolic-modeling), or design growth-coupled knockouts to overproduce a target chemical (systems-biology/strain-design).
+
 ## Related Skills
 
 - systems-biology/metabolic-reconstruction - CarveMe, gapseq details
-- systems-biology/model-curation - Memote, gap-filling
-- systems-biology/flux-balance-analysis - FBA, FVA, pFBA
-- systems-biology/gene-essentiality - Single/double knockouts
-- systems-biology/context-specific-models - Tissue-specific models
+- systems-biology/model-curation - Memote, gap-filling, energy-generating-cycle checks
+- systems-biology/flux-balance-analysis - FBA, FVA, pFBA, sampling
+- systems-biology/gene-essentiality - Single/double knockouts, MOMA/ROOM
+- systems-biology/context-specific-models - Tissue-specific models (troppo/corda)
+- systems-biology/community-metabolic-modeling - Multi-species community FBA (MICOM/SMETANA)
+- systems-biology/strain-design - Growth-coupled knockout design (OptKnock/RobustKnock)
