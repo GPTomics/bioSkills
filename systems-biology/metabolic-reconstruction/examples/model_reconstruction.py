@@ -1,124 +1,57 @@
-'''Build metabolic models from genome sequences'''
-# Reference: cobrapy 0.29+, ncbi blast+ 2.15+ | Verify API if version differs
+'''Run CarveMe/gapseq and sanity-check the draft. The inspection runs on a loaded SBML draft;
+the reconstruction commands are shown as the CLI calls they wrap (carve/gapseq must be installed).
+'''
+# Reference: CarveMe 1.6+, gapseq 1.2+, cobrapy 0.29+ | Verify API if version differs
 
 import subprocess
 import cobra
-from pathlib import Path
+
+TYPICAL_RXN_RANGE = (1000, 2500)   # typical bacterial draft; far outside flags an annotation problem
 
 
-def reconstruct_with_carveme(fasta_path, output_path, media='M9', grampos=False, verbose=False):
-    '''Run CarveMe reconstruction
+def carveme_command(fasta_path, output_path, universe='bacteria', gapfill_medium='M9'):
+    '''Build the CarveMe command. Gram/universe is a -u VALUE, not a --grampos flag.'''
+    cmd = ['carve', str(fasta_path), '-o', str(output_path), '-u', universe]
+    if gapfill_medium:
+        cmd += ['--gapfill', gapfill_medium]
+    return cmd
 
-    Args:
-        fasta_path: Path to protein FASTA file
-        output_path: Output model file (.xml or .json)
-        media: Gap-filling media (M9, LB, M9[glc], etc.)
-        grampos: True for Gram-positive bacteria
 
-    Model size expectations by organism type:
-    - Bacteria: 1000-2500 reactions
-    - Archaea: 800-1500 reactions
-    - Fungi: 1500-3000 reactions
-    '''
-    cmd = ['carve', str(fasta_path), '-o', str(output_path)]
-
-    if media:
-        cmd.extend(['--gapfill', media])
-    if grampos:
-        cmd.append('--grampos')
-    if verbose:
-        cmd.append('-v')
-
-    subprocess.run(cmd, check=True)
-    print(f'Model saved to: {output_path}')
+def run_carveme(fasta_path, output_path, universe='bacteria', gapfill_medium='M9'):
+    subprocess.run(carveme_command(fasta_path, output_path, universe, gapfill_medium), check=True)
     return output_path
 
 
-def assess_model_quality(model):
-    '''Assess quality of reconstructed model
-
-    Key metrics:
-    - Gene-reaction ratio: 1.5-2.5 typical for bacteria
-    - Orphan reactions: Should be <10% of total
-    - Growth: Must produce biomass on target media
-    '''
-    metrics = {
+def inspect_draft(model):
+    '''Inventory the draft's soft spots before curation.'''
+    orphans = [r for r in model.reactions if not r.genes]   # gap-filled, spontaneous, or transport
+    namespace = 'ModelSEED' if any(m.id.startswith('cpd') for m in model.metabolites[:50]) else 'BiGG-like'
+    return {
         'reactions': len(model.reactions),
         'metabolites': len(model.metabolites),
         'genes': len(model.genes),
         'exchanges': len(model.exchanges),
+        'orphan_reactions': len(orphans),
+        'orphan_fraction': len(orphans) / len(model.reactions),
+        'grows': model.slim_optimize() > 1e-3,   # true by construction if gap-filled
+        'namespace': namespace,
     }
 
-    # Gene-reaction ratio (typical: 1.5-2.5 for bacteria)
-    # Too high may indicate many generic reactions
-    # Too low may indicate missing annotations
-    if model.genes:
-        metrics['gene_reaction_ratio'] = len(model.reactions) / len(model.genes)
-    else:
-        metrics['gene_reaction_ratio'] = None
 
-    # Orphan reactions (no gene association)
-    # Should be <10% of total reactions
-    orphans = [r for r in model.reactions if not r.genes]
-    metrics['orphan_reactions'] = len(orphans)
-    metrics['orphan_fraction'] = len(orphans) / len(model.reactions)
+def main():
+    # A real run: run_carveme('genome.faa', 'model.xml', universe='gramneg', gapfill_medium='M9')
+    # Here the textbook model stands in for a loaded draft so the inspection is runnable.
+    model = cobra.io.load_model('textbook')
+    m = inspect_draft(model)
+    print('=== Draft inventory (curate the soft spots, not the growth number) ===')
+    for k, v in m.items():
+        print(f'  {k}: {v:.3f}' if isinstance(v, float) else f'  {k}: {v}')
 
-    # Test growth capability
-    try:
-        sol = model.optimize()
-        metrics['can_grow'] = sol.status == 'optimal' and sol.objective_value > 0.001
-        metrics['growth_rate'] = sol.objective_value
-    except:
-        metrics['can_grow'] = False
-        metrics['growth_rate'] = 0
-
-    return metrics
-
-
-def compare_models(model1, model2):
-    '''Compare two reconstructed models
-
-    Useful for comparing strains or reconstruction methods.
-    '''
-    rxns1 = {r.id for r in model1.reactions}
-    rxns2 = {r.id for r in model2.reactions}
-
-    return {
-        'model1_only': len(rxns1 - rxns2),
-        'model2_only': len(rxns2 - rxns1),
-        'shared': len(rxns1 & rxns2),
-        'jaccard_similarity': len(rxns1 & rxns2) / len(rxns1 | rxns2)
-    }
+    lo, hi = TYPICAL_RXN_RANGE
+    if not lo <= m['reactions'] <= hi:
+        print(f'  NOTE: {m["reactions"]} reactions is outside the typical {lo}-{hi} draft range (small demo model).')
+    print('  Reminder: "grows" is guaranteed by gap-filling and is NOT evidence the model is correct.')
 
 
 if __name__ == '__main__':
-    # Example: Load and assess a model
-    # This uses the textbook model as an example
-    model = cobra.io.load_model('textbook')
-
-    print('Model Quality Assessment')
-    print('=' * 40)
-    metrics = assess_model_quality(model)
-    for key, value in metrics.items():
-        if isinstance(value, float):
-            print(f'{key}: {value:.3f}')
-        else:
-            print(f'{key}: {value}')
-
-    # Quality interpretation
-    print('\nQuality Interpretation:')
-    if metrics['can_grow']:
-        print('  [PASS] Model can produce biomass')
-    else:
-        print('  [FAIL] Model cannot grow - needs gap-filling')
-
-    if metrics['orphan_fraction'] < 0.1:
-        print(f"  [PASS] Orphan reactions: {metrics['orphan_fraction']:.1%} (<10%)")
-    else:
-        print(f"  [WARN] High orphan fraction: {metrics['orphan_fraction']:.1%}")
-
-    if metrics['gene_reaction_ratio']:
-        if 1.5 <= metrics['gene_reaction_ratio'] <= 2.5:
-            print(f"  [PASS] Gene-reaction ratio: {metrics['gene_reaction_ratio']:.2f}")
-        else:
-            print(f"  [WARN] Unusual gene-reaction ratio: {metrics['gene_reaction_ratio']:.2f}")
+    main()

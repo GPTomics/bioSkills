@@ -1,142 +1,61 @@
-'''In silico gene knockout analysis'''
+'''In-silico gene essentiality: GPR-aware knockouts, cutoff sweep, MOMA, synthetic lethality.'''
 # Reference: cobrapy 0.29+ | Verify API if version differs
+# The __main__ guard is required: deletion functions spawn workers that re-import this module.
 
 import cobra
-from cobra.flux_analysis import single_gene_deletion
-import pandas as pd
+from cobra.flux_analysis import single_gene_deletion, double_gene_deletion, moma
+from cobra.util.solver import linear_reaction_coefficients
+
+CUTOFFS = (0.01, 0.02, 0.05, 0.10)   # essential = KO growth below this fraction of WT; sweep it
+SL_GENE_CAP = 40                     # cap the O(n^2) double-deletion sweep
 
 
-def analyze_single_knockouts(model, growth_threshold=0.01):
-    '''Perform single gene deletion analysis
-
-    Args:
-        model: COBRApy model
-        growth_threshold: Below this = essential (default 0.01)
-                         This allows for numerical solver tolerance
-
-    Returns:
-        DataFrame with knockout results and classifications
-    '''
-    wt_growth = model.optimize().objective_value
-
+def essential_calls(model):
+    '''Single-gene screen; returns the results DataFrame with a gene column and WT growth.'''
+    wt_growth = model.slim_optimize()
     results = single_gene_deletion(model)
-    results['relative_growth'] = results['growth'] / wt_growth
-    results['gene_id'] = results['ids'].apply(lambda x: list(x)[0] if x else None)
-
-    # Classification thresholds:
-    # Essential: <1% of WT (effectively lethal)
-    # Reduced: 1-50% of WT (significant growth defect)
-    # Non-essential: >50% of WT
-    results['classification'] = 'non-essential'
-    results.loc[results['relative_growth'] < 0.5, 'classification'] = 'reduced'
-    results.loc[results['relative_growth'] < growth_threshold, 'classification'] = 'essential'
-
-    return results
+    results['gene'] = results['ids'].apply(lambda s: list(s)[0])   # ids elements are gene-id strings
+    results['relative'] = results['growth'] / wt_growth
+    return results, wt_growth
 
 
-def find_synthetic_lethal(model, gene_subset=None, growth_threshold=0.01):
-    '''Find synthetic lethal gene pairs
-
-    Synthetic lethality: Two genes where:
-    - Single KO of either gene is viable
-    - Double KO is lethal
-
-    Warning: O(n^2) complexity. For 100 genes = 5000 pairs.
-    Full E. coli model (~1500 genes) is impractical.
-    '''
-    from cobra.flux_analysis import double_gene_deletion
-
-    if gene_subset is None:
-        gene_subset = [g.id for g in model.genes[:30]]  # Limit for speed
-
-    # Get viable single knockouts
-    single = single_gene_deletion(model, gene_list=gene_subset)
-    viable = single[single['growth'] > growth_threshold]
-    viable_genes = [list(ids)[0] for ids in viable['ids']]
-
-    print(f'Testing {len(viable_genes)} viable genes ({len(viable_genes)**2//2} pairs)')
-
-    # Double deletions
-    double = double_gene_deletion(model, gene_list1=viable_genes, gene_list2=viable_genes)
-
-    # Find synthetic lethals
-    sl_pairs = []
-    for _, row in double.iterrows():
-        genes = list(row['ids'])
-        if len(genes) == 2 and row['growth'] < growth_threshold:
-            sl_pairs.append({
-                'gene1': genes[0],
-                'gene2': genes[1],
-                'growth': row['growth']
-            })
-
-    return sl_pairs
+def confidence_split(results, cutoffs=CUTOFFS):
+    '''Core essentials (essential at every cutoff) vs boundary (call depends on the cutoff).'''
+    calls = {c: set(results.loc[results['relative'] < c, 'gene']) for c in cutoffs}
+    core = set.intersection(*calls.values())
+    boundary = set.union(*calls.values()) - core
+    return core, boundary
 
 
-def compare_essentiality_conditions(model):
-    '''Compare essential genes under different conditions
+def main():
+    model = cobra.io.load_model('textbook')
+    results, wt = essential_calls(model)
+    print(f'Wild-type growth: {wt:.4f} /h')
 
-    Example: Aerobic vs anaerobic growth
-    '''
-    results = {}
+    core, boundary = confidence_split(results)
+    print(f'High-confidence essential (all cutoffs): {len(core)}')
+    print(f'Low-confidence, cutoff-dependent        : {len(boundary)}  {sorted(boundary)}')
 
-    # Aerobic
+    print('\n=== FBA vs MOMA on a fresh knockout (immediate mutant) ===')
+    biomass = list(linear_reaction_coefficients(model))[0]   # the objective (biomass) reaction
+    wt_sol = model.optimize()
+    gene = 'b2276'
     with model:
-        model.reactions.EX_o2_e.lower_bound = -20  # Allow oxygen
-        single = single_gene_deletion(model)
-        results['aerobic'] = set(list(ids)[0] for ids in single[single['growth'] < 0.01]['ids'])
+        model.genes.get_by_id(gene).knock_out()
+        fba_growth = model.slim_optimize()
+        # moma().objective_value is the QP adjustment objective, NOT growth; read the biomass flux.
+        moma_growth = moma(model, solution=wt_sol, linear=True).fluxes[biomass.id]
+    print(f'{gene} KO: FBA re-optimized = {fba_growth:.4f}, MOMA immediate = {moma_growth:.4f} /h')
 
-    # Anaerobic
-    with model:
-        model.reactions.EX_o2_e.lower_bound = 0  # No oxygen
-        single = single_gene_deletion(model)
-        results['anaerobic'] = set(list(ids)[0] for ids in single[single['growth'] < 0.01]['ids'])
-
-    # Analysis
-    core = results['aerobic'] & results['anaerobic']
-    aerobic_only = results['aerobic'] - results['anaerobic']
-    anaerobic_only = results['anaerobic'] - results['aerobic']
-
-    return {
-        'core_essential': core,
-        'aerobic_specific': aerobic_only,
-        'anaerobic_specific': anaerobic_only
-    }
+    print('\n=== Synthetic-lethal pairs among viable genes ===')
+    viable = list(results.loc[results['relative'] > CUTOFFS[0], 'gene'])[:SL_GENE_CAP]
+    dbl = double_gene_deletion(model, gene_list1=viable, gene_list2=viable)
+    dbl['n'] = dbl['ids'].apply(len)
+    sl = dbl[(dbl['n'] == 2) & (dbl['growth'] / wt < CUTOFFS[0])]
+    print(f'Synthetic-lethal pairs: {len(sl)}')
+    for s in sl['ids'].head(5):
+        print('  ' + ' + '.join(sorted(s)))
 
 
 if __name__ == '__main__':
-    model = cobra.io.load_model('textbook')
-
-    print('Gene Essentiality Analysis')
-    print('=' * 50)
-
-    # Wild-type growth
-    wt = model.optimize()
-    print(f'Wild-type growth rate: {wt.objective_value:.4f} h^-1')
-
-    # Single knockouts
-    print('\nRunning single gene deletions...')
-    results = analyze_single_knockouts(model)
-
-    # Summary
-    counts = results['classification'].value_counts()
-    print(f'\nGene Classification:')
-    for cls, count in counts.items():
-        print(f'  {cls}: {count} genes')
-
-    # List essential genes
-    essential = results[results['classification'] == 'essential']
-    print(f'\nEssential genes ({len(essential)}):')
-    for _, row in essential.head(10).iterrows():
-        print(f"  {row['gene_id']}: growth = {row['growth']:.4f}")
-
-    # Synthetic lethality (small subset for speed)
-    print('\nRunning synthetic lethality analysis...')
-    gene_subset = [g.id for g in model.genes[:20]]
-    sl_pairs = find_synthetic_lethal(model, gene_subset)
-    print(f'Found {len(sl_pairs)} synthetic lethal pairs')
-
-    if sl_pairs:
-        print('\nTop synthetic lethal pairs:')
-        for pair in sl_pairs[:5]:
-            print(f"  {pair['gene1']} + {pair['gene2']}")
+    main()

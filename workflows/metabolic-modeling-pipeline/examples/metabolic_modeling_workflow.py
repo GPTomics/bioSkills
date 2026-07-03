@@ -24,7 +24,7 @@ except ImportError:
 # Configuration
 PROTEIN_FASTA = 'genome.faa'
 OUTPUT_DIR = Path('metabolic_modeling_results')
-GRAM_TYPE = 'neg'  # 'neg' or 'pos'
+GRAM_TYPE = 'gramneg'  # CarveMe -u/--universe value: 'gramneg', 'grampos', 'bacteria', 'archaea'
 
 # Thresholds
 MIN_GROWTH = 0.01          # Minimum viable growth rate (h^-1)
@@ -33,11 +33,11 @@ ESSENTIALITY_THRESHOLD = 0.10  # Growth ratio below this = essential
 FVA_FRACTION = 0.90        # Allow 90% of optimal growth for FVA
 
 
-def run_carveme(protein_fasta, output_path, gram_type='neg', gapfill_media='M9'):
+def run_carveme(protein_fasta, output_path, gram_type='gramneg', gapfill_media='M9'):
     '''Run CarveMe for automated model reconstruction.'''
     cmd = ['carve', protein_fasta, '-o', str(output_path)]
     if gram_type:
-        cmd.append(f'--gram-{gram_type}')
+        cmd += ['-u', gram_type]   # gram type is a -u/--universe VALUE, not a --gram-neg flag
     if gapfill_media:
         cmd.extend(['--gapfill', gapfill_media])
 
@@ -127,7 +127,8 @@ def predict_essentiality(model, growth_threshold=0.1):
     ko_results['growth_ratio'] = ko_results['growth'] / wt_growth
     ko_results['essential'] = ko_results['growth_ratio'] < growth_threshold
 
-    essential_genes = [list(g)[0].id for g, row in ko_results.iterrows() if row['essential']]
+    # 'ids' holds sets of gene-id STRINGS; list(s)[0] is the id (no .id attribute)
+    essential_genes = [list(s)[0] for s in ko_results.loc[ko_results['essential'], 'ids']]
 
     return {
         'results': ko_results,
