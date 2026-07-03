@@ -2,82 +2,95 @@
 
 ## Overview
 
-Download and analyze AI-predicted protein structures from the AlphaFold database, including confidence scores (pLDDT) and predicted aligned error (PAE) for assessing prediction quality.
+This skill retrieves precomputed models from the AlphaFold Protein Structure Database (AFDB) by UniProt accession and, more importantly, reads their confidence files correctly. An AFDB entry is a single AlphaFold2 prediction of one UniProt sequence modeled as an isolated chain - it has no ligands, ions, cofactors, PTMs, quaternary assembly, or alternative conformations, so it answers "what fold does this sequence adopt on its own?" not "what is the functional state in its complex?" The two confidence signals answer different questions: pLDDT is per-residue local confidence (stored in the B-factor column, opposite polarity to thermal motion), while PAE is per-residue-pair confidence that governs inter-domain placement. Low-pLDDT stretches are usually intrinsically disordered regions, not errors. The skill guides fetching via REST metadata (so version suffixes are discovered, not hard-coded), banding pLDDT, segmenting domains by PAE, and deciding when to trust AFDB versus run a fresh prediction.
 
 ## Prerequisites
 
 ```bash
-pip install biopython requests numpy
+pip install biopython numpy requests matplotlib
 ```
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Download the AlphaFold structure for UniProt P04637"
-- "Check the confidence scores for this AlphaFold prediction"
-- "Identify low-confidence regions in this predicted structure"
+- "Download the AlphaFold model for UniProt P04637 and report mean pLDDT"
+- "Which regions of this AlphaFold prediction are low confidence, and are they disordered?"
+- "Read the PAE matrix and tell me if the two domains are confidently placed relative to each other"
+- "Is this AlphaFold model suitable for docking, or should I run my own prediction?"
 
 ## Example Prompts
 
-### Downloading Structures
-> "Download the AlphaFold model for UniProt ID P53_HUMAN"
+### Fetching Models
+> "Retrieve the AlphaFold model for UniProt ID P04637 using the current database version"
 
-> "Get the AlphaFold structure for P04637 in mmCIF format"
+> "This is a 3200-residue human protein - get all AlphaFold fragments for it"
 
-> "Fetch AlphaFold predictions for these 5 UniProt IDs"
+> "Fetch the AlphaFold entry and its PAE file for accession Q9Y6K9"
 
-### Analyzing Confidence
-> "Show me the pLDDT scores for this AlphaFold structure"
+### Reading pLDDT Correctly
+> "Report the per-residue pLDDT for this model and classify each residue into confidence bands"
 
-> "Which regions have low confidence (pLDDT < 70)?"
+> "There is a long low-pLDDT stretch here - is it a disordered region or a modeling error?"
 
-> "Plot the per-residue confidence scores"
+> "The mean pLDDT is 88 - can I trust the distance between the N- and C-terminal domains?"
 
-### PAE Analysis
-> "Download and visualize the PAE matrix for this protein"
+### Reading PAE
+> "Load the PAE matrix and identify the confidently predicted domains"
 
-> "Identify domain boundaries from the PAE data"
+> "Are the relative orientations of these two domains reliable, or should I treat them as independent rigid bodies?"
 
-> "Which domain-domain interactions are reliable?"
+> "Segment this multidomain model into blocks I can place independently for molecular replacement"
 
-### Quality Assessment
-> "Compare this AlphaFold prediction with the experimental structure"
+### Deciding Downstream Use
+> "Is this AFDB monomer usable as a molecular-replacement search model?"
 
-> "Highlight the confident vs disordered regions"
+> "I need the ligand-bound state of this enzyme - can AFDB give me that?"
 
-> "Is this prediction reliable enough for docking?"
+> "Should I use the AFDB entry or run AlphaFold3 for this protein-protein complex?"
 
 ## What the Agent Will Do
 
-1. Construct the AlphaFold database URL from UniProt ID
-2. Download the structure file (PDB or mmCIF format)
-3. Parse confidence scores from B-factor column (pLDDT)
-4. Optionally fetch PAE matrix for inter-residue error estimates
-5. Analyze and report on prediction quality
+1. Query the AFDB REST metadata endpoint for the accession to discover current download URLs (the version suffix drifts, so it is never assembled by hand).
+2. Download the coordinate file (mmCIF) and the PAE JSON, iterating fragments for long proteins.
+3. Extract per-residue pLDDT from the B-factor column and band it (90 / 70 / 50 cutoffs), flagging low-pLDDT stretches as candidate intrinsically disordered regions rather than errors.
+4. Load the compact PAE matrix and segment confident domains, judging inter-domain placement that mean pLDDT cannot certify.
+5. Advise on downstream suitability (Foldseek search, molecular replacement, docking) and whether the static AFDB monomer answers the question or a fresh prediction is required.
 
 ## Database Access
 
-**Direct download URLs:**
-- Structure: `https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-model_v4.pdb`
-- mmCIF: `https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-model_v4.cif`
-- PAE: `https://alphafold.ebi.ac.uk/files/AF-{UNIPROT_ID}-F1-predicted_aligned_error_v4.json`
+The prediction metadata endpoint returns the current file URLs, so code should read them rather than hard-code a version token:
 
-**API endpoint:** `https://alphafold.ebi.ac.uk/api/prediction/{UNIPROT_ID}`
+```
+GET https://alphafold.ebi.ac.uk/api/prediction/{UNIPROT_ACCESSION}
+```
+
+The response is a JSON list; each entry carries `cifUrl`, `pdbUrl`, `bcifUrl`, `paeDocUrl` (the PAE JSON), and `paeImageUrl`. Files follow the pattern `AF-{accession}-F{fragment}-model_v{N}.cif` where the version token is v6 as of 2025 and F1 is the only fragment for most proteins.
 
 ## Confidence Score Interpretation
 
-| pLDDT Range | Interpretation | Color (AlphaFold DB) |
-|-------------|----------------|----------------------|
-| 90-100 | Very high confidence | Blue |
-| 70-90 | Confident | Cyan |
-| 50-70 | Low confidence | Yellow |
-| <50 | Very low (likely disordered) | Orange |
+| pLDDT | Band | Meaning | AFDB color |
+|-------|------|---------|------------|
+| 90-100 | Very high | Backbone and well-oriented side chains | Blue |
+| 70-90 | Confident | Backbone generally correct | Cyan |
+| 50-70 | Low | Backbone uncertain, cautionary zone | Yellow |
+| < 50 | Very low | Placeholder ribbon, frequently an IDR | Orange |
 
 ## Tips
 
-- **Check pLDDT before using** - Regions with pLDDT < 70 should be treated cautiously
-- **Use PAE for domains** - Low PAE between residues indicates reliable relative positioning
-- **B-factor column holds pLDDT** - Parse with Bio.PDB and read `atom.bfactor`
-- **Single conformation only** - AlphaFold predicts one state, not conformational ensembles
-- **Compare when possible** - Validate against experimental structures if available
-- **200M+ structures available** - Coverage includes most UniProt sequences
+- pLDDT is in the B-factor column but is confidence, not motion - never color "by B-factor" to infer flexibility, and convert to a pseudo-B before any crystallographic use.
+- A long low-pLDDT stretch is usually a genuine intrinsically disordered region; keep it and annotate it, and cross-check a sequence-based disorder predictor rather than trimming it as junk.
+- High mean pLDDT does not certify inter-domain geometry - read PAE before measuring any inter-domain distance or seeding a rigid-body docking.
+- PAE is asymmetric; average both off-diagonal blocks when scoring the relative placement of two domains.
+- AFDB is a monomer apo model with no ligands, cofactors, PTMs, or assembly - do not read mechanism or catalytic geometry from it; get a holo experimental structure.
+- Long non-human proteins over 2700 residues are often absent, and long human proteins are fragmented into F1, F2 with untrustworthy relative placement across fragments.
+- For remote-homology detection, feed the confident core into Foldseek 3Di search; the low-pLDDT spaghetti degrades hits.
+- Reach for a fresh prediction (modern-structure-prediction) the moment a complex, ligand, mutant, custom MSA depth, or a specific conformational state is needed.
+
+## Related Skills
+
+- structural-biology/modern-structure-prediction - run a new prediction for complexes, ligands, mutants, or a specific state
+- structural-biology/structure-io - parse and convert the downloaded PDB/mmCIF
+- structural-biology/geometric-analysis - RMSD and superposition against an experimental structure
+- structural-biology/structure-modification - trim low-pLDDT regions or overload the B-factor column for coloring
+- alignment/structural-alignment - Foldseek 3Di search over AFDB
+- database-access/uniprot-access - resolve names and sequences to the UniProt accession AFDB is keyed on

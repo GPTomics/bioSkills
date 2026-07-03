@@ -2,7 +2,7 @@
 
 ## Overview
 
-This skill covers modifying protein structures: transforming coordinates, removing/adding atoms and residues, modifying B-factors and occupancies, and building structures programmatically.
+This skill modifies protein structures in place with Biopython Bio.PDB: transforming coordinates, stripping waters and heteroatoms, overloading the B-factor column for coloring, renumbering, and building or copying entities. Every edit mutates the parsed object directly, so the two decisions that govern correctness are which rotation convention a transform matrix uses (row-convention `Entity.transform`/`Superimposer` versus column-convention biological-assembly operators) and what to preserve before a destructive edit. Getting the convention or the HETFLAG filter wrong corrupts geometry or deletes functional atoms silently, with no error. For mmCIF-fidelity edits (entities, anisotropic B-factors, assembly generation) Bio.PDB is the wrong tool - reach for gemmi.
 
 ## Prerequisites
 
@@ -13,66 +13,76 @@ pip install biopython numpy
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Remove all water molecules from this structure"
-- "Translate the structure by 10 Angstroms in X"
-- "Set B-factors based on this conservation score data"
+- "Remove the waters but keep the zinc and heme"
+- "Apply this REMARK 350 assembly operator to build the dimer"
+- "Color by conservation in the B-factor column but keep the originals"
+- "Renumber chain A starting from 1"
+- "Merge these two PDB files without chain-id clashes"
 
 ## Example Prompts
 
 ### Transformations
 > "Center this structure at the origin"
 
-> "Rotate the structure 90 degrees around the Z axis"
+> "Rotate the structure 90 degrees around the Z axis about its center of mass"
 
-> "Translate chain A by [10, 5, 0]"
+> "Apply this rotation-plus-translation matrix from the assembly record"
 
 ### Removing Entities
+> "Strip crystallographic waters but keep all metals and cofactors"
+
 > "Remove hydrogens from this structure"
 
-> "Delete chain B"
-
-> "Remove all hetero atoms (keep only protein)"
+> "Extract chain A residues 50-100 into a new file"
 
 ### Modifying Properties
-> "Set all B-factors to 20"
+> "Write these pLDDT values into the B-factor column for PyMOL coloring"
 
-> "Color by conservation score in the B-factor column"
-
-> "Set occupancy to 0.5 for chain A"
+> "Set occupancy to 1.0 for chain A"
 
 ### Structure Building
-> "Renumber residues starting from 1"
+> "Renumber residues starting from 1, preserving insertion codes"
 
-> "Rename chain A to X"
+> "Duplicate chain A as chain B"
 
 > "Merge these two PDB files"
 
 ## What the Agent Will Do
 
-1. Parse input structure(s)
-2. Navigate to target entities
-3. Apply requested modifications
-4. Save modified structure to new file
+1. Parse the input structure(s), taking a deep copy first if the original must be preserved
+2. Identify the transform convention (row for Bio.PDB/Superimposer, column for assembly operators) and transpose if needed
+3. Apply the requested edit - transform, HETFLAG-filtered strip, B-factor overload with an originals snapshot, renumber, or build
+4. Wire SMCRA parent-child links and check for id collisions when building, copying, or merging
+5. Write the modified structure to a new file with PDBIO
 
 ## Key Operations
 
 | Operation | Method |
 |-----------|--------|
-| Remove atom | `residue.detach_child(atom_id)` |
-| Remove residue | `chain.detach_child(residue_id)` |
-| Remove chain | `model.detach_child(chain_id)` |
-| Transform | Modify `atom.coord` directly |
-| Modify B-factor | Set `atom.bfactor` |
-| Modify occupancy | Set `atom.occupancy` |
-| Rename chain | Set `chain.id` |
-| Renumber residue | Set `residue.id` |
+| Transform (row convention) | `Entity.transform(rot, tran)` |
+| Assembly operator (column convention) | `Entity.transform(R.T, t)` |
+| Remove atom / residue / chain | `parent.detach_child(id)` |
+| Filtered write | `PDBIO.save(path, Select())` |
+| Overload B-factor | Set `atom.bfactor` after snapshotting originals |
+| Renumber residue | Set `residue.id = (hetflag, seq, icode)` |
+| Build tree | `StructureBuilder` |
+| Copy subtree | `copy.deepcopy(entity)` |
 
 ## Tips
 
-- **Use `detach_child()`** to remove entities, not `del`
-- **Modify coord directly** - `atom.coord` is a numpy array
-- **B-factors for visualization** - Use B-factor column to encode custom data
-- **Chain IDs are single characters** - typically A-Z
-- **Residue ID is a tuple** - `(hetfield, resnum, icode)`
-- **Copy before modifying** if you need to preserve original
-- **StructureBuilder** for building from scratch
+- Every edit mutates in place; `copy.deepcopy` the structure before modifying if the original is still needed
+- Bio.PDB `Superimposer`/`Entity.transform` use the row convention (`coords @ rot`); REMARK 350 and `_pdbx_struct_oper_list` operators are column-convention (`R @ x + t`) and must be transposed before `Entity.transform`
+- Prefer `Entity.transform`/`atom.transform` over hand-rolled `np.dot` so the convention is handled automatically
+- Overloading the B-factor column destroys the real temperature factors, and for AlphaFold models it overwrites the pLDDT stored there - snapshot originals and never send the file to refinement
+- Strip solvent on the HETFLAG (`r.id[0] == 'W'`), not the residue name; a blanket `r.id[0] != ' '` deletes catalytic metals, cofactors, and modified residues like MSE
+- Collect child ids into a list before `detach_child` to avoid mutating the dict mid-iteration
+- Renumbering must carry the full `(hetflag, resseq, icode)` tuple; renumber through a temporary offset to avoid mid-loop id collisions
+- For mmCIF-fidelity edits (anisotropic B-factors, entities, assembly generation) use gemmi - Bio.PDB does not round-trip them
+
+## Related Skills
+
+- structure-io - Parse and write structure files; mmCIF vs PDB format ceilings
+- structure-navigation - Walk chains/residues/atoms and the SMCRA id tuple
+- geometric-analysis - Superimpose structures and read back the row-convention rotation
+- interface-analysis - Analyze interfaces after generating the biological assembly
+- sequence-manipulation/seq-objects - Generate sequences from modified structures
