@@ -168,7 +168,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **flow-cytometry** | 8 | flowCore, CATALYST, CytoML | FCS handling, compensation, gating, clustering, differential, QC |
 | **reporting** | 6 | RMarkdown, Quarto, Jupyter, MultiQC, matplotlib | Reproducible reports, QC aggregation, publication figures |
 | **experimental-design** | 5 | designit, RNASeqPower, ssizeRNA, qvalue, sva | Randomization/blocking, pseudoreplication, power analysis, sample size, multiple testing (FDR), batch design |
-| **workflow-management** | 4 | Snakemake, Nextflow, cwltool, Cromwell | Scalable pipeline frameworks with containers |
+| **workflow-management** | 5 | Snakemake, Nextflow, nf-core, cwltool, Cromwell/miniwdl | Reproducible pipeline engines: authoring, running nf-core, provenance, resumable caching |
 | **data-visualization** | 20 | ggplot2, matplotlib, plotly, ComplexHeatmap, patchwork, scico (Crameri), Okabe-Ito, EnhancedVolcano, apeglm/ashr, qqman, locuszoomr, metafor, ggalluvial, ComplexUpset, ggseqlogo, maftools, NetworkX, pyGenomeTracks | PhD-grade figures: perceptual-effectiveness (Cleveland-McGill 1984), Crameri/cividis CVD-safe palettes (Wong 2011, Crameri 2020), ward.D2 + Optimal Leaf Ordering (Murtagh-Legendre 2014, Bar-Joseph 2001), apeglm LFC shrinkage (Zhu 2019), Manhattan/QQ with lambdaGC + LDSC (Bulik-Sullivan 2015), oncoprint + lollipop + sequence logos for cohort genomics, raincloud (Allen 2019) + Weissgerber 2015 bar critique, forest/funnel with REML and contour-enhanced bias (Egger 1997), CONSORT 2010 + alluvial flow, UMAP/t-SNE with Kobak-Berens 2019 init + Chari-Pachter 2023 caveats, ChIP-Rx spike-in via --scaleFactor (NOT --normalizeUsing), Kaleido v1 static export, Type-42 font embedding |
 | **tcr-bcr-analysis** | 5 | MiXCR, VDJtools, Immcantation, scirpy | TCR/BCR repertoire analysis, clonotype assembly, diversity metrics |
 | **small-rna-seq** | 6 | cutadapt, miRDeep2, miRge3, DESeq2, miRanda, MINTmap | miRNA/isomiR/tRF/piRNA analysis, ligation-bias-aware preprocessing, discovery, compositionally-aware differential expression, target prediction |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 558 skills across 63 categories**
+**Total: 559 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 558 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 559 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

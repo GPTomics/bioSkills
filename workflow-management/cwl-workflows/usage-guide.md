@@ -2,100 +2,81 @@
 
 ## Overview
 
-Common Workflow Language (CWL) is a specification for describing analysis workflows that are portable across execution platforms, making it ideal for sharing pipelines and running on diverse infrastructure.
+Common Workflow Language (CWL) is a SPECIFICATION, not an engine - the load-bearing fact from which every CWL decision follows. It deliberately splits the portable, strongly-typed workflow DESCRIPTION from its EXECUTION, so one unchanged document runs identically on any conforming runner (cwltool, Toil, Arvados, Calrissian). The entire value proposition - portability, static type-checking, vendor-neutrality, and standardized provenance - is a consequence of that split, and it is why CWL is the most verbose and most explicit of the four major systems: the verbosity buys analyzability and portability. The type system (File/Directory/record/enum/optional, plus secondaryFiles for index companions) catches wiring errors before any compute, and `cwltool --provenance` emits a CWLProv Research Object that hands an auditor exactly what ran - the reason CWL wins in regulated/clinical settings. Adopting CWL buys reproducible workflow LOGIC only: a clean typed DAG over unpinned tools is not reproducible, so containers, references, and seeds must be pinned separately.
 
 ## Prerequisites
+
 ```bash
-# Install cwltool (reference implementation)
+# Reference runner (authoring, validation, provenance, local/CI)
 pip install cwltool
 
-# Or via conda
-conda install -c conda-forge cwltool
+# Container runtime (one of):
+#   Docker 24+   OR   Singularity/Apptainer 3.8+
 
-# For HPC/cloud execution, install Toil
-pip install toil[cwl]
-
-# Docker or Singularity for containerized execution
+# At scale, install a production runner instead of cwltool:
+pip install "toil[cwl]"          # HPC/cloud batch (Slurm, Kubernetes, AWS)
+#   arvados-cwl-runner (Arvados, clinical/enterprise) or Calrissian (Kubernetes) as needed
 ```
+
+Inputs: one or more `.cwl` documents (CommandLineTool/Workflow) plus a job/input object (`job.yml`) that supplies typed values. Container images pull from BioContainers (quay.io). Target `cwlVersion: v1.2`.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Create a CWL workflow for variant calling"
-- "Convert my shell pipeline to CWL"
-- "Run this CWL workflow with Singularity"
+- "Wrap bwa-mem as a CWL CommandLineTool and declare the reference index as secondaryFiles"
+- "Build a CWL workflow that trims with fastp then quantifies with Salmon"
+- "Scatter my alignment step over paired FASTQ arrays with dotproduct"
+- "Move my ResourceRequirement from hints to requirements so the step stops getting OOM-killed"
+- "Validate this workflow and emit a CWLProv provenance object"
 
 ## Example Prompts
 
-### Basic Tools
-> "Create a CWL CommandLineTool for running BWA-MEM alignment"
+### Tool Wrapping and Typing
+> "Write a CWL CommandLineTool for samtools sort, declaring the input BAM's `.bai` as a secondaryFile and pinning the BioContainers image."
 
-> "Write a CWL tool definition for samtools sort"
+> "My reference FASTA needs a `.fai` and a `.dict` companion - declare both as secondaryFiles and explain the caret rule for the `.dict` name."
 
-### Workflows
-> "Build a CWL workflow that runs FastQC, trimming, and alignment"
+### Workflows and Scatter
+> "Build a CWL workflow that runs fastp then Salmon, wiring the trimmed reads from the first step into the second with outputSource."
 
-> "Create a scatter workflow to process multiple samples in parallel"
+> "Scatter my per-sample alignment over paired R1/R2 arrays - which scatterMethod do I use, and what output shape do I get?"
 
-### Portability
-> "Add Docker containers to my CWL tools for reproducibility"
+### Portability and Provenance
+> "Audit my workflow for portability leaks: flag every InlineJavascriptRequirement and unpinned container, and rewrite the ${...} expressions as $(...) where possible."
 
-> "Make my workflow compatible with both Docker and Singularity"
+> "Run my workflow with `--provenance` and explain what the CWLProv Research Object contains for an audit."
 
 ### Execution
-> "Run this CWL workflow on my local machine"
-
-> "Set up Toil to run my CWL pipeline on a SLURM cluster"
-
-### Advanced
-> "Add conditional execution to skip QC if already done"
-
-> "Create a subworkflow for the alignment steps"
+> "Validate this CWL locally with cwltool, then give me the toil-cwl-runner command to run the same document on our SLURM cluster."
 
 ## What the Agent Will Do
-1. Create CWL tool definitions (CommandLineTool) for each step
-2. Wire tools together in a Workflow with proper input/output connections
-3. Add container requirements for reproducibility
-4. Configure resource requirements (CPU, memory)
-5. Create a job input file (YAML) for running the workflow
-6. Provide commands for validation and execution
 
-## Key Concepts
-
-| Concept | Description |
-|---------|-------------|
-| CommandLineTool | Single tool/command definition |
-| Workflow | Multiple steps connected by data flow |
-| Scatter | Parallel execution over arrays |
-| secondaryFiles | Associated files (e.g., .bai with .bam) |
-
-## Run Commands
-```bash
-# Validate syntax
-cwltool --validate workflow.cwl
-
-# Run locally
-cwltool workflow.cwl inputs.yaml
-
-# Run with Docker
-cwltool --docker workflow.cwl inputs.yaml
-
-# Run with Singularity
-cwltool --singularity workflow.cwl inputs.yaml
-
-# Run on HPC with Toil
-toil-cwl-runner --batchSystem slurm workflow.cwl inputs.yaml
-```
+1. Establish the frame: CWL is a spec; pick the runner (cwltool for authoring/validation, Toil/Arvados/Calrissian for scale) and confirm CWL is the right choice versus Nextflow/WDL/Snakemake.
+2. Write CommandLineTool documents that bind typed inputs to the command line and capture outputs via `outputBinding.glob` or `stdout`.
+3. Declare `secondaryFiles` on every indexed File input and output (`.bai`, `.fai`/`.dict` with the caret rule, `.tbi`) so runners co-stage companions.
+4. Wire tools in a Workflow with explicit `source`/`outputSource` connections and `--validate` the contract before any compute.
+5. Place anything that must hold (container, RAM/cores) under `requirements`, not `hints`, and reason about the workflow -> step -> tool override scope.
+6. Choose `scatterMethod` deliberately (dotproduct vs flat_/nested_crossproduct) for the intended job cardinality and output shape.
+7. Enforce portability discipline: digest-pinned multi-arch containers, `$(...)` over `${...}`, engine extensions kept in hints.
+8. Emit a CWLProv provenance object where an audit trail is required, and point to Dockstore/GA4GH TRS for sharing.
 
 ## Tips
-- Always validate CWL files before running with `cwltool --validate`
-- Use `secondaryFiles` for index files that accompany data files
-- The `scatter` feature parallelizes execution over file arrays
-- CWL v1.2 supports conditional execution with `when`
-- cwltool is the reference implementation; use Toil for HPC/cloud
-- Register workflows on Dockstore or WorkflowHub for sharing
+
+- CWL is a spec, not cwltool: "CWL is slow" almost always means "I ran cwltool" - move to Toil/Arvados/Calrissian at scale rather than blaming the standard.
+- Declare `secondaryFiles` on any indexed File, or the runner stages the primary without its index and the tool fails with "index not found" at runtime.
+- The caret `^` strips one extension: `^.dict` on `genome.fasta` yields `genome.dict`, not `genome.fasta.dict`; each leading `^` strips one more.
+- Put resources and containers under `requirements` (must hold) not `hints` (advisory) - a `ResourceRequirement` under hints can be silently ignored and OOM-kill the step.
+- Requirements inherit Workflow -> step -> tool with the innermost winning; set a default at workflow scope and override per step where a tool needs more.
+- Pick `scatterMethod` by intent: `dotproduct` zips equal-length arrays (N jobs); `flat_`/`nested_crossproduct` run all N x M pairs, differing only in output nesting.
+- Prefer `$(...)` parameter references (no JS engine, statically analyzable, portable); treat each `${...}` and its `InlineJavascriptRequirement` as a portability debt.
+- Pin `DockerRequirement` images by `@sha256:` digest, not `:latest` - a moving tag makes the result non-reproducible no matter how clean the DAG.
+- Workflow outputs wire with `outputSource: step/out`; only tool outputs use `outputBinding.glob` - mixing them is a validation error.
+- In v1.2, ExpressionTool outputs are not type-checked (a known reference-impl gap); do not lean on ExpressionTool for type safety.
+- Use `cwltool --provenance` for a CWLProv Research Object in regulated/audited settings, and register on Dockstore/WorkflowHub (GA4GH TRS) for sharing.
 
 ## Related Skills
-- workflow-management/wdl-workflows - Alternative portable workflow language
-- workflow-management/snakemake-workflows - Python-based alternative
-- workflow-management/nextflow-pipelines - Groovy-based alternative with nf-core community
+
+- workflow-management/wdl-workflows - Alternative portable language for the Terra/GATK ecosystem
+- workflow-management/nextflow-pipelines - Reactive-dataflow alternative with the nf-core community catalog
+- workflow-management/snakemake-workflows - Python/file-pattern alternative for single-lab HPC
+- workflows/fastq-to-variants - An end-to-end variant-calling pipeline that a CWL workflow can orchestrate
