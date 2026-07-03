@@ -1,7 +1,18 @@
-configfile: "config.yaml"
+# RNA-seq: fastp trim -> salmon quant -> MultiQC -> DESeq2.
+# Snakemake 8+. Run `snakemake -n` (dry run) to inspect the static DAG before executing.
+# Reproducibility note: container tags are PINNED (never :latest). Prefer a @sha256: digest over a
+# version tag for bit-reproducibility - a re-pushed version tag silently changes the tool and busts
+# the rerun cache. Activate deployment with `snakemake --sdm apptainer --cores N`.
+
+configfile: "config/config.yaml"
 
 SAMPLES = config["samples"]
 SALMON_INDEX = config["salmon_index"]
+
+# Constrain the sample wildcard: greedy `.+` would otherwise swallow path separators and adjacent
+# tokens, silently mis-routing a sample whose name contains an underscore or slash.
+wildcard_constraints:
+    sample = r"[A-Za-z0-9\-]+"
 
 rule all:
     input:
@@ -18,6 +29,12 @@ rule fastp_trim:
         json = "qc/{sample}_fastp.json",
         html = "qc/{sample}_fastp.html"
     threads: 4
+    resources:
+        mem_mb = lambda wildcards, attempt: 4000 * attempt,   # escalate RAM on an OOM retry
+        runtime = 60                                          # MINUTES, not seconds
+    retries: 2
+    container:
+        "docker://quay.io/biocontainers/fastp:0.23.4--hadf994f_2"   # pinned; swap for @sha256: digest for full repro
     log:
         "logs/fastp/{sample}.log"
     shell:
@@ -36,14 +53,19 @@ rule salmon_quant:
     output:
         directory("salmon/{sample}")
     threads: 8
+    resources:
+        mem_mb = lambda wildcards, attempt: 8000 * attempt,
+        runtime = 120
+    retries: 2
+    container:
+        "docker://quay.io/biocontainers/salmon:1.10.2--h6dccd9a_2"
     log:
         "logs/salmon/{sample}.log"
     shell:
         """
         salmon quant -i {input.index} -l A \
             -1 {input.r1} -2 {input.r2} \
-            -o {output} --threads {threads} \
-            --validateMappings 2> {log}
+            -o {output} --threads {threads} 2> {log}
         """
 
 rule multiqc:
@@ -52,6 +74,8 @@ rule multiqc:
         salmon = expand("salmon/{sample}", sample=SAMPLES)
     output:
         "results/multiqc_report.html"
+    container:
+        "docker://quay.io/biocontainers/multiqc:1.21--pyhdfd78af_0"
     log:
         "logs/multiqc.log"
     shell:

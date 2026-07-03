@@ -3,6 +3,11 @@ version 1.0
 # RNA-seq quantification workflow
 # Trims reads with fastp and quantifies with Salmon
 # Typical runtime: ~30 min per sample at 8 threads
+#
+# Reproducibility: docker images below are pinned to immutable BioContainers build tags
+# (name--buildhash), not :latest. For the strongest guarantee pin by digest
+# (org/image@sha256:...): a digest fixes reproducibility AND stabilizes Cromwell call caching,
+# which hashes the resolved image identity into the cache key. Lint: `miniwdl check rnaseq.wdl`.
 
 workflow rnaseq_pipeline {
     input {
@@ -54,8 +59,9 @@ task fastp {
         Int threads = 4
     }
 
-    # Disk calculation: inputs + trimmed outputs + buffer
-    Int disk_gb = ceil(size(reads_1, "GB") + size(reads_2, "GB")) * 3 + 10
+    # Dynamic disk: (paired inputs + trimmed outputs) approx 3x, +10 GiB headroom.
+    # ceil() rounds UP so disk never under-sizes and kills the task mid-run.
+    Int disk_gb = ceil((size(reads_1, "GiB") + size(reads_2, "GiB")) * 3) + 10
 
     command <<<
         fastp \
@@ -94,7 +100,7 @@ task salmon_quant {
     }
 
     # Salmon needs ~8-16GB RAM depending on index; disk for index + reads + outputs
-    Int disk_gb = ceil(size(index, "GB") + size(reads_1, "GB") * 2) + 20
+    Int disk_gb = ceil(size(index, "GiB") + size(reads_1, "GiB") * 2) + 20
 
     command <<<
         salmon quant \
@@ -103,8 +109,7 @@ task salmon_quant {
             -1 ~{reads_1} \
             -2 ~{reads_2} \
             -o ~{sample_id}_salmon \
-            --threads ~{threads} \
-            --validateMappings
+            --threads ~{threads}
     >>>
 
     output {

@@ -95,3 +95,4 @@ miranda mature_mirnas.fa target_3utrs.fa -sc 140 -en -20 -strict -out targets.tx
 - small-rna-seq/differential-mirna - Compositionally-aware DE
 - small-rna-seq/target-prediction - Seed prediction filtered by expression
 - small-rna-seq/trf-pirna-profiling - tRF and piRNA profiling
+- workflow-management/nf-core-pipelines - Run nf-core/smrnaseq as a curated, reproducible pipeline instead of chaining the steps by hand
