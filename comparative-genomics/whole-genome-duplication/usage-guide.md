@@ -2,7 +2,7 @@
 
 ## Overview
 
-Whole-genome duplication (WGD / paleopolyploidy) events shape genome evolution by doubling all genes; subsequent gene loss is biased toward certain functional categories (Freeling 2007 PNAS 104:8723 gene balance hypothesis). Detection combines **Ks distribution** (synonymous substitution rates among paralog pairs) with **synteny block analysis** (parallel collinear blocks). The 2024 standard pipeline is **wgd v2** (Chen & Zwaenepoel 2024 Bioinformatics 40:btae272). For comparing WGDs across lineages, **KsRates** (Sensalari 2022 Bioinformatics 38:530) is mandatory because substitution rates vary across the tree.
+Whole-genome duplication (WGD / paleopolyploidy) events shape genome evolution by doubling all genes; subsequent gene loss is biased toward certain functional categories (Birchler & Veitia 2007 Plant Cell 19:395 gene balance hypothesis). Detection combines **Ks distribution** (synonymous substitution rates among paralog pairs) with **synteny block analysis** (parallel collinear blocks). The 2024 standard pipeline is **wgd v2** (Chen & Zwaenepoel 2024 Bioinformatics 40:btae272). For comparing WGDs across lineages, **KsRates** (Sensalari 2022 Bioinformatics 38:530) is mandatory because substitution rates vary across the tree.
 
 The vertebrate 2R, teleost 3R, and salmonid Ss4R WGDs are well-established; plant WGDs are extremely common (every angiosperm has at least one ancestral WGD).
 

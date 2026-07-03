@@ -17,7 +17,7 @@ If code throws `Toil workflow restart failure`, `HAL file corrupted`, `WDL workf
 
 # Whole Genome Alignment
 
-**"Align these multiple genomes at the base-pair level"** -> Choose between **reference-free** progressive alignment (Cactus / Minigraph-Cactus: produces HAL, no privileged reference) and **reference-anchored** pairwise alignment (LASTZ chains/nets, MUMmer, minimap2: one genome is the reference, queries align to it). The fundamental tradeoff is **scale vs structure**: pairwise pipelines scale linearly per pair but lose multi-way relationships; progressive Cactus scales linearly with a tree but quadratically without and produces ancestrally-coherent alignments. For comparative genomics at vertebrate / mammal scale, Cactus is now the standard substrate (Zoonomia, Hickey 2023; Bird10000 Genomes); for pangenome graph construction, Minigraph-Cactus (Hickey 2024) is the production pipeline.
+**"Align these multiple genomes at the base-pair level"** -> Choose between **reference-free** progressive alignment (Cactus / Minigraph-Cactus: produces HAL, no privileged reference) and **reference-anchored** pairwise alignment (LASTZ chains/nets, MUMmer, minimap2: one genome is the reference, queries align to it). The fundamental tradeoff is **scale vs structure**: pairwise pipelines scale linearly per pair but lose multi-way relationships; progressive Cactus scales linearly with a tree but quadratically without and produces ancestrally-coherent alignments. For comparative genomics at vertebrate / mammal scale, Cactus is now the standard substrate (Zoonomia, Christmas 2023 Science 380:eabn3943; Bird10000 Genomes); for pangenome graph construction, Minigraph-Cactus (Hickey 2024) is the production pipeline.
 
 - CLI: `cactus jobStore seqFile.txt output.hal --binariesMode local` -- reference-free progressive WGA
 - CLI: `cactus-pangenome --reference ref name --vcf` -- pangenome graph from genomes
@@ -428,11 +428,10 @@ For Cactus on HPC, set up Toil with the appropriate batch system (`--batchSystem
 - Blanchette M et al 2004 Genome Res 14:708 (Multiz)
 - Brudno M et al 2003 GR 13:721 (LAGAN)
 - Liao W-W et al 2023 Nature 617:312 (HPRC draft pangenome)
-- Sirén J et al 2024 NAR Genom Bioinform 6:lqae001 (vg pangenome update; the older "2023 Bioinformatics 39:btac605" attribution was a separate vg-Giraffe paper).
+- Sirén J et al 2024 Nat Methods 21:2017 (vg personalized pangenome references). The vg-Giraffe pangenome mapper is Sirén J et al 2021 Science 374:abg8871.
 - Garrison E et al 2024 Nat Methods (PGGB)
 - Paten B et al 2011 Genome Res 21:1512 (Cactus algorithm)
 - ComparativeGenomicsToolkit Cactus + HAL toolkit documentation (https://github.com/ComparativeGenomicsToolkit)
-- Sigeman H et al 2024 Mol Ecol Resources (WGA in ecological genomics)
 
 ## Related Skills
 

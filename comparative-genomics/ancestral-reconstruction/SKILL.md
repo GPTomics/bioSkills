@@ -42,7 +42,7 @@ If code throws `AttributeError`, `ImportError`, missing slot errors on R S4 obje
 | DTL reconciliation for gene content (ALE, GeneRax) | Gene tree / orthogroup | Ancestral gene presence + duplications/transfers/losses | Joint sequence + gene-content posterior | See [[gene-tree-species-tree-reconciliation]] |
 | Indel-aware ASR (GRASP, FastML) | Sequence | Treats gaps as a separate process | Handles indel evolution explicitly; supports protein engineering | Slower; limited model families |
 
-Methodology evolves; verify the latest `corHMM` / `phytools` vignettes and Boyko & Beaulieu 2024 MEE updates before locking on a single approach. For continuous-trait macroevolution, consult Slater 2020 Evolution 74:8 and Cooper 2016 model-adequacy reviews.
+Methodology evolves; verify the latest `corHMM` / `phytools` vignettes before locking on a single approach. For continuous-trait macroevolution, consult Cooper 2016 model-adequacy reviews.
 
 ## Decision Tree by Experimental Scenario
 
@@ -50,7 +50,7 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes and Boyko
 |----------|---------------------|-----|
 | Protein resurrection (~50-500 Myr divergences) | IQ-TREE2 `--ancestral` + GRASP indel reconstruction | Per-site marginal probabilities for alt-construct design; GRASP fixes indel ambiguity that PAML treats as missing data |
 | Codon-level sequence ASR with selection inference | PAML codeml `RateAncestor=1`, model M0 (single omega), `seqtype=1` | Codon model native; integrates with branch reconstruction; produces `rst` with BEB-style site probs |
-| Deep eukaryote / archaeal ASR (> 1 Bya) | Bayesian (RevBayes / PhyloBayes-MPI CAT-GTR) | Site-heterogeneous CAT model corrects compositional LBA (Sun 2023 Syst Biol 72:767); ML site-homogeneous models fail at this depth |
+| Deep eukaryote / archaeal ASR (> 1 Bya) | Bayesian (RevBayes / PhyloBayes-MPI CAT-GTR) | Site-heterogeneous CAT model corrects compositional LBA (Szánthó 2023 Syst Biol 72:767); ML site-homogeneous models fail at this depth |
 | Binary discrete trait with 5-30 taxa | `ape::ace(type='discrete', model='ARD')` + bootstrap | Standard for simple binary; ER/SYM/ARD model comparison via AIC |
 | Binary discrete trait with 30+ taxa, suspected rate variation | `corHMM(rate.cat=2)` HMM | Hidden rates capture rate heterogeneity; mandatory if Beaulieu 2013 sensitivity test fails |
 | State-dependent diversification (correlation with speciation/extinction) | HiSSE (Beaulieu & O'Meara 2016) NOT BiSSE | BiSSE has catastrophic Type-I rate when rate heterogeneity is misattributed (Rabosky & Goldberg 2015 Syst Biol 64:340); HiSSE is the required null |
@@ -59,10 +59,10 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes and Boyko
 | Continuous trait, suspected regime shifts | OUwie or `bayou` (Uyeda 2014 Syst Biol 63:902) | Multi-optimum OU models infer optimum shifts and their tree positions |
 | Binary trait expected to be polygenic underlying | Threshold model `phytools::threshBayes` | Models latent liability properly; binary -> continuous bridge (Felsenstein 2012) |
 | Ancestral gene family content | DTL reconciliation (ALE / GeneRax) | See [[gene-tree-species-tree-reconciliation]]; full posterior over D/T/L events |
-| Ancestral genome architecture (gene order) | AGORA (Muffato 2023 Nat Comm 14:259); DeCoSTAR | Joint reconciliation + adjacency posterior |
+| Ancestral genome architecture (gene order) | AGORA (Muffato 2023 Nat Eco Evo 7:355); DeCoSTAR | Joint reconciliation + adjacency posterior |
 | Convergent rate shifts in noncoding | PhyloAcc (Hu 2019 MBE 36:1086); Thomas 2024 update | Bayesian Markov model on conserved noncoding elements |
 | Convergent amino-acid substitutions | CSUBST (Fukushima & Pollock 2023 Nat Eco Evo 7:155) | Combinatorial substitution ratio omega_C; null-corrected |
-| Categorical trait correlated rates | RERconverge (Kowalczyk 2019; Saputra 2024 MBE 41:msae210) | Relative evolutionary rates linked to a binary or categorical phenotype |
+| Categorical trait correlated rates | RERconverge (Kowalczyk 2019; Redlich 2024 MBE 41:msae210) | Relative evolutionary rates linked to a binary or categorical phenotype |
 
 ## Per-Tool Failure Modes
 
@@ -70,17 +70,17 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes and Boyko
 
 **Trigger:** Tree with two long terminal branches separated by a short internal branch; mixed amino-acid compositions across taxa.
 
-**Mechanism:** Site-homogeneous models (LG, WAG, JTT) assume constant amino-acid equilibrium frequencies across the tree. When real compositions differ (e.g. thermophiles vs mesophiles), models underestimate the probability of convergent substitutions at compositionally-constrained sites, producing apparent shared derived states between long branches (Sun 2023 Syst Biol 72:767). The reconstructed ancestor at the deep node is biased toward whichever long-branch composition the model favors.
+**Mechanism:** Site-homogeneous models (LG, WAG, JTT) assume constant amino-acid equilibrium frequencies across the tree. When real compositions differ (e.g. thermophiles vs mesophiles), models underestimate the probability of convergent substitutions at compositionally-constrained sites, producing apparent shared derived states between long branches (Szánthó 2023 Syst Biol 72:767). The reconstructed ancestor at the deep node is biased toward whichever long-branch composition the model favors.
 
 **Symptom:** Bootstrap support at the contested node remains high under site-homogeneous models but collapses under CAT-GTR / CAT-PMSF. Posterior predictive checks for compositional homogeneity reject the model (Foster 2004 Syst Biol 53:485).
 
-**Fix:** Move to PhyloBayes-MPI with CAT-GTR or IQ-TREE2 with CAT-PMSF (`-m LG+C60+F+R` then `-ft <tree>` for posterior mean site frequencies). For ASR specifically, use ancestral reconstruction only when the model passes compositional adequacy. Slow-fast site removal (recoded amino acids; Wang 2018 Syst Biol 67:216) is an alternative.
+**Fix:** Move to PhyloBayes-MPI with CAT-GTR or IQ-TREE2 with CAT-PMSF (`-m LG+C60+F+R` then `-ft <tree>` for posterior mean site frequencies). For ASR specifically, use ancestral reconstruction only when the model passes compositional adequacy. Slow-fast site removal (recoded amino acids; Susko & Roger 2007 MBE 24:2139) is an alternative.
 
 ### Epistasis breaking site-independent ASR
 
 **Trigger:** Multiple sites in the same protein evolve under coupled constraints (compensatory pairs in RNA secondary structure; buried-residue covariance; allosteric networks).
 
-**Mechanism:** ML/Bayesian ASR assumes sites are independent given the tree; the joint ancestral sequence is the product of per-site posteriors. Real proteins evolve through compensatory substitutions where a destabilizing mutation at site i is compensated by a mutation at site j (Pollock 2012 PNAS 109:E1352; Shah 2015 Cell 163:1218). The ML ancestral sequence can contain a never-tested combination of states.
+**Mechanism:** ML/Bayesian ASR assumes sites are independent given the tree; the joint ancestral sequence is the product of per-site posteriors. Real proteins evolve through compensatory substitutions where a destabilizing mutation at site i is compensated by a mutation at site j (Pollock 2012 PNAS 109:E1352; Shah 2015 PNAS 112:E3226). The ML ancestral sequence can contain a never-tested combination of states.
 
 **Symptom:** The reconstructed protein fails to fold or is non-functional when expressed; positions flagged ambiguous (P < 0.9) are non-random and cluster in 3D space when mapped to structure.
 
@@ -130,7 +130,7 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes and Boyko
 
 **Trigger:** Using `MUSCLE` or default MAFFT alignment on highly diverged sequences (< 30% identity).
 
-**Mechanism:** Misaligned columns place non-homologous residues into the same column. ML ASR treats those residues as states of the same character, producing impossible ancestral inferences (Vialle 2018 NAR 46:1192).
+**Mechanism:** Misaligned columns place non-homologous residues into the same column. ML ASR treats those residues as states of the same character, producing impossible ancestral inferences (Vialle 2018 MBE 35:1783).
 
 **Symptom:** Ambiguous regions of the alignment correspond to low-confidence ASR sites; gappy columns dominate the low-confidence set; alignment scoring (TCS, Guidance2) marks the same regions as poorly aligned.
 
@@ -149,7 +149,7 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes and Boyko
 | MCMC ESS for Bayesian ASR | ESS >= 200 per parameter; ASRV at least 200 | RevBayes / Tracer convention; Lakner 2008 Syst Biol 57:86 |
 | Stochastic mapping nsim | >= 1000 simulations per tree | Bollback 2006 BMC Bioinf 7:88; for asymmetric rates raise to >= 5000 |
 | Tree depth limit for protein ASR | dS / branch length < 1.0 at deepest node | Above this, signal saturated; Yang 2007 PAML manual |
-| Codon ASR minimum sequences | >= 8 with sufficient divergence (~0.5 substitutions/site total) | Anisimova 2008 MBE 25:2410 |
+| Codon ASR minimum sequences | >= 8 with sufficient divergence (~0.5 substitutions/site total) | Operational convention; below this, codon-model parameters poorly constrained |
 | Minimum taxa for binary trait ER vs ARD AIC | >= 20 tips; below this, rates often unidentifiable | Beaulieu 2016 |
 | GRASP indel posterior threshold | >= 0.8 to call indel present at node | GRASP documentation; below this, both states tested experimentally |
 | OUwie regime requires | >= 10 tips per regime | Beaulieu 2012 Evolution 66:2369; below this, optima unidentifiable |
@@ -401,7 +401,7 @@ grasp -aln alignment.fasta -tree species.nwk -out grasp_run --inference joint --
 | GRASP runs but produces empty asr.fasta | Alignment includes stop codons or X characters | Strip non-canonical residues; check that the alignment passes Bio.SeqIO validation |
 | `fitContinuous(model='OU')` returns lambda = 0 | OU collapsed to white noise (no signal) | Trait variance unexplained by tree; reconsider whether continuous-trait ASR is meaningful |
 | Stochastic mapping returns all-or-nothing at deep nodes | Insufficient signal; pi='equal' default | Use `pi='fitzjohn'`; check that taxa span both states |
-| HiSSE convergence failures | `bound.par` too restrictive; hessian singular | Use `starting.vals=NULL`, restart with `output.liks=TRUE`; switch to `BiSSE-ness` (Beaulieu 2013) as fallback |
+| HiSSE convergence failures | `bound.par` too restrictive; hessian singular | Use `starting.vals=NULL`, restart with `output.liks=TRUE`; switch to `BiSSE-ness` (Magnuson-Ford & Otto 2012 Am Nat 180:225) as fallback |
 | codeml omega = 0 or 999 at branch | Saturation or alignment artifact | Increase model complexity (M0 -> M3); check dS at branch; if dS > 3, ASR unreliable on that branch |
 | Ancestral genome content reconstruction inflated | Assembly fragmentation produces false absences | Use BUSCO-completeness-corrected presence/absence; or run [[gene-tree-species-tree-reconciliation]] which handles loss-vs-missing |
 
@@ -440,26 +440,25 @@ For protein resurrection workflows, GRASP is the modern standard; for selection-
 - Boyko JD & Beaulieu JM 2021 MEE 12:468 (generalized HMM corHMM)
 - Bollback JP 2006 BMC Bioinf 7:88 (SIMMAP)
 - Pollock DD et al 2012 PNAS 109:E1352 (compensatory epistasis)
-- Shah P et al 2015 Cell 163:1218 (epistasis at evolved positions)
+- Shah P et al 2015 PNAS 112:E3226 (contingency and entrenchment epistasis)
 - Hochberg GKA & Thornton JW 2017 Annu Rev Biophys 46:247 (ASR for protein resurrection)
 - Foley G et al 2022 PLoS Comp Biol 18:e1010633 (GRASP indel-aware ASR)
-- Sun M et al 2023 Syst Biol 72:767 (compositional LBA CAT-PMSF)
+- Szánthó LL et al 2023 Syst Biol 72(4):767–780 (compositional LBA; CAT-PMSF) — DOI 10.1093/sysbio/syad013
 - Boettiger C et al 2012 Evolution 66:2240 (model adequacy for continuous-trait macroevolution)
 - Cooper N et al 2016 Biol J Linn Soc 118:64 (cautionary note OU)
-- Cunningham CW et al 1999 Syst Biol 48:665 (asymmetric rate parsimony bias)
+- Cunningham CW 1999 Syst Biol 48:665 (asymmetric rate parsimony bias)
 - Felsenstein J 1978 Syst Zool 27:401 (long branch attraction)
 - Maddison WP et al 2007 Syst Biol 56:701 (BiSSE)
 - Beaulieu JM et al 2012 Evolution 66:2369 (OUwie)
 - Uyeda JC & Harmon LJ 2014 Syst Biol 63:902 (bayou)
 - FitzJohn RG 2009 Syst Biol 58:595 (root prior)
-- Whelan S et al 2018 MBE 35:2624 (PREQUAL)
+- Whelan S et al 2018 Bioinformatics 34:3929 (PREQUAL)
 - Di Franco A et al 2019 BMC Eco Evo 19:21 (HmmCleaner)
-- Anisimova M & Yang Z 2008 MBE 25:2410 (codon-ASR power)
 - Emms DM & Kelly S 2017 MBE 34:3267 (STRIDE rooting)
 - Tria FDK et al 2017 Nat Eco Evo 1:0193 (MAD rooting)
 - Hu Z et al 2019 MBE 36:1086 (PhyloAcc)
 - Fukushima K & Pollock DD 2023 Nat Eco Evo 7:155 (CSUBST)
-- Muffato M et al 2023 Nat Comm 14:259 (AGORA)
+- Muffato M et al 2023 Nat Eco Evo 7:355 (AGORA)
 
 ## Related Skills
 

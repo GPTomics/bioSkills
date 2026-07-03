@@ -34,7 +34,7 @@ If code throws `wgd ksd: cannot find PAML output`, `KsRates: insufficient sister
 | KsRates (Sensalari 2022 Bioinformatics 38:530) | Substitution-rate correction via outgroup pairs | Adjusted Ks ages of focal-species paralogs vs orthologs | MANDATORY when comparing WGDs across lineages with different rates | Requires at least 2 outgroups for rate calibration |
 | DupGen_finder (Qiao 2019 Genome Biol 20:38) | Classifies duplications by genomic context | Per-gene class: tandem, proximal, dispersed, segmental, WGD | Disambiguates duplication type | Class assignment depends on intervening-gene-count windows |
 | MAPS (Li 2018) | Phylogenomic placement of WGD via gene-tree topology mapping | WGD position on species tree | Detects WGDs from gene-tree-species-tree discordance | Computationally heavy; requires many gene trees |
-| POInT (Conant 2008 Genome Res 18:1597) | Order-aware reconstruction of WGD chromosomes | Reconstructed ancestral WGD genome | Strong inference for syntenic-block ages | Lineage-specific tuning required |
+| POInT (Conant & Wolfe 2008 Genetics 179:1681) | Order-aware reconstruction of WGD chromosomes | Reconstructed ancestral WGD genome | Strong inference for syntenic-block ages | Lineage-specific tuning required |
 | SLEDGe (bioRxiv 2024.01.17.574559) | ML classifier on Ks plot features | WGD vs no-WGD binary call + confidence | Reduces visual-peak-fitting subjectivity | Newer; less validated |
 | wgd v1 (arzwa/wgd; DEPRECATED) | Predecessor of v2 | -- | Historical | Use v2 (heche-psb/wgd) |
 | dupHMM (Zwaenepoel 2019 different MBE paper) | HMM on Ks for WGD/SSD attribution | Per-pair WGD/SSD classification | Probabilistic disambiguation | Less integrated than wgd v2 |
@@ -42,10 +42,9 @@ If code throws `wgd ksd: cannot find PAML output`, `KsRates: insufficient sister
 | WGDexploreR (legacy) | Visualize Ks plots | Plots only | Visualization aid | Not for inference |
 | McLuster-WGD (custom workflows) | Mixture-model fitting on Ks | GMM / ELMM components | For custom peak fitting | Not a standard tool |
 | ksrates web (sensalari 2022) | Web interface to ksrates | Same as CLI | User-friendly | Manual config; not scriptable for genome-wide |
-| FastKaKs (Kang 2017) | Fast Ks computation for many pairs | Ks values per pair | Faster than PAML yn00 | Slightly less accurate; for screening |
 | wgs2pep (Vandepoele/wgs) | Pep-to-WGD ortholog identification | Per-paralog WGD assignment | Plant-focused | Less general |
 
-Methodology evolves; verify the current wgd v2 manual and the Cheng & Zwaenepoel 2024 review chapter (in *Polyploidy: Methods and Protocols*) before locking on a single workflow. The 2R vertebrate / 3R teleost / Ss4R salmonid WGDs are well-established; novel WGD claims require concordance across Ks, synteny, and phylogenomic placement.
+Methodology evolves; verify the current wgd v2 manual and the Chen & Zwaenepoel 2023 review chapter (in *Polyploidy: Methods and Protocols*) before locking on a single workflow. The 2R vertebrate / 3R teleost / Ss4R salmonid WGDs are well-established; novel WGD claims require concordance across Ks, synteny, and phylogenomic placement.
 
 ## Decision Tree by Experimental Scenario
 
@@ -74,7 +73,7 @@ Methodology evolves; verify the current wgd v2 manual and the Cheng & Zwaenepoel
 
 **Trigger:** Computing Ks for ancient WGD candidates from distantly related taxa.
 
-**Mechanism:** Synonymous substitutions saturate after Ks ~2; each site has undergone multiple substitutions. Observed Ks underestimates true Ks; the relationship between Ks and time becomes non-monotonic above 1.5. WGD peaks at age 200+ Myr in vertebrates / 100+ Myr in plants are at Ks > 2 and unreliable (Vanneste 2013 GR 23:1304).
+**Mechanism:** Synonymous substitutions saturate after Ks ~2; each site has undergone multiple substitutions. Observed Ks underestimates true Ks; the relationship between Ks and time becomes non-monotonic above 1.5. WGD peaks at age 200+ Myr in vertebrates / 100+ Myr in plants are at Ks > 2 and unreliable (Vanneste 2013 MBE 30:177).
 
 **Symptom:** wgd ksd output shows peak at Ks > 1.5 with broad distribution; KsRates rate-corrected Ks even more uncertain; visual fitting yields ambiguous components.
 
@@ -148,7 +147,7 @@ Methodology evolves; verify the current wgd v2 manual and the Cheng & Zwaenepoel
 
 **Symptom:** Ks distribution shows multiple overlapping peaks at varying intensities; component fits are unstable.
 
-**Fix:** Assign subgenomes first using k-mer methods (KMC2 + SubPhaser; Jiao 2017 GR 27:778) or synteny-based assignment (GENESPACE; Lovell 2022). Then run wgd v2 on each subgenome separately. Document subgenome assignment.
+**Fix:** Assign subgenomes first using k-mer methods (KMC2 + SubPhaser; Jia 2022 New Phytol 235:801) or synteny-based assignment (GENESPACE; Lovell 2022). Then run wgd v2 on each subgenome separately. Document subgenome assignment.
 
 ### Confusion of homeologous (WGD) vs orthologous (speciation) pairs
 
@@ -164,7 +163,7 @@ Methodology evolves; verify the current wgd v2 manual and the Cheng & Zwaenepoel
 
 | Quantity | Threshold | Source / Rationale |
 |----------|-----------|-------------------|
-| Ks saturation upper limit | Ks < 1.5 for reliable inference; >= 2 saturated | Vanneste 2013 GR 23:1304 |
+| Ks saturation upper limit | Ks < 1.5 for reliable inference; >= 2 saturated | Vanneste 2013 MBE 30:177 |
 | Recent WGD Ks range | Ks 0.1-0.5 | Standard convention |
 | Ancient WGD Ks range | Ks 0.5-1.5 | Standard convention |
 | WGD synteny block minimum | >= 5 anchors per block | wgd v2 / GENESPACE default |
@@ -337,7 +336,7 @@ MAPS is heavyweight; requires CRG database setup and significant compute. See ht
 
 ## Cohort Gotchas
 
-- **Plant WGD legacy:** All angiosperms share at least one ancestral WGD; the zeta WGD ~120 Myr (Soltis 2009 Trends Genet 25:404); confirm consensus against published plant lineages
+- **Plant WGD legacy:** All angiosperms share at least one ancestral WGD; the zeta WGD ~120 Myr (Soltis 2009 Am J Bot 96:336); confirm consensus against published plant lineages
 - **Vertebrate 2R:** ~500-600 Myr; Ks saturated; use MAPS phylogenomic placement (Dehal & Boore 2005)
 - **Teleost 3R:** ~320 Myr; in addition to 2R; doubles ohnologs in fish
 - **Salmonid Ss4R:** ~80-100 Myr; recent enough that Ks is informative; ohnologs identifiable
@@ -419,25 +418,24 @@ For new analyses, default to wgd v2 + KsRates as the primary pipeline; MAPS or W
 - Chen H & Zwaenepoel A 2024 Bioinformatics 40:btae272 (wgd v2)
 - Sensalari C et al 2022 Bioinformatics 38:530 (KsRates)
 - Qiao X et al 2019 Genome Biol 20:38 (DupGen_finder)
-- Li Z et al 2018 GR 28:1306 (MAPS)
-- Conant GC 2008 GR 18:1597 (POInT)
+- Li Z et al 2018 PNAS 115:4713 (MAPS phylogenomic WGD placement)
+- Conant GC & Wolfe KH 2008 Genetics 179:1681 (POInT)
 - Zwaenepoel A & Van de Peer Y 2019 MBE 36:1384 (Whale.jl)
 - SLEDGe team 2024 bioRxiv 2024.01.17.574559 (SLEDGe ML classifier)
-- Vanneste K et al 2013 GR 23:1304 (Ks saturation)
+- Vanneste K et al 2013 MBE 30:177 (Ks saturation)
 - Holland PWH et al 1994 Development Suppl:125 (2R hypothesis)
 - Dehal P & Boore JL 2005 PLoS Biol 3:e314 (vertebrate 2R confirmation)
 - Glasauer SMK & Neuhauss SCF 2014 Mol Genet Genomics 289:1045 (teleost 3R)
 - Lien S et al 2016 Nature 533:200 (salmonid Ss4R)
-- Soltis PS et al 2009 Trends Genet 25:404 (plant polyploidy review)
-- Freeling M 2007 PNAS 104:8723 (gene balance hypothesis)
+- Soltis DE et al 2009 Am J Bot 96:336 (polyploidy and angiosperm diversification)
+- Birchler JA & Veitia RA 2007 Plant Cell 19:395 (gene balance hypothesis)
 - Force A et al 1999 Genetics 151:1531 (subfunctionalization)
 - Maere S et al 2005 PNAS 102:5454 (post-WGD retention bias)
 - Tang H et al 2008 GR 18:1944 (synteny / MCScan)
 - Lovell JT et al 2022 eLife 11:78526 (GENESPACE)
-- Jiao W-B et al 2017 GR 27:778 (SubPhaser subgenome assignment)
+- Jia K-H et al 2022 New Phytol 235:801 (SubPhaser subgenome assignment)
 - Yang Z 2007 PAML manual (yn00 codon Ks)
-- Smith SD et al 2018 Trends Genet 34:825 (vertebrate WGD review)
-- Cheng F et al 2023 (wgd v2 documentation, Polyploidy book chapter)
+- Chen H & Zwaenepoel A 2023 Methods Mol Biol 2545:3 (inference of ancient polyploidy from genomic data)
 
 ## Related Skills
 

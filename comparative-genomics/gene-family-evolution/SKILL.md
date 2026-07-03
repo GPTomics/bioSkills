@@ -7,7 +7,7 @@ primary_tool: CAFE5
 
 ## Version Compatibility
 
-Reference examples tested with: CAFE5 5.1.0+ (Mendes et al 2020 Bioinformatics 36(22-23):5516-5518), Count 11.0319+ (Csurös 2010 Bioinformatics 26:1910), BadiRate 1.35+ (Librado 2012 Bioinformatics 28:279), DupliPHY-Family (Liu 2016), CAFExp (legacy CAFE 4.2 -- DEPRECATED; use CAFE5), OrthoFinder 3.0+ for HOG input, R 4.4+, mclust 6.1+, phytools 2.3+, ETE4 4.1.0+ for tree manipulation. ALE/GeneRax/AleRax in companion skill [[gene-tree-species-tree-reconciliation]].
+Reference examples tested with: CAFE5 5.1.0+ (Mendes et al 2020 Bioinformatics 36(22-23):5516-5518), Count 11.0319+ (Csurös 2010 Bioinformatics 26:1910), BadiRate 1.35+ (Librado 2012 Bioinformatics 28:279), DupliPHY-Family (Ames et al 2012), CAFExp (legacy CAFE 4.2 -- DEPRECATED; use CAFE5), OrthoFinder 3.0+ for HOG input, R 4.4+, mclust 6.1+, phytools 2.3+, ETE4 4.1.0+ for tree manipulation. ALE/GeneRax/AleRax in companion skill [[gene-tree-species-tree-reconciliation]].
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `cafe5 --help`; `Count.exe` (Java); `badirate --help`
@@ -33,7 +33,7 @@ If code throws `CAFE5: lambda did not converge`, `Count negative branch length`,
 | CAFE5-error | Annotation-error-aware extension | Same plus error estimates | Critical for noisy annotations | Manual error-rate specification or estimation |
 | Count (Csurös 2010 Bioinformatics 26:1910) | Both ML and parsimony ASR | Branch event counts (D, L) per family | Comprehensive output; GUI | Slower than CAFE5; less modern UX |
 | BadiRate (Librado 2012 Bioinformatics 28:279) | Likelihood birth-death + branch parsimony | Lineage-specific rate shifts | Combines stochastic + parsimony | Less commonly used; older |
-| DupliPHY-Family (Liu 2016) | Per-family birth-death | Ancestral counts per family | Family-level granularity | Older; less integrated with modern OrthoFinder |
+| DupliPHY-Family (Ames et al 2012) | Per-family birth-death | Ancestral counts per family | Family-level granularity | Older; less integrated with modern OrthoFinder |
 | ALE / GeneRax / AleRax (Szöllősi 2013; Morel 2024) | Per-family DTL reconciliation | Per-family D/T/L event counts | Direct integration with [[gene-tree-species-tree-reconciliation]] | Slower; per-family rather than across-family |
 | CAFExp / CAFE 4.2 (DEPRECATED) | Earlier CAFE | -- | Historical | Use CAFE5 |
 | Whale.jl with WGD (Zwaenepoel 2019) | Bayesian DTL+WGD | WGD-aware family dynamics | Native WGD integration | Julia ecosystem |
@@ -140,7 +140,7 @@ Methodology evolves; CAFE5 is the modern standard; verify the current CAFE5 manu
 
 **Symptom:** Manual inspection of expansions across independent lineages shows pattern; CAFE5 doesn't formalize it.
 
-**Fix:** Combine CAFE5 per-family lambdas with RERconverge (Saputra 2024 MBE 41:msae210) for trait-correlated rate shifts; use CSUBST (Fukushima 2023 Nat Eco Evo 7:155) for convergent substitution patterns.
+**Fix:** Combine CAFE5 per-family lambdas with RERconverge (Redlich et al 2024 MBE 41:msae210) for trait-correlated rate shifts; use CSUBST (Fukushima 2023 Nat Eco Evo 7:155) for convergent substitution patterns.
 
 ### CAFE5 vs ALE for HGT-affected family
 
@@ -328,7 +328,7 @@ kegg_enrich <- enrichKEGG(gene = expanded_genes,
 
 ## Cohort Gotchas
 
-- **WGD lineages:** post-WGD retention bias; gene balance hypothesis (Freeling 2007); analyze with [[whole-genome-duplication]] context
+- **WGD lineages:** post-WGD retention bias; gene balance hypothesis (Birchler & Veitia 2007); analyze with [[whole-genome-duplication]] context
 - **Plant gene families:** NLR clusters (resistance) and ribosomal proteins are inherently large; expect lineage variation
 - **Mammalian gene families:** olfactory receptors are highly variable; expect lineage-specific changes
 - **Bacterial gene families:** HGT-driven dynamics; use ALE/AleRax instead of CAFE5
@@ -407,24 +407,22 @@ conda install -c bioconda funannotate braker3
 
 ## References
 
-- Hahn MW et al 2005 Genome Res 15:1457 (CAFE original framework)
-- Mendes FK et al 2021 Bioinformatics 36:5516 (CAFE5)
+- Hahn MW et al 2005 Genome Res 15:1153 (CAFE original framework)
+- Mendes FK et al 2020 Bioinformatics 36:5516 (CAFE5)
 - Csurös M 2010 Bioinformatics 26:1910 (Count)
 - Librado P et al 2012 Bioinformatics 28:279 (BadiRate)
-- Liu Y et al 2016 (DupliPHY-Family)
+- Ames RM et al 2012 Bioinformatics 28:48 (DupliPHY-Family)
 - Tonkin-Hill G et al 2020 Genome Biol 21:180 (Panaroo; annotation heterogeneity)
-- Hahn MW 2009 Genome Res 19:859 (eukaryote gene-family dynamics)
 - Smith SA & Dunn CW 2008 Bioinformatics 24:715 (Phyutility)
 - Smith SA & O'Meara BC 2012 Bioinformatics 28:2689 (treePL)
-- To T-H, Jung M, Roychoudhury S & Gascuel O 2016 Syst Biol 65:82 (LSD2)
-- Freeling M 2007 PNAS 104:8723 (gene balance)
-- Saputra E et al 2024 MBE 41:msae210 (RERconverge categorical)
+- To T-H, Jung M, Lycett S & Gascuel O 2016 Syst Biol 65:82 (LSD2)
+- Birchler JA & Veitia RA 2007 Plant Cell 19:395 (gene balance)
+- Redlich R et al 2024 MBE 41:msae210 (RERconverge categorical)
 - Fukushima K & Pollock DD 2023 Nat Eco Evo 7:155 (CSUBST)
 - Lynch M & Conery JS 2000 Science 290:1151 (gene duplication mechanism)
 - Force A et al 1999 Genetics 151:1531 (subfunctionalization)
 - De Bie T et al 2006 Bioinformatics 22:1269 (CAFE 2)
 - Han MV et al 2013 MBE 30:1987 (CAFE 3)
-- Sela I et al 2018 MBE 35:2620 (gene-family neutral drift)
 - Otto SP & Whitton J 2000 Annu Rev Genet 34:401 (polyploidy mechanisms)
 - TimeTree (database, http://www.timetree.org)
 

@@ -7,7 +7,7 @@ primary_tool: Panaroo
 
 ## Version Compatibility
 
-Reference examples tested with: Panaroo 1.5.1+ (Tonkin-Hill 2020 Genome Biol 21:180), PPanGGOLiN 2.2.0+ (Gautreau 2020 PLoS Comp Biol 16:e1007732), PEPPAN 1.0.5+ (Zhou 2020 GR 30:1667), GET_HOMOLOGUES 25102023+, anvi'o 8.0+ (Eren 2021 Nat Microbiol 6:3), Minigraph-Cactus (Hickey 2024 Nat Biotech 42:663; bundled with Cactus 2.5+), PGGB 0.7.5+ (Garrison 2024 Nat Methods 21:2008), vg 1.59.0+ (Sirén et al 2024 NAR Genom Bioinform 6:lqae001), PanGenie 3.1.0+ (Ebler 2022 Nat Genet 54:518), PGR-TK 0.3.6+ (Chin 2023 Nat Methods 20:1290; cschin/pgr-tk; repo archived April 2026 transitioning to PANGEA), PANGEA (in development by DGI / Diploid Genomics as PGR-TK's successor for pangenome graph exploration + analysis -- check https://github.com/cschin/pgr-tk for current repository pointer), Bakta 1.10.4+ (annotation for input), Roary 3.13.0+ (DEPRECATED; use Panaroo), Scoary 1.6.16+, pyseer 1.3.11+, BUSCO 5.7+, FastTree 2.1.11+, RAxML-NG 1.2+. Python 3.10+ required for Panaroo / PPanGGOLiN.
+Reference examples tested with: Panaroo 1.5.1+ (Tonkin-Hill 2020 Genome Biol 21:180), PPanGGOLiN 2.2.0+ (Gautreau 2020 PLoS Comp Biol 16:e1007732), PEPPAN 1.0.5+ (Zhou 2020 GR 30:1667), GET_HOMOLOGUES 25102023+, anvi'o 8.0+ (Eren 2021 Nat Microbiol 6:3), Minigraph-Cactus (Hickey 2024 Nat Biotech 42:663; bundled with Cactus 2.5+), PGGB 0.7.5+ (Garrison 2024 Nat Methods 21:2008), vg 1.59.0+ (Sirén J et al 2024 Nat Methods 21:2017), PanGenie 3.1.0+ (Ebler 2022 Nat Genet 54:518), PGR-TK 0.3.6+ (Chin 2023 Nat Methods 20:1213; cschin/pgr-tk; repo archived April 2026 transitioning to PANGEA), PANGEA (in development by DGI / Diploid Genomics as PGR-TK's successor for pangenome graph exploration + analysis -- check https://github.com/cschin/pgr-tk for current repository pointer), Bakta 1.10.4+ (annotation for input), Roary 3.13.0+ (DEPRECATED; use Panaroo), Scoary 1.6.16+, pyseer 1.3.11+, BUSCO 5.7+, FastTree 2.1.11+, RAxML-NG 1.2+. Python 3.10+ required for Panaroo / PPanGGOLiN.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `panaroo --version`; `ppanggolin --version`; `peppan --help`; `cactus-pangenome --help`; `pggb --version`; `vg version`
@@ -38,16 +38,16 @@ If code throws `Bakta annotation incompatible`, `GFA file inconsistent`, `vg ind
 | anvi'o pangenomics (Eren 2021 Nat Microbiol 6:3) | Interactive pangenome with metadata | Visual pangenome browsing + integration | Standard for interactive microbial pangenome | Less automated; manual curation expected |
 | Minigraph-Cactus (Hickey 2024 Nat Biotech 42:663) | Cactus base-level + minigraph SV-graph integration | Pangenome graph (GFA, VCF, GBZ) | Production-grade for HPRC-scale haplotypes | Requires reference; designed for intra-species pangenome |
 | PGGB (Garrison 2024 Nat Methods 21:2008) | All-vs-all wfmash + seqwish | Pangenome graph (GFA) | Modern reference-free graph; HPRC-validated | Computationally heavy at > 100 genomes |
-| vg pangenome (Sirén et al 2024 NAR Genom Bioinform 6:lqae001) | Pangenome graph indexing + Giraffe / GiraffeY mapping | Mapped reads to graph + variant calling | vg ecosystem standard for graph-based variant calling | Setup complex; learning curve |
+| vg pangenome (Sirén J et al 2024 Nat Methods 21:2017) | Pangenome graph indexing + Giraffe / GiraffeY mapping | Mapped reads to graph + variant calling | vg ecosystem standard for graph-based variant calling | Setup complex; learning curve |
 | PanGenie (Ebler 2022 Nat Genet 54:518) | Pangenome-graph-based genotyping | SV genotype calls | Efficient genotyping from short reads via graph | Requires pre-built pangenome graph |
-| PGR-TK (Chin 2023 Nat Methods 20:1290; cschin/pgr-tk) | Minimizer Anchored Pangenome (MAP) graph + principal bundle decomposition | Multiscale pangenome graph; bundle SVGs; AGC-backed sequence db | Designed for repetitive / clinically-relevant genes (MHC class II, DAZ1-4, OPN1LW/OPN1MW); decomposes tangled graph into interpretable bundles; complements Minigraph-Cactus by exposing fine-grained allele structure | Repo archived April 2026 -> PANGEA succession; pinned to Peregrine-assembler-derived workflow; not a drop-in for variant-calling pipelines |
+| PGR-TK (Chin 2023 Nat Methods 20:1213; cschin/pgr-tk) | Minimizer Anchored Pangenome (MAP) graph + principal bundle decomposition | Multiscale pangenome graph; bundle SVGs; AGC-backed sequence db | Designed for repetitive / clinically-relevant genes (MHC class II, DAZ1-4, OPN1LW/OPN1MW); decomposes tangled graph into interpretable bundles; complements Minigraph-Cactus by exposing fine-grained allele structure | Repo archived April 2026 -> PANGEA succession; pinned to Peregrine-assembler-derived workflow; not a drop-in for variant-calling pipelines |
 | PANGEA (in development by DGI / Diploid Genomics; succeeds PGR-TK; check cschin/pgr-tk for current pointer) | Next-generation MAP-graph framework | Same conceptual outputs as PGR-TK with modernized API | Active development 2026+; expected to add tighter integration with HPRC / T2T workflows | API surface in flux; pin specific version when scripting |
 | Heaps law / Tettelin (Tettelin 2005 PNAS 102:13950) | Statistical model of pangenome openness | Open / closed pangenome classification | Foundational framework | Class boundaries depend on sampling |
 | Scoary (Brynildsrud 2016) | Pan-GWAS on gene presence/absence | Phenotype-gene associations | Standard bacterial pan-GWAS tool | Limited to binary phenotypes |
 | pyseer (Lees 2018 Bioinformatics 34:4310) | Continuous + binary phenotype association on k-mers/genes | Pan-GWAS with k-mer / gene-content units | More flexible than Scoary | Computational cost |
 | pirate (Bayliss 2019) | Bacterial pangenome from multiple methods | Cross-method consensus | Alternative to GET_HOMOLOGUES | Less popular now |
 
-Methodology evolves; verify the current Panaroo and PPanGGOLiN manuals + the 2024-2025 microbial pangenome reviews (Tonkin-Hill 2024 Nat Comm). The HPRC draft pangenome (Liao 2023 Nature 617:312) sets the modern eukaryotic pangenome standard; for bacterial work, Panaroo + PPanGGOLiN is the standard combination.
+Methodology evolves; verify the current Panaroo and PPanGGOLiN manuals + the 2024-2025 microbial pangenome reviews. The HPRC draft pangenome (Liao 2023 Nature 617:312) sets the modern eukaryotic pangenome standard; for bacterial work, Panaroo + PPanGGOLiN is the standard combination.
 
 ## Decision Tree by Experimental Scenario
 
@@ -190,13 +190,13 @@ Methodology evolves; verify the current Panaroo and PPanGGOLiN manuals + the 202
 | PPanGGOLiN coverage | 80% gene-length coverage in clustering | Default |
 | PEPPAN BLAT threshold | identity >= 70% | Zhou 2020 |
 | Mycobacterium tuberculosis core | ~3500-3700 genes (Tonkin-Hill 2020 Mtb benchmark) | Bench results |
-| E. coli pangenome (open) | core ~2400; pangenome >15000 (Touchon 2016) | Reference |
-| Plasmodium falciparum core | ~5300 genes (eukaryotic prokaryote-like) | Otto 2018 |
+| E. coli pangenome (open) | core ~2400; pangenome >15000 | Reference |
+| Plasmodium falciparum core | ~5300 genes (eukaryotic prokaryote-like) | Reference |
 | Minimum strains for bacterial pangenome | >= 5; >= 20 for shell/cloud meaningful | Empirical |
 | HPRC pangenome size | 90 haplotypes, ~6.4M variants | Liao 2023 |
 | PGGB recommended max genomes | <= 20 large eukaryotic; 100+ for compact | Garrison 2024 |
 | PanGenie minimum k-mer | k = 31 default | Ebler 2022 |
-| vg index Haplotype Sampling | --haplotype-sampling YES for multi-pop graph | Sirén et al 2024 NAR Genom Bioinform 6:lqae001 |
+| vg index Haplotype Sampling | --haplotype-sampling YES for multi-pop graph | Sirén J et al 2024 Nat Methods 21:2017 |
 | Scoary pan-GWAS p-value threshold | Bonferroni-corrected p < 0.05 | Brynildsrud 2016 |
 | pyseer continuous-trait power | requires > 1000 isolates for solid signal | Lees 2018 |
 | anvi'o pangenome minimum | 5+ genomes for non-trivial visualization | Eren 2021 |
@@ -465,23 +465,21 @@ For HPRC-scale eukaryotic pangenome, use cluster with >= 500 GB RAM and HPC sche
 - Gautreau G et al 2020 PLoS Comp Biol 16:e1007732 (PPanGGOLiN)
 - Zhou Z et al 2020 Genome Res 30:1667 (PEPPAN)
 - Page AJ et al 2015 Bioinformatics 31:3691 (Roary; DEPRECATED)
-- Contreras-Moreira B & Vinuesa P 2013 BMC Bioinf 14:64 (GET_HOMOLOGUES)
+- Contreras-Moreira B & Vinuesa P 2013 Appl Environ Microbiol 79:7696 (GET_HOMOLOGUES)
 - Eren AM et al 2021 Nat Microbiol 6:3 (anvi'o pangenomics)
 - Hickey G et al 2024 Nat Biotech 42:663 (Minigraph-Cactus)
 - Garrison E et al 2024 Nat Methods 21:2008 (PGGB)
-- Sirén J et al 2024 NAR Genom Bioinform 6:lqae001 (vg pangenome update)
+- Sirén J et al 2024 Nat Methods 21:2017 (vg pangenome update)
 - Ebler J et al 2022 Nat Genet 54:518 (PanGenie)
 - Liao W-W et al 2023 Nature 617:312 (HPRC draft pangenome)
 - Brynildsrud O et al 2016 Genome Biol 17:238 (Scoary)
 - Lees JA et al 2018 Bioinformatics 34:4310 (pyseer)
 - Didelot X & Wilson DJ 2015 PLoS Comp Biol 11:e1004041 (ClonalFrameML)
 - Schwengers O et al 2021 Microb Genom 7 (Bakta)
-- Vernikos GS et al 2015 Microb Genom 1:e000034 (pangenome openness review)
-- Touchon M et al 2016 PLoS Genet 12:e1006413 (E. coli pangenome)
-- Otto TD et al 2018 BMC Genomics 19:319 (Plasmodium pangenome)
-- Brown CL et al 2022 mSystems 7:e0099122 (mobileOG-db)
+- Vernikos GS et al 2015 Curr Opin Microbiol 23:148 (pangenome openness review)
+- Brown CL et al 2022 Appl Environ Microbiol 88:e0099122 (mobileOG-db)
 - Mikheenko A et al 2018 Bioinformatics 34:i142 (QUAST-LG; long-read assembly evaluation -- earlier "pangenome review" attribution was incorrect; QUAST-LG benchmarks large-scale assembly QC).
-- Chin C-S et al 2023 Nat Methods 20:1290 (PGR-TK; MAP graphs + principal bundle decomposition for repeat-rich / clinical genes; MHC, DAZ1-4, OPN1LW/OPN1MW examples)
+- Chin C-S et al 2023 Nat Methods 20:1213 (PGR-TK; MAP graphs + principal bundle decomposition for repeat-rich / clinical genes; MHC, DAZ1-4, OPN1LW/OPN1MW examples)
 - cschin/pgr-tk GitHub (repo; archived April 2026, transitioning to PANGEA developed by DGI / Diploid Genomics; consult upstream README for PANGEA pointer)
 
 ## Related Skills

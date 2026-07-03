@@ -60,7 +60,7 @@ Tell the AI agent what to do:
 
 ### Microsynteny Network Analysis
 
-> "Build a synteny network across 50 angiosperm genomes using SynNet. Identify microsynteny-conserved gene clusters (metabolic operons, NLR clusters) that persist across deep divergence. Compare with macrosynteny decay (Murat 2010)."
+> "Build a synteny network across 50 angiosperm genomes using SynNet. Identify microsynteny-conserved gene clusters (metabolic operons, NLR clusters) that persist across deep divergence. Compare with macrosynteny decay."
 
 ## What the Agent Will Do
 
