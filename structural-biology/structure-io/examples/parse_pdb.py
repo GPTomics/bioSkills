@@ -1,10 +1,11 @@
-'''Parse a PDB file and inspect structure contents'''
-# Reference: biopython 1.83+, scanpy 1.10+ | Verify API if version differs
+'''Parse a structure and inspect contents, with the auth-vs-label numbering trap'''
+# Reference: biopython 1.85+ | Verify API if version differs
 
-from Bio.PDB import PDBParser
+from Bio.PDB import MMCIFParser
 
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('1abc', '1abc.pdb')
+# auth numbering (default) matches the paper; label numbering is gap-free internal.
+auth_parser = MMCIFParser(QUIET=True)
+structure = auth_parser.get_structure('4hhb', '4hhb.cif')
 
 print(f'Structure: {structure.id}')
 print(f'Models: {len(list(structure.get_models()))}')
@@ -15,4 +16,10 @@ print(f'Atoms: {len(list(structure.get_atoms()))}')
 for model in structure:
     for chain in model:
         residues = list(chain.get_residues())
-        print(f'  Chain {chain.id}: {len(residues)} residues')
+        first = residues[0].id[1] if residues else None
+        print(f'  Chain {chain.id}: {len(residues)} residues, first resseq {first}')
+
+label_parser = MMCIFParser(QUIET=True, auth_residues=False, auth_chains=False)
+label_structure = label_parser.get_structure('4hhb', '4hhb.cif')
+label_first = next(label_structure.get_residues()).id[1]
+print(f'Label-scheme first resseq (differs from auth): {label_first}')

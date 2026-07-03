@@ -1,6 +1,6 @@
 ---
-name: bio-pdb-structure-navigation
-description: Navigate protein structure hierarchy using Biopython Bio.PDB SMCRA model. Use when accessing models, chains, residues, and atoms, iterating over structure levels, or extracting sequences from PDB files.
+name: bio-structural-biology-structure-navigation
+description: Navigate the Bio.PDB SMCRA hierarchy (Structure-Model-Chain-Residue-Atom) safely, surfacing the heterogeneity it hides by default. Use when deciding how to handle altloc/DisorderedAtom conformers before a distance or RMSD, indexing residues insertion-code-safe with the full (hetflag, resseq, icode) tuple, choosing the ATOM/observed vs SEQRES/canonical vs UniProt sequence, selecting the right Model for an NMR ensemble, filtering waters/hetero/metals correctly, and reconciling auth vs label numbering. Keywords SMCRA, altloc, DisorderedAtom, insertion code, SEQRES, PPBuilder, auth_seq_id.
 tool_type: python
 primary_tool: Bio.PDB
 goal_approach_exempt: true
@@ -8,7 +8,7 @@ goal_approach_exempt: true
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+
+Reference examples tested with: biopython 1.83+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -18,319 +18,205 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Structure Navigation
 
-**"Access residues and atoms in a PDB structure"** -> Navigate the Structure-Model-Chain-Residue-Atom hierarchy to iterate over components, extract sequences, and access atomic coordinates.
-- Python: `structure[0]['A'][100]['CA'].get_vector()` for direct access
+**"Walk the chains, residues, and atoms; pull out the sequence"** -> Traverse the Structure-Model-Chain-Residue-Atom (SMCRA) tree, but treat every level as a lossy projection that hides heterogeneity unless asked otherwise.
+- Python: `structure[0]['A'][(' ', 100, ' ')]['CA'].coord` for full-tuple direct access
 
-Navigate the Structure-Model-Chain-Residue-Atom (SMCRA) hierarchy to access and iterate over structure components.
+## Governing Principle: SMCRA is a convenient tree that HIDES heterogeneity by default
+
+The SMCRA model (Structure > Model > Chain > Residue > Atom) is a readable in-memory tree, but its defaults quietly collapse the very heterogeneity that changes the answer. Five traps recur, and none of them raises an error - the code runs and returns a plausible-looking number computed on the wrong thing.
+
+1. A `DisorderedAtom` silently forwards every uncaught call to ONE child - the HIGHEST-OCCUPANCY altloc, not literally altloc 'A'. So `get_atoms()`, `.coord`, distances, clashes, and RMSDs all use a single conformer, invisibly, even when the active site is 60/40 disordered. This is the #1 correctness trap. Enumerate with `is_disordered()` and `disordered_get_list()`; never let both altlocs of one atom enter the same geometric calculation.
+2. The residue id is a 3-tuple `(hetflag, resseq, icode)`. Naive `residue.id[1]` drops both the hetero flag and the INSERTION CODE, so antibody residues 100, 100A, 100B collapse onto one key; `chain[100]` works only until an insertion code, a hetero residue, or an altloc residue exists at that number, then raises a KeyError that looks like the residue is missing. Key on the full tuple; reduce to `id[1]` only for display.
+3. The sequence PPBuilder extracts is the OBSERVED (ATOM-record) sequence with missing-density gaps silently concatenated away - it is NOT the SEQRES/construct/UniProt canonical sequence. A disordered 12-residue loop becomes 12 vanished characters with no marker, so mapping conservation or alignment columns by string position is off-by-many after the first gap. Map through residue NUMBERS (auth_seq_id) or SIFTS, never by string index.
+4. NMR and multi-state files have multiple `Model` objects. Iterating chains without first selecting a model conflates conformers; `structure[0]` silently picks one NMR member and over-claims precision. Ask "how many models and why" first.
+5. mmCIF carries two numbering schemes: auth (matches the paper, has insertion codes, can be negative/gapped) and label (gapless 1..N, no icodes). `MMCIFParser` defaults to auth; flip `auth_residues=False` and residue 100 becomes a different residue. Pick one scheme and stay in it.
+
+## Decision: which sequence source
+
+These three "sequences" are routinely conflated; each answers a different question and the wrong one silently misindexes everything downstream.
+
+| Source | What it is | Get it via | Use when | Fails when |
+|--------|-----------|------------|----------|------------|
+| ATOM / observed | Only residues with modeled coordinates; gaps concatenated away | `PPBuilder().build_peptides()` then `pp.get_sequence()` | Per-atom geometry, contacts, extracting exactly what was resolved | Aligning to UniProt/MSA by string position (gaps shift the frame) |
+| SEQRES / declared | Full sequence the depositor says is in the crystal, including unresolved residues | `SeqIO.parse(file, 'pdb-seqres')` or `'cif-seqres'` | Knowing the true construct length, locating missing loops | Assuming every SEQRES residue has coordinates (it does not) |
+| UniProt / canonical | The reference biological sequence (no tags, no engineered mutations) | `database-access/uniprot-access` + SIFTS residue mapping | Mapping conservation/domains/mutations onto structure positions | Assuming construct == canonical (tags, point mutations, chimeras differ) |
+
+## Decision: residue selection idiom
+
+Filter on the hetflag (`id[0]`), not the residue name, and know exactly what each idiom keeps and drops.
+
+| Goal | Idiom | Keeps / drops correctly? |
+|------|-------|--------------------------|
+| Standard amino acids only | `r.id[0] == ' '` | Correct; drops water, ligands, and modified residues |
+| Water | `r.id[0] == 'W'` | Correct; water hetflag is `'W'`, NOT `'H_'` - a `startswith('H_')` water strip MISSES water |
+| Ligands and hetero groups | `r.id[0].startswith('H_')` | Also catches modified residues (MSE, SEP, PTR) mid-chain - not just free ligands |
+| Strip hetero blindly | `r.id[0] != ' '` | DANGEROUS - deletes catalytic metals, cofactors, AND selenomethionine (MSE) out of the chain |
+| A specific residue type | `r.resname == 'ARG'` | Fine for type queries; never use resname to classify water vs ligand vs standard |
 
 ## Required Imports
 
 ```python
-from Bio.PDB import PDBParser, PPBuilder, Selection
-from Bio.Data.PDBData import protein_letters_3to1
-```
-
-## SMCRA Hierarchy
-
-```
-Structure
-    |
-    +-- Model (0, 1, ...)      # NMR ensembles, crystal asymmetric unit
-          |
-          +-- Chain (A, B, ...) # Polypeptide chains, ligands
-                |
-                +-- Residue     # Amino acids, nucleotides, hetero groups
-                      |
-                      +-- Atom  # Individual atoms
+from Bio.PDB import PDBParser, MMCIFParser, PPBuilder, CaPPBuilder, Selection
+from Bio.Data.PDBData import protein_letters_3to1, protein_letters_3to1_extended
 ```
 
 ## Accessing Hierarchy Levels
 
 ```python
-from Bio.PDB import PDBParser
-
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
-# Access by index/ID
-model = structure[0]          # First model
-chain = model['A']            # Chain A
-residue = chain[100]          # Residue 100 (simple numbering)
-residue = chain[(' ', 100, ' ')]  # Full residue ID (hetfield, resseq, icode)
-atom = residue['CA']          # C-alpha atom
+model = structure[0]                       # first model (see NMR caveat below)
+chain = model['A']
+residue = chain[(' ', 100, ' ')]           # full id tuple - insertion-code and hetero safe
+residue_bare = chain[100]                   # convenience path; breaks on icode/hetero/altloc at 100
+atom = residue['CA']
 ```
 
 ## Iterating Over Structure
 
 ```python
-# Iterate all levels
 for model in structure:
     for chain in model:
         for residue in chain:
+            hetflag, resseq, icode = residue.id   # keep the whole tuple, not resseq alone
             for atom in residue:
-                print(f'{chain.id}:{residue.id[1]}:{atom.name}')
+                print(f'{chain.id}:{resseq}{icode}:{atom.name}')
 
-# Shortcut iterators (all levels below current)
 for chain in structure.get_chains():
     print(f'Chain: {chain.id}')
-
-for residue in structure.get_residues():
-    print(f'Residue: {residue.resname}')
-
-for atom in structure.get_atoms():
-    print(f'Atom: {atom.name} at {atom.coord}')
 ```
 
-## Residue Identification
+## Enumerating Disordered Atoms (the highest-value pattern)
 
 ```python
-# Residue ID is a tuple: (hetfield, resseq, icode)
-for residue in chain:
-    hetfield, resseq, icode = residue.id
-    print(f'Residue {resseq}{icode}: {residue.resname}')
-
-# hetfield values:
-#   ' '  - standard amino acid
-#   'W'  - water
-#   'H_xxx' - hetero residue (ligand, modified residue)
-
-# Filter standard residues only
-standard_residues = [r for r in chain if r.id[0] == ' ']
-
-# Filter water
-waters = [r for r in chain if r.id[0] == 'W']
-
-# Filter hetero atoms (ligands)
-hetero = [r for r in chain if r.id[0].startswith('H_')]
-```
-
-## Atom Properties
-
-```python
+# A DisorderedAtom forwards uncaught calls to its highest-occupancy child by default,
+# so plain iteration measures ONE conformer. Enumerate every altloc explicitly.
 for atom in residue:
-    print(f'Name: {atom.name}')
-    print(f'Element: {atom.element}')
-    print(f'Coordinates: {atom.coord}')
-    print(f'B-factor: {atom.bfactor}')
-    print(f'Occupancy: {atom.occupancy}')
-    print(f'Full ID: {atom.full_id}')
-    print(f'Serial number: {atom.serial_number}')
+    if atom.is_disordered():
+        for alt in atom.disordered_get_list():   # each alt is a real Atom with its own coord/occupancy
+            print(f'{atom.name} altloc {alt.altloc}: occ={alt.occupancy} coord={alt.coord}')
+    else:
+        print(f'{atom.name}: coord={atom.coord}')
+
+# disordered_select(altloc) mutates the active child GLOBALLY - reset it when done
+if atom.is_disordered():
+    atom.disordered_select(atom.disordered_get_id_list()[0])
 ```
 
-## Getting Full Identifiers
+## Disordered Residues (microheterogeneity / point mutation at one site)
 
 ```python
-# Full hierarchical ID from any entity
-atom = structure[0]['A'][100]['CA']
-print(atom.get_full_id())
-# ('protein', 0, 'A', (' ', 100, ' '), ('CA', ' '))
-
-# Components: (structure_id, model_id, chain_id, residue_id, atom_id)
+# Residue.is_disordered() returns 1 for a NORMAL residue that merely holds altloc atoms and 2 for a
+# true DisorderedResidue (two resnames at one position); disordered_get_id_list/disordered_select
+# exist ONLY on the latter, so gate on == 2 (or isinstance DisorderedResidue) or this AttributeErrors.
+if residue.is_disordered() == 2:
+    names = residue.disordered_get_id_list()      # alternative resnames at this position
+    residue.disordered_select('ALA')              # pick one by resname before any geometry
 ```
 
-## Checking for Children
+## Extracting the Observed Sequence (know it has silent gaps)
 
 ```python
-# Check if entity has child
-if chain.has_id(100):
-    residue = chain[100]
-
-# Check if residue has atom
-if residue.has_id('CA'):
-    ca = residue['CA']
-
-# Get list of all children
-chains = structure[0].get_list()
-residues = chain.get_list()
-atoms = residue.get_list()
-```
-
-## Getting Parent Entity
-
-```python
-# Navigate up hierarchy
-atom = structure[0]['A'][100]['CA']
-
-residue = atom.get_parent()
-chain = residue.get_parent()
-model = chain.get_parent()
-structure = model.get_parent()
-```
-
-## Extracting Polypeptide Sequences
-
-```python
-from Bio.PDB import PDBParser, PPBuilder
-
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('protein', 'protein.pdb')
-
+# PPBuilder builds peptides from OBSERVED atoms via a C-N distance criterion and breaks at gaps;
+# the returned Seq has missing-density loops concatenated away with no gap marker.
 ppb = PPBuilder()
 for pp in ppb.build_peptides(structure):
-    seq = pp.get_sequence()
-    print(f'Polypeptide: {seq}')
-    print(f'Length: {len(seq)}')
+    print(f'observed segment len={len(pp.get_sequence())}: {pp.get_sequence()}')
 
-# Get all sequences as list
-sequences = [pp.get_sequence() for pp in ppb.build_peptides(structure)]
+# CaPPBuilder connects residues whose CA atoms are within ~4.3 Angstroms, so it bridges
+# small backbone breaks - useful for CA-only/broken chains, but it can mis-join true gaps.
+ca_ppb = CaPPBuilder()
+segments = ca_ppb.build_peptides(structure)
 ```
 
-## Using CaPPBuilder for Broken Chains
+## Reading the Declared (SEQRES) Sequence and Locating Gaps
 
 ```python
-from Bio.PDB import CaPPBuilder
+from Bio import SeqIO
 
-# Use when backbone is incomplete
-# Connects residues if CA atoms are within 4.3 Angstroms
-ppb = CaPPBuilder()
-for pp in ppb.build_peptides(structure):
-    print(f'Fragment: {pp.get_sequence()}')
+# SEQRES = the full declared sequence, including residues with no coordinates.
+for record in SeqIO.parse('protein.pdb', 'pdb-seqres'):
+    print(f'{record.id} declared length {len(record.seq)}')
+
+# header['missing_residues'] (populated when get_header=True) lists unmodeled residues -
+# the difference between SEQRES and observed. Reconcile before mapping to UniProt.
+parser = PDBParser(QUIET=True, get_header=True)
+structure = parser.get_structure('protein', 'protein.pdb')
+missing = structure.header.get('missing_residues', [])
 ```
 
-## Converting Residue Names
+## Converting Residue Names (modified residues map to X or drop)
 
 ```python
-from Bio.Data.PDBData import protein_letters_3to1
-
-# Three-letter to one-letter conversion
-three_letter = 'ALA'
-one_letter = protein_letters_3to1.get(three_letter, 'X')
-print(f'{three_letter} -> {one_letter}')  # ALA -> A
-
-# Build sequence manually
-sequence = ''
+# protein_letters_3to1 is the strict 20-aa map (unknown resname -> KeyError, so use .get).
+# protein_letters_3to1_extended additionally maps modified residues (MSE->M, SEP->S, PTR->Y).
+seq = ''
 for residue in chain:
-    if residue.id[0] == ' ':  # Standard residue
-        code = protein_letters_3to1.get(residue.resname, 'X')
-        sequence += code
-print(f'Sequence: {sequence}')
+    if residue.id[0] == ' ' or residue.resname in protein_letters_3to1_extended:
+        seq += protein_letters_3to1_extended.get(residue.resname, 'X')
 ```
 
-## Using Selection.unfold_entities
+## Selecting Entities and Full Identifiers
 
 ```python
-from Bio.PDB import Selection
-
-# Extract entities at specific level
-# Codes: S=structure, M=model, C=chain, R=residue, A=atom
-
-# Get all residues from structure
-residues = Selection.unfold_entities(structure, 'R')
-print(f'Total residues: {len(residues)}')
-
-# Get all atoms from a chain
+residues = Selection.unfold_entities(structure, 'R')   # S/M/C/R/A level codes
 atoms = Selection.unfold_entities(chain, 'A')
-print(f'Atoms in chain: {len(atoms)}')
 
-# Get all chains from model
-chains = Selection.unfold_entities(model, 'C')
+atom = structure[0]['A'][(' ', 100, ' ')]['CA']
+print(atom.get_full_id())   # ('protein', 0, 'A', (' ', 100, ' '), ('CA', ' '))
 ```
 
-## Handling Disordered Atoms
+## Working with NMR Ensembles (do not conflate models)
 
 ```python
-# Check for disorder
-if atom.is_disordered():
-    print(f'Atom {atom.name} has multiple conformations')
-    print(f'Alt locations: {atom.disordered_get_id_list()}')
-
-    # Select specific conformation
-    atom.disordered_select('A')
-    print(f'Coord for alt A: {atom.coord}')
-
-    # Get all conformations
-    for altloc in atom.disordered_get_id_list():
-        atom.disordered_select(altloc)
-        print(f'  {altloc}: {atom.coord}')
-
-# Get unpacked list (all conformations)
-all_atoms = atom.disordered_get_list()
+n_models = len(structure)                  # NMR = conformer ensemble, X-ray/cryo-EM usually 1
+if n_models > 1:
+    # Compute per-model and report the distribution; never average coordinates across models.
+    for model in structure:
+        ca = [r['CA'].coord for r in model.get_residues() if r.has_id('CA')]
+        print(f'model {model.id}: {len(ca)} CA atoms')
 ```
 
-## Handling Disordered Residues
+## Reading mmCIF with an Explicit Numbering Scheme
 
 ```python
-# Point mutations at same position
-if residue.is_disordered():
-    print(f'Disordered residue at {residue.id}')
-    names = residue.disordered_get_id_list()
-    print(f'Alternative residues: {names}')
-
-    # Select specific residue type
-    residue.disordered_select('ALA')
+# MMCIFParser defaults to auth numbering (matches the paper, has insertion codes).
+# label numbering is gapless 1..N with no icodes - a different residue at the same number.
+cif_parser = MMCIFParser(QUIET=True, auth_residues=True)   # keep auth for literature/UniProt cross-ref
+structure = cif_parser.get_structure('protein', 'protein.cif')
 ```
 
-## Finding Specific Atoms
+## Common Errors
 
-```python
-# Get backbone atoms
-backbone_names = ['N', 'CA', 'C', 'O']
-for residue in chain:
-    backbone = [residue[name] for name in backbone_names if residue.has_id(name)]
-
-# Get all C-alpha atoms
-ca_atoms = [r['CA'] for r in structure.get_residues() if r.has_id('CA')]
-print(f'Found {len(ca_atoms)} CA atoms')
-
-# Get sidechain atoms
-for residue in chain:
-    sidechain = [a for a in residue if a.name not in ['N', 'CA', 'C', 'O']]
-```
-
-## Filtering by Residue Type
-
-```python
-# Get only amino acids
-amino_acids = [r for r in chain if r.id[0] == ' ']
-
-# Get specific amino acid types
-arginines = [r for r in chain if r.resname == 'ARG']
-charged = [r for r in chain if r.resname in ['ARG', 'LYS', 'ASP', 'GLU']]
-
-# Get hetero atoms
-ligands = [r for r in chain if r.id[0].startswith('H_')]
-for lig in ligands:
-    print(f'Ligand: {lig.resname} at position {lig.id[1]}')
-```
-
-## Counting Entities
-
-```python
-# Count at each level
-n_models = len(list(structure.get_models()))
-n_chains = len(list(structure.get_chains()))
-n_residues = len(list(structure.get_residues()))
-n_atoms = len(list(structure.get_atoms()))
-
-print(f'Models: {n_models}, Chains: {n_chains}')
-print(f'Residues: {n_residues}, Atoms: {n_atoms}')
-
-# Count per chain
-for chain in structure.get_chains():
-    n_res = len([r for r in chain if r.id[0] == ' '])
-    print(f'Chain {chain.id}: {n_res} amino acids')
-```
-
-## Working with NMR Ensembles
-
-```python
-# NMR structures have multiple models
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('nmr', 'nmr_structure.pdb')
-
-n_models = len(list(structure.get_models()))
-print(f'NMR ensemble with {n_models} conformers')
-
-# Iterate over models
-for model in structure:
-    # Each model is a separate conformation
-    ca_coords = [r['CA'].coord for r in model.get_residues() if r.has_id('CA')]
-    print(f'Model {model.id}: {len(ca_coords)} CA atoms')
-```
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Distance/RMSD subtly off on a disordered site | `get_atoms()` returned only the highest-occupancy altloc of a DisorderedAtom | Enumerate `disordered_get_list()`; pick one altloc consistently before geometry |
+| Impossibly close contacts / inflated atom count | Both altlocs of one atom entered the same calculation | Select a single altloc per site; never mix conformers |
+| KeyError on `chain[100]` for a residue that is clearly present | Residue has an insertion code, hetero flag, or altloc, so the bare-int path misses it | Index with the full tuple `chain[(' ', 100, ' ')]` or iterate and match `id[1]`/`id[2]` |
+| Antibody CDR residues 100/100A/100B collapse to one | Keyed on `residue.id[1]` (resseq) and dropped `id[2]` (icode) | Key on the full `(hetflag, resseq, icode)` tuple |
+| Structure sequence one residue shorter than expected after each loop | PPBuilder returns the observed sequence with missing-density gaps concatenated away | Use SEQRES (`pdb-seqres`) for length; map to UniProt by residue number or SIFTS, not string index |
+| Selenomethionine protein reads full of X or has holes in the chain | MSE is a hetero (`H_MSE`) residue; strict `protein_letters_3to1` returns X or a blanket hetero strip deleted it | Use `protein_letters_3to1_extended` (MSE->M); filter hetero by explicit allow/deny list |
+| Water strip leaves waters behind | Filtered with `startswith('H_')`; water hetflag is `'W'` | Strip water with `r.id[0] == 'W'` |
+| Stripping hetero removed a catalytic metal or cofactor | Blanket `r.id[0] != ' '` deletes metals, heme, FAD, ions, and mid-chain MSE | Remove only water/buffer by explicit list; keep ligands and metals |
+| NMR metric multiplied ~20x or averaged to nonsense | Iterated all models, or averaged coordinates across the ensemble | Select one representative model, or compute per-model and report the spread |
+| mmCIF residue numbers do not match the paper | Read label numbering instead of auth (or mixed a label index into an auth structure) | Set `auth_residues=True` (default) and stay in one scheme |
+| Missing loop treated as a covalent chain break | Gap in coordinates is unmodeled disorder, not a real break | Reconcile against `header['missing_residues']`/SEQRES; flag gaps as disorder |
+| Silent atom drops / merged chains on a messy file | `PDBParser(QUIET=True)` suppressed the discontinuous-chain warnings | For unfamiliar files parse without QUIET (or capture warnings) first |
 
 ## Related Skills
 
-- structure-io - Parse and write structure files
-- geometric-analysis - Measure distances, angles, RMSD
-- structure-modification - Modify coordinates and properties
-- sequence-manipulation/seq-objects - Work with extracted sequences
+- structure-io - Parse and write PDB/mmCIF; auth vs label numbering at the I/O layer
+- geometric-analysis - Distances, angles, RMSD, SASA once heterogeneity is resolved
+- structure-modification - Strip waters/hetero, edit coordinates and B-factors safely
+- interface-analysis - Requires the biological assembly, not the deposited asymmetric unit
+- sequence-manipulation/seq-objects - Work with the extracted Seq objects
+- alignment/msa-parsing - Map SEQRES/ATOM sequences onto alignment columns
+- database-access/uniprot-access - Fetch the canonical sequence for SIFTS-based mapping
+
+## References
+
+- Hamelryck T, Manderick B (2003). PDB file parser and structure class implemented in Python. *Bioinformatics* 19(17):2308-2310. DOI 10.1093/bioinformatics/btg332.
+- Cock PJA, Antao T, Chang JT, et al. (2009). Biopython: freely available Python tools for computational molecular biology and bioinformatics. *Bioinformatics* 25(11):1422-1423. DOI 10.1093/bioinformatics/btp163.
+- Berman HM, Westbrook J, Feng Z, et al. (2000). The Protein Data Bank. *Nucleic Acids Research* 28(1):235-242. DOI 10.1093/nar/28.1.235.
+- Velankar S, Dana JM, Jacobsen J, et al. (2013). SIFTS: Structure Integration with Function, Taxonomy and Sequences resource. *Nucleic Acids Research* 41(D1):D483-D489. DOI 10.1093/nar/gks1258.

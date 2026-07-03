@@ -134,7 +134,7 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **alignment** | 7 | Bio.Align, MAFFT, MUSCLE5, Foldseek, ClipKIT | MSA tools (incl. BAli-Phy joint MSA+tree co-estimation), pairwise alignment, structural alignment (Foldseek/Foldseek-Multimer/TM-align/US-align/DALI/Foldmason), post-MSA trimming (ClipKIT/trimAl/BMGE/PhyIN), alignment I/O, MSA statistics |
 | **phylogenetics** | 8 | Bio.Phylo, IQ-TREE2, RAxML-NG, MrBayes, BEAST2, ASTRAL-III | Tree I/O, ML/Bayesian inference (support is not accuracy), divergence dating, coalescent species trees, concordance factors |
 | **differential-expression** | 6 | DESeq2, edgeR, ggplot2, pheatmap | RNA-seq differential expression, visualization, batch correction |
-| **structural-biology** | 6 | Bio.PDB, ESMFold, Chai-1 | PDB/mmCIF parsing, SMCRA navigation, geometric analysis, ML structure prediction |
+| **structural-biology** | 10 | Bio.PDB, ESMFold, AlphaFold DB, PDBFixer, fpocket | PDB/mmCIF parsing, SMCRA navigation, geometry, interface analysis, structure validation, preparation (add H/protonation), binding-site detection, ML structure prediction |
 | **single-cell** | 17 | Seurat, Scanpy, Pertpy, Cassiopeia, MeboCost | scRNA-seq QC, clustering, trajectory, communication, annotation, perturb-seq, lineage tracing, metabolite communication, differential abundance, CNV inference, hashing demultiplexing |
 | **pathway-analysis** | 6 | clusterProfiler, ReactomePA, rWikiPathways, enrichplot, SPIA | Decision-grade functional enrichment: ORA, GSEA, and SPIA pathway topology across GO/KEGG/Reactome/WikiPathways/MSigDB, background-universe selection, ranking-metric choice, live-DB reproducibility, redundancy-collapse visualization |
 | **restriction-analysis** | 5 | Bio.Restriction | Restriction sites, mapping, enzyme selection, fragment/gel analysis, Golden Gate (Type IIS) assembly |
@@ -190,11 +190,11 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 552 skills across 63 categories**
+**Total: 556 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 552 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 556 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression

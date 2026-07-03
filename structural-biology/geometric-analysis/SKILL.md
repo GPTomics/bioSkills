@@ -1,6 +1,6 @@
 ---
-name: bio-pdb-geometric-analysis
-description: Perform geometric calculations on protein structures using Biopython Bio.PDB. Use when measuring distances, angles, and dihedrals, superimposing structures, calculating RMSD, or computing solvent accessible surface area (SASA).
+name: bio-structural-biology-geometric-analysis
+description: Measures geometric properties of protein structures with Biopython Bio.PDB - interatomic distances, distance matrices, bond and dihedral angles (phi/psi/chi, Ramachandran), superposition and RMSD, center of mass, radius of gyration, and solvent accessible surface area (SASA). Use when deciding that RMSD depends on BOTH the superposition and the atom selection (a global all-atom RMSD is dominated by flexible loops and hinge motion and is NOT a cross-protein similarity metric); choosing the metric that matches the question (RMSD for same-molecule displacement, TM-score for same-fold, lDDT for superposition-free local model quality - the quantity pLDDT predicts); recognizing Superimposer needs an equal-length ordered atom-to-atom correspondence; and reporting SASA only alongside its probe radius (1.4A water, Shrake-Rupley) with a preference for relative SASA. Keywords RMSD, TM-score, lDDT, SASA, Shrake-Rupley, superposition, Kabsch, dihedral, Ramachandran, radius of gyration.
 tool_type: python
 primary_tool: Bio.PDB
 goal_approach_exempt: true
@@ -8,7 +8,7 @@ goal_approach_exempt: true
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, numpy 1.26+
+Reference examples tested with: biopython 1.83+, numpy 1.26+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -18,38 +18,49 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Geometric Analysis
 
-**"Calculate RMSD between two protein structures"** -> Measure atomic distances/angles/dihedrals, superimpose structures, compute RMSD, and find inter-residue contacts.
-- Python: `Bio.PDB.Superimposer()` for RMSD, `NeighborSearch` for contacts
+**"Calculate the RMSD between two conformations"** -> superimpose on a defined atom correspondence, then report deviation.
+- Python: `Bio.PDB.Superimposer` (SVD/Kabsch); `Bio.PDB.qcprot` for speed in tight loops
+**"How buried is this residue?"** -> compute solvent accessible surface area and normalize to a per-residue maximum.
+- Python: `Bio.PDB.SASA.ShrakeRupley`, then relative SASA against a max-ASA scale
 
-Measure distances, angles, and dihedrals. Superimpose structures and calculate RMSD. Find neighbor atoms and contacts.
+## Governing Principle: the metric IS the question
 
-## Required Imports
+RMSD is NOT a property of two structures. It is a property of two structures GIVEN a superposition AND an atom selection - change either and the number changes. Report what was aligned (CA-only? a defined core? all-atom?) or the number is uninterpretable.
 
-```python
-from Bio.PDB import PDBParser, NeighborSearch, Superimposer
-from Bio.PDB import calc_angle, calc_dihedral
-import numpy as np
-```
+Global all-atom RMSD is a mean of SQUARED per-atom deviations after a least-squares rigid-body fit, so it is dominated by the worst-fitting atoms. A structure whose 150-residue core is essentially identical but whose 10-residue loop or a hinge-rotated domain swings out by 15A reports a "bad" whole-molecule RMSD (often 4-8A) that hides a near-perfect core. RMSD is also length-dependent (longer proteins accumulate larger RMSD for the same local quality) and is NOT a cross-protein similarity metric - it is only meaningful when a genuine 1:1 correspondence exists (same protein, two states; a model vs its native).
+
+`Superimposer` requires an equal-length, ORDERED atom-to-atom correspondence. Feeding it mismatched or unequal atom lists is the classic error; it computes the optimal fit (Kabsch via SVD), it does NOT solve which atom maps to which. Structures with different sequences need a structure-based alignment FIRST to establish the correspondence (see alignment/structural-alignment), then superposition.
+
+SASA depends on the PROBE RADIUS (1.4A water is a convention, not a constant of nature), the algorithm (Bio.PDB `ShrakeRupley` is Shrake-Rupley only; `freesasa` offers Lee-Richards and LCPO), and whether hydrogens are present. A SASA number without its probe radius is meaningless, and absolute SASA in A^2 is not portable across tools. Prefer RELATIVE SASA (residue SASA / max-ASA of that residue type) using the Tien et al 2013 max-ASA scale.
+
+Backbone phi/psi and omega/cis-peptides are a VALIDATION signal, not a description: a residue in a sterically disallowed Ramachandran region usually means a modeling error, not exotic biology. This skill computes the angles; interpreting outliers as quality flags belongs to structural-biology/structure-validation.
+
+### Decision: which comparison metric
+
+| Metric | Answers (use for) | Caveat | Who reports it |
+|---|---|---|---|
+| RMSD on a defined core | same molecule, how far did it move after best-fit | needs a real 1:1 correspondence; outlier-dominated (squared mean); length- and selection-dependent; NOT cross-protein | Bio.PDB `Superimposer.rms` |
+| TM-score (>0.5 = same fold) | different proteins - same fold? fold recognition | length-normalized and outlier-resistant, but asymmetric (state the reference chain); needs an alignment first | TM-align / US-align (alignment/structural-alignment) |
+| GDT-TS / GDT-HA | CASP-style full-model accuracy vs native | superposition-based but fraction-within-cutoff, not a squared mean | LGA / CASP assessors |
+| lDDT (0-100; pLDDT for AlphaFold models) | local model quality, multi-domain, without picking a superposition | superposition-free, immune to domain motion; the quantity pLDDT predicts | OpenStructure lDDT / AlphaFold pLDDT |
+
+For cross-protein or fold-similarity work, do not stretch RMSD - route to alignment/structural-alignment (TM-align / Foldseek / DALI). For Ramachandran/omega as a quality gate, route to structural-biology/structure-validation.
 
 ## Distance Between Atoms
 
 ```python
 from Bio.PDB import PDBParser
+import numpy as np
 
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
 chain = structure[0]['A']
-atom1 = chain[100]['CA']
-atom2 = chain[200]['CA']
+atom1, atom2 = chain[100]['CA'], chain[200]['CA']
 
-# Direct subtraction gives distance
-distance = atom1 - atom2
-print(f'Distance: {distance:.2f} Angstroms')
-
-# Or use numpy
-import numpy as np
-distance = np.linalg.norm(atom1.coord - atom2.coord)
+distance = atom1 - atom2                              # Atom subtraction returns the distance directly
+print(f'Distance: {distance:.2f} A')
+print(np.linalg.norm(atom1.coord - atom2.coord))     # Equivalent via numpy on the .coord arrays
 ```
 
 ## Distance Matrix
@@ -61,345 +72,164 @@ from Bio.PDB import PDBParser
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
-ca_atoms = [r['CA'] for r in structure.get_residues() if r.has_id('CA') and r.id[0] == ' ']
+ca_atoms = [r['CA'] for r in structure.get_residues() if r.has_id('CA') and r.id[0] == ' ']  # id[0]==' ' drops waters/hetero
 n = len(ca_atoms)
 
-dist_matrix = np.zeros((n, n))
+dist = np.zeros((n, n))
 for i in range(n):
     for j in range(i + 1, n):
-        dist = ca_atoms[i] - ca_atoms[j]
-        dist_matrix[i, j] = dist
-        dist_matrix[j, i] = dist
-
-print(f'Distance matrix shape: {dist_matrix.shape}')
+        dist[i, j] = dist[j, i] = ca_atoms[i] - ca_atoms[j]
+print(f'Distance matrix: {dist.shape}')
 ```
 
-## Angle Between Three Atoms
+## Bond Angle
 
 ```python
+import numpy as np
 from Bio.PDB import PDBParser, calc_angle
 
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
-residue = structure[0]['A'][100]
-n = residue['N']
-ca = residue['CA']
-c = residue['C']
-
-# calc_angle takes Vector objects (atom.coord returns array, use atom.get_vector())
-angle_rad = calc_angle(n.get_vector(), ca.get_vector(), c.get_vector())
-angle_deg = np.degrees(angle_rad)
-print(f'N-CA-C angle: {angle_deg:.1f} degrees')
+res = structure[0]['A'][100]
+angle = calc_angle(res['N'].get_vector(), res['CA'].get_vector(), res['C'].get_vector())  # calc_angle needs Vector, not .coord
+print(f'N-CA-C angle: {np.degrees(angle):.1f} deg')
 ```
 
-## Dihedral Angles
+## Backbone Dihedrals (phi / psi)
 
 ```python
-from Bio.PDB import PDBParser, calc_dihedral
 import numpy as np
+from Bio.PDB import PDBParser, calc_dihedral
 
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
-
 chain = structure[0]['A']
 
-# Calculate phi angle (C-N-CA-C)
-res_prev = chain[99]
-res_curr = chain[100]
-
-phi = calc_dihedral(
-    res_prev['C'].get_vector(),
-    res_curr['N'].get_vector(),
-    res_curr['CA'].get_vector(),
-    res_curr['C'].get_vector()
-)
-print(f'Phi: {np.degrees(phi):.1f} degrees')
-
-# Calculate psi angle (N-CA-C-N)
-res_next = chain[101]
-psi = calc_dihedral(
-    res_curr['N'].get_vector(),
-    res_curr['CA'].get_vector(),
-    res_curr['C'].get_vector(),
-    res_next['N'].get_vector()
-)
-print(f'Psi: {np.degrees(psi):.1f} degrees')
+prev, curr, nxt = chain[99], chain[100], chain[101]
+phi = calc_dihedral(prev['C'].get_vector(), curr['N'].get_vector(), curr['CA'].get_vector(), curr['C'].get_vector())
+psi = calc_dihedral(curr['N'].get_vector(), curr['CA'].get_vector(), curr['C'].get_vector(), nxt['N'].get_vector())
+print(f'phi={np.degrees(phi):.1f}  psi={np.degrees(psi):.1f}')
 ```
 
 ## Ramachandran Angles for All Residues
 
 ```python
-from Bio.PDB import PDBParser, PPBuilder, calc_dihedral
 import numpy as np
+from Bio.PDB import PDBParser, PPBuilder
 
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
-ppb = PPBuilder()
-phi_psi = []
-
+ppb = PPBuilder()                                    # PPBuilder builds peptides from connectivity, so chain breaks split them
+rama = []
 for pp in ppb.build_peptides(structure):
-    angles = pp.get_phi_psi_list()
-    for residue, (phi, psi) in zip(pp, angles):
-        if phi is not None and psi is not None:
-            phi_psi.append((residue.resname, np.degrees(phi), np.degrees(psi)))
-
-for name, phi, psi in phi_psi[:10]:
-    print(f'{name}: phi={phi:.1f}, psi={psi:.1f}')
+    for res, (phi, psi) in zip(pp, pp.get_phi_psi_list()):
+        if phi is not None and psi is not None:      # None at termini and chain breaks by design - skip, do not fabricate
+            rama.append((res.resname, np.degrees(phi), np.degrees(psi)))
+print(f'{len(rama)} residues with phi/psi')
 ```
 
-## Finding Neighbor Atoms
+Outliers in disallowed regions are usually refinement errors, not biology - interpret them as a quality gate in structural-biology/structure-validation.
+
+## Chi Angles (Sidechain Dihedrals)
 
 ```python
-from Bio.PDB import PDBParser, NeighborSearch
-
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('protein', 'protein.pdb')
-
-# Build search tree from all atoms
-all_atoms = list(structure.get_atoms())
-ns = NeighborSearch(all_atoms)
-
-# Find atoms within radius of a point
-center = structure[0]['A'][100]['CA'].coord
-radius = 5.0  # Angstroms
-neighbors = ns.search(center, radius)
-print(f'Found {len(neighbors)} atoms within {radius}A')
-
-# Find atoms within radius of another atom
-ca_atom = structure[0]['A'][100]['CA']
-neighbors = ns.search(ca_atom.coord, 5.0)
-```
-
-## Finding Residue Contacts
-
-```python
-from Bio.PDB import PDBParser, NeighborSearch
-
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('protein', 'protein.pdb')
-
-all_atoms = list(structure.get_atoms())
-ns = NeighborSearch(all_atoms)
-
-# Find all atom pairs within distance
-contact_distance = 4.0
-contacts = ns.search_all(contact_distance, level='R')  # R = residue level
-
-print(f'Found {len(contacts)} residue contacts within {contact_distance}A')
-for res1, res2 in contacts[:10]:
-    print(f'  {res1.resname}{res1.id[1]} - {res2.resname}{res2.id[1]}')
-```
-
-## Contact Levels
-
-```python
-from Bio.PDB import NeighborSearch
-
-# search_all returns pairs at specified level
-# Level codes: A=atom, R=residue, C=chain, M=model, S=structure
-
-atom_contacts = ns.search_all(4.0, level='A')      # Atom pairs
-residue_contacts = ns.search_all(4.0, level='R')  # Residue pairs
-chain_contacts = ns.search_all(10.0, level='C')   # Chain pairs
-```
-
-## Superimposing Structures
-
-```python
-from Bio.PDB import PDBParser, Superimposer
-
-parser = PDBParser(QUIET=True)
-ref_structure = parser.get_structure('ref', 'reference.pdb')
-mobile_structure = parser.get_structure('mobile', 'mobile.pdb')
-
-# Get CA atoms from both structures
-ref_atoms = [r['CA'] for r in ref_structure.get_residues() if r.has_id('CA') and r.id[0] == ' ']
-mobile_atoms = [r['CA'] for r in mobile_structure.get_residues() if r.has_id('CA') and r.id[0] == ' ']
-
-# Ensure same number of atoms
-n = min(len(ref_atoms), len(mobile_atoms))
-ref_atoms = ref_atoms[:n]
-mobile_atoms = mobile_atoms[:n]
-
-# Superimpose
-sup = Superimposer()
-sup.set_atoms(ref_atoms, mobile_atoms)
-print(f'RMSD before: {sup.rms:.2f} Angstroms')
-
-# Apply transformation to all atoms in mobile structure
-sup.apply(mobile_structure.get_atoms())
-```
-
-## Calculating RMSD
-
-```python
-from Bio.PDB import PDBParser, Superimposer
 import numpy as np
+from Bio.PDB import PDBParser, calc_dihedral
 
 parser = PDBParser(QUIET=True)
-struct1 = parser.get_structure('s1', 'structure1.pdb')
-struct2 = parser.get_structure('s2', 'structure2.pdb')
+structure = parser.get_structure('protein', 'protein.pdb')
+res = structure[0]['A'][100]
 
-atoms1 = [r['CA'] for r in struct1.get_residues() if r.has_id('CA') and r.id[0] == ' ']
-atoms2 = [r['CA'] for r in struct2.get_residues() if r.has_id('CA') and r.id[0] == ' ']
-
-# Using Superimposer (with alignment)
-sup = Superimposer()
-sup.set_atoms(atoms1, atoms2)
-rmsd_aligned = sup.rms
-print(f'RMSD (aligned): {rmsd_aligned:.2f} A')
-
-# Raw RMSD (no alignment)
-coords1 = np.array([a.coord for a in atoms1])
-coords2 = np.array([a.coord for a in atoms2])
-rmsd_raw = np.sqrt(np.mean(np.sum((coords1 - coords2) ** 2, axis=1)))
-print(f'RMSD (raw): {rmsd_raw:.2f} A')
+if res.has_id('CB') and res.has_id('CG'):            # Gly/Ala lack CB/CG; chi atom quartets are residue-type specific
+    chi1 = calc_dihedral(res['N'].get_vector(), res['CA'].get_vector(), res['CB'].get_vector(), res['CG'].get_vector())
+    print(f'Chi1: {np.degrees(chi1):.1f} deg')
 ```
 
-## CEAligner for Dissimilar Structures
+## Superimposing Structures and RMSD
 
 ```python
-from Bio.PDB import PDBParser, CEAligner
+from Bio.PDB import PDBParser, Superimposer
 
 parser = PDBParser(QUIET=True)
 ref = parser.get_structure('ref', 'reference.pdb')
-mobile = parser.get_structure('mobile', 'query.pdb')
+mob = parser.get_structure('mobile', 'mobile.pdb')
 
-# CE alignment works for structures with different sequences
-aligner = CEAligner()
-aligner.set_reference(ref)
-aligner.align(mobile)
+ref_ca = [r['CA'] for r in ref.get_residues() if r.has_id('CA') and r.id[0] == ' ']
+mob_ca = [r['CA'] for r in mob.get_residues() if r.has_id('CA') and r.id[0] == ' ']
+n = min(len(ref_ca), len(mob_ca))                    # Superimposer needs EQUAL-LENGTH ORDERED lists; it does NOT solve correspondence
+ref_ca, mob_ca = ref_ca[:n], mob_ca[:n]              # Naive truncation is only valid when residues already correspond 1:1
 
-print(f'RMSD: {aligner.rms:.2f} A')
-
-# CEAligner automatically modifies mobile structure coordinates
+sup = Superimposer()
+sup.set_atoms(ref_ca, mob_ca)                        # Optimal rigid-body fit via SVD/Kabsch
+print(f'RMSD (CA): {sup.rms:.2f} A')
+rotation, translation = sup.rotran                   # The fitted transform, for reuse on other atoms
+sup.apply(mob.get_atoms())                           # Mutates mob in place - copy first if the originals are still needed
 ```
 
-## Center of Mass
+QCP alternative for speed in tight loops (MD, all-vs-all): `from Bio.PDB.qcprot import QCPSuperimposer` (module `Bio.PDB.qcprot`; historically `Bio.PDB.QCPSuperimposer`), same `set_atoms` / `.rms` / `.rotran` / `apply` interface and identical optimum.
+
+## Per-Residue Deviation After Superposition
+
+Fitting minimizes the squared mean, so a global scalar hides where the structures actually differ. A per-residue deviation plot exposes the outlier domination directly.
 
 ```python
-from Bio.PDB import PDBParser
 import numpy as np
+from Bio.PDB import PDBParser, Superimposer
+
+parser = PDBParser(QUIET=True)
+ref = parser.get_structure('ref', 'reference.pdb')
+mob = parser.get_structure('mobile', 'mobile.pdb')
+
+ref_ca = [r['CA'] for r in ref.get_residues() if r.has_id('CA') and r.id[0] == ' ']
+mob_ca = [r['CA'] for r in mob.get_residues() if r.has_id('CA') and r.id[0] == ' ']
+n = min(len(ref_ca), len(mob_ca))
+ref_ca, mob_ca = ref_ca[:n], mob_ca[:n]
+
+sup = Superimposer()
+sup.set_atoms(ref_ca, mob_ca)
+sup.apply([a for a in mob_ca])                        # Move only the paired CA set into the fitted frame
+deviation = np.array([r - m for r, m in zip(ref_ca, mob_ca)])
+print(f'core (<2A) residues: {(deviation < 2.0).sum()} / {n}')   # 2A is a common rigid-core cutoff, not a law
+print(f'max deviation: {deviation.max():.2f} A at index {deviation.argmax()}')
+```
+
+## Center of Mass and Radius of Gyration
+
+```python
+import numpy as np
+from Bio.PDB import PDBParser
 
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
-# Unweighted center (geometric center)
-coords = np.array([a.coord for a in structure.get_atoms()])
-center = coords.mean(axis=0)
-print(f'Geometric center: {center}')
-
-# Mass-weighted center (approximate - uses atom count)
-# For accurate mass-weighted, use element masses
 atoms = list(structure.get_atoms())
-masses = {'C': 12.0, 'N': 14.0, 'O': 16.0, 'S': 32.0, 'H': 1.0}
-total_mass = 0
-weighted_sum = np.zeros(3)
-for atom in atoms:
-    mass = masses.get(atom.element, 12.0)
-    weighted_sum += mass * atom.coord
-    total_mass += mass
-center_of_mass = weighted_sum / total_mass
-print(f'Center of mass: {center_of_mass}')
-```
+coords = np.array([a.coord for a in atoms])
+masses = np.array([{'C': 12.0, 'N': 14.0, 'O': 16.0, 'S': 32.0, 'H': 1.0}.get(a.element, 12.0) for a in atoms])
 
-## Radius of Gyration
+com = (masses[:, None] * coords).sum(axis=0) / masses.sum()
+print(f'Center of mass: {com}')
 
-```python
-import numpy as np
-from Bio.PDB import PDBParser
-
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('protein', 'protein.pdb')
-
-coords = np.array([a.coord for a in structure.get_atoms()])
-center = coords.mean(axis=0)
-
-# Radius of gyration
-rg = np.sqrt(np.mean(np.sum((coords - center) ** 2, axis=1)))
+rg = np.sqrt(np.mean(np.sum((coords - coords.mean(axis=0)) ** 2, axis=1)))  # Unweighted radius of gyration
 print(f'Radius of gyration: {rg:.2f} A')
-```
-
-## Finding Surface Residues
-
-```python
-from Bio.PDB import PDBParser, NeighborSearch
-
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('protein', 'protein.pdb')
-
-# Simple approach: residues with few neighbors
-all_atoms = list(structure.get_atoms())
-ns = NeighborSearch(all_atoms)
-
-surface_residues = []
-for residue in structure.get_residues():
-    if residue.id[0] != ' ':
-        continue
-    if not residue.has_id('CA'):
-        continue
-
-    ca = residue['CA']
-    neighbors = ns.search(ca.coord, 10.0, level='R')
-    if len(neighbors) < 15:  # Threshold for surface
-        surface_residues.append(residue)
-
-print(f'Surface residues: {len(surface_residues)}')
 ```
 
 ## Vector Operations
 
 ```python
 from Bio.PDB import PDBParser
-from Bio.PDB.vectors import Vector, rotaxis
 
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
-# Get vectors from atoms
-atom1 = structure[0]['A'][100]['CA']
-atom2 = structure[0]['A'][101]['CA']
+v1 = structure[0]['A'][100]['CA'].get_vector()
+v2 = structure[0]['A'][101]['CA'].get_vector()
 
-v1 = atom1.get_vector()
-v2 = atom2.get_vector()
-
-# Vector operations
 diff = v2 - v1
-print(f'Distance vector: {diff}')
-print(f'Length: {diff.norm():.2f}')
-
-# Normalize
-unit = diff.normalized()
-
-# Cross product
-cross = v1 ** v2
-
-# Dot product
-dot = v1 * v2
-```
-
-## Chi Angles (Sidechain Dihedrals)
-
-```python
-from Bio.PDB import PDBParser, calc_dihedral
-import numpy as np
-
-parser = PDBParser(QUIET=True)
-structure = parser.get_structure('protein', 'protein.pdb')
-
-# Chi1 angle for a residue (N-CA-CB-CG)
-residue = structure[0]['A'][100]
-
-if residue.has_id('CB') and residue.has_id('CG'):
-    chi1 = calc_dihedral(
-        residue['N'].get_vector(),
-        residue['CA'].get_vector(),
-        residue['CB'].get_vector(),
-        residue['CG'].get_vector()
-    )
-    print(f'Chi1: {np.degrees(chi1):.1f} degrees')
+print(f'length: {diff.norm():.2f}  unit: {diff.normalized()}')
+cross = v1 ** v2                                      # ** is cross product on Vector objects
+dot = v1 * v2                                         # * is dot product on Vector objects
 ```
 
 ## Solvent Accessible Surface Area (SASA)
@@ -411,66 +241,89 @@ from Bio.PDB.SASA import ShrakeRupley
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
 
-# Calculate SASA using Shrake-Rupley algorithm
-sr = ShrakeRupley()
-sr.compute(structure, level='S')  # S=structure, M=model, C=chain, R=residue, A=atom
-
-# Access total SASA
-print(f'Total SASA: {structure.sasa:.2f} A^2')
-
-# Access per-residue SASA
-for residue in structure.get_residues():
-    if hasattr(residue, 'sasa'):
-        print(f'{residue.resname}{residue.id[1]}: {residue.sasa:.2f} A^2')
+sr = ShrakeRupley(probe_radius=1.40, n_points=100)   # 1.4A = water radius (convention); a SASA number is meaningless without its probe radius
+sr.compute(structure, level='R')                     # level R attaches .sasa on each residue; children sum to parents
+print(f'total SASA: {sum(r.sasa for r in structure.get_residues() if hasattr(r, "sasa")):.1f} A^2')
 ```
 
-## SASA with Custom Parameters
+## Relative SASA and Burial
+
+Absolute SASA is not portable across tools. For burial, normalize to a per-residue maximum (Tien et al 2013 theoretical Gly-X-Gly max-ASA).
 
 ```python
 from Bio.PDB import PDBParser
 from Bio.PDB.SASA import ShrakeRupley
 
+MAX_ASA = {'ALA': 129.0, 'ARG': 274.0, 'ASN': 195.0, 'ASP': 193.0, 'CYS': 167.0, 'GLU': 223.0, 'GLN': 225.0, 'GLY': 104.0, 'HIS': 224.0, 'ILE': 197.0, 'LEU': 201.0, 'LYS': 236.0, 'MET': 224.0, 'PHE': 240.0, 'PRO': 159.0, 'SER': 155.0, 'THR': 172.0, 'TRP': 285.0, 'TYR': 263.0, 'VAL': 174.0}
+
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
+ShrakeRupley().compute(structure, level='R')
 
-# Higher precision (more points = slower but more accurate)
-sr = ShrakeRupley(probe_radius=1.4, n_points=960)
-sr.compute(structure, level='R')
-
-# Per-atom SASA
-for atom in structure.get_atoms():
-    print(f'{atom.name}: {atom.sasa:.2f} A^2')
+buried = 0
+for res in structure.get_residues():
+    if res.resname in MAX_ASA and hasattr(res, 'sasa'):
+        rsa = res.sasa / MAX_ASA[res.resname]
+        if rsa < 0.20:                               # RSA < 0.20 is the common buried heuristic (a rule of thumb, not a law)
+            buried += 1
+print(f'buried residues (RSA < 0.20): {buried}')
 ```
 
-## Identifying Buried vs Exposed Residues
+## Secondary-Structure Assignment (DSSP)
+
+Secondary structure is an INTERPRETATION, not a value stored in the file: DSSP, STRIDE, and P-SEA legitimately disagree by 1-2 residues at helix and strand termini, so name the tool and version and never mix assignments from two tools in one analysis. DSSP places the backbone amide hydrogen itself and scores an electrostatic H-bond energy, so it needs no explicit hydrogens, and it processes only the FIRST model of an ensemble. The binary was renamed `dssp` -> `mkdssp` (v4) and must be installed separately.
 
 ```python
-from Bio.PDB import PDBParser
-from Bio.PDB.SASA import ShrakeRupley
+from Bio.PDB import PDBParser, DSSP
 
 parser = PDBParser(QUIET=True)
 structure = parser.get_structure('protein', 'protein.pdb')
+model = structure[0]                                  # DSSP runs on ONE model only
 
-sr = ShrakeRupley()
-sr.compute(structure, level='R')
-
-buried = []
-exposed = []
-for residue in structure.get_residues():
-    if residue.id[0] != ' ':
-        continue
-    if hasattr(residue, 'sasa'):
-        if residue.sasa < 10.0:  # Threshold in A^2
-            buried.append(residue)
-        else:
-            exposed.append(residue)
-
-print(f'Buried: {len(buried)}, Exposed: {len(exposed)}')
+dssp = DSSP(model, 'protein.pdb', dssp='mkdssp')      # pass the current binary name explicitly
+codes = [dssp[k][2] for k in dssp.keys()]             # 8-state: H G I helix, E B strand, T S P - other
+helix = sum(c in 'HGI' for c in codes)
+strand = sum(c in 'EB' for c in codes)
+print(f'helix {helix}, strand {strand}, other {len(codes) - helix - strand} of {len(codes)}')
 ```
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `Superimposer` errors on differing list sizes | atom lists unequal length; it needs a 1:1 ordered correspondence | match residues by id, or for sequence-different structures align first (alignment/structural-alignment) |
+| DSSP helix/strand counts differ from another tool | DSSP, STRIDE, P-SEA disagree at element termini; no ground truth | name the tool+version; never mix assignments; compare like-for-like |
+| RMSD is 4-8A for structures that clearly share a fold | global fit dominated by flexible loops/termini/hinge; mean of SQUARED deviations | fit on a defined rigid core, report core vs mobile separately; or use per-residue deviation / TM-score |
+| RMSD differs between runs on the "same" pair | different atom selection (CA vs all-atom) or superposition | state the correspondence and fit selection explicitly and hold it constant |
+| Ranking models of different length by RMSD | RMSD is length-dependent and not a cross-protein metric | use TM-score (length-normalized) or lDDT (superposition-free) |
+| `calc_angle`/`calc_dihedral` AttributeError | passed numpy arrays (`.coord`) not `Vector` objects | pass `atom.get_vector()` |
+| phi/psi is `None` at chain ends | terminal residues lack a preceding C or following N | skip `None`; `get_phi_psi_list` returns `None` at breaks/termini by design |
+| SASA disagrees with a published value | different probe radius, radii set, algorithm, or H atoms present | recompute all structures like-for-like in one tool; report probe_radius; prefer relative SASA |
+| `.sasa` attribute missing on residues | `compute()` run at the wrong level or read before it | call `sr.compute(entity, level='R')` then read `residue.sasa` |
+| Distance matrix polluted by waters/heteroatoms | iterating residues without filtering the hetflag | filter `residue.id[0] == ' '` |
+| Chi1 computed for Gly/Ala | those residues have no CB/CG | guard `has_id('CB') and has_id('CG')`; chi quartets are residue-type specific |
+| Two crystal forms called "different states" at 2A RMSD | difference within coordinate uncertainty / ensemble spread | compare against B-factors, resolution, and NMR ensemble spread before claiming a state change |
+| Calling a predicted model "wrong" where it deviates from a crystal structure | the deviating region may be low-pLDDT, a PAE-uncertain inter-domain float, or the crystal is a different (holo/packing) state | overlay pLDDT/PAE on the deviation before judging (alphafold-predictions); confirm it is not just a state difference |
+| Original coordinates changed unexpectedly | `Superimposer.apply` and `atom.transform` mutate in place | copy the structure first if the untransformed coordinates are still needed |
 
 ## Related Skills
 
-- structure-io - Parse and write structure files
-- structure-navigation - Access chains, residues, atoms
-- structure-modification - Transform coordinates, modify structures
-- alignment/pairwise-alignment - Sequence alignment for structure comparison
+- structure-io - Parse and write PDB/mmCIF structure files
+- structure-navigation - Walk chains, residues, atoms; handle altlocs and disordered residues
+- structure-modification - Transform coordinates and edit structures in place
+- structural-biology/interface-analysis - Residue contacts, contact maps, and buried-surface interface analysis (NeighborSearch)
+- structural-biology/structure-validation - Ramachandran and omega/cis-peptide outliers as a quality gate
+- structural-biology/alphafold-predictions - overlay pLDDT/PAE when a compared structure is a predicted model
+- structural-biology/modern-structure-prediction - reconcile predicted models via pLDDT/PAE/pTM before RMSD claims
+- alignment/structural-alignment - Cross-protein fold comparison and correspondence (TM-align, Foldseek, DALI)
+
+## References
+
+- Cock PJA, et al. (2009) Biopython. *Bioinformatics* 25(11):1422-1423.
+- Kabsch W (1976) A solution for the best rotation to relate two sets of vectors. *Acta Crystallogr A* 32:922-923.
+- Theobald DL (2005) Rapid calculation of RMSDs using a quaternion-based characteristic polynomial. *Acta Crystallogr A* 61(4):478-480.
+- Zhang Y, Skolnick J (2004) Scoring function for automated assessment of protein structure template quality. *Proteins* 57(4):702-710.
+- Xu J, Zhang Y (2010) How significant is a protein structure similarity with TM-score = 0.5? *Bioinformatics* 26(7):889-895.
+- Mariani V, Biasini M, Barbato A, Schwede T (2013) lDDT: a local superposition-free score for comparing protein structures and models. *Bioinformatics* 29(21):2722-2728.
+- Shrake A, Rupley JA (1973) Environment and exposure to solvent of protein atoms. Lysozyme and insulin. *J Mol Biol* 79(2):351-371.
+- Tien MZ, Meyer AG, Sydykova DK, Spielman SJ, Wilke CO (2013) Maximum allowed solvent accessibilities of residues in proteins. *PLoS ONE* 8(11):e80635.

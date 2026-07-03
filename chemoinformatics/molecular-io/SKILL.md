@@ -33,9 +33,9 @@ For full standardization (canonicalization, salt stripping, tautomer enumeration
 | MOL2 (Tripos) | 3D | Wedge bonds | Per-atom partial | SYBYL atom types preserved for docking | Atom-type dialects diverge (SYBYL vs Corina); RDKit MOL2 parser brittle |
 | PDB | 3D | None | None standard | Universal protein format | No bond orders; aromatic perception lost; ligand names truncated to 3 chars |
 | PDBQT | 3D | None | Gasteiger / AD4 | AutoDock-ready; torsion tree encoded | Specific to docking; no aromaticity layer |
-| MMTF/BCIF | 3D | Encoded | Encoded | Compact PDB replacement; PDB archive default since 2023 | Not all toolkits parse; binary format |
+| BinaryCIF (MMTF retired) | 3D | Encoded | Encoded | BinaryCIF (`.bcif`) is the current compact structural format; MMTF was retired by RCSB in July 2024 (read-only legacy) | Not all toolkits parse; binary format |
 | CDX/CDXML | 2D | Drawing | Drawing | ChemDraw native | Not a structural format; converts unreliably |
-| InChIKey | Hash | Stereo layer | — | Database key, fast lookup | Hash collisions ~10^-9 but possible; cannot recover structure |
+| InChIKey | Hash | Stereo layer | n/a | Database key, fast lookup | Hash collisions ~10^-9 but possible; cannot recover structure |
 
 ## Aromaticity Perception (most common silent error)
 
