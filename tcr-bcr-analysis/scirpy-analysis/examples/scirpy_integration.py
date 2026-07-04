@@ -1,90 +1,80 @@
-'''Single-cell TCR/BCR analysis with scirpy'''
-# Reference: mixcr 4.6+, vdjtools 1.2.1+, scanpy 1.10+ | Verify API if version differs
+'''Single-cell paired TCR/BCR analysis with scirpy on the awkward-array AIRR model.
 
+Runs end-to-end against scirpy's bundled wu2020_3k dataset (a MuData with gex + airr
+modalities), so no external files are needed. Demonstrates the modern data model:
+AIRR lives in obsm['airr'] and is read via get.airr after pp.index_chains - NOT via
+legacy per-chain obs columns like IR_VJ_1_junction_aa.
+'''
+# Reference: scirpy 0.24+ scanpy 1.10+ | Verify API if version differs
+
+import warnings
+import matplotlib
 import scirpy as ir
 import scanpy as sc
-import pandas as pd
 
-# Load scRNA-seq data
-adata = sc.read_h5ad('scrnaseq.h5ad')
-print(f'Loaded {adata.n_obs} cells, {adata.n_vars} genes')
+matplotlib.use('Agg')  # headless: build figure objects without opening a window
+warnings.filterwarnings('ignore')
 
-# Add 10x VDJ data
-# filtered_contig_annotations.csv from Cell Ranger VDJ
-ir.io.read_10x_vdj(adata, 'filtered_contig_annotations.csv')
-print(f'Cells with TCR/BCR: {adata.obs["has_ir"].sum()}')
+# wu2020_3k returns a MuData({'gex': ..., 'airr': ...}); real projects build this from
+# ir.io.read_10x_vdj(...) (returns an AnnData) wrapped with the GEX AnnData in a MuData.
+mdata = ir.datasets.wu2020_3k()
+print('modalities:', list(mdata.mod.keys()), '| cells:', mdata.n_obs)
 
-# Chain quality control
-# Identifies potential issues: doublets, orphan chains, ambiguous pairing
-ir.tl.chain_qc(adata)
+# index_chains is REQUIRED before any QC/clonotyping; it splits ragged per-cell chains
+# into VJ/VDJ and flags multichain cells, writing obsm['chain_indices'].
+ir.pp.index_chains(mdata)
 
-# QC categories:
-# - multichain: >2 chains detected (doublet marker)
-# - orphan: Only alpha OR beta, not both
-# - extra VDJ/VJ: Additional chains beyond the pair
-print('\nChain pairing QC:')
-print(adata.obs['chain_pairing'].value_counts())
+# chain_qc writes airr:receptor_type / airr:receptor_subtype / airr:chain_pairing.
+ir.tl.chain_qc(mdata)
+print('\nchain pairing:')
+print(mdata.obs['airr:chain_pairing'].value_counts())
 
-# Filter to high-quality cells
-# Keep cells with proper chain pairing (single pair)
-adata_clean = adata[adata.obs['chain_pairing'].isin(['single pair'])].copy()
-print(f'\nRetained {adata_clean.n_obs} cells with proper pairing')
+# Always drop likely doublets (multichain, and TCR+BCR ambiguous cells).
+# Orphan/extra cells are kept here; deleting all of them would preferentially remove
+# small clones and inflate apparent clonal expansion, so match that choice to the question.
+keep = mdata.obs['airr:receptor_type'].isin(['TCR', 'BCR']) & ~mdata.obs['airr:chain_pairing'].isin(['multichain'])
+sub = mdata[keep].copy()
+print(f'\nretained {sub.n_obs} cells after dropping doublets')
 
-# Define clonotypes
-# Uses amino acid CDR3 sequence identity
-# cutoff=0 means exact match required
-ir.pp.ir_dist(adata_clean, metric='identity', sequence='aa', cutoff=0)
-ir.tl.define_clonotypes(adata_clean, receptor_arms='all', dual_ir='primary_only')
+# TCR clonotypes: exact CDR3-nucleotide identity is correct for T cells (no somatic hypermutation).
+# ir_dist metric/sequence MUST match the subsequent define_* call or the cache silently mismatches.
+ir.pp.ir_dist(sub, metric='identity', sequence='nt', cutoff=0)
+ir.tl.define_clonotypes(sub, receptor_arms='all', dual_ir='primary_only')
+print('\nTCR clonotypes (identity):', sub.obs['airr:clone_id'].nunique())
 
-n_clonotypes = adata_clean.obs['clone_id'].nunique()
-print(f'Defined {n_clonotypes} unique clonotypes')
+# BCR-recommended settings (shown here on TCR data purely to exercise the call): identity
+# clonotyping SHATTERS hypermutated B-cell lineages into fake singletons, so BCR needs
+# distance clustering on nucleotides within same-V/same-J partitions. cutoff ~15 nt ~= 85% identity.
+ir.pp.ir_dist(sub, metric='normalized_hamming', sequence='nt', cutoff=15)
+ir.tl.define_clonotype_clusters(sub, sequence='nt', metric='normalized_hamming', receptor_arms='all', dual_ir='any', same_v_gene=True, same_j_gene=True)
+print('distance clusters (normalized_hamming):', sub.obs['airr:cc_nt_normalized_hamming'].nunique())
 
-# Clonal expansion analysis
-# Categorizes cells by clone size
-ir.tl.clonal_expansion(adata_clean)
+# Clonal expansion: bins each cell singleton / 2 / >= 3 via breakpoints=(1, 2).
+# target_col is resolved within the airr modality, so use the bare name 'clone_id'.
+ir.tl.clonal_expansion(sub, target_col='clone_id')
+print('\nclonal expansion:')
+print(sub.obs['airr:clonal_expansion'].value_counts())
 
-# Expansion categories: 1 (singleton), 2, 3-10, >10
-print('\nClonal expansion:')
-print(adata_clean.obs['clonal_expansion'].value_counts())
+# Diversity and overlap depend entirely on the QC filter + clonotype definition above;
+# report them alongside the number, and compare overlap only at equal sequencing depth.
+div = ir.tl.alpha_diversity(sub, groupby='gex:sample', target_col='clone_id', metric='normalized_shannon_entropy', inplace=False)
+print('\nnormalized Shannon per sample:')
+print(div.head())
 
-# Calculate percentage expanded (clone size > 1)
-expanded = (adata_clean.obs['clonal_expansion'] != '1').sum()
-pct_expanded = expanded / adata_clean.n_obs * 100
-print(f'Expanded cells: {pct_expanded:.1f}%')
+# Read AIRR fields with the get accessor - obsm['airr'] cannot be indexed like obs columns.
+junction_vj = ir.get.airr(sub, 'junction_aa', 'VJ_1')
+print('\nexample VJ junction_aa:', junction_vj.dropna().iloc[0])
 
-# Plot clonal expansion by cell type (if annotated)
-if 'cell_type' in adata_clean.obs.columns:
-    ir.pl.clonal_expansion(adata_clean, groupby='cell_type')
+# Overlay clonality on the transcriptome: cluster on GEX independently, then color the UMAP
+# by a clonality column pushed into the GEX modality. Never cluster cells on receptor sequence.
+gex = sub['gex']
+sc.pp.normalize_total(gex, target_sum=1e4)
+sc.pp.log1p(gex)
+sc.pp.pca(gex, n_comps=30)
+sc.pp.neighbors(gex)
+sc.tl.umap(gex)
+gex.obs['clonal_expansion'] = sub.obs['airr:clonal_expansion'].values
+ax = sc.pl.umap(gex, color='clonal_expansion', show=False)  # figure built in memory, not saved
+print('\nUMAP overlay of clonal expansion computed')
 
-# V gene usage
-# Summarize which V genes are most common
-ir.pl.vdj_usage(
-    adata_clean,
-    vdj_cols=['IR_VDJ_1_v_call'],  # TRB V gene
-    full_names=False,
-    max_segments=20
-)
-
-# Spectratype - CDR3 length distribution
-# Normal repertoire shows Gaussian-like distribution
-ir.pl.spectratype(adata_clean, chain='TRB', target_col='clone_id')
-
-# Integration with gene expression
-# Find genes associated with clonal expansion
-adata_clean.obs['is_expanded'] = (adata_clean.obs['clonal_expansion'] != '1').astype(str)
-
-sc.tl.rank_genes_groups(adata_clean, groupby='is_expanded', method='wilcoxon')
-print('\nTop genes in expanded vs singleton cells:')
-markers = sc.get.rank_genes_groups_df(adata_clean, group='True').head(10)
-print(markers[['names', 'logfoldchanges', 'pvals_adj']])
-
-# Export clonotype table
-clonotype_df = adata_clean.obs[[
-    'clone_id', 'clonal_expansion',
-    'IR_VDJ_1_junction_aa', 'IR_VJ_1_junction_aa',
-    'IR_VDJ_1_v_call', 'IR_VDJ_1_j_call'
-]].drop_duplicates()
-clonotype_df.to_csv('clonotypes_summary.csv', index=False)
-
-print('\nAnalysis complete!')
-print(f'Results saved to clonotypes_summary.csv')
+print('\nanalysis complete')
