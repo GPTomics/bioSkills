@@ -1,22 +1,24 @@
-# Reference: numpy 1.26+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
+# Reference: tslearn 0.8+, scikit-learn 1.4+ | Verify API if version differs
+import os
+import shutil
+import tempfile
 import numpy as np
 import matplotlib.pyplot as plt
-from tslearn.clustering import TimeSeriesKMeans
+from tslearn.clustering import TimeSeriesKMeans, silhouette_score
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance
-from sklearn.metrics import silhouette_score
 
 np.random.seed(42)
 
-# --- Simulate temporal expression profiles ---
+# --- Simulate temporal expression profiles (already selected as temporally variable) ---
 # 8 timepoints: typical early-response time course
 n_timepoints = 8
 n_genes = 400
 n_patterns = 4
 
 patterns = np.array([
-    [0, 1, 2, 2.5, 2, 1.5, 1, 0.5],     # early up
-    [0, 0, 0.2, 0.5, 1, 2, 2.5, 3],      # late up
-    [0, 0.5, 2, 3, 2, 0.5, 0, 0],        # transient
+    [0, 1, 2, 2.5, 2, 1.5, 1, 0.5],          # early up
+    [0, 0, 0.2, 0.5, 1, 2, 2.5, 3],          # late up
+    [0, 0.5, 2, 3, 2, 0.5, 0, 0],            # transient
     [0, -0.5, -1, -1.5, -2, -2.5, -2, -1.5]  # down
 ])
 
@@ -30,29 +32,45 @@ for i in range(n_genes):
     # SD = 0.3: moderate noise for normalized log-expression
     expr_mat[i] = base + patterns[pattern_idx] * scale + np.random.normal(0, 0.3, n_timepoints)
 
-# --- Standardize for clustering ---
-expr_3d = expr_mat[:, :, np.newaxis]
-scaler = TimeSeriesScalerMeanVariance()
-expr_scaled = scaler.fit_transform(expr_3d)
+# --- Standardize (mandatory: z-score per gene so shape, not magnitude, drives clustering) ---
+expr_scaled = TimeSeriesScalerMeanVariance().fit_transform(expr_mat[:, :, np.newaxis])
 
-# --- Select k via silhouette score ---
-# k range 2-10: below 2 is trivial; above 10 rarely adds meaning for 8 timepoints
+# --- Distance metric choice -------------------------------------------------------------------
+# Default to Euclidean-on-zscore (phase-SENSITIVE, cheap, no fabricated structure). Escalate to
+# DTW ONLY for real, expected phase shifts, and ALWAYS constrain the warping window: tslearn's
+# default global_constraint=None is the singularity-prone config that can invent co-regulation.
+# These simulated profiles have NO phase shift, so Euclidean is the correct choice here; the DTW
+# block is shown constrained for the phase-shift case.
+metric = 'euclidean'
+# sakoe_chiba_radius=2: warping-window half-width in timepoints; small for tightly sampled data.
+dtw_params = {'global_constraint': 'sakoe_chiba', 'sakoe_chiba_radius': 2}
+
+# --- Select k, scoring under the SAME geometry that forms the clusters ---
+# Scoring DTW clusters with a Euclidean silhouette is geometrically inconsistent and can mis-rank k.
+# tslearn.clustering.silhouette_score takes metric='dtw'/'softdtw' and precomputes the matching
+# distances internally, so k is ranked in the same space the clusters were built in.
+# k range 2-10: below 2 is trivial; above 10 rarely adds meaning for 8 timepoints.
 k_range = range(2, 11)
 sil_scores = []
 for k in k_range:
-    # metric='softdtw': differentiable approximation of DTW, faster for large datasets
-    # metric_params={'gamma': 0.5}: smoothing parameter; lower = closer to true DTW, higher = smoother
-    model = TimeSeriesKMeans(n_clusters=k, metric='softdtw', metric_params={'gamma': 0.5}, max_iter=30, random_state=42)
-    labels = model.fit_predict(expr_scaled)
-    # Euclidean silhouette as computational shortcut; DTW silhouette is O(n^2 * T^2)
-    sil = silhouette_score(expr_scaled.squeeze(), labels, metric='euclidean')
+    if metric == 'dtw':
+        model = TimeSeriesKMeans(n_clusters=k, metric='dtw', metric_params=dtw_params, max_iter=30, random_state=42)
+        labels = model.fit_predict(expr_scaled)
+        sil = silhouette_score(expr_scaled, labels, metric='dtw', metric_params=dtw_params)
+    else:
+        model = TimeSeriesKMeans(n_clusters=k, metric='euclidean', max_iter=30, random_state=42)
+        labels = model.fit_predict(expr_scaled)
+        sil = silhouette_score(expr_scaled, labels, metric='euclidean')
     sil_scores.append(sil)
 
-best_k = list(k_range)[np.argmax(sil_scores)]
-print(f'Best k by silhouette: {best_k} (score: {max(sil_scores):.3f})')
+best_k = list(k_range)[int(np.argmax(sil_scores))]
+print(f'Best k by silhouette ({metric}): {best_k} (score: {max(sil_scores):.3f})')
 
-# --- Cluster with optimal k ---
-model = TimeSeriesKMeans(n_clusters=best_k, metric='softdtw', metric_params={'gamma': 0.5}, max_iter=50, random_state=42)
+# --- Cluster with chosen k ---
+if metric == 'dtw':
+    model = TimeSeriesKMeans(n_clusters=best_k, metric='dtw', metric_params=dtw_params, max_iter=50, random_state=42)
+else:
+    model = TimeSeriesKMeans(n_clusters=best_k, metric='euclidean', max_iter=50, random_state=42)
 labels = model.fit_predict(expr_scaled)
 
 for k in range(best_k):
@@ -64,7 +82,7 @@ fig, axes = plt.subplots(2, 3, figsize=(15, 8))
 axes[0, 0].plot(list(k_range), sil_scores, 'o-', color='steelblue', linewidth=2)
 axes[0, 0].axvline(best_k, color='red', linestyle='--', alpha=0.7)
 axes[0, 0].set_xlabel('Number of clusters (k)')
-axes[0, 0].set_ylabel('Silhouette score')
+axes[0, 0].set_ylabel(f'Silhouette score ({metric})')
 axes[0, 0].set_title('Cluster selection')
 
 timepoint_labels = ['0h', '2h', '4h', '8h', '12h', '24h', '36h', '48h']
@@ -74,7 +92,7 @@ for k in range(min(best_k, 5)):
     cluster_mask = labels == k
     cluster_profiles = expr_scaled[cluster_mask].squeeze()
 
-    for profile in cluster_profiles:
+    for profile in np.atleast_2d(cluster_profiles):
         ax.plot(range(n_timepoints), profile, alpha=0.1, color=colors[k])
 
     centroid = model.cluster_centers_[k].squeeze()
@@ -88,17 +106,14 @@ for idx in range(min(best_k, 5) + 1, 6):
     axes[idx // 3, idx % 3].set_visible(False)
 
 plt.tight_layout()
-plt.savefig('tslearn_dtw_clusters.png', dpi=150, bbox_inches='tight')
-plt.show()
-print('\nPlot saved to tslearn_dtw_clusters.png')
 
-# --- Export cluster assignments ---
-cluster_df_rows = []
-for i in range(n_genes):
-    cluster_df_rows.append(f'gene_{i},{labels[i]}')
+# Write outputs to a temp dir and remove it so the example leaves no stray files
+out_dir = tempfile.mkdtemp(prefix='tslearn_clusters_')
+plt.savefig(os.path.join(out_dir, 'tslearn_clusters.png'), dpi=150, bbox_inches='tight')
 
-with open('tslearn_cluster_assignments.csv', 'w') as f:
+with open(os.path.join(out_dir, 'tslearn_cluster_assignments.csv'), 'w') as f:
     f.write('gene,cluster\n')
-    f.write('\n'.join(cluster_df_rows))
+    f.write('\n'.join(f'gene_{i},{labels[i]}' for i in range(n_genes)))
 
-print('Cluster assignments saved to tslearn_cluster_assignments.csv')
+print(f'\nPlot + cluster assignments written to {out_dir} (removed on exit)')
+shutil.rmtree(out_dir)

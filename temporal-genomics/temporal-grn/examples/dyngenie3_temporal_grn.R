@@ -1,4 +1,4 @@
-# Reference: numpy 1.26+, pandas 2.2+, statsmodels 0.14+ | Verify API if version differs
+# Reference: dynGENIE3 (GitHub vahuynh/dynGENIE3), R 4.x | Verify API if version differs
 library(dynGENIE3)
 
 set.seed(42)
@@ -53,7 +53,9 @@ cat(sprintf('Input: %d genes x %d timepoints x %d replicates\n',
             n_genes, length(timepoints), length(expr_list)))
 
 # --- Run dynGENIE3 ---
-# regulators: restrict to TF indices; improves accuracy and reduces noise
+# regulators: restrict to TF indices; improves precision (a non-TF can never be scored as a
+# regulator) and speed. tree.method defaults to 'RF' (Random Forests); Extra-Trees is opt-in
+# via tree.method='ET'. alpha defaults to 'from.data' (per-gene mRNA decay estimated from data).
 tf_indices <- seq_len(n_tfs)
 
 res <- dynGENIE3(
@@ -97,8 +99,9 @@ names(tf_total_weight) <- gene_names[tf_indices]
 cat('\nTF influence ranking (total outgoing weight):\n')
 print(sort(tf_total_weight, decreasing = TRUE))
 
-# --- Visualization ---
-pdf('dyngenie3_grn_results.pdf', width = 12, height = 5)
+# --- Visualization (written to a temp dir so no stray files land in the repo) ---
+pdf_path <- file.path(tempdir(), 'dyngenie3_grn_results.pdf')
+pdf(pdf_path, width = 12, height = 5)
 par(mfrow = c(1, 2))
 
 top_n <- min(20, nrow(link_list))
@@ -122,8 +125,9 @@ axis(2, at = seq(0, 1, length.out = n_tfs),
      labels = gene_names[tf_indices], las = 1, cex.axis = 0.8)
 
 dev.off()
-cat('\nPlot saved to dyngenie3_grn_results.pdf\n')
+cat(sprintf('\nPlot saved to %s\n', pdf_path))
 
 # --- Export results ---
-write.csv(link_list, 'dyngenie3_edge_list.csv', row.names = FALSE)
-cat('Edge list saved to dyngenie3_edge_list.csv\n')
+csv_path <- file.path(tempdir(), 'dyngenie3_edge_list.csv')
+write.csv(link_list, csv_path, row.names = FALSE)
+cat(sprintf('Edge list saved to %s\n', csv_path))

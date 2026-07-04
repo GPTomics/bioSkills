@@ -2,7 +2,7 @@
 
 ## Overview
 
-Groups genes with similar temporal expression profiles into clusters, revealing coordinated regulatory programs across time-course experiments. Supports soft (fuzzy) clustering with Mfuzz, automatic cluster selection with DEGreport, and DTW-based clustering with tslearn for phase-shifted patterns.
+Groups PRE-SELECTED temporally variable genes by expression-profile SHAPE into candidate co-expression programs. Clustering is descriptive and unsupervised - it has no null and always returns clusters - so it is strictly downstream of gene selection (differential-expression/timeseries-de or a variance filter), NOT a test of which genes are dynamic. Supports soft (fuzzy) clustering with Mfuzz, hard/soft clustering with TCseq, automatic-k hierarchical clustering with DEGreport, and DTW/soft-DTW clustering with tslearn for phase-shifted patterns.
 
 ## Prerequisites
 
@@ -53,24 +53,27 @@ Tell the AI agent what to cluster:
 
 ## What the Agent Will Do
 
-1. Load the expression matrix and verify timepoint structure
-2. Filter for temporally variable genes if not already filtered
-3. Standardize expression profiles (z-score across timepoints)
-4. Estimate optimal cluster number (silhouette, gap statistic, or degPatterns auto-selection)
-5. Run clustering (Mfuzz, TCseq, DEGreport, or tslearn)
-6. Filter genes by membership score or cluster quality
-7. Generate cluster profile plots and membership heatmaps
-8. Export cluster assignments for downstream enrichment analysis
+1. Confirm the input is pre-selected temporally variable genes; if it is the full matrix, prefilter (DE hits or top-variance) before clustering
+2. Standardize expression profiles (z-score per gene across timepoints)
+3. Choose a distance metric (Euclidean-on-zscore / correlation / constrained DTW) appropriate to whether phase shifts are expected
+4. Estimate and VALIDATE the fuzzifier (Mfuzz) and triangulate k across indices, biology, and bootstrap stability (not a single index)
+5. Run clustering (Mfuzz, TCseq, DEGreport, or tslearn) and filter genes by membership
+6. Interpret centroids as candidate programs; generate profile plots
+7. Run per-cluster enrichment using the INPUT gene set as background, avoiding the double-dipping trap
+8. Export cluster assignments for downstream analysis
 
 ## Tips
 
-- Always standardize before clustering; raw expression values cause high-expression genes to dominate cluster assignments
-- Start with Mfuzz for most temporal clustering tasks; its soft membership handles ambiguous genes gracefully
-- The fuzzifier parameter m should be estimated from data with mestimate(); do not hardcode a value
-- Use DTW clustering only when phase shifts are biologically expected (e.g., signaling cascades); it is much slower than Euclidean
-- Membership threshold of 0.5 for Mfuzz is standard but can be relaxed to 0.3 for exploratory analyses
-- Run per-cluster GO enrichment to validate that clusters capture distinct biological processes
-- For large gene sets (>10,000), pre-filter to the top 2000-5000 variable genes to keep clustering tractable
+- Prefilter FIRST: cluster only temporally variable genes (timeseries-DE hits or a variance filter). Clustering all genes is the #1 error - z-scoring amplifies flat-gene noise into fake programs, and clustering has no null so it always returns clusters.
+- Always standardize (z-score per gene) before clustering; raw values let high-expression genes dominate on magnitude instead of shape.
+- Start with Mfuzz (soft) for most tasks; its continuous membership exposes ambiguous genes rather than hiding them in a hard label.
+- Do not hardcode m=2 and do not trust mestimate() blindly: it implements Schwaemmle & Jensen (2010), is dominated by the number of timepoints, and can go degenerate at extreme D. Inspect the returned m and the fraction of genes clearing the acore cutoff.
+- Membership threshold 0.5 for Mfuzz is a convention; relax to 0.3 for exploratory work (admits more noise). Always report the retained fraction.
+- The distance metric matters more than the algorithm. Default to Euclidean-on-zscore or correlation. Use DTW only when phase shifts are biologically expected (e.g., signaling cascades), always with a Sakoe-Chiba band - unconstrained DTW invents structure. Soft-DTW is not faster (still quadratic); its value is a differentiable, well-defined average.
+- Pick k by triangulation, not one index: min centroid distance, silhouette (scored under the clustering metric), biology, and above all bootstrap/consensus STABILITY.
+- Do not test clusters for the temporal signal used to select them (double-dipping inflates p-values); test only against independent annotations.
+- Run per-cluster GO/GSEA with the INPUT gene set as background, never the whole genome - genome-as-background rediscovers the selection.
+- For large gene sets (>10,000), pre-filter to the top variable genes to keep clustering tractable (and correct).
 
 ## Related Skills
 
