@@ -7,7 +7,7 @@ primary_tool: TOGA
 
 ## Version Compatibility
 
-Reference examples tested with: TOGA 1.1.7+ (hillerlab/TOGA; Kirilenko 2023 Science 380:eabn3107), CESAR 2.0 (Sharma, Schwede & Hiller 2017 Bioinformatics 33:3985), LiftOff 1.6.3+ (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643), Comparative Annotation Toolkit (CAT) 2.4+, GeMoMa 1.9+ (Keilwagen 2019 Methods Mol Biol 1962:161), UCSC liftOver 2024+, Cactus 2.9.1+ (for HAL input), HAL toolkit 2.3+, NextFlow 24+ for TOGA pipeline, BUSCO 5.7+ / Compleasm 0.2.7+ for QC, Snakemake 8.0+ for CAT, R 4.4+. The current TOGA expects HAL from Cactus 2.5+; older HAL formats may fail.
+Reference examples tested with: TOGA 1.1.7+ (hillerlab/TOGA; Kirilenko 2023 Science 380:eabn3107), CESAR 2.0 (Sharma, Schwede & Hiller 2017 Bioinformatics 33:3985), LiftOff 1.6.3+ (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643), Comparative Annotation Toolkit (CAT) 2.4+, GeMoMa 1.9+ (Keilwagen 2019 Methods Mol Biol 1962:161), UCSC liftOver 2024+, Cactus 2.9.1+ (for HAL input), HAL toolkit 2.3+, NextFlow 24+ for TOGA pipeline, BUSCO 5.7+ / Compleasm 0.2.7+ for QC, Luigi + Toil for CAT, R 4.4+. The current TOGA expects HAL from Cactus 2.5+; older HAL formats may fail.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `toga.py --help`; `cesar --help`; `liftoff --version`
@@ -34,7 +34,7 @@ If code throws `TOGA chain file missing`, `CESAR fragment not found`, `LiftOff a
 | CESAR 2.0 (Sharma, Schwede & Hiller 2017 Bioinformatics 33:3985) | HMM-based codon-aware exon projection | Aligned exons + frame preservation | Most accurate exon projection from WGA; preserves frame across indels | Used internally by TOGA; standalone use more rare |
 | LiftOff (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643) | Read-mapping-style ortholog detection + GFF transfer | Lifted GFF | Fast; no WGA required; standard for query-vs-reference pairs | Tandem duplicates ambiguous; not for gene loss detection |
 | UCSC liftOver | Coordinate-based lift using chain files | Coordinate-lifted regions | Standard for coordinate transfers; not for gene annotations | Doesn't handle gene structure changes |
-| Comparative Annotation Toolkit (CAT) | Snakemake workflow integrating Augustus + LiftOff + TransMap | Per-species comparative annotation | Integrates de novo + projection | Snakemake setup complex |
+| Comparative Annotation Toolkit (CAT) | Luigi + Toil workflow integrating TransMap + AUGUSTUS (TM/TMR/CGP/PB) + homGeneMapping | Per-species comparative annotation | Integrates de novo + projection | Requires Cactus HAL input; Toil/Luigi setup complex |
 | GeMoMa (Keilwagen 2019 Methods Mol Biol 1962:161) | Reference protein homology + evidence integration | Comparative gene annotation | Combines multiple reference species evidence | Slower; less popular than TOGA / LiftOff |
 | AUGUSTUS (Stanke 2008) | De novo prediction; not strictly projection | Per-genome annotation | Augments projection with de novo | Standalone de novo; lower comparative accuracy |
 | BRAKER3 (Gabriel 2024) | Augustus + GeneMark-ETP + RNA-Seq + protein | Comparative-aware de novo | Modern de novo with evidence | Not strictly projection |
@@ -55,7 +55,7 @@ Methodology evolves; the Kirilenko 2023 TOGA paradigm (WGA-anchored + intactness
 | Project alternative isoforms | TOGA (preserves multiple transcripts) | Standard |
 | Project annotations to assembly with high N50 + chromosome-level | TOGA | Requires good assembly |
 | Project to fragmented draft assembly | LiftOff (more tolerant) | LiftOff works on draft assemblies |
-| Multi-species annotation pipeline | CAT (Snakemake) | Integrated workflow |
+| Multi-species annotation pipeline | CAT (Luigi + Toil) | Integrated workflow |
 | Annotate plant genome from Arabidopsis | LiftOff with plant-specific options | Standard for plant work |
 | Pseudogenization detection at scale | TOGA + intactness analysis | Designed for this |
 | Reference-free gene prediction | BRAKER3 or AUGUSTUS | De novo; not projection |
@@ -286,12 +286,14 @@ For closely related species, default settings suffice. For divergent (75-90% ide
 git clone https://github.com/ComparativeGenomicsToolkit/Comparative-Annotation-Toolkit
 cd Comparative-Annotation-Toolkit && pip install .
 
-# Edit config.yaml with reference + query genomes
-# Then run Snakemake pipeline
-snakemake --use-conda --cores 32 --configfile config.yaml
+# Edit the CAT config file with reference + query genomes; input is a Cactus HAL alignment
+# CAT is orchestrated by Luigi (task graph) on top of Toil (execution); launch the RunCat module
+luigi --module cat RunCat --hal=alignment.hal --ref-genome=mm10 --config=cat.config \
+      --work-dir work --out-dir out --workers=10 --local-scheduler \
+      --augustus --augustus-cgp --augustus-pb --assembly-hub > log.txt
 ```
 
-CAT integrates AUGUSTUS + LiftOff + TransMap; output is multi-species comparative annotation.
+CAT projects the reference annotation across the Cactus alignment with TransMap, then integrates AUGUSTUS (TM/TMR/CGP/PB) and homGeneMapping; output is multi-species comparative annotation.
 
 ## Reconciliation: When Methods Disagree
 
@@ -351,7 +353,7 @@ CAT integrates AUGUSTUS + LiftOff + TransMap; output is multi-species comparativ
 | TOGA Nextflow hangs | Cluster resource issue | Restart with `-resume`; check Nextflow config |
 | BUSCO of projected annotation low | Missing core genes | Likely projection failure; manual review |
 | Many "PI" classifications | Assembly fragmentation | Improve assembly; or accept partial intactness |
-| CAT Snakemake step fails | Conda env issue | Re-create conda envs; check Snakemake logs |
+| CAT Luigi/Toil step fails | Conda env or Toil jobstore issue | Re-create conda envs; inspect the Toil jobstore and Luigi task logs |
 | LiftOff "no overlap" | Reference / query coordinate systems differ | Verify same genome version |
 | TOGA intactness disagrees with biology | Edge case; manual review needed | Inspect CESAR alignment; cross-validate with RNA-Seq |
 
