@@ -185,16 +185,16 @@ All installers support `--categories` for selective installation and `--dry-run`
 | **gene-regulatory-networks** | 6 | pySCENIC, SCENIC+, WGCNA, CellOracle, VIPER | Co-expression networks, bulk GRN inference and TF activity, regulon inference, multiomics GRN, perturbation simulation |
 | **causal-genomics** | 11 | TwoSampleMR, MendelianRandomization, coloc, susieR, CAUSE, LHC-MR, LDSC, LDAK, HDL, LAVA, FUSION, MetaXcan, FOCUS, MAGMA, PoPS, GenomicSEM, MTAG | Mendelian randomization (incl. MVMR, cis-MR drug-target, CHP-aware CAUSE/LHC-MR/LCV), colocalization (coloc.abf/susie, SMR/HEIDI, eCAVIAR, PWCoCo, moloc, HyPrColoc), fine-mapping (SuSiE/SuSiE-inf, FINEMAP, PolyFun, SuSiEx), mediation (CMAverse 4-way, HIMA2 high-D EWAS, MR-mediation), pleiotropy (UHP vs CHP), TWAS with triangulation, heritability partitioning (LDSC/LDAK, baseline-LD, Finucane 2018 cell-type), proteome MR for drug targets (UKB-PPP/deCODE), effector-gene prioritization (L2G/MAGMA/PoPS/cS2G), genetic correlation (LDSC/HDL/LAVA), GenomicSEM common-factor GWAS |
 | **rna-structure** | 4 | ViennaRNA, Infernal, ShapeMapper2, R-scape | RNA secondary structure prediction (ensemble vs MFE/centroid/MEA, pseudoknot and long-RNA routes), ncRNA homology search with covariance models (Rfam GA/clan resolution), SHAPE-MaP/DMS-MaPseq structure probing, and covariation validation of conserved structure (R-scape power-aware verdict) |
-| **temporal-genomics** | 5 | CosinorPy, Mfuzz, mgcv, statsmodels, scipy | Circadian rhythms, temporal clustering, trajectory modeling, dynamic GRN inference, periodicity detection |
+| **temporal-genomics** | 6 | CosinorPy, MetaCycle, LimoRhyde, dryR, scipy/astropy, Mfuzz, mgcv, tradeSeq, ruptures, dynGENIE3, bnlearn | Decision-grade time-series omics: known-period rhythm detection (cosinor/JTK/eJTK/ARSER/RAIN/MetaCycle), differential rhythmicity between conditions (LimoRhyde/dryR/compareRhythms, gain/loss/phase/amplitude, no detect-then-Venn), unknown-period discovery (generalized Lomb-Scargle, cone-of-influence wavelets), temporal-profile clustering (Mfuzz/DTW), GAM + changepoint trajectory modeling (NB/autocorrelation-aware), hypothesis-grade dynamic GRN (Granger/dynGENIE3/DBN); with sampling-design, multiple-testing, and causal-ceiling guardrails |
 | **ecological-genomics** | 6 | OBITools3, iNEXT, vegan, LEA, hierfstat, ASAP | eDNA metabarcoding, biodiversity metrics, community ecology, landscape genomics, conservation genetics, species delimitation |
 | **machine-learning** | 6 | scikit-learn, scikit-survival, shap, scvi-tools, boruta | Decision-grade ML for omics: biomarker discovery, p>>n classification, leakage-safe validation and calibration, SHAP interpretation, survival prediction, single-cell atlas mapping |
 | **clinical-biostatistics** | 12 | statsmodels, scipy, tableone, pyreadstat, lifelines; R mmrm, rbmi, gMCP, rpact, RBesT, BOIN, survival | CDISC SDTM/ADaM data handling, logistic regression with FDA 2023 marginal vs conditional, categorical tests (Boschloo, mid-p McNemar, Wilson/MN CIs), effect measures, subgroup analysis with modern HTE (causal forests, EXNEX), trial reporting under ICH E9(R1) estimands, survival (Cox/RMST/competing risks/MaxCombo), missing data sensitivity (MMRM, reference-based MI, Permutt tipping point), power/sample size, graphical multiplicity, adaptive designs, Bayesian trials (BOIN, MAP priors, RWE) |
 
-**Total: 560 skills across 63 categories**
+**Total: 561 skills across 63 categories**
 
 ## Example Usage
 
-Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 560 skills across 63 categories:
+Once skills are deployed, ask your agent naturally. Here are examples across common workflows; the full collection covers 561 skills across 63 categories:
 
 ```
 # RNA-seq & Differential Expression
@@ -308,6 +308,7 @@ Once skills are deployed, ask your agent naturally. Here are examples across com
 
 # Temporal Analysis
 "Test which genes have circadian expression patterns in my time-course data"
+"Test whether rhythms differ between my wild-type and knockout mice"
 "Cluster my temporally variable genes by expression profile shape"
 "Find periodic patterns of unknown period in my unevenly sampled time-series"
 

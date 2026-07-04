@@ -113,6 +113,6 @@ BiocManager::install(c('DESeq2', 'Seurat', 'clusterProfiler'))
 - **genome-annotation** - Genome annotation skills
 - **gene-regulatory-networks** - GRN inference skills
 - **causal-genomics** - Causal inference from GWAS
-- **temporal-genomics** - Circadian rhythms, temporal clustering, trajectory modeling
+- **temporal-genomics** - Circadian and differential rhythmicity, periodicity, temporal clustering, trajectory modeling, dynamic GRN
 - **ecological-genomics** - eDNA metabarcoding, biodiversity metrics, community ecology
 - **clinical-biostatistics** - Clinical trial statistical methods

@@ -1,6 +1,10 @@
-# Reference: numpy 1.26+, scanpy 1.10+, scikit-learn 1.4+ | Verify API if version differs
+# Reference: Mfuzz 2.64+, Biobase 2.60+ (Bioconductor) | Verify API if version differs
 library(Mfuzz)
 library(Biobase)
+
+# Route any auto-opened default graphics device (some Mfuzz plot helpers open one) to a
+# temp file so headless Rscript does not leave a stray Rplots.pdf in the working directory
+options(device = function(...) grDevices::pdf(tempfile(fileext = '.pdf')))
 
 set.seed(42)
 
@@ -40,7 +44,9 @@ cat(sprintf('Genes after variance filter: %d\n', nrow(exprs(eset))))
 eset <- standardise(eset)
 
 # --- Estimate fuzzifier ---
-# mestimate(): data-driven fuzzifier prevents over- or under-fuzzy clusters
+# mestimate() implements Schwaemmle & Jensen (2010): the smallest m that stops fuzzy c-means from
+# finding tight clusters in randomized data. It is dominated by D (number of timepoints) and can
+# go degenerate at extreme D, so inspect m AND the membership distribution -- do not trust it blindly.
 m <- mestimate(eset)
 cat(sprintf('Estimated fuzzifier m: %.2f\n', m))
 
@@ -56,7 +62,11 @@ for (k in k_range) {
     min_dists <- c(min_dists, min(dists))
 }
 
-pdf('mfuzz_cluster_selection.pdf', width = 6, height = 4)
+# Write all outputs to a temp dir and unlink at the end so the example leaves no stray files
+out_dir <- tempfile('mfuzz_out_')
+dir.create(out_dir)
+
+pdf(file.path(out_dir, 'mfuzz_cluster_selection.pdf'), width = 6, height = 4)
 plot(k_range, min_dists, type = 'b', pch = 19, col = 'steelblue',
      xlab = 'Number of clusters (k)', ylab = 'Minimum centroid distance',
      main = 'Cluster number selection')
@@ -80,12 +90,12 @@ n_core <- sum(sapply(core, nrow))
 cat(sprintf('\nCore genes (membership >= 0.5): %d / %d\n', n_core, nrow(exprs(eset))))
 
 # --- Visualization ---
-pdf('mfuzz_clusters.pdf', width = 10, height = 8)
+pdf(file.path(out_dir, 'mfuzz_clusters.pdf'), width = 10, height = 8)
 mfuzz.plot2(eset, cl, mfrow = c(2, 2), time.labels = colnames(expr_mat),
             centre = TRUE, x11 = FALSE)
 dev.off()
 
-pdf('mfuzz_overlap.pdf', width = 6, height = 6)
+pdf(file.path(out_dir, 'mfuzz_overlap.pdf'), width = 6, height = 6)
 o <- overlap(cl)
 # thres=0.05: show overlap where >5% of genes share substantial membership
 overlap.plot(cl, over = o, thres = 0.05)
@@ -98,10 +108,7 @@ cluster_df <- data.frame(
     max_membership = apply(cl$membership, 1, max)
 )
 cluster_df <- cluster_df[order(cluster_df$cluster, -cluster_df$max_membership), ]
-write.csv(cluster_df, 'mfuzz_cluster_assignments.csv', row.names = FALSE)
+write.csv(cluster_df, file.path(out_dir, 'mfuzz_cluster_assignments.csv'), row.names = FALSE)
 
-cat('\nOutput files:\n')
-cat('  mfuzz_cluster_selection.pdf\n')
-cat('  mfuzz_clusters.pdf\n')
-cat('  mfuzz_overlap.pdf\n')
-cat('  mfuzz_cluster_assignments.csv\n')
+cat(sprintf('\nOutputs (selection/clusters/overlap PDFs + assignments CSV) written to %s (removed on exit)\n', out_dir))
+unlink(out_dir, recursive = TRUE)

@@ -1,10 +1,10 @@
-# Reference: R stats (base), numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
+# Reference: mgcv 1.9+ | Verify API if version differs
 library(mgcv)
 
 set.seed(42)
 
 # --- Simulate time-course data with two conditions ---
-# 10 timepoints: 0-48h, denser early sampling to capture rapid changes
+# 10 timepoints over 0-48h, denser early to capture rapid changes.
 timepoints <- c(0, 2, 4, 8, 12, 18, 24, 30, 36, 48)
 n_replicates <- 3
 
@@ -13,125 +13,111 @@ for (cond in c('control', 'treated')) {
     for (rep in seq_len(n_replicates)) {
         for (t in timepoints) {
             base <- 8 + 3 * sin(pi * t / 48)
-            if (cond == 'treated') {
-                effect <- 1.5 * (1 - exp(-t / 10))
-            } else {
-                effect <- 0
-            }
-            # SD = 0.4: moderate biological + technical noise for log-expression
+            effect <- if (cond == 'treated') 1.5 * (1 - exp(-t / 10)) else 0
+            # SD=0.4: moderate biological + technical noise on a LOG-expression scale,
+            # which is what makes a Gaussian GAM valid here (see the NB block for raw counts).
             expr <- base + effect + rnorm(1, 0, 0.4)
-            gene_df <- rbind(gene_df, data.frame(
-                time = t, expression = expr,
-                condition = cond, replicate = rep
-            ))
+            gene_df <- rbind(gene_df, data.frame(time = t, expression = expr,
+                                                 condition = cond, replicate = rep))
         }
     }
 }
 
-gene_df$condition <- as.factor(gene_df$condition)
-gene_df$is_treated <- as.numeric(gene_df$condition == 'treated')
-
 # --- Basic GAM: temporal trend ---
-# k=6: basis dimension; appropriate for 10 unique timepoints (k < n_unique)
-# method='REML': restricted maximum likelihood; more robust than GCV for smooth estimation
-fit_basic <- gam(expression ~ s(time, k = 6), data = gene_df, method = 'REML')
+# k=6: basis-dimension CEILING (max flexibility), NOT a knot count and < 10 unique timepoints.
+# method='REML': better-behaved objective than GCV, resists under/over-smoothing (Wood 2011).
+# Independence: with 3 replicates/timepoint here plain gam() is defensible; for a SINGLE series with
+# autocorrelated residuals, switch to gamm(correlation = corAR1(form = ~time)) or bam(rho=, AR.start=).
+fit_basic <- gam(expression ~ s(time, k = 6, bs = 'tp'), data = gene_df, method = 'REML')
 
 cat('=== Basic GAM (temporal trend) ===\n')
-summary(fit_basic)
+print(summary(fit_basic))
+# edf near 1 => penalty shrank to linear; edf near k-1 => nearly full flexibility.
+# The smooth-term p-value is APPROXIMATE (Wood 2013): treat as categorical, not a magnitude.
 
-# gam.check: residual diagnostics and basis dimension adequacy
-# k-index >= 1.0 indicates sufficient basis dimension
-cat('\n=== Model diagnostics ===\n')
-gam.check(fit_basic)
+cat('\n=== Model diagnostics (k.check) ===\n')
+# k-index < 1 with small p => residual pattern the basis is too rigid to catch.
+# Correct response: double k and refit; if edf barely moves, suspect autocorrelation.
+print(k.check(fit_basic))
 
-# --- Condition comparison with difference smooth ---
-# s(time, k=6): shared baseline smooth
-# s(time, k=6, by=is_treated): deviation smooth for treatment effect over time
-# The p-value of the second smooth tests whether conditions differ
-fit_diff <- gam(
-    expression ~ is_treated + s(time, k = 6) + s(time, k = 6, by = is_treated),
-    data = gene_df, method = 'REML'
-)
+# --- Raw counts: NB family with a library-size offset ---
+# Gaussian is wrong on raw counts (overdispersed, mean-variance coupled, can predict < 0).
+# nb() estimates theta by REML; offset(log(libsize)) makes s(time) model rate, not depth.
+count_df <- gene_df
+count_df$library_size <- round(runif(nrow(count_df), 8e6, 1.2e7))
+count_df$counts <- rpois(nrow(count_df), lambda = exp(count_df$expression - 8) *
+                         count_df$library_size / 1e7)
+fit_nb <- gam(counts ~ s(time, k = 6) + offset(log(library_size)),
+              data = count_df, family = nb(), method = 'REML')
+cat('\n=== NB GAM on raw counts (test column is Chi.sq, not F) ===\n')
+print(summary(fit_nb)$s.table)
 
-cat('\n=== Condition comparison (difference smooth) ===\n')
-summary(fit_diff)
+# --- Condition comparison: ordered-factor difference smooth ---
+# Ordered factor => s(time, by=condition) is the difference smooth (treated minus control);
+# its single p-value directly tests divergence. The parametric main effect is REQUIRED
+# because centered smooths cannot carry the group's overall level.
+gene_df$condition <- as.ordered(gene_df$condition)
+fit_diff <- gam(expression ~ condition + s(time, k = 6) + s(time, k = 6, by = condition),
+                data = gene_df, method = 'REML')
+cat('\n=== Condition comparison (ordered-factor difference smooth) ===\n')
+print(summary(fit_diff))
 
 # --- Model comparison: linear vs GAM ---
 fit_linear <- gam(expression ~ time, data = gene_df, method = 'REML')
-
-# AIC comparison: lower AIC = better model
-# Difference > 2: meaningful improvement; > 10: strong improvement
-aic_linear <- AIC(fit_linear)
-aic_gam <- AIC(fit_basic)
+# Delta AIC > 2: meaningful improvement; > 10: strong. Decides non-linear vs linear.
 cat(sprintf('\nAIC linear: %.1f, AIC GAM: %.1f, Delta AIC: %.1f\n',
-            aic_linear, aic_gam, aic_linear - aic_gam))
+            AIC(fit_linear), AIC(fit_basic), AIC(fit_linear) - AIC(fit_basic)))
 
-# --- Prediction with confidence intervals ---
-new_ctrl <- data.frame(time = seq(0, 48, length.out = 200), is_treated = 0)
-new_treat <- data.frame(time = seq(0, 48, length.out = 200), is_treated = 1)
+# --- Prediction with pointwise intervals (within sampled range only) ---
+lvls <- levels(gene_df$condition)
+grid_ctrl <- data.frame(time = seq(0, 48, length.out = 200),
+                        condition = ordered('control', levels = lvls))
+grid_treat <- data.frame(time = seq(0, 48, length.out = 200),
+                         condition = ordered('treated', levels = lvls))
+pred_ctrl <- predict(fit_diff, newdata = grid_ctrl, se.fit = TRUE)
+pred_treat <- predict(fit_diff, newdata = grid_treat, se.fit = TRUE)
+# 1.96*SE is a POINTWISE band; overlapping bands are NOT a divergence test (use the p-value).
+grid_ctrl$fitted <- pred_ctrl$fit; grid_ctrl$lower <- pred_ctrl$fit - 1.96 * pred_ctrl$se.fit
+grid_ctrl$upper <- pred_ctrl$fit + 1.96 * pred_ctrl$se.fit
+grid_treat$fitted <- pred_treat$fit; grid_treat$lower <- pred_treat$fit - 1.96 * pred_treat$se.fit
+grid_treat$upper <- pred_treat$fit + 1.96 * pred_treat$se.fit
 
-pred_ctrl <- predict(fit_diff, newdata = new_ctrl, se.fit = TRUE)
-pred_treat <- predict(fit_diff, newdata = new_treat, se.fit = TRUE)
-
-# 1.96 * SE: 95% pointwise confidence interval
-new_ctrl$fitted <- pred_ctrl$fit
-new_ctrl$lower <- pred_ctrl$fit - 1.96 * pred_ctrl$se.fit
-new_ctrl$upper <- pred_ctrl$fit + 1.96 * pred_ctrl$se.fit
-
-new_treat$fitted <- pred_treat$fit
-new_treat$lower <- pred_treat$fit - 1.96 * pred_treat$se.fit
-new_treat$upper <- pred_treat$fit + 1.96 * pred_treat$se.fit
-
-# --- Visualization ---
-pdf('gam_trajectory_results.pdf', width = 12, height = 5)
+# --- Visualization (written to a temp file, then removed: no stray outputs) ---
+out_pdf <- tempfile(fileext = '.pdf')
+pdf(out_pdf, width = 12, height = 5)
 par(mfrow = c(1, 2))
-
-plot(gene_df$time[gene_df$condition == 'control'],
-     gene_df$expression[gene_df$condition == 'control'],
-     pch = 19, col = rgb(0.2, 0.4, 0.8, 0.5), cex = 0.8,
-     xlab = 'Time (hours)', ylab = 'Expression',
+is_ctrl <- gene_df$condition == 'control'
+plot(gene_df$time[is_ctrl], gene_df$expression[is_ctrl], pch = 19,
+     col = rgb(0.2, 0.4, 0.8, 0.5), cex = 0.8, xlab = 'Time (hours)', ylab = 'Expression',
      main = 'GAM trajectory by condition', ylim = c(6, 14))
-points(gene_df$time[gene_df$condition == 'treated'],
-       gene_df$expression[gene_df$condition == 'treated'],
-       pch = 17, col = rgb(0.8, 0.2, 0.2, 0.5), cex = 0.8)
-
-lines(new_ctrl$time, new_ctrl$fitted, col = 'blue', lwd = 2)
-polygon(c(new_ctrl$time, rev(new_ctrl$time)),
-        c(new_ctrl$lower, rev(new_ctrl$upper)),
+points(gene_df$time[!is_ctrl], gene_df$expression[!is_ctrl], pch = 17,
+       col = rgb(0.8, 0.2, 0.2, 0.5), cex = 0.8)
+lines(grid_ctrl$time, grid_ctrl$fitted, col = 'blue', lwd = 2)
+polygon(c(grid_ctrl$time, rev(grid_ctrl$time)), c(grid_ctrl$lower, rev(grid_ctrl$upper)),
         col = rgb(0.2, 0.4, 0.8, 0.15), border = NA)
-
-lines(new_treat$time, new_treat$fitted, col = 'red', lwd = 2)
-polygon(c(new_treat$time, rev(new_treat$time)),
-        c(new_treat$lower, rev(new_treat$upper)),
+lines(grid_treat$time, grid_treat$fitted, col = 'red', lwd = 2)
+polygon(c(grid_treat$time, rev(grid_treat$time)), c(grid_treat$lower, rev(grid_treat$upper)),
         col = rgb(0.8, 0.2, 0.2, 0.15), border = NA)
-
-legend('topleft', c('Control', 'Treated'), col = c('blue', 'red'),
-       lwd = 2, pch = c(19, 17), bty = 'n')
-
-plot(fit_basic, shade = TRUE, shade.col = rgb(0, 0, 0, 0.1),
-     xlab = 'Time (hours)', ylab = 's(time)',
-     main = 'Smooth term (basic GAM)')
+legend('topleft', c('Control', 'Treated'), col = c('blue', 'red'), lwd = 2,
+       pch = c(19, 17), bty = 'n')
+plot(fit_basic, shade = TRUE, shade.col = rgb(0, 0, 0, 0.1), xlab = 'Time (hours)',
+     ylab = 's(time)', main = 'Smooth term (basic GAM)')
 rug(gene_df$time)
-
 dev.off()
-cat('\nPlot saved to gam_trajectory_results.pdf\n')
+unlink(out_pdf)
 
-# --- Genome-wide GAM fitting example ---
+# --- Genome-wide GAM fitting + BH FDR (5 demo genes) ---
 cat('\n=== Genome-wide GAM fitting (5 demo genes) ===\n')
-n_demo <- 5
 demo_results <- data.frame()
-for (g in seq_len(n_demo)) {
+for (g in seq_len(5)) {
     demo_expr <- 8 + rnorm(nrow(gene_df), 0, 0.5)
-    if (g <= 3) {
-        demo_expr <- demo_expr + 2 * sin(pi * gene_df$time / 48)
-    }
+    if (g <= 3) demo_expr <- demo_expr + 2 * sin(pi * gene_df$time / 48)
     demo_df <- data.frame(expression = demo_expr, time = gene_df$time)
     fit_g <- gam(expression ~ s(time, k = 6), data = demo_df, method = 'REML')
     s_tab <- summary(fit_g)$s.table
-    demo_results <- rbind(demo_results, data.frame(
-        gene = paste0('gene_', g), edf = s_tab[, 'edf'],
-        F_stat = s_tab[, 'F'], p_value = s_tab[, 'p-value']
-    ))
+    demo_results <- rbind(demo_results, data.frame(gene = paste0('gene_', g),
+        edf = s_tab[, 'edf'], p_value = s_tab[, 'p-value']))
 }
+# q<0.05: standard FDR floor. Per-gene smooth p-values are approximate, so the FDR is too.
 demo_results$q_value <- p.adjust(demo_results$p_value, method = 'BH')
 print(demo_results)

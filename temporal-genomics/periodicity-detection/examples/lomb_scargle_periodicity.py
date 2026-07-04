@@ -1,139 +1,91 @@
-# Reference: matplotlib 3.8+, numpy 1.26+, pwr 1.3+, scipy 1.12+, statsmodels 0.14+ | Verify API if version differs
+# Reference: numpy 2.2+, scipy 1.15+, astropy 8.0+, statsmodels 0.14+, matplotlib 3.8+ | Verify API if version differs
+# Unknown-period discovery on IRREGULARLY sampled data with generalized Lomb-Scargle,
+# a defensible false-alarm probability (Baluev), and genome-wide BH FDR control.
+import os
+import tempfile
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from scipy.signal import lombscargle, find_peaks
+from scipy.signal import lombscargle
+from astropy.timeseries import LombScargle
 from statsmodels.stats.multitest import multipletests
 
-np.random.seed(42)
+rng = np.random.default_rng(42)
 
-# --- Simulate irregularly sampled periodic signal ---
-# 30 observation times over 96h: irregular spacing mimics real experimental sampling
-n_obs = 30
-times = np.sort(np.random.uniform(0, 96, n_obs))
+# --- Irregularly sampled periodic signal (mimics dropped/pooled timepoints) ---
+n_obs = 40
+times = np.sort(rng.uniform(0, 96, n_obs))          # 96 h span, uneven spacing
+true_period = 18.0                                   # non-circadian (fast-dividing cell cycle)
+amplitude, mesor = 2.0, 8.0                          # nonzero mean -> classic-LS centering matters
+signal = mesor + amplitude * np.sin(2 * np.pi * times / true_period) + rng.normal(0, 0.5, n_obs)
 
-# True period = 18h: non-circadian oscillation (e.g., cell cycle in fast-dividing cells)
-true_period = 18.0
-amplitude = 2.0
-mesor = 8.0
-# SD = 0.5: moderate noise for normalized expression
-signal = mesor + amplitude * np.sin(2 * np.pi * times / true_period) + np.random.normal(0, 0.5, n_obs)
+# --- scipy generalized LS (floating mean); ANGULAR frequency grid ---
+# min_period ~ span/2 demands >=2 cycles; max_freq at 6 h ~ pseudo-Nyquist for ~2.4 h median spacing.
+periods = np.linspace(6.0, 72.0, 2000)               # 2000 pts: finer than peak width ~1/T_span
+angular = 2 * np.pi / periods
+# floating_mean=True (scipy >=1.15) fits a per-frequency offset -> pass RAW values.
+power_gls = lombscargle(times, signal, angular, normalize=True, floating_mean=True)
+detected_period = periods[np.argmax(power_gls)]
+print(f'True period: {true_period:.1f}h | scipy-GLS detected: {detected_period:.1f}h')
 
-signal_centered = signal - np.mean(signal)
+# --- astropy: generalized LS by default + Baluev analytic FAP (ORDINARY frequency) ---
+ls = LombScargle(times, signal)                      # fit_mean=True default -> pass RAW values
+freq, power = ls.autopower(minimum_frequency=1/72.0, maximum_frequency=1/6.0, samples_per_peak=10)
+best_period = 1 / freq[np.argmax(power)]
+# FAP is grid-dependent; report the grid [1/72, 1/6] cyc/h, samples_per_peak=10.
+fap = ls.false_alarm_probability(power.max(), method='baluev')
+levels = ls.false_alarm_level([0.1, 0.05, 0.01], method='baluev')
+print(f'astropy-GLS best period: {best_period:.1f}h | Baluev FAP: {fap:.2e}')
 
-# --- Lomb-Scargle periodogram ---
-# Test periods from 6h to 72h
-# min_period=6h: twice the median sampling interval (~3h) satisfies Nyquist
-# max_period=72h: total duration / 1.3; need at least ~1.3 cycles for reliable detection
-min_freq = 2 * np.pi / 72.0
-max_freq = 2 * np.pi / 6.0
-# 2000 frequency points: fine grid for precise period estimation
-angular_freqs = np.linspace(min_freq, max_freq, 2000)
-power = lombscargle(times, signal_centered, angular_freqs, normalize=True)
+# --- Permutation null: DETREND first so the null is not beaten by drift ---
+# Shuffling times yields a WHITE null; on autocorrelated/trended data it is anti-conservative.
+# Removing a linear trend before shuffling keeps the test honest for this drift-free demo.
+trend = np.polyval(np.polyfit(times, signal, 1), times)
+resid = signal - trend
+n_perm = 500
+null_max = np.array([lombscargle(times, rng.permutation(resid), angular, normalize=True).max()
+                     for _ in range(n_perm)])
+obs = lombscargle(times, resid, angular, normalize=True).max()
+perm_p = float(np.mean(null_max >= obs))
+print(f'Permutation p (detrended, white null): {perm_p:.4f}')
 
-periods = 2 * np.pi / angular_freqs
-
-# --- Find dominant peak ---
-dominant_idx = np.argmax(power)
-detected_period = periods[dominant_idx]
-detected_power = power[dominant_idx]
-print(f'True period: {true_period:.1f}h')
-print(f'Detected period: {detected_period:.1f}h')
-print(f'Peak power: {detected_power:.3f}')
-
-# --- Significance via permutation ---
-# n_perm=1000: standard for exploratory analysis; use 10000 for publication
-n_perm = 1000
-null_max_powers = np.zeros(n_perm)
-for perm in range(n_perm):
-    shuffled = np.random.permutation(signal_centered)
-    null_power = lombscargle(times, shuffled, angular_freqs, normalize=True)
-    null_max_powers[perm] = np.max(null_power)
-
-# Empirical p-value: fraction of null peaks >= observed peak
-empirical_p = np.mean(null_max_powers >= detected_power)
-print(f'Empirical p-value (permutation): {empirical_p:.4f}')
-
-# --- Significance levels from null distribution ---
-# 99th percentile of null: FAP ~0.01 threshold
-fap_01 = np.percentile(null_max_powers, 99)
-# 95th percentile: FAP ~0.05 threshold
-fap_05 = np.percentile(null_max_powers, 95)
-print(f'FAP 0.01 power threshold: {fap_01:.3f}')
-print(f'FAP 0.05 power threshold: {fap_05:.3f}')
-
-# --- Multi-gene screening ---
-n_genes = 200
-n_periodic = 40
-
-all_fap = []
-all_periods = []
+# --- Genome-wide screen: per-gene Baluev FAP -> BH FDR across genes ---
+n_genes, n_periodic = 200, 40
+faps, dom_periods = [], []
 for g in range(n_genes):
-    base = np.random.uniform(6, 12)
     if g < n_periodic:
-        # Random period between 10-30h: simulates diverse oscillation periods
-        gene_period = np.random.uniform(10, 30)
-        gene_amp = np.random.uniform(1.0, 3.0)
-        gene_signal = gene_amp * np.sin(2 * np.pi * times / gene_period) + np.random.normal(0, 0.5, n_obs)
+        p = rng.uniform(10, 30)                       # diverse unknown periods
+        y = rng.uniform(1, 3) * np.sin(2 * np.pi * times / p) + rng.normal(0, 0.5, n_obs)
     else:
-        gene_signal = np.random.normal(0, 0.5, n_obs)
+        y = rng.normal(0, 0.5, n_obs)                 # aperiodic
+    g_ls = LombScargle(times, y)
+    g_freq, g_pow = g_ls.autopower(minimum_frequency=1/72.0, maximum_frequency=1/6.0, samples_per_peak=10)
+    faps.append(g_ls.false_alarm_probability(g_pow.max(), method='baluev'))
+    dom_periods.append(1 / g_freq[np.argmax(g_pow)])
+faps = np.clip(np.array(faps), 1e-300, 1.0)           # Baluev bound can underflow to 0
+reject, qvals, _, _ = multipletests(faps, method='fdr_bh')   # BH across genes
+n_hit = int((qvals < 0.05).sum())
+tp = int((qvals[:n_periodic] < 0.05).sum())
+print(f'Genome-wide: {n_hit}/{n_genes} periodic at q<0.05 | true positives {tp}/{n_periodic}')
 
-    gene_power = lombscargle(times, gene_signal, angular_freqs, normalize=True)
-    max_power = np.max(gene_power)
-    all_periods.append(periods[np.argmax(gene_power)])
-    # Reuse null from single-gene permutation: valid when all genes share the same
-    # observation times and frequency grid. For real data with per-gene missing values
-    # or different sampling patterns, compute a separate null per gene.
-    all_fap.append(np.mean(null_max_powers >= max_power))
-
-# BH FDR correction for multiple testing
-reject, qvals, _, _ = multipletests(all_fap, method='fdr_bh')
-# q < 0.05: standard FDR threshold for periodic gene discovery
-n_detected = np.sum(qvals < 0.05)
-tp = np.sum(qvals[:n_periodic] < 0.05)
-print(f'\nGenome-wide screening: {n_detected}/{n_genes} periodic genes detected')
-print(f'True positives: {tp}/{n_periodic}')
-
-# --- Visualization ---
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-
-axes[0, 0].scatter(times, signal, c='steelblue', s=40, zorder=3, label='Observed')
-t_fine = np.linspace(0, 96, 500)
-axes[0, 0].plot(t_fine, mesor + amplitude * np.sin(2 * np.pi * t_fine / true_period),
-                'r--', alpha=0.5, label=f'True ({true_period}h)')
-axes[0, 0].set_xlabel('Time (hours)')
-axes[0, 0].set_ylabel('Expression')
-axes[0, 0].set_title('Irregularly sampled periodic signal')
-axes[0, 0].legend()
-
-axes[0, 1].plot(periods, power, 'steelblue', linewidth=1.5)
-axes[0, 1].axvline(true_period, color='red', linestyle='--', alpha=0.7, label=f'True period ({true_period}h)')
-axes[0, 1].axhline(fap_01, color='gray', linestyle=':', alpha=0.7, label='FAP 0.01')
-axes[0, 1].axhline(fap_05, color='gray', linestyle='--', alpha=0.5, label='FAP 0.05')
-axes[0, 1].set_xlabel('Period (hours)')
-axes[0, 1].set_ylabel('Normalized power')
-axes[0, 1].set_title(f'Lomb-Scargle periodogram (peak={detected_period:.1f}h)')
-axes[0, 1].legend(fontsize=8)
-axes[0, 1].invert_xaxis()
-
-axes[1, 0].hist(null_max_powers, bins=30, color='gray', edgecolor='black', alpha=0.7, density=True, label='Null')
-axes[1, 0].axvline(detected_power, color='red', linewidth=2, label=f'Observed (p={empirical_p:.3f})')
-axes[1, 0].set_xlabel('Maximum power')
-axes[1, 0].set_ylabel('Density')
-axes[1, 0].set_title('Permutation null distribution')
-axes[1, 0].legend()
-
-periodic_mask = qvals < 0.05
-axes[1, 1].scatter(np.array(all_periods)[~periodic_mask], -np.log10(np.array(qvals)[~periodic_mask]),
-                   c='gray', s=20, alpha=0.5, label='Non-significant')
-axes[1, 1].scatter(np.array(all_periods)[periodic_mask], -np.log10(np.array(qvals)[periodic_mask]),
-                   c='coral', s=30, alpha=0.8, label='Significant (q<0.05)')
-axes[1, 1].axhline(-np.log10(0.05), color='black', linestyle='--', alpha=0.5)
-axes[1, 1].set_xlabel('Dominant period (hours)')
-axes[1, 1].set_ylabel('-log10(q-value)')
-axes[1, 1].set_title(f'Genome-wide periodicity ({n_detected} detected)')
-axes[1, 1].legend(fontsize=8)
-
+# --- Visualization (written to a temp dir, then removed: leaves no strays) ---
+fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+ax[0].plot(1 / freq, power, 'steelblue', lw=1.2)
+ax[0].axvline(true_period, color='red', ls='--', alpha=0.6, label=f'true {true_period}h')
+for lv, lab in zip(levels, ['FAP 0.1', 'FAP 0.05', 'FAP 0.01']):
+    ax[0].axhline(lv, color='gray', ls=':', alpha=0.6, label=lab)
+ax[0].set_xlabel('Period (h)'); ax[0].set_ylabel('Normalized power')
+ax[0].set_title(f'astropy GLS (peak {best_period:.1f}h)'); ax[0].legend(fontsize=8); ax[0].invert_xaxis()
+mask = qvals < 0.05
+ax[1].scatter(np.array(dom_periods)[~mask], -np.log10(qvals[~mask]), c='gray', s=18, alpha=0.5, label='ns')
+ax[1].scatter(np.array(dom_periods)[mask], -np.log10(qvals[mask]), c='coral', s=28, label='q<0.05')
+ax[1].axhline(-np.log10(0.05), color='black', ls='--', alpha=0.5)
+ax[1].set_xlabel('Dominant period (h)'); ax[1].set_ylabel('-log10(q)')
+ax[1].set_title(f'Genome-wide screen ({n_hit} hits)'); ax[1].legend(fontsize=8)
 plt.tight_layout()
-plt.savefig('lomb_scargle_results.png', dpi=150, bbox_inches='tight')
-plt.show()
-print('\nPlot saved to lomb_scargle_results.png')
+tmp = tempfile.mkdtemp()
+out = os.path.join(tmp, 'lomb_scargle_results.png')
+plt.savefig(out, dpi=120); plt.close(fig)
+os.remove(out); os.rmdir(tmp)
+print(f'Figure rendered and cleaned up (temp dir removed)')
