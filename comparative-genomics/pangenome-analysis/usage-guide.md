@@ -4,7 +4,7 @@
 
 The pangenome is the union of all genes across a sampled group of genomes. The Tettelin partition (Tettelin 2005 PNAS 102:13950) splits it into core (universal), shell (in many), cloud (rare), and species-specific genes. **Bacterial pangenome** tools (Panaroo, PPanGGOLiN, PEPPAN) cluster genes into orthogroups for compact genomes. **Eukaryotic pangenome** tools (Minigraph-Cactus, PGGB, vg) build graph-based representations of haplotype-level variation. The Roary tool (Page 2015) is deprecated; Panaroo (Tonkin-Hill 2020) reduces accessory inflation by 30-50% on the same data.
 
-For **repetitive and clinically-relevant genes** (MHC class II, DAZ1-4, OPN1LW/OPN1MW), PGR-TK (Chin 2023 Nat Methods 20:1290) uses MAP graphs + principal bundle decomposition; its successor PANGEA is in development.
+For **repetitive and clinically-relevant genes** (MHC class II, DAZ1-4, OPN1LW/OPN1MW), PGR-TK (Chin 2023 Nat Methods 20:1213) uses MAP graphs + principal bundle decomposition; its successor PANGEA is in development.
 
 ## Prerequisites
 

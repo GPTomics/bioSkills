@@ -1,13 +1,13 @@
 ---
 name: bio-comparative-genomics-comparative-annotation-projection
-description: Project gene annotations across genomes using TOGA (Kirilenko 2023 whole-genome-alignment chain-based projection with intactness classification), CESAR 2.0 (Sharma & Hiller 2017 codon-aware exon projection), LiftOff (Shumate & Salzberg 2020 reference-based annotation transfer), Liftover (UCSC), GeMoMa (Keilwagen 2019 evidence-based projection), and Comparative Annotation Toolkit (CAT). Use when transferring annotations from a well-annotated reference to query genome(s), classifying gene-loss vs gene-intact across many genomes at scale, building Zoonomia-style comparative annotations across hundreds of mammals or birds (Kirilenko 2023), detecting pseudogenization, projecting alternative isoforms, or selecting between WGA-anchored (TOGA) vs ortholog-based (LiftOff) annotation transfer strategies.
+description: Project gene annotations across genomes using TOGA (Kirilenko 2023 whole-genome-alignment chain-based projection with intactness classification), CESAR 2.0 (Sharma, Schwede & Hiller 2017 codon-aware exon projection), LiftOff (Shumate & Salzberg 2021 reference-based annotation transfer), Liftover (UCSC), GeMoMa (Keilwagen 2019 evidence-based projection), and Comparative Annotation Toolkit (CAT). Use when transferring annotations from a well-annotated reference to query genome(s), classifying gene-loss vs gene-intact across many genomes at scale, building Zoonomia-style comparative annotations across hundreds of mammals or birds (Kirilenko 2023), detecting pseudogenization, projecting alternative isoforms, or selecting between WGA-anchored (TOGA) vs ortholog-based (LiftOff) annotation transfer strategies.
 tool_type: cli
 primary_tool: TOGA
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: TOGA 1.1.7+ (hillerlab/TOGA; Kirilenko 2023 Science 380:eabn3107), CESAR 2.0 (Sharma & Hiller 2017 NAR 45:8369), LiftOff 1.6.3+ (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643), Comparative Annotation Toolkit (CAT) 2.4+, GeMoMa 1.9+ (Keilwagen 2019 Methods Mol Biol 1962:161), UCSC liftOver 2024+, Cactus 2.9.1+ (for HAL input), HAL toolkit 2.3+, NextFlow 24+ for TOGA pipeline, BUSCO 5.7+ / Compleasm 0.2.7+ for QC, Snakemake 8.0+ for CAT, R 4.4+. The current TOGA expects HAL from Cactus 2.5+; older HAL formats may fail.
+Reference examples tested with: TOGA 1.1.7+ (hillerlab/TOGA; Kirilenko 2023 Science 380:eabn3107), CESAR 2.0 (Sharma, Schwede & Hiller 2017 Bioinformatics 33:3985), LiftOff 1.6.3+ (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643), Comparative Annotation Toolkit (CAT) 2.4+, GeMoMa 1.9+ (Keilwagen 2019 Methods Mol Biol 1962:161), UCSC liftOver 2024+, Cactus 2.9.1+ (for HAL input), HAL toolkit 2.3+, NextFlow 24+ for TOGA pipeline, BUSCO 5.7+ / Compleasm 0.2.7+ for QC, Luigi + Toil for CAT, R 4.4+. The current TOGA expects HAL from Cactus 2.5+; older HAL formats may fail.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `toga.py --help`; `cesar --help`; `liftoff --version`
@@ -31,16 +31,16 @@ If code throws `TOGA chain file missing`, `CESAR fragment not found`, `LiftOff a
 | Tool | Approach | Output | Strength | Fails when |
 |------|----------|--------|----------|------------|
 | TOGA (Kirilenko 2023 Science 380:eabn3107) | Cactus HAL or LASTZ chains -> ML projection + intactness classifier | Per-gene I/PI/UL/L/M/PM codes; orthology classification; coding annotation via CESAR 2.0 | Modern paradigm; explicit gene-loss detection at scale; Zoonomia / Bird10000 standard | Requires Cactus WGA; not for prokaryotes |
-| CESAR 2.0 (Sharma & Hiller 2017 NAR 45:8369) | HMM-based codon-aware exon projection | Aligned exons + frame preservation | Most accurate exon projection from WGA; preserves frame across indels | Used internally by TOGA; standalone use more rare |
+| CESAR 2.0 (Sharma, Schwede & Hiller 2017 Bioinformatics 33:3985) | HMM-based codon-aware exon projection | Aligned exons + frame preservation | Most accurate exon projection from WGA; preserves frame across indels | Used internally by TOGA; standalone use more rare |
 | LiftOff (Shumate & Salzberg 2021 Bioinformatics 37(12):1639-1643) | Read-mapping-style ortholog detection + GFF transfer | Lifted GFF | Fast; no WGA required; standard for query-vs-reference pairs | Tandem duplicates ambiguous; not for gene loss detection |
 | UCSC liftOver | Coordinate-based lift using chain files | Coordinate-lifted regions | Standard for coordinate transfers; not for gene annotations | Doesn't handle gene structure changes |
-| Comparative Annotation Toolkit (CAT) | Snakemake workflow integrating Augustus + LiftOff + TransMap | Per-species comparative annotation | Integrates de novo + projection | Snakemake setup complex |
+| Comparative Annotation Toolkit (CAT) | Luigi + Toil workflow integrating TransMap + AUGUSTUS (TM/TMR/CGP/PB) + homGeneMapping | Per-species comparative annotation | Integrates de novo + projection | Requires Cactus HAL input; Toil/Luigi setup complex |
 | GeMoMa (Keilwagen 2019 Methods Mol Biol 1962:161) | Reference protein homology + evidence integration | Comparative gene annotation | Combines multiple reference species evidence | Slower; less popular than TOGA / LiftOff |
 | AUGUSTUS (Stanke 2008) | De novo prediction; not strictly projection | Per-genome annotation | Augments projection with de novo | Standalone de novo; lower comparative accuracy |
-| BRAKER3 (Brůna 2024) | Augustus + GeneMark-ETP + RNA-Seq + protein | Comparative-aware de novo | Modern de novo with evidence | Not strictly projection |
+| BRAKER3 (Gabriel 2024) | Augustus + GeneMark-ETP + RNA-Seq + protein | Comparative-aware de novo | Modern de novo with evidence | Not strictly projection |
 | Funannotate (palmer lab) | Multi-evidence annotation including LiftOff | Funannotate annotations | Integrates evidence | Setup complex |
 | Comparative Annotation Pipeline (CAP) | Earlier WGA-based annotation | Per-species per-gene | Historical; replaced by TOGA | Use TOGA |
-| TransMap (Diekhans 2007) | UCSC genome browser annotation lifter | Per-locus lift | Tool for UCSC tracks | Tool-specific |
+| TransMap | UCSC genome browser annotation lifter | Per-locus lift | Tool for UCSC tracks | Tool-specific |
 | Maker (Cantarel 2008) | Evidence-based de novo + projection | Per-genome annotation | Combines evidence | Maker is for novel genomes; LiftOff for transfer |
 
 Methodology evolves; the Kirilenko 2023 TOGA paradigm (WGA-anchored + intactness classification) is the gold standard for vertebrate-scale comparative annotation. For pairwise transfers, LiftOff is the modern standard. Verify the current TOGA documentation (hillerlab/TOGA) before locking on a single approach.
@@ -55,7 +55,7 @@ Methodology evolves; the Kirilenko 2023 TOGA paradigm (WGA-anchored + intactness
 | Project alternative isoforms | TOGA (preserves multiple transcripts) | Standard |
 | Project annotations to assembly with high N50 + chromosome-level | TOGA | Requires good assembly |
 | Project to fragmented draft assembly | LiftOff (more tolerant) | LiftOff works on draft assemblies |
-| Multi-species annotation pipeline | CAT (Snakemake) | Integrated workflow |
+| Multi-species annotation pipeline | CAT (Luigi + Toil) | Integrated workflow |
 | Annotate plant genome from Arabidopsis | LiftOff with plant-specific options | Standard for plant work |
 | Pseudogenization detection at scale | TOGA + intactness analysis | Designed for this |
 | Reference-free gene prediction | BRAKER3 or AUGUSTUS | De novo; not projection |
@@ -129,7 +129,7 @@ Methodology evolves; the Kirilenko 2023 TOGA paradigm (WGA-anchored + intactness
 
 **Symptom:** TOGA "Intact" annotation but the gene is pseudogene per RNA-Seq + Ribo-Seq evidence.
 
-**Fix:** Combine TOGA intactness with expression data (RNA-Seq from species of interest); apply PseudoPipe (Zhang 2006 GR 16:1041) or RetroFinder (Baertsch 2008 GR 18:1675) for systematic pseudogene detection.
+**Fix:** Combine TOGA intactness with expression data (RNA-Seq from species of interest); apply PseudoPipe (Zhang 2006 Bioinformatics 22:1437) or RetroFinder (Baertsch 2008 BMC Genomics 9:466) for systematic pseudogene detection.
 
 ### Splice variant inconsistency across projections
 
@@ -182,7 +182,7 @@ Methodology evolves; the Kirilenko 2023 TOGA paradigm (WGA-anchored + intactness
 | LiftOff identity | >=70% nucleotide identity (default) | Default |
 | Maximum divergence for TOGA | ~300 Myr (vertebrate); validate per clade | Kirilenko 2023 |
 | Maximum divergence for LiftOff | ~80% nucleotide identity | Empirical |
-| Maximum divergence for CESAR | ~150 Myr (vertebrate) | Sharma & Hiller 2017 |
+| Maximum divergence for CESAR | ~150 Myr (vertebrate) | Sharma, Schwede & Hiller 2017 |
 | Reference annotation BUSCO completeness | >= 95% | Standard QC |
 | Assembly N50 for projection | >= 1 Mb; chromosome-level preferred | Standard |
 | Annotation transfer success rate | 90-95% for closely related (< 50 Myr); 60-80% for moderately diverged | Empirical |
@@ -286,12 +286,14 @@ For closely related species, default settings suffice. For divergent (75-90% ide
 git clone https://github.com/ComparativeGenomicsToolkit/Comparative-Annotation-Toolkit
 cd Comparative-Annotation-Toolkit && pip install .
 
-# Edit config.yaml with reference + query genomes
-# Then run Snakemake pipeline
-snakemake --use-conda --cores 32 --configfile config.yaml
+# Edit the CAT config file with reference + query genomes; input is a Cactus HAL alignment
+# CAT is orchestrated by Luigi (task graph) on top of Toil (execution); launch the RunCat module
+luigi --module cat RunCat --hal=alignment.hal --ref-genome=mm10 --config=cat.config \
+      --work-dir work --out-dir out --workers=10 --local-scheduler \
+      --augustus --augustus-cgp --augustus-pb --assembly-hub > log.txt
 ```
 
-CAT integrates AUGUSTUS + LiftOff + TransMap; output is multi-species comparative annotation.
+CAT projects the reference annotation across the Cactus alignment with TransMap, then integrates AUGUSTUS (TM/TMR/CGP/PB) and homGeneMapping; output is multi-species comparative annotation.
 
 ## Reconciliation: When Methods Disagree
 
@@ -351,7 +353,7 @@ CAT integrates AUGUSTUS + LiftOff + TransMap; output is multi-species comparativ
 | TOGA Nextflow hangs | Cluster resource issue | Restart with `-resume`; check Nextflow config |
 | BUSCO of projected annotation low | Missing core genes | Likely projection failure; manual review |
 | Many "PI" classifications | Assembly fragmentation | Improve assembly; or accept partial intactness |
-| CAT Snakemake step fails | Conda env issue | Re-create conda envs; check Snakemake logs |
+| CAT Luigi/Toil step fails | Conda env or Toil jobstore issue | Re-create conda envs; inspect the Toil jobstore and Luigi task logs |
 | LiftOff "no overlap" | Reference / query coordinate systems differ | Verify same genome version |
 | TOGA intactness disagrees with biology | Edge case; manual review needed | Inspect CESAR alignment; cross-validate with RNA-Seq |
 
@@ -390,20 +392,19 @@ For TOGA pipeline at vertebrate-scale, use Nextflow with proper HPC config (Slur
 ## References
 
 - Kirilenko BM et al 2023 Science 380:eabn3107 (TOGA; Zoonomia + Bird10000 standard)
-- Sharma V & Hiller M 2017 NAR 45:8369 (CESAR 2.0)
+- Sharma V, Schwede P & Hiller M 2017 Bioinformatics 33:3985 (CESAR 2.0)
 - Shumate A & Salzberg SL 2021 Bioinformatics 37(12):1639-1643 (LiftOff)
 - Hickey G et al 2013 Bioinformatics 29:1341 (HAL toolkit)
 - Keilwagen J et al 2019 Methods Mol Biol 1962:161 (GeMoMa)
-- Brůna T et al 2024 NAR Genom Bioinform 6:lqae068 (BRAKER3)
+- Gabriel L, Brůna T et al 2024 Genome Res 34:769 (BRAKER3)
 - Cantarel BL et al 2008 Genome Res 18:188 (MAKER)
 - Stanke M et al 2008 Bioinformatics 24:637 (AUGUSTUS)
-- Diekhans M et al 2007 Nat Genet 39:583 (TransMap)
-- Zhang Z et al 2006 Genome Res 16:1041 (PseudoPipe)
+- Zhang Z et al 2006 Bioinformatics 22:1437 (PseudoPipe)
 - Armstrong J et al 2020 Nature 587:246 (Progressive Cactus)
-- Baertsch R et al 2008 Genome Res 18:1675 (RetroFinder)
+- Baertsch R et al 2008 BMC Genomics 9:466 (RetroFinder)
 - Liao W-W et al 2023 Nature 617:312 (HPRC draft pangenome; relevant context)
-- Smith LP et al 2024 (Comparative Annotation Toolkit updates)
-- Salzberg SL 2019 Bioinformatics 35:1844 (next-gen annotation pipelines)
+- Fiddes IT et al 2018 Genome Res 28:1029 (Comparative Annotation Toolkit)
+- Salzberg SL 2019 Genome Biol 20:92 (next-gen annotation pipelines)
 - Comparative Genomics Toolkit (CGT) GitHub
 - TimeTree (database) for divergence dates
 

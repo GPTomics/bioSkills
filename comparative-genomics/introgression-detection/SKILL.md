@@ -1,13 +1,13 @@
 ---
 name: bio-comparative-genomics-introgression-detection
-description: Detect introgression and admixture between species or populations using Dsuite (Malinsky 2021 fast D-statistics), Patterson's D / ABBA-BABA test (Green 2010; Durand 2011), f4-ratio and f-branch statistic (Malinsky 2018), TreeMix (Pickrell & Pritchard 2012), HyDe (Blischak 2018), QuIBL (Edelman 2019), sprime (Browning 2018), Twisst (Martin 2017), PhyloNet (Solis-Lemus 2017) for explicit phylogenetic networks, and qpAdm / qpGraph (Patterson 2012; Lipson 2013). Distinguish introgression from incomplete lineage sorting (ILS), ancestral structure, ghost-lineage admixture, and rate variation. Use when testing inter-species gene flow, dating admixture events, identifying introgressed segments, building phylogenetic networks for reticulate evolution, or applying the ABBAclustering (Koppetsch-Malinsky-Matschiner 2024) framework for divergent-species gene flow.
+description: Detect introgression and admixture between species or populations using Dsuite (Malinsky 2021 fast D-statistics), Patterson's D / ABBA-BABA test (Green 2010; Durand 2011), f4-ratio and f-branch statistic (Malinsky 2018), TreeMix (Pickrell & Pritchard 2012), HyDe (Blischak 2018), QuIBL (Edelman 2019), sprime (Browning 2018), Twisst (Martin 2017), PhyloNet (Solis-Lemus 2017) for explicit phylogenetic networks, and qpAdm / qpGraph (Patterson 2012). Distinguish introgression from incomplete lineage sorting (ILS), ancestral structure, ghost-lineage admixture, and rate variation. Use when testing inter-species gene flow, dating admixture events, identifying introgressed segments, building phylogenetic networks for reticulate evolution, or applying the ABBAclustering (Koppetsch-Malinsky-Matschiner 2024) framework for divergent-species gene flow.
 tool_type: cli
 primary_tool: Dsuite
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: Dsuite 0.5+ (millanek/Dsuite; Malinsky 2021 Mol Ecol Res 21:584; ABBAclustering option from Koppetsch-Malinsky-Matschiner 2024 Syst Biol), HyDe 0.4.3+ (Blischak 2018 Syst Biol 67:821), QuIBL (Edelman 2019 Science 366:594), TreeMix 1.13+ (Pickrell & Pritchard 2012 PLoS Genet 8:e1002967), sprime (Browning 2018 Cell 173:53), Twisst (Martin & Van Belleghem 2017 Genetics 206:429), PhyloNet 3.8.2+ (NakhlehLab/PhyloNet; Than-Ruths-Nakhleh 2008 BMC Bioinf 9:322) and PhyloNetworks 0.16+ (JuliaPhylo/PhyloNetworks; Solis-Lemus & Ane 2017 PLoS Comp Biol 13:e1005485), qpAdm / qpGraph (AdmixTools v2.0+; Maier 2023), ADMIXTOOLS2 R wrapper (Maier 2023 eLife 12:e85492), MaCS-like simulators (msprime 1.3+ for testing), bcftools 1.21+, samtools 1.21+, vcftools 0.1.16+, R 4.4+. See upstream Dsuite docs for visualization helpers.
+Reference examples tested with: Dsuite 0.5+ (millanek/Dsuite; Malinsky 2021 Mol Ecol Res 21:584; ABBAclustering option from Koppetsch-Malinsky-Matschiner 2024 Syst Biol), HyDe 0.4.3+ (Blischak 2018 Syst Biol 67:821), QuIBL (Edelman 2019 Science 366:594), TreeMix 1.13+ (Pickrell & Pritchard 2012 PLoS Genet 8:e1002967), sprime (Browning 2018 Cell 173:53), Twisst (Martin & Van Belleghem 2017 Genetics 206:429), PhyloNet 3.8.2+ (NakhlehLab/PhyloNet; Than-Ruths-Nakhleh 2008 BMC Bioinf 9:322) and PhyloNetworks 0.16+ (JuliaPhylo/PhyloNetworks; Solis-Lemus, Bastide & Ane 2017 MBE 34:3292), qpAdm / qpGraph (AdmixTools v2.0+; Maier 2023), ADMIXTOOLS2 R wrapper (Maier 2023 eLife 12:e85492), MaCS-like simulators (msprime 1.3+ for testing), bcftools 1.21+, samtools 1.21+, vcftools 0.1.16+, R 4.4+. See upstream Dsuite docs for visualization helpers.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `Dsuite --version`; `treemix --help`; `qpDstat --help` (AdmixTools)
@@ -18,7 +18,7 @@ If code throws `Dsuite SETS file format error`, `TreeMix matrix singular`, `qpAd
 
 # Introgression and Admixture Detection
 
-**"Has there been gene flow between these species / populations?"** -> Tests for inter-population admixture span site-frequency (ABBA-BABA, f4), tree-topology (Dsuite f-branch, QuIBL, Twisst), explicit-network (PhyloNet), and gene-trajectory (sprime, hapne) approaches. The fundamental confounder is **incomplete lineage sorting (ILS)**: under a symmetric tree with no gene flow, the ABBA and BABA patterns occur with equal frequency from ancestral polymorphism. **A significant D-statistic indicates EITHER (a) introgression, OR (b) ancestral structure, OR (c) sampling from a ghost lineage** -- additional evidence is required to distinguish (Green 2010 Science 328:710; Durand 2011 MBE 28:2239; Eriksson & Manica 2012 PNAS 109:13956). For high-confidence claims, combine D-statistic with **f-branch** mapping (assigns admixture to specific branches), Twisst / QuIBL topology-weighting, and TreeMix migration edges.
+**"Has there been gene flow between these species / populations?"** -> Tests for inter-population admixture span site-frequency (ABBA-BABA, f4), tree-topology (Dsuite f-branch, QuIBL, Twisst), explicit-network (PhyloNet), and haplotype-tract (sprime) approaches. The fundamental confounder is **incomplete lineage sorting (ILS)**: under a symmetric tree with no gene flow, the ABBA and BABA patterns occur with equal frequency from ancestral polymorphism. **A significant D-statistic indicates EITHER (a) introgression, OR (b) ancestral structure, OR (c) sampling from a ghost lineage** -- additional evidence is required to distinguish (Green 2010 Science 328:710; Durand 2011 MBE 28:2239; Eriksson & Manica 2012 PNAS 109:13956). For high-confidence claims, combine D-statistic with **f-branch** mapping (assigns admixture to specific branches), Twisst / QuIBL topology-weighting, and TreeMix migration edges.
 
 - CLI: `Dsuite Dtrios` -- standard D-statistic for trios of populations
 - CLI: `Dsuite Fbranch` -- assign admixture signal to specific tree branches
@@ -43,10 +43,10 @@ If code throws `Dsuite SETS file format error`, `TreeMix matrix singular`, `qpAd
 | HyDe (Blischak 2018 Syst Biol 67:821) | Site-level hybridization detection | Per-site / per-locus hybrid evidence | Sensitive to recent hybridization | Less specific to ancient admixture |
 | QuIBL (Edelman 2019 Science 366:594) | Topology weighting on gene trees | Per-tree-weight relative to alternative | Distinguishes ILS from introgression at locus level | Per-locus inference; cross-validation needed |
 | Twisst (Martin & Van Belleghem 2017 Genetics 206:429) | Topology weighting on phylogenetic trees | Tree topology weights per genomic window | Visualize topology variation across genome | Computational cost; tree-window decisions |
-| PhyloNetworks (Solis-Lemus & Ane 2017 PLoS Comp Biol 13:e1005485; Julia, JuliaPhylo/PhyloNetworks) | SNaQ pseudo-likelihood network inference from gene trees / concordance factors | Explicit reticulation network | Modern Julia ecosystem; SNaQ scales well | Different software than the Java "PhyloNet" |
+| PhyloNetworks (Solis-Lemus, Bastide & Ane 2017 MBE 34:3292; Julia, JuliaPhylo/PhyloNetworks) | SNaQ pseudo-likelihood network inference from gene trees / concordance factors | Explicit reticulation network | Modern Julia ecosystem; SNaQ scales well | Different software than the Java "PhyloNet" |
 | PhyloNet (Than-Ruths-Nakhleh 2008 BMC Bioinf 9:322; Java, NakhlehLab/PhyloNet) | ML / MP / Bayesian network inference | Explicit reticulation network | Mature Java tool; many inference modes | Computationally heavy; Maven build |
 | sprime (Browning 2018 Cell 173:53) | Per-individual archaic introgression detection | Introgressed haplotype tracts | Designed for archaic-human-like cases | Specific to closely related introgression source |
-| Relate (Speidel 2019 Nat Genet 51:1321) + hapne (Fournier 2023 Nat Commun 14:7517) | Phasing-aware genealogy + introgression haplotype dating | Introgressed segments + ages from tract-length distribution | Modern haplotype-aware methods | Require phased data; Relate genealogy precedes hapne dating |
+| Relate (Speidel 2019 Nat Genet 51:1321) | Phasing-aware genome-wide genealogy reconstruction | Coalescence times dating introgression segments | Modern haplotype-aware method; times admixture via tract coalescence | Requires phased data; genealogy timing indirect for admixture |
 | F3 statistic (Patterson 2012) | Three-population test for admixture | F3 with SE | Specifically detects admixture (vs negative drift) | F3 < 0 indicates admixture; mixed signals |
 | F4-statistic (Patterson 2012) | Four-population test | F4 + p-value | Generalizes D; allows variable outgroup distance | Symmetric assumption |
 
@@ -59,7 +59,7 @@ Methodology evolves; verify the Dsuite documentation and Malinsky 2024 review (e
 | Test for introgression between two species, outgroup available | Dsuite Dtrios + Fbranch | Standard ABBA-BABA + tree-aware branch mapping |
 | Multi-population complex admixture inference | TreeMix + qpAdm | Migration edges + rotation tests |
 | Distinguish introgression from ILS | QuIBL + Twisst across many loci | Topology weighting at locus level |
-| Date the admixture event | Relate (Speidel 2019) + hapne (Fournier 2023) + Twisst window analysis | Genealogy reconstruction + haplotype-length-distribution dating + topology |
+| Date the admixture event | Relate (Speidel 2019) + Twisst window analysis | Genealogy reconstruction + haplotype-length-distribution dating + topology |
 | Quantify admixture proportion alpha | f4-ratio (Patterson 2012) or qpAdm | Standard framework |
 | Identify introgressed genomic regions | sprime + Twisst | Per-individual + per-window |
 | Explicit phylogenetic network | PhyloNet with model selection (DLRS-NL or InferNetwork_MP) | Quantitative reticulation |
@@ -389,7 +389,7 @@ results$weights   # admixture proportions
 | "qpAdm sources?" | Rotation tests passed; multiple alternative source sets evaluated |
 | "Twisst window size?" | Matched local LD decay; sensitivity tested |
 | "Direction of introgression?" | qpAdm directional + Twisst phasing data |
-| "Date of admixture?" | hapne + tract-length-distribution-based dating; CIs reported |
+| "Date of admixture?" | Relate genealogy + tract-length-distribution-based dating; CIs reported |
 
 ## Common Errors
 
@@ -445,7 +445,6 @@ For population-genetic analyses, the Dsuite + AdmixTools v2 (R) + TreeMix combin
 - Green RE et al 2010 Science 328:710 (Patterson D / ABBA-BABA, Neanderthal admixture)
 - Durand EY et al 2011 MBE 28:2239 (D-statistic theoretical framework)
 - Patterson N et al 2012 Genetics 192:1065 (f-statistics framework)
-- Lipson M et al 2013 PLoS Genet 9:e1004149 (qpAdm)
 - Maier R et al 2023 eLife 12:e85492 (AdmixTools v2 / admixtools R)
 - Pickrell JK & Pritchard JK 2012 PLoS Genet 8:e1002967 (TreeMix)
 - Malinsky M et al 2021 Mol Ecol Resources 21:584 (Dsuite)
@@ -454,19 +453,17 @@ For population-genetic analyses, the Dsuite + AdmixTools v2 (R) + TreeMix combin
 - Edelman NB et al 2019 Science 366:594 (QuIBL)
 - Martin SH & Van Belleghem SM 2017 Genetics 206:429 (Twisst)
 - Blischak PD, Chifman J, Wolfe AD & Kubatko LS 2018 Syst Biol 67:821 (HyDe)
-- Solis-Lemus C & Ane C 2017 PLoS Comp Biol 13:e1005485 (PhyloNetworks / SNaQ)
+- Solis-Lemus C, Bastide P & Ane C 2017 MBE 34:3292 (PhyloNetworks / SNaQ)
 - Than C, Ruths D & Nakhleh L 2008 BMC Bioinf 9:322 (PhyloNet)
 - Browning SR et al 2018 Cell 173:53 (sprime archaic introgression)
 - Eriksson A & Manica A 2012 PNAS 109:13956 (ancestral structure produces D-stat without admixture); Soraggi S et al 2018 G3 8:551 (D-statistic with low-coverage data)
 - Slon V et al 2018 Nature 561:113 (Denisovan-Neanderthal hybrid)
 - Mafessoni F et al 2020 PNAS 117:15132 (ghost-lineage modeling)
 - Speidel L et al 2019 Nat Genet 51:1321 (Relate genealogy)
-- Fournier R et al 2023 Nat Commun 14:7517 (hapne; haplotype-length introgression dating)
 - Fitak RR 2021 Biol Methods Protoc 6:bpab017 (OptM)
-- Skoglund P et al 2012 Genetics 191:295 (admixture inference review)
 - Lawson DJ et al 2018 Nat Comm 9:3258 (haplotype-based admixture)
 - Patin E et al 2017 Science 356:543 (sub-Saharan admixture example)
-- Frantz LAF et al 2020 PNAS 117:17231 (animal domestication admixture)
+- Frantz LAF et al 2019 PNAS 116:17231 (animal domestication admixture)
 
 ## Related Skills
 

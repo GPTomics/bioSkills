@@ -7,7 +7,7 @@ primary_tool: MCScanX
 
 ## Version Compatibility
 
-Reference examples tested with: MCScanX 1.0+ (wyp1125/MCScanX commit 2020+), JCVI 1.4.21+ (Python port of MCScan), GENESPACE 1.4.0+ (Lovell 2022 eLife 78526), SyRI 1.7.1+ (Goel 2019 Genome Biol 20:277), plotsr 1.1.1+, AnchorWave 1.2.5+ (Song 2022 PNAS 119:e2113075119), i-ADHoRe 3.0.01+, SynNet (Zhao 2017 NAR 45:e108), ntSynt 1.0.4+ (2023), minimap2 2.28+, MUMmer 4.0.0+, OrthoFinder 3.0+, R 4.4+. plotsr requires pysam 0.22+ and seaborn 0.13+.
+Reference examples tested with: MCScanX 1.0+ (wyp1125/MCScanX commit 2020+), JCVI 1.4.21+ (Python port of MCScan), GENESPACE 1.4.0+ (Lovell 2022 eLife 78526), SyRI 1.7.1+ (Goel 2019 Genome Biol 20:277), plotsr 1.1.1+, AnchorWave 1.2.5+ (Song 2022 PNAS 119:e2113075119), i-ADHoRe 3.0.01+, SynNet (Zhao 2017 Plant Cell 29:1278), ntSynt 1.0.4+ (2023), minimap2 2.28+, MUMmer 4.0.0+, OrthoFinder 3.0+, R 4.4+. plotsr requires pysam 0.22+ and seaborn 0.13+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `MCScanX -h`; `syri --version`; `python -m jcvi.compara.catalog ortholog --help`
@@ -18,7 +18,7 @@ If code throws `MCScanX: argument bad format`, `syri: input alignment file missi
 
 # Synteny Analysis
 
-**"Compare genome architecture between these species"** -> Detect conserved gene order (synteny) and infer rearrangement history. Synteny is NOT the same as collinearity: synteny is "genes on same chromosome", collinearity is "same order on same chromosome" (Fitch 1976 J Mol Evol 7:271 distinction; modern usage often conflates them). The choice of tool depends on whether the question is **gene-level co-linearity** (MCScanX, JCVI), **whole-genome structural rearrangements** (SyRI, AnchorWave), **multi-genome macrosynteny** (GENESPACE, ntSynt), or **synteny-aware orthology** (GENESPACE, ProteinOrtho-synteny). Repeat-masking quality is the dominant determinant of result reliability -- unmasked TEs produce ~100x more false anchor pairs than real syntenic anchors.
+**"Compare genome architecture between these species"** -> Detect conserved gene order (synteny) and infer rearrangement history. Synteny is NOT the same as collinearity: synteny is "genes on same chromosome", collinearity is "same order on same chromosome" (modern usage often conflates them). The choice of tool depends on whether the question is **gene-level co-linearity** (MCScanX, JCVI), **whole-genome structural rearrangements** (SyRI, AnchorWave), **multi-genome macrosynteny** (GENESPACE, ntSynt), or **synteny-aware orthology** (GENESPACE, ProteinOrtho-synteny). Repeat-masking quality is the dominant determinant of result reliability -- unmasked TEs produce ~100x more false anchor pairs than real syntenic anchors.
 
 - CLI: `MCScanX` for collinear gene blocks via dynamic programming
 - CLI: `python -m jcvi.compara.catalog ortholog A B` for JCVI/MCScan Python pipeline
@@ -39,9 +39,9 @@ If code throws `MCScanX: argument bad format`, `syri: input alignment file missi
 | SyRI (Goel 2019 GB 20:277) | Pairwise WGA -> syntenic-path identification -> SV calls | INV / TRANS / DUP / SYN / INS / DEL annotated | Comprehensive SV detection; works on chromosome-level assemblies | Requires chromosome-level assemblies; pairwise only |
 | plotsr (Goel 2022 Bioinformatics 38:2922) | Multi-genome SyRI visualization | Stacked synteny + SV maps across N genomes | Best for visualizing 3-10 genome rearrangement histories | Inherits SyRI's pairwise input limitation |
 | ntSynt (2023) | Minimizer-based alignment-free synteny | Multi-genome macrosynteny blocks | Alignment-free; handles > 15% divergence | Macrosynteny only; misses microsynteny |
-| SynNet (Zhao 2017 NAR 45:e108) | Synteny block adjacency graphs | Synteny networks across many genomes | Phylogenetic network from synteny; detects deep ancestry | Less standard than block-based methods |
+| SynNet (Zhao 2017 Plant Cell 29:1278) | Synteny block adjacency graphs | Synteny networks across many genomes | Phylogenetic network from synteny; detects deep ancestry | Less standard than block-based methods |
 | Satsuma / progressive Cactus | Reference-free WGA | Whole-genome alignment (HAL format) | Underlies large-scale orthology; sequence-level synteny | See [[whole-genome-alignment]] |
-| LASTZ chain/net (UCSC; Schwartz 2003 GR 13:103) | Pairwise WGA with chains and nets | Chains + nets in UCSC genome browser | Reference-anchored synteny; standard for UCSC tracks | See [[whole-genome-alignment]] |
+| LASTZ chain/net (UCSC; Kent 2003 PNAS 100:11484 chains/nets; Schwartz 2003 GR 13:103 BLASTZ) | Pairwise WGA with chains and nets | Chains + nets in UCSC genome browser | Reference-anchored synteny; standard for UCSC tracks | See [[whole-genome-alignment]] |
 | nucmer + dnadiff (MUMmer4; Marçais 2018 PLoS Comp Biol 14:e1005944) | MUM-anchored pairwise alignment | Whole-genome alignment with SV summary | Fast pairwise WGA for closely related | Sensitive only above ~70% identity |
 | MashMap (Jain 2018 Bioinformatics 34:i748) | Approximate mapping for fragment-fragment synteny | Pairwise mappings with identity | Scales to thousands of genomes | Coarse (window-based); no SV inference |
 
@@ -175,8 +175,8 @@ Methodology evolves; GENESPACE has emerged as the de facto standard for plant co
 | SyRI INV minimum size for biological significance | >= 5 kb | Below this, alignment noise dominates |
 | SyRI TRANS minimum size | >= 1 kb | Standard convention |
 | GENESPACE minimum syntenic block | 5 orthogroups | Lovell 2022 default |
-| Synteny block decay (macrosynteny half-life) | ~150 Myr in vertebrates | Naruse 2004; Murat 2010 |
-| Microsynteny conservation | up to 1 Gyr for metabolic gene clusters | Slot & Rokas 2010 |
+| Synteny block decay (macrosynteny half-life) | ~150 Myr in vertebrates | Naruse 2004 |
+| Microsynteny conservation | up to 1 Gyr for metabolic gene clusters | Stated convention; verify per-clade |
 | minimap2 preset for synteny | -x asm5 for < 5% divergence; asm10 for ~10%; asm20 for ~20% | minimap2 docs |
 | MUMmer nucmer maxmatch | --maxmatch for SyRI; --mum default | MUMmer4 manual |
 | Ks for syntenic block age (cross-references WGD) | Ks 0.1-0.5 recent; 0.5-1.5 older; > 1.5 saturated | See [[whole-genome-duplication]] for Ks plot interpretation |
@@ -444,7 +444,6 @@ For GENESPACE, OrthoFinder 2.5.x must be pinned; install via `conda install -c b
 
 ## References
 
-- Fitch WM 1976 J Mol Evol 7:271 (synteny vs collinearity)
 - Wang Y et al 2012 NAR 40:e49 (MCScanX)
 - Tang H et al 2008 GR 18:1944 (synteny / MCScan Python)
 - Lovell JT et al 2022 eLife 11:78526 (GENESPACE)
@@ -452,20 +451,18 @@ For GENESPACE, OrthoFinder 2.5.x must be pinned; install via `conda install -c b
 - Song B et al 2022 PNAS 119:e2113075119 (AnchorWave)
 - Goel M et al 2019 Genome Biol 20:277 (SyRI)
 - Goel M et al 2022 Bioinformatics 38:2922 (plotsr)
-- Zhao T et al 2017 NAR 45:e108 (SynNet synteny network)
+- Zhao T et al 2017 Plant Cell 29:1278 (SynNet synteny network)
 - Marçais G et al 2018 PLoS Comp Biol 14:e1005944 (MUMmer4)
-- Schwartz S et al 2003 GR 13:103 (LASTZ chains and nets)
+- Kent WJ et al 2003 PNAS 100:11484 (chains and nets)
+- Schwartz S et al 2003 GR 13:103 (BLASTZ pairwise aligner)
 - Jain C et al 2018 Bioinformatics 34:i748 (MashMap)
 - Li H 2018 Bioinformatics 34:3094 (minimap2)
-- Slot JC & Rokas A 2010 GBE 2:362 (microsynteny conservation in metabolic clusters)
 - Naruse K et al 2004 GR 14:820 (synteny block decay)
-- Murat F et al 2010 GR 20:1545 (vertebrate macrosynteny)
 - Holland PWH et al 1994 Development Suppl:125 (2R hypothesis)
-- Vanneste K et al 2013 GR 23:1304 (Ks saturation)
-- Freeling M 2007 PNAS 104:8723 (gene balance)
+- Vanneste K et al 2013 MBE 30:177 (Ks saturation)
+- Birchler JA & Veitia RA 2007 Plant Cell 19:395 (gene balance)
 - Force A et al 1999 Genetics 151:1531 (subfunctionalization)
-- Zhao T & Schranz ME 2017 NAR 45:e108 (synteny network for phylogeny)
-- Smith MR & Hahn MW 2021 PNAS 118:e2103725118 (gene-tree-aware synteny)
+- Zhao T & Schranz ME 2017 Curr Opin Plant Biol 36:129 (synteny network for phylogeny)
 
 ## Related Skills
 

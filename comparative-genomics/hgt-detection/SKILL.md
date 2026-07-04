@@ -18,7 +18,7 @@ If code throws `Taxonomy ID not found`, `database version mismatch`, or `KeyErro
 
 # Horizontal Gene Transfer Detection
 
-**"Are these genes horizontally acquired, and from where?"** -> HGT signal lives in three orthogonal signal classes: composition (recent transfers carry donor codon usage; erodes by Lawrence-Ochman 1998 amelioration in ~50-200 Myr), phylogeny (gene tree nests within distant clade), and phyletic distribution (patchy taxonomic presence). No single class proves HGT; **claims require concordance across at least two classes** plus mandatory exclusion of contamination and differential gene loss (DGL). The most consequential failure mode in eukaryotic HGT detection is contamination passing all three classes silently (Boothby 2015 tardigrade retraction; Crisp 2015 human "145 HGTs" refuted by Salzberg 2017 GBE 9:1869).
+**"Are these genes horizontally acquired, and from where?"** -> HGT signal lives in three orthogonal signal classes: composition (recent transfers carry donor codon usage; erodes by Lawrence-Ochman 1998 amelioration in ~50-200 Myr), phylogeny (gene tree nests within distant clade), and phyletic distribution (patchy taxonomic presence). No single class proves HGT; **claims require concordance across at least two classes** plus mandatory exclusion of contamination and differential gene loss (DGL). The most consequential failure mode in eukaryotic HGT detection is contamination passing all three classes silently (Boothby 2015 tardigrade retraction; Crisp 2015 human "145 HGTs" refuted by Salzberg 2017 GB 18:85).
 
 - Python: `hgtector search` -> `hgtector analyze` for BLAST-distribution screen
 - Python: `AvP` (Koutsovoulos 2022 PLoS Comp Biol 18:e1010686) for eukaryotic phylogenetic HGT with automated tree workflow
@@ -34,19 +34,19 @@ If code throws `Taxonomy ID not found`, `database version mismatch`, or `KeyErro
 | Composition (parametric) | AlienHunter (Vernikos & Parkhill 2006 Bioinformatics 22:2196) | Variable-window tetranucleotide IVOM | Recent island detection; window-size aware | Old transfers; high-variance native composition |
 | Composition (parametric) | IslandPath-DIMOB (Bertelli 2017) | Dinucleotide bias + mobility genes | Combines composition + mobile-element signature | Mobile-element-free transfers |
 | Composition aggregator | IslandViewer 4 web (Bertelli 2017 NAR 45:W30) | Consensus of IslandPath / SIGI / IslandPick | Best single-genome bacterial screen; curated benchmark | Recent radiations; close-relative donors |
-| BLAST-distribution | HGTector v2 (Zhu 2020 Bioinformatics 36:i538) | Close vs distal BLAST hit ratio against full taxonomy | No tree required; scales to thousands of genomes | Close-relative donors (similar lineage hits); incomplete taxonomic sampling |
+| BLAST-distribution | HGTector v2 (Zhu 2014 BMC Genomics 15:717) | Close vs distal BLAST hit ratio against full taxonomy | No tree required; scales to thousands of genomes | Close-relative donors (similar lineage hits); incomplete taxonomic sampling |
 | BLAST-distribution | DarkHorse (Podell & Gaasterland 2007 GB 8:R16) | Lineage Probability Index (LPI) | Quantifies taxonomic prior of best hits | Same lineage-coverage caveat as HGTector |
 | BLAST-distribution | Alien Index (Gladyshev 2008 Science 320:1210; recent: AI tools) | Best hit metazoan vs non-metazoan score | Standard for eukaryote HGT screen | False positives from rapid evolution / contamination |
 | Phylogenetic incongruence | AvP (Koutsovoulos 2022) | Automated tree-building + AU test on candidate HGTs | End-to-end eukaryote pipeline; orthogroup-aware | Poor taxon sampling at putative donor lineage |
-| Phylogenetic incongruence | HGTphyloDetect (Cheng 2023 Brief Bioinform 24:bbad035) | Web-friendly; Bayesian incongruence test | Modern eukaryote-friendly | Computationally heavy at genome scale |
+| Phylogenetic incongruence | HGTphyloDetect (Yuan 2023 Brief Bioinform 24:bbad035) | Web-friendly; Bayesian incongruence test | Modern eukaryote-friendly | Computationally heavy at genome scale |
 | Probabilistic DTL reconciliation | ALE (Szöllősi 2013) | Amalgamated likelihood over gene-tree sample | Bayesian-posterior over D/T/L events; explicit donor inference | Requires gene tree distribution (bootstrap or UFBoot) |
 | Probabilistic DTL reconciliation | GeneRax (Morel 2020) | ML reconciliation; species-tree-aware | Faster than ALE; refines noisy gene trees | Less uncertainty quantification than ALE |
 | Probabilistic DTL reconciliation | AleRax (Morel 2024) | Co-estimates gene + species trees + DTL rates | Gold standard 2024; corrects gene-tree-error feedback | Computationally heavy; needs >= 20 species |
 | Parsimony reconciliation | RANGER-DTL 2.0 (Bansal 2018 Bioinformatics 34:3214) | Min-cost DTL parsimony | Fast; deterministic; many trees | No likelihood; sensitive to event-cost choice |
 | Metagenome HGT | MetaCHIP (Song 2019 Microbiome 7:36) | BLAST + phylogeny on MAG-pairs | Designed for metagenome-assembled genomes | Requires high-quality MAGs (>= 90% complete) |
-| HGT-aware species tree | ASTRAL-Pro2 (Zhang 2022 Bioinformatics 38:i131) | Quartet-coalescent with paralog handling | Robust to HGT-inflated gene-tree discord | Still assumes ILS-coalescent; not explicit HGT model |
+| HGT-aware species tree | ASTRAL-Pro2 (Zhang & Mirarab 2022 Bioinformatics 38:4949) | Quartet-coalescent with paralog handling | Robust to HGT-inflated gene-tree discord | Still assumes ILS-coalescent; not explicit HGT model |
 
-Methodology evolves; verify the current AleRax / AvP documentation and the Szöllősi 2024 review (eLife 13:RP91040) before committing to a single approach. ALE/GeneRax/AleRax have largely superseded older parsimony reconciliation for bacterial phylogenomics.
+Methodology evolves; verify the current AleRax / AvP documentation before committing to a single approach. ALE/GeneRax/AleRax have largely superseded older parsimony reconciliation for bacterial phylogenomics.
 
 ## Decision Tree by Experimental Scenario
 
@@ -75,7 +75,7 @@ Methodology evolves; verify the current AleRax / AvP documentation and the Szöl
 
 **Symptom:** "HGT" genes are concentrated on short, low-coverage contigs; have GC% dramatically different from the bulk genome; show codon usage indistinguishable from bacteria; cluster on contigs lacking eukaryotic gene order; the genome assembly's BUSCO completeness anomaly indicates contamination (e.g. tardigrade Hypsibius dujardini: Boothby 2015 PNAS 112:15976 -> Koutsovoulos 2016 PNAS 113:5053 retraction).
 
-**Fix:** MANDATORY contamination filter before any eukaryotic HGT analysis. Use BlobTools2 (Challis 2020 G3) coverage-vs-GC visualization to identify contaminant blobs; Kraken2 (Wood 2019 GB 20:257) or Conterminator (Steinegger 2020 GB 21:168) to taxonomically classify contigs; FCS-GX (Astashyn 2024 GB 25:60) is the NCBI tool now required for GenBank submission. Apply these BEFORE running AvP / HGTector / Alien Index. After cleaning, re-screen. Crisp 2015 Genome Biol 16:50 "145 HGT in humans" was reduced to ~17 after Salzberg 2017 GBE 9:1869 contamination-aware reanalysis.
+**Fix:** MANDATORY contamination filter before any eukaryotic HGT analysis. Use BlobTools2 (Challis 2020 G3) coverage-vs-GC visualization to identify contaminant blobs; Kraken2 (Wood 2019 GB 20:257) or Conterminator (Steinegger 2020 GB 21:115) to taxonomically classify contigs; FCS-GX (Astashyn 2024 GB 25:60) is the NCBI tool now required for GenBank submission. Apply these BEFORE running AvP / HGTector / Alien Index. After cleaning, re-screen. Crisp 2015 Genome Biol 16:50 "145 HGT in humans" was reduced to ~17 after Salzberg 2017 GB 18:85 contamination-aware reanalysis.
 
 ### Amelioration eroding compositional signal
 
@@ -105,7 +105,7 @@ Methodology evolves; verify the current AleRax / AvP documentation and the Szöl
 
 **Symptom:** Multiple genes show identical pattern of incongruence (same direction, same sister); D-statistic (see [[introgression-detection]]) significantly different from zero between candidate hybrid and its inferred sister.
 
-**Fix:** Run ABBA-BABA / Dsuite for the candidate (see [[introgression-detection]]); if introgression signal is uniform across the genome, prefer hybridization explanation. ALE on bacterial trees can handle this via transfer-with-replacement; for eukaryotes, phylogenetic networks (e.g. PhyloNetworks / SNaQ via Solis-Lemus & Ane 2017 PLoS Comp Biol 13:e1005485, or NakhlehLab PhyloNet) properly model reticulation.
+**Fix:** Run ABBA-BABA / Dsuite for the candidate (see [[introgression-detection]]); if introgression signal is uniform across the genome, prefer hybridization explanation. ALE on bacterial trees can handle this via transfer-with-replacement; for eukaryotes, phylogenetic networks (e.g. PhyloNetworks / SNaQ via Solis-Lemus & Ane 2016 PLoS Genet 12:e1005896, or NakhlehLab PhyloNet) properly model reticulation.
 
 ### gBGC-driven AT->GC substitution bias
 
@@ -115,7 +115,7 @@ Methodology evolves; verify the current AleRax / AvP documentation and the Szöl
 
 **Symptom:** "HGT" candidates cluster in sub-telomeric regions or high-recombination zones; W->S substitution bias is elevated; phylogenetic placement is consistent with host species; selection scans (BUSTED) show no signal.
 
-**Fix:** Test for gBGC explicitly via W->S vs S->W substitution ratios (Galtier 2025 Genetics 230:iyaf111; Capra 2013 Genetics 195:1255); require non-zero phylogenetic incongruence in addition to composition; exclude regions with recombination rate > 90th percentile.
+**Fix:** Test for gBGC explicitly via W->S vs S->W substitution ratios (Galtier 2025 Genetics 230:iyaf111; Capra 2013 PLoS Genet 9:e1003684); require non-zero phylogenetic incongruence in addition to composition; exclude regions with recombination rate > 90th percentile.
 
 ### Close-relative donor making BLAST methods fail
 
@@ -152,7 +152,7 @@ Methodology evolves; verify the current AleRax / AvP documentation and the Szöl
 | Quantity | Threshold | Source / Rationale |
 |----------|-----------|-------------------|
 | HGT call requires concordance | >= 2 of 3 signal classes (composition, phylogeny, distribution) | Standard convention (Ravenhall 2015 PLoS Comp Biol 11:e1004095) |
-| HGTector hgt_score | > 0.5 moderate; > 1.0 strong | HGTector v2 documentation; Zhu 2020 |
+| HGTector hgt_score | > 0.5 moderate; > 1.0 strong | HGTector documentation; Zhu 2014 |
 | Alien Index | AI > 45 (P_metazoan / P_non-metazoan) | Gladyshev 2008 Science 320:1210; modern eukaryote default |
 | GC z-score generic threshold | |z| > 2 suggestive; > 3 strong | But raise to >= 3 for high-variance genomes |
 | Genomic island minimum size | >= 5 contiguous genes / >= 8 kb | IslandViewer 4 default |
@@ -275,7 +275,7 @@ The output `avp_results/classification.tsv` reports per-gene: HGT / putative-HGT
 
 ## IslandViewer 4 + mobileOG-db Integration
 
-For single-genome bacterial analysis, the combined workflow is: IslandViewer 4 (web; submit assembly, returns islands via IslandPath-DIMOB / SIGI-HMM / IslandPick consensus) -> annotate genes with mobileOG-db (Brown 2022 mSystems 7:e0099122) for mobile element families -> cross-check candidate islands for integrase / transposase / phage signatures -> if AMR is annotated, cross-reference with AMRFinderPlus or CARD.
+For single-genome bacterial analysis, the combined workflow is: IslandViewer 4 (web; submit assembly, returns islands via IslandPath-DIMOB / SIGI-HMM / IslandPick consensus) -> annotate genes with mobileOG-db (Brown 2022 Appl Environ Microbiol 88:e0099122) for mobile element families -> cross-check candidate islands for integrase / transposase / phage signatures -> if AMR is annotated, cross-reference with AMRFinderPlus or CARD.
 
 The five most reliable island indicators in order of strength: (1) integrase / transposase / phage protein co-located; (2) tRNA gene at one boundary (integration hotspot); (3) GC% deviation > 2 SD from genome mean; (4) absence in close relatives; (5) DNA recognition sites for known integrases (e.g. attL/attR).
 
@@ -375,26 +375,26 @@ NCBI now mandates FCS-GX screening for new eukaryote genome submissions to GenBa
 - Szöllősi GJ et al 2013 Syst Biol 62:901 (ALE undated)
 - Bansal MS et al 2018 Bioinformatics 34:3214 (RANGER-DTL 2.0)
 - Bertelli C et al 2017 NAR 45:W30 (IslandViewer 4)
-- Williams TA et al 2017 PNAS 114:E4602 (ALE rooting of Eukaryota)
+- Williams TA et al 2017 PNAS 114:E4602 (ALE rooting of the archaeal tree of life)
 - Boothby TC et al 2015 PNAS 112:15976 (tardigrade HGT claim)
 - Koutsovoulos G et al 2016 PNAS 113:5053 (tardigrade contamination refutation)
 - Crisp A et al 2015 Genome Biol 16:50 (human HGT claim)
-- Salzberg SL 2017 GBE 9:1869 (human HGT contamination refutation)
-- Zhu Q et al 2020 Bioinformatics 36:i538 (HGTector v2)
+- Salzberg SL 2017 Genome Biol 18:85 (human HGT contamination refutation)
+- Zhu Q, Kosoy M & Dittmar K 2014 BMC Genomics 15:717 (HGTector)
 - Koutsovoulos G et al 2022 PLoS Comp Biol 18:e1010686 (AvP)
-- Cheng L et al 2023 Brief Bioinform 24:bbad035 (HGTphyloDetect)
+- Yuan L et al 2023 Brief Bioinform 24:bbad035 (HGTphyloDetect)
 - Morel B et al 2020 MBE 37:2763 (GeneRax)
 - Morel B et al 2024 Bioinformatics 40:btae162 (AleRax co-estimation)
-- Brown CL et al 2022 mSystems 7:e0099122 (mobileOG-db)
+- Brown CL et al 2022 Appl Environ Microbiol 88:e0099122 (mobileOG-db)
 - Song W et al 2019 Microbiome 7:36 (MetaCHIP)
 - Astashyn A et al 2024 GB 25:60 (FCS-GX)
 - Wood DE et al 2019 GB 20:257 (Kraken2)
-- Steinegger M et al 2020 GB 21:168 (Conterminator)
+- Steinegger M et al 2020 GB 21:115 (Conterminator)
 - Challis R et al 2020 G3 10:1361 (BlobTools2)
 - Ravenhall M et al 2015 PLoS Comp Biol 11:e1004095 (HGT inference review)
 - Martin W et al 2002 PNAS 99:12246 (plastid EGT)
-- Capra JA et al 2013 Genetics 195:1255 (gBGC quantification)
-- Solis-Lemus C & Ane C 2017 PLoS Comp Biol 13:e1005485 (PhyloNetworks / SNaQ; Julia)
+- Capra JA et al 2013 PLoS Genet 9:e1003684 (gBGC quantification)
+- Solis-Lemus C & Ane C 2016 PLoS Genet 12:e1005896 (SNaQ / PhyloNetworks reticulation)
 - Shimodaira H 2002 Syst Biol 51:492 (AU test)
 
 ## Related Skills

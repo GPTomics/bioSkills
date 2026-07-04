@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tests for inter-population admixture combine site-pattern statistics (ABBA-BABA, f4), tree-topology methods (Dsuite f-branch, QuIBL, Twisst), explicit networks (PhyloNet, qpGraph), and haplotype-based methods (sprime, hapne). The fundamental confounder is **incomplete lineage sorting (ILS)**: a significant Patterson D-statistic is consistent with introgression OR with asymmetric ILS OR with ancestral structure OR with ghost lineages (Eriksson & Manica 2012 PNAS 109:13956).
+Tests for inter-population admixture combine site-pattern statistics (ABBA-BABA, f4), tree-topology methods (Dsuite f-branch, QuIBL, Twisst), explicit networks (PhyloNet, qpGraph), and haplotype-based methods (sprime, Relate). The fundamental confounder is **incomplete lineage sorting (ILS)**: a significant Patterson D-statistic is consistent with introgression OR with asymmetric ILS OR with ancestral structure OR with ghost lineages (Eriksson & Manica 2012 PNAS 109:13956).
 
 For publication-grade introgression claims, combine D-statistic with **Fbranch** mapping (Malinsky 2018), **Twisst / QuIBL** topology weighting at the locus level, and at least one network method.
 

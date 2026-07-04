@@ -2,7 +2,7 @@
 
 ## Overview
 
-Gene-family birth-death models on phylogenies (Hahn 2005; Csurös 2010) detect lineage-specific gene-family expansions and contractions. **CAFE5** (Mendes 2021 Bioinformatics 36:5516) is the modern standard with gamma-distributed rate categories for biologically realistic modeling. **Annotation heterogeneity is the dominant confounder** -- different annotation pipelines predict different gene counts, producing apparent "expansions" that are pipeline artifacts. Consistent annotation + BUSCO/Compleasm completeness filtering are mandatory.
+Gene-family birth-death models on phylogenies (Hahn 2005; Csurös 2010) detect lineage-specific gene-family expansions and contractions. **CAFE5** (Mendes 2020 Bioinformatics 36:5516) is the modern standard with gamma-distributed rate categories for biologically realistic modeling. **Annotation heterogeneity is the dominant confounder** -- different annotation pipelines predict different gene counts, producing apparent "expansions" that are pipeline artifacts. Consistent annotation + BUSCO/Compleasm completeness filtering are mandatory.
 
 For HGT-affected gene families (prokaryotes), CAFE5's birth-death-only model misses transfer; use ALE/GeneRax/AleRax instead ([[gene-tree-species-tree-reconciliation]]).
 
@@ -75,7 +75,7 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- CAFE5 (Mendes 2021) is the modern standard; CAFE4 deprecated
+- CAFE5 (Mendes 2020) is the modern standard; CAFE4 deprecated
 - Filter input to multi-copy orthogroups (max count >= 2); single-copy contribute no information
 - Tree MUST be ultrametric (time-calibrated); use treePL / LSD2 / ape::chronos
 - Negative branch lengths cause failures; calibrate properly

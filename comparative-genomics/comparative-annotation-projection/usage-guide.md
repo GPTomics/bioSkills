@@ -2,7 +2,7 @@
 
 ## Overview
 
-Comparative annotation projection transfers gene annotations from a reference to query genome(s) using evolutionary conservation, replacing de novo prediction for many comparative-genomics workflows. The 2023-era standard is **TOGA + CESAR 2.0** (Kirilenko 2023 Science 380:eabn3107), which uses whole-genome alignment chains + ML classification + codon-aware exon projection to scale to hundreds of genomes (Zoonomia: 488 mammals; Bird10000 Genomes: 501 birds). **LiftOff** (Shumate & Salzberg 2020) is the standard for fast pairwise transfer without WGA.
+Comparative annotation projection transfers gene annotations from a reference to query genome(s) using evolutionary conservation, replacing de novo prediction for many comparative-genomics workflows. The 2023-era standard is **TOGA + CESAR 2.0** (Kirilenko 2023 Science 380:eabn3107), which uses whole-genome alignment chains + ML classification + codon-aware exon projection to scale to hundreds of genomes (Zoonomia: 488 mammals; Bird10000 Genomes: 501 birds). **LiftOff** (Shumate & Salzberg 2021) is the standard for fast pairwise transfer without WGA.
 
 The critical decision is **WGA-anchored** (TOGA: explicit gene-loss classification) vs **ortholog-anchored** (LiftOff: faster, more permissive).
 

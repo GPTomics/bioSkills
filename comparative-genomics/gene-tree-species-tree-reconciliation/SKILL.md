@@ -40,11 +40,11 @@ If code throws `species tree mismatch`, `gene tree taxa not in species tree`, or
 | NOTUNG (Chen 2000 JCB 7:429; Stolzer 2012 Bioinformatics 28:i409) | Parsimony DL; HGT extension | D, L (optional T) | Parsimony | User-friendly GUI; widely used | DL-only by default; HGT extension less rigorous than ALE |
 | ecceTERA (Jacox 2016 Bioinformatics 32:2056) | DTL on input set of trees; ILS extension | D, T, L (+ ILS) | Parsimony / DP | Handles ILS jointly with DTL | Less popular than ALE; smaller community |
 | Treerecs (Comte 2020 Bioinformatics 36:4822) | Joint species tree + gene tree refinement | D, L | ML | Refines gene trees by species-tree constraint | No HGT; eukaryote-focused |
-| DLCpar (Wu 2014 MBE 31:1290) | DLC parsimony for DL + coalescence (ILS) | D, L, C | Parsimony | Models ILS explicitly | No HGT; older |
-| GraphDTL (Tofigh 2010) | Graph algorithm for DTL | D, T, L | Parsimony | Fast on small instances | Less used today |
+| DLCpar (Wu 2014 GR 24:475) | DLC parsimony for DL + coalescence (ILS) | D, L, C | Parsimony | Models ILS explicitly | No HGT; older |
+| GraphDTL (Tofigh 2011) | Graph algorithm for DTL | D, T, L | Parsimony | Fast on small instances | Less used today |
 | Phyldog (Boussau 2013 GR 23:323) | Joint species-tree-gene-tree DL with site-rate variation | D, L | Bayesian | Joint inference; refines gene trees | Bacteria-unfriendly; eukaryote-only |
 
-Methodology evolves; verify the AleRax / ALE documentation and the Szöllősi 2024 review (eLife 13:RP91040) before locking on a single approach. The probabilistic ALE / GeneRax / AleRax tools have largely superseded parsimony reconciliation for serious phylogenomic work; parsimony is fine for screening but not for publication-grade DTL inference.
+Methodology evolves; verify the AleRax / ALE documentation before locking on a single approach. The probabilistic ALE / GeneRax / AleRax tools have largely superseded parsimony reconciliation for serious phylogenomic work; parsimony is fine for screening but not for publication-grade DTL inference.
 
 ## Decision Tree by Experimental Scenario
 
@@ -171,7 +171,7 @@ Verify with `nw_labels -I species_tree.nwk` vs `nw_labels -I gene_trees/OG000000
 |----------|-----------|-------------------|
 | ALE gene-tree sample size | >= 100 bootstrap or UFBoot trees per family | ALE documentation; below this, posterior poorly resolved |
 | Bacterial transfer rate (per gene per branch) | typically 0.001-0.05 in ALE inferences | Szöllősi 2013; varies clade |
-| Eukaryote duplication rate | typically 0.0001-0.005 | Hahn 2009 GR 19:859; eukaryote-specific |
+| Eukaryote duplication rate | typically 0.0001-0.005 | eukaryote-specific convention; calibrate per clade |
 | Branch-wise DTL event posterior | > 0.5 for "called" event | ssolo/ALE convention |
 | Minimum gene families for AleRax | >= 100 families; >= 20 species | Morel 2024 |
 | Minimum species for species-tree rooting via ALE | >= 30 species across the clade | Williams 2017 |
@@ -460,24 +460,21 @@ For cluster deployment, AleRax / GeneRax require MPI; verify `mpicc --version` a
 
 - Szöllősi GJ et al 2013 Syst Biol 62:901 (ALE undated)
 - Szöllősi GJ et al 2015 Syst Biol 64:e42 (ALE rooting concept)
-- Szöllősi GJ et al 2024 eLife 13:RP91040 (modern reconciliation review)
 - Morel B et al 2020 MBE 37:2763 (GeneRax)
 - Morel B et al 2024 Bioinformatics 40:btae162 (AleRax co-estimation)
-- Williams TA et al 2017 PNAS 114:E4602 (ALE-rooting of Eukaryota)
+- Williams TA et al 2017 PNAS 114:E4602 (ALE-rooting of the archaeal tree of life)
 - Zwaenepoel A & Van de Peer Y 2019 MBE 36:1384 (Whale.jl Bayesian DTL+WGD)
 - Bansal MS et al 2018 Bioinformatics 34:3214 (RANGER-DTL 2.0)
 - Chen K et al 2000 J Comp Biol 7:429 (NOTUNG)
 - Stolzer M et al 2012 Bioinformatics 28:i409 (NOTUNG-HGT extension)
 - Jacox E et al 2016 Bioinformatics 32:2056 (ecceTERA)
 - Comte N et al 2020 Bioinformatics 36:4822 (Treerecs)
-- Wu Y-C et al 2014 MBE 31:1290 (DLCpar)
+- Wu Y-C et al 2014 GR 24:475 (DLCpar)
 - Boussau B et al 2013 Genome Res 23:323 (Phyldog joint inference)
-- Hahn MW 2009 Genome Res 19:859 (eukaryote gene family dynamics)
-- Sjostrand J et al 2014 Bioinformatics 30:i418 (PrIME-DLRS Bayesian)
-- Tofigh A et al 2010 IEEE/ACM CB 18 (DTL graph algorithm)
+- Sjöstrand J et al 2012 Bioinformatics 28:2994 (PrIME-DLRS Bayesian)
+- Tofigh A, Hallett M & Lagergren J 2011 IEEE/ACM TCBB 8:517 (DTL graph algorithm)
 - Maddison WP 1997 Syst Biol 46:523 (gene tree discordance causes)
-- Smith ML et al 2024 Curr Biol 34:R128 (recent reconciliation methods review)
-- Rabier C-E et al 2014 MBE 31:1334 (rate inference under WGD)
+- Rabier C-E et al 2014 MBE 31:750 (rate inference under WGD)
 - Tria FDK et al 2017 Nat Eco Evo 1:0193 (MAD rooting alternative)
 - Emms DM & Kelly S 2017 MBE 34:3267 (STRIDE rooting)
 

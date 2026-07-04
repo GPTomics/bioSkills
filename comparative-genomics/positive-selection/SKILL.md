@@ -41,7 +41,7 @@ If code throws `branch-site test LRT non-positive`, `omega2 hit upper bound 999`
 | HyPhy BUSTED (Murrell 2015 MBE 32:1365) | Any episodic selection on any branch site? | No omega+ class | Site + branch joint; foreground assignable | Sensitive to alignment errors |
 | HyPhy BUSTED-S (Wisotsky 2020 MBE 37:2430) | BUSTED with synonymous-rate variation | -- | Corrects for SRV; reduces false positives | Slightly less power than BUSTED |
 | HyPhy BUSTED-MH (Lucaci 2023 bioRxiv 2022.12.02) | BUSTED with multi-nucleotide substitutions | -- | Captures complex (multi-hit) substitutions; reduces false positives from MNMs | Newer; limited benchmarking |
-| HyPhy BUSTED-PH (Murrell 2022) | Two phenotypes; selection on one not other | -- | Tests phenotype-specific selection | Requires phenotype branch label |
+| HyPhy BUSTED-PH | Two phenotypes; selection on one not other | -- | Tests phenotype-specific selection | Requires phenotype branch label |
 | HyPhy MEME (Murrell 2012 PLoS Genet 8:e1002764) | Per-site episodic selection | FEL | Detects sites under episodic positive selection | Higher false-positive rate at p threshold |
 | HyPhy FEL (Kosakovsky Pond 2005 MBE 22:1208) | Per-site pervasive selection | -- | Fast; counts substitutions per site | No episodic detection |
 | HyPhy FUBAR (Murrell 2013 MBE 30:1196) | Bayesian per-site pervasive selection | -- | Scales to 1000s of sequences; posterior probability | No episodic detection |
@@ -52,16 +52,16 @@ If code throws `branch-site test LRT non-positive`, `omega2 hit upper bound 999`
 | McDonald-Kreitman (McDonald & Kreitman 1991 Nature 351:652) | Adaptive substitution rate alpha from poly + div data | Neutral mutation accumulation | Per-gene alpha; population genetics native | Slightly deleterious bias (downward); fixed by asymptotic alpha |
 | Asymptotic alpha (Messer & Petrov 2013 PNAS 110:8615) | MK with slightly deleterious correction | -- | Unbiased alpha; works at low MAF SFS | Requires SFS data |
 | impMKT (Murga-Moreno 2022 G3 12:jkac206) | MK with conservative imputation | -- | Gene-level evidence; faster than alpha asymptotic | Less unbiased than asymptotic alpha |
-| polyDFE (Tataru & Bataillon 2019 Bioinformatics 35:2196) | Full DFE + alpha jointly | -- | Quantifies the distribution of fitness effects | Computational cost; requires polymorphism data |
+| polyDFE (Tataru & Bataillon 2019 Bioinformatics 35:2868) | Full DFE + alpha jointly | -- | Quantifies the distribution of fitness effects | Computational cost; requires polymorphism data |
 | DFE-alpha (Eyre-Walker & Keightley 2009 MBE 26:2097) | Faster DFE method | -- | Standard DFE inference; many simulated DFEs | Requires demographic correction |
 | GRAPES (Galtier 2016 PLoS Genet 12:e1005774) | DFE on neutral + selected sites | -- | Joint demography + alpha; robust | Genome-scale dataset required |
-| RERconverge (Kowalczyk 2019 Bioinformatics 35:5396; Saputra 2024 MBE 41:msae210) | Relative-rate shifts correlated with categorical phenotype | -- | Phylogenome-wide trait associations | Inherits all dN/dS confounders |
+| RERconverge (Kowalczyk 2019 Bioinformatics 35:4815; Redlich 2024 MBE 41:msae210) | Relative-rate shifts correlated with categorical phenotype | -- | Phylogenome-wide trait associations | Inherits all dN/dS confounders |
 | CSUBST (Fukushima & Pollock 2023 Nat Eco Evo 7:155) | Convergent substitutions across independent lineages | -- | Combinatorial-substitution omegaC ratio; null-corrected | Requires multi-clade dataset |
 | PhyloAcc (Hu 2019 MBE 36:1086; Thomas 2024) | Bayesian convergent accelerated noncoding rate | -- | For noncoding elements (CNEs); convergent rate shifts | CDS analyses prefer codon-based methods |
 | phyloP (Pollard 2010 GR 20:110) | Per-site noncoding rate test | -- | Simple; widely used for noncoding | No convergence; site-by-site |
 | PRANK + codeml pipeline | Codon-aware MSA + codeml | -- | Standard publication-grade workflow | Slow for large datasets |
 
-Methodology evolves; verify the latest HyPhy / PAML manuals and the 2024 Anisimova "Beginner's Guide" (Jones et al 2023 MBE 40:msad041) before locking on a single method. The BUSTED-MH and FUBAR-MH (multi-hit) extensions specifically address known Type-I inflation from multi-nucleotide substitutions and are now recommended over basic BUSTED / FUBAR.
+Methodology evolves; verify the latest HyPhy / PAML manuals and the Álvarez-Carretero "Beginner's Guide" (Álvarez-Carretero et al 2023 MBE 40:msad041) before locking on a single method. The BUSTED-MH and FUBAR-MH (multi-hit) extensions specifically address known Type-I inflation from multi-nucleotide substitutions and are now recommended over basic BUSTED / FUBAR.
 
 ## Decision Tree by Experimental Scenario
 
@@ -102,7 +102,7 @@ Methodology evolves; verify the latest HyPhy / PAML manuals and the 2024 Anisimo
 
 **Trigger:** Using default MAFFT or MUSCLE alignment on divergent CDS sequences; skipping codon-aware aligner.
 
-**Mechanism:** Frame-shifted or misaligned codons introduce apparent non-synonymous substitutions at every position; codon-aware tools see these as positive selection (Schneider 2009 BMC Bioinf 10:13; Markova-Raina & Petrov 2011 GR 21:863).
+**Mechanism:** Frame-shifted or misaligned codons introduce apparent non-synonymous substitutions at every position; codon-aware tools see these as positive selection (Schneider 2009 GBE 1:114; Markova-Raina & Petrov 2011 GR 21:863).
 
 **Symptom:** "Selected sites" cluster in alignment regions with > 30% gaps; per-site posteriors in BEB / FUBAR concentrate in ambiguous columns; PREQUAL or Guidance2 marks these regions as poorly aligned; protein alignment shows obvious mismatches.
 
@@ -122,11 +122,11 @@ Methodology evolves; verify the latest HyPhy / PAML manuals and the 2024 Anisimo
 
 **Trigger:** Mammalian / vertebrate gene with W->S substitution bias on a fast-evolving lineage.
 
-**Mechanism:** GC-biased gene conversion fixes A/T -> G/C alleles preferentially in regions of high recombination, independent of selection (Galtier & Duret 2007 Trends Genet 23:273; Capra 2013 Genetics 195:1255). Standard codon models attribute this to positive selection because nonsynonymous substitutions are unequally distributed across codon positions.
+**Mechanism:** GC-biased gene conversion fixes A/T -> G/C alleles preferentially in regions of high recombination, independent of selection (Galtier & Duret 2007 Trends Genet 23:273; Capra 2013 PLoS Genet 9:e1003684). Standard codon models attribute this to positive selection because nonsynonymous substitutions are unequally distributed across codon positions.
 
 **Symptom:** Branch with apparent positive selection sits in high-recombination region; W->S / S->W substitution ratio > 1.5; selected sites concentrate at non-degenerate codon positions; HyPhy MEME-MH and BUSTED-MH attribute signal to multi-hit rather than positive selection.
 
-**Fix:** Test for gBGC: W->S substitution rates on selected branch / S->W rates; report ratio. Galtier 2025 Genetics 230:iyaf111 provides updated gBGC test. Re-run selection analysis with HyPhy BUSTED-MH (multi-hit aware); if signal vanishes, the original "selection" was gBGC + multi-hit substitutions. For genome-wide scans, mask sub-telomeric / high-recombination regions.
+**Fix:** Test for gBGC: W->S substitution rates on selected branch / S->W rates; report ratio. Re-run selection analysis with HyPhy BUSTED-MH (multi-hit aware); if signal vanishes, the original "selection" was gBGC + multi-hit substitutions. For genome-wide scans, mask sub-telomeric / high-recombination regions.
 
 ### Branch-site test foreground specification
 
@@ -176,7 +176,7 @@ Methodology evolves; verify the latest HyPhy / PAML manuals and the 2024 Anisimo
 
 **Symptom:** Same residue flagged in multiple unrelated lineages by branch-site test; alignment shows convergent substitutions.
 
-**Fix:** Switch from selection test to convergence test: CSUBST (Fukushima & Pollock 2023 Nat Eco Evo 7:155) for combinatorial substitution analysis; RERconverge (Saputra 2024 MBE 41:msae210) for relative-rate-vs-phenotype across categorical traits; PCOC (Rey 2018) for biophysical convergence. Report both convergence test and selection test results.
+**Fix:** Switch from selection test to convergence test: CSUBST (Fukushima & Pollock 2023 Nat Eco Evo 7:155) for combinatorial substitution analysis; RERconverge (Redlich 2024 MBE 41:msae210) for relative-rate-vs-phenotype across categorical traits; PCOC (Rey 2018) for biophysical convergence. Report both convergence test and selection test results.
 
 ## Quantitative Thresholds
 
@@ -187,7 +187,7 @@ Methodology evolves; verify the latest HyPhy / PAML manuals and the 2024 Anisimo
 | Site-level p-value default | p <= 0.1 (FEL, MEME, FUBAR); FUBAR posterior >= 0.9 | Murrell 2012/2013; Datamonkey conventions |
 | BEB posterior probability | >= 0.95 significant; >= 0.99 highly significant | Yang & Bielawski 2000 |
 | dS upper limit for reliability | dS < 1.5 per branch; dS < 3 overall | Yang 2007 PAML manual |
-| Minimum sequences for codeml | >= 8 with sufficient divergence | Anisimova 2008 MBE 25:2410 |
+| Minimum sequences for codeml | >= 8 with sufficient divergence | Anisimova et al 2001 MBE 18:1585 |
 | Branch-site test minimum lineages | >= 20 in tree; >= 4 background branches | Yang 2007 |
 | GARD breakpoint significance | p < 0.05 to partition alignment | Pond 2006; mandatory pre-screen |
 | MK alpha threshold | alpha > 0 indicates adaptive substitutions; report 95% CI | Smith & Eyre-Walker 2002 |
@@ -388,7 +388,7 @@ cors <- correlateWithBinaryPhenotype(rer, phen_paths, min.sp = 10, min.pos = 2,
 top_genes <- cors[order(cors$P), ][1:50, ]
 ```
 
-For categorical traits (more than binary), Saputra 2024 MBE 41:msae210 extends RERconverge.
+For categorical traits (more than binary), Redlich 2024 MBE 41:msae210 extends RERconverge.
 
 ## Reconciliation: When Methods Disagree
 
@@ -467,18 +467,18 @@ For genome-wide scans (> 5000 genes), parallelize per-gene analyses with Snakema
 - Yang Z & Bielawski JP 2000 TREE 15:496 (codon model framework)
 - Zhang J et al 2005 MBE 22:2472 (branch-site mod A); Wong WSW et al 2004 Genetics 168:1041 (LRT mixture); Self SG & Liang K-Y 1987 JASA 82:605 (LRT boundary)
 - Swanson WJ et al 2003 Genetics 165:725 (M8a null); Bielawski JP & Yang Z 2004 J Mol Evol 59:121 (clade models)
-- Anisimova M & Yang Z 2007 MBE 24:1219 (PAML comparison); Anisimova M et al 2003 Genetics 164:1229 (recombination FP); Anisimova M et al 2008 MBE 25:2410 (power)
+- Anisimova M & Yang Z 2007 MBE 24:1219 (PAML comparison); Anisimova M et al 2003 Genetics 164:1229 (recombination FP); Anisimova M, Bielawski JP & Yang Z 2001 MBE 18:1585 (LRT power)
 - Pond SLK et al 2006 MBE 23:1891 (GARD); Martin DP et al 2021 Virus Evol 7:veaa087 (RDP5)
 - Kosakovsky Pond SL & Frost SDW 2005 MBE 22:1208 (FEL); Murrell B et al 2012 PLoS Genet 8:e1002764 (MEME); Murrell B et al 2013 MBE 30:1196 (FUBAR)
 - Murrell B et al 2015 MBE 32:1365 (BUSTED); Wisotsky SR et al 2020 MBE 37:2430 (BUSTED-S); Lucaci AG et al 2023 bioRxiv 2022.12.02.518889 (BUSTED-MH)
 - Smith MD et al 2015 MBE 32:1342 (aBSREL); Wertheim JO et al 2015 MBE 32:820 (RELAX)
 - McDonald JH & Kreitman M 1991 Nature 351:652 (MK); Smith NGC & Eyre-Walker A 2002 Nature 415:1022 (alpha); Messer PW & Petrov DA 2013 PNAS 110:8615 (asymptotic alpha)
-- Murga-Moreno J et al 2022 G3 12:jkac206 (impMKT); Tataru P & Bataillon T 2019 Bioinformatics 35:2196 (polyDFE); Eyre-Walker A & Keightley PD 2009 MBE 26:2097 (DFE-alpha); Galtier N 2016 PLoS Genet 12:e1005774 (GRAPES)
-- Galtier N & Duret L 2007 Trends Genet 23:273 (gBGC); Galtier N 2025 Genetics 230:iyaf111 (gBGC selection); Capra JA et al 2013 Genetics 195:1255 (gBGC genome-scale)
-- Schneider A et al 2009 BMC Bioinf 10:13 + Markova-Raina P & Petrov D 2011 GR 21:863 (alignment-error FP)
-- Loytynoja A 2014 Methods Mol Biol 1079:155 (PRANK); Ranwez V et al 2018 MBE 35:2582 (MACSE V2); Whelan S et al 2018 MBE 35:2624 (PREQUAL); Di Franco A et al 2019 BMC Eco Evo 19:21 (HmmCleaner)
-- Yang Z 2007 PAML manual; Jones CT et al 2023 MBE 40:msad041 (Beginner's Guide PAML)
-- Kowalczyk A et al 2019 Bioinformatics 35:5396 + Saputra E et al 2024 MBE 41:msae210 (RERconverge)
+- Murga-Moreno J et al 2022 G3 12:jkac206 (impMKT); Tataru P & Bataillon T 2019 Bioinformatics 35:2868 (polyDFE); Eyre-Walker A & Keightley PD 2009 MBE 26:2097 (DFE-alpha); Galtier N 2016 PLoS Genet 12:e1005774 (GRAPES)
+- Galtier N & Duret L 2007 Trends Genet 23:273 (gBGC); Capra JA et al 2013 PLoS Genet 9:e1003684 (gBGC genome-scale)
+- Schneider A et al 2009 GBE 1:114 + Markova-Raina P & Petrov D 2011 GR 21:863 (alignment-error FP)
+- Loytynoja A 2014 Methods Mol Biol 1079:155 (PRANK); Ranwez V et al 2018 MBE 35:2582 (MACSE V2); Whelan S et al 2018 Bioinformatics 34:3929 (PREQUAL); Di Franco A et al 2019 BMC Eco Evo 19:21 (HmmCleaner)
+- Yang Z 2007 PAML manual; Álvarez-Carretero S et al 2023 MBE 40:msad041 (Beginner's Guide PAML)
+- Kowalczyk A et al 2019 Bioinformatics 35:4815 + Redlich R et al 2024 MBE 41:msae210 (RERconverge)
 - Fukushima K & Pollock DD 2023 Nat Eco Evo 7:155 (CSUBST); Hu Z et al 2019 MBE 36:1086 (PhyloAcc); Pollard KS et al 2010 GR 20:110 (phyloP); Rey C et al 2018 MBE 35:2296 (PCOC)
 
 ## Related Skills
