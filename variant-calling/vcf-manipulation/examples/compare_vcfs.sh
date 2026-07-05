@@ -1,6 +1,9 @@
 #!/bin/bash
-# Reference: GATK 4.5+, bcftools 1.19+ | Verify API if version differs
-# Compare two VCF files and report overlap statistics
+# Reference: bcftools 1.19+ | Verify API if version differs
+# Compare two VCF files and report overlap statistics.
+# Prerequisite: both inputs must be normalized to the SAME representation first
+# (bcftools norm -m-any -f ref.fa), or bcftools isec reports false discordance --
+# isec defaults to exact REF+ALT matching. See variant-calling/variant-normalization.
 
 set -e
 
@@ -13,11 +16,15 @@ VCF1="$1"
 VCF2="$2"
 OUTDIR="${3:-vcf_comparison}"
 
-# Check inputs
+# Check inputs, and ensure each is indexed (bcftools isec requires a .csi/.tbi index)
 for vcf in "$VCF1" "$VCF2"; do
     if [ ! -f "$vcf" ]; then
         echo "Error: File not found: $vcf"
         exit 1
+    fi
+    if [ ! -f "${vcf}.csi" ] && [ ! -f "${vcf}.tbi" ]; then
+        echo "Indexing ${vcf}..."
+        bcftools index "$vcf"
     fi
 done
 

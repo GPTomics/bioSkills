@@ -1,6 +1,6 @@
 ---
 name: bio-variant-normalization
-description: Normalize indel representation, decompose MNPs, and split multiallelic variants using bcftools norm. Use when comparing variants from different callers, preparing VCF for database annotation, or merging VCFs from multiple sources.
+description: Left-align and trim indels to parsimonious canonical form, decompose MNPs (atomize), and split multiallelic variants with bcftools norm. Use when comparing variants across callers or cohorts, preparing a VCF for database annotation or ClinVar/dbSNP matching, merging VCFs, reconciling vt-vs-bcftools representation discordance, or resolving the VCF-left-align vs HGVS-3'-rule clash.
 tool_type: cli
 primary_tool: bcftools
 ---
@@ -13,7 +13,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
 
-The `--atomize` flag requires bcftools 1.17+. Earlier versions require `vt decompose_blocksub` as an alternative.
+The `--atomize`/`--old-rec-tag` flags require bcftools 1.12+ (`--keep-sum` requires 1.11+). Earlier versions require `vt decompose_blocksub` as an alternative.
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
@@ -21,6 +21,26 @@ package and adapt the example to match the actual API rather than retrying.
 # Variant Normalization
 
 Left-align indels, decompose MNPs, and split multiallelic sites using bcftools norm.
+
+**"Put my VCF in canonical form before comparing, annotating, or merging"** -> Enforce one representation per biological event so tuple-keyed operations recognize the same variant across sources.
+- CLI: `bcftools norm -m-any -f ref.fa` (split multiallelic, then left-align + parsimony each biallelic)
+- Alternatives: `vt normalize` + `vt decompose`; GATK `LeftAlignAndTrimVariants`
+
+## The Normalized Form (governing principle)
+
+A variant is **normalized** if and only if it is BOTH (Tan, Abecasis & Kang 2015):
+
+1. **Parsimonious (minimal representation).** No base can be trimmed from either end of REF/ALT without creating a zero-length allele or changing the variant. Indels keep exactly ONE anchor base (VCF forbids empty alleles), so a deletion of `A` is written `REF=CA ALT=C`, not `REF=A ALT=`.
+2. **Left-aligned.** POS cannot be shifted further left while keeping the allele lengths and the reference-relative meaning unchanged.
+
+Both are required: parsimony alone leaves an indel positionally ambiguous inside a repeat; left-alignment alone can leave redundant shared bases. Together they define a single canonical `(CHROM, POS, REF, ALT)` key, and normalization is **idempotent** -- normalizing an already-normalized VCF changes nothing. That idempotence is what makes the key safe to join, merge, and match on.
+
+The algorithm (as in `vt normalize` and `bcftools norm`):
+- **Right-trim:** while all alleles end in the same base AND all have length >= 2, drop the last base of each.
+- **Left-extend:** while any allele has length 0, prepend the reference base immediately to the left to every allele and decrement POS.
+- **Left-trim:** while all alleles start with the same base AND all have length >= 2, drop the first base of each and increment POS.
+
+The right-trim-then-left-roll loop is exactly what shifts an indel through a repeat to its leftmost equivalent position.
 
 ## When Normalization is Mandatory
 
@@ -33,9 +53,9 @@ Not normalizing before certain operations leads to missed matches and false disc
 
 Normalization is generally safe to skip only when a single caller produced all variants and no cross-file comparison or database lookup is needed.
 
-## Why Normalize?
+## Why Left-Alignment Matters in Repeats (the silent miss)
 
-The same variant can be represented multiple ways:
+The same variant can be written multiple ways:
 
 ```
 chr1  100  ATCG  A      (right-aligned)
@@ -43,7 +63,11 @@ chr1  100  ATC   A      (left-aligned, parsimonious -- the canonical form)
 chr1  101  TCG   T      (shifted position, different anchor base)
 ```
 
-The VCF specification mandates left-aligned, parsimonious representation, but not all callers comply. Normalization enforces this canonical form.
+The ambiguity is worst in homopolymers and tandem repeats. In reference `...AAAAAAA...`, a single-base `A` deletion is positionally ambiguous: deleting ANY one of the seven A's yields the identical alternate haplotype, so different callers/aligners emit it at different POS. Left-alignment defines the canonical (leftmost) position, giving the one biological event one representation.
+
+The load-bearing consequence: a one-base-off (non-left-aligned) indel in a homopolymer is a valid VCF line that produces a **different** `(CHROM, POS, REF, ALT)` tuple. Annotation and matching keyed on that tuple then silently **miss** the dbSNP/ClinVar/gnomAD entry that sits at the canonical coordinate -- a clinically actionable variant is reported as absent or novel, with **no error thrown**. The VCF is structurally valid; the numbers are wrong. `bcftools merge` of a normalized and an un-normalized cohort likewise emits duplicate rows for the same event, inflating counts and splitting allele frequencies.
+
+Decision: always left-align + parsimony (`bcftools norm -f ref.fa`) against the EXACT downstream reference before annotation, database matching, set operations, or merging -- never rely on callers to emit canonical form.
 
 ## Recommended Normalization Pipeline
 
@@ -73,6 +97,21 @@ bcftools norm -m- input.vcf.gz | \
 
 A single-pass `bcftools norm -f ref.fa -m-any` is acceptable for basic use cases but does not control the decomposition order and skips MNP atomization.
 
+## Tool Discordance: bcftools vs vt vs GATK
+
+All three implement the same Tan-2015 left-align + parsimony core and agree on simple biallelic indels. They diverge on decomposition:
+
+| Behavior | `vt` | `bcftools norm` | GATK `LeftAlignAndTrimVariants` |
+|----------|------|-----------------|--------------------------------|
+| Left-align + parsimony (biallelic) | yes (`normalize`) | yes (`-f`) | yes |
+| Split multiallelic | `vt decompose` (separate step) | `-m-any` | `--split-multi-allelics` |
+| Decompose MNP -> SNPs | `vt decompose_blocksub` splits MNPs **by default** (`vt decompose` only splits multiallelics) | only with `--atomize` (bcftools >= 1.12); **NOT by default** | does not decompose MNPs into SNPs |
+| Block substitution / complex | `vt decompose_blocksub` | `--atomize` | limited |
+
+The discordance that burns people: `vt decompose_blocksub` splits MNPs/block substitutions into SNPs by default, `bcftools norm` does not (it needs `--atomize`). Running the same normalization with the two tools yields a **different variant count** (bcftools keeps an MNP as one record; vt emits separate SNPs). If cohort A is atomized with vt and cohort B is left un-atomized with bcftools, every MNP is a systematic representation mismatch, manufacturing **spurious cohort-private "variants"** in any cross-cohort comparison.
+
+Decision: standardize on ONE normalization tool + exact flag set across every cohort intended for comparison, and record the command. `bcftools norm` is the de-facto production standard (htslib-maintained; integrates split, atomize, and left-align in one pass). Note GATK's left-alignment window (`--max-leading-bases`) means indels inside repeats longer than the window may not fully left-align -- verify the installed default with `gatk LeftAlignAndTrimVariants --help` before trusting STR-embedded indels.
+
 ## Left-Alignment
 
 **"Normalize my VCF before comparing callers"** -> Left-align indel representations and split multiallelic sites for consistent variant comparison.
@@ -81,17 +120,19 @@ A single-pass `bcftools norm -f ref.fa -m-any` is acceptable for basic use cases
 bcftools norm -f reference.fa input.vcf.gz -Oz -o normalized.vcf.gz
 ```
 
-Requires reference FASTA to determine the leftmost position. The reference must be the same genome build used during variant calling; mismatches between builds silently produce wrong results even when REF alleles happen to match locally.
+Left-alignment cannot roll an indel leftward without the reference bases to its left, so `-f/--fasta-ref` is non-negotiable. Two traps make the reference choice load-bearing:
+- The FASTA must be the **exact** reference the VCF was called against. A different build patch, `chr1`-vs-`1` contig naming, or a masked-vs-unmasked sequence yields **wrong** left-aligned coordinates. On a REF mismatch `bcftools norm` **errors and exits non-zero by default** (`-c e`) rather than warning -- do not paper over it with `-c w`; a single off-by-one in a contig shifts every indel.
+- It must be the SAME reference used **downstream** (the annotation-database build, the other cohort). Normalizing to GRCh38 and matching against a GRCh37 dbSNP is a guaranteed miss even when local left-alignment is perfect.
 
 ### Check for Normalization Issues
 
 ```bash
-bcftools norm -f reference.fa -c s input.vcf.gz > /dev/null
+bcftools norm -f reference.fa -c w input.vcf.gz > /dev/null
 ```
 
 Check modes (`-c`):
-- `w` - Warn on mismatch (default)
-- `e` - Error on mismatch
+- `e` - Error and exit on mismatch (default)
+- `w` - Warn on mismatch and continue (use this to enumerate all mismatches)
 - `x` - Exclude mismatches
 - `s` - Set correct REF from reference
 
@@ -156,6 +197,18 @@ bcftools norm -m+any input.vcf.gz -Oz -o merged.vcf.gz
 
 Rejoining after analysis can restore compound heterozygosity context, but only if the split records were not independently filtered (removing one allele of a 1/2 site makes the remaining record misleading).
 
+### Field Reapportionment and Spanning Deletions
+
+Splitting a multiallelic is NOT information-lossless. Per-allele fields must be reapportioned according to their header `Number` code, and `bcftools norm -m-` uses those codes to subset correctly:
+- `Number=A` (one value per ALT, e.g. `AF`, `AC`) -> take the k-th element for the k-th ALT.
+- `Number=R` (one per allele including REF, e.g. `AD` -> ref depth first) -> off-by-one relative to `A`.
+- `Number=G` (one per genotype, e.g. `PL`, `GL`) -> subsetting needs the genotype-index formula.
+- `Number=.` -> variable count; parsers **cannot** auto-subset, so these fields are silently carried whole onto every split record.
+
+The trap: a custom INFO/FORMAT field mis-declared `Number=.` when it is really `A` is NOT subset on split, so every biallelic record keeps the full multiallelic vector and downstream tools read the **wrong allele's** value. Joining back (`-m+`) cannot always reconstruct the original PLs exactly. Rule: split once, early, and stay biallelic; join only for final delivery if a consumer requires it.
+
+Spanning-deletion `*` alleles (VCF: "allele missing due to overlapping deletion") are meaningful only relative to the overlapping deletion recorded on another line. Splitting can strand a `*` allele from the deletion it references; bcftools handles this, but naive third-party splitters corrupt it. Use `--keep-sum AD` when the summed allele depth must be preserved across split records.
+
 ## Atomize Complex Variants (MNP Decomposition)
 
 Multi-nucleotide polymorphisms (MNPs) are adjacent substitutions reported as a single record (e.g., ATG->GCA). Not all callers emit MNPs:
@@ -187,7 +240,9 @@ chr1  101  .  T  C  30  PASS
 chr1  102  .  G  A  30  PASS
 ```
 
-**Caveat:** Decomposition loses local phasing information. The original MNP record guarantees that A->G, T->C, and G->A occur on the same haplotype. After atomization, this co-occurrence is no longer explicit. If downstream analysis requires haplotype-aware interpretation (e.g., amino acid change prediction where the codon change matters), atomization may be inappropriate -- use `bcftools csq` on the un-atomized VCF instead.
+**Caveat -- decomposition destroys phase needed for functional annotation.** The original MNP record guarantees that its substitutions occur on the SAME haplotype. Atomization discards that guarantee. The concrete failure: two adjacent SNVs falling in one codon, annotated independently after decomposition, can each look **synonymous** while the true MNV (the haplotype) is **missense or nonsense** (or the reverse). VEP/SnpEff give the wrong amino-acid consequence on decomposed alleles because they no longer see the codon change.
+
+This is the unresolved decompose-vs-atomic tension: decompose for variant **matching** (dbSNP/ClinVar/gnomAD lookup, allele-frequency comparison), but compute **functional consequence** on the haplotype-resolved (undecomposed / phased) representation -- run `bcftools csq` on the un-atomized VCF, which is codon-aware. Keep the atomized copy for matching and the un-atomized copy for annotation; do not feed atomized alleles to a per-record consequence caller. See variant-calling/variant-annotation.
 
 ### Atomize with Old Record Tag
 
@@ -196,6 +251,16 @@ bcftools norm --atomize --old-rec-tag ORIGINAL input.vcf.gz -Oz -o atomized.vcf.
 ```
 
 Preserves the original record as an INFO annotation, enabling traceability back to the pre-atomized variant.
+
+## The Normalization <-> HGVS 3'-Rule Clash
+
+VCF normalization and HGVS nomenclature shift indels in **opposite** directions, so a correctly normalized VCF and a correct HGVS string for the same indel can name different repeat units:
+- **VCF left-alignment** shifts an ambiguous indel to the most **5'** position on the **forward genomic strand**.
+- **HGVS mandates the 3'-rule:** the indel is described at the most **3'** position with respect to the **transcript** (coding reading direction).
+
+For a **plus-strand** gene, transcript-3' equals genomic-rightward -- the OPPOSITE end from VCF left-alignment. For a **minus-strand** gene, transcript-3' points genomic-leftward and can coincide with left-alignment, but only by accident of strand. The result: the VCF POS and the HGVS `c.` position for one deletion legitimately disagree, and a tool that generates HGVS by naively translating the left-aligned POS without re-shifting 3' on the transcript emits a non-compliant string. This is a leading cause of "two labs reported different c. positions for the same deletion."
+
+Decision: **never hand-derive HGVS from POS.** Left-align + normalize the VCF for matching/merging (idempotent, reproducible), and rely on the annotation engine's HGVS generator to apply the transcript 3'-shift (VEP does this; verify SnpEff/ANNOVAR per version). When matching a patient variant to a ClinVar or literature HGVS string, normalize BOTH to the same representation first -- two strings that look different can be the same variant. See variant-calling/variant-annotation and variant-calling/clinical-interpretation.
 
 ## Fixing Reference Alleles
 
@@ -332,7 +397,9 @@ Note: this check does not detect indels requiring left-alignment, since that req
 | `REF does not match` | Wrong reference or genome build mismatch | Verify the reference FASTA matches the build used during calling |
 | `not sorted` | Unsorted input | Run `bcftools sort` first |
 | `duplicate records` | Same position twice after splitting | Use `-d exact` to remove |
-| `--atomize` unrecognized | bcftools < 1.17 | Upgrade bcftools, or use `vt decompose_blocksub` as alternative |
+| `--atomize` unrecognized | bcftools < 1.12 | Upgrade bcftools, or use `vt decompose_blocksub` as alternative |
+| Split records carry wrong per-allele AF/AD | custom field mis-declared `Number=.` | Fix the header `Number` to `A`/`R`/`G` so bcftools subsets it on split |
+| HGVS `c.` position disagrees with VCF POS | left-align (5' genomic) vs HGVS 3'-rule (transcript) | Expected; let the annotation engine emit HGVS, never hand-derive from POS |
 
 ## Related Skills
 
@@ -343,3 +410,7 @@ Note: this check does not detect indels requiring left-alignment, since that req
 - variant-calling/gatk-variant-calling - GATK HaplotypeCaller workflow (does not emit MNPs)
 - variant-calling/clinical-interpretation - ClinVar lookup requires normalized representation
 - alignment-files/sam-bam-basics - BAM format and reference genome handling
+
+## References
+
+- Tan A, Abecasis GR, Kang HM. Unified representation of genetic variants. *Bioinformatics.* 2015;31(13):2202-2204. doi:10.1093/bioinformatics/btv112 (formal normalization definition: parsimony + left-alignment, and the `vt normalize` algorithm)

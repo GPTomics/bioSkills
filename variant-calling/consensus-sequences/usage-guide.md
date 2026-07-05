@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers generating sample-specific sequences by applying variants to a reference.
+This guide covers generating sample-specific sequences by applying variants to a reference. `bcftools consensus` substitutes ALT alleles at VCF positions and copies the reference everywhere else -- which drives the three traps to keep in mind: a consensus emits reference (not N) at no-coverage sites unless they are masked, `-H 1` on an unphased VCF builds a chimeric non-haplotype, and a single FASTA cannot faithfully hold a diploid genome. For viral/amplicon surveillance, iVar builds the consensus directly from a pileup and its depth/frequency thresholds are epidemiological policy choices.
 
 ## Prerequisites
 
@@ -15,8 +15,10 @@ This guide covers generating sample-specific sequences by applying variants to a
 Tell your AI agent what you want to do:
 - "Generate a consensus FASTA by applying my VCF variants to the reference"
 - "Extract both haplotypes for a specific gene region from my phased VCF"
+- "Check whether my VCF is phased before pulling a haplotype consensus"
 - "Create consensus sequences for all samples in my multi-sample VCF"
-- "Mask low-coverage regions with N characters in my consensus sequence"
+- "Mask no-coverage regions with N so my consensus does not report false reference"
+- "Build a SARS-CoV-2 consensus from amplicon reads with iVar"
 
 ## Understanding Consensus Generation
 
@@ -68,6 +70,16 @@ At heterozygous sites, you need to choose which allele to apply:
 | `-H R` | Keep REF at heterozygous sites |
 | `-I` | Use IUPAC ambiguity codes |
 
+### Verify Phasing Before Haplotype Extraction
+
+`-H 1`/`-H 2` are only meaningful on phased genotypes (`0|1`, pipe separator). On unphased genotypes (`0/1`, slash), which allele is "haplotype 1" is arbitrary at each site, so `-H 1` across many heterozygous sites produces a chimeric sequence that matches no real chromosome. Always check first:
+
+```bash
+bcftools query -f '%CHROM\t%POS[\t%GT]\n' input.vcf.gz | head   # phased 0|1, unphased 0/1
+```
+
+If unphased, phase first with read-backed (WhatsHap, HapCUT2), trio, statistical (SHAPEIT, Eagle), or long-read methods before extracting a haplotype.
+
 ### Extract First Haplotype
 
 ```bash
@@ -100,10 +112,10 @@ IUPAC codes:
 
 ### Mask Low-Coverage Regions
 
-Create a BED file of regions to mask:
+Because unobserved positions are emitted as reference, masking no-coverage sites is what stops a consensus from claiming false reference calls. Build the mask BED from callable depth. The `-a` in `samtools depth` is mandatory: without it, zero-coverage positions are omitted from the output, never enter the BED, and stay as reference:
 
 ```bash
-# Find regions with depth < 10
+# -a reports every position (incl. zero coverage); < 10x is a common callable-depth floor
 samtools depth -a input.bam | \
     awk '$3<10 {print $1"\t"$2-1"\t"$2}' | \
     bedtools merge > low_coverage.bed
@@ -114,10 +126,10 @@ bcftools consensus -f reference.fa -m low_coverage.bed input.vcf.gz > consensus.
 
 ### Custom Mask Character
 
-Default mask character is N. Change with:
+Default mask character is N. Change it with `--mask-with` (NOT `-M`, which is `--missing` and only sets the character for missing `./.` genotypes):
 
 ```bash
-bcftools consensus -f reference.fa -m mask.bed -M X input.vcf.gz > consensus.fa
+bcftools consensus -f reference.fa -m mask.bed --mask-with X input.vcf.gz > consensus.fa
 ```
 
 ### Mark Missing Genotypes
@@ -226,6 +238,26 @@ bcftools consensus -f reference.fa -p "sample1_" input.vcf.gz > sample1.fa
 ```
 
 Results in: `>sample1_chr1`, `>sample1_chr2`, etc.
+
+## Viral / Amplicon Consensus with iVar
+
+For amplicon surveillance (SARS-CoV-2 and similar), `ivar consensus` builds a consensus directly from a pileup rather than from a VCF. Trim PCR primers first, then pipe `samtools mpileup` into `ivar consensus`:
+
+```bash
+ivar trim -b primers.bed -p trimmed -i aligned.bam
+samtools sort -o trimmed.sorted.bam trimmed.bam
+samtools mpileup -aa -A -d 0 -B -Q 0 trimmed.sorted.bam | ivar consensus -p sample -q 20 -t 0.5 -m 10 -n N
+```
+
+The two thresholds are epidemiological policy decisions, not defaults to accept blindly:
+- `-m` (min depth, default 10): below this, iVar emits N. Too low turns single-read errors into "mutations"; too high produces excessive Ns.
+- `-t` (min frequency, default 0 = majority base): too low bakes minority/contaminant variants into the genome and corrupts transmission inference. Use 0.5 for a strict majority consensus; lower values only for deliberate intrahost work.
+
+Report both numbers alongside any surveillance consensus.
+
+## Structural Variants and Consensus
+
+`bcftools consensus` cannot apply symbolic SV alleles (`<DEL>`, `<INS>`, `<DUP>`), because they carry no ALT sequence to substitute. Short-read SV VCFs (Manta, DELLY) are mostly symbolic and are not directly consensus-able. Folding SVs into a consensus needs sequence-resolved records (long-read/assembly callers) or an assembly-based approach.
 
 ## Complete Workflows
 
@@ -353,6 +385,10 @@ bcftools consensus -f reference.fa input.vcf.gz 2>&1 | grep -i "overlap"
 
 > "Mask low-coverage regions in my consensus sequence with N characters"
 
+> "Check whether my genotypes are phased before I extract a haplotype consensus"
+
+> "Build a SARS-CoV-2 consensus genome from my amplicon BAM with iVar at 10x minimum depth"
+
 ## What the Agent Will Do
 
 1. Verify the VCF is indexed and the reference FASTA matches
@@ -364,15 +400,20 @@ bcftools consensus -f reference.fa input.vcf.gz 2>&1 | grep -i "overlap"
 ## Tips
 
 - The reference FASTA must be the same one used for variant calling -- mismatches cause errors
-- Always index the VCF before running bcftools consensus
-- Use IUPAC ambiguity codes (`-I`) when downstream tools support them, otherwise pick a haplotype
-- Filter variants before consensus to avoid applying low-confidence calls
+- The VCF must be bgzipped and indexed; normalize with `bcftools norm` before consensus
+- Verify `|` phasing before `-H 1`/`-H 2`; on unphased genotypes it yields a chimeric non-haplotype
+- Mask no-coverage sites with a `samtools depth -a` derived BED -- `-a` is mandatory or zero-depth positions escape masking and stay as reference
+- Use IUPAC ambiguity codes (`-I`) only when downstream tools support them; many tree builders read IUPAC as N
+- For phase-sensitive work (allele-specific expression, compound-het), keep the VCF, not a single consensus FASTA
+- `bcftools consensus` cannot apply symbolic SV alleles (`<DEL>`/`<INS>`/`<DUP>`) -- use sequence-resolved records
+- For iVar viral consensus, report the `-m` (min depth) and `-t` (min frequency) thresholds -- they are policy choices that affect lineage and transmission inference
 - Use `-c chain.txt` to produce a chain file when indels shift coordinates
-- For viral genomes, mask low-coverage regions with N to avoid false consensus bases
 
 ## Related Skills
 
 - variant-calling/variant-calling - Generate VCF files
 - variant-calling/filtering-best-practices - Filter variants before consensus
 - variant-calling/variant-normalization - Normalize variants first
-- variant-calling/vcf-basics - View and query VCF data
+- variant-calling/vcf-basics - View and query VCF data, interpret GT phasing
+- variant-calling/structural-variant-calling - Sequence-resolved SVs for SV-aware consensus
+- phasing-imputation/haplotype-phasing - Produce phased genotypes for true haplotypes

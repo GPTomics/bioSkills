@@ -1,467 +1,178 @@
 ---
 name: bio-vcf-manipulation
-description: Merge, concatenate, sort, intersect, and subset VCF files using bcftools. Use when combining variant files, comparing call sets, or restructuring VCF data.
+description: Combine, split, sort, intersect, and subset VCF/BCF files with bcftools merge, concat, isec, sort, view, and reheader. Use when merging different samples into a cohort VCF, concatenating per-chromosome or per-region call sets for the same samples, intersecting or complementing call sets from different callers, subsetting samples/regions, harmonizing sample names and ##contig headers, or recomputing AC/AN/AF after subsetting. Covers the normalize-before-combine rule, the single-sample-merge 0/0-fabrication trap (merge is not joint genotyping), merge vs concat vs isec selection, and the --naive concat and -R-vs-T region caveats. Not for structural-variant merging by breakpoint fuzz (see variant-calling/structural-variant-calling) or joint genotyping of gVCFs (see variant-calling/joint-calling).
 tool_type: cli
 primary_tool: bcftools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: GATK 4.5+, bcftools 1.19+
+Reference examples tested with: bcftools 1.19+, cyvcf2 0.30+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
+
+The `+fill-tags` plugin ships with bcftools; `--naive-force` and `-m snp-ins-del` are recent additions -- confirm with `bcftools concat --help` / `bcftools merge --help` on the installed build.
 
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
 # VCF Manipulation
 
-Merge, concat, sort, and compare VCF files using bcftools.
+Combine, split, sort, intersect, and subset VCF/BCF files with bcftools.
 
-## Operations Overview
+**"Combine, compare, or restructure my VCFs"** -> Pick the operation from what changes (samples vs regions vs set membership), and normalize first so the same biological variant is recognized as the same row.
+- CLI: `bcftools merge` (add samples), `bcftools concat` (add regions), `bcftools isec` (set operations), `bcftools view` (subset), `bcftools sort` / `bcftools reheader` (order and header fixes)
 
-| Operation | Command | Use Case |
-|-----------|---------|----------|
-| Merge | `bcftools merge` | Combine samples from multiple VCFs |
-| Concat | `bcftools concat` | Combine regions from multiple VCFs |
-| Sort | `bcftools sort` | Sort unsorted VCF |
-| Intersect | `bcftools isec` | Compare/intersect call sets |
-| Subset | `bcftools view` | Extract samples or regions |
+## The governing principle: normalize BEFORE combining
 
-## Merge vs Concat Decision
+Every combine operation here -- merge, concat `-d` dedup, isec, and downstream annotate -- keys on the `(CHROM, POS, REF, ALT)` tuple, and `bcftools isec` defaults to `-c none` (an ALT must match exactly to count as the same variant). An indel that is not left-aligned + parsimonious, an un-split multiallelic, or an un-decomposed MNP is a **structurally valid** VCF line carrying a *different* tuple for the *same* biological event. The combine then silently mis-joins: isec reports false discordance, merge emits duplicate rows and splits the allele frequency, dedup misses the duplicate. Nothing errors -- the counts are simply wrong.
 
-| Operation | Input structure | Result | Requires index |
-|-----------|----------------|--------|----------------|
-| `bcftools merge` | Different **samples** at (potentially) same positions | Multi-sample VCF | Yes |
-| `bcftools concat` | Same **samples** from different **regions** | Combined-region VCF | No (unless `-a`) |
+Decision: **normalize (left-align + parsimony against the SAME reference, split multiallelics) every input before any merge/concat-dedup/isec/annotate.** This matters most for indels in homopolymers/STRs, where callers legitimately disagree on POS. It is safe to skip only when a single caller produced all inputs and no cross-file matching or database lookup follows. The canonical incantation is `bcftools norm -m-any -f ref.fa`; see variant-calling/variant-normalization for the full pipeline, MNP atomization, and the vt-vs-bcftools discordance -- do NOT re-derive that here, cross-reference it.
 
-Common mistake: using concat when merge is needed (or vice versa). `concat --allow-overlaps` (`-a`) can handle some overlap cases but does not merge genotypes across samples -- it only resolves duplicate records from the same sample.
+## merge vs concat vs isec (choose by what differs)
 
-## bcftools merge
+| Operation | Inputs differ in | Produces | Requires index | Fails / misused when |
+|-----------|------------------|----------|----------------|----------------------|
+| `bcftools merge` | **samples** (same sites) | one multi-sample VCF (columns unioned) | yes | given the SAME sample split by region -> use concat; given single-sample VCFs and treated as joint genotyping -> fabricates 0/0 (see trap below) |
+| `bcftools concat` | **regions** (same samples, e.g. per-chromosome) | one VCF spanning all regions (rows appended) | only with `-a` | inputs from DIFFERENT samples -> use merge; inputs overlap without `-a`; `--naive` used when headers/sample-order differ |
+| `bcftools isec` | neither -- same cohort, compare membership | per-input private/shared partition dirs | yes | inputs not normalized to identical representation -> false discordance |
 
-**Goal:** Combine VCF files from different samples into a single multi-sample VCF.
+Common confusion: `concat -a` (`--allow-overlaps`) resolves duplicate records from the SAME sample across overlapping region files; it does NOT union genotypes across different samples -- that is merge. If bcftools reports a "different samples" error, the operation is inverted.
 
-**Approach:** Use bcftools merge to join files with different sample columns at shared genomic positions.
+## The merge trap: `bcftools merge` is not joint genotyping
 
-**"Merge my per-sample VCFs into one file"** -> Combine variant records from multiple samples into a single multi-sample VCF.
+When merging single-sample VCFs, a site called in sample A but simply **absent** from sample B's file is ambiguous: was B confidently homozygous reference there, or was B never covered/called? A project VCF cannot answer this. `bcftools merge` fills B's genotype with `./.` (missing) by default, and `-0/--missing-to-ref` overrides it to `0/0` -- but **both are guesses**, because merge has no evidence for the unseen site. `-0` therefore **fabricates** hom-ref genotypes and inflates the reference-allele count (see the vcf-basics `./.`-is-not-`0/0` distinction). Use `-0` only when every input truly covered every site (e.g. gVCF-derived, or a shared target with confirmed coverage), never as a convenience to remove `./.`.
 
-Combine multiple VCF files with **different samples** at the same positions.
+Decision: to build a multi-sample callset with correct hom-ref-vs-no-data resolution, **joint-genotype gVCFs** (`GenomicsDBImport`/`CombineGVCFs` -> `GenotypeGVCFs`), do not `bcftools merge` single-sample project VCFs -- see variant-calling/joint-calling. Reserve `bcftools merge` for combining already-jointly-genotyped cohorts, or samples that share a target with known coverage.
 
-### Basic Merge
+Merge also requires two harmonizations, or it silently drops or mis-collapses records:
+- **Consistent representation.** All inputs must be normalized and split the same way first. If cohort A is split biallelic and cohort B keeps multiallelics, merge mis-collapses the shared site. Normalize all inputs identically (governing principle above).
+- **Matching `##contig` headers and sample names.** Merge unions sample columns; duplicate sample names abort unless `--force-samples` renames them, and mismatched contig naming (`chr1` vs `1`) prevents sites from aligning. Fix names/contigs with `bcftools reheader` first.
 
-```bash
-bcftools merge sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-```
-
-### Merge Multiple Files
+## bcftools merge (combine different samples)
 
 ```bash
-bcftools merge *.vcf.gz -Oz -o all_samples.vcf.gz
-```
-
-### Merge from File List
-
-```bash
-# files.txt: one VCF path per line
-bcftools merge -l files.txt -Oz -o merged.vcf.gz
-```
-
-### Handle Missing Genotypes
-
-```bash
-# Output missing genotypes as ./. (default)
-bcftools merge sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-
-# Output missing as reference (0/0)
-bcftools merge --missing-to-ref sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-```
-
-### Force Sample Names
-
-When sample names conflict:
-
-```bash
-bcftools merge --force-samples sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-```
-
-### Multiallelic Handling During Merge
-
-When merging VCFs, if the same site has different ALT alleles across files, bcftools merge creates a multiallelic record by default. This is usually correct behavior. Use `--merge none` to keep records separate, or `--merge snps`/`--merge indels` to control merging granularity.
-
-```bash
-# Default: merge all variant types at same position
-bcftools merge sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-
-# Keep SNPs and indels at same position as separate records
-bcftools merge --merge snps sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-
-# No merging -- every record stays separate
-bcftools merge --merge none sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-```
-
-### Merge Specific Regions
-
-```bash
-bcftools merge -r chr1:1000000-2000000 sample1.vcf.gz sample2.vcf.gz -Oz -o merged.vcf.gz
-```
-
-## bcftools concat
-
-**Goal:** Concatenate VCF files that cover different genomic regions for the same samples.
-
-**Approach:** Use bcftools concat to join region-split files (e.g., per-chromosome VCFs) in order.
-
-Combine VCF files with **same samples** from different regions.
-
-### Concatenate Chromosomes
-
-```bash
-bcftools concat chr1.vcf.gz chr2.vcf.gz chr3.vcf.gz -Oz -o genome.vcf.gz
-```
-
-### Concatenate All Chromosomes
-
-```bash
-bcftools concat chr*.vcf.gz -Oz -o genome.vcf.gz
-```
-
-### From File List
-
-```bash
-# files.txt: one VCF path per line (in order)
-bcftools concat -f files.txt -Oz -o concatenated.vcf.gz
-```
-
-### Allow Overlapping Regions
-
-```bash
-bcftools concat -a chr1_part1.vcf.gz chr1_part2.vcf.gz -Oz -o chr1.vcf.gz
-```
-
-### Remove Duplicates
-
-```bash
-bcftools concat -a -d all file1.vcf.gz file2.vcf.gz -Oz -o merged.vcf.gz
-```
-
-Options for `-d`:
-- `snps` - Remove duplicate SNPs
-- `indels` - Remove duplicate indels
-- `both` - Remove duplicate SNPs and indels
-- `all` - Remove all duplicates
-- `exact` - Remove exact duplicates only
-
-## bcftools sort
-
-**Goal:** Sort a VCF file by chromosome and position.
-
-**Approach:** Use bcftools sort with optional temp directory and memory limits for large files.
-
-Sort VCF by chromosome and position.
-
-### Basic Sort
-
-```bash
-bcftools sort input.vcf -Oz -o sorted.vcf.gz
-```
-
-### With Temporary Directory
-
-For large files:
-
-```bash
-bcftools sort -T /tmp input.vcf.gz -Oz -o sorted.vcf.gz
-```
-
-### Memory Limit
-
-```bash
-bcftools sort -m 4G input.vcf.gz -Oz -o sorted.vcf.gz
-```
-
-## bcftools isec
-
-**Goal:** Identify shared and private variants between two or more VCF files.
-
-**Approach:** Use bcftools isec to partition variants into private-to-each-file and shared subsets.
-
-**"Find variants called by both GATK and bcftools"** -> Intersect two call sets to identify concordant and discordant variants.
-
-Intersect and compare VCF files.
-
-**Normalize before comparing:** Before intersecting VCF files from different callers, ALWAYS normalize both files first. Different callers may represent the same variant differently (e.g., different indel left-alignment, multiallelic vs biallelic representation). Without normalization, bcftools isec will report false discordance. See variant-normalization for details.
-
-```bash
-bcftools norm -m-any -f ref.fa gatk.vcf.gz -Oz -o gatk_norm.vcf.gz
-bcftools norm -m-any -f ref.fa bcftools_calls.vcf.gz -Oz -o bcftools_norm.vcf.gz
-bcftools isec -p comparison gatk_norm.vcf.gz bcftools_norm.vcf.gz
-```
-
-### Find Shared Variants
-
-```bash
-bcftools isec -p output_dir sample1.vcf.gz sample2.vcf.gz
-```
-
-Creates:
-- `0000.vcf` - Private to sample1
-- `0001.vcf` - Private to sample2
-- `0002.vcf` - Shared (sample1 records)
-- `0003.vcf` - Shared (sample2 records)
-
-### Output Compressed
-
-```bash
-bcftools isec -p output_dir -Oz sample1.vcf.gz sample2.vcf.gz
-```
-
-### Intersection Only
-
-```bash
-bcftools isec -p output_dir -n=2 sample1.vcf.gz sample2.vcf.gz
-# Only outputs variants present in exactly 2 files
-```
-
-### Comparison Options
-
-| Flag | Description |
-|------|-------------|
-| `-n=2` | Present in exactly 2 files |
-| `-n+2` | Present in 2 or more files |
-| `-n-2` | Present in fewer than 2 files |
-| `-n~11` | Boolean: file1 AND file2 |
-| `-n~10` | Boolean: file1 AND NOT file2 |
-
-### Two-File Intersection
-
-The `-w` flag selects which file's records appear in the output. `-w1` outputs records from the first file, `-w2` from the second. This matters when the two files carry different INFO/FORMAT annotations -- the output inherits whichever file's records are selected.
-
-```bash
-# Variants in both files, output records from file 1 (with file 1 annotations)
-bcftools isec -n=2 -w1 sample1.vcf.gz sample2.vcf.gz -Oz -o shared.vcf.gz
-
-# Same intersection, but output records from file 2
-bcftools isec -n=2 -w2 sample1.vcf.gz sample2.vcf.gz -Oz -o shared_file2_annot.vcf.gz
-
-# Variants only in sample1
-bcftools isec -n~10 -w1 sample1.vcf.gz sample2.vcf.gz -Oz -o only_sample1.vcf.gz
-```
-
-### Complement Mode
-
-```bash
-# Variants in file1 not in file2
-bcftools isec -C sample1.vcf.gz sample2.vcf.gz -Oz -o unique.vcf.gz
-```
-
-## Subsetting VCF Files
-
-**Goal:** Extract a subset of samples or regions from a multi-sample VCF.
-
-**Approach:** Use bcftools view with -s (samples) or -r/-R (regions) flags to create targeted subsets.
-
-### Extract Samples
-
-```bash
-bcftools view -s sample1,sample2 input.vcf.gz -Oz -o subset.vcf.gz
-```
-
-### Exclude Samples
-
-```bash
-bcftools view -s ^sample3 input.vcf.gz -Oz -o without_sample3.vcf.gz
-```
-
-### From Sample List File
-
-```bash
-# samples.txt: one sample name per line
-bcftools view -S samples.txt input.vcf.gz -Oz -o subset.vcf.gz
-```
-
-### Extract Region
-
-```bash
-bcftools view -r chr1:1000000-2000000 input.vcf.gz -Oz -o region.vcf.gz
-```
-
-### Extract Multiple Regions
-
-```bash
-bcftools view -R regions.bed input.vcf.gz -Oz -o targets.vcf.gz
-```
-
-## Renaming Samples
-
-**Goal:** Rename sample columns in a VCF header.
-
-**Approach:** Use bcftools reheader with a mapping file of old-to-new sample names.
-
-### Single Sample
-
-```bash
-echo "old_name new_name" > rename.txt
-bcftools reheader -s rename.txt input.vcf.gz -o renamed.vcf.gz
-```
-
-### Multiple Samples
-
-```bash
-# rename.txt format: old_name new_name
-cat > rename.txt << EOF
-sample1 patient_001
-sample2 patient_002
-sample3 patient_003
-EOF
-
-bcftools reheader -s rename.txt input.vcf.gz -o renamed.vcf.gz
-```
-
-## Splitting VCF Files
-
-**Goal:** Split a multi-sample or multi-chromosome VCF into separate files.
-
-**Approach:** Iterate over samples or chromosomes and extract each with bcftools view.
-
-### Split by Sample
-
-```bash
-for sample in $(bcftools query -l input.vcf.gz); do
-    bcftools view -s "$sample" input.vcf.gz -Oz -o "${sample}.vcf.gz"
-done
-```
-
-### Split by Chromosome
-
-```bash
-for chr in $(bcftools view -h input.vcf.gz | grep "^##contig" | sed 's/.*ID=\([^,]*\).*/\1/'); do
-    bcftools view -r "$chr" input.vcf.gz -Oz -o "${chr}.vcf.gz"
-done
-```
-
-### Split Multiallelic Sites
-
-```bash
-bcftools norm -m-any input.vcf.gz -Oz -o split.vcf.gz
-```
-
-## Common Workflows
-
-**Goal:** Execute typical multi-step VCF manipulation tasks.
-
-**Approach:** Chain merge, concat, isec, and view operations for cohort assembly, caller comparison, and filtering.
-
-### Merge Cohort VCFs
-
-```bash
-# Create file list
-ls *.vcf.gz > files.txt
-
-# Merge all samples
-bcftools merge -l files.txt -Oz -o cohort.vcf.gz
+# Union samples across per-sample (already joint-genotyped or shared-target) VCFs
+bcftools merge -l files.txt -Oz -o cohort.vcf.gz    # -l: one VCF path per line
 bcftools index cohort.vcf.gz
 ```
 
-### Combine Chromosome VCFs
+- `-m, --merge` controls multiallelic collapse at shared sites (default `both`): `-m none` keeps a SNP and an indel at one POS as separate records; `-m snps`/`-m indels` restrict which types collapse. Leave the default unless a downstream tool needs types kept apart.
+- `--force-samples` disambiguates colliding sample names; `-r chr:beg-end` restricts to a region (inputs must be indexed).
+
+## bcftools concat (stitch regions for the same samples)
 
 ```bash
-# After parallel variant calling by chromosome
-bcftools concat chr{1..22}.vcf.gz chrX.vcf.gz chrY.vcf.gz -Oz -o genome.vcf.gz
-bcftools index genome.vcf.gz
+# Genome-wide file from per-chromosome calls (same samples, disjoint regions)
+bcftools concat chr{1..22}.vcf.gz chrX.vcf.gz -Oz -o genome.vcf.gz
 ```
 
-### Compare Two Callers
+- `-a, --allow-overlaps` is needed when region files overlap (e.g. windowed calling); pair with `-d/--rm-dups <snps|indels|both|all|exact>` to output a duplicate once. `-a` requires indexed inputs.
+- `-n, --naive` concatenates BCF/VCF blocks WITHOUT recompression -- very fast for a large per-chromosome set, but it does only a header-compatibility check and requires identical headers and identical sample order across all files; it cannot reorder or reconcile anything. `--naive-force` skips even the header check and will silently produce a corrupt file if headers differ -- avoid it unless the files were provably produced identically.
+- concat does NOT sort across file boundaries; overlapping unsorted inputs need `-a`, and the final file may still need `bcftools sort`.
+
+## bcftools sort (order by CHROM then POS)
 
 ```bash
-# Find variants called by both GATK and bcftools
-bcftools isec -p comparison gatk.vcf.gz bcftools.vcf.gz
-
-# Count results
-wc -l comparison/*.vcf
+bcftools sort -T /scratch/tmp -m 4G input.vcf.gz -Oz -o sorted.vcf.gz   # -T tempdir, -m spill threshold for large files
 ```
 
-### Extract Passing Variants
+An unsorted VCF breaks everything downstream: `tabix`/`bcftools index` require coordinate-sorted input to build the index, and merge/isec/`view -r` all depend on that index for random access. Sort after any operation that can leave records out of order (naive concat of misordered files, some reheader edits). `-T`/`-m` bound memory for genome-scale files.
+
+## bcftools isec (set operations on call sets)
 
 ```bash
-bcftools view -f PASS input.vcf.gz -Oz -o pass_only.vcf.gz
-bcftools index pass_only.vcf.gz
+# Normalize BOTH first (governing principle), then partition
+bcftools norm -m-any -f ref.fa gatk.vcf.gz     -Oz -o gatk.norm.vcf.gz
+bcftools norm -m-any -f ref.fa freebayes.vcf.gz -Oz -o fb.norm.vcf.gz
+bcftools isec -p comparison -Oz gatk.norm.vcf.gz fb.norm.vcf.gz
 ```
 
-## cyvcf2 Python Operations
+`-p dir` writes the four-way partition (`-Oz` to compress):
 
-**Goal:** Perform VCF set operations programmatically in Python.
+| File | Contents |
+|------|----------|
+| `0000.vcf[.gz]` | private to file 1 |
+| `0001.vcf[.gz]` | private to file 2 |
+| `0002.vcf[.gz]` | shared, file-1 records (file-1 INFO/FORMAT) |
+| `0003.vcf[.gz]` | shared, file-2 records (file-2 INFO/FORMAT) |
 
-**Approach:** Use cyvcf2 for position-based comparisons and record concatenation; use bcftools merge for true multi-sample merging.
+`0002` and `0003` are the SAME sites with each file's own annotations -- pick by which annotations are needed downstream. Select membership instead of the full partition with `-n` and route records with `-w` (1-based file indices):
 
-**Note:** True VCF merging (combining samples at matching positions) is complex.
-Use `bcftools merge` for production work. cyvcf2 is better for filtering/querying.
+| Flag | Meaning |
+|------|---------|
+| `-n=2 -w1` | present in exactly 2 files, output file-1 records |
+| `-n+2 -w1` | present in >=2 files |
+| `-n~10 -w1` | present in file1 but NOT file2 (boolean mask) |
+| `-C` | complement: positions only in file1, missing in the rest |
 
-### Concatenate Records (Not True Merge)
+`-c, --collapse` sets what counts as "the same record"; the default `none` demands an exact REF+ALT match (why normalization is mandatory first), whereas `-c all` matches on position alone and ignores ALT -- rarely what a caller comparison wants.
 
-```python
-from cyvcf2 import VCF, Writer
+## Subsetting samples and regions (`bcftools view`)
 
-# WARNING: This concatenates records, not a true merge
-# For actual merging of samples, use bcftools merge
-vcf1 = VCF('file1.vcf.gz')
-writer = Writer('combined.vcf', vcf1)
-
-for variant in vcf1:
-    writer.write_record(variant)
-
-writer.close()
-vcf1.close()
+```bash
+bcftools view -s sample1,sample2 input.vcf.gz -Oz -o subset.vcf.gz   # -s ^s3 to EXCLUDE; -S file for a list
+bcftools view -r chr1:1e6-2e6      input.vcf.gz -Oz -o region.vcf.gz  # -R file.bed for many regions
 ```
 
-### Find Shared Positions
+Two nuances that bite:
+- **`-r`/`-R` (regions) vs `-t`/`-T` (targets).** `-r`/`-R` use the index to JUMP to regions (fast, require an index) and consider both POS and an indel's end; `-t`/`-T` STREAM the whole file filtering on POS (no index needed, slower). With `-R`, overlapping regions in the BED can emit a record MORE THAN ONCE and out of order -- deduplicate/sort after, or use non-overlapping regions.
+- **Stale INFO counts after subsetting.** Dropping samples makes INFO `AC/AN/AF` wrong. `bcftools view -s` updates `AC/AN` by default (unless `-I/--no-update`), but recompute the full tag set explicitly: `bcftools +fill-tags subset.vcf.gz -Oz -o out.vcf.gz -- -t AC,AN,AF`.
 
-```python
-from cyvcf2 import VCF
+## Header harmonization (`bcftools reheader`)
 
-# Load positions from first VCF
-vcf1_positions = set()
-for variant in VCF('sample1.vcf.gz'):
-    vcf1_positions.add((variant.CHROM, variant.POS))
-
-# Check second VCF
-shared = 0
-unique = 0
-for variant in VCF('sample2.vcf.gz'):
-    if (variant.CHROM, variant.POS) in vcf1_positions:
-        shared += 1
-    else:
-        unique += 1
-
-print(f'Shared: {shared}')
-print(f'Unique to sample2: {unique}')
+```bash
+printf 'old_name\tnew_name\n' > rename.txt
+bcftools reheader -s rename.txt input.vcf.gz -o renamed.vcf.gz   # -s renames samples only, no record rewrite
 ```
+
+`reheader` rewrites only the header (fast, no record pass): `-s` maps sample names, `-h` swaps in a whole new header, `-f ref.fa.fai` fixes `##contig` lines to match a reference. Harmonize sample names and contigs BEFORE merge so columns and sites align.
+
+## Structural variants merge differently -- do NOT use `bcftools merge`
+
+For SVs (`<DEL>`/`<DUP>`/`<INV>`/BND), "the same event" is fuzzy: breakpoints disagree by CIPOS/CIEND margins, so tuple-exact bcftools operations treat one deletion called by two tools as two variants. SV merging needs coordinate-and-size (ideally sequence) aware tools -- Truvari, SURVIVOR, or Jasmine -- whose distance/size parameters ARE the result. Use bcftools here only for small variants; route SV consensus to variant-calling/structural-variant-calling.
 
 ## Quick Reference
 
 | Task | Command |
 |------|---------|
-| Merge samples | `bcftools merge s1.vcf.gz s2.vcf.gz -Oz -o merged.vcf.gz` |
-| Concat regions | `bcftools concat chr1.vcf.gz chr2.vcf.gz -Oz -o all.vcf.gz` |
-| Sort VCF | `bcftools sort input.vcf -Oz -o sorted.vcf.gz` |
-| Intersect | `bcftools isec -p dir a.vcf.gz b.vcf.gz` |
-| Extract samples | `bcftools view -s sample1 input.vcf.gz` |
-| Rename samples | `bcftools reheader -s names.txt input.vcf.gz` |
+| Union samples | `bcftools merge -l files.txt -Oz -o cohort.vcf.gz` |
+| Stitch regions | `bcftools concat chr{1..22}.vcf.gz -Oz -o genome.vcf.gz` |
+| Fast stitch (identical headers) | `bcftools concat --naive chr*.bcf -Ob -o all.bcf` |
+| Sort | `bcftools sort -T tmp input.vcf -Oz -o sorted.vcf.gz` |
+| Compare callers | `bcftools isec -p dir a.norm.vcf.gz b.norm.vcf.gz` |
+| Shared only | `bcftools isec -n=2 -w1 a.vcf.gz b.vcf.gz -Oz -o shared.vcf.gz` |
+| Subset samples | `bcftools view -s s1,s2 in.vcf.gz -Oz -o out.vcf.gz` |
+| Recompute AC/AN/AF | `bcftools +fill-tags in.vcf.gz -- -t AC,AN,AF` |
+| Rename samples | `bcftools reheader -s names.txt in.vcf.gz` |
 
 ## Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `different samples` | merge vs concat confusion | Use merge for samples, concat for regions |
-| `not sorted` | Unsorted input to concat | Sort first or use `-a` flag |
-| `sample name conflict` | Duplicate sample names | Use `--force-samples` |
-| `index required` | Missing index for merge/isec | Run `bcftools index` first |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `different samples` on concat | merge/concat inverted (different samples given to concat) | Use merge for samples, concat for regions |
+| False discordance in isec | inputs not normalized to one representation | `bcftools norm -m-any -f ref.fa` both first (see variant-normalization) |
+| Duplicate rows / split AF after merge | inputs represented inconsistently, or un-normalized indels | Normalize + split all inputs identically before merge |
+| Fabricated `0/0` genotypes, inflated ref-allele count | `-0/--missing-to-ref` on single-sample merge (not joint genotyping) | Drop `-0`; joint-genotype gVCFs instead (joint-calling) |
+| `not sorted` / index build fails | unsorted records | `bcftools sort` then re-index |
+| `--naive` output corrupt | headers or sample order differ across inputs | Reheader to a common header, or drop `--naive` |
+| Records duplicated / out of order after `-R` | overlapping regions in the BED | Use non-overlapping regions, then sort/dedup |
+| Sample-name conflict aborts merge | duplicate sample names across files | `--force-samples`, or `reheader -s` first |
+| Stale `AF` after subsetting samples | INFO not fully recomputed | `bcftools +fill-tags -- -t AC,AN,AF` |
 
 ## Related Skills
 
-- variant-calling/vcf-basics - View and query VCF files
-- variant-calling/filtering-best-practices - Filter variants before manipulation
-- variant-calling/variant-normalization - Normalize before comparing (critical for isec accuracy)
-- variant-calling/vcf-statistics - Compare statistics after manipulation
+- variant-calling/variant-normalization - Normalize (left-align, split, atomize) before any merge/isec -- the load-bearing prerequisite
+- variant-calling/joint-calling - Joint-genotype gVCFs instead of merging single-sample VCFs (correct hom-ref vs no-data)
+- variant-calling/vcf-basics - VCF fields, the `./.`-is-not-`0/0` distinction, sample/region query
+- variant-calling/structural-variant-calling - SV merging by breakpoint fuzz (Truvari/SURVIVOR/Jasmine), not bcftools
+- variant-calling/filtering-best-practices - Filter call sets before combining
+- variant-calling/vcf-statistics - Sanity-check Ti/Tv and counts after manipulation
 - variant-calling/variant-calling - Upstream variant discovery that produces input VCFs
+
+## References
+
+- Danecek P, Bonfield JK, Liddle J, et al. Twelve years of SAMtools and BCFtools. *GigaScience.* 2021;10(2):giab008. doi:10.1093/gigascience/giab008 (bcftools merge/concat/isec/norm/view/reheader reference implementation)
+- Tan A, Abecasis GR, Kang HM. Unified representation of genetic variants. *Bioinformatics.* 2015;31(13):2202-2204. doi:10.1093/bioinformatics/btv112 (why normalization before tuple-keyed merge/isec is mandatory)

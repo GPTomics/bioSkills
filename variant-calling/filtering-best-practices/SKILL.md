@@ -1,13 +1,15 @@
 ---
 name: bio-variant-calling-filtering-best-practices
-description: Comprehensive variant filtering including GATK VQSR, hard filters, bcftools expressions, and quality metric interpretation for SNPs and indels. Use when filtering variants using GATK best practices.
+description: Filters germline and somatic variant callsets at the site and genotype level with GATK VQSR (VQSLOD, truth-sensitivity tranches), VETS/ScoreVariantAnnotations, NVScoreVariants, hard filters with per-annotation thresholds, and bcftools/cyvcf2 expressions, plus Ti/Tv-based QC. Use when deciding between VQSR, hard filtering, and ML recalibration by cohort size and platform, setting SNP vs indel thresholds, replicating the missing-annotation-passes rule so hom-alt sites survive, applying genotype-level GQ/DP filters, or validating filter impact. Not for VCF normalization (see variant-calling/variant-normalization) or summary statistics (see variant-calling/vcf-statistics).
 tool_type: mixed
 primary_tool: bcftools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: GATK 4.5+, bcftools 1.19+, numpy 1.26+
+Reference examples tested with: GATK 4.6+, bcftools 1.19+, cyvcf2 0.30+
+
+Note: CNNScoreVariants is deprecated as of GATK 4.6.1.0 (replaced by NVScoreVariants, a PyTorch drop-in); VETS (ExtractVariantAnnotations/TrainVariantAnnotationsModel/ScoreVariantAnnotations) is BETA. Confirm tool availability with `gatk --list` on the installed build before scripting a pipeline.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -18,41 +20,74 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Variant Filtering Best Practices
 
-## Filter Selection Decision Tree
+**"Filter my variant calls"** -> Flag or remove low-quality variant sites, and separately null out untrustworthy per-sample genotypes, using a model matched to cohort size, platform, and organism.
+- CLI: GATK VariantRecalibrator/ApplyVQSR (large cohorts), VariantFiltration (hard filters), ScoreVariantAnnotations (VETS), NVScoreVariants (single-sample DL); bcftools filter/view
+- Python: cyvcf2 for custom per-variant logic
 
+## The governing principle
+
+Filtering decides WHICH errors a callset keeps, not whether they exist. The two site-level paradigms fail in OPPOSITE regimes: VQSR (a ratio of two learned Gaussian-mixture densities over annotation space) collapses on small or exome cohorts; static hard thresholds discard real variants at scale. Two rules follow. First, site-level filtering ("is this SITE real?") and genotype-level filtering ("is this SAMPLE's genotype trustworthy?") are orthogonal -- both are needed, site first. Second, SNPs and indels have different error processes (base-calling/strand vs alignment-ambiguity-in-repeats) and different truth resources, so they are ALWAYS filtered separately then merged. None of these mistakes throws an error: the VCF stays structurally valid while the numbers are silently wrong.
+
+## Site-Level Filter Method Selection
+
+Somatic data is a separate track: use GATK FilterMutectCalls, never VQSR or germline hard filters (the annotations and error model differ).
+
+| Method | Best when | Fails when |
+|--------|-----------|------------|
+| Hard filters (VariantFiltration) | Single sample, exome, targeted panel, non-model organism, or any callset lacking truth resources | Precision-critical work at scale -- static cutoffs leave real variants on the table |
+| VQSR (VariantRecalibrator/ApplyVQSR) | Human, a single deep WGS OR ~30+ jointly-genotyped exomes, HapMap/Omni/Mills truth sets available | A single exome/panel (too few variants): the GMM is non-identifiable and VQSLOD is noise |
+| Allele-specific VQSR (`-AS`, `AS_*` annotations) | Very large cohorts (biobank/gnomAD scale) where one bad allele at a multiallelic must not sink the site | Small cohorts; adds nothing over site-level VQSR |
+| VETS (ScoreVariantAnnotations, BETA) | Modern GATK replacement for VQSR; scikit-learn isolation-forest on site annotations, more robust than GMM, works down to smaller cohorts | Still BETA -- validate against a truth set before production use |
+| NVScoreVariants (deep learning) | A single sample, especially a single exome/panel where VQSR has too few variants to train; PyTorch CNN scores reads+reference, then FilterVariantTranches applies tranches | Needs a GPU-friendly env for the 2D model; replaced deprecated CNNScoreVariants |
+| DL-native caller output (DeepVariant, DRAGEN ML) | The caller already emits calibrated QUAL / vendor FILTER flags | Do NOT re-apply GATK hard filters on top -- annotation distributions differ; filter on the caller's own fields |
+
+Methodology is evolving (VETS is displacing VQSR). Verify the current recommended path against the installed GATK version's "How to Filter variants" article before committing a pipeline.
+
+## VQSR -- Mechanism and Why It Breaks
+
+**Goal:** Recalibrate a large jointly-genotyped human callset with a data-driven quality score.
+
+**Approach:** Fit a Gaussian mixture model (GMM) to the annotation profile of known-true sites (positive model), bootstrap a second GMM on the low-probability-tail artifact sites (negative model), and score each variant by VQSLOD = log( P(annotations | positive) / P(annotations | negative) ). Then choose a truth-sensitivity TRANCHE rather than thresholding VQSLOD directly: a "99.7 tranche" is the VQSLOD cutoff that RETAINS 99.7% of the truth-set sites. Tranches are truth-set SENSITIVITIES, not FDRs.
+
+Three load-bearing consequences the agent must respect:
+- VQSR estimates full covariance matrices in ~6-8 annotation dimensions, so it needs tens of thousands of variants -- as practical GATK convention, a single deep WGS (which alone supplies millions of sites) OR ~30+ jointly-genotyped exomes. On a single exome or panel the model is non-identifiable or wildly overfit -- it may report "converged" while VQSLOD is garbage. This is the single most common real-world VQSR misuse.
+- On exomes, DP must NOT be supplied as a VQSR annotation: capture depth tracks bait design, not truth, and injects a spurious signal.
+- SNPs and indels are recalibrated in separate runs (`-mode SNP`, `-mode INDEL`) because indels are ~10x rarer and their GMM fails first (see governing principle).
+
+```bash
+# SNP recalibration: fit the GMM in annotation space against truth resources
+gatk VariantRecalibrator \
+    -R reference.fa -V cohort.vcf.gz \
+    --resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap.vcf.gz \
+    --resource:omni,known=false,training=true,truth=true,prior=12.0 omni.vcf.gz \
+    --resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G.vcf.gz \
+    --resource:dbsnp,known=true,training=false,truth=false,prior=2.0 dbsnp.vcf.gz \
+    -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR \
+    -mode SNP \
+    -O snp.recal --tranches-file snp.tranches
+# For exomes: OMIT -an DP (capture depth is uninformative of truth), add -an QD -an FS etc. only
+
+# Apply the chosen truth-sensitivity tranche (keeps 99.7% of truth-set SNPs)
+gatk ApplyVQSR \
+    -R reference.fa -V cohort.vcf.gz \
+    -mode SNP --recal-file snp.recal --tranches-file snp.tranches \
+    --truth-sensitivity-filter-level 99.7 \
+    -O snp.recalibrated.vcf.gz
 ```
-Is this somatic data?
-├── Yes -> FilterMutectCalls (GATK), not VQSR or hard filters
-└── No (germline) ->
-    Was DRAGEN-GATK mode used?
-    ├── Yes -> Hard filter on QUAL only (DRAGEN QUAL is well-calibrated)
-    └── No ->
-        Is dataset large enough for VQSR?
-        ├── Yes (>30 WGS/exomes, human, truth sets available) -> VQSR
-        │   └── Large cohort? -> Use allele-specific VQSR (-AS flag)
-        └── No -> Hard filtering
-            ├── Non-model organism -> Hard filtering only (no training resources)
-            └── Targeted panel -> Hard filtering (too few variants for VQSR model)
-```
 
-VQSR requires a Gaussian mixture model trained on known truth sets (HapMap, 1000G, dbSNP).
-With fewer than ~30 samples, the model cannot learn the annotation distributions reliably.
-Targeted panels produce too few variants for stable model convergence, regardless of sample count.
+Run the identical pair with `-mode INDEL` and the Mills/1000G gold-indel resource, then merge the recalibrated SNP and indel callsets. For a single exome or panel (too few variants for VQSR), replace this whole block with hard filters or NVScoreVariants.
 
-## GATK Hard Filter Thresholds
+## GATK Hard Filters (SNPs and indels separately)
 
-**Goal:** Apply GATK-recommended annotation thresholds to separate true variants from artifacts.
+**Goal:** Flag artifacts with static, per-annotation thresholds when VQSR is inapplicable.
 
-**Approach:** Use VariantFiltration with per-metric filter expressions for SNPs and indels separately.
+**Approach:** Split the callset by type (`SelectVariants`), apply type-appropriate OR-combined fail conditions with `VariantFiltration`, then merge. Each annotation targets an independent error mode; a variant fails if it violates ANY one.
 
-**"Filter my variants using GATK best practices"** -> Apply fixed annotation thresholds (QD, FS, MQ, SOR, RankSum) to flag low-quality variants.
+**"Filter my variants using GATK best practices"** -> Apply GATK's recommended annotation cutoffs, separately for SNPs and indels.
 
 ```bash
 # SNPs
-gatk VariantFiltration \
-    -R reference.fa \
-    -V raw_snps.vcf \
-    -O filtered_snps.vcf \
+gatk VariantFiltration -R reference.fa -V raw_snps.vcf -O filtered_snps.vcf \
     --filter-expression "QD < 2.0" --filter-name "QD2" \
     --filter-expression "FS > 60.0" --filter-name "FS60" \
     --filter-expression "MQ < 40.0" --filter-name "MQ40" \
@@ -60,394 +95,167 @@ gatk VariantFiltration \
     --filter-expression "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
     --filter-expression "SOR > 3.0" --filter-name "SOR3"
 
-# Indels
-gatk VariantFiltration \
-    -R reference.fa \
-    -V raw_indels.vcf \
-    -O filtered_indels.vcf \
+# Indels: FS loosened to 200, ReadPosRankSum tightened to -20, MQ/MQRankSum DROPPED
+gatk VariantFiltration -R reference.fa -V raw_indels.vcf -O filtered_indels.vcf \
     --filter-expression "QD < 2.0" --filter-name "QD2" \
     --filter-expression "FS > 200.0" --filter-name "FS200" \
     --filter-expression "ReadPosRankSum < -20.0" --filter-name "ReadPosRankSum-20" \
     --filter-expression "SOR > 10.0" --filter-name "SOR10"
 ```
 
-## Understanding Quality Metrics
+The SNP/indel threshold difference is the point, not an inconsistency: real indels have messier local alignments in repeats, so strand bias (FS) is naturally higher and the gate is loosened to 200; spurious indels cluster at read ends, so ReadPosRankSum is tightened to -20. Mapping-quality metrics (MQ, MQRankSum) are dropped for indels because they are less diagnostic there and the truth model is weaker. Values are GATK-recommended lenient starting points -- verify against the installed version's docs and tune to the annotation histograms of the dataset.
+
+### The hom-alt "missing => PASS" trap
+
+MQRankSum, ReadPosRankSum, and BaseQRankSum are rank-sum tests comparing ref- vs alt-supporting reads, so they are only DEFINED at heterozygous sites. At hom-alt sites there are no ref reads and the annotation is missing (`.`). GATK's `VariantFiltration` fires a filter only when the value is PRESENT and violates the cutoff -- a missing value PASSES. Anyone hand-writing the equivalent in bcftools MUST replicate this: guard every RankSum term with an explicit `|| INFO/X = "."`, or every hom-alt variant silently fails and vanishes.
+
+```bash
+# GATK SNP hard filter (plus a QUAL>=30 floor, which is not part of GATK's canonical set)
+# -- the "|| = \".\"" guard on each RankSum term lets hom-alt sites (undefined RankSums) pass
+bcftools filter -i '
+    QUAL >= 30 && (INFO/QD >= 2.0 || INFO/QD = ".") &&
+    (INFO/FS <= 60.0 || INFO/FS = ".") && (INFO/MQ >= 40.0 || INFO/MQ = ".") &&
+    (INFO/MQRankSum >= -12.5 || INFO/MQRankSum = ".") &&
+    (INFO/ReadPosRankSum >= -8.0 || INFO/ReadPosRankSum = ".") &&
+    (INFO/SOR <= 3.0 || INFO/SOR = ".")' raw_snps.vcf.gz -Oz -o snps_filtered.vcf.gz
+```
+
+## Quality Metric Rationale
 
 | Metric | Threshold | Rationale |
 |--------|-----------|-----------|
-| QD | <2.0 | Quality normalized by depth; preferred over raw QUAL because high-depth sites inflate QUAL regardless of evidence quality. QD < 2.0 means variant quality is not supported by sufficient per-read evidence. |
-| FS | >60 (SNP), >200 (indel) | Fisher strand bias p-value (Phred-scaled). Indels naturally exhibit more strand bias due to alignment artifacts near insertions/deletions, hence the relaxed indel threshold. |
-| SOR | >3.0 (SNP), >10.0 (indel) | Symmetric odds ratio for strand bias. Handles high-depth sites better than FS by avoiding the inflated p-values that Fisher's exact test produces at high counts. |
-| MQ | <40.0 | RMS mapping quality across all reads. Low MQ suggests reads map ambiguously, indicating paralogous regions or segmental duplications. |
-| MQRankSum | <-12.5 | Compares mapping quality of alt-supporting vs ref-supporting reads. Large negative values mean alt reads map significantly worse, suggesting they originate from mismapped paralogs. |
-| ReadPosRankSum | <-8.0 (SNP), <-20.0 (indel) | Position within read where the variant allele appears. Large negative values mean the variant clusters at read ends, a hallmark of misalignment or sequencing error. Indels tolerate a wider range because alignment uncertainty near indels shifts read positions. |
-| DP | Sample-specific | Extreme depth (>2x mean or <0.3x mean) suggests collapsed repeats or poor capture. Filtering on depth alone removes real variants in duplicated regions; always combine with other annotations. |
-| GQ | <20 | Phred-scaled confidence in the assigned genotype. GQ 20 = 99% confidence. |
+| QD (QualByDepth) | <2.0 | QUAL normalized by alt-supporting depth. Raw QUAL grows with coverage, so a 500x artifact can post a huge QUAL; QD removes that inflation. Bimodal in practice -- real variants ~12-35, artifacts near 0. The workhorse, not QUAL. |
+| FS (FisherStrand) | >60 (SNP), >200 (indel) | Phred-scaled Fisher's-exact p-value for strand bias. Real variants are strand-symmetric; many artifacts are strand-specific. Breaks down at exon/read ends where SOR takes over. |
+| SOR (StrandOddsRatio) | >3.0 (SNP); >10.0 (indel) is a commonly-added community/WDL convention, not part of GATK's canonical indel set (QD/QUAL/FS/ReadPosRankSum) | Symmetric-odds strand-bias metric that tolerates the legitimate strand imbalance at exon/read ends where FS false-positives. Complements FS, does not replace it. |
+| MQ (RMSMappingQuality) | <40.0 | RMS mapping quality of reads at the site. Low MQ => reads map ambiguously (repeats, paralogs, segdups) => likely mapping artifact. |
+| MQRankSum | <-12.5 | Rank-sum of mapping quality, alt- vs ref-supporting reads. Strongly negative => alt reads map worse => probable mismapping. Missing at hom-alt sites. |
+| ReadPosRankSum | <-8.0 (SNP), <-20.0 (indel) | Rank-sum of within-read position, alt vs ref bases. Strongly negative => alt clusters at read ends (highest error, least reliable alignment). Missing at hom-alt sites. |
+| DP (depth) | context-specific | Extreme depth (>2x or <0.3x mean) suggests collapsed repeats or poor capture. Filtering on DP alone removes real variants in duplicated regions -- always combine with MQ/MQRankSum. Never a VQSR annotation on exomes. |
+| GQ (genotype quality) | <20 | Genotype-level, not site-level. Phred confidence in the called genotype; GQ 20 = 99%. |
 
-## bcftools filter
+## Site-Level vs Genotype-Level Filtering
 
-**Goal:** Filter variants using bcftools expression syntax with soft or hard removal.
+The two are orthogonal and both are required, in order. Site filters (above) decide whether a SITE is real. Genotype filters set an individual sample's genotype to no-call (`./.`) when it is untrustworthy at an otherwise-passing site:
+- GQ < 20 => set `./.` (genotype confidence below 99%).
+- DP < 8-10 => set `./.` (too few reads for a confident diploid call, for WGS).
+- Allele balance far from 0.5 at hets (e.g. alt fraction <0.2 or >0.8) => suspect mapping artifact, CNV, or contamination; derive from AD (GATK does not emit AB directly).
 
-**Approach:** Use -e (exclude) or -i (include) with expressions on QUAL, INFO, and FORMAT fields; use -s for soft filtering.
-
-### Soft vs Hard Filtering
+Ordering matters: apply genotype-level no-calls BEFORE computing cohort metrics (missingness, HWE, allele frequency). Computing HWE on a matrix full of low-GQ garbage genotypes manufactures spurious deviation. Pipeline: site filter -> genotype filter -> recompute cohort QC.
 
 ```bash
-# Hard filter (remove variants)
-bcftools filter -e 'QUAL<30' input.vcf.gz -o filtered.vcf
-
-# Soft filter (mark, don't remove)
-bcftools filter -s 'LowQual' -e 'QUAL<30' input.vcf.gz -o marked.vcf
-# Variants failing filter get "LowQual" in FILTER column
-
-# Include instead of exclude
-bcftools filter -i 'QUAL>=30' input.vcf.gz -o filtered.vcf
+# Genotype-level: null out low-confidence genotypes, keeping the site
+bcftools filter -S . -e 'FMT/GQ<20 | FMT/DP<8' passing_sites.vcf.gz -Oz -o gt_filtered.vcf.gz
 ```
 
-### Expression Syntax
+## bcftools filter -- Soft vs Hard
 
-| Operator | Meaning |
-|----------|---------|
-| `<`, `<=`, `>`, `>=` | Comparison |
-| `=`, `==` | Equals |
-| `!=` | Not equals |
-| `&&`, `\|\|` | AND, OR |
-| `!` | NOT |
+**Goal:** Flag (soft) or remove (hard) variants by expression on QUAL, INFO, and FORMAT fields.
 
-### Aggregate Functions
-
-| Function | Description |
-|----------|-------------|
-| `MIN(x)` | Minimum across samples |
-| `MAX(x)` | Maximum across samples |
-| `AVG(x)` | Average across samples |
-| `SUM(x)` | Sum across samples |
-
-### Common bcftools Filters
+**Approach:** `-e` excludes, `-i` includes; `-s NAME` writes a named FILTER label instead of dropping; `bcftools view -f PASS` extracts survivors at the end.
 
 ```bash
-# Basic quality filter
-bcftools filter -i 'QUAL>30 && DP>10' input.vcf -o filtered.vcf
-
-# Complex filter with multiple metrics
-bcftools filter -i 'QUAL>30 && INFO/DP>10 && INFO/DP<500 && \
-    (INFO/FS<60 || INFO/FS=".") && INFO/MQ>40' input.vcf -o filtered.vcf
-
-# Genotype-level filters
-bcftools filter -i 'FMT/DP>10 && FMT/GQ>20' input.vcf -o filtered.vcf
-
-# Remove filtered sites
-bcftools view -f PASS input.vcf -o passed.vcf
-
-# Keep only biallelic SNPs
-bcftools view -m2 -M2 -v snps input.vcf -o biallelic_snps.vcf
-
-# Check for missing values
-bcftools filter -e 'QUAL="."' input.vcf.gz  # Exclude missing QUAL
-bcftools filter -i 'INFO/DP!="."' input.vcf.gz  # Include only if DP exists
+bcftools filter -e 'QUAL<30' input.vcf.gz -o filtered.vcf          # hard: drop failing
+bcftools filter -s 'LowQual' -e 'QUAL<30' input.vcf.gz -o marked.vcf  # soft: label failing
+bcftools view -f PASS marked.vcf -o passed.vcf                      # extract PASS survivors
 ```
 
-## bcftools view Filtering
+Operators: `< <= > >=  = == !=  && ||  !`. Aggregate over samples with `MIN() MAX() AVG() SUM()`. Guard against missing values explicitly (`INFO/DP!="."`), for the same hom-alt reason as above.
 
-**Goal:** Select variants by type, region, or sample using bcftools view.
+## Somatic Variant Filtering
 
-**Approach:** Use type flags (-v/-V), region flags (-r/-R), and sample flags (-s/-S) for structured subsetting.
+**Goal:** Filter tumor-normal somatic calls with the caller's own model, not germline thresholds.
 
-### Filter by Variant Type
-
-```bash
-# SNPs only
-bcftools view -v snps input.vcf.gz -o snps.vcf.gz
-
-# Indels only
-bcftools view -v indels input.vcf.gz -o indels.vcf.gz
-
-# Exclude SNPs
-bcftools view -V snps input.vcf.gz -o no_snps.vcf.gz
-```
-
-### Filter by Region
+**Approach:** Run GATK FilterMutectCalls with contamination and segmentation tables, then layer additional thresholds on TLOD and VAF.
 
 ```bash
-bcftools view -r chr1:1000000-2000000 input.vcf.gz -o region.vcf.gz
-
-# Multiple regions
-bcftools view -r chr1:1000-2000,chr2:3000-4000 input.vcf.gz
-```
-
-### Filter by Samples
-
-```bash
-# Include samples
-bcftools view -s sample1,sample2 input.vcf.gz -o subset.vcf.gz
-
-# Exclude samples
-bcftools view -s ^sample3,sample4 input.vcf.gz -o subset.vcf.gz
-```
-
-## Depth Filtering
-
-**Goal:** Remove variants at extreme depth values that suggest mapping artifacts or duplications.
-
-**Approach:** Calculate depth percentiles, then filter to the middle 90% of the distribution.
-
-```bash
-# Calculate depth percentiles
-bcftools query -f '%DP\n' input.vcf | \
-    sort -n | \
-    awk '{a[NR]=$1} END {print "5th:", a[int(NR*0.05)], "95th:", a[int(NR*0.95)]}'
-
-# Filter to middle 90% of depth distribution
-bcftools filter -i 'INFO/DP>10 && INFO/DP<200' input.vcf -o depth_filtered.vcf
-```
-
-## Allele Frequency Filters
-
-**Goal:** Filter variants by minor allele frequency and allelic balance.
-
-**Approach:** Apply thresholds on INFO/AF for population frequency and AD ratios for heterozygote balance.
-
-```bash
-# Minor allele frequency filter (population data)
-bcftools filter -i 'INFO/AF>0.01 && INFO/AF<0.99' input.vcf -o maf_filtered.vcf
-
-# Allele balance for heterozygotes
-bcftools filter -i 'GT="het" -> (AD[1]/(AD[0]+AD[1]) > 0.2 && AD[1]/(AD[0]+AD[1]) < 0.8)' \
-    input.vcf -o ab_filtered.vcf
-```
-
-## Region-Based Filtering
-
-**Goal:** Include or exclude variants based on genomic region annotations and artifact-prone regions.
-
-**Approach:** Use bcftools view with BED files to exclude known problematic regions and restrict to targets. Always benchmark filtering stratified by genomic context.
-
-Key BED resources for region filtering:
-- **ENCODE exclusion list** (formerly blacklist): regions with anomalous signal across cell types (centromeres, telomeres, satellite repeats). Available at github.com/Boyle-Lab/Blacklist.
-- **GIAB difficult regions**: stratified BED files for low-complexity, segmental duplications, tandem repeats, and other challenging contexts. Essential for honest benchmarking.
-- **LCR (low-complexity region) BED files**: homopolymers, dinucleotide repeats, and other simple sequences where indel calling is unreliable. Heng Li's LCR-hs38 is widely used.
-
-```bash
-# Exclude ENCODE exclusion list regions
-bcftools view -T ^ENCFF356LFX.bed input.vcf -o filtered.vcf
-
-# Exclude low-complexity regions
-bcftools view -T ^LCR-hs38.bed.gz input.vcf -o lcr_filtered.vcf
-
-# Keep only exonic regions
-bcftools view -R exons.bed input.vcf -o exonic.vcf
-
-# Stratified evaluation against GIAB truth set
-bcftools isec -p benchmark_dir filtered.vcf truth.vcf.gz
-```
-
-## Sample-Level Filtering
-
-**Goal:** Remove low-quality samples and sites with excessive missing genotypes.
-
-**Approach:** Compute per-sample missingness with bcftools stats, exclude failing samples, and filter sites by F_MISSING threshold.
-
-```bash
-# Missing genotype rate per sample
-bcftools stats -s - input.vcf | grep ^PSC | cut -f3,14
-
-# Filter samples with >10% missing
-bcftools view -S good_samples.txt input.vcf -o sample_filtered.vcf
-
-# Filter sites with >5% missing genotypes
-bcftools filter -i 'F_MISSING<0.05' input.vcf -o site_filtered.vcf
-```
-
-## Variant Type-Specific Filters
-
-**Goal:** Apply different quality thresholds to SNPs and indels.
-
-**Approach:** Separate by type, apply type-appropriate thresholds (e.g., FS<60 for SNPs, FS<200 for indels), then merge back.
-
-```bash
-# Separate SNPs and indels for different filters
-bcftools view -v snps input.vcf -o snps.vcf
-bcftools view -v indels input.vcf -o indels.vcf
-
-# Apply different thresholds
-bcftools filter -i 'QUAL>30 && INFO/FS<60' snps.vcf -o snps_filtered.vcf
-bcftools filter -i 'QUAL>30 && INFO/FS<200' indels.vcf -o indels_filtered.vcf
-
-# Merge back
-bcftools concat snps_filtered.vcf indels_filtered.vcf | bcftools sort -o merged.vcf
-```
-
-## Multi-Step Pipeline Filtering
-
-**Goal:** Chain multiple filter criteria in a single pipeline with optional soft filter labels.
-
-**Approach:** Pipe through successive bcftools filter commands, using -s for named soft filters and -f PASS for final hard extraction.
-
-```bash
-bcftools filter -e 'QUAL<30' input.vcf.gz | \
-    bcftools filter -e 'INFO/DP<10' | \
-    bcftools view -v snps -Oz -o filtered_snps.vcf.gz
-
-# Named soft filters
-bcftools filter -s 'LowQual' -e 'QUAL<30' input.vcf.gz | \
-    bcftools filter -s 'LowDepth' -e 'INFO/DP<10' -Oz -o marked.vcf.gz
-
-# Later, remove all filtered variants
-bcftools view -f PASS marked.vcf.gz -Oz -o pass_only.vcf.gz
-```
-
-## Somatic Variant Filters
-
-**Goal:** Filter somatic variants from tumor-normal calling with caller-specific criteria.
-
-**Approach:** Use GATK FilterMutectCalls with contamination/segmentation tables, then apply additional bcftools thresholds on TLOD and VAF.
-
-```bash
-# Mutect2 specific
-gatk FilterMutectCalls \
-    -R reference.fa \
-    -V mutect2_raw.vcf \
+gatk FilterMutectCalls -R reference.fa -V mutect2_raw.vcf \
     --contamination-table contamination.table \
     --tumor-segmentation segments.table \
     -O mutect2_filtered.vcf
-
-# Additional somatic filters
 bcftools filter -i 'INFO/TLOD>6.3 && FMT/AF[0]>0.05 && FMT/DP[0]>20' \
     mutect2_filtered.vcf -o somatic_final.vcf
 ```
 
 ## Python Filtering (cyvcf2)
 
-**Goal:** Filter variants programmatically in Python for custom multi-metric criteria.
+**Goal:** Apply custom multi-metric per-variant logic in Python.
 
-**Approach:** Iterate with cyvcf2, evaluate QUAL/INFO/FORMAT fields per variant, and write passing records with Writer.
+**Approach:** Iterate with cyvcf2, read QUAL/INFO fields, write survivors with Writer. `INFO.get` returns None for missing tags -- treat None as pass to avoid the hom-alt trap.
 
 ```python
 from cyvcf2 import VCF, Writer
-import numpy as np
 
 vcf = VCF('input.vcf.gz')
 writer = Writer('filtered.vcf', vcf)
-
 for variant in vcf:
     qual = variant.QUAL or 0
-    dp = variant.INFO.get('DP', 0)
-    fs = variant.INFO.get('FS', 0)
-    mq = variant.INFO.get('MQ', 0)
-
-    if qual >= 30 and dp >= 10 and fs <= 60 and mq >= 40:
+    dp = variant.INFO.get('DP') or 1e9      # missing depth => do not fail on depth
+    fs = variant.INFO.get('FS') or 0.0      # missing strand bias => pass (None -> 0)
+    mq = variant.INFO.get('MQ') or 1e9      # missing MQ => pass
+    if qual >= 30 and dp >= 10 and fs <= 60.0 and mq >= 40.0:
         writer.write_record(variant)
-
-writer.close()
-vcf.close()
-```
-
-### Filter by Genotype
-
-```python
-from cyvcf2 import VCF, Writer
-
-vcf = VCF('input.vcf.gz')
-writer = Writer('filtered.vcf', vcf)
-
-for variant in vcf:
-    # Keep if at least one sample is heterozygous
-    # gt_types: 0=HOM_REF, 1=HET, 2=UNKNOWN, 3=HOM_ALT
-    if 1 in variant.gt_types:
-        writer.write_record(variant)
-
-writer.close()
-vcf.close()
-```
-
-### Filter by Sample Depth
-
-```python
-from cyvcf2 import VCF, Writer
-import numpy as np
-
-vcf = VCF('input.vcf.gz')
-writer = Writer('filtered.vcf', vcf)
-
-for variant in vcf:
-    depths = variant.format('DP')
-    if depths is not None and np.min(depths) >= 10:
-        writer.write_record(variant)
-
-writer.close()
-vcf.close()
+writer.close(); vcf.close()
 ```
 
 ## Validate Filtering
 
-**Goal:** Assess the impact of filtering on variant quality and retention using diagnostic metrics.
+**Goal:** Confirm filtering removed artifacts without stripping true variants.
 
-**Approach:** Compare before/after bcftools stats, check Ti/Tv and Het/Hom ratios against expected ranges, and verify known variant recovery.
-
-Expected metric ranges for human samples:
+**Approach:** Compare before/after `bcftools stats`; check Ti/Tv and Het/Hom against expected ranges and known-variant recovery. A filter that improves one metric while degrading another is miscalibrated.
 
 | Metric | WGS | WES | Interpretation |
 |--------|-----|-----|----------------|
-| Ti/Tv | 2.0-2.1 | 2.8-3.3 | Below range suggests excess false positives; above range suggests over-filtering. WES is higher due to coding region enrichment (CpG transitions). |
-| Het/Hom | 1.5-2.0 | 1.5-2.0 | Population-dependent. Outliers suggest contamination (high het) or inbreeding (low het). |
-| Known variant % | >99% (dbSNP) | >99% | Low recovery of known variants indicates over-filtering. |
-
-If Ti/Tv drops after filtering, the filters may be preferentially removing true transitions.
+| Ti/Tv | 2.0-2.1 | 3.0-3.3 | Below range => excess false positives (random errors have Ti/Tv ~0.5, diluting the signal); a WES set at ~2.1 signals too-loose filtering. WES is higher from CpG-transition-rich coding enrichment. |
+| Het/Hom | 1.5-2.0 | 1.5-2.0 | Strongly ancestry-dependent. Elevated => contamination; depressed => inbreeding/ROH. Stratify by ancestry before flagging outliers. |
+| Known (dbSNP) % | >99% | >99% | Low known-variant recovery indicates over-filtering. |
 
 ```bash
-# Compare before/after stats
-bcftools stats input.vcf > before_stats.txt
-bcftools stats filtered.vcf > after_stats.txt
-
-# Ti/Tv ratio
-bcftools stats filtered.vcf | grep 'TSTV'
-
-# Het/Hom ratio
-bcftools stats -s - filtered.vcf | grep ^PSC | awk '{print $3, "het/hom:", $5/$6}'
-
-# Count variants per filter label
-bcftools query -f '%FILTER\n' filtered.vcf | sort | uniq -c
-
-# Known variant recovery (requires dbSNP-annotated VCF)
-bcftools view -i 'ID!="."' filtered.vcf | bcftools stats | grep 'number of SNPs'
+bcftools stats input.vcf > before.txt
+bcftools stats filtered.vcf | grep '^TSTV'                    # Ti/Tv after filtering
+bcftools query -f '%FILTER\n' filtered.vcf | sort | uniq -c   # counts per FILTER label
 ```
+
+If Ti/Tv drops after filtering, the filters are preferentially removing true transitions -- relax them. See variant-calling/vcf-statistics for the full QC panel (het/hom by ancestry, contamination, relatedness).
+
+## Region-Based Filtering
+
+Stratify by genomic context; artifact-prone regions dominate false positives. Exclude with `bcftools view -T ^regions.bed`:
+- ENCODE exclusion list (github.com/Boyle-Lab/Blacklist) -- anomalous-signal regions (centromeres, satellites).
+- GIAB stratification BEDs -- low-complexity, segdups, tandem repeats; essential for honest benchmarking (`bcftools isec` against a GIAB truth set).
+- LCR-hs38 (Heng Li) -- homopolymers and simple repeats where indel calling is unreliable.
 
 ## Common Filtering Pitfalls
 
-- **Over-filtering rare variants**: Strict annotation thresholds disproportionately penalize rare variants, which have fewer supporting reads and therefore noisier annotations. Consider tiered filtering: relaxed thresholds for singletons, standard for common variants.
-- **Applying SNP filters to indels**: SNPs and indels have fundamentally different annotation distributions (e.g., FS, SOR, ReadPosRankSum). Always separate by variant type before filtering.
-- **Ignoring multiallelic sites**: Standard VQSR evaluates all alleles at a site together. For large cohorts, allele-specific VQSR (-AS flag) evaluates each allele independently, preventing a single poor allele from dragging down a good one.
-- **Not verifying filter effects**: Always check Ti/Tv, Het/Hom, and known variant recovery rate before and after filtering. A filter that improves one metric while degrading another may be miscalibrated.
-- **Filtering on depth alone**: DP filtering removes sites in collapsed segmental duplications that may harbor real variants. Combine DP with other annotations (MQ, MQRankSum) to distinguish true high-depth from mapping artifacts.
-- **Not examining annotation distributions**: Plot histograms of each annotation (QD, FS, MQ) stratified by known true positives (e.g., HapMap sites) vs likely false positives before choosing thresholds. GATK defaults are population-level recommendations; specific datasets may warrant adjustment.
-
-## Quick Reference
-
-| Task | Command |
-|------|---------|
-| Quality filter | `bcftools filter -e 'QUAL<30' in.vcf.gz` |
-| Depth filter | `bcftools filter -e 'INFO/DP<10' in.vcf.gz` |
-| SNPs only | `bcftools view -v snps in.vcf.gz` |
-| Indels only | `bcftools view -v indels in.vcf.gz` |
-| PASS only | `bcftools view -f PASS in.vcf.gz` |
-| Soft filter | `bcftools filter -s 'LowQ' -e 'QUAL<30' in.vcf.gz` |
-| Region | `bcftools view -r chr1:1-1000 in.vcf.gz` |
-| Biallelic | `bcftools view -m2 -M2 in.vcf.gz` |
+- Applying SNP thresholds to indels: distributions differ (FS, SOR, ReadPosRankSum). Always split by type first.
+- Treating missing RankSum as failing: silently deletes every hom-alt site (see the missing => PASS trap).
+- Running VQSR on a single exome or panel: too few variants, the GMM is non-identifiable (a single deep WGS is fine); use hard filters, VETS, or NVScoreVariants.
+- Re-applying GATK hard filters on DeepVariant/DRAGEN output: their calibrated fields already encode quality; the GATK annotations may be absent or differently distributed.
+- Filtering on depth alone: removes real variants in collapsed segdups; combine DP with MQ/MQRankSum.
+- Choosing thresholds without looking: plot each annotation stratified by known TP (HapMap) vs likely FP and cut at the valley; GATK defaults are population-level starting points.
 
 ## Common Errors
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `no such INFO tag` | Tag not in VCF | Check header with `bcftools view -h` |
-| `syntax error` | Invalid expression | Check operator syntax (`\|\|` not `or`) |
-| `empty output` | Filter too strict | Relax thresholds |
+| `no such INFO tag` | Tag absent from VCF | Check header: `bcftools view -h in.vcf` |
+| `syntax error` in expression | Invalid operator | Use `\|\|` not `or`; quote missing as `= "."` |
+| Every hom-alt site removed | RankSum missing not guarded | Add `\|\| INFO/X = "."` to each RankSum term |
+| VQSR "converged" but nonsense | Too few samples/variants | Switch to hard filters, VETS, or NVScoreVariants |
+| empty output | Filter too strict | Relax thresholds; inspect annotation histograms |
 
 ## Related Skills
 
 - variant-calling/variant-calling - Variant calling with bcftools to generate VCF files
-- variant-calling/gatk-variant-calling - GATK HaplotypeCaller and VQSR pipelines
-- variant-calling/deepvariant - Deep learning variant calling as an alternative to GATK
+- variant-calling/gatk-variant-calling - GATK HaplotypeCaller and joint genotyping upstream of VQSR
+- variant-calling/deepvariant - Deep-learning caller whose output needs no separate site filter
 - variant-calling/variant-annotation - Functional annotation after filtering
-- variant-calling/vcf-statistics - Evaluate filter effects with concordance and summary metrics
-- variant-calling/vcf-basics - VCF format fundamentals and field interpretation
 - variant-calling/variant-normalization - Left-align and decompose before filtering for consistent comparisons
+- variant-calling/vcf-statistics - Ti/Tv, het/hom, contamination, and relatedness QC of filter effects
+- variant-calling/vcf-basics - VCF field interpretation, PL/GQ/QUAL, and Number=A/R/G subsetting
+
+## References
+
+- DePristo MA, Banks E, Poplin R, et al. A framework for variation discovery and genotyping using next-generation DNA sequencing data. *Nature Genetics.* 2011;43(5):491-498. -- VQSR foundational description.
+- Van der Auwera GA, Carneiro MO, Hartl C, et al. From FastQ Data to High-Confidence Variant Calls: the GATK Best Practices pipeline. *Current Protocols in Bioinformatics.* 2013;43:11.10.1-11.10.33. -- hard-filtering and VQSR usage.
+- Poplin R, Chang P-C, Alexander D, et al. A universal SNP and small-indel variant caller using deep neural networks. *Nature Biotechnology.* 2018;36(10):983-987. -- DeepVariant (DL-native calls need no separate filter).
+- Danecek P, Bonfield JK, Liddle J, et al. Twelve years of SAMtools and BCFtools. *GigaScience.* 2021;10(2):giab008. -- bcftools filter/view/stats.

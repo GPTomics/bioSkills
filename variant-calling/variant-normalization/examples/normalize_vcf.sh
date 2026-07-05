@@ -1,8 +1,11 @@
 #!/bin/bash
-# Reference: bcftools 1.19+ | Verify API if version differs
-# Normalize VCF file: left-align indels and split multiallelic sites
+# Reference: bcftools 1.12+ | Verify API if version differs
+# Normalize a VCF (atomize MNPs -> split multiallelic -> left-align + parsimony)
+# and quantify how many extra records atomization alone contributes, since
+# vt decompose_blocksub splits MNPs by default while bcftools norm does not: mixing
+# tools across cohorts manufactures spurious cohort-private variants at every MNP.
 
-set -e
+set -euo pipefail
 
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <reference.fa> <input.vcf.gz> <output.vcf.gz>"
@@ -13,7 +16,6 @@ REF="$1"
 INPUT="$2"
 OUTPUT="$3"
 
-# Check inputs
 if [ ! -f "$REF" ]; then
     echo "Error: Reference not found: $REF"
     exit 1
@@ -24,23 +26,31 @@ if [ ! -f "$INPUT" ]; then
     exit 1
 fi
 
-# Count before
-BEFORE=$(bcftools view -H "$INPUT" | wc -l | tr -d ' ')
+count_records() { bcftools view -H "$1" | wc -l | tr -d ' '; }
 
-# Normalize
-echo "Normalizing VCF..."
-bcftools norm -f "$REF" -m-any -d exact "$INPUT" -Oz -o "$OUTPUT"
-bcftools index "$OUTPUT"
+BEFORE=$(count_records "$INPUT")
 
-# Count after
-AFTER=$(bcftools view -H "$OUTPUT" | wc -l | tr -d ' ')
+# Split + left-align WITHOUT atomization: MNPs stay as single records.
+NO_ATOMIZE=$(bcftools norm -m- -f "$REF" "$INPUT" -Ou 2>/dev/null | bcftools view -H | wc -l | tr -d ' ')
 
-# Report
+# Full canonical pipeline: atomize MNPs, split multiallelic, left-align + parsimony.
+bcftools norm --atomize "$INPUT" -Ou 2>/dev/null \
+    | bcftools norm -m- -Ou \
+    | bcftools norm -f "$REF" -Oz -o "$OUTPUT"
+bcftools index -f "$OUTPUT"
+
+AFTER=$(count_records "$OUTPUT")
+
 echo ""
 echo "=== Normalization Complete ==="
 echo "Input:  $INPUT"
 echo "Output: $OUTPUT"
 echo ""
-echo "Variants before: $BEFORE"
-echo "Variants after:  $AFTER"
-echo "Difference:      $((AFTER - BEFORE))"
+echo "Records before:                    $BEFORE"
+echo "Records after split+left-align:    $NO_ATOMIZE"
+echo "Records after full (with atomize): $AFTER"
+echo "Extra records from atomization:    $((AFTER - NO_ATOMIZE))"
+echo ""
+echo "The difference counts the MNP and complex records that bcftools-only norm leaves"
+echo "intact but vt-style decomposition splits into atoms. Standardize one tool +"
+echo "flags across every cohort compared, or these become false private variants."
