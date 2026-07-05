@@ -1,13 +1,13 @@
 ---
 name: bio-consensus-sequences
-description: Generate consensus FASTA sequences by applying VCF variants to a reference using bcftools consensus. Use when creating sample-specific reference sequences or reconstructing haplotypes.
+description: Generate consensus FASTA sequences by applying VCF variants onto a reference with bcftools consensus, or build viral/amplicon consensus with iVar. Use when reconstructing a sample-specific reference or haplotype, deciding -H haplotype vs IUPAC vs all-ALT projection, masking no-coverage sites so a consensus does not manufacture false reference calls, or setting iVar min-depth/min-frequency policy for surveillance genomes.
 tool_type: cli
 primary_tool: bcftools
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: BioPython 1.83+, bcftools 1.19+, bedtools 2.31+, minimap2 2.26+, samtools 1.19+
+Reference examples tested with: bcftools 1.19+, samtools 1.19+, bedtools 2.31+, iVar 1.4+, minimap2 2.26+, BioPython 1.83+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -16,363 +16,218 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Note: the `-H` argument vocabulary (N/R/A/I/LR/LA/SR/SA/NpIu, where `I` = IUPAC code for all genotypes) has grown across bcftools 1.x releases; IUPAC output is available both as the `-H I` code and the standalone `-I`/`--iupac-codes` flag. Always confirm the accepted letters with `bcftools consensus` on the installed version before scripting a selection.
+
 # Consensus Sequences
 
-**"Generate a consensus sequence from my VCF"** -> Apply called variants to a reference FASTA, producing a sample-specific genome with optional haplotype selection and low-coverage masking.
-- CLI: `bcftools consensus -f reference.fa input.vcf.gz`
-- Python: `cyvcf2` + `Bio.SeqIO` for simple SNP-only cases
+**"Generate a consensus sequence from my VCF"** -> Apply called variants onto a reference FASTA, producing a sample-specific sequence, with a deliberate choice of haplotype projection and no-coverage masking.
+- CLI (from a VCF): `bcftools consensus -f reference.fa input.vcf.gz`
+- CLI (viral/amplicon from a BAM): `samtools mpileup ... | ivar consensus -p out`
+- Python: `cyvcf2` + `Bio.SeqIO` for SNP-only prototypes
+
+## The governing principle
+
+`bcftools consensus` walks the reference and substitutes ALT alleles at the positions present in the VCF. Everything else is copied from the reference verbatim -- which drives three traps that ruin more consensus analyses than any tool bug:
+
+1. **A consensus silently emits REFERENCE wherever the VCF is silent -- including positions with zero coverage.** No data and confidently-reference look identical in the output. An unmasked consensus therefore manufactures false confidence at exactly the sites where the sample was never observed. Mask no-coverage sites (below) or the FASTA lies.
+2. **`-H 1` on an UNPHASED VCF yields a chimeric pseudo-haplotype.** Haplotype selection is only meaningful when genotypes are phased; on unphased data it mixes alleles from different real chromosomes into a sequence that exists in no cell. Verify `|` phasing before selecting a haplotype.
+3. **A single FASTA cannot faithfully represent a diploid genome.** Every projection (`-H 1`, `-I`, `-H A`) is lossy in a different way; for phase-sensitive work keep the VCF, not the consensus.
+
+The input VCF must be **bgzipped and indexed** (`bgzip` + `bcftools index`/`tabix`); plain-gzip or unindexed input errors out. The REF bases in the VCF must match the FASTA exactly or bcftools warns and skips those records. Normalize first (see Normalization).
 
 ## Basic Usage
 
-### Generate Consensus
+`bcftools consensus` reads variants from a bgzipped, indexed VCF and writes FASTA:
 
 ```bash
+bcftools index input.vcf.gz                                    # .csi index (or tabix -p vcf)
 bcftools consensus -f reference.fa input.vcf.gz > consensus.fa
+bcftools consensus -f reference.fa -o consensus.fa input.vcf.gz  # -o instead of redirect
 ```
 
-### Specify Sample
+For a multi-sample VCF, always pass `-s` -- without it, the applied genotypes are undefined:
 
 ```bash
+bcftools query -l input.vcf.gz                                 # list samples
 bcftools consensus -f reference.fa -s sample1 input.vcf.gz > sample1.fa
 ```
 
-### Output to File
+Restrict to a region with `-r` (the FASTA header is then `>chr:from-to`):
 
 ```bash
-bcftools consensus -f reference.fa -o consensus.fa input.vcf.gz
+bcftools consensus -f reference.fa -r chr1:1000000-1010000 -s sample1 input.vcf.gz > gene.fa
 ```
 
-## Haplotype Selection
+## Haplotype Selection and the Phasing Trap
 
-### First Haplotype Only
+`-H` chooses which allele to apply from `FORMAT/GT`. The codes are case-insensitive:
+
+| Option | Applies | Use when |
+|--------|---------|----------|
+| `-H 1` / `-H 2` | Allele at GT index 1 or 2 | Emitting one true chromosome -- **only valid on PHASED genotypes** |
+| `-H A` | ALT allele in every genotype | Maximum divergence from reference; a chimera of both chromosomes |
+| `-H R` | REF allele at heterozygous sites | Conservative consensus; discards het ALT alleles |
+| `-H I` (or the standalone `-I` / `--iupac-codes` flag) | IUPAC ambiguity code | Retain heterozygosity in one sequence (see caveat below) |
+| `-H LA`/`LR`/`SA`/`SR` | Longer/shorter allele, tie broken by ALT/REF | Length-driven selection; confirm the letter set on the installed version |
+
+**The chimeric-haplotype footgun.** `-H 1`/`-H 2` are only meaningful when genotypes are phased (`0|1`, pipe separator). With **unphased** genotypes (`0/1`, slash), the assignment of "which allele is haplotype 1" is arbitrary *per site*, so `-H 1` across many heterozygous sites produces a **switch-error mosaic that corresponds to no real chromosome** -- while looking like a clean haplotype FASTA. This is the single most dangerous consensus mistake. Verify phasing before any `-H 1`/`-H 2`:
 
 ```bash
-bcftools consensus -f reference.fa -H 1 input.vcf.gz > haplotype1.fa
+bcftools query -f '%CHROM\t%POS[\t%GT]\n' input.vcf.gz | head   # phased: 0|1 ; unphased: 0/1
 ```
 
-### Second Haplotype Only
+If genotypes are unphased, phase first (read-backed WhatsHap/HapCUT2, trio, statistical SHAPEIT/Eagle -- accurate for common variants, poor for rare/singletons -- or native long-read phasing). See phasing-imputation/haplotype-phasing and variant-calling/vcf-basics for GT interpretation.
+
+## What a Consensus Cannot Represent
+
+A single consensus FASTA is a lossy projection of a diploid genome; the right projection depends on the downstream use, and some tasks need the VCF instead:
+
+| Strategy | Flag | Best for | Loses |
+|----------|------|----------|-------|
+| Two haplotype sequences | `-H 1` + `-H 2` (phased) | Allele-specific expression, compound-het, HLA, cis-regulatory haplotypes | Nothing (if correctly phased) |
+| IUPAC ambiguity codes | `-I` | Retaining het signal in one sequence | Phase/linkage; **many tree/alignment tools read IUPAC as N** |
+| All ALT alleles | `-H A` | Max divergence, quick draft | Reality -- exists in no cell |
+| REF at het sites | `-H R` | Conservative single sequence | Every heterozygous ALT allele |
+
+Two hard boundaries:
+
+- **For phase-sensitive work, keep the VCF (or two phased haplotype FASTAs), not a single consensus.** Collapsing hets to IUPAC or picking one allele discards linkage that the analysis needs -- treating a consensus FASTA as "the sample's genome" for compound-het or allele-specific analysis is a category error.
+- **`bcftools consensus` cannot apply symbolic SV alleles** (`<DEL>`, `<INS>`, `<DUP>`, `<INV>`): those carry no ALT sequence, only INFO fields, so consensus has nothing to substitute. Short-read SV VCFs (Manta/DELLY) are mostly symbolic and are NOT directly consensus-able. Folding SVs into a consensus needs sequence-resolved records (long-read/assembly callers emit these) or an assembly-based approach -- see variant-calling/structural-variant-calling.
+
+For phylogenetics specifically, prefer one clean phased haplotype or a homozygous-ALT-only sequence over IUPAC, because ambiguity codes are silently dropped by many tree builders:
 
 ```bash
-bcftools consensus -f reference.fa -H 2 input.vcf.gz > haplotype2.fa
+bcftools view -i 'GT="AA"' input.vcf.gz | bcftools consensus -f reference.fa > hom_alt.fa
 ```
 
-### Haplotype Options
+## Masking No-Coverage Sites (the load-bearing footgun)
 
-| Option | Description |
-|--------|-------------|
-| `-H 1` | First haplotype |
-| `-H 2` | Second haplotype |
-| `-H A` | Apply all ALT alleles |
-| `-H R` | Apply REF alleles where heterozygous |
-| `-I` | Apply IUPAC ambiguity codes (separate flag) |
+Because unobserved positions are emitted as reference (trap 1), a consensus must mask sites with insufficient data. `-m mask.bed` replaces the listed regions (default char N via `--mask-with N`). The mask must be built from **callable depth**, and the depth step hides a silent bug:
 
-### Phasing Requirements
-
-The `-H 1` and `-H 2` flags select haplotypes based on the phased genotype separator (`|`). With unphased genotypes (using `/`, e.g. `0/1`), the assignment of alleles to haplotype 1 vs 2 is arbitrary and does not reflect true chromosomal phase. Verify phasing status before haplotype extraction:
+**`samtools depth` WITHOUT `-a` OMITS zero-coverage positions** from its output -- so those positions never enter the low-depth BED, never get masked, and stay as reference: the exact false-confidence failure the mask was meant to prevent. Always use `-a` (report all positions) so no-coverage sites are captured:
 
 ```bash
-bcftools query -f '%CHROM\t%POS[\t%GT]\n' input.vcf.gz | head
+# Build a mask of every position below the callable-depth threshold. -a is mandatory:
+# without it, zero-coverage positions are absent from the output and escape masking.
+samtools depth -a aligned.bam | awk '$3 < 10 {print $1"\t"$2-1"\t"$2}' | bedtools merge > lowcov.bed
+
+bcftools consensus -f reference.fa -m lowcov.bed input.vcf.gz > consensus.fa
 ```
 
-Phased genotypes appear as `0|1` or `1|0`; unphased as `0/1`. Sources of phased genotypes:
-- Read-backed phasing: WhatsHap, HapCUT2 (requires aligned reads)
-- Trio phasing: Mendelian inheritance with parental genotypes
-- Statistical phasing: SHAPEIT, Eagle (population-level, less accurate for rare variants)
-- Long-read phasing: direct observation of haplotype blocks from PacBio/ONT reads
+The `< 10` threshold is a minimum-callable-depth policy (10x is a common floor for confident base calls); set it to the depth below which the calls are not trusted. `bedtools genomecov -bga -ibam aligned.bam` is an equivalent zero-coverage-aware alternative that also emits 0-depth intervals.
 
-## IUPAC Codes for Heterozygous Sites
+Do NOT rely on `-M`/`-a` for this: `-M N` outputs N only for missing `./.` genotypes already present in the VCF, and `-a N` replaces every position absent from the VCF (which N-outs the entire non-variant genome). Neither distinguishes no-coverage from confident-reference -- only a depth-derived mask does.
+
+## Normalization Before Consensus
+
+**Goal:** Apply indels at the correct reference position and sequence.
+
+**Approach:** Left-align and split multiallelics with `bcftools norm` so each record matches the reference context; consensus applies records positionally and mis-represented indels corrupt the output.
 
 ```bash
-bcftools consensus -f reference.fa -I input.vcf.gz > consensus_iupac.fa
+bcftools norm -f reference.fa input.vcf.gz -Oz -o norm.vcf.gz
+bcftools index norm.vcf.gz
+bcftools consensus -f reference.fa norm.vcf.gz > consensus.fa
 ```
 
-Heterozygous sites encoded with IUPAC ambiguity codes:
-- A/G -> R
-- C/T -> Y
-- A/C -> M
-- G/T -> K
-- A/T -> W
-- C/G -> S
-
-## Missing Data Handling
-
-### Mark Missing as N
+Un-normalized or overlapping indels produce wrong sequence, and `bcftools consensus` only warns to stderr while still emitting output -- so the corruption is silent unless the stderr is inspected. Even after norm, two records whose REF spans collide remain a hazard; grep the run for warnings and inspect the region. See variant-calling/variant-normalization.
 
 ```bash
-bcftools consensus -f reference.fa -M N input.vcf.gz > consensus.fa
+bcftools consensus -f reference.fa norm.vcf.gz 2>&1 >consensus.fa | grep -i 'overlap\|warn'
 ```
 
-### Mark Low Coverage as N
+## Viral / Amplicon Consensus with iVar
 
-Using a mask BED file:
+For amplicon surveillance (SARS-CoV-2 and similar), `ivar consensus` builds a per-sample consensus directly from a pileup. Its two key thresholds are **epidemiological policy decisions, not defaults to accept blindly** -- they propagate into lineage assignment and transmission-cluster inference:
 
 ```bash
-# Create mask from depth
-samtools depth input.bam | awk '$3<10 {print $1"\t"$2-1"\t"$2}' > low_coverage.bed
+# Trim PCR primers FIRST -- primer-derived bases are not sample sequence and, at
+# primer-binding-site mutations, cause reference-biased miscalls if left in.
+ivar trim -b primers.bed -p trimmed -i aligned.bam
+samtools sort -o trimmed.sorted.bam trimmed.bam
 
-# Apply mask
-bcftools consensus -f reference.fa -m low_coverage.bed input.vcf.gz > consensus.fa
+# -aa keeps all positions (so no-coverage becomes N), -A keeps orphan mates, -d 0 lifts the depth cap.
+samtools mpileup -aa -A -d 0 -B -Q 0 trimmed.sorted.bam | ivar consensus -p sample -q 20 -t 0.5 -m 10 -n N
 ```
 
-### Mask Options
+| Flag | Default | Decision |
+|------|---------|----------|
+| `-m` min depth | 10 | Below this, iVar emits N. Too low -> single-read sequencing errors become "mutations" that corrupt outbreak phylogenies. Too high -> excessive Ns, an unusably fragmented genome. |
+| `-t` min frequency to call a base | 0 (majority) | 0 calls the most common base. For a strict majority consensus use 0.5. Too low bakes minority/within-host variants and contamination into the "genome", inflating diversity and creating phantom transmission links. Raise (e.g. 0.03) only deliberately for intrahost variant work, not for a reference consensus. |
+| `-q` min base quality | 20 | Bases below this are not counted toward depth/frequency. |
+| `-n` no-coverage char | N | Character emitted where depth `< -m`. |
 
-| Option | Description |
-|--------|-------------|
-| `-m FILE` | Mask regions in BED file with N |
-| `-M CHAR` | Character for masked regions (default N) |
-
-## Region Selection
-
-### Specific Region
-
-```bash
-bcftools consensus -f reference.fa -r chr1:1000-2000 input.vcf.gz > region.fa
-```
-
-### Multiple Regions
-
-Use with BED file to extract multiple regions.
-
-## Chain Files
-
-### Generate Chain File
-
-```bash
-bcftools consensus -f reference.fa -c chain.txt input.vcf.gz > consensus.fa
-```
-
-Chain files map coordinates between reference and consensus:
-- Useful for liftover of annotations
-- Required when indels change sequence length
-
-### Chain File Format
-
-```
-chain score ref_name ref_size ref_strand ref_start ref_end query_name query_size query_strand query_start query_end id
-```
-
-## Sample-Specific Consensus
-
-### For Each Sample
-
-```bash
-for sample in $(bcftools query -l input.vcf.gz); do
-    bcftools consensus -f reference.fa -s "$sample" input.vcf.gz > "${sample}.fa"
-done
-```
-
-### Both Haplotypes
-
-```bash
-sample="sample1"
-bcftools consensus -f reference.fa -s "$sample" -H 1 input.vcf.gz > "${sample}_hap1.fa"
-bcftools consensus -f reference.fa -s "$sample" -H 2 input.vcf.gz > "${sample}_hap2.fa"
-```
-
-## VCF Normalization Before Consensus
-
-Normalize the VCF before applying variants to the reference. Non-normalized indel representations (left-aligned vs right-aligned, or decomposed vs multi-allelic) can produce incorrect consensus sequences:
-
-```bash
-bcftools norm -f reference.fa input.vcf.gz | bcftools consensus -f reference.fa > consensus.fa
-```
-
-Normalization left-aligns indels and splits multi-allelic records, ensuring variant positions match the reference context exactly. Without normalization, overlapping or adjacent indels are more likely to conflict, and bcftools consensus may silently produce unexpected sequence at those sites despite logging warnings to stderr.
-
-## Diploid Consensus Considerations
-
-For diploid organisms, a single consensus sequence is inherently a simplification -- the organism carries two distinct haplotype sequences. The choice of representation depends on downstream use:
-
-| Strategy | Flag | Best for |
-|----------|------|----------|
-| Both haplotypes separately | `-H 1`, `-H 2` | Phasing-aware analyses, allele-specific expression |
-| IUPAC ambiguity codes | `-I` | Retaining heterozygosity information |
-| All ALT alleles | `-H A` | Maximum divergence from reference |
-| Majority/reference allele | `-H R` | Conservative consensus |
-
-For phylogenetic applications, IUPAC codes can cause issues with some alignment and tree-building tools that do not handle ambiguity codes (or treat them as missing data). Using a single haplotype or applying only homozygous ALT alleles (`bcftools view -i 'GT="1/1" || GT="1|1"'`) produces cleaner input for tree inference.
+Always report `-m` and `-t` alongside a surveillance consensus -- the genome is only as trustworthy as those two numbers. Alternatives: `bcftools consensus` from a called VCF, or ViralConsensus (Moshiri 2023) which calls consensus directly from the alignment without an intermediate VCF, faster and lower-memory for large batches.
 
 ## Filtering Before Consensus
 
-### PASS Variants Only
+Apply only trusted calls; pipe filtered VCF straight into consensus:
 
 ```bash
-bcftools view -f PASS input.vcf.gz | \
-    bcftools consensus -f reference.fa > consensus.fa
+bcftools view -f PASS input.vcf.gz -Oz -o pass.vcf.gz && bcftools index pass.vcf.gz
+bcftools consensus -f reference.fa pass.vcf.gz > consensus.fa
+
+bcftools view -v snps input.vcf.gz -Oz -o snps.vcf.gz && bcftools index snps.vcf.gz  # SNPs only
 ```
 
-### High-Quality Variants Only
+Filtered VCFs must be re-bgzipped and re-indexed before `bcftools consensus` reads them.
+
+## Chain Files and Naming
+
+`-c chain.txt` writes a liftover chain mapping reference coordinates to consensus coordinates -- needed when indels shift positions and annotations must be lifted. `-p PREFIX` prepends a string to output sequence names (`>sample1_chr1`).
 
 ```bash
-bcftools filter -i 'QUAL>=30 && INFO/DP>=10' input.vcf.gz | \
-    bcftools consensus -f reference.fa > consensus.fa
+bcftools consensus -f reference.fa -c chain.txt -p "sample1_" input.vcf.gz > consensus.fa
 ```
 
-### SNPs Only
+## cyvcf2 Consensus (SNP-only prototypes)
 
-```bash
-bcftools view -v snps input.vcf.gz | \
-    bcftools consensus -f reference.fa > consensus_snps.fa
-```
-
-## Sequence Naming
-
-### Default Naming
-
-Output uses reference sequence names.
-
-### Custom Prefix
-
-```bash
-bcftools consensus -f reference.fa -p "sample1_" input.vcf.gz > consensus.fa
-```
-
-Sequences named: `sample1_chr1`, `sample1_chr2`, etc.
-
-## Common Workflows
-
-**Goal:** Generate consensus sequences for downstream analyses like phylogenetics, viral surveillance, or gene-level comparison.
-
-**Approach:** Filter variants to high-quality calls, apply per-sample consensus generation, mask low-coverage regions with N, then combine for multi-sample workflows.
-
-### Phylogenetic Analysis Preparation
-
-```bash
-# For each sample, generate consensus
-mkdir -p consensus
-for sample in $(bcftools query -l cohort.vcf.gz); do
-    bcftools view -s "$sample" cohort.vcf.gz | \
-        bcftools view -c 1 | \
-        bcftools consensus -f reference.fa > "consensus/${sample}.fa"
-done
-
-# Combine for alignment
-cat consensus/*.fa > all_samples.fa
-```
-
-### Viral Genome Assembly
-
-```bash
-# Apply high-quality variants only
-bcftools filter -i 'QUAL>=30 && INFO/DP>=20' variants.vcf.gz | \
-    bcftools view -f PASS | \
-    bcftools consensus -f reference.fa -M N > consensus.fa
-```
-
-### Gene-Specific Consensus
-
-```bash
-# Extract gene region
-bcftools consensus -f reference.fa -r chr1:1000000-1010000 \
-    -s sample1 variants.vcf.gz > gene.fa
-```
-
-### Masked Low-Coverage Regions
-
-```bash
-# Create mask from coverage
-samtools depth -a input.bam | \
-    awk '$3<5 {print $1"\t"$2-1"\t"$2}' | \
-    bedtools merge > low_coverage.bed
-
-# Generate consensus with mask
-bcftools consensus -f reference.fa -m low_coverage.bed \
-    variants.vcf.gz > consensus.fa
-```
-
-## Verify Consensus
-
-### Check Differences
-
-```bash
-# Align consensus to reference
-minimap2 -a reference.fa consensus.fa | samtools view -bS > alignment.bam
-
-# Or simple comparison
-diff <(grep -v "^>" reference.fa) <(grep -v "^>" consensus.fa) | head
-```
-
-### Count Changes
-
-```bash
-# Number of differences
-bcftools view -H input.vcf.gz | wc -l
-```
-
-## Handling Overlapping Variants
-
-bcftools consensus processes variants in coordinate order. When variants overlap (particularly indels whose reference alleles span the same positions), later variants may conflict with already-applied changes. bcftools consensus logs warnings to stderr but still produces output -- the result at conflicting sites may not reflect the intended genotype. Normalizing the VCF beforehand (see above) reduces but does not eliminate this issue.
-
-Check for warnings:
-```bash
-bcftools consensus -f reference.fa input.vcf.gz 2>&1 | grep -i warn
-```
-
-If overlapping variant warnings appear, inspect the affected regions and consider filtering one of the conflicting records or resolving manually.
-
-## cyvcf2 Consensus (Simple Cases)
-
-### Manual Consensus Generation
+For a quick SNP-only substitution in Python (production work should use `bcftools consensus`, which handles indels, phasing, and masking):
 
 ```python
 from cyvcf2 import VCF
 from Bio import SeqIO
 
-# Load reference
-ref_dict = {rec.id: str(rec.seq) for rec in SeqIO.parse('reference.fa', 'fasta')}
-
-# Apply variants (SNPs only, simplified)
-vcf = VCF('input.vcf.gz')
-changes = {}
-
-for variant in vcf:
-    if variant.is_snp and len(variant.ALT) == 1:
-        chrom = variant.CHROM
-        pos = variant.POS - 1  # 0-based
-        if chrom not in changes:
-            changes[chrom] = {}
-        changes[chrom][pos] = variant.ALT[0]
-
-# Apply changes
-for chrom, positions in changes.items():
-    seq = list(ref_dict[chrom])
-    for pos, alt in positions.items():
-        seq[pos] = alt
-    ref_dict[chrom] = ''.join(seq)
-
-# Write output
-with open('consensus.fa', 'w') as f:
-    for chrom, seq in ref_dict.items():
-        f.write(f'>{chrom}\n{seq}\n')
+ref = {rec.id: list(str(rec.seq)) for rec in SeqIO.parse('reference.fa', 'fasta')}
+for v in VCF('input.vcf.gz'):
+    if v.is_snp and len(v.ALT) == 1:
+        ref[v.CHROM][v.POS - 1] = v.ALT[0]   # POS is 1-based; list index is 0-based
+with open('consensus.fa', 'w') as fh:
+    for chrom, seq in ref.items():
+        fh.write(f'>{chrom}\n{"".join(seq)}\n')
 ```
 
-Note: Use `bcftools consensus` for production - handles indels and edge cases properly.
+## Verify the Consensus
 
-## Quick Reference
-
-| Task | Command |
-|------|---------|
-| Basic consensus | `bcftools consensus -f ref.fa in.vcf.gz` |
-| Specific sample | `bcftools consensus -f ref.fa -s sample in.vcf.gz` |
-| Haplotype 1 | `bcftools consensus -f ref.fa -H 1 in.vcf.gz` |
-| IUPAC codes | `bcftools consensus -f ref.fa -I in.vcf.gz` |
-| With mask | `bcftools consensus -f ref.fa -m mask.bed in.vcf.gz` |
-| Generate chain | `bcftools consensus -f ref.fa -c chain.txt in.vcf.gz` |
-| Specific region | `bcftools consensus -f ref.fa -r chr1:1-1000 in.vcf.gz` |
+```bash
+minimap2 -a reference.fa consensus.fa | samtools view -b -o aln.bam   # inspect where it diverges
+bcftools view -H input.vcf.gz | wc -l                                 # variants available to apply
+```
 
 ## Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `not indexed` | VCF not indexed | Run `bcftools index` |
-| `sequence not found` | Chromosome mismatch | Check chromosome names |
-| `overlapping records` | Variants overlap | Usually OK, check warnings |
-| `REF does not match` | Wrong reference | Use same reference as caller |
+| Error / Symptom | Cause | Fix |
+|-----------------|-------|-----|
+| `the VCF file is not indexed` | Plain-gzip or missing index | `bgzip` then `bcftools index` (or `tabix -p vcf`) |
+| `sequence "chr1" not found` | Chromosome names differ between FASTA and VCF | `bcftools annotate --rename-chrs map.txt` |
+| `REF does not match` | Different reference than the caller used | Use the exact FASTA used for calling; normalize |
+| Clean haplotype looks wrong | `-H 1` on an unphased VCF -> chimera | Verify `|` phasing; phase before `-H` |
+| Consensus reference-identical over gaps | No-coverage sites emitted as reference | Mask with `samtools depth -a` derived BED and `-m` |
+| Garbled indels, stderr overlap warnings | Un-normalized/overlapping records | `bcftools norm -f ref.fa` first; inspect warnings |
+| `<DEL>`/`<INS>` not applied | Symbolic SV alleles carry no ALT sequence | Use sequence-resolved SV records; see structural-variant-calling |
 
 ## Related Skills
 
-- variant-calling/variant-calling - Generate VCF for consensus
-- variant-calling/filtering-best-practices - Filter variants before consensus
-- variant-calling/variant-normalization - Normalize indels first
-- alignment-files/reference-operations - Reference manipulation
-- phylogenetics/tree-inference - Tree building from consensus alignments
+- variant-calling/variant-calling - Generate the VCF consensus is built from
+- variant-calling/vcf-basics - Interpret GT and phasing (`|` vs `/`) before `-H`
+- variant-calling/variant-normalization - Left-align indels before consensus
+- variant-calling/filtering-best-practices - Restrict to trusted calls first
+- variant-calling/structural-variant-calling - Sequence-resolved SVs for SV-aware consensus
+- phasing-imputation/haplotype-phasing - Produce phased genotypes for true haplotypes
+- phylogenetics/modern-tree-inference - Build trees from a consensus alignment
+
+## References
+
+- Danecek P, Bonfield JK, Liddle J, Marshall J, Ohan V, Pollard MO, et al. Twelve years of SAMtools and BCFtools. *GigaScience.* 2021;10(2):giab008. doi:10.1093/gigascience/giab008. (bcftools consensus / norm / mpileup.)
+- Grubaugh ND, Gangavarapu K, Quick J, Matteson NL, De Jesus JG, Main BJ, et al. An amplicon-based sequencing framework for accurately measuring intrahost virus diversity using PrimalSeq and iVar. *Genome Biology.* 2019;20(1):8. doi:10.1186/s13059-018-1618-7. (iVar consensus/trim; depth `-m` and frequency `-t` thresholds.)
+- Moshiri N. ViralConsensus: a fast and memory-efficient tool for calling viral consensus genome sequences directly from read alignment data. *Bioinformatics.* 2023;39(5):btad317. doi:10.1093/bioinformatics/btad317.

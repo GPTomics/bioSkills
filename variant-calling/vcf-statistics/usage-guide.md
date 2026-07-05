@@ -2,431 +2,259 @@
 
 ## Overview
 
-This guide covers generating variant statistics and quality metrics.
+This guide covers computing and interpreting VCF quality-control metrics. The core idea: no QC metric has a universal pass value. Each metric's expected range depends on the assay (WGS vs WES), the sample's ancestry, and the cohort it sits in, so QC means reading a deviation for its mechanistic meaning and acting on it, not checking a fixed threshold. It also covers cohort identity QC (sample swaps, contamination, relatedness, sex), which is mandatory before any association or burden analysis.
 
 ## Prerequisites
 
-- bcftools installed (`conda install -c bioconda bcftools`)
-- plot-vcfstats (comes with bcftools, requires python and matplotlib)
+- bcftools (`conda install -c bioconda bcftools`) with plot-vcfstats (requires python + matplotlib)
+- vcftools (`conda install -c bioconda vcftools`) for per-sample missingness, exact HWE, and KING-robust kinship
+- somalier (`conda install -c bioconda somalier`) and peddy (`pip install peddy`) for scalable identity/relatedness/sex/ancestry QC
+- cyvcf2 (`pip install cyvcf2`) and numpy for custom per-record statistics in Python
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
 - "Generate comprehensive statistics for my VCF including Ti/Tv ratio"
+- "My exome Ti/Tv is only 2.1 -- is the callset over-permissive?"
+- "Flag het/hom outliers in my cohort accounting for ancestry"
+- "Decide whether this HWE deviation is a genotyping error or real biology"
+- "Screen my cohort for sample swaps, contamination, and wrong-sex annotations"
 - "Compare variant statistics before and after filtering"
-- "Create QC plots showing depth and quality distributions"
-- "Check for sample swaps or contamination in my cohort VCF"
 
-## bcftools stats Overview
+## Reading bcftools stats output
 
-`bcftools stats` generates comprehensive statistics about VCF files:
-
-- Variant counts (SNPs, indels, multiallelic)
-- Transition/transversion ratio
-- Quality score distribution
-- Depth distribution
-- Allele frequency spectrum
-- Indel length distribution
-- Per-sample statistics
-
-## Basic Usage
-
-### Generate Statistics
+`bcftools stats` is the workhorse. Add `-s -` to enable per-sample metrics.
 
 ```bash
 bcftools stats input.vcf.gz > stats.txt
+bcftools stats -s - input.vcf.gz > per_sample.txt
 ```
 
-### View Summary Numbers
-
-```bash
-bcftools stats input.vcf.gz | grep "^SN"
-```
-
-Output:
-```
-SN      0       number of samples:      3
-SN      0       number of records:      150000
-SN      0       number of no-ALTs:      0
-SN      0       number of SNPs: 130000
-SN      0       number of MNPs: 100
-SN      0       number of indels:       19900
-SN      0       number of others:       0
-SN      0       number of multiallelic sites:   5000
-```
-
-## Understanding Output Sections
-
-### Section Codes
+Section codes:
 
 | Code | Description |
 |------|-------------|
-| `SN` | Summary numbers |
-| `TSTV` | Transition/transversion stats |
+| `SN` | Summary numbers (samples, records, SNPs, indels, multiallelic) |
+| `TSTV` | Transition/transversion counts and ratio (ratio in field 5) |
 | `SiS` | Singleton stats |
-| `AF` | Allele frequency distribution |
-| `QUAL` | Quality score distribution |
-| `IDD` | Indel length distribution |
+| `AF` | Allele-frequency distribution |
+| `QUAL` | Quality-score distribution |
+| `IDD` | Indel-length distribution |
 | `ST` | Substitution types |
 | `DP` | Depth distribution |
-| `PSC` | Per-sample counts |
+| `PSC` | Per-sample counts: hom-ref, het, hom-alt, transitions, transversions, missing |
 | `PSI` | Per-sample indels |
 
-### Transition/Transversion Ratio
-
 ```bash
-bcftools stats input.vcf.gz | grep "^TSTV"
-```
-
-Output:
-```
-TSTV    0       100000  48000   2.08    99500   47800   2.08
-```
-
-Columns: transitions, transversions, Ti/Tv ratio
-
-Expected ratios:
-- Whole genome: ~2.0-2.1
-- Exome: ~2.8-3.3
-- Low ratio may indicate sequencing artifacts
-
-### Quality Distribution
-
-```bash
-bcftools stats input.vcf.gz | grep "^QUAL"
-```
-
-Shows distribution of QUAL scores.
-
-### Depth Distribution
-
-```bash
-bcftools stats input.vcf.gz | grep "^DP"
-```
-
-Shows read depth distribution.
-
-## Per-Sample Statistics
-
-### Enable Per-Sample Mode
-
-```bash
-bcftools stats -s - input.vcf.gz > stats.txt
-```
-
-The `-s -` means "all samples".
-
-### View Per-Sample Counts
-
-```bash
+bcftools stats input.vcf.gz | grep "^SN"   | cut -f3-
+bcftools stats input.vcf.gz | grep "^TSTV" | cut -f5
 bcftools stats -s - input.vcf.gz | grep "^PSC"
 ```
 
-Output columns:
-- Sample name
-- Homozygous reference sites
-- Heterozygous sites
-- Homozygous alternate sites
-- Transitions
-- Transversions
-- Missing sites
+## Interpreting the key metrics
 
-### View Per-Sample Indels
+### Ti/Tv ratio
 
-```bash
-bcftools stats -s - input.vcf.gz | grep "^PSI"
-```
+Expected: WGS ~2.0-2.1, WES ~3.0-3.3 (conventions; they shift with capture kit, ancestry, reference, and caller). WES runs higher because coding regions are CpG- and constraint-enriched and transitions at CpGs plus codon degeneracy inflate the ratio. A random error spectrum gives Ti/Tv ~0.5, so false positives pull the ratio down. A WES callset reporting ~2.1 signals filtering that is too loose. Compute Ti/Tv on the novel (not-in-dbSNP) fraction separately, since false positives concentrate there.
 
-## Comparing VCF Files
+### Het/hom ratio and ancestry
 
-### Compare Two Files
+The per-sample het:non-ref-hom ratio is strongly ancestry-dependent because it reflects divergence from the reference: African ancestry commonly ~2.0+, European ~1.5-1.6. A single global cutoff is wrong. Infer ancestry first (peddy/somalier project onto 1000 Genomes PCs), then flag outliers within each ancestry group. Elevated het/hom versus same-ancestry peers indicates contamination or reference bias; depressed het/hom indicates inbreeding, a run of homozygosity, or chromosome loss.
+
+### Novel/known via dbSNP
+
+Overlap with dbSNP gives a false-positive signal independent of Ti/Tv. Stratify novel% by allele frequency: novel COMMON variants are almost always artifacts, while novel rare/singleton variants are expected. A single unstratified novel% is uninformative.
 
 ```bash
-bcftools stats file1.vcf.gz file2.vcf.gz > comparison.txt
+bcftools annotate -a dbsnp.vcf.gz -c ID input.vcf.gz -Oz -o annotated.vcf.gz
+bcftools view -H annotated.vcf.gz | awk '{n++; if($3==".") novel++} END{print "novel frac:", novel/n}'
 ```
 
-Each file gets an index (0, 1) in the output.
+### Missingness / call rate and the iteration trap
 
-### View Comparison
+Only `./.` counts as missing; `0/0` is a confident hom-ref call and does not. Sample-level and variant-level missingness are coupled, so drop the worst samples, recompute per-variant missingness, drop the worst variants, and repeat rather than applying both thresholds at once. Apply genotype-level filters (set `./.` where GQ<20 or DP<8) BEFORE computing cohort missingness or HWE, or low-quality genotypes drive both.
 
 ```bash
-# File 1 stats
-grep "^SN.*0" comparison.txt
-
-# File 2 stats
-grep "^SN.*1" comparison.txt
+vcftools --gzvcf input.vcf.gz --missing-indv --out sample_miss   # .imiss
+vcftools --gzvcf input.vcf.gz --missing-site --out site_miss     # .lmiss
 ```
 
-## Region-Based Statistics
+### HWE: excess-het only
 
-### Specific Region
+A naive two-sided HWE gate throws away real biology. Filter on EXCESS heterozygosity only (the signature of collapsed paralogs/CNVs manufacturing spurious hets); heterozygote DEFICIT is often real (Wahlund substructure, inbreeding, selection, null alleles). Compute the exact test within an ancestry-homogeneous subgroup, and in case/control studies use controls only (a true association produces HWE deviation in cases).
 
 ```bash
-bcftools stats -r chr1:1000000-2000000 input.vcf.gz > region_stats.txt
+vcftools --gzvcf controls.vcf.gz --hardy --out hwe               # exact test P per site
+bcftools query -f '%CHROM\t%POS\t%INFO/ExcessHet\n' input.vcf.gz | awk '$3>54.69'
 ```
 
-### From BED File
+### Contamination signatures
+
+Contamination shows up in VCF stats as a het allele-balance distribution shifted away from 0.5, an elevated het count and het/hom ratio, and a depressed novel-fraction Ti/Tv. These are signals, not the measurement. Run VerifyBamID2 or CHARR to estimate the contamination fraction alpha (alpha > ~0.02-0.03 is a red flag; somatic pipelines are sensitive to 1%).
 
 ```bash
-bcftools stats -R targets.bed input.vcf.gz > target_stats.txt
+bcftools query -i 'GT="het"' -f '[%AD]\n' input.vcf.gz | \
+    awk -F',' '{ab=$2/($1+$2); s+=ab; n++} END{print "mean het AB:", s/n}'   # expect ~0.5
 ```
 
-### Exome vs Whole Genome
+## Identity QC: sample swaps, relatedness, sex
+
+Sample swaps are among the most common errors in sequencing studies. Build the all-pairs relatedness matrix and reconcile it against the manifest before any analysis. Swaps appear as off-diagonal surprises (unexpected relatedness) or on-diagonal failures (a "replicate" that is not).
+
+### bcftools gtcheck (quick, native)
+
+Modern gtcheck cross-checks all samples in one file when `-g` is omitted; the old `-G/--GTs-only` flag was removed after the 1.10 rewrite. Output DC lines carry the query sample, genotyped sample, an accumulated discordance score (not a rate), and the number of sites compared; smaller discordance means more similar samples.
 
 ```bash
-# Exome regions only
-bcftools stats -R exome.bed input.vcf.gz > exome_stats.txt
-
-# Compare with whole genome
-bcftools stats input.vcf.gz > genome_stats.txt
+bcftools gtcheck input.vcf.gz > gtcheck.txt          # all-pairs cross-check
+bcftools gtcheck -g reference.vcf.gz query.vcf.gz    # concordance to a genotyping panel
 ```
 
-## Generating Plots
+### peddy (PED-vs-VCF)
 
-### Create All Plots
+peddy samples ~25000 sites plus chrX to check reported sex, relationships, and ancestry (PCA projection onto 1000 Genomes) directly from a VCF and its PED file.
+
+```bash
+python -m peddy -p 4 --plot --prefix cohort_qc input.vcf.gz cohort.ped
+```
+
+### somalier (scalable)
+
+somalier extracts tiny per-sample sketches at informative sites, then relates them; it scales to tens of thousands of samples in seconds and cross-checks RNA-seq against WGS from the same individual.
+
+```bash
+somalier extract -d extracted/ --sites sites.vcf.gz -f ref.fa input.vcf.gz
+somalier relate --ped cohort.ped extracted/*.somalier
+somalier ancestry --labels 1kg-labels.tsv 1kg/*.somalier ++ extracted/*.somalier   # labelled ++ query
+```
+
+### KING kinship via vcftools
+
+```bash
+vcftools --gzvcf input.vcf.gz --relatedness2 --out kin    # Manichaikul KING-robust method
+```
+
+KING kinship bands: >0.354 duplicate/MZ twin, [0.177, 0.354] first-degree, [0.0884, 0.177] second-degree, [0.0442, 0.0884] third-degree. A pair not expected to be related at ~0.5 is a swap or duplicate.
+
+## Stratified and comparative evaluation
+
+### Stratify by region class
+
+A caller at 99% overall accuracy may drop to 70% in hard regions, so evaluate stratified using GIAB stratification BED files (github.com/genome-in-a-bottle/genome-stratifications). A drop in Ti/Tv within difficult regions confirms elevated false positives there.
+
+```bash
+bcftools stats -R easy_regions.bed      input.vcf.gz > easy.txt
+bcftools stats -R difficult_regions.bed input.vcf.gz > difficult.txt
+```
+
+### Compare before and after filtering
+
+```bash
+bcftools stats raw.vcf.gz filtered.vcf.gz > comparison.txt
+grep "^SN" comparison.txt | head -20
+plot-vcfstats -p comparison_plots comparison.txt
+```
+
+## Custom statistics in Python (cyvcf2)
+
+The `examples/vcf_stats.py` script computes counts, Ti/Tv, and mean QUAL in one pass. Two common extensions:
+
+### Per-sample genotype distribution
+
+```python
+from cyvcf2 import VCF
+
+vcf = VCF('input.vcf.gz')
+samples = vcf.samples
+hom_ref = [0] * len(samples); het = [0] * len(samples)
+hom_alt = [0] * len(samples); missing = [0] * len(samples)
+
+for variant in vcf:
+    for i, gt in enumerate(variant.gt_types):   # cyvcf2 codes: 0 hom-ref, 1 het, 2 unknown, 3 hom-alt
+        if gt == 0:
+            hom_ref[i] += 1
+        elif gt == 1:
+            het[i] += 1
+        elif gt == 3:
+            hom_alt[i] += 1
+        else:
+            missing[i] += 1
+
+for i, s in enumerate(samples):
+    ratio = het[i] / hom_alt[i] if hom_alt[i] else 0
+    print(f'{s}: het/hom={ratio:.2f} HET={het[i]} HOM_ALT={hom_alt[i]} MISS={missing[i]}')
+```
+
+### Allele-frequency spectrum
+
+```python
+from cyvcf2 import VCF
+
+bins = {'rare(<1%)': 0, 'low(1-5%)': 0, 'common(5-50%)': 0, 'frequent(>50%)': 0}
+for variant in VCF('input.vcf.gz'):
+    af = variant.INFO.get('AF')
+    if af is None:
+        continue
+    af = af[0] if isinstance(af, tuple) else af
+    if af < 0.01:
+        bins['rare(<1%)'] += 1
+    elif af < 0.05:
+        bins['low(1-5%)'] += 1
+    elif af < 0.5:
+        bins['common(5-50%)'] += 1
+    else:
+        bins['frequent(>50%)'] += 1
+bins
+```
+
+## Generating plots
 
 ```bash
 bcftools stats input.vcf.gz > stats.txt
 plot-vcfstats -p output_directory stats.txt
 ```
 
-Creates:
-- `summary.pdf` - Multi-page PDF with all plots
-- Individual PNG files for each plot
-
-### Plot Types Generated
-
-- Substitution types
-- Indel length distribution
-- Ts/Tv by quality
-- Indels per sample
-- SNPs per sample
-- Quality score distribution
-- Depth distribution
-
-### Compare Multiple Files with Plots
-
-```bash
-bcftools stats file1.vcf.gz file2.vcf.gz > comparison.txt
-plot-vcfstats -p comparison_plots comparison.txt
-```
-
-## Sample Identity Checking
-
-### Check Sample Concordance
-
-```bash
-bcftools gtcheck -g reference.vcf.gz query.vcf.gz
-```
-
-Reports how well samples match between files.
-
-### Detect Sample Swaps
-
-```bash
-bcftools gtcheck -G 1 cohort.vcf.gz
-```
-
-Compares all samples pairwise to detect:
-- Sample swaps
-- Related individuals
-- Duplicate samples
-
-### Interpret Results
-
-Output columns:
-- Sample pair
-- Discordance rate
-- Sites compared
-- Discordant sites
-
-Low discordance (<0.1) suggests same individual or close relatives.
-
-## Quick Statistics with Query
-
-### Variant Counts
-
-```bash
-# Total variants
-bcftools view -H input.vcf.gz | wc -l
-
-# SNPs only
-bcftools view -v snps -H input.vcf.gz | wc -l
-
-# Indels only
-bcftools view -v indels -H input.vcf.gz | wc -l
-
-# PASS variants
-bcftools view -f PASS -H input.vcf.gz | wc -l
-```
-
-### Mean Quality Score
-
-```bash
-bcftools query -f '%QUAL\n' input.vcf.gz | \
-    awk '{sum+=$1; n++} END {print "Mean QUAL:", sum/n}'
-```
-
-### Mean Depth
-
-```bash
-bcftools query -f '%INFO/DP\n' input.vcf.gz | \
-    awk '{sum+=$1; n++} END {print "Mean DP:", sum/n}'
-```
-
-### Variants per Chromosome
-
-```bash
-bcftools view -H input.vcf.gz | cut -f1 | sort | uniq -c
-```
-
-## Complete QC Workflow
-
-### Generate QC Report
-
-```bash
-#!/bin/bash
-VCF="$1"
-OUTDIR="qc_report"
-mkdir -p "$OUTDIR"
-
-# Generate stats
-bcftools stats -s - "$VCF" > "$OUTDIR/stats.txt"
-
-# Extract key metrics
-echo "=== Summary ===" > "$OUTDIR/summary.txt"
-grep "^SN" "$OUTDIR/stats.txt" >> "$OUTDIR/summary.txt"
-
-echo "" >> "$OUTDIR/summary.txt"
-echo "=== Ti/Tv Ratio ===" >> "$OUTDIR/summary.txt"
-grep "^TSTV" "$OUTDIR/stats.txt" | head -1 | awk '{print $5}' >> "$OUTDIR/summary.txt"
-
-# Generate plots
-plot-vcfstats -p "$OUTDIR/plots" "$OUTDIR/stats.txt"
-
-echo "QC report in $OUTDIR"
-```
-
-### Filter Assessment
-
-```bash
-# Stats before filtering
-bcftools stats raw.vcf.gz > before.txt
-
-# Filter
-bcftools filter -e 'QUAL<30 || INFO/DP<10' raw.vcf.gz -Oz -o filtered.vcf.gz
-
-# Stats after filtering
-bcftools stats filtered.vcf.gz > after.txt
-
-# Compare
-echo "Before filtering:"
-grep "^SN.*number of SNPs" before.txt
-echo "After filtering:"
-grep "^SN.*number of SNPs" after.txt
-```
-
-## Python Statistics with cyvcf2
-
-### Comprehensive Stats
-
-```python
-from cyvcf2 import VCF
-import numpy as np
-
-vcf = VCF('input.vcf.gz')
-
-stats = {
-    'total': 0,
-    'snps': 0,
-    'indels': 0,
-    'pass': 0,
-    'quals': [],
-    'depths': []
-}
-
-for variant in vcf:
-    stats['total'] += 1
-    if variant.is_snp:
-        stats['snps'] += 1
-    elif variant.is_indel:
-        stats['indels'] += 1
-    if variant.FILTER is None:
-        stats['pass'] += 1
-    if variant.QUAL:
-        stats['quals'].append(variant.QUAL)
-    dp = variant.INFO.get('DP')
-    if dp:
-        stats['depths'].append(dp)
-
-print(f'Total variants: {stats["total"]}')
-print(f'SNPs: {stats["snps"]}')
-print(f'Indels: {stats["indels"]}')
-print(f'PASS: {stats["pass"]}')
-print(f'Mean QUAL: {np.mean(stats["quals"]):.1f}')
-print(f'Mean DP: {np.mean(stats["depths"]):.1f}')
-```
-
-## Troubleshooting
-
-### "No data found"
-
-VCF may be empty or have wrong format:
-
-```bash
-bcftools view -H input.vcf.gz | head
-```
-
-### "plot-vcfstats not found"
-
-Install matplotlib and ensure bcftools scripts are in PATH:
-
-```bash
-pip install matplotlib
-which plot-vcfstats
-```
-
-### Very Low Ti/Tv Ratio
-
-May indicate:
-- Sequencing artifacts
-- Contamination
-- Wrong reference genome
-
-Check:
-```bash
-# Verify reference matches
-bcftools norm -c w -f reference.fa input.vcf.gz > /dev/null
-```
+Creates a multi-page `summary.pdf` and individual PNGs (substitution types, indel-length distribution, Ts/Tv by quality, per-sample SNPs/indels, quality and depth distributions). Requires matplotlib.
 
 ## Example Prompts
 
-> "Generate comprehensive statistics for my VCF file including Ti/Tv ratio"
+### Callset quality
+> "Generate comprehensive statistics for my VCF including Ti/Tv ratio and flag whether the ratio is in range for an exome"
 
-> "Compare variant statistics before and after filtering"
+> "Compute Ti/Tv on the novel (not-in-dbSNP) fraction separately to check for false positives"
 
-> "Create QC plots showing depth and quality distributions"
+### Cohort QC
+> "Flag het/hom ratio outliers in my cohort after inferring ancestry, not against a global cutoff"
 
-> "Check for sample swaps or contamination in my cohort VCF"
+> "Decide whether these HWE-failing sites are genotyping errors or real, filtering on excess heterozygosity within ancestry"
+
+> "Screen my cohort for sample swaps, contamination, and wrong-sex annotations with somalier and peddy"
+
+### Comparison
+> "Compare variant statistics before and after filtering and quantify how many SNPs and indels were removed"
 
 ## What the Agent Will Do
 
-1. Identify the VCF/BCF file and check indexing status
-2. Run bcftools stats with appropriate flags (per-sample, region-based, or comparison mode)
-3. Extract key metrics -- variant counts, Ti/Tv ratio, depth distribution
-4. Generate plots with plot-vcfstats if visualization is requested
-5. Flag potential issues such as low Ti/Tv ratio or sample swaps
+1. Identify the VCF/BCF and check indexing, then run `bcftools stats` (per-sample, region-based, or comparison mode as needed)
+2. Extract key metrics -- counts, Ti/Tv (overall and novel), per-sample het/hom, depth, missingness
+3. Contextualize each metric against the assay and, where relevant, inferred ancestry rather than an absolute threshold
+4. For cohorts, run identity QC (gtcheck/peddy/somalier/KING) and reconcile relatedness against the manifest
+5. Flag issues (low Ti/Tv, ancestry-adjusted het/hom outliers, excess-het sites, contamination signatures, unexpected relatedness) with the recommended action
 
 ## Tips
 
-- Ti/Tv ratio around 2.0-2.1 for WGS and 2.8-3.3 for exomes indicates good quality calls
-- Use `-s -` to enable per-sample statistics in bcftools stats
-- Compare stats before and after filtering to assess how much data is removed
-- Low Ti/Tv ratio may indicate contamination, wrong reference, or sequencing artifacts
-- plot-vcfstats requires matplotlib -- install it separately if needed
+- Ti/Tv ~2.0-2.1 (WGS) and ~3.0-3.3 (WES) indicate good calls; below range signals false positives, since random errors have Ti/Tv ~0.5
+- Never apply a single global het/hom cutoff across ancestries; stratify first
+- Apply genotype-level filters before computing cohort missingness or HWE, or garbage genotypes drive both
+- Filter HWE on excess heterozygosity only, within ancestry, in controls; heterozygote deficit is often real
+- The het allele-balance distribution shifting off 0.5 is a contamination signal; confirm with VerifyBamID2/CHARR on the BAM
+- Run identity QC (swap/relatedness/sex) early -- one undetected swap can create or erase a significant hit
+- plot-vcfstats requires matplotlib; install it separately if plots fail
 
 ## Related Skills
 
-- variant-calling/filtering-best-practices - Filter based on statistics
-- variant-calling/vcf-basics - Query VCF data
-- variant-calling/variant-calling - Generate variants for QC assessment
+- variant-calling/filtering-best-practices - Apply the filters these metrics motivate
+- variant-calling/gatk-variant-calling - Feed VerifyBamID2 contamination into calling
+- variant-calling/variant-normalization - Normalize before comparing or annotating call sets
+- variant-calling/vcf-basics - Query and understand VCF fields
+- variant-calling/joint-calling - Cohort genotyping where population QC applies

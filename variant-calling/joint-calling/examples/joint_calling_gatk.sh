@@ -41,6 +41,11 @@ gatk GenotypeGVCFs \
     -O ${OUTPUT_DIR}/cohort.vcf.gz
 
 echo "=== Step 4: Basic Filtering ==="
+# Hard-filter fallback for small cohorts where VQSR/VETS cannot train (~<30 samples).
+# Thresholds are GATK canonical SNP starting points, not universal truth - tune per callset:
+#   QD < 2.0  variant confidence per unit depth too low (likely artifact)
+#   FS > 60.0 excessive strand bias (Phred-scaled Fisher test) for a SNP
+#   MQ < 40.0 poor average mapping quality (mismapped/repetitive support)
 gatk VariantFiltration \
     -R ${REFERENCE} \
     -V ${OUTPUT_DIR}/cohort.vcf.gz \

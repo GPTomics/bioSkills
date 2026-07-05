@@ -2,139 +2,69 @@
 
 ## Overview
 
-Call somatic mutations from tumor-normal paired samples using Mutect2 or Strelka2, with contamination estimation, orientation bias filtering, and annotation.
+An end-to-end tumor-normal somatic pipeline chains a somatic caller (Mutect2 or Strelka2) with the four somatic-specific removers - panel of normals, gnomAD germline-resource prior, cross-sample contamination estimate, and the FFPE/oxoG orientation-bias model - then somatic SV/CNV, then interpretation. The governing reality: there is no universal somatic truth set (the DREAM/Alioto benchmark showed low cross-pipeline concordance), somatic variants sit at continuous sub-1.0 VAF set by purity/ploidy/clonality, and interpretation uses the AMP/ASCO/CAP tier system plus oncogenicity - never germline ACMG.
 
 ## Prerequisites
 
 ```bash
-conda install -c bioconda gatk4 strelka bcftools
-pip install pysam
+conda install -c bioconda gatk4 strelka manta bcftools ensembl-vep
 ```
+
+Resources: a genome reference (`.fa` + `.dict` + `.fai`), af-only-gnomAD VCF (germline prior), a small common biallelic-SNP VCF such as `small_exac_common_3.vcf.gz` (contamination), and a 40+ normal panel of normals matched to the assay.
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
 - "Call somatic mutations from my tumor-normal BAM pair"
-- "Run Mutect2 with contamination estimation and orientation bias filtering"
-- "Create a panel of normals from my normal samples"
-- "Annotate somatic variants with VEP"
-
-## Complete Mutect2 Workflow
-
-### 1. Calculate Contamination
-
-```bash
-gatk GetPileupSummaries \
-    -I tumor.bam \
-    -V gnomad.vcf.gz \
-    -L intervals.bed \
-    -O tumor_pileups.table
-
-gatk CalculateContamination \
-    -I tumor_pileups.table \
-    -O contamination.table
-```
-
-### 2. Learn Read Orientation Model
-
-```bash
-gatk LearnReadOrientationModel \
-    -I f1r2.tar.gz \
-    -O read-orientation-model.tar.gz
-```
-
-### 3. Filter with Contamination
-
-```bash
-gatk FilterMutectCalls \
-    -R reference.fa \
-    -V somatic.vcf.gz \
-    --contamination-table contamination.table \
-    --ob-priors read-orientation-model.tar.gz \
-    -O filtered.vcf.gz
-```
-
-## Annotation
-
-```bash
-# VEP
-vep -i filtered.vcf.gz -o annotated.vcf \
-    --cache --assembly GRCh38 \
-    --vcf --symbol --everything
-
-# Funcotator
-gatk Funcotator \
-    -R reference.fa \
-    -V filtered.vcf.gz \
-    -O funcotated.vcf \
-    --data-sources-path funcotator_dataSources \
-    --output-file-format VCF
-```
-
-## Tumor-Only Mode
-
-When normal sample unavailable:
-
-```bash
-gatk Mutect2 \
-    -R reference.fa \
-    -I tumor.bam \
-    --germline-resource gnomad.vcf.gz \
-    --panel-of-normals pon.vcf.gz \
-    -O tumor_only.vcf.gz
-```
-
-## Panel of Normals
-
-```bash
-# Create PON from normal samples
-gatk CreateSomaticPanelOfNormals \
-    -V normal1.vcf.gz \
-    -V normal2.vcf.gz \
-    -V normal3.vcf.gz \
-    -O pon.vcf.gz
-```
-
-## Quality Metrics
-
-```bash
-# Variant statistics
-bcftools stats filtered.vcf.gz > stats.txt
-
-# Count by type
-bcftools view -f PASS filtered.vcf.gz | bcftools stats -
-```
+- "Run Mutect2 with contamination and orientation-bias filtering"
+- "Build a panel of normals from my normal samples for the same assay"
+- "Call somatic variants tumor-only and warn me about germline leakage"
+- "Run Mutect2 and Strelka2 and take the consensus"
+- "How do purity and copy number change how I read the VAF?"
+- "Which tier and oncogenicity framework applies to my somatic variants?"
 
 ## Example Prompts
 
-> "Call somatic mutations from my tumor-normal BAM pair using Mutect2"
+### Calling
+> "Call somatic SNVs and indels from tumor.bam vs normal.bam with Mutect2, including the full contamination and orientation-bias filtering chain."
 
-> "Run the complete somatic variant pipeline with contamination estimation"
+> "Set up a panel of normals from 40 normal BAMs sequenced on the same platform, then use it in Mutect2."
 
-> "Create a panel of normals for somatic variant calling"
+### Tumor-only and reproducibility
+> "I only have the tumor (archival FFPE, no matched normal) - call somatic variants tumor-only and tell me what false positives to expect."
 
-> "Annotate my somatic variants with VEP or Funcotator"
+> "Run Mutect2, Strelka2, and MuSE and give me the 2-of-3 consensus somatic callset."
+
+### Purity and interpretation
+> "My tumor is low purity - why are expected driver mutations missing, and how does purity/ploidy change VAF?"
+
+> "Annotate my somatic VCF and route it to AMP/ASCO/CAP tiers and oncogenicity, not germline ACMG."
 
 ## What the Agent Will Do
 
-1. Run Mutect2 or Strelka2 on tumor-normal paired BAMs
-2. Estimate cross-sample contamination and learn orientation bias model
-3. Apply FilterMutectCalls with contamination and orientation bias corrections
-4. Extract PASS somatic variants
-5. Annotate with VEP or Funcotator for functional interpretation
+1. Confirm inputs (tumor + matched normal BAMs, reference, af-only-gnomAD, common-SNP resource, PoN) or set up tumor-only with caveats.
+2. Run Mutect2 (tumor+normal in one command) with the PoN and germline-resource priors, emitting `--f1r2-tar-gz`.
+3. Learn the orientation-bias model (FFPE/oxoG) and estimate contamination on common biallelic SNPs.
+4. Apply FilterMutectCalls with the contamination table, tumor segmentation, and orientation priors; extract PASS.
+5. Optionally add a Strelka2 arm (with Manta candidateSmallIndels) and build a multi-caller consensus.
+6. Reason about VAF against purity/ploidy and copy number; add somatic SV/CNV and TMB/MSI/signatures.
+7. Normalize, annotate (VEP/Funcotator), and route to tier/oncogenicity interpretation.
 
 ## Tips
 
-- Always use matched normal when available -- tumor-only mode has higher false positive rate
-- Use gnomAD as germline resource to filter common germline variants
-- Panel of normals (40+ normals from same platform) reduces systematic artifacts
-- Tumor purity affects sensitivity -- low-purity samples need higher sequencing depth
-- Consensus calling with 2+ callers (Mutect2 + Strelka2) improves accuracy
+- Always use a matched normal when available - tumor-only has a materially higher false-positive rate and cannot cleanly separate somatic from germline.
+- Build the PoN from 40+ normals on the SAME platform/chemistry; a mismatched PoN imports the wrong artifact profile.
+- GetPileupSummaries needs a COMMON biallelic-SNP resource, not the af-only-gnomAD used for the germline prior.
+- Always run the orientation-bias model for FFPE/archival input - it removes the C>T/G>A (FFPE) and C>A/G>T (oxoG) low-VAF artifacts.
+- Low-purity tumors need more depth to hit the same sensitivity; get purity/ploidy from copy-number analysis and correct VAF to cancer-cell fraction before calling a variant subclonal.
+- Normalize every caller's VCF (`bcftools norm -f ref.fa -m-`) before consensus intersection or annotation, or shared calls silently drop.
+- Never apply germline ACMG to a tumor variant - use AMP/ASCO/CAP tiers (tumor-type-specific) and oncogenicity.
 
 ## Related Skills
 
-- variant-calling/gatk-variant-calling - Germline variant calling
-- variant-calling/filtering-best-practices - Filtering strategies
-- variant-calling/variant-annotation - VEP/SnpEff annotation
-- variant-calling/structural-variant-calling - Somatic SV detection with Manta
-- copy-number/cnvkit-analysis - Somatic CNV calling
+- variant-calling/gatk-variant-calling - Mutect2 mechanism and germline context
+- variant-calling/filtering-best-practices - FilterMutectCalls internals and normalization
+- variant-calling/variant-annotation - VEP/Funcotator/SnpEff, transcript choice, COSMIC
+- variant-calling/clinical-interpretation - AMP/ASCO/CAP tiers and oncogenicity
+- variant-calling/structural-variant-calling - Somatic SV detection with Manta/GRIDSS
+- copy-number/cnvkit-analysis - Somatic CNV and purity/ploidy

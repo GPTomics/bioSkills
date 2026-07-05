@@ -11,7 +11,7 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | Skill | Description |
 |-------|-------------|
 | rnaseq-to-de | FASTQ to differential expression via Salmon/STAR and DESeq2 |
-| fastq-to-variants | DNA sequencing to variant calls via BWA and bcftools/GATK |
+| fastq-to-variants | Germline FASTQ to a filtered, normalized, benchmarked VCF: reference-genome commitment, canonical step order (normalize before annotate), engine + joint-calling selection, cohort-size filtering, stratified hap.py/vcfeval benchmarking |
 | chipseq-pipeline | ChIP-seq reads to annotated peaks |
 | scrnaseq-pipeline | 10X data to clustered and annotated cells |
 | atacseq-pipeline | ATAC-seq reads to accessibility analysis |
@@ -19,13 +19,13 @@ End-to-end bioinformatics pipelines that orchestrate multiple skills into comple
 | metagenomics-pipeline | Metagenomic reads to taxonomic and functional profiles, controls-first |
 | expression-to-pathways | DE results to functional enrichment (GO, KEGG, Reactome, GSEA) with prokaryotic support and multi-condition comparison |
 | genome-assembly-pipeline | Profile, QC, assemble (short/long/HiFi/meta), polish, decontaminate, scaffold, and three-axis QC from reads |
-| longread-sv-pipeline | Long reads to structural variants |
+| longread-sv-pipeline | Long-read SV workflow: basecalling to platform-matched alignment, Sniffles2/cuteSV/pbsv calling, two-step .snf cohort merge, and Truvari benchmarking (Tier1 + CMRG) |
 | gwas-pipeline | VCF to genome-wide associations, including phasing/imputation and population-structure correction |
 | cnv-pipeline | BAM to copy number variants |
 | spatial-pipeline | Spatial transcriptomics end-to-end (fork-aware QC, spatial stats, domains), handing off to deconvolution and communication |
 | hic-pipeline | Hi-C data to compartments, TADs, and loops |
 | multiome-pipeline | Joint scRNA + scATAC analysis |
-| somatic-variant-pipeline | Tumor-normal somatic calling with Mutect2/Strelka2 |
+| somatic-variant-pipeline | End-to-end tumor-normal somatic SNV/indel + SV/CNV pipeline (Mutect2/Strelka2) with PoN, contamination, orientation-bias filtering, and AMP/ASCO/CAP tier interpretation |
 | proteomics-pipeline | MaxQuant/DIA-NN to differential protein abundance with limma/DEqMS/MSstats |
 | microbiome-pipeline | 16S amplicon to differential taxa with DADA2 and ALDEx2 |
 | crispr-screen-pipeline | FASTQ to hit genes via MAGeCK counting and analysis |

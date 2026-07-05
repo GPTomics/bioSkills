@@ -51,6 +51,16 @@ Tell your AI agent what you want to do:
 
 > "Filter variants with QUAL > 30 and write to a new file"
 
+### Interpreting Fields
+
+> "Explain the difference between QUAL and GQ for this site"
+
+> "Compute allele balance from AD for the heterozygous calls"
+
+> "Why does this record have a <NON_REF> allele -- is this a gVCF?"
+
+> "Check whether my missing genotypes are being treated as reference"
+
 ## What the Agent Will Do
 
 1. Identify the VCF/BCF file location and check if it's indexed
@@ -67,14 +77,21 @@ Tell your AI agent what you want to do:
 - Use `-H` flag with bcftools query to skip the header line
 - cyvcf2 is faster than PyVCF for large files
 - Filter status of `None` in cyvcf2 means the variant passed all filters
-- QUAL measures site-level variant existence; GQ measures per-sample genotype confidence -- filtering on both is recommended
-- The sum of AD values may be less than DP because DP includes uninformative reads -- this is expected, not an error
+- QUAL measures site-level variant existence; GQ measures per-sample genotype confidence -- they answer different questions and are not interchangeable, so filter on both
+- PL is phred-scaled and rebased so the called genotype is 0; GQ is the difference between the two smallest PL values (GL is the same info as raw log10 likelihoods)
+- The sum of AD values may be less than DP because DP includes uninformative reads -- this is expected, not an error; allele balance for a het is derived as alt_AD / (ref_AD + alt_AD)
 - QD (quality by depth) is generally preferred over raw QUAL for filtering because it normalizes for coverage
+- A field's header Number (A/R/G/.) controls how it re-subsets on a multiallelic split; a field mis-declared Number=. silently keeps the wrong allele's value
+- `.` (missing) is never `0/0` (hom-ref) -- treating `./.` as reference biases allele frequencies and burden tests
+- `|` (phased) is only meaningful within its PS phase-set block; a bare `*` ALT is a spanning-deletion placeholder, not a real allele
+- A raw gVCF (with `<NON_REF>` records and reference blocks) is an intermediate, not a filtered callset -- joint-genotype it before filtering, annotating, or counting variants
 - At multiallelic sites, splitting into biallelic records loses compound heterozygosity information -- consider whether downstream tools need multiallelic or biallelic input
 
 ## Related Skills
 
-- variant-calling - Generate VCF from alignments
-- filtering-best-practices - Filter variants by quality/criteria
-- vcf-manipulation - Merge, concat, intersect VCFs
+- variant-calling/variant-calling - Generate VCF from alignments
+- variant-calling/variant-normalization - Split multiallelics, left-align, Number-code reapportionment
+- variant-calling/filtering-best-practices - Filter variants by site and genotype quality
+- variant-calling/joint-calling - gVCF reference-confidence model and joint genotyping
+- variant-calling/vcf-manipulation - Merge, concat, intersect VCFs
 - alignment-files/pileup-generation - Generate pileup for calling

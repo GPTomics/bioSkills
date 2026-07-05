@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers calling SNPs and indels from aligned reads using bcftools mpileup/call. bcftools is best suited for rapid exploratory analysis, non-model organisms, and haploid genomes. For highest accuracy on human data, consider DeepVariant or GATK DRAGEN-mode instead.
+This guide covers calling germline SNPs and indels from aligned reads using bcftools mpileup/call, and choosing the right calling engine. bcftools is a position-based genotype-likelihood caller: fast, transparent, needs no training data, and is best suited for simple germline SNPs, non-model/organelle/microbial genomes, and rapid exploratory analysis. It is materially weaker on indels and in low-complexity, segmental-duplication, and MHC regions than local-reassembly callers, which discard the local alignment and reconstruct haplotypes. For highest indel/difficult-region accuracy on human data, hand off to DeepVariant or GATK HaplotypeCaller (DRAGEN-mode); for scalable cohort genotyping, use the GVCF joint-calling workflow.
 
 ## Prerequisites
 
@@ -15,9 +15,10 @@ This guide covers calling SNPs and indels from aligned reads using bcftools mpil
 
 Tell your AI agent what you want to do:
 - "Call SNPs and indels from my aligned BAM file"
-- "Run variant calling on multiple samples together for joint genotyping"
+- "Which caller should I use for my Illumina human WGS versus my bacterial genome?"
 - "Call variants only in my target regions defined by a BED file"
 - "Generate a VCF with depth and allelic depth annotations"
+- "Call my mitochondrial or chrX/chrY variants with the right ploidy"
 
 ## Understanding the Workflow
 
@@ -168,7 +169,7 @@ The multiallelic caller (`-m`) handles sites with multiple alternate alleles cor
 bcftools mpileup -f reference.fa input.bam | bcftools call -c -o variants.vcf
 ```
 
-The consensus caller (`-c`) is older and primarily for single-sample calling.
+The consensus caller (`-c`) is legacy; use it only to reproduce older pipelines. The multiallelic caller is preferred for all new work.
 
 ## Ploidy Settings
 
@@ -354,11 +355,15 @@ bcftools query -f '%CHROM\t%POS\t%INFO/DP\n' variants.vcf
 
 > "Call SNPs and indels from my aligned BAM file using bcftools"
 
-> "Run variant calling on multiple samples together for joint genotyping"
+> "Help me choose between bcftools, GATK HaplotypeCaller, and DeepVariant for my dataset"
 
 > "Call variants only in my target regions defined by a BED file"
 
 > "Generate a VCF with depth and allelic depth annotations"
+
+> "Call my haploid bacterial genome, or set sex-chromosome ploidy for a human sample"
+
+> "Compare my bcftools and GATK callsets fairly against a GIAB truth set"
 
 ## What the Agent Will Do
 
@@ -374,11 +379,17 @@ bcftools query -f '%CHROM\t%POS\t%INFO/DP\n' variants.vcf
 - Set `-d` (max depth) to 3-4x expected mean coverage to avoid memory issues
 - Always request FORMAT/DP and FORMAT/AD annotations for downstream filtering
 - For parallel processing, split by chromosome and concatenate results
-- bcftools is fast but less accurate than GATK/DeepVariant for indels in homopolymers
+- bcftools is fast but less accurate than GATK/DeepVariant for indels in homopolymers, segdups, and MHC; switch engines when those regions matter
+- bcftools mpileup applies BAQ by default (downweights base qualities near likely misalignments to suppress false SNPs around indels); `-B` disables it, `-E` recomputes it
+- Normalize with `bcftools norm -f ref.fa -m -any` before comparing, merging, or annotating any callset; un-normalized records mismatch spuriously
+- Benchmark callers with hap.py + vcfeval inside the GIAB confident-region BED, reporting SNVs and indels separately - never `bcftools isec` on raw records
 
 ## Related Skills
 
 - variant-calling/vcf-basics - View and query resulting VCF files
 - variant-calling/filtering-best-practices - Filter variants by quality
 - variant-calling/variant-normalization - Normalize indels after calling
-- variant-calling/gatk-variant-calling - Production-quality calling with GATK HaplotypeCaller
+- variant-calling/vcf-statistics - Ti/Tv, counts, and callset QC
+- variant-calling/gatk-variant-calling - Local-reassembly calling with GATK HaplotypeCaller
+- variant-calling/deepvariant - Deep-learning caller for best indel/difficult-region accuracy
+- variant-calling/joint-calling - Scalable cohort genotyping via the GVCF workflow

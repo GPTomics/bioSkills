@@ -1,266 +1,91 @@
-# Structural Variant Calling (Short Reads) Usage Guide
+# Structural Variant Calling Usage Guide
 
 ## Overview
 
-Structural variants (SVs) are genomic alterations typically >50bp that include deletions, insertions, inversions, duplications, and translocations. Short-read SV calling uses paired-end and split-read information to detect these events.
+Structural variants (SVs, typically >=50 bp: deletions, insertions, inversions, duplications, translocations) are never observed directly by a read - they are reconstructed from four orthogonal signals (discordant read pairs, split reads, read depth, local assembly). Each caller fuses a subset of those signals, and its blind spots follow directly from which it omits. The practical consequences: the real short-read tradeoff is sensitivity versus breakpoint resolution (not specificity), insertions are a physics limit rather than a tuning failure, genotyping is a different problem from discovery, and every benchmark F1 is meaningless without its matching parameters.
 
 ## Prerequisites
 
 ```bash
-conda install -c bioconda manta delly smoove survivor annotsv bcftools pysam
+conda install -c bioconda manta delly smoove svaba gridss survivor truvari annotsv bcftools samtools pysam
+# Long-read callers
+conda install -c bioconda sniffles cutesv pbsv
 ```
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Call structural variants from my BAM file using multiple callers"
-- "Run somatic SV calling on my tumor-normal pair with Manta and Delly"
-- "Filter SV calls to keep only high-confidence variants with PE and SR support"
-- "Annotate structural variants with gene overlaps and pathogenicity predictions"
+- "Call structural variants from my BAM with multiple callers and keep the 2/4 consensus"
+- "Run somatic SV calling on my tumor-normal pair with Manta and GRIDSS2"
+- "Build a genotyped cohort SV matrix, not just a union of discovery calls"
+- "Merge my population SV callsets in a sequence-aware way so allele frequencies are not inflated"
+- "Benchmark my SV calls against GIAB with explicit Truvari parameters"
+- "Decide whether my insertion-heavy analysis needs long reads"
 
-## SV Detection Signatures
+## The four SV signals
 
-| Signature | SV Type | Evidence |
-|-----------|---------|----------|
-| Read depth | DEL, DUP | Coverage changes |
-| Paired-end | DEL, INS, INV, DUP | Discordant insert sizes |
-| Split-read | All types | Reads split across breakpoints |
-| Mate-pair | Large SVs | Long-range linking |
+| Signal | Detects | Breakpoint resolution | Blind to |
+|--------|---------|-----------------------|----------|
+| Discordant read pairs (RP) | DEL, INS, INV, DUP, BND | ~+/-300-500 bp (IMPRECISE) | nothing, but never base-precise |
+| Split reads (SR, SA tag) | all types | ~+/-0-10 bp (PRECISE) | junctions inside repeats > read length |
+| Read depth (RD) | DEL, DUP (dosage) | bin-size limited (100 bp-1 kb) | balanced events (INV, balanced BND) |
+| Local assembly (AS) | all types incl. novel INS | base-precise + inserted sequence | large INS/repeats beyond short-read assembly |
 
-## Tool Selection Guide
+## Caller selection guide
 
-| Scenario | Recommended Tool |
-|----------|------------------|
+| Scenario | Recommended |
+|----------|-------------|
 | General germline | Manta |
-| Somatic SVs | Manta (tumor-normal) |
-| High sensitivity | Multiple callers + merge |
-| WES data | Manta --exome |
-| Large cohort | Delly joint calling |
-| Simple pipeline | Smoove (LUMPY wrapper) |
-
-## Complete Pipeline
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-BAM=$1
-REFERENCE=$2
-SAMPLE=$(basename $BAM .bam)
-OUTDIR=sv_calls/$SAMPLE
-
-mkdir -p $OUTDIR
-
-echo "=== Running SV calling for $SAMPLE ==="
-
-# 1. Manta
-echo "Running Manta..."
-configManta.py \
-    --bam $BAM \
-    --referenceFasta $REFERENCE \
-    --runDir $OUTDIR/manta
-
-$OUTDIR/manta/runWorkflow.py -j 8
-cp $OUTDIR/manta/results/variants/diploidSV.vcf.gz $OUTDIR/${SAMPLE}_manta.vcf.gz
-
-# 2. Delly
-echo "Running Delly..."
-delly call -g $REFERENCE -o $OUTDIR/${SAMPLE}_delly.bcf $BAM
-bcftools view $OUTDIR/${SAMPLE}_delly.bcf -Oz -o $OUTDIR/${SAMPLE}_delly.vcf.gz
-bcftools index $OUTDIR/${SAMPLE}_delly.vcf.gz
-
-# 3. Smoove (LUMPY)
-echo "Running Smoove..."
-smoove call --name $SAMPLE --fasta $REFERENCE --outdir $OUTDIR/smoove -p 8 $BAM
-cp $OUTDIR/smoove/${SAMPLE}-smoove.genotyped.vcf.gz $OUTDIR/${SAMPLE}_lumpy.vcf.gz
-
-# 4. Merge callers
-echo "Merging callsets..."
-gunzip -c $OUTDIR/${SAMPLE}_manta.vcf.gz > $OUTDIR/manta.vcf
-gunzip -c $OUTDIR/${SAMPLE}_delly.vcf.gz > $OUTDIR/delly.vcf
-gunzip -c $OUTDIR/${SAMPLE}_lumpy.vcf.gz > $OUTDIR/lumpy.vcf
-
-echo "$OUTDIR/manta.vcf" > $OUTDIR/vcf_list.txt
-echo "$OUTDIR/delly.vcf" >> $OUTDIR/vcf_list.txt
-echo "$OUTDIR/lumpy.vcf" >> $OUTDIR/vcf_list.txt
-
-SURVIVOR merge $OUTDIR/vcf_list.txt 500 2 1 1 0 50 $OUTDIR/${SAMPLE}_merged.vcf
-
-# 5. Filter
-echo "Filtering..."
-bcftools view -i 'QUAL >= 20' $OUTDIR/${SAMPLE}_merged.vcf -Oz -o $OUTDIR/${SAMPLE}_final.vcf.gz
-bcftools index $OUTDIR/${SAMPLE}_final.vcf.gz
-
-# 6. Annotate
-echo "Annotating..."
-AnnotSV -SVinputFile $OUTDIR/${SAMPLE}_final.vcf.gz \
-    -genomeBuild GRCh38 \
-    -outputFile $OUTDIR/${SAMPLE}_annotated
-
-echo "Done! Final SVs: $OUTDIR/${SAMPLE}_final.vcf.gz"
-```
-
-## Somatic SV Calling
-
-```bash
-#!/bin/bash
-TUMOR=$1
-NORMAL=$2
-REFERENCE=$3
-OUTDIR=somatic_svs
-
-mkdir -p $OUTDIR
-
-# Manta somatic
-configManta.py \
-    --tumorBam $TUMOR \
-    --normalBam $NORMAL \
-    --referenceFasta $REFERENCE \
-    --runDir $OUTDIR/manta
-
-$OUTDIR/manta/runWorkflow.py -j 8
-
-# Delly somatic
-delly call -g $REFERENCE -o $OUTDIR/delly.bcf $TUMOR $NORMAL
-
-echo -e "tumor\ttumor\nnormal\tcontrol" > $OUTDIR/samples.tsv
-
-delly filter -f somatic -o $OUTDIR/delly_somatic.bcf \
-    -s $OUTDIR/samples.tsv $OUTDIR/delly.bcf
-
-bcftools view $OUTDIR/delly_somatic.bcf -Oz -o $OUTDIR/delly_somatic.vcf.gz
-```
-
-## Quality Filtering
-
-```python
-import pandas as pd
-import pysam
-
-def filter_sv_calls(vcf_in, vcf_out, min_qual=20, min_size=50, min_support=3):
-    '''Filter SV calls by quality metrics.'''
-    vcf = pysam.VariantFile(vcf_in)
-    out = pysam.VariantFile(vcf_out, 'w', header=vcf.header)
-
-    kept, filtered = 0, 0
-    for rec in vcf:
-        # Quality filter
-        if rec.qual and rec.qual < min_qual:
-            filtered += 1
-            continue
-
-        # Size filter
-        svlen = abs(rec.info.get('SVLEN', [0])[0])
-        if svlen < min_size:
-            filtered += 1
-            continue
-
-        # Support filter (if available)
-        support = rec.info.get('SUPPORT', rec.info.get('SR', [0]))
-        if isinstance(support, tuple):
-            support = sum(support)
-        if support < min_support:
-            filtered += 1
-            continue
-
-        out.write(rec)
-        kept += 1
-
-    out.close()
-    print(f'Kept: {kept}, Filtered: {filtered}')
-```
-
-## Interpreting SV VCF
-
-### Key INFO Fields
-| Field | Description |
-|-------|-------------|
-| SVTYPE | SV type (DEL, INS, DUP, INV, BND) |
-| SVLEN | SV length (negative for DEL) |
-| END | End position |
-| CIPOS | Confidence interval around POS |
-| CIEND | Confidence interval around END |
-| PE | Paired-end support |
-| SR | Split-read support |
-
-### Format Fields
-| Field | Description |
-|-------|-------------|
-| GT | Genotype (0/0, 0/1, 1/1) |
-| PR | Paired-read count (ref, alt) |
-| SR | Split-read count (ref, alt) |
-
-## Benchmarking
-
-Compare calls to truth set:
-
-```bash
-# Using Truvari
-truvari bench \
-    -b truth.vcf.gz \
-    -c calls.vcf.gz \
-    -o benchmark_results/ \
-    --passonly \
-    -r 500 \
-    -p 0.7
-```
-
-## Common Issues
-
-### High False Positives
-- Filter by multiple caller support
-- Require both PE and SR evidence
-- Remove blacklist regions
-
-### Missing Large SVs
-- Check BAM insert size distribution
-- Ensure sufficient coverage
-- Consider long-read sequencing
-
-### Breakpoint Imprecision
-- Normal for short reads (~100bp uncertainty)
-- Long reads improve resolution
-- Use CIPOS/CIEND for confidence intervals
-
-## Relationship with CNV Detection
-
-| Tool | Detects |
-|------|---------|
-| Manta/Delly/LUMPY | Balanced SVs (INV, BND), small DEL/DUP |
-| CNVkit/GATK CNV | Large copy number changes |
-| Both together | Comprehensive SV detection |
-
-For complete structural variation analysis, combine SV callers with CNV detection tools.
+| Somatic SVs (cancer) | Manta tumor-normal, or GRIDSS2 -> GRIPSS -> PURPLE -> LINX |
+| Highest precision / single breakends | GRIDSS2 |
+| 20-300 bp indel/SV "twilight zone" | SvABA |
+| WES/panel | Manta `--exome` |
+| Large cohort | DELLY site-list-then-regenotype, or force-genotype with Paragraph/GraphTyper2 |
+| Simple germline pipeline | smoove (LUMPY + svtyper + duphold) |
+| Insertion-heavy / repeat-mediated / phased | long reads (Sniffles2, cuteSV, pbsv) |
 
 ## Example Prompts
 
-> "Call structural variants from my BAM file using multiple callers and merge the results"
+### Discovery
+> "Call structural variants from my WGS BAM using Manta, DELLY, GRIDSS, and SvABA, then keep only calls supported by at least two callers"
 
-> "Run somatic SV calling on my tumor-normal pair with Manta and Delly"
+> "Run Manta on my exome BAM - make sure the depth filter does not drop true SVs at high-depth targeted loci"
 
-> "Filter my SV calls to keep only high-confidence variants with PE and SR support"
+### Somatic
+> "Run somatic SV calling on my tumor-normal pair and interpret complex rearrangements with the GRIDSS2 to GRIPSS to PURPLE to LINX chain"
 
-> "Annotate my structural variants with gene overlaps and pathogenicity predictions"
+### Cohort and population
+> "I have per-sample SV discovery VCFs for 200 samples - build a properly genotyped population matrix instead of taking their union"
+
+> "Merge my population SV callsets so allele frequencies are not inflated by position-only collapsing"
+
+### Benchmarking
+> "Benchmark my short-read SV calls against the GIAB HG002 truth set, report every Truvari parameter, and stratify by Tier 1 versus CMRG regions"
+
+> "My short-read insertion recall is only 40% against a long-read truth set - is that a caller problem or a physics limit?"
 
 ## What the Agent Will Do
 
-1. Select appropriate SV callers based on the analysis type (germline vs somatic, WGS vs WES)
-2. Run multiple callers and merge results with SURVIVOR for high-confidence calls
-3. Filter by quality, size, and read support (PE/SR evidence)
-4. Annotate SVs with gene overlaps using AnnotSV
-5. Generate summary statistics of SV types and size distribution
+1. Map the analysis to the caller(s) whose fused signals fit the target SV types, and warn about each caller's blind spots (e.g. smoove cannot represent insertions).
+2. Run discovery, applying mode flags that matter (`--exome` for panels, tumor-normal for somatic), and for GRIDSS route the raw breakpoint graph through GRIPSS/PURPLE/LINX rather than treating it as a callset.
+3. For cohorts, force-genotype every sample at merged sites rather than unioning discovery VCFs, and choose sequence-aware Truvari over position-only SURVIVOR for allele-frequency work.
+4. Filter with `ABS(SVLEN)` (the DEL sign convention) and annotate with AnnotSV.
+5. Benchmark with explicit Truvari parameters, stratify by region (Tier 1 vs CMRG), and report event vs breakpoint vs genotype accuracy separately.
 
 ## Tips
 
-- Running multiple callers and requiring agreement (2 of 3) dramatically reduces false positives
-- Manta is the best single-caller choice for both germline and somatic SV detection
-- Exclude blacklist regions (centromeres, telomeres, segmental duplications) to reduce artifacts
-- Short-read SV calls have imprecise breakpoints (~100bp uncertainty) -- use CIPOS/CIEND fields
-- For SVs >10Mb or complex rearrangements, long-read sequencing substantially outperforms short reads
+- The merge parameters ARE the result: position-only SURVIVOR-1000 can inflate allele frequency up to 2.2x versus sequence-aware Truvari - report the merger and its parameters.
+- Never filter on raw SVLEN: deletions carry a negative SVLEN, so `SVLEN >= 50` silently drops every DEL - always use `ABS(SVLEN)`.
+- CIPOS/CIEND and the IMPRECISE flag encode the RP-vs-SR resolution of each call; use them to judge how much to trust a breakpoint before merging tightly.
+- One biological inversion can appear as `<INV>` in Manta and as 2+ paired BND records in GRIDSS - a naive merger triple-counts or drops it.
+- Below ~30x coverage split-read evidence thins and callers drift into the low-resolution RP-only regime.
+- Run GIAB-CMRG, not just Tier 1: Tier 1 excludes the medically relevant repetitive genes, and reference false-duplications (e.g. CBS, KCNE1) cause reference-specific misses.
 
 ## Related Skills
 
-- variant-calling/filtering-best-practices - General variant filtering principles
-- variant-calling/vcf-basics - View and query SV VCF files
-- variant-calling/variant-annotation - Annotate SVs with functional information
-- variant-calling/clinical-interpretation - Clinical significance of structural variants
+- copy-number/cnvkit-analysis - read-depth CNV detection for dosage changes complementing junction-based SV callers
+- long-read-sequencing/structural-variants - full long-read SV pipelines
+- variant-calling/consensus-sequences - applying variants to a reference and phasing before haplotype extraction
+- variant-calling/vcf-manipulation - view and query SV VCF files
+- variant-calling/filtering-best-practices - general variant filtering principles
+- variant-calling/variant-annotation - annotate SVs with functional information

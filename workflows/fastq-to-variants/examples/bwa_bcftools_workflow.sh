@@ -64,6 +64,9 @@ for sample in $SAMPLES; do
         samtools fixmate -@ ${THREADS} -m - - | \
         samtools sort -@ ${THREADS} - | \
         samtools markdup -@ ${THREADS} - ${OUTDIR}/aligned/${sample}.markdup.bam
+        # No `samtools collate` here: fresh bwa-mem2 output is already name-grouped (mates
+        # adjacent), so fixmate -m works directly. collate is only needed when reprocessing a
+        # coordinate-sorted BAM. See the SKILL body for the general collate->fixmate->sort->markdup order.
 
         samtools index ${OUTDIR}/aligned/${sample}.markdup.bam
 
@@ -79,13 +82,18 @@ done
 echo "=== Step 3: Variant Calling ==="
 if [ ! -f "${OUTDIR}/variants/cohort.vcf.gz" ]; then
     echo "Calling variants jointly..."
+    # --max-depth 250: bcftools default per-file cap; raise to ~1000 for exome/targeted deep coverage.
+    # --min-MQ 20 / --min-BQ 20: drop reads/bases below phred 20 (~1% error) from the pileup.
+    # -a FORMAT/DP,FORMAT/AD (mpileup) and -f GQ (call) emit the per-sample DP/GQ that the
+    # genotype-level filter in Step 4 needs; without them 'FMT/DP<8 | FMT/GQ<20' aborts.
     bcftools mpileup -Ou \
         -f ${REF} \
+        -a FORMAT/DP,FORMAT/AD \
         --max-depth 250 \
         --min-MQ 20 \
         --min-BQ 20 \
         ${OUTDIR}/aligned/*.markdup.bam | \
-    bcftools call -mv -Oz -o ${OUTDIR}/variants/cohort.vcf.gz
+    bcftools call -mv -f GQ -Oz -o ${OUTDIR}/variants/cohort.vcf.gz
 
     bcftools index ${OUTDIR}/variants/cohort.vcf.gz
 else
@@ -96,10 +104,23 @@ fi
 echo "=== Step 4: Filtering ==="
 if [ ! -f "${OUTDIR}/variants/cohort.filtered.vcf.gz" ]; then
     echo "Applying quality filters..."
-    bcftools filter -Oz \
-        -e 'QUAL<20 || DP<10 || MQ<30' \
-        -o ${OUTDIR}/variants/cohort.filtered.vcf.gz \
+    # Lenient starting gates (tune per dataset against the Ti/Tv valley): QUAL<20 low site confidence,
+    # DP<10 too little depth for a confident diploid call, MQ<30 ambiguous mapping (repeats/paralogs).
+    # Site-level gate (|| = whole-record expression). bcftools filter FLAGS records (sets the
+    # FILTER column via -s) rather than removing them, so failures stay auditable; use
+    # `bcftools view -f PASS` downstream to drop them. INFO/DP is explicit to avoid the
+    # bare-DP INFO-vs-FORMAT ambiguity.
+    bcftools filter -Oz -s LowQual \
+        -e 'QUAL<20 || INFO/DP<10 || MQ<30' \
+        -o ${OUTDIR}/variants/cohort.sitefiltered.vcf.gz \
         ${OUTDIR}/variants/cohort.vcf.gz
+
+    # Genotype-level pass (site then genotype, per the SKILL body): null out low-confidence
+    # genotypes without dropping the site (single | = per-sample; -S . sets failing GTs to ./.).
+    bcftools filter -Oz \
+        -e 'FMT/DP<8 | FMT/GQ<20' -S . \
+        -o ${OUTDIR}/variants/cohort.filtered.vcf.gz \
+        ${OUTDIR}/variants/cohort.sitefiltered.vcf.gz
 
     bcftools index ${OUTDIR}/variants/cohort.filtered.vcf.gz
 else

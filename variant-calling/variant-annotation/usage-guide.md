@@ -2,21 +2,26 @@
 
 ## Overview
 
-This guide covers adding annotations to VCF files and predicting functional consequences.
+Annotation attaches functional consequences, population frequencies, and pathogenicity evidence to variants. The load-bearing idea is that a consequence is not a property of the variant but of the tuple (variant, transcript model, engine, engine version, parameters): VEP, SnpEff, and ANNOVAR disagree, and so do RefSeq, Ensembl, and MANE. The job is not to find the one right tool but to PIN every axis (build, transcript set, engine+version, predictor, gnomAD version) and record it. This guide covers the bcftools annotate/csq mechanics plus the transcript, predictor, and frequency decisions that determine what an annotation means.
 
 ## Prerequisites
 
 - bcftools installed (`conda install -c bioconda bcftools`)
-- Annotation databases (dbSNP, gnomAD, ClinVar, etc.)
-- For consequence prediction: reference FASTA and GFF3 gene annotation
+- For full clinical annotation: Ensembl VEP (`conda install -c bioconda ensembl-vep`) and/or SnpEff (`conda install -c bioconda snpeff`); ANNOVAR by registration
+- Annotation databases (dbSNP, gnomAD, ClinVar, dbNSFP, SpliceAI, AlphaMissense)
+- For consequence prediction: reference FASTA and a MANE-aware transcript set (VEP cache) or GFF3 gene annotation (bcftools csq)
+- Python parsing: `cyvcf2` (`pip install cyvcf2`)
 
 ## Quick Start
 
 Tell your AI agent what you want to do:
-- "Add rsIDs from dbSNP to my VCF file"
-- "Annotate my variants with allele frequencies from gnomAD"
+- "Annotate my VCF with VEP on the MANE Select transcript"
+- "Add rsIDs from dbSNP and gnomAD frequencies to my VCF"
+- "Report the grpmax filtering allele frequency, not just global AF"
+- "Predict splice effects with SpliceAI delta scores"
+- "Add one calibrated missense predictor (REVEL) for PP3/BP4"
 - "Predict functional consequences of my variants using bcftools csq"
-- "Add ClinVar clinical significance annotations to my VCF"
+- "Explain why VEP and SnpEff give different consequences for the same variant"
 
 ## bcftools annotate Overview
 
@@ -272,9 +277,10 @@ gnomAD files are large. Download only needed chromosomes:
 wget https://gnomad-public-us-east-1.s3.amazonaws.com/release/4.0/vcf/genomes/gnomad.genomes.v4.0.sites.chr1.vcf.bgz
 wget https://gnomad-public-us-east-1.s3.amazonaws.com/release/4.0/vcf/genomes/gnomad.genomes.v4.0.sites.chr1.vcf.bgz.tbi
 
-# Annotate
+# Annotate. v4 renamed popmax -> grpmax; the filtering-AF fields are
+# fafmax_faf95_max / fafmax_faf95_max_joint (prefer these over global AF, see below).
 bcftools annotate -a gnomad.genomes.v4.0.sites.chr1.vcf.bgz \
-    -c INFO/AF,INFO/AF_popmax \
+    -c INFO/AF,INFO/AF_grpmax,INFO/fafmax_faf95_max \
     -r chr1 \
     input.vcf.gz -Oz -o with_gnomad.vcf.gz
 ```
@@ -331,6 +337,36 @@ bcftools filter -i 'INFO/AF<0.01 || INFO/AF="."' | \
 bcftools csq -f reference.fa -g genes.gff3.gz -Oz -o rare_consequences.vcf.gz
 ```
 
+## Parsing SnpEff ANN in Python
+
+VEP CSQ parsing is shown in SKILL.md. SnpEff writes an `ANN` field with a fixed pipe order:
+
+```python
+from cyvcf2 import VCF
+
+ann_fields = ['Allele', 'Annotation', 'Impact', 'Gene_Name', 'Gene_ID',
+              'Feature_Type', 'Feature_ID', 'Transcript_BioType', 'Rank',
+              'HGVS_c', 'HGVS_p', 'cDNA_pos', 'CDS_pos', 'Protein_pos', 'Distance']
+
+for variant in VCF('snpeff_output.vcf'):
+    ann = variant.INFO.get('ANN')
+    if not ann:
+        continue
+    for block in ann.split(','):
+        parsed = dict(zip(ann_fields, block.split('|')[:len(ann_fields)]))
+        # Impact is a SnpEff triage bucket, not ACMG evidence; check the SO Annotation term
+        if parsed['Impact'] == 'HIGH':
+            print(variant.CHROM, variant.POS, parsed['Gene_Name'], parsed['Annotation'])
+```
+
+## Deciding transcript, predictor, and frequency metric
+
+These three decisions determine what the annotation means; SKILL.md covers the reasoning, summarized here as prompts the agent resolves:
+
+- Transcript: report on MANE Select (plus MANE Plus Clinical where assigned), not worst-consequence across all transcripts. Avoid a generic VEP `--pick`; if used, constrain `--pick_order mane_select,...` so length/accession never decide the reported transcript.
+- Predictor: pick ONE calibrated tool per evidence type (REVEL or AlphaMissense for missense; SpliceAI for splicing) at its calibrated strength. Do not stack correlated predictors (REVEL already contains SIFT/PolyPhen). SIFT/PolyPhen alone and raw CADD >= 20 do not license PP3.
+- Frequency: use the grpmax filtering allele frequency (lower 95% CI) against the disease's maximum credible AF, not a single global 1% cutoff. Presence in gnomAD is not proof of benignity for recessive, late-onset, or somatic/CH-contaminated variants.
+
 ## Troubleshooting
 
 ### "no such tag"
@@ -375,29 +411,39 @@ bcftools annotate -a database.vcf.gz -c INFO/AF \
 
 ## Example Prompts
 
-> "Add rsIDs from dbSNP to my VCF file"
-
-> "Annotate my variants with allele frequencies from gnomAD"
+### Basic annotation
+> "Add rsIDs from dbSNP and gnomAD allele frequencies to my VCF"
 
 > "Predict functional consequences of my variants using bcftools csq"
 
-> "Add ClinVar clinical significance annotations to my VCF"
+### Clinical-grade annotation
+> "Annotate with VEP on GRCh38 reporting the MANE Select transcript, and explain any coordinate change from our old Ensembl-canonical pipeline"
+
+> "Why do VEP and SnpEff report different consequences for this indel, and which should I trust for HGVS?"
+
+> "Add one calibrated missense predictor for PP3/BP4 and tell me the calibrated REVEL thresholds"
+
+> "Score splice effects with SpliceAI and tell me whether the window is wide enough for a deep-intronic variant"
+
+> "Report the grpmax filtering allele frequency for this variant and whether presence in gnomAD rules out pathogenicity for a recessive disorder"
 
 ## What the Agent Will Do
 
-1. Check annotation database availability and index status
-2. Verify chromosome naming consistency between input VCF and annotation source
-3. Run bcftools annotate or bcftools csq with appropriate column mappings
-4. Validate output contains expected annotation fields
-5. Report annotation hit rate and any warnings
+1. Normalize (left-align + split multiallelics) before annotation, and rely on the engine for 3'-shifted HGVS rather than deriving it from POS
+2. Confirm genome build and chromosome naming match across the VCF and every annotation source
+3. Annotate on MANE Select (with MANE Plus Clinical where assigned), not worst-consequence, pinning engine+version+transcript set
+4. Attach one calibrated predictor per evidence type and the grpmax filtering AF, avoiding correlated-predictor stacks and global AF cutoffs
+5. Validate output fields, report annotation hit rate, and record the pinned axes for reproducibility
 
 ## Tips
 
-- Normalize variants before annotating to ensure consistent matching against databases
-- Chromosome naming mismatches (chr1 vs 1) are the most common cause of empty annotations -- check both files
+- Normalize before annotating; the same variant represented differently gets a different annotation
+- Chromosome naming mismatches (chr1 vs 1) and build mismatches (v2 gnomAD = GRCh37 vs v3/v4 = GRCh38) are the most common causes of empty annotations -- check both files
+- MANE transcripts exist only on GRCh38; GRCh37 pipelines must lift over or maintain per-gene transcript pins
+- Switching to MANE Select changes some reported c. coordinates (Ensembl canonical != MANE); this is expected, not an error
+- "HIGH impact" is a triage bucket, not ACMG evidence; PVS1 depends on NMD (the 50-nt/last-exon rule) and the gene's LOF mechanism
+- Use `bcftools +split-vep` to flatten nested VEP/csq strings into queryable columns
 - For large annotation databases, restrict to specific regions with `-r` to speed up processing
-- Use `bcftools +split-vep` to parse nested VEP/csq annotation strings into queryable fields
-- Always verify annotation source genome build matches the input VCF (GRCh37 vs GRCh38)
 
 ## Related Skills
 

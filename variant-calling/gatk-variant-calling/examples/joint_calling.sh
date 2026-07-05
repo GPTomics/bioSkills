@@ -13,12 +13,11 @@ if [ -z "$REF" ] || [ -z "$INTERVAL_LIST" ] || [ -z "$OUTPUT" ]; then
     exit 1
 fi
 
-echo "sample\tgvcf" > sample_map.txt
-i=1
+# GenomicsDBImport --sample-name-map expects tab-separated sampleName<TAB>path lines, NO header
+: > sample_map.txt
 for gvcf in $GVCFS; do
     name=$(basename $gvcf .g.vcf.gz)
-    echo "${name}\t${gvcf}" >> sample_map.txt
-    i=$((i+1))
+    printf '%s\t%s\n' "$name" "$gvcf" >> sample_map.txt
 done
 
 echo "Importing GVCFs..."

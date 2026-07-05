@@ -59,15 +59,21 @@ for sample in $SAMPLES; do
     samtools fixmate -@ ${THREADS} -m - - | \
     samtools sort -@ ${THREADS} - | \
     samtools markdup -@ ${THREADS} - ${OUTDIR}/aligned/${sample}.markdup.bam
+    # No `samtools collate` needed: fresh bwa-mem2 output is already name-grouped for fixmate -m.
 
     samtools index ${OUTDIR}/aligned/${sample}.markdup.bam
 done
 
 # Step 3: Base Quality Score Recalibration
+# BQSR is the classic path shown here; it is honestly optional on modern binned-quality
+# instruments (2-color NovaSeq). The alternative is HaplotypeCaller --dragen-mode (DRAGSTR),
+# which models STR indel error internally and skips a separate BQSR step. See the SKILL body.
 echo "=== Step 3: BQSR ==="
 for sample in $SAMPLES; do
     echo "BQSR: ${sample}"
 
+    # GATK best practice supplies dbSNP PLUS known indels (Mills + 1000G gold standard) as
+    # --known-sites; dbSNP-only here is a simplification. Add: --known-sites ${MILLS_INDELS}
     gatk BaseRecalibrator \
         -R ${REF} \
         -I ${OUTDIR}/aligned/${sample}.markdup.bam \
@@ -118,6 +124,9 @@ gatk GenotypeGVCFs \
 # Step 6: Hard Filtering (for small cohorts; use VQSR for >30 samples)
 echo "=== Step 6: Filtering ==="
 
+# GATK canonical hard-filter starting points (lenient by design; SNP and indel thresholds differ
+# because their error processes differ -- see variant-calling/filtering-best-practices). SNPs:
+# QD<2 low confidence-per-depth, FS>60 strand bias, MQ<40 poor mapping, SOR>3 strand-odds bias.
 # Filter SNPs
 gatk SelectVariants \
     -V ${OUTDIR}/variants/cohort.vcf.gz \
