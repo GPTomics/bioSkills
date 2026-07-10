@@ -1,7 +1,7 @@
 # Bead Normalization - Usage Guide
 
 ## Overview
-Bead-based normalization corrects CyTOF instrument sensitivity drift using EQ four-element beads as a physical internal standard, while cross-batch normalization (CytoNorm) harmonizes staining/acquisition batches using a shared reference sample. The key expert distinction this skill encodes: these are two different layers - beads fix within/between-run drift, CytoNorm fixes batch effects - and they are not interchangeable. It also covers why the anchor/reference sample is the load-bearing design element, why normalization is per-cluster with many quantiles, and the over-correction risk that argues for modeling batch in the statistical design rather than cleaning it out of the data.
+Bead-based normalization corrects CyTOF instrument sensitivity drift using EQ four-element beads as a physical internal standard, while cross-batch normalization (CytoNorm) harmonizes staining/acquisition batches using a shared reference sample. The key expert distinction this skill encodes: these are two different layers - beads fix within/between-run drift, CytoNorm fixes batch effects - and they are not interchangeable. It also covers why the anchor/reference sample is the design element everything depends on, why normalization is per-cluster with many quantiles, and the over-correction risk that argues for modeling batch in the statistical design rather than cleaning it out of the data.
 
 ## Prerequisites
 ```bash

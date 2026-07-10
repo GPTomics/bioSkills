@@ -24,8 +24,8 @@ IC50_STRONG = 500      # nM, strong binder threshold (IEDB standard)
 IC50_VERY_STRONG = 150 # nM, very strong binder
 VAF_MIN = 0.1          # Minimum VAF to ensure clonal representation
 EXPRESSION_MIN = 1     # TPM, minimum detectable expression
-DAI_GOOD = 500         # Differential agretopicity for tumor specificity
-DAI_EXCELLENT = 1000   # High tumor specificity
+DAI_GOOD = 2           # WT/MT IC50 ratio: MT binds >=2x better than WT (moderate agretopicity)
+DAI_EXCELLENT = 10     # MT binds >=10x better than WT (strong tumor specificity)
 
 
 def run_hla_typing(tumor_bam, output_dir):
@@ -42,7 +42,7 @@ def run_hla_typing(tumor_bam, output_dir):
 
     subprocess.run([
         'arcasHLA', 'genotype', str(extracted_r1), str(extracted_r2),
-        '-g', 'A,B,C,DRB1,DQB1,DPB1', '-t', str(THREADS), '-o', str(output_dir)
+        '-g', 'A,B,C,DRB1,DQB1,DQA1,DPB1,DPA1', '-t', str(THREADS), '-o', str(output_dir)  # DQA1/DPA1 for paired NetMHCIIpan DQ/DP
     ], check=True)
 
     genotype_file = list(output_dir.glob('*.genotype.json'))[0]
@@ -52,7 +52,8 @@ def run_hla_typing(tumor_bam, output_dir):
     hla_alleles = []
     for gene, alleles in hla_data.items():
         for allele in alleles:
-            hla_alleles.append(f'HLA-{allele}')
+            # arcasHLA emits 3-field alleles (A*01:01:01); pVACseq/IEDB validate 2-field (HLA-A*01:01)
+            hla_alleles.append('HLA-' + ':'.join(allele.split(':')[:2]))
 
     return ','.join(hla_alleles)
 
@@ -67,8 +68,14 @@ def annotate_vcf_with_expression(vcf_path, expression_path, sample_id, output_pa
     return output_path
 
 
-def run_pvacseq(vcf_path, sample_id, hla_alleles, output_dir, epitope_lengths='8,9,10,11'):
-    '''Run pVACseq for neoantigen prediction.'''
+def run_pvacseq(vcf_path, sample_id, hla_alleles, output_dir, epitope_lengths='8,9,10,11',
+                phased_vcf=None):
+    '''Run pVACseq for neoantigen prediction.
+
+    NOTE: this is the reduced "quick" path. The full defensible order (SKILL.md) runs VEP with the
+    Wildtype+Frameshift plugins, annotates expression into the VCF, PHASES proximal variants, and
+    gates HLA-LOH before ranking. Pass phased_vcf (WhatsHap output) to include --phased-proximal-
+    variants-vcf -- editing proximal variants independently yields a peptide the tumor never makes.'''
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -80,8 +87,10 @@ def run_pvacseq(vcf_path, sample_id, hla_alleles, output_dir, epitope_lengths='8
         '-e1', epitope_lengths,
         '-t', str(THREADS),
         '--tumor-purity', '0.7',
-        '--trna-vaf', str(VAF_MIN)
+        '--tdna-vaf', str(VAF_MIN)   # DNA VAF (clonal representation); --trna-vaf is the RNA-VAF cutoff
     ]
+    if phased_vcf:
+        cmd += ['--phased-proximal-variants-vcf', str(phased_vcf)]
 
     subprocess.run(cmd, check=True)
     return output_dir
@@ -132,9 +141,9 @@ def filter_and_rank_neoantigens(pvacseq_output_dir):
     strong = results[results['Median MT IC50 Score'] < IC50_STRONG].copy()
     print(f'Strong binders (IC50 <{IC50_STRONG}nM): {len(strong)}')
 
-    # Calculate DAI (differential agretopicity index)
+    # DAI (differential agretopicity index): WT/MT IC50 ratio (pVACtools Fold Change); >1 = MT binds better than WT
     if 'Median WT IC50 Score' in strong.columns:
-        strong['DAI'] = strong['Median WT IC50 Score'] - strong['Median MT IC50 Score']
+        strong['DAI'] = strong['Median WT IC50 Score'] / strong['Median MT IC50 Score']
     else:
         strong['DAI'] = 0
 

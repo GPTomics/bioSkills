@@ -26,6 +26,14 @@ PROTEIN_FASTA = 'genome.faa'
 OUTPUT_DIR = Path('metabolic_modeling_results')
 GRAM_TYPE = 'gramneg'  # CarveMe -u/--universe value: 'gramneg', 'grampos', 'bacteria', 'archaea'
 
+# The medium IS the model: growth, flux, and gene essentiality are all computed RELATIVE to it.
+# `carve --gapfill M9` adds reactions so the model CAN grow on M9; it does not constrain the loaded
+# model to M9. These are OVERRIDES layered onto the model's own medium, not a replacement for it:
+# assigning a bare dict to model.medium CLOSES every exchange absent from that dict, which starves the
+# biomass reaction of trace metals/cofactors (Fe, K, Mg, Ca, Zn, ...) and silently yields zero growth.
+# Constrain only the carbon/electron-acceptor terms the experiment actually varies.
+MEDIUM_OVERRIDES = {'EX_glc__D_e': 10, 'EX_o2_e': 20}   # mmol/gDW/h max uptake; {} = model's own medium
+
 # Thresholds
 MIN_GROWTH = 0.01          # Minimum viable growth rate (h^-1)
 MEMOTE_THRESHOLD = 0.50    # Minimum acceptable memote score
@@ -48,15 +56,17 @@ def run_carveme(protein_fasta, output_path, gram_type='gramneg', gapfill_media='
 
 def run_memote(model_path, report_path):
     '''Run memote QC on model.'''
-    cmd = ['memote', 'run', '--filename', str(report_path), str(model_path)]
+    # memote run writes the machine-readable JSON results (.json.gz)
+    results_path = report_path.with_suffix('.json.gz')
+    cmd = ['memote', 'run', '--filename', str(results_path), str(model_path)]
     subprocess.run(cmd, check=True)
 
-    # Also generate snapshot for programmatic access
-    snapshot_path = report_path.with_suffix('.json')
-    cmd_snapshot = ['memote', 'report', 'snapshot', '--filename', str(snapshot_path), str(model_path)]
+    # memote report snapshot writes the human-readable HTML report
+    html_path = report_path.with_suffix('.html')
+    cmd_snapshot = ['memote', 'report', 'snapshot', '--filename', str(html_path), str(model_path)]
     subprocess.run(cmd_snapshot, check=True)
 
-    return snapshot_path
+    return html_path
 
 
 def diagnose_model(model):
@@ -72,7 +82,8 @@ def diagnose_model(model):
         elif producing == 0 and consuming > 0:
             issues['dead_ends'].append((met.id, 'not produced'))
 
-    # Blocked reactions (zero flux at optimum)
+    # Blocked reactions: cannot carry flux under ANY feasible state. fraction_of_optimum=0 releases the
+    # growth constraint; the default (1.0) would instead report reactions unused at the optimum.
     try:
         fva = flux_variability_analysis(model, fraction_of_optimum=0)
         blocked = fva[(fva['minimum'] == 0) & (fva['maximum'] == 0)]
@@ -223,9 +234,21 @@ def main():
     print(f'Metabolites: {len(model.metabolites)}')
     print(f'Genes: {len(model.genes)}')
 
+    # Set the medium BEFORE any optimize(): every downstream growth rate, flux, and essentiality call
+    # below is conditional on it. A gene essential on minimal medium is often dispensable on rich medium.
+    if MEDIUM_OVERRIDES:
+        exchange_ids = {r.id for r in model.exchanges}
+        missing = set(MEDIUM_OVERRIDES) - exchange_ids
+        if missing:
+            raise KeyError(f'MEDIUM_OVERRIDES names exchanges absent from the model: {sorted(missing)}')
+        medium = model.medium          # keeps every other open exchange (trace metals, cofactors) open
+        medium.update(MEDIUM_OVERRIDES)
+        model.medium = medium
+    print(f'Medium uptakes: {model.medium}')
+
     # Step 2: Model validation
     print('\n=== Step 2: Model Validation ===')
-    report_path = OUTPUT_DIR / 'memote_report.html'
+    report_path = OUTPUT_DIR / 'model_report.html'
 
     # Quick diagnostic
     issues = diagnose_model(model)
@@ -237,11 +260,14 @@ def main():
     solution = model.optimize()
     print(f'Growth rate: {solution.objective_value:.4f} h^-1')
 
+    html_report = run_memote(model_path, report_path)
+    print(f'memote report: {html_report}')
+
     if solution.objective_value < MIN_GROWTH:
         print(f'WARNING: Growth below threshold ({MIN_GROWTH}). Model may need gap-filling.')
 
     # Step 3: FBA Analysis
-    print('\n=== Step 3: FBA Analysis ===')
+    print('\n=== Step 4a: FBA Analysis ===')
     fba_results = run_fba(model)
     print(f"Growth rate: {fba_results['growth_rate']:.4f} h^-1")
     print(f"Active reactions: {fba_results['active_reactions']}")
@@ -254,14 +280,14 @@ def main():
     fba_results['fluxes'].to_csv(OUTPUT_DIR / 'fba_fluxes.tsv', sep='\t')
 
     # Step 4: FVA
-    print('\n=== Step 4: Flux Variability Analysis ===')
+    print('\n=== Step 4b: Flux Variability Analysis ===')
     fva_results = run_fva(model, fraction=FVA_FRACTION)
     print(f'Rigid reactions (fixed flux): {sum(fva_results["range"] < 1e-6)}')
     print(f'Flexible reactions (range > 1): {sum(fva_results["range"] > 1)}')
     fva_results.to_csv(OUTPUT_DIR / 'fva_results.tsv', sep='\t')
 
     # Step 5: Gene Essentiality
-    print('\n=== Step 5: Gene Essentiality Prediction ===')
+    print('\n=== Step 5a: Gene Essentiality Prediction ===')
     essentiality_results = predict_essentiality(model, growth_threshold=ESSENTIALITY_THRESHOLD)
     print(f"Essential genes: {essentiality_results['n_essential']} / {essentiality_results['n_total']}")
     print(f"Essentiality rate: {essentiality_results['n_essential']/essentiality_results['n_total']*100:.1f}%")
@@ -277,12 +303,12 @@ def main():
     visualize_results(fba_results, fva_results, essentiality_results, OUTPUT_DIR)
 
     # Save curated model
-    cobra.io.write_sbml_model(model, str(OUTPUT_DIR / 'model_analyzed.xml'))
+    cobra.io.write_sbml_model(model, str(OUTPUT_DIR / 'model_curated.xml'))
 
     print('\n=== Pipeline Complete ===')
     print(f'Results saved to: {OUTPUT_DIR}/')
     print('\nKey outputs:')
-    print(f'  Model: {OUTPUT_DIR}/model_analyzed.xml')
+    print(f'  Model: {OUTPUT_DIR}/model_curated.xml')
     print(f'  FBA fluxes: {OUTPUT_DIR}/fba_fluxes.tsv')
     print(f'  FVA results: {OUTPUT_DIR}/fva_results.tsv')
     print(f'  Essential genes: {OUTPUT_DIR}/essential_genes.txt')

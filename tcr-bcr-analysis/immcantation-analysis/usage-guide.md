@@ -2,7 +2,7 @@
 
 ## Overview
 
-Immcantation analyzes B-cell receptor repertoires: it partitions somatically-hypermutated sequences into clonal families, quantifies somatic hypermutation (SHM) and antigen-driven selection, and reconstructs antibody lineage trees. The load-bearing step is the clonal-clustering threshold: `shazam::distToNearest` builds a bimodal distance-to-nearest-neighbor distribution and `shazam::findThreshold` locates its valley, which becomes the per-dataset cutoff that every downstream number (clone counts, diversity, selection, trees) inherits. Because B cells hypermutate, exact-CDR3 clonotypes are wrong for BCR; clones are grouped by shared V gene, J gene, and junction length, then clustered by junction nucleotide distance. Germline reconstruction and TIGGER genotyping must precede any mutation counting, and diversity must be compared at equal sampling depth.
+Immcantation analyzes B-cell receptor repertoires: it partitions somatically-hypermutated sequences into clonal families, quantifies somatic hypermutation (SHM) and antigen-driven selection, and reconstructs antibody lineage trees. The step everything inherits from is the clonal-clustering threshold: `shazam::distToNearest` builds a bimodal distance-to-nearest-neighbor distribution and `shazam::findThreshold` locates its valley, which becomes the per-dataset cutoff that every downstream number (clone counts, diversity, selection, trees) inherits. Because B cells hypermutate, exact-CDR3 clonotypes are wrong for BCR; clones are grouped by shared V gene, J gene, and junction length, then clustered by junction nucleotide distance. Germline reconstruction and TIGGER genotyping must precede any mutation counting, and diversity must be compared at equal sampling depth.
 
 ## Prerequisites
 

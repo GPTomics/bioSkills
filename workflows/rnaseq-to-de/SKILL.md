@@ -1,26 +1,30 @@
 ---
 name: bio-workflows-rnaseq-to-de
-description: End-to-end RNA-seq workflow from FASTQ files to differential expression results. Covers QC, quantification (Salmon or STAR+featureCounts), and DESeq2 analysis with visualization. Use when running RNA-seq from FASTQ to DE results.
+description: Orchestrates the end-to-end bulk RNA-seq differential-expression pipeline from FASTQ to an annotated DE gene table, chaining fastp QC/trim, Salmon (decoy-aware) or STAR+featureCounts quantification, tximport gene-level collapse, DESeq2/edgeR/limma-voom testing, apeglm shrinkage, and VST-based visualization. Use when committing the reference release and gene-ID namespace once for the whole run, sequencing steps in the defensible order (tximport before DE, raw counts into the model, VST only for viz/clustering), choosing alignment-free vs align-then-count and the DE engine, setting strandedness correctly, keeping batch in the design instead of correcting-then-testing, or handing the signed ranking statistic to downstream enrichment. Hands mechanism to the component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: DESeq2
-goal_approach_exempt: true
 workflow: true
 depends_on:
   - read-qc/fastp-workflow
   - rna-quantification/alignment-free-quant
   - read-alignment/star-alignment
+  - read-qc/rnaseq-qc
   - rna-quantification/tximport-workflow
+  - rna-quantification/count-matrix-qc
   - differential-expression/deseq2-basics
+  - differential-expression/edger-basics
+  - differential-expression/de-results
   - differential-expression/de-visualization
 qc_checkpoints:
-  - after_qc: "Q30 >80%, adapter content <5%"
-  - after_quant: "Mapping rate >70%, >10M reads mapped"
-  - after_de: "Dispersion fit reasonable, no sample outliers"
+  - after_qc: "Q30 >80%, adapter content <5% (RNA has a lower quality floor than DNA)"
+  - after_quant: "Mapping rate >70%, >10M reads mapped, flat gene-body coverage, low rRNA/intronic"
+  - after_import: "tx2gene release matches the Salmon index; ID conversion loses few transcripts"
+  - after_de: "Dispersion trend sane, PCA separates condition not batch, no Cook's outliers"
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: DESeq2 1.42+, STAR 2.7.11+, Salmon 1.10+, Subread 2.0+, fastp 0.23+, ggplot2 3.5+, kallisto 0.50+, scanpy 1.10+
+Reference examples tested with: DESeq2 1.42+, tximport 1.30+, apeglm 1.24+, STAR 2.7.11+, Salmon 1.10+, Subread/featureCounts 2.0.2+ (--countReadPairs added in 2.0.2), fastp 0.23+, ggplot2 3.5+ (kallisto 0.50+ as a Salmon alternative)
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -29,325 +33,186 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Note: Salmon selective alignment is default since 1.0 (the historical `--validateMappings` is now a no-op); `DESeqDataSetFromTximport` carries the average-transcript-length offset automatically; `lfcShrink(type='apeglm')` requires `coef` to name a `resultsNames(dds)` coefficient and DROPS the `stat` column. Confirm these in-tool before quoting.
+
 # RNA-seq to Differential Expression Workflow
 
-**"Run RNA-seq analysis from FASTQ to differentially expressed genes"** -> Orchestrate fastp QC, STAR/HISAT2 alignment, featureCounts/Salmon quantification, DESeq2 differential expression, shrinkage estimation, and results visualization (volcano, MA plots).
+**"Find differentially expressed genes from my RNA-seq FASTQ files"** -> Chain QC/trim, decoy-aware quantification, tximport gene-level collapse, a count-based DE test, shrinkage, and visualization into one annotated DE table.
+- CLI + R: fastp -> (salmon | STAR + featureCounts) -> tximport -> DESeq2/edgeR/limma-voom -> lfcShrink -> VST/volcano
 
-Complete pipeline from raw FASTQ files to differential expression results.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step. Every step below cross-references the component skill that teaches its mechanism.
 
-## Workflow Overview
+## The governing principle
+
+A bulk RNA-seq result is decided at four seams between steps, not inside any one tool.
+
+1. **The reference RELEASE + transcriptome/GTF pair is a pipeline-wide commitment made once at quantification and inherited by everything downstream.** The transcriptome FASTA that builds the Salmon index and the GTF that builds the tx2gene map (and drives featureCounts) must be the SAME Ensembl/GENCODE release. Mixing an index built on release 104 with a tx2gene from release 110 silently drops renamed/removed transcripts — no error, just missing genes. This choice also fixes the gene-ID namespace (ENSG is the safe backbone; convert to symbol/Entrez only at the reporting/enrichment seam). Changing the release later forces re-quantification.
+2. **Raw counts flow forward; normalized/transformed values are terminal.** Integer counts (or tximport count-scale output) are the ONLY valid input to DESeq2/edgeR/limma-voom. TPM/CPM are for within-sample ranking only; a VST/rlog matrix is for PCA, clustering, heatmaps, and ML — never for re-running a count-based test. Feeding the wrong scale across a join is the single most common silent corruption.
+3. **Collapse transcript->gene through tximport, not by summing counts.** tximport carries the average-transcript-length offset that corrects for isoform-usage shifts; naively summing Salmon `NumReads` biases gene counts whenever isoform usage changes across conditions.
+4. **Batch belongs in the design, not "corrected" then tested.** Put known batch in the formula (`~ batch + condition`). Running `removeBatchEffect`/ComBat and then testing on the corrected matrix exaggerates confidence (Nygaard 2016); the corrected matrix is for visualization/clustering/ML input only.
+
+## Pipeline map
 
 ```
-FASTQ files
-    |
-    v
-[1. QC & Trimming] -----> fastp
-    |
-    v
-[2. Quantification] ----> Salmon (recommended) or STAR + featureCounts
-    |
-    v
-[3. Import to R] -------> tximport (for Salmon) or direct counts
-    |
-    v
-[4. DE Analysis] -------> DESeq2
-    |
-    v
-[5. Visualization] -----> Volcano, MA, heatmaps
-    |
-    v
-Significant gene list
+FASTQ (paired)
+  | [1] QC & trim ----------------> fastp              (read-qc/fastp-workflow)
+  v
+  | [2] Quantify -----------------> salmon (decoy-aware)   (rna-quantification/alignment-free-quant)
+  v     |   OR  STAR + featureCounts (need a BAM?)         (read-alignment/star-alignment)
+  v     ^-- commitment: reference RELEASE + tx/GTF pair, gene-ID namespace
+  | [3] Import & collapse tx->gene -> tximport         (rna-quantification/tximport-workflow)
+  v     ^-- carries the length offset; NEVER sum NumReads
+  | [4] Pre-DE QC ----------------> PCA / dispersion / outliers  (rna-quantification/count-matrix-qc)
+  v
+  | [5] DE test ------------------> DESeq2 | edgeR-QL | limma-voom  (differential-expression/deseq2-basics)
+  v     ^-- RAW counts in; batch in the design, not corrected-then-tested
+  | [6] Shrink & extract ---------> lfcShrink(apeglm); pull Wald `stat` for ranking  (differential-expression/de-results)
+  v
+  | [7] Visualize ----------------> VST heatmap/PCA, volcano  (differential-expression/de-visualization)
+  v
+Annotated DE table (ENSG + symbol + biotype, log2FC, stat, pvalue, padj, baseMean)
 ```
 
-## Primary Path: Salmon + DESeq2
+## Reference, IDs, and quantification target: the made-once commitments
 
-### Step 1: Quality Control with fastp
+Decided before the first `salmon quant`; everything downstream inherits them. Mechanism lives in the component skills; the reasoning below is what a reviewer expects justified.
+
+| Commitment | Options | Consequence inherited downstream |
+|------------|---------|----------------------------------|
+| Reference release | One Ensembl/GENCODE release for BOTH the transcriptome FASTA (index) and the GTF (tx2gene / featureCounts) | Any mismatch silently drops renamed transcripts; fixes DE row names and the pathway-DB key space |
+| Gene-ID namespace | ENSG backbone (convert to symbol/Entrez only at reporting) | Symbol space is lossy (aliases, many-ENSG-one-symbol merges genes); stripping the ENSG `.version` with `\..*` also destroys the GENCODE `_PAR_Y` tag, collapsing chrY-PAR onto chrX (rna-quantification/tximport-workflow) |
+| Quantification target | Gene-level DGE (`countsFromAbundance="no"`, offset carried) vs transcript-level DTU | DTU needs a DIFFERENT import (`txOut=TRUE` + `dtuScaledTPM`); switching later is a re-import, not a filter — see workflows/splicing-pipeline |
+| 3'-tagged vs full-length | 3'-tagged (QuantSeq/bulk-10x): `countsFromAbundance="no"`, no length offset | Length-bias correction does not apply to 3'-tagged libraries |
+
+## The canonical order and why
+
+Each step assumes the previous; two reorderings silently produce wrong results.
+
+1. **QC/trim before quantification** — adapter/quality tails corrupt pseudo-mapping and duplicate structure.
+2. **Quantify to the committed reference** — Salmon decoy-aware (genome as decoy) so intron/pseudogene reads are not misassigned to transcripts; STAR only when a genome BAM is also needed downstream.
+3. **Import via tximport** — the tx->gene collapse happens HERE, carrying the length offset (order-trap: summing `NumReads` biases genes under isoform shift).
+4. **Pre-filter low-count genes** (`rowSums(counts) >= 10`) — this is a speed/memory step, NOT the FDR filter. Order-trap: it does not replace the baseMean independent filtering that `results()` applies at the FDR step; `filterByExpr(y, design)` (edgeR) is the design-aware version and must run once BEFORE dispersion, never after.
+5. **DESeq()** on raw counts with batch in the design — size factors, dispersion, Wald/LRT.
+6. **results() then lfcShrink()** — independent filtering happens inside `results()` on baseMean; shrink LFC for effect sizes/ranking, but p-values stay from the unshrunken test. Order-trap: apeglm/ashr objects DROP the `stat` column — pull the Wald `stat` from unshrunk `results()` if a signed ranking metric is needed for GSEA.
+7. **Visualize on VST** (heatmaps/PCA); volcano uses shrunken LFC + unshrunken p.
+
+## Choosing the quantifier and the DE engine
+
+Pipeline-level selection only; mechanism lives in the component skills.
+
+| Fork | Lean toward | Hand off to |
+|------|-------------|-------------|
+| Alignment-free (Salmon/kallisto) vs align-then-count (STAR+featureCounts) | Salmon for gene-level DGE (decoy-aware, GC/seq-bias correction, no BAM); STAR when a genome BAM is also needed (splicing, coverage, novel junctions, variants) | rna-quantification/alignment-free-quant, read-alignment/star-alignment |
+| DESeq2 vs edgeR-QL vs limma-voom | limma-voom when library sizes vary >3x or outliers dominate; edgeR-QL for tight finite-sample type-I control; DESeq2 for the apeglm/downstream ecosystem (70-90% top-gene overlap on well-designed data) | differential-expression/deseq2-basics, differential-expression/edger-basics |
+| `countsFromAbundance` | `no` (gene DGE via DESeqDataSetFromTximport) / `lengthScaledTPM` (DGE when the tool can't take offsets) / `dtuScaledTPM`+`txOut` (DTU) | rna-quantification/tximport-workflow |
+| Strandedness `-s` | Confirm, never assume: STAR `ReadsPerGene.out.tab` cols 3 vs 4, or RSeQC `infer_experiment.py`; dUTP/TruSeq is reverse (`-s 2`) | read-qc/rnaseq-qc |
+
+## Primary path: Salmon + tximport + DESeq2
+
+**Goal:** turn trimmed FASTQ into a shrunken, annotated gene-level DE table.
+
+**Approach:** build a decoy-aware index once, quantify each sample, collapse to genes via tximport (release-matched tx2gene), test raw counts with batch in the design, shrink for ranking. Full runnable script: `examples/salmon_deseq2_workflow.R`.
 
 ```bash
-# Single sample
-fastp -i sample_R1.fastq.gz -I sample_R2.fastq.gz \
-    -o sample_R1.trimmed.fq.gz -O sample_R2.trimmed.fq.gz \
-    --detect_adapter_for_pe \
-    --qualified_quality_phred 20 \
-    --length_required 35 \
-    --html sample_fastp.html
-
-# Batch processing
-for sample in sample1 sample2 sample3; do
-    fastp -i ${sample}_R1.fastq.gz -I ${sample}_R2.fastq.gz \
-        -o trimmed/${sample}_R1.fq.gz -O trimmed/${sample}_R2.fq.gz \
-        --detect_adapter_for_pe \
-        --html qc/${sample}_fastp.html
-done
-```
-
-**QC Checkpoint 1:** Check fastp reports
-- Q30 bases >80%
-- Adapter content <5%
-- Duplication rate reasonable for library type
-
-### Step 2: Salmon Quantification
-
-```bash
-# Build a DECOY-AWARE index (once); a transcriptome-only index misassigns intron/pseudogene reads
+# Index once: decoy-aware (genome as decoy) so intron/pseudogene reads are not misassigned
 grep "^>" genome.fa | cut -d " " -f 1 | sed 's/>//g' > decoys.txt
 cat transcriptome.fa genome.fa > gentrome.fa
 salmon index -t gentrome.fa -d decoys.txt -i salmon_index -k 31 -p 8
 
-# Quantify each sample (selective alignment is the default since Salmon 1.0.0;
-# the historical --validateMappings flag is now a no-op)
-for sample in sample1 sample2 sample3; do
-    salmon quant -i salmon_index \
-        -l A \
-        -1 trimmed/${sample}_R1.fq.gz \
-        -2 trimmed/${sample}_R2.fq.gz \
-        -o quants/${sample} \
-        --gcBias \
-        --seqBias \
-        -p 8
-done
+# Quantify (selective alignment is default since 1.0; --gcBias/--seqBias correct known biases)
+salmon quant -i salmon_index -l A -1 trimmed/${s}_R1.fq.gz -2 trimmed/${s}_R2.fq.gz \
+    -o quants/${s} --gcBias --seqBias -p 8
 ```
 
-**QC Checkpoint 2:** Check Salmon logs
-- Mapping rate >70%
-- >10 million reads mapped
-
-### Step 3: Import with tximport
-
 ```r
-library(tximport)
-library(DESeq2)
-
-# Create tx2gene mapping (Ensembl example)
-tx2gene <- read.csv('tx2gene.csv')  # columns: TXNAME, GENEID
-
-# List quantification files
-samples <- c('sample1', 'sample2', 'sample3', 'sample4', 'sample5', 'sample6')
-files <- file.path('quants', samples, 'quant.sf')
-names(files) <- samples
-
-# Import transcript-level estimates
-txi <- tximport(files, type = 'salmon', tx2gene = tx2gene)
-
-# Create sample metadata
-coldata <- data.frame(
-    condition = factor(c('control', 'control', 'control', 'treated', 'treated', 'treated')),
-    row.names = samples
-)
-```
-
-### Step 4: DESeq2 Analysis
-
-```r
-# Create DESeqDataSet from tximport
-dds <- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ condition)
-
-# Pre-filter low count genes
-keep <- rowSums(counts(dds)) >= 10
-dds <- dds[keep,]
-
-# Set reference level
+library(tximport); library(DESeq2)
+# tx2gene MUST come from the same release as the index (else renamed transcripts drop silently)
+txi <- tximport(files, type = 'salmon', tx2gene = tx2gene, ignoreTxVersion = TRUE)
+dds <- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ batch + condition)  # batch in design
+dds <- dds[rowSums(counts(dds)) >= 10, ]              # speed filter, NOT the FDR filter
 dds$condition <- relevel(dds$condition, ref = 'control')
-
-# Run DESeq2
-dds <- DESeq(dds)
-
-# Get results with shrinkage
-res <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')
-
-# Summary
-summary(res)
+dds <- DESeq(dds)                                     # RAW counts in
+res <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')  # ranking/effect size
+# For GSEA ranking, pull the Wald stat from the UNSHRUNK results (apeglm drops `stat`):
+res_stat <- results(dds, name = 'condition_treated_vs_control')$stat
 ```
 
-**QC Checkpoint 3:** Check DESeq2 diagnostics
-- Dispersion plot shows expected trend
-- PCA separates conditions
-- No severe outliers in sample distances
+## Alternative path: STAR + featureCounts + DESeq2
 
-### Step 5: Visualization and Export
+**Goal:** produce a genome BAM (reused by splicing/coverage/variant steps) alongside gene counts.
 
-```r
-library(ggplot2)
-library(pheatmap)
-library(ggrepel)
-
-# Volcano plot
-res_df <- as.data.frame(res)
-res_df$gene <- rownames(res_df)
-res_df$significant <- res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 1
-
-ggplot(res_df, aes(x = log2FoldChange, y = -log10(pvalue), color = significant)) +
-    geom_point(alpha = 0.5) +
-    scale_color_manual(values = c('grey', 'red')) +
-    theme_minimal() +
-    labs(title = 'Volcano Plot', x = 'Log2 Fold Change', y = '-Log10 P-value')
-
-# Heatmap of top genes
-vsd <- vst(dds, blind = FALSE)
-top_genes <- head(order(res$padj), 50)
-pheatmap(assay(vsd)[top_genes,], scale = 'row', show_rownames = FALSE)
-
-# Export significant genes
-sig_genes <- subset(res, padj < 0.05 & abs(log2FoldChange) > 1)
-write.csv(as.data.frame(sig_genes), 'significant_genes.csv')
-```
-
-## Alternative Path: STAR + featureCounts + DESeq2
-
-### Step 2 Alternative: STAR Alignment
-
-Set `--sjdbOverhang` to read length - 1 (149 for 2x150 reads), not a blanket 100 (read-alignment/star-alignment). `--quantMode GeneCounts` also reveals strandedness: sum columns 3 vs 4 of ReadsPerGene.out.tab to pick the featureCounts `-s` value (col 4 dominant = reverse = `-s 2`, the dUTP/TruSeq case).
+**Approach:** align with `--sjdbOverhang` = readlen-1, count with the verified strandedness, then `DESeqDataSetFromMatrix`. Full script: `examples/star_deseq2_workflow.sh`.
 
 ```bash
-# Build STAR index (once); sjdbOverhang = read length - 1
-STAR --runMode genomeGenerate \
-    --genomeDir star_index \
-    --genomeFastaFiles genome.fa \
-    --sjdbGTFfile genes.gtf \
-    --sjdbOverhang 149 \
-    --runThreadN 8
-
-# Align each sample
-for sample in sample1 sample2 sample3; do
-    STAR --genomeDir star_index \
-        --readFilesIn trimmed/${sample}_R1.fq.gz trimmed/${sample}_R2.fq.gz \
-        --readFilesCommand zcat \
-        --outFileNamePrefix aligned/${sample}_ \
-        --outSAMtype BAM SortedByCoordinate \
-        --quantMode GeneCounts \
-        --runThreadN 8
-done
+STAR --runMode genomeGenerate --genomeDir star_index --genomeFastaFiles genome.fa \
+    --sjdbGTFfile genes.gtf --sjdbOverhang 149 --runThreadN 8   # 149 for 2x150, not a blanket 100
+STAR --genomeDir star_index --readFilesIn trimmed/${s}_R1.fq.gz trimmed/${s}_R2.fq.gz \
+    --readFilesCommand zcat --outSAMtype BAM SortedByCoordinate --quantMode GeneCounts \
+    --outFileNamePrefix aligned/${s}_ --runThreadN 8
+# -s from ReadsPerGene.out.tab cols 3 vs 4 (or infer_experiment.py); -s 2 = dUTP/TruSeq reverse
+featureCounts -T 8 -p --countReadPairs -s 2 -a genes.gtf -o counts.txt aligned/*_Aligned.sortedByCoord.out.bam
 ```
-
-### Step 3 Alternative: featureCounts
-
-```bash
-# Count reads per gene. Set -s to the library strandedness (verify from STAR ReadsPerGene.out.tab
-# columns 3 vs 4, or RSeQC infer_experiment.py); -s 2 is the dUTP/TruSeq default below.
-featureCounts -T 8 -p --countReadPairs \
-    -s 2 \
-    -a genes.gtf \
-    -o counts.txt \
-    aligned/*_Aligned.sortedByCoord.out.bam
-```
-
-### Step 4 Alternative: Load Counts Directly
 
 ```r
-# Load featureCounts output
-counts <- read.table('counts.txt', header = TRUE, row.names = 1, skip = 1)
-counts <- counts[, 6:ncol(counts)]  # Remove annotation columns
-colnames(counts) <- gsub('_Aligned.sortedByCoord.out.bam', '', colnames(counts))
-
-# Create DESeqDataSet directly
-dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~ condition)
+counts <- read.table('counts.txt', header = TRUE, row.names = 1, skip = 1)[, -(1:5)]
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~ batch + condition)
 ```
 
-## Parameter Recommendations
+## QC checkpoints between steps
 
-| Step | Parameter | Recommendation |
-|------|-----------|----------------|
-| fastp | --qualified_quality_phred | 20 (standard) |
-| fastp | --length_required | 35 for 2x100, 50 for 2x150 |
-| Salmon | -l | A (auto-detect library type) |
-| Salmon | --gcBias | Enable for better accuracy |
-| STAR | --sjdbOverhang | read_length - 1 |
-| featureCounts | -s | 0=unstranded, 1=stranded, 2=reversely stranded |
-| DESeq2 | lfcShrink type | apeglm (recommended) |
-| DESeq2 | alpha | 0.05 (standard significance) |
+| After | Gate | Interpretation |
+|-------|------|----------------|
+| QC/trim | Q30 >80%, adapter <5% | RNA has a lower quality floor than DNA; sharp Q30 drop = degraded input |
+| Quant/align | Mapping >70%, >10M reads mapped; flat gene-body coverage; low rRNA%/intronic% | 3' bias = degradation/oligo-dT; high intronic = pre-mRNA/gDNA; high intergenic = gDNA/annotation gap — all compromise DE BEFORE it runs (read-qc/rnaseq-qc) |
+| Import | tx2gene release == index release; few transcripts dropped; report the ID-conversion rate (<0.85 => wrong ID type or organism) | Mismatched release silently loses renamed transcripts |
+| Pre-DE | Dispersion trend sane; PCA separates condition not batch; no Cook's outliers | PCA clustering by batch => batch dominates; add it to the design (rna-quantification/count-matrix-qc) |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| Low mapping rate (<50%) | Wrong reference, contamination | Check species, run FastQ Screen |
-| High duplication | Low complexity library, over-sequencing | Check library prep, may be normal for low-input |
-| No DE genes | Low power, batch effects | Add replicates, include batch in design |
-| All genes DE | Normalization issue, sample swap | Check sample metadata, rerun normalization |
-| Outlier samples | Technical failure, sample swap | Remove or investigate, check PCA |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Many genes missing / low tx conversion | Salmon index and tx2gene from different releases | Rebuild both from ONE release; pin it for the whole cohort |
+| Gene counts biased where isoforms switch | Summed Salmon `NumReads` instead of importing | Collapse via tximport (carries the length offset) |
+| "invalid class DESeqDataSet" or nonsense LFCs | TPM/VST fed into DESeq2 | Raw counts (or `lengthScaledTPM`) only; VST is for viz/ML |
+| Counts collapsed / library looks failed | Wrong featureCounts `-s` strandedness | Infer with `infer_experiment.py` or STAR cols 3 vs 4 before counting |
+| Suspiciously many DE genes, tiny p-values | Batch-corrected matrix fed to the test | Keep batch in the design; correct only for visualization |
+| `lfcShrink` error / wrong contrast | `coef` not in `resultsNames(dds)`, or ranking off the shrunk object | Use a `resultsNames` coefficient; pull `stat` from unshrunk `results()` |
 
-## Complete Bash Pipeline Script
+## Pipeline map (hand-offs)
 
-```bash
-#!/bin/bash
-set -e
+- read-qc/fastp-workflow - adapter/quality trimming and report interpretation
+- rna-quantification/alignment-free-quant - Salmon/kallisto decoy-aware quantification
+- read-alignment/star-alignment - STAR index/sjdbOverhang, 2-pass, GeneCounts strandedness
+- rna-quantification/tximport-workflow - tx->gene collapse, countsFromAbundance, tx2gene, ID-version traps
+- rna-quantification/count-matrix-qc - pre-DE PCA, dispersion, Cook's outliers, batch checks
+- differential-expression/deseq2-basics - the DESeq2 model, design, contrasts
+- differential-expression/de-results - extracting/annotating results and the signed ranking statistic
+- differential-expression/de-visualization - volcano/MA/heatmap on the right scale
 
-THREADS=8
-SAMPLES="sample1 sample2 sample3 sample4 sample5 sample6"
-SALMON_INDEX="salmon_index"
-OUTDIR="results"
-
-mkdir -p ${OUTDIR}/{trimmed,quants,qc}
-
-# Step 1: QC and trim
-for sample in $SAMPLES; do
-    fastp -i ${sample}_R1.fastq.gz -I ${sample}_R2.fastq.gz \
-        -o ${OUTDIR}/trimmed/${sample}_R1.fq.gz \
-        -O ${OUTDIR}/trimmed/${sample}_R2.fq.gz \
-        --detect_adapter_for_pe \
-        --html ${OUTDIR}/qc/${sample}_fastp.html \
-        -w ${THREADS}
-done
-
-# Step 2: Quantify
-for sample in $SAMPLES; do
-    salmon quant -i ${SALMON_INDEX} -l A \
-        -1 ${OUTDIR}/trimmed/${sample}_R1.fq.gz \
-        -2 ${OUTDIR}/trimmed/${sample}_R2.fq.gz \
-        -o ${OUTDIR}/quants/${sample} \
-        --gcBias --seqBias -p ${THREADS}
-done
-
-echo "Quantification complete. Run R script for DE analysis."
-```
-
-## Complete R Analysis Script
-
-```r
-library(tximport)
-library(DESeq2)
-library(apeglm)
-library(ggplot2)
-library(pheatmap)
-
-# Configuration
-samples <- c('sample1', 'sample2', 'sample3', 'sample4', 'sample5', 'sample6')
-conditions <- c('control', 'control', 'control', 'treated', 'treated', 'treated')
-quant_dir <- 'results/quants'
-
-# Import
-tx2gene <- read.csv('tx2gene.csv')
-files <- file.path(quant_dir, samples, 'quant.sf')
-names(files) <- samples
-txi <- tximport(files, type = 'salmon', tx2gene = tx2gene)
-
-# DESeq2
-coldata <- data.frame(condition = factor(conditions), row.names = samples)
-dds <- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ condition)
-dds <- dds[rowSums(counts(dds)) >= 10,]
-dds$condition <- relevel(dds$condition, ref = 'control')
-dds <- DESeq(dds)
-
-# Results
-res <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')
-sig <- subset(res, padj < 0.05 & abs(log2FoldChange) > 1)
-
-cat('Significant genes:', nrow(sig), '\n')
-write.csv(as.data.frame(sig), 'significant_genes.csv')
-```
+The complete runnable scripts for both paths are in this skill's examples/ (`salmon_deseq2_workflow.R`, `star_deseq2_workflow.sh`).
 
 ## Related Skills
 
 - database-access/geo-data - Find a GSE on GEO, detect SuperSeries, link to SRA
 - database-access/sra-data - Download paired-end FASTQ from SRA / ENA / STRIDES cloud
+- sequence-io/fastq-quality - Confirm the FASTQ quality encoding before trimming public or pre-2011 data
+- sequence-io/paired-end-fastq - Keep R1/R2 mates synchronized; independent per-mate filtering desyncs pairs
 - read-qc/fastp-workflow - Detailed QC options and parameters
-- sequence-io/fastq-quality - Confirm the FASTQ quality encoding (Phred+33 vs legacy Phred+64/Solexa) before trimming public or pre-2011 data
-- sequence-io/paired-end-fastq - Keep R1/R2 mates synchronized; independent per-mate filtering silently desyncs pairs and corrupts quantification
-- read-alignment/star-alignment - STAR index/sjdbOverhang, two-pass, GeneCounts strandedness (the align path)
+- read-qc/rnaseq-qc - Post-alignment RNA QC: strandedness, gene-body coverage, rRNA/intronic
+- read-alignment/star-alignment - The align path (BAM for splicing/coverage/variants)
 - rna-quantification/alignment-free-quant - Salmon and kallisto details
 - rna-quantification/tximport-workflow - tximport options, countsFromAbundance, tx2gene creation
-- rna-quantification/count-matrix-qc - Pre-DE QC: normalization, PCA, Cook's outliers, batch checks
-- alternative-splicing/isoform-switching - Transcript-level DTE/DTU (swish) when gene-level is not enough
+- rna-quantification/count-matrix-qc - Pre-DE QC and diagnostics
 - differential-expression/deseq2-basics - Complete DESeq2 reference
+- differential-expression/de-results - Results extraction, annotation, ranking statistic
 - differential-expression/de-visualization - Advanced visualization options
-- pathway-analysis/go-enrichment - Next step: functional enrichment
+- alternative-splicing/isoform-switching - Transcript-level DTU when gene-level is not enough (splicing fork)
+- pathway-analysis/go-enrichment - Next step: functional enrichment (workflows/expression-to-pathways)
+
+## References
+
+- Soneson C, Love MI, Robinson MD (2015) Differential analyses for RNA-seq: transcript-level estimates improve gene-level inferences. *F1000Research* 4:1521. DOI 10.12688/f1000research.7563.1. (tximport; the tx->gene length-offset seam.)
+- Love MI, Huber W, Anders S (2014) Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. *Genome Biology* 15:550. DOI 10.1186/s13059-014-0550-8.
+- Patro R, Duggal G, Love MI, Irizarry RA, Kingsford C (2017) Salmon provides fast and bias-aware quantification of transcript expression. *Nature Methods* 14:417-419. DOI 10.1038/nmeth.4197.
+- Nygaard V, Rødland EA, Hovig E (2016) Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* 17:29-39. DOI 10.1093/biostatistics/kxv027. (batch belongs in the design.)
+- Ewels PA, Peltzer A, Fillinger S, et al (2020) The nf-core framework for community-curated bioinformatics pipelines. *Nature Biotechnology* 38:276-278. DOI 10.1038/s41587-020-0439-x. (nf-core/rnaseq: the reproducible reference orchestration.)

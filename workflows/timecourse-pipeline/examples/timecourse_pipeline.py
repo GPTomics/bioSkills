@@ -57,10 +57,12 @@ workdir = tempfile.mkdtemp(prefix='timecourse_')
 
 # --- Step 1: temporal DE (F-test of a spline model vs intercept) ---
 spline_basis = dmatrix('bs(time, df=3)', data=meta, return_type='dataframe')  # df=3 cubic; 4-5 for >10 timepoints
-design_full = np.column_stack([np.ones(len(meta)), spline_basis.values])
+# patsy already includes an Intercept column; do NOT prepend another np.ones (duplicate intercept
+# inflates model df and miscalibrates the F-test -> wrong temporal-DE FDR). Use the basis directly.
+design_full = spline_basis.values                          # [Intercept, bs1, bs2, bs3] = 4 cols
 design_reduced = np.ones((len(meta), 1))
-df_diff = design_full.shape[1] - design_reduced.shape[1]
-df_resid = len(meta) - design_full.shape[1]
+df_diff = design_full.shape[1] - design_reduced.shape[1]   # 4 - 1 = 3
+df_resid = len(meta) - design_full.shape[1]                # n - 4
 
 pvals = []
 for gene in expr.index:

@@ -19,9 +19,11 @@ The dominant failure mode is the nearest-gene assumption: roughly 30-50% of fine
 Install:
 
 ```bash
-# MAGMA: pre-compiled binary
-wget https://ctg.cncr.nl/software/MAGMA/prog/magma_v1.10.zip
-unzip magma_v1.10.zip
+# MAGMA ships as a pre-compiled zip, not a git repo. Download it manually from the official CNCR page
+# (https://cncr.nl/research/magma/) -- the old ctg.cncr.nl and vu.data.surfsara.nl direct links now
+# redirect to an HTML landing page, so a hard-coded wget would save that page AS the zip and unzip
+# would fail. Once the real zip is in the working directory, unzip it (filename tracks the version):
+unzip magma_v*.zip
 
 # PoPS
 git clone https://github.com/FinucaneLab/pops

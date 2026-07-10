@@ -127,10 +127,12 @@ expr = pd.read_csv('counts_normalized.csv', index_col=0)
 meta = pd.read_csv('metadata.csv')
 
 spline_basis = dmatrix('bs(time, df=3)', data=meta, return_type='dataframe')
-design_full = np.column_stack([np.ones(len(meta)), spline_basis.values])
+# patsy already includes an Intercept column; do NOT prepend another np.ones (that duplicates the
+# intercept, inflates model df, and miscalibrates the F-test -> wrong temporal-DE FDR). Use it directly.
+design_full = spline_basis.values                          # [Intercept, bs1, bs2, bs3] = 4 cols
 design_reduced = np.ones((len(meta), 1))
-df_diff = design_full.shape[1] - design_reduced.shape[1]
-df_resid = len(meta) - design_full.shape[1]
+df_diff = design_full.shape[1] - design_reduced.shape[1]   # 4 - 1 = 3
+df_resid = len(meta) - design_full.shape[1]                # n - 4
 
 pvals = []
 for gene in expr.index:
@@ -229,7 +231,7 @@ message(sprintf('Mean silhouette: %.3f', mean(sil[, 3])))
 
 Hard precondition (all must hold), a design gate, not a soft aside:
 - **>=2 full cycles** of the target period (48h+ for a 24h circadian rhythm). One cycle cannot distinguish an oscillation from a monotone trend or a single transient bump.
-- **>=6-8 samples per cycle at roughly even spacing** (2-4h for circadian). Nyquist's 2/cycle is a mathematical floor with zero robustness to noise, no phase, no amplitude, no waveform shape (Hughes 2017 *J Biol Rhythms* 32:380).
+- **>=6-8 samples per cycle at roughly even spacing** (a lenient practical convention; Hughes 2017 recommends denser -- every 2h / >=12 per cycle -- and calls 4h intervals underpowered). Nyquist's 2/cycle is a mathematical floor with zero robustness to noise, no phase, no amplitude, no waveform shape.
 - **Collection order randomized.** Harvest/collection order aliases directly onto circadian time: any drift (reagent lot, RIN, lane) is perfectly confounded with the rhythm axis and CANNOT be removed analytically. The only fix is design (randomize processing order).
 
 Even when the gate passes, a rhythm found under a light-dark (LD) cycle may be light/feeding-DRIVEN masking, not endogenous clock output: diurnal != circadian. Endogeneity requires persistence under constant conditions (constant darkness, DD). Report ZT for entrained (LD) data, CT for free-running (DD) data.
@@ -253,14 +255,14 @@ else:
 ```r
 library(MetaCycle)
 expr_for_meta <- expr_sig
-colnames(expr_for_meta) <- meta$time_hours
+colnames(expr_for_meta) <- meta$time
 write.csv(expr_for_meta, 'expr_for_metacycle.csv')
 
 # Circadian search window 20-28h; ARS/JTK require EVEN integer sampling and drop out silently
 # (analysisStrategy='auto') on uneven/replicated data, leaving LS only.
 meta2d('expr_for_metacycle.csv', filestyle = 'csv',
        minper = 20, maxper = 28,
-       timepoints = sort(unique(meta$time_hours)),
+       timepoints = sort(unique(meta$time)),
        outdir = 'metacycle_results')
 # Filter on meta2d_BH.Q (BH FDR) AND meta2d_rAMP (relative amplitude); significance alone over-detects.
 ```
@@ -415,7 +417,7 @@ if (clusters_with_terms < 3) message('WARNING: Few clusters enriched. Check gene
 
 ## References
 
-- Hughes ME, Abruzzi KC, Allada R, et al. 2017. Guidelines for Genome-Scale Analysis of Biological Rhythms. *J Biol Rhythms* 32(5):380-393. doi:10.1177/0748730417728663. (Sampling-design gate: >=2 cycles, >=6-8 samples/cycle, replicate and randomization advice.)
+- Hughes ME, Abruzzi KC, Allada R, et al. 2017. Guidelines for Genome-Scale Analysis of Biological Rhythms. *J Biol Rhythms* 32(5):380-393. doi:10.1177/0748730417728663. (Recommends >=2 cycles and dense sampling -- at least every 2 h / >=12 timepoints per cycle, explicitly calling 4 h intervals underpowered -- plus biological replicates. The lenient 6-8/cycle floor used above is a stated practical convention, denser is better.)
 - Wu G, Anafi RC, Hughes ME, Kornacker K, Hogenesch JB. 2016. MetaCycle: an integrated R package to evaluate periodicity in large scale data. *Bioinformatics* 32(21):3351-3353. doi:10.1093/bioinformatics/btw405. (meta2d integrating ARS/JTK/LS; output columns.)
 - Moškon M. 2020. CosinorPy: a python package for cosinor-based rhythmometry. *BMC Bioinformatics* 21(1):485. doi:10.1186/s12859-020-03830-w. (fit_group / cosinor rhythmometry.)
 - Futschik ME, Carlisle B. 2005. Noise-robust soft clustering of gene expression time-course data. *J Bioinform Comput Biol* 3(4):965-988. doi:10.1142/S0219720005001375. (Fuzzy c-means noise-robustness rationale for Mfuzz.)

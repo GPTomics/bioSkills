@@ -1,7 +1,7 @@
 # WikiPathways Enrichment - Usage Guide
 
 ## Overview
-WikiPathways is an open, community-curated pathway database (CC0 license, ~30+ species, no formal peer review) built on a wiki model. This skill runs over-representation analysis (`enrichWP`) and GSEA (`gseWP`) against it with clusterProfiler, and uses rWikiPathways to query the database and pin a dated GMT. The load-bearing point: a WikiPathways result is a snapshot of a live, monthly-updated database - the same code returns different results months apart unless a dated release is pinned. WikiPathways is a complement to KEGG/Reactome, not a sole source.
+WikiPathways is an open, community-curated pathway database (CC0 license, ~30+ species, no formal peer review) built on a wiki model. This skill runs over-representation analysis (`enrichWP`) and GSEA (`gseWP`) against it with clusterProfiler, and uses rWikiPathways to query the database and pin a dated GMT. The point that governs reproducibility: a WikiPathways result is a snapshot of a live, monthly-updated database - the same code returns different results months apart unless a dated release is pinned. WikiPathways is a complement to KEGG/Reactome, not a sole source.
 
 ## Prerequisites
 ```r

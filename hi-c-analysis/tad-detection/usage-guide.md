@@ -2,7 +2,7 @@
 
 ## Overview
 
-This skill calls topologically associating domain (TAD) boundaries from balanced Hi-C contact matrices using the diamond-window insulation score (cooltools `insulation`) and the multi-window TAD-separation score (HiCExplorer `hicFindTADs`). The load-bearing idea is that the boundary, not the domain, is the reproducible unit: a population TAD is the ensemble average over stochastic, cell-specific domains (Bintu 2018), and TAD number/size vary 2-5x across caller, resolution, and normalization with no ground truth (Forcato 2017; Zufferey 2018). The skill therefore favors the continuous boundary-strength track over hard domain partitions, runs a list of window sizes (the window is the scale dial), and compares conditions on the differential SCORE rather than by intersecting unstable domain calls.
+This skill calls topologically associating domain (TAD) boundaries from balanced Hi-C contact matrices using the diamond-window insulation score (cooltools `insulation`) and the multi-window TAD-separation score (HiCExplorer `hicFindTADs`). The key idea is that the boundary, not the domain, is the reproducible unit: a population TAD is the ensemble average over stochastic, cell-specific domains (Bintu 2018), and TAD number/size vary 2-5x across caller, resolution, and normalization with no ground truth (Forcato 2017; Zufferey 2018). The skill therefore favors the continuous boundary-strength track over hard domain partitions, runs a list of window sizes (the window is the scale dial), and compares conditions on the differential SCORE rather than by intersecting unstable domain calls.
 
 ## Prerequisites
 

@@ -23,6 +23,17 @@ If code throws unexpected errors, introspect the installed tool and adapt the ex
 
 **"Analyze my CLIP-seq data from raw FASTQ to ENCODE-compliant binding sites"** -> Orchestrate protocol-specific UMI extraction, 3'-only adapter trimming (preserving the R2 5' truncation = crosslink site -1), ENCODE STAR alignment, UMI-based deduplication, library complexity QC, peak calling against SMInput with stringent thresholds (log2 FC >= 3 AND -log10 p >= 3), single-nucleotide crosslink-site detection, ChIPseeker annotation with CLIP-appropriate `tssRegion`, motif discovery with GC-matched background and CL-position registration, and optional differential binding between conditions.
 
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+A CLIP callset is decided at four seams, not inside the peak caller.
+
+1. **The protocol variant is the master commitment made once at the top.** It fixes the UMI pattern, the STAR mismatch ceiling, and the crosslink signal (truncation vs PAR-CLIP T->C vs STAMP C->U edit). The CLIP Variant Selection table below is that decision; everything downstream inherits it.
+2. **Every IP is normalized against its SMInput with ENCODE-stringent thresholds (log2 FC >= 3 AND -log10 p >= 3).** Peaks called without SMInput normalization are enrichment-uncontrolled and dominated by abundance.
+3. **The R2 5' end IS the crosslink site (-1), so preprocessing and alignment must PRESERVE it.** Trim 3'-only and permissively (`-q 6`, never `-g` on R1), and align with STAR `--alignEndsType EndToEnd` — soft-clipping or aggressive 5' trimming destroys the truncation base and with it single-nucleotide resolution.
+4. **40-70% PCR duplication is BY DESIGN; low duplication signals a FAILED IP, not a clean library.** The IP enriches a small molecule pool, so the real quality metric is the UNIQUE-fragment count after UMI dedup — never the raw duplication rate.
+
 ## Pipeline Overview
 
 ```
@@ -30,7 +41,7 @@ FASTQ + SMInput
   -> [clip-preprocessing]    UMI extract + 3' adapter trim (-q 6 -m 18) + two-pass for eCLIP
   -> [clip-alignment]        STAR ENCODE block (alignEndsType EndToEnd, mismatch 0.04 or 0.07 for PAR-CLIP) + UMI dedup
   -> [clip-qc]               preseq, FRiP, IDR rescue + self-consistency, read distribution
-  -> [clip-peak-calling]     CLIPper + SMInput log2 norm (stringent: log2 FC >= 3, -log10 p >= 3) OR Skipper (210-320% more sites)
+  -> [clip-peak-calling]     CLIPper + SMInput log2 norm (stringent: log2 FC >= 3, -log10 p >= 3) OR Skipper (substantially more sites)
   -> [crosslink-site-detection] PureCLIP or CTK CITS for single-nt CL positions
   -> [binding-site-annotation] ChIPseeker (tssRegion=c(-100,100), level=transcript) + RBP-Maps for splicing factors
   -> [clip-motif-analysis]   HOMER + mCross (registered) + RBNS Kd cross-check
@@ -163,12 +174,11 @@ CLIP libraries have 40-70% PCR duplication BY DESIGN (the IP enriches a small mo
 # CLIPper (ENCODE canonical) + SMInput log2 normalization
 clipper \
     -b sample_dedup.bam \
-    -s hg38 \
+    -s GRCh38 \
     -o peaks/sample.clipper.bed \
     --FDR 0.05 \
-    --superlocal \
     --save-pickle \
-    --processors 8
+    --processors 8   # super-local p-values are hard-coded ON in current CLIPper; the --superlocal flag was removed
 
 # ENCODE stringent: log2(IP/SMInput) >= 3 AND -log10 p >= 3
 # (Yeo lab eclip-pipeline scripts implement the normalization; see clip-seq/clip-peak-calling)
@@ -186,13 +196,14 @@ python compress_l2foldenrpeakfi_for_replicate_overlapping_bedformat.py \
 awk 'BEGIN{FS=OFS="\t"} $5 >= 3 && $6 >= 3' peaks/sample.compressed.bed > peaks/sample.stringent.bed
 ```
 
-For maximum sensitivity (210-320% more sites than CLIPper for mRNA-binding RBPs), use Skipper Snakemake workflow with the same SMInput control. Mandatory for FASTKD2 / mt-RBPs which CLIPper misses on chrM. See clip-seq/clip-peak-calling for the full caller taxonomy.
+For maximum sensitivity (substantially more sites than CLIPper for mRNA-binding RBPs), use the Skipper Snakemake workflow with the same SMInput control. Mandatory for FASTKD2 / mt-RBPs which CLIPper misses on chrM. See clip-seq/clip-peak-calling for the full caller taxonomy.
 
 ## Step 6: Single-Nucleotide Crosslink-Site Detection
 
 ```bash
-# PureCLIP: HMM jointly modeling enrichment + truncation + CL motif
-# Restrict to expressed transcripts to avoid HMM convergence issues
+# PureCLIP: HMM jointly modeling enrichment + truncation + CL motif.
+# -iv learns HMM parameters on a CHROMOSOME SUBSET (semicolon-delimited) to cut memory/runtime
+# (per PureCLIP docs); it is NOT a BED. To limit the callset to expressed regions, pre-filter the input BAM.
 pureclip \
     -i sample_dedup.bam -bai sample_dedup.bam.bai \
     -g genome.fa \
@@ -200,7 +211,7 @@ pureclip \
     -o crosslinks/sample.sites.bed \
     -or crosslinks/sample.regions.bed \
     -nt 8 -dm 8 \
-    -iv expressed_tx.bed
+    -iv 'chr1;chr2;chr3;'
 ```
 
 Single-nt CL sites feed mCross motif registration and allele-specific binding analyses. They are NOT a replacement for the broad peak list; complementary outputs. See clip-seq/crosslink-site-detection.
@@ -259,8 +270,10 @@ bedtools getfasta -fi genome.fa -bed motifs/background.bed -s -fo motifs/backgro
 findMotifs.pl motifs/peaks.fa fasta motifs/homer \
     -rna -len 5,6,7,8 -p 8 -fasta motifs/background.fa
 
-# mCross for CL-position-registered motif (requires single-nt CL sites)
-mCross -i crosslinks/sample.sites.bed -g genome.fa -k 7 -n 5 -o motifs/mcross
+# mCross for CL-position-registered motif. mCross.pl takes a POSITIONAL FASTA of sequences
+# pre-extracted/registered around the CL sites and an output stem (not a BED + genome + -i/-g/-k/-o):
+#   bedtools slop -i crosslinks/sample.sites.bed -g genome.sizes -b 10 | bedtools getfasta -fi genome.fa -bed - -s > motifs/peakseqs.fa
+mCross.pl motifs/peakseqs.fa motifs/mcross   # see clip-seq/clip-motif-analysis for options
 ```
 
 UV254 crosslinking has a strong U bias (~60-80% CL events at U); naive logos centered on CL positions are U-enriched even for non-U-binding RBPs. mCross corrects this by registering motif relative to the CL offset. See clip-seq/clip-motif-analysis.
@@ -274,15 +287,16 @@ UV254 crosslinking has a strong U bias (~60-80% CL events at U); naive logos cen
 library(DEWSeq)
 counts <- read.table('counts/merged.tsv', sep='\t', header=TRUE, row.names=1)
 colData <- data.frame(
-    type = c('ip','ip','ip','ip','sminput','sminput','sminput','sminput'),
-    condition = c('treat','treat','ctrl','ctrl','treat','treat','ctrl','ctrl')
+    type = relevel(factor(c('ip','ip','ip','ip','sminput','sminput','sminput','sminput')), ref='sminput'),
+    condition = relevel(factor(c('treat','treat','ctrl','ctrl','treat','treat','ctrl','ctrl')), ref='ctrl')
 )
 dds <- DESeqDataSetFromSlidingWindows(
     countData=counts, colData=colData,
-    annotObj='annotation_windows.bed',
+    annotObj='annotation.txt',   # htseq-clip TAB annotation table (named columns), NOT a plain BED
     design = ~ type + condition + type:condition
 )
 dds <- DESeq(dds)
+# with sminput/ctrl as the references, the interaction coefficient is typeip.conditiontreat
 res <- results(dds, name='typeip.conditiontreat')
 ```
 
@@ -312,6 +326,25 @@ See clip-seq/differential-clip for full DEWSeq workflow and the htseq-clip prepr
 - **Antibody unavailable:** Switch to clip-seq/stamp-antibody-free (STAMP or TRIBE)
 - **miRNA targets:** Switch to clip-seq/ago-clip-mirna-targets (chimeric eCLIP / miR-eCLIP)
 - **Variant-effect prediction:** Use clip-seq/clip-deep-learning (RBPNet or RNAProt)
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Peaks everywhere, dominated by abundant transcripts | No SMInput normalization | Normalize IP against SMInput; keep log2 FC >= 3 AND -log10 p >= 3 |
+| Single-nucleotide resolution lost | Soft-clipping or aggressive 5' trim destroyed the R2 truncation base | STAR `--alignEndsType EndToEnd`; 3'-only `-q 6` trim; never `-g` on R1 |
+| PAR-CLIP T->C signal missing | Mismatch ceiling 0.04 filtered the transitions as error | Raise `--outFilterMismatchNoverReadLmax` to 0.07 |
+| "Low-complexity" library discarded | Judged on raw duplication (40-70% is normal for CLIP) | Use the unique-fragment count after UMI dedup as the quality metric |
+| Motif logo is all-U even for a non-U-binding RBP | Naive CL-centered logo + UV U-bias | mCross CL-registered motif + GC-matched (not shuffled) background |
+| 30-50% of peaks labeled "Promoter" | Default `tssRegion=c(-3000,3000)` over-extends for CLIP | Tight `tssRegion=c(-100,100)`, `level='transcript'` |
+| Differential binding confounded with expression | `~ condition` design | `~ type + condition + type:condition` interaction (DEWSeq) |
+
+## References
+
+- Van Nostrand EL, Pratt GA, Shishkin AA, et al (2016) Robust transcriptome-wide discovery of RNA-binding protein binding sites with enhanced CLIP (eCLIP). *Nature Methods* 13:508-514. DOI 10.1038/nmeth.3810.
+- Van Nostrand EL, Freese P, Pratt GA, et al (2020) A large-scale binding and functional map of human RNA-binding proteins. *Nature* 583:711-719. DOI 10.1038/s41586-020-2077-3. (ENCODE RBP; SMInput + IDR practice.)
+- Krakau S, Richard H, Marsico A (2017) PureCLIP: capturing target-specific protein-RNA interaction footprints from single-nucleotide CLIP-seq data. *Genome Biology* 18:240. DOI 10.1186/s13059-017-1364-2.
+- Li Q, Brown JB, Huang H, Bickel PJ (2011) Measuring reproducibility of high-throughput experiments. *Annals of Applied Statistics* 5:1752-1779. DOI 10.1214/11-AOAS466. (IDR.)
 
 ## Related Skills
 

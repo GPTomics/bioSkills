@@ -2,7 +2,7 @@
 
 ## Overview
 
-This skill computes evolutionary distance matrices from sequence alignments and builds fast distance-based trees (NJ, BIONJ, FastME, UPGMA), with bootstrap support and a saturation pre-flight. The load-bearing idea: a distance is a model-corrected estimate of expected substitutions per site, the correction is where the biology lives, and the matrix discards the per-site information ML uses, so distance trees are fast and scalable but only as good as the correction, and structurally weaker than ML on hard, homoplasy-rich data. Two flat rules drive most decisions: never use UPGMA for molecular phylogeny without an established clock, and never call Biopython's `identity` distance a Jukes-Cantor tree (it is uncorrected; use ape `dist.dna` or FastME for a real correction).
+This skill computes evolutionary distance matrices from sequence alignments and builds fast distance-based trees (NJ, BIONJ, FastME, UPGMA), with bootstrap support and a saturation pre-flight. The idea everything hinges on: a distance is a model-corrected estimate of expected substitutions per site, the correction is where the biology lives, and the matrix discards the per-site information ML uses, so distance trees are fast and scalable but only as good as the correction, and structurally weaker than ML on hard, homoplasy-rich data. Two flat rules drive most decisions: never use UPGMA for molecular phylogeny without an established clock, and never call Biopython's `identity` distance a Jukes-Cantor tree (it is uncorrected; use ape `dist.dna` or FastME for a real correction).
 
 ## Prerequisites
 

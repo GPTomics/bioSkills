@@ -2,7 +2,7 @@
 
 ## Overview
 
-This skill loads spatial transcriptomics data from imaging/in-situ platforms (Xenium, MERSCOPE/MERFISH, CosMx) and sequencing/capture platforms (Visium, Visium HD, Slide-seq/Curio, Stereo-seq) into AnnData or SpatialData objects. It centers on the load-bearing I/O decision: imaging platforms emit two distinct primary objects -- a per-transcript molecule table (the re-segmentable source of truth) and a segmentation-derived per-cell matrix (quality-filtered, inherits all segmentation error) -- while capture platforms emit only a spot/bin matrix with no molecule table. It also covers picking the right reader per platform and keeping coordinate frames (pixel vs micron) registered to histology.
+This skill loads spatial transcriptomics data from imaging/in-situ platforms (Xenium, MERSCOPE/MERFISH, CosMx) and sequencing/capture platforms (Visium, Visium HD, Slide-seq/Curio, Stereo-seq) into AnnData or SpatialData objects. It centers on the I/O decision that governs everything downstream: imaging platforms emit two distinct primary objects -- a per-transcript molecule table (the re-segmentable source of truth) and a segmentation-derived per-cell matrix (quality-filtered, inherits all segmentation error) -- while capture platforms emit only a spot/bin matrix with no molecule table. It also covers picking the right reader per platform and keeping coordinate frames (pixel vs micron) registered to histology.
 
 ## Prerequisites
 

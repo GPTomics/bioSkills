@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0+, eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+ | Verify API if version differs
+# Reference: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0.4+, eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+ | Verify API if version differs
 # Complete prokaryotic genome annotation pipeline with Bakta
 set -e
 
@@ -10,16 +10,20 @@ LOCUS_TAG="MYORG"
 THREADS=8
 OUTDIR="bakta_annotation"
 
-mkdir -p $OUTDIR qc_reports
+mkdir -p qc_reports    # NOT $OUTDIR: bakta exits if its --output dir already exists (unless --force)
 
 echo "Step 1: Assembly QC"
 # QUAST: basic assembly statistics
 quast $GENOME -o qc_reports/quast --threads $THREADS
 
 # BUSCO: genome completeness (bacteria_odb10 for bacteria)
-busco -i $GENOME -l bacteria_odb10 -o qc_reports/busco_assembly -m genome --cpu $THREADS
+busco -i $GENOME -l bacteria_odb10 -o busco_assembly --out_path qc_reports -m genome --cpu $THREADS
 
-echo "CHECK: Verify BUSCO completeness > 95% and N50 > 50 kbp before proceeding"
+# CheckM2: the NON-NEGOTIABLE contamination gate before prokaryotic annotation. BUSCO does not
+# measure contamination; >5% contam mixes two organisms' genes into one chimeric annotation.
+checkm2 predict --input $GENOME --output-directory qc_reports/checkm2 --threads $THREADS
+
+echo "CHECK: CheckM2 contamination < 5% AND completeness > 90% (and BUSCO/N50) before proceeding"
 
 echo "Step 2: Bakta annotation"
 bakta \
@@ -28,9 +32,11 @@ bakta \
     --prefix $PREFIX \
     --locus-tag $LOCUS_TAG \
     --gram - \
-    --complete \
+    --translation-table 11 \
     --threads $THREADS \
     $GENOME
+# --translation-table 11 for most bacteria; 4 for Mycoplasma/Spiroplasma (UGA = Trp) from
+# the GTDB-Tk classification. Add --complete ONLY for finished replicons, not draft contigs.
 
 echo "Step 3: Annotation QC"
 # Count features from GFF3
@@ -61,7 +67,7 @@ if [ "$TRNA_COUNT" -lt 20 ]; then
 fi
 
 echo "Step 4: BUSCO on predicted proteins"
-busco -i $OUTDIR/${PREFIX}.faa -l bacteria_odb10 -o qc_reports/busco_proteins -m protein --cpu $THREADS
+busco -i $OUTDIR/${PREFIX}.faa -l bacteria_odb10 -o busco_proteins --out_path qc_reports -m proteins --cpu $THREADS
 
 echo ""
 echo "Pipeline complete!"

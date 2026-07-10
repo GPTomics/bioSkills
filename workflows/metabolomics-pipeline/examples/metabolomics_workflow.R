@@ -17,7 +17,7 @@
 # xdata <- adjustRtime(xdata, param = ObiwarpParam(binSize = 0.6))
 # pdp <- PeakDensityParam(sampleGroups = sampleData(xdata)$sample_group,
 #                         bw = 5, minFraction = 0.5, binSize = 0.025)
-# xdata <- groupChromPeaks(xdata, param = pdp)          # regroup on corrected RT
+# xdata <- groupChromPeaks(xdata, param = pdp)          # group on corrected RT (obiwarp needs no pre-grouping)
 # xdata <- fillChromPeaks(xdata, param = ChromPeakAreaParam())
 # feat <- featureValues(xdata, value = 'into')          # features x samples; filled cells are imputations
 # defs <- featureDefinitions(xdata)                     # mzmed / rtmed per feature
@@ -32,7 +32,6 @@ n_per_group <- 12
 n_qc <- 6
 sample_names <- c(paste0('QC', 1:n_qc), paste0('Ctrl', 1:n_per_group), paste0('Trt', 1:n_per_group))
 sample_group <- c(rep('QC', n_qc), rep('Control', n_per_group), rep('Treatment', n_per_group))
-injection_order <- seq_along(sample_names)
 batch_id <- rep(1, length(sample_names))
 
 base_intensity <- 2^runif(n_features, 8, 20)
@@ -42,11 +41,21 @@ qc_noise <- matrix(rlnorm(n_features * n_qc, 0, 0.05), nrow = n_features)
 bio_noise <- matrix(rlnorm(n_features * (2 * n_per_group), 0, 0.20), nrow = n_features)
 feat <- base_intensity * cbind(qc_noise, bio_noise)
 
-# Inject a true Treatment effect into 20 features (2-fold up), the signal the pipeline must recover.
+# Inject a true Treatment effect into 20 features (3-fold up -> log2FC ~1.6), clearly ABOVE the
+# |log2FC|>1 significance cutoff so recovery measures sensitivity, not cutoff-boundary collision.
 true_hits <- 1:20
-feat[true_hits, sample_group == 'Treatment'] <- feat[true_hits, sample_group == 'Treatment'] * 2
+feat[true_hits, sample_group == 'Treatment'] <- feat[true_hits, sample_group == 'Treatment'] * 3
 
-# Inject injection-order drift (sensitivity loss) that Stage 2 must flatten without eating the effect.
+# BLOCK-RANDOMIZE run order: study samples get interleaved random run positions so group is NOT
+# collinear with injection order/drift -- the "original sin" (commitment #3) an ordered layout bakes in.
+# (Defined here, after the noise draws, so it does not perturb the RNG stream above.)
+study_idx <- which(sample_group != 'QC')
+injection_order <- integer(length(sample_names))
+injection_order[sample_group == 'QC'] <- seq_len(n_qc)                       # QCs condition the column first
+injection_order[study_idx] <- n_qc + sample(seq_along(study_idx))            # then Control/Treatment in random order
+
+# Inject injection-order drift (uniform per-sample sensitivity loss); PQN in Stage 2 removes this
+# uniform per-column scaling -- but only because order is randomized, not confounded with group.
 drift <- 1 - 0.3 * (injection_order / max(injection_order))
 feat <- sweep(feat, 2, drift, '*')
 

@@ -68,11 +68,17 @@ pp4 <- res$summary['PP.H4.abf']
 pp3 <- res$summary['PP.H3.abf']
 cat(sprintf('\nPP.H4 = %.3f | PP.H3 = %.3f\n', pp4, pp3))
 
-if (pp4 >= 0.9)       cat('Stringent threshold passed (>= 0.90)\n')
-else if (pp4 >= 0.80) cat('Published-grade threshold passed (>= 0.80)\n')
-else if (pp4 >= 0.75) cat('Open Targets / screening threshold passed (>= 0.75)\n')
-else if (pp4 >= 0.50) cat('Suggestive only; recommend coloc.susie or larger N\n')
-else                  cat('Below threshold; report H0/H1/H2/H3 dominance instead\n')
+if (pp4 >= 0.9) {
+    cat('Stringent threshold passed (>= 0.90)\n')
+} else if (pp4 >= 0.80) {
+    cat('Published-grade threshold passed (>= 0.80)\n')
+} else if (pp4 >= 0.75) {
+    cat('Open Targets / screening threshold passed (>= 0.75)\n')
+} else if (pp4 >= 0.50) {
+    cat('Suggestive only; recommend coloc.susie or larger N\n')
+} else {
+    cat('Below threshold; report H0/H1/H2/H3 dominance instead\n')
+}
 
 ## p12 sensitivity is non-negotiable per Wallace 2020
 ## Identifies the lowest p12 at which PP.H4 still passes 0.75

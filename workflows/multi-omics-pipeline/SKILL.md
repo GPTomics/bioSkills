@@ -1,14 +1,21 @@
 ---
 name: bio-workflows-multi-omics-pipeline
-description: End-to-end multi-omics integration workflow. Orchestrates data harmonization, MOFA/mixOmics integration, factor interpretation, and downstream analysis across transcriptomics, proteomics, metabolomics, and other modalities. Use when integrating multiple omics datasets.
+description: Orchestrates VERTICAL bulk multi-omics integration (RNA + protein + methylation on the SAME samples) from harmonization to a validated result, routing to MOFA2 (shared factors), mixOmics/DIABLO (predictive signature), or SNF (patient subtypes). Use when confirming the correspondence is vertical (not horizontal same-features-different-cohorts), joining on a stable sample primary key rather than cbind on assumed row order, normalizing each omic in its OWN space and equalizing block variance BEFORE stacking (or the widest omic hijacks every shared factor), correcting batch ONCE in one place, and validating in a HELD-OUT cohort because in-cohort CV at n<<p is optimistically biased. Hands mechanism to the multi-omics-integration component skills; not a re-teach of any single step.
 tool_type: r
 primary_tool: MOFA2
 workflow: true
 depends_on:
+  - multi-omics-integration/integration-design
   - multi-omics-integration/data-harmonization
   - multi-omics-integration/mofa-integration
   - multi-omics-integration/mixomics-analysis
   - multi-omics-integration/similarity-network
+qc_checkpoints:
+  - after_harmonization: "Sample overlap >80% across blocks; join on a stable primary key (MAE sampleMap / MuData obs), never cbind on row order"
+  - after_per_block_norm: "Each omic normalized in its OWN space (VST/M-values/log2+MNAR/CLR); missingness per modality <20%"
+  - after_scaling: "Per-VIEW variance equalized (scale_views) BEFORE stacking; no single view's feature count dominates"
+  - after_integration: "Per-(factor,view) R2 balanced; drop factors <1-2% R2 in ALL views; no single view dominates every factor"
+  - after_validation: "Held-out cohort (not in-cohort CV, biased at n<<p); batch correlated with every factor; batch corrected ONCE"
 ---
 
 ## Version Compatibility
@@ -26,6 +33,25 @@ package and adapt the example to match the actual API rather than retrying.
 **"Integrate my multi-omics datasets"** -> Decide the strategy first, then orchestrate harmonization, the chosen integration method (MOFA2, mixOmics, or SNF), interpretation, and validation - because bulk multi-omics is small-n, huge-p, so an unvalidated integrated result is the default noise outcome.
 
 Before any tool runs, settle the design with multi-omics-integration/integration-design: confirm the data is vertical (different omics on the SAME samples, not the same features across cohorts), map the question to a method (shared factors -> MOFA2, predictive signature -> DIABLO, patient subtypes -> SNF), and plan a held-out cohort because in-cohort cross-validation at small n is optimistically biased. Inspect the per-view variance-explained table to confirm no single omic dominates the shared structure.
+
+## The governing principle
+
+Bulk multi-omics is small-n, huge-p, so an UNVALIDATED integrated result is the DEFAULT noise outcome, not the exception. Every honesty decision is made at a seam before the integrator runs.
+
+1. **The sample-matching key must be VERTICAL, and joined on a stable primary key.** Vertical = different features, SAME samples (what this category is FOR); horizontal (same features, different cohorts) is meta-analysis/batch, a different problem — conflating them is the deepest category error. The shared latent factor is indexed by SAMPLE, so establish the subject primary key ONCE and externalize it (MAE `sampleMap` / consistent MuData `obs_names`); NEVER `cbind`/`pd.concat` on assumed row order (silently mis-pairs subjects). Gene SYMBOLS are display labels, not join keys (MARCH1->MARCHF1, Excel corruption) — join on stable Ensembl IDs.
+2. **Each omic is normalized in its OWN space FIRST, then block variance is equalized BEFORE stacking.** A shared-latent integrator decomposes total variance and assumes each feature is ~continuous/Gaussian; the non-negotiable per-omic transforms (RNA-seq -> VST/logCPM never raw counts; methylation -> M-values; prot/metab -> log2 + MNAR-aware; microbiome -> CLR) come first, then per-VIEW scaling (MOFA `scale_views=TRUE`) equalizes each block's CONTRIBUTION. Variance is additive across features, so a block with more features (850k CpGs vs 100 metabolites) casts more votes and hijacks the shared space regardless of biological importance. Both failures are silent.
+3. **No factor/subtype/signature is credible until it reproduces in a HELD-OUT cohort.** In-cohort CV at n<<p is optimistically biased (tuning feature selection on the full data then reporting same-data CV inflates AUC by up to ~0.15); the gold standard is an external test set or fully nested CV. Spurious cross-omic correlation is the DEFAULT at p>>n. Batch is corrected ONCE, in ONE place (ComBat each omic AND modeling batch downstream removes it twice and over-shrinks real biology).
+
+**The single best honesty check:** if every shared factor is dominated by one view, the pipeline did not integrate — it re-discovered the biggest omic.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Correspondence axis (VERTICAL, not horizontal) | Whether the integrator's math has anything to align on; conflating the two is the deepest category error |
+| Sample primary key (externalized in MAE/MuData) | Correct subject-to-assay linkage; cbind-on-row-order silently mis-pairs subjects |
+| Per-block normalization + per-view variance scaling | Whether the widest omic hijacks every factor; done before stacking, never after |
+| Validation plan (held-out cohort) | Whether any factor/signature is credible; in-cohort CV at n<<p is optimistically biased |
 
 ## Pipeline Overview
 
@@ -351,6 +377,27 @@ mofa <- create_mofa_from_df(data_long)
 
 ### Single-cell Multi-omics
 Single-cell multimodal data (CITE-seq, 10x Multiome) is a different paradigm - per-cell generative models with abundant observations rather than the bulk small-n regime. Route it to single-cell/multimodal-integration rather than applying this bulk pipeline.
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Integrated result on mislabeled subjects (both axes have plausible lengths) | `cbind`/`pd.concat` on assumed sample order | Enforce sample linkage via a container (MAE `sampleMap` / MuData `intersect_obs`); assert shape after every cross-language hop |
+| One view dominates every factor | Block scale/feature-count imbalance (850k CpGs vs 100 metabolites) | Per-VIEW scaling (`scale_views=TRUE`), NOT per-feature; filter larger views harder; check per-(factor,view) R2 |
+| A near-constant noise feature blown up to variance 1 | Per-feature scaling (`scale=TRUE` in mixOmics) | Aggressive low-variance filtering BEFORE scaling; prefer per-view scaling |
+| A "biological" factor that is really batch | Technical variance not regressed out | Correlate every factor with technical covariates (run date, plate, site); exclude a factor tracking batch more than biology |
+| AUC inflated by up to ~0.15 | In-cohort CV with feature selection outside the folds | CV must WRAP selection (nested); gold standard is an external test set (`predict()`/`auroc()`) |
+| Batch removed twice, real biology over-shrunk | ComBat each omic AND batch in the downstream model | Correct batch ONCE: pre-correct and do not re-enter, OR leave raw and model batch as a covariate |
+| Transposed matrices make every gene a "sample" | Bioconductor (samples=cols) vs mixOmics/MOFA (samples=rows) mismatch | Transpose deliberately + assert shape on every cross-package hop |
+
+## References
+
+- Argelaguet R, Velten B, Arnol D, et al (2018) Multi-Omics Factor Analysis - a framework for unsupervised integration of multi-omics data sets. *Molecular Systems Biology* 14:e8124. DOI 10.15252/msb.20178124. (MOFA.)
+- Rohart F, Gautier B, Singh A, Le Cao KA (2017) mixOmics: an R package for 'omics feature selection and multiple data integration. *PLoS Computational Biology* 13:e1005752. DOI 10.1371/journal.pcbi.1005752.
+- Singh A, Shannon CP, Gautier B, et al (2019) DIABLO: an integrative approach for identifying key molecular drivers from multi-omics assays. *Bioinformatics* 35:3055-3062. DOI 10.1093/bioinformatics/bty1054.
+- Wang B, Mezlini AM, Demir F, et al (2014) Similarity network fusion for aggregating data types on a genomic scale. *Nature Methods* 11:333-337. DOI 10.1038/nmeth.2810. (SNF.)
+- Rappoport N, Shamir R (2018) Multi-omic and multi-view clustering algorithms: review and cancer benchmark. *Nucleic Acids Research* 46:10546-10562. DOI 10.1093/nar/gky889. (integration is not automatically better than the best single omic.)
+- Nygaard V, Rodland EA, Hovig E (2016) Methods that remove batch effects while retaining group differences may lead to exaggerated confidence in downstream analyses. *Biostatistics* 17:29-39. DOI 10.1093/biostatistics/kxv027.
 
 ## Related Skills
 

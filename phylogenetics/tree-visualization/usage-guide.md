@@ -4,7 +4,7 @@
 
 This skill draws, styles, annotates, and exports phylogenetic tree figures, and chooses the drawing tool. The central idea is that a tree figure is an argument, not a neutral picture: a Newick or Nexus file fixes only the topology and (optionally) branch lengths and one node label, while the layout geometry, node ordering, root placement, and which support value is shown are all supplied by whoever draws the tree. The same file can be rendered to tell mutually contradictory but technically correct stories. Four choices dominate: cladogram vs phylogram vs chronogram (what the lengths mean), ladderization (which manufactures a false arrow of progress), root placement (which decides what is "basal"), and support display (a bare integer is the quietest lie because bootstrap, posterior, SH-aLRT, and UFBoot are different scales).
 
-A second load-bearing point is that the drawing tool is decided by the I/O layer, not the surrounding language: BEAST/MrBayes HPD intervals and posteriors plot cleanly only through treeio plus ggtree, because Bio.Phylo flattens the tree to topology plus one label and silently drops the uncertainty that was the result.
+A second decisive point is that the drawing tool is decided by the I/O layer, not the surrounding language: BEAST/MrBayes HPD intervals and posteriors plot cleanly only through treeio plus ggtree, because Bio.Phylo flattens the tree to topology plus one label and silently drops the uncertainty that was the result.
 
 ## Prerequisites
 

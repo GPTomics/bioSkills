@@ -2,7 +2,7 @@
 
 ## Overview
 
-Annotation attaches functional consequences, population frequencies, and pathogenicity evidence to variants. The load-bearing idea is that a consequence is not a property of the variant but of the tuple (variant, transcript model, engine, engine version, parameters): VEP, SnpEff, and ANNOVAR disagree, and so do RefSeq, Ensembl, and MANE. The job is not to find the one right tool but to PIN every axis (build, transcript set, engine+version, predictor, gnomAD version) and record it. This guide covers the bcftools annotate/csq mechanics plus the transcript, predictor, and frequency decisions that determine what an annotation means.
+Annotation attaches functional consequences, population frequencies, and pathogenicity evidence to variants. The organizing idea is that a consequence is not a property of the variant but of the tuple (variant, transcript model, engine, engine version, parameters): VEP, SnpEff, and ANNOVAR disagree, and so do RefSeq, Ensembl, and MANE. The job is not to find the one right tool but to PIN every axis (build, transcript set, engine+version, predictor, gnomAD version) and record it. This guide covers the bcftools annotate/csq mechanics plus the transcript, predictor, and frequency decisions that determine what an annotation means.
 
 ## Prerequisites
 

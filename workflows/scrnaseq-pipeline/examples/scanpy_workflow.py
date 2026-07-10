@@ -35,9 +35,10 @@ adata.var['mt'] = adata.var_names.str.startswith('MT-')
 adata.var['ribo'] = adata.var_names.str.startswith(('RPS', 'RPL'))
 sc.pp.calculate_qc_metrics(adata, qc_vars=['mt', 'ribo'], percent_top=None, log1p=False, inplace=True)
 
-# QC plots
+# QC plots (one violin per axis; sc.pl.violin takes a single Axes, not an array)
 fig, axes = plt.subplots(1, 4, figsize=(16, 4))
-sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'], jitter=0.4, ax=axes[:3], show=False)
+for a, key in zip(axes[:3], ['n_genes_by_counts', 'total_counts', 'pct_counts_mt']):
+    sc.pl.violin(adata, key, jitter=0.4, ax=a, show=False)
 sc.pl.scatter(adata, x='total_counts', y='n_genes_by_counts', color='pct_counts_mt', ax=axes[3], show=False)
 plt.savefig(f'{output_dir}/plots/qc_metrics.pdf')
 plt.close()
@@ -51,7 +52,9 @@ print(f'After QC: {adata.n_obs} cells')
 
 # === Step 3: Doublet Detection ===
 print('Detecting doublets...')
-sc.pp.scrublet(adata)
+# Expected rate from recovered cells (~0.8% per 1,000), not the 0.05 placeholder default
+expected_rate = 0.008 * adata.n_obs / 1000
+sc.pp.scrublet(adata, expected_doublet_rate=expected_rate)
 doublet_rate = adata.obs['predicted_doublet'].sum() / len(adata)
 print(f'Doublet rate: {doublet_rate:.1%}')
 
@@ -68,8 +71,8 @@ sc.pp.log1p(adata)
 sc.pp.highly_variable_genes(adata, n_top_genes=2000)
 print(f'Highly variable genes: {adata.var.highly_variable.sum()}')
 
-fig, ax = plt.subplots(figsize=(8, 6))
-sc.pl.highly_variable_genes(adata, ax=ax, show=False)
+# sc.pl.highly_variable_genes has no ax= param; let scanpy manage the figure, then save.
+sc.pl.highly_variable_genes(adata, show=False)
 plt.savefig(f'{output_dir}/plots/hvgs.pdf')
 plt.close()
 
@@ -80,9 +83,8 @@ adata = adata[:, adata.var.highly_variable]
 sc.pp.scale(adata, max_value=10)
 sc.tl.pca(adata, n_comps=50)
 
-# Elbow plot
-fig, ax = plt.subplots(figsize=(6, 4))
-sc.pl.pca_variance_ratio(adata, n_pcs=50, ax=ax, show=False)
+# Elbow plot (pca_variance_ratio has no ax= param)
+sc.pl.pca_variance_ratio(adata, n_pcs=50, show=False)
 plt.savefig(f'{output_dir}/plots/elbow.pdf')
 plt.close()
 
@@ -93,8 +95,10 @@ sc.tl.umap(adata)
 
 # === Step 6: Clustering ===
 print('Clustering...')
-for res in [0.2, 0.4, 0.6, 0.8, 1.0]:
-    sc.tl.leiden(adata, resolution=res, key_added=f'leiden_{res}')
+# Pin flavor='igraph' for reproducibility (scanpy 1.10 default flips to igraph)
+for res in [0.2, 0.4, 0.5, 0.6, 0.8, 1.0]:
+    sc.tl.leiden(adata, resolution=res, key_added=f'leiden_{res}',
+                 flavor='igraph', n_iterations=2, directed=False)
 
 # UMAP plots
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
@@ -112,9 +116,8 @@ print(f'Clusters (res=0.5): {adata.obs["leiden"].nunique()}')
 print('Finding marker genes...')
 sc.tl.rank_genes_groups(adata, 'leiden', method='wilcoxon')
 
-# Plot markers
-fig, ax = plt.subplots(figsize=(12, 8))
-sc.pl.rank_genes_groups(adata, n_genes=10, sharey=False, ax=ax, show=False)
+# Plot markers (rank_genes_groups draws its own per-group panel grid; a pre-made ax would sit empty behind it)
+sc.pl.rank_genes_groups(adata, n_genes=10, sharey=False, show=False)
 plt.savefig(f'{output_dir}/plots/markers.pdf')
 plt.close()
 
@@ -126,12 +129,11 @@ markers.to_csv(f'{output_dir}/all_markers.csv', index=False)
 top_markers = markers.groupby('group').head(10)
 top_markers.to_csv(f'{output_dir}/top10_markers.csv', index=False)
 
-# Heatmap
+# Heatmap: sc.pl.heatmap builds its own multi-axis gridspec, so it takes NO ax= (unlike violin);
+# pass show=False + save= and let scanpy write it.
 top_genes = markers.groupby('group').head(5)['names'].tolist()
-fig, ax = plt.subplots(figsize=(12, 10))
-sc.pl.heatmap(adata, var_names=top_genes[:50], groupby='leiden', ax=ax, show=False)
-plt.savefig(f'{output_dir}/plots/marker_heatmap.pdf')
-plt.close()
+sc.pl.heatmap(adata, var_names=top_genes[:50], groupby='leiden', show=False,
+              save='_marker_heatmap.pdf')   # writes figures/heatmap_marker_heatmap.pdf
 
 # === Step 8: Save Results ===
 print('Saving results...')

@@ -1,4 +1,4 @@
-# Reference: ggplot2 3.5+ | Verify API if version differs
+# Reference: Seurat 5.1+, Signac 1.14+, EnsDb.Hsapiens.v86, BSgenome.Hsapiens.UCSC.hg38, ggplot2 3.5+ | Verify API if version differs
 # Complete 10X Multiome workflow with Seurat and Signac
 
 library(Seurat)
@@ -21,11 +21,11 @@ counts <- Read10X_h5(file.path(data_dir, 'filtered_feature_bc_matrix.h5'))
 frags_path <- file.path(data_dir, 'atac_fragments.tsv.gz')
 
 # Create Seurat object with RNA
+# Do NOT filter cells here: min.features would drop RNA barcodes, then adding the full ATAC assay
+# fails ("Cannot add a different number of cells"). Defer all cell filtering to the QC subset step.
 seurat_obj <- CreateSeuratObject(
     counts = counts$`Gene Expression`,
-    assay = 'RNA',
-    min.cells = 3,
-    min.features = 200
+    assay = 'RNA'
 )
 
 # Get annotations

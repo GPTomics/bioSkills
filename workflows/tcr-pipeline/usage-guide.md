@@ -2,7 +2,7 @@
 
 ## Overview
 
-This workflow takes immune-repertoire sequencing from FASTQ to clonotypes and downstream metrics, but it is a router rather than a fixed line. A repertoire measurement is a depth- and chemistry-confounded sample of an unevenly-expanded clonal population, so the correct pipeline depends on two forks: bulk versus single-cell, and TCR versus BCR. Bulk libraries give deep but unpaired chains and route to MiXCR then depth-normalized VDJtools/immunarch diversity and overlap; single-cell 10x data gives native chain pairing and routes to scirpy for gene-expression integration. TCR uses exact CDR3-nucleotide + V + J clonotypes, but BCR undergoes somatic hypermutation, so exact clonotypes are wrong and BCR must route to Immcantation for data-derived clonal clustering, germline reconstruction, SHM, and lineage trees. Two rules gate every valid result: MiXCR 4.x needs an activated license and a chemistry-matched preset, and diversity or overlap must be compared only after downsampling samples to a common depth.
+This workflow takes immune-repertoire sequencing from FASTQ to clonotypes and downstream metrics, but it is a router rather than a fixed line. A repertoire measurement is a depth- and chemistry-confounded sample of an unevenly-expanded clonal population, so the correct pipeline depends on two forks: bulk versus single-cell, and TCR versus BCR. Bulk libraries give deep but unpaired chains and route to MiXCR then depth-normalized `mixcr postanalysis` (or immunarch) diversity and overlap; single-cell 10x data gives native chain pairing and routes to scirpy for gene-expression integration. TCR uses exact CDR3-nucleotide + V + J clonotypes, but BCR undergoes somatic hypermutation, so exact clonotypes are wrong and BCR must route to Immcantation for data-derived clonal clustering, germline reconstruction, SHM, and lineage trees. Two rules gate every valid result: MiXCR 4.x needs an activated license and a chemistry-matched preset, and diversity or overlap must be compared only after downsampling samples to a common depth.
 
 ## Prerequisites
 
@@ -11,7 +11,8 @@ This workflow takes immune-repertoire sequencing from FASTQ to clonotypes and do
 conda install -c milaboratory mixcr
 mixcr activate-license                         # or export MI_LICENSE_FILE=/path/mi.license
 
-# VDJtools (Java) for bulk diversity/overlap; run RInstall once for plotting deps
+# VDJtools (Java): optional, for pre-4.x MiXCR or non-MiXCR inputs; run RInstall once for plotting deps.
+# It cannot parse raw MiXCR 4.x exportClones output -- prefer `mixcr postanalysis` there.
 conda install -c bioconda vdjtools
 
 # Immcantation (BCR clonal clustering, SHM, lineages) -- prefer the Docker suite image
@@ -55,7 +56,7 @@ Tell your AI agent what you want to do:
 1. Confirm the two forks (bulk vs single-cell, TCR vs BCR) and pick the MiXCR 4.x preset by chemistry.
 2. Activate the MiXCR license and run `mixcr analyze <preset>` to assemble clonotypes.
 3. Run MiXCR QC (alignment rate, chain usage) and report the correct abundance denominator (reads, UMIs, or cells).
-4. Export to VDJtools format (bulk) or AIRR TSV (BCR / single-cell).
+4. Export AIRR TSV (BCR / single-cell); for bulk metrics stay in MiXCR `postanalysis` (VDJtools cannot parse raw MiXCR 4.x exportClones output).
 5. Bulk TCR: downsample all samples to a common depth, then compute diversity and overlap.
 6. BCR: derive the clonal threshold from distToNearest, cluster clones, reconstruct germlines, quantify SHM, build lineages.
 7. Single-cell: run chain QC, define clonotypes, and integrate with the gene-expression AnnData.

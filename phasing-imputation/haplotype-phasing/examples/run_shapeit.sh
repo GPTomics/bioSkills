@@ -16,6 +16,7 @@ OUT=${OUT:-phasing_out}
 THREADS=${THREADS:-16}
 
 COMMON_MAF=0.001   # common/rare split: variants above this build the scaffold; rarer ones are phased onto it. SHAPEIT5 default boundary for the scaffold
+# shellcheck disable=SC2034  # surfaced as a tunable decision threshold for the agent, not consumed by a command here
 RARE_N_MIN=2000    # below this sample size the phase_rare step adds little (too few rare-allele carriers); phase_common alone suffices
 
 mkdir -p "${OUT}"

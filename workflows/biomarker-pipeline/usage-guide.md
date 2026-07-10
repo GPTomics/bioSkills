@@ -42,9 +42,17 @@ Tell your AI agent what you want to do:
 
 > "Train a classifier with leakage-safe cross-validation and export the model for external validation."
 
+### Pipeline-level decisions
+
+> "I have multiple biopsies/timepoints per patient - how do I split so I don't leak subjects?"
+
+> "My AUC is great in CV but collapses on an external cohort - what leaked?"
+
+> "The panel will output risk scores - do I need calibration on top of AUC?"
+
 ## What the Agent Will Do
 
-1. Load and prepare data with stratified train/test split
+1. Load and prepare data with a group- and class-aware split by subject (no subject in both train and test)
 2. Scale features (fit on training only to prevent leakage)
 3. Select features using Boruta or LASSO with stability selection
 4. Estimate performance with leakage-safe cross-validation (selection inside each fold)
@@ -57,6 +65,7 @@ Tell your AI agent what you want to do:
 - Start with at least 20 samples per class for reasonable statistical power
 - Use Boruta for comprehensive biomarker panels (finds all relevant features)
 - Use LASSO for minimal signatures (finds sparse feature sets)
+- Split by the SUBJECT (patient/donor/site), not the sample; repeated biopsies/timepoints from one subject in both train and test is group leakage a held-out set cannot detect
 - Keep feature selection inside the CV fold; selection-before-CV inflates AUC toward 1.0 even on noise
 - SHAP is an audit for batch/housekeeping shortcuts, not a check that it matches selection -- divergence under correlated features is expected
 - Pre-filter with differential expression if starting with >10k features

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Gates IMC/MIBI data quality across pixel, channel, image, slide, and batch levels before analysis. The load-bearing point: QC is multi-level and every metric is blind at some level -- per-image SNR cannot see the failures that actually kill experiments (a dead antibody, an unbalanced batch, cells clustering by slide rather than phenotype). Counts are Poisson, dim is not failed, and IMC has no EQ-bead drift normalizer, so the discipline is to drop bad channels/ROIs/slides before analysis, not normalize after.
+Gates IMC/MIBI data quality across pixel, channel, image, slide, and batch levels before analysis. The core point: QC is multi-level and every metric is blind at some level -- per-image SNR cannot see the failures that actually kill experiments (a dead antibody, an unbalanced batch, cells clustering by slide rather than phenotype). Counts are Poisson, dim is not failed, and IMC has no EQ-bead drift normalizer, so the discipline is to drop bad channels/ROIs/slides before analysis, not normalize after.
 
 ## Prerequisites
 

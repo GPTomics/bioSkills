@@ -146,9 +146,10 @@ The eCLIP design uses a size-matched input (SMInput) from the SAME lysate, treat
 # Same UV dose, same lysate aliquot, same RNase, same library prep
 # Critical: same SDS-PAGE size cut from membrane as the IP
 
-# Check SMInput vs IP enrichment globally
-# Whole-genome log2(IP_RPKM / SMInput_RPKM):
-# > 0.5 globally indicates IP enrichment of expressed transcripts (good)
+# Check SMInput vs IP enrichment. A ratio of whole-library totals only measures relative sequencing
+# depth; normalize the in-peak fraction in each library instead:
+#   log2( (IP_in_peaks/IP_total) / (SMI_in_peaks/SMI_total) )
+# > 0.5 indicates the IP concentrates reads into peaks beyond SMInput (good)
 # ~ 0 indicates failed IP (SMInput == IP)
 ```
 

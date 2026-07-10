@@ -2,7 +2,7 @@
 
 ## Overview
 
-Compares cell-type composition and spatial features across conditions in an IMC/MIBI cohort. The load-bearing point: the replicate is the patient, not the cell or the image -- testing at the cell level over millions of correlated cells manufactures significance, so every differential question follows one spine (per-image summary, aggregate to patient, test across patients), with cell-type proportions treated as compositional and acquisition batch as a covariate.
+Compares cell-type composition and spatial features across conditions in an IMC/MIBI cohort. The one rule that shapes every test here: the replicate is the patient, not the cell or the image -- testing at the cell level over millions of correlated cells manufactures significance, so every differential question follows one spine (per-image summary, aggregate to patient, test across patients), with cell-type proportions treated as compositional and acquisition batch as a covariate.
 
 ## Prerequisites
 

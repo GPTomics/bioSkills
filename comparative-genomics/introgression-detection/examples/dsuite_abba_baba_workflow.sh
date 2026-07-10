@@ -23,8 +23,6 @@ Dsuite Dtrios \
     "$VCF" \
     "$SETS_TSV"
 
-SETS_BASE=$(basename "$SETS_TSV" .tsv)
-
 echo "[2/4] Dsuite Fbranch - tree-aware admixture mapping"
 TREE_FILE="$OUTPUT_DIR/dsuite/trios_run_tree.txt"
 if [ -f "$TREE_FILE" ]; then

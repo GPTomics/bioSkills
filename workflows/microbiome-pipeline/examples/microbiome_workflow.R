@@ -25,7 +25,7 @@ min_boot <- 50             # assignTaxonomy bootstrap floor; ranks below it are 
 rare_depth <- 10000        # rarefaction depth on the alpha-rarefaction plateau; NOT min(sample_sums)
 prev_cut <- 0.10           # DA prevalence filter: a feature must appear in >=10% of samples (declared knob)
 mc_samples <- 128          # ALDEx2 Monte-Carlo draws; 256+ for publication
-effect_floor <- 1          # ALDEx2 |effect| floor; ~2 SD standardized effect (Gloor 2016), gate WITH q
+effect_floor <- 1          # ALDEx2 |effect| floor: between-group diff exceeds within-condition dispersion (Gloor 2016), gate WITH q
 
 dir.create(output_dir, showWarnings = FALSE)
 dir.create('trimmed', showWarnings = FALSE)
@@ -50,24 +50,50 @@ for (i in seq_along(fnFs_raw)) {
 metadata <- read.csv(metadata_file, row.names = 1)
 run_of <- if ('run_id' %in% colnames(metadata)) metadata[sample_names, 'run_id'] else rep('run1', length(sample_names))
 
+getN <- function(x) sum(getUniques(x))
+
 denoise_one_run <- function(run_samples) {
     filtFs <- file.path('filtered', paste0(run_samples, '_F_filt.fastq.gz'))
     filtRs <- file.path('filtered', paste0(run_samples, '_R_filt.fastq.gz'))
     names(filtFs) <- run_samples
     names(filtRs) <- run_samples
     idx <- match(run_samples, sample_names)
-    filterAndTrim(fnFs[idx], filtFs, fnRs[idx], filtRs, truncLen = trunc_len, maxEE = max_ee,
-                  truncQ = 2, maxN = 0, rm.phix = TRUE, compress = TRUE, multithread = TRUE)
+    # Capture the filterAndTrim return: it is the ONLY source of per-sample input/filtered counts,
+    # and without it the read-tracking checkpoint below cannot be computed.
+    out <- filterAndTrim(fnFs[idx], filtFs, fnRs[idx], filtRs, truncLen = trunc_len, maxEE = max_ee,
+                         truncQ = 2, maxN = 0, rm.phix = TRUE, compress = TRUE, multithread = TRUE)
     errF <- learnErrors(filtFs, multithread = TRUE)   # this run only
     errR <- learnErrors(filtRs, multithread = TRUE)
-    mergers <- mergePairs(dada(filtFs, err = errF, multithread = TRUE), filtFs,
-                          dada(filtRs, err = errR, multithread = TRUE), filtRs, verbose = TRUE)
-    makeSequenceTable(mergers)
+    dadaFs <- dada(filtFs, err = errF, multithread = TRUE)
+    dadaRs <- dada(filtRs, err = errR, multithread = TRUE)
+    mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose = TRUE)
+    # With ONE sample in a run, dada() returns a bare dada object and mergePairs() a bare data.frame,
+    # not lists -- sapply would then iterate their internal slots/columns. Handle that case separately.
+    getN_all <- function(x) if (length(run_samples) == 1) getN(x) else sapply(x, getN)
+    track <- cbind(out, getN_all(dadaFs), getN_all(dadaRs), getN_all(mergers))
+    colnames(track) <- c('input', 'filtered', 'denoisedF', 'denoisedR', 'merged')
+    rownames(track) <- run_samples
+    list(seqtab = makeSequenceTable(mergers), track = track)
 }
 
-run_tables <- lapply(unique(run_of), function(r) denoise_one_run(sample_names[run_of == r]))
+run_out <- lapply(unique(run_of), function(r) denoise_one_run(sample_names[run_of == r]))
+run_tables <- lapply(run_out, `[[`, 'seqtab')
 seqtab <- if (length(run_tables) > 1) do.call(mergeSequenceTables, run_tables) else run_tables[[1]]
 seqtab_nochim <- removeBimeraDenovo(seqtab, method = 'consensus', multithread = TRUE, verbose = TRUE)
+
+# Per-sample read tracking through filter -> denoise -> merge -> nonchim. An aggregate percentage
+# hides a per-sample merge cliff: a sample can retain 90% overall while losing most reads at merging
+# because truncLen left no overlap. Inspect the MERGED column per sample, not just the total.
+track <- do.call(rbind, lapply(run_out, `[[`, 'track'))
+track <- cbind(track, nonchim = rowSums(seqtab_nochim)[rownames(track)])
+print(track)
+# >20% loss at the merge step is the conventional cliff threshold: it almost always means truncLen
+# left <12 nt overlap (amplicon too long for the read pair), not a biological signal.
+merge_loss_pct <- 100 * (1 - track[, 'merged'] / track[, 'denoisedF'])
+if (any(merge_loss_pct > 20, na.rm = TRUE)) {
+    warning('Merge cliff in: ', paste(rownames(track)[merge_loss_pct > 20], collapse = ', '),
+            ' -- re-check truncLen leaves >=12 nt overlap plus biological length variation')
+}
 cat('ASVs after chimera removal:', ncol(seqtab_nochim),
     ' reads retained:', round(100 * sum(seqtab_nochim) / sum(seqtab), 1), '%\n')
 
@@ -124,10 +150,12 @@ if (!taxa_are_rows(ps_filt)) {
 }
 groups <- as.character(sample_data(ps_filt)$Group)
 
+# Multi-run study: carry run as a batch covariate. ANCOM-BC2 -> fix_formula = 'run_id + Group';
+# ALDEx2 cannot take a covariate via aldex() -- use aldex.clr() + aldex.glm() on a model matrix.
 ax <- aldex(counts, groups, mc.samples = mc_samples, test = 't', effect = TRUE, denom = 'all')
 sig_aldex <- rownames(ax)[ax$we.eBH < 0.05 & abs(ax$effect) > effect_floor]   # q AND effect, not p alone
 
-ab <- ancombc2(data = ps_filt, fix_formula = 'Group', p_adj_method = 'BH',   # default is 'holm'; set BH for FDR
+ab <- ancombc2(data = ps_filt, fix_formula = 'Group', p_adj_method = 'BH',   # single-run; multi-run -> 'run_id + Group'
                prv_cut = prev_cut, group = 'Group', struc_zero = TRUE, pseudo_sens = TRUE)$res
 diff_col <- grep('^diff_Group', colnames(ab), value = TRUE)[1]
 ss_col <- grep('^passed_ss_Group', colnames(ab), value = TRUE)[1]

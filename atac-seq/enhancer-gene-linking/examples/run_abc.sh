@@ -8,6 +8,7 @@ set -euo pipefail
 ATAC_BAM=${1:-atac.dedup.bam}
 H3K27AC_BAM=${2:-h3k27ac.dedup.bam}
 HIC_DIR=${3:-hic_data/}                  # Cooler or hic format directory
+# shellcheck disable=SC2034  # ABC consumes --chrom_sizes, not a genome FASTA; kept as a labelled slot so downstream arg positions match the usage string
 GENOME_FA=${4:-hg38.fa}
 SIZES=${5:-hg38.chrom.sizes}
 GENE_BED=${6:-refseq_protein_coding.bed}

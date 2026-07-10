@@ -122,7 +122,7 @@ Best for: Well-defined populations, lower dimensions
 |----------|------------------|
 | Flow cytometry | 150-500 |
 | CyTOF | 5 |
-| Spectral flow | 500-1000 |
+| Spectral flow | ~150 |
 
 ## Statistical Considerations
 
@@ -159,16 +159,16 @@ Best for: Well-defined populations, lower dimensions
 |------|-------------|
 | cytometry_analysis.rds | Complete analysis object |
 | da_results.csv | Differential abundance results |
-| ds_results.csv | Differential state results |
-| umap_clusters.png | Cluster visualization |
-| abundance_boxplots.png | Population frequencies |
-| da_volcano.png | Differential abundance plot |
+| umap_clusters.png | Cluster visualization (runDR embedding) |
+| heatmap.png | Cluster x marker expression heatmap |
+| da_heatmap.png | Differential abundance heatmap |
+| abundances.png | Population frequencies per sample |
 
 ## Tips
 
 - **Unit of inference**: the sample/subject, not the cell, is the experimental unit - diffcyt aggregates cells to per-sample-per-cluster counts/medians before testing; a per-cell test is invalid.
 - **Order is irreversible**: compensate before transform; remove margin events before density-based QC; remove doublets before clustering. None of these is fixable downstream.
-- **Two normalization layers**: EQ-bead drift correction runs first on raw counts (CyTOF); CytoNorm cross-batch harmonization runs last (after clustering). Do not conflate them.
+- **Two normalization layers**: EQ-bead drift correction runs first on raw counts (CyTOF); CytoNorm cross-batch harmonization runs on transformed data before the analytical clustering. Do not conflate them.
 - **Panel file**: Essential for correct channel-to-marker mapping; marker_class drives everything (type clusters, state is tested).
 - **Cofactor**: Use 5 for CyTOF, ~150 for conventional/spectral fluorescence.
 - **Batch effects**: model batch in the diffcyt design; reserve normalization for visualization. Fully confounded batch (batch == condition) cannot be rescued.
@@ -177,6 +177,6 @@ Best for: Well-defined populations, lower dimensions
 
 ## References
 
-- CATALYST: doi:10.1101/218826
+- CATALYST (CyTOF workflow): Nowicka et al., F1000Research 6:748, doi:10.12688/f1000research.11622.4
 - diffcyt: doi:10.1038/s42003-019-0415-5
 - FlowSOM: doi:10.1002/cyto.a.22625

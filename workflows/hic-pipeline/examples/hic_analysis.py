@@ -24,7 +24,9 @@ print('=== Compartment Analysis ===')
 clr_100k = cooler.Cooler(f'{mcool_path}::/resolutions/{COMPARTMENT_RES}')
 gc = bioframe.frac_gc(clr_100k.bins()[:][['chrom', 'start', 'end']], bioframe.load_fasta(genome_fasta))
 eig_values, eig_vectors = cooltools.eigs_cis(clr_100k, gc, n_eigs=3)
-eig_vectors['compartment'] = np.where(eig_vectors['E1'] > 0, 'A', 'B')
+# Leave masked/unmappable bins (E1 = NaN from mad_max-dropped regions) unassigned; NaN > 0 is
+# False, so a bare np.where would silently label every unmappable bin 'B'.
+eig_vectors['compartment'] = np.where(eig_vectors['E1'].isna(), None, np.where(eig_vectors['E1'] > 0, 'A', 'B'))
 eig_vectors.to_csv(f'{output_dir}/compartments.tsv', sep='\t', index=False)
 print(f'A bins: {(eig_vectors["compartment"] == "A").sum()}  B bins: {(eig_vectors["compartment"] == "B").sum()}')
 
@@ -44,7 +46,8 @@ ins = cooltools.insulation(clr_10k, window_bp=INSULATION_WINDOWS)
 ins.to_csv(f'{output_dir}/insulation_scores.tsv', sep='\t', index=False)
 
 is_col, strength_col = f'is_boundary_{BOUNDARY_WINDOW}', f'boundary_strength_{BOUNDARY_WINDOW}'
-boundaries = ins[ins[is_col]][['chrom', 'start', 'end', strength_col]]
+# is_boundary is NaN for bad/low-mappability bins; fillna(False) before masking or pandas raises on the NaN.
+boundaries = ins[ins[is_col].fillna(False).astype(bool)][['chrom', 'start', 'end', strength_col]]
 boundaries.to_csv(f'{output_dir}/tad_boundaries.tsv', sep='\t', index=False)
 print(f'TAD boundaries ({BOUNDARY_WINDOW}bp window): {len(boundaries)}')
 

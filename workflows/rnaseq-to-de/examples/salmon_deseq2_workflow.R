@@ -1,4 +1,4 @@
-# Reference: DESeq2 1.42+, STAR 2.7.11+, Salmon 1.10+, Subread 2.0+, fastp 0.23+, ggplot2 3.5+, kallisto 0.50+, scanpy 1.10+ | Verify API if version differs
+# Reference: DESeq2 1.42+, tximport 1.30+, apeglm 1.24+, ggplot2 3.5+, pheatmap 1.0+ | Verify API if version differs
 # Complete RNA-seq workflow: Salmon + tximport + DESeq2
 
 library(tximport)
@@ -32,10 +32,13 @@ stopifnot(all(file.exists(files)))
 # ignoreTxVersion=TRUE strips version suffixes (.1, .2) from Ensembl IDs to match tx2gene
 txi <- tximport(files, type = 'salmon', tx2gene = tx2gene, ignoreTxVersion = TRUE)
 
-# Create sample metadata
+# Create sample metadata. If samples were prepped/sequenced in batches, record the batch here
+# and put it in the design as `~ batch + condition` (batch FIRST). Never ComBat/removeBatchEffect
+# and then test on the corrected matrix (Nygaard 2016) -- that inflates confidence.
 coldata <- data.frame(condition = conditions, row.names = samples)
+# coldata$batch <- factor(c('b1','b2','b1','b2','b1','b2'))   # uncomment if batched
 
-# Create DESeqDataSet
+# Create DESeqDataSet (switch design to ~ batch + condition when coldata$batch exists)
 dds <- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ condition)
 
 # Pre-filter low count genes
@@ -52,9 +55,14 @@ dds <- DESeq(dds)
 # Check available coefficients
 resultsNames(dds)
 
-# Get shrunken results
+# Get shrunken results (LFC for ranking/effect size; p-values stay from the unshrunken test)
 res <- lfcShrink(dds, coef = 'condition_treated_vs_control', type = 'apeglm')
 summary(res)
+
+# apeglm DROPS the `stat` column. For a signed GSEA ranking metric, pull the Wald stat
+# from the UNSHRUNK results and carry it alongside the DE table (see expression-to-pathways).
+res_unshrunk <- results(dds, name = 'condition_treated_vs_control')
+ranking_stat <- setNames(res_unshrunk$stat, rownames(res_unshrunk))
 
 # QC: PCA plot
 vsd <- vst(dds, blind = FALSE)

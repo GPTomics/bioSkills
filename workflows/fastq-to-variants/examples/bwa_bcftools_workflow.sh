@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: BWA-MEM2 2.2.1+, Ensembl VEP 111+, GATK 4.5+, bcftools 1.19+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
+# Reference: BWA-MEM2 2.2.1+, GATK 4.5+, bcftools 1.19+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
 # Complete variant calling workflow: BWA-MEM2 + bcftools
 set -e
 
@@ -110,10 +110,17 @@ if [ ! -f "${OUTDIR}/variants/cohort.filtered.vcf.gz" ]; then
     # FILTER column via -s) rather than removing them, so failures stay auditable; use
     # `bcftools view -f PASS` downstream to drop them. INFO/DP is explicit to avoid the
     # bare-DP INFO-vs-FORMAT ambiguity.
+    # Normalize (left-align + split multiallelics with -m-any) BEFORE filtering, per governing
+    # principle #2 / canonical step 6, so the delivered VCF is the advertised NORMALIZED artifact
+    # and filter expressions see decomposed records.
+    bcftools norm -m-any -f ${REF} -Oz \
+        -o ${OUTDIR}/variants/cohort.norm.vcf.gz \
+        ${OUTDIR}/variants/cohort.vcf.gz
+
     bcftools filter -Oz -s LowQual \
         -e 'QUAL<20 || INFO/DP<10 || MQ<30' \
         -o ${OUTDIR}/variants/cohort.sitefiltered.vcf.gz \
-        ${OUTDIR}/variants/cohort.vcf.gz
+        ${OUTDIR}/variants/cohort.norm.vcf.gz
 
     # Genotype-level pass (site then genotype, per the SKILL body): null out low-confidence
     # genotypes without dropping the site (single | = per-sample; -S . sets failing GTs to ./.).

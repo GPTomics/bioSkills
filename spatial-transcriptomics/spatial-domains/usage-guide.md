@@ -60,7 +60,7 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - A domain is a REGION with many cell types; a niche is which types co-occur; a cell type is one cell. If the question is "which types co-occur," use neighborhood enrichment in spatial-statistics, not domain segmentation.
-- The load-bearing knob is the spatial weight (BANKSY lambda, BayesSpace smoothing, SpaGCN histology weight, GNN graph radius), not the clustering algorithm. Too much erases boundaries into blobs; too little reverts to salt-and-pepper.
+- The knob that decides the outcome is the spatial weight (BANKSY lambda, BayesSpace smoothing, SpaGCN histology weight, GNN graph radius), not the clustering algorithm. Too much erases boundaries into blobs; too little reverts to salt-and-pepper.
 - k is a biological choice, not a statistic to optimize. Report it and show k+-1.
 - Non-contiguous domains (scattered tumor nests) break most methods because the spatial prior assumes contiguity (Yuan 2024). Lower the spatial weight or switch to niche analysis.
 - DLPFC is the standard benchmark but it is continuous and laminar, which flatters smoothing methods. Do not over-generalize benchmark rankings to non-laminar tissue.

@@ -27,8 +27,9 @@ TAX_DB <- 'reference_db.fa.gz'
 SPECIES_DB <- 'species_db.fa.gz'
 # minBoot 50: sensitive taxonomy assignment; 80 for conservative
 MIN_BOOT <- 50
-# decontam prevalence threshold 0.5: standard; lower to 0.1 for stringent
-DECONTAM_THRESHOLD <- 0.5
+# decontam threshold: 0.1 is the default (0.05 for low-biomass); 0.5 is the aggressive
+# "more prevalent in negatives than samples" setting. Used in the isContaminant call below.
+DECONTAM_THRESHOLD <- 0.1
 # Tag-jump filter: 0.1% of max abundance per ASV
 TAG_JUMP_THRESHOLD <- 0.001
 
@@ -109,11 +110,15 @@ ps <- phyloseq(otu_table(seqtab_nochim, taxa_are_rows = FALSE),
 message(sprintf('Phyloseq: %d samples, %d ASVs', nsamples(ps), ntaxa(ps)))
 
 # --- Step 9: Contamination filtering (decontam) ---
+# Prefer the COMBINED method (DNA concentration + neg controls) at threshold 0.1 (0.05 low-biomass)
+# when a Qubit/qPCR concentration column exists: isContaminant(method='combined', conc='dna_conc').
+# Prevalence-only (below) is the fallback when no concentration is available. decontam is SCREENING,
+# not a classifier -- review each flagged ASV for biological plausibility before removing it (Davis 2018).
 sample_data(ps)$is_neg <- sample_data(ps)$sample_type == 'negative_control'
 contam <- isContaminant(ps, method = 'prevalence', neg = 'is_neg',
-                        threshold = DECONTAM_THRESHOLD)
+                        threshold = DECONTAM_THRESHOLD)   # 0.1 default; matches the seam
 n_contam <- sum(contam$contaminant)
-message(sprintf('Contaminant ASVs identified: %d', n_contam))
+message(sprintf('Contaminant ASVs flagged (review for plausibility before removing): %d', n_contam))
 
 ps_clean <- prune_taxa(!contam$contaminant, ps)
 ps_clean <- subset_samples(ps_clean, sample_type != 'negative_control')
@@ -134,11 +139,20 @@ message(sprintf('After decontamination: %d samples, %d ASVs', nsamples(ps_clean)
 # --- Step 10: Diversity analysis (iNEXT Hill numbers) ---
 otu_for_inext <- as(otu_table(ps_clean), 'matrix')
 
-# Hill numbers: q=0 (richness), q=1 (Shannon equivalent), q=2 (Simpson equivalent)
-# endpoint: extrapolate to 2x observed sample size for fair comparison
+# Hill numbers: q=0 (richness), q=1 (Shannon equivalent), q=2 (Simpson equivalent).
+# Default endpoint = per-sample 2x reference size (Chao 2014 doubling rule); avoid a global 2*max.
 inext_out <- iNEXT(as.list(as.data.frame(t(otu_for_inext))),
-                   q = c(0, 1, 2), datatype = 'abundance',
-                   endpoint = 2 * max(rowSums(otu_for_inext)))
+                   q = c(0, 1, 2), datatype = 'abundance')
+
+# Coverage-based standardization at C=0.95 -- the fair cross-sample diversity comparison.
+div_c95 <- estimateD(as.list(as.data.frame(t(otu_for_inext))),
+                     q = c(0, 1, 2), datatype = 'abundance', base = 'coverage', level = 0.95)
+
+# Report the COVERAGE-STANDARDIZED q=0, never inext_out$AsyEst 'Species richness' (Chao1 asymptotic):
+# denoising stripped singletons, leaving Chao1 no f1, so it degenerates to observed richness.
+q0_c95 <- div_c95[div_c95$Order.q == 0, ]
+message(sprintf('Coverage-standardized (C=0.95) richness range: %.0f - %.0f effective species',   # qD is fractional; %d errors on doubles
+                min(q0_c95$qD), max(q0_c95$qD)))
 
 completeness <- inext_out$DataInfo$SC
 message(sprintf('Sample completeness range: %.1f%% - %.1f%%',
@@ -176,9 +190,18 @@ anova_result <- anova.cca(ord, permutations = 999)
 message(sprintf('%s significance: F = %.2f, p = %.4f',
                 method_name, anova_result$F[1], anova_result$`Pr(>F)`[1]))
 
+# Group comparison: PERMANOVA + PERMDISP MUST be reported TOGETHER (Anderson & Walsh 2013).
+# A significant betadisper means the adonis2 "location" difference may be a dispersion difference.
+dist_hell <- vegdist(otu_hell, method = 'euclidean')   # Hellinger + Euclidean = Hellinger distance
+perm <- adonis2(dist_hell ~ site, data = env_data, permutations = 999)
+disp_test <- permutest(betadisper(dist_hell, env_data$site), permutations = 999)
+message(sprintf('PERMANOVA (site): R2 = %.3f, p = %.4f', perm$R2[1], perm$`Pr(>F)`[1]))
+message(sprintf('PERMDISP: p = %.4f (if significant, the location conclusion is not supported)',
+                disp_test$tab$`Pr(>F)`[1]))
+
 # Indicator species analysis
 indval <- multipatt(otu_for_inext, env_data$site, control = how(nperm = 999))
-sig_indicators <- indval$sign[indval$sign$p.value < 0.05, ]
+sig_indicators <- indval$sign[!is.na(indval$sign$p.value) & indval$sign$p.value < 0.05, ]   # p.value is NA for the all-groups combination
 message(sprintf('Significant indicator ASVs: %d', nrow(sig_indicators)))
 
 # --- Save results ---

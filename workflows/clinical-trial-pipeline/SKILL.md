@@ -38,7 +38,25 @@ package and adapt the example to match the actual API rather than retrying.
 
 **"Analyze my clinical trial data end to end"** -> Load CDISC domain tables, prepare a subject-level analysis dataset, run primary statistical models, perform subgroup analyses, and generate regulatory-compliant tables and figures.
 
-Complete workflow for clinical trial statistical analysis from raw data to publication-ready results.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+A clinical-trial analysis is a commit-then-execute pipeline: its trustworthiness is decided by whether the analysis was locked BEFORE the data was seen, and every seam failure is a wrong-but-silent handoff that answers a different question with no error thrown.
+
+1. **The ESTIMAND, locked in the SAP before unblinding, is the made-once commitment everything inherits.** ICH E9(R1) defines it by 5 attributes: treatment condition, population, endpoint, intercurrent-event (ICE) handling strategy, and population-level summary. It is the precise definition of "what treatment effect the trial estimates", committed before analysis so the estimator is matched to it rather than chosen to flatter the data.
+2. **The estimator is a CONSEQUENCE of the estimand's ICE strategy, not a free modeling choice.** A treatment-policy strategy needs all post-ICE data (MMRM/treatment-policy, or reference-based MI if truly missing); a hypothetical strategy censors/models the post-ICE data as if the ICE had not occurred (MMRM under MAR); a composite strategy folds the ICE into the endpoint. Choosing MMRM vs reference-based MI vs g-computation to flatter the data is an estimand-estimator mismatch.
+3. **The analysis population and all subgroups are defined a priori; the data never picks them.** Randomization licenses causal interpretation for the ITT/FAS primary only — PP and subgroups do NOT inherit that protection. Pre-specify every subgroup and the multiplicity graph in the SAP; post-hoc data-driven subgroups are hypothesis-generating only. This is the clinical analog of "don't call hits before CN correction".
+4. **Baseline balance is not tested with p-values, and marginal is not conditional.** In a randomized trial any imbalance is by definition chance, and baseline hypothesis testing is incoherent (Senn 1994) — report SMD (>0.1 notable, a convention Senn does not state) and adjust via pre-specified ANCOVA, don't test-then-decide. For a binary endpoint the primary is the MARGINAL risk difference via g-computation (FDA 2023); a conditional OR is a different parameter (non-collapsibility), reported as supportive.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| The estimand (5 ICH E9(R1) attributes, SAP-locked before unblinding) | Which question the trial answers; the estimator must match its ICE strategy |
+| The estimator matched to the ICE strategy | Whether the analysis answers the locked question; a mismatch is silent |
+| Analysis population set (ITT/FAS primary, PP sensitivity, Safety as-treated) a priori | Causal validity; ITT is randomization-protected, PP and subgroups are not |
+| SDTM -> ADaM derivation (pre-specified, one-directional; ADTTE CNSR convention) | Every downstream model; CDISC CNSR=0 means EVENT, opposite of R/Python survival packages |
 
 ### Scientific Reasoning Framework
 
@@ -56,7 +74,7 @@ CDISC Domain Files (DM, AE, EX, LB)
 [2. Table 1] ------------> Baseline characteristics by treatment arm
     |
     v
-[3. Primary Analysis] ---> Logistic regression with OR extraction
+[3. Primary Analysis] ---> Marginal RD via g-computation (conditional OR supportive)
     |
     v
 [4. Categorical Tests] --> Chi-square / Fisher's exact for key associations
@@ -85,7 +103,7 @@ dm, _ = pyreadstat.read_xport('dm.xpt')
 ae, _ = pyreadstat.read_xport('ae.xpt')
 
 # Aggregate: did each subject have the target adverse event?
-target_ae = ae[ae['AEDECOD'] == 'COVID-19']
+target_ae = ae[ae['AEDECOD'] == 'COVID-19'].copy()
 severity_map = {'MILD': 1, 'MODERATE': 2, 'SEVERE': 3, 'LIFE THREATENING': 4, 'FATAL': 5}
 target_ae['AESEV_NUM'] = target_ae['AESEV'].map(severity_map)
 had_event = target_ae.groupby('USUBJID')['AESEV_NUM'].max().reset_index()
@@ -146,7 +164,9 @@ print(or_table)
 print(f'McFadden pseudo-R2: {model.prsquared:.4f}')
 ```
 
-**QC Checkpoint:** Verify model converged (no warnings), check for separation (coefficients > 10 or SE > 100), report pseudo-R-squared (McFadden > 0.2 is excellent; do not compare across pseudo-R2 types).
+The logistic fit above yields the CONDITIONAL (adjusted) OR. When the estimand's summary measure is a marginal risk difference (the FDA 2023 primary for a binary endpoint), do NOT report this conditional OR as the primary effect. Compute the MARGINAL risk difference by g-computation: fit the covariate-adjusted model, predict each subject's outcome probability under both arms, average within arm, and difference; bootstrap the whole fit-and-predict for the CI. `examples/clinical_trial_pipeline.py` implements this; see clinical-biostatistics/logistic-regression for the estimator's assumptions and variance options. Report the conditional OR as supportive. The two differ by non-collapsibility and answer different questions.
+
+**QC Checkpoint:** Verify model converged (no warnings), check for separation (coefficients > 10 or SE > 100), report pseudo-R-squared (McFadden > 0.2 is excellent; do not compare across pseudo-R2 types). Confirm the reported PRIMARY effect matches the estimand's summary measure (marginal RD via g-computation for a marginal estimand), not whichever the model emits by default.
 
 ## Step 4: Categorical Tests
 
@@ -171,18 +191,31 @@ else:
 
 **Goal:** Test whether the treatment effect varies across pre-specified subgroups.
 
-**Approach:** Fit a model with an interaction term, extract subgroup-specific ORs, adjust for multiplicity, and visualize with a forest plot.
+**Approach:** Fit a model with an interaction term and test it with a single interaction LR test. Subgroup-specific ORs are DESCRIPTIVE ONLY -- do not correct their individual p-values, do not interpret them; the alpha allocated to the subgroup family is handled by the pre-specified gMCP graph, not by a post-hoc correction. Visualize with a forest plot.
 
 ```python
 import matplotlib.pyplot as plt
 
-# Interaction test
+# The HTE test is the treatment-by-subgroup INTERACTION, not per-subgroup significance.
+# Fit the main-effects (restricted) and interaction (full) models, then LR-test the interaction.
+main_model = smf.logit(
+    'HAD_EVENT ~ C(ARM, Treatment(reference="Placebo")) + C(SUBGROUP)',
+    data=analysis
+).fit(disp=0)
 interaction_model = smf.logit(
     'HAD_EVENT ~ C(ARM, Treatment(reference="Placebo")) * C(SUBGROUP)',
     data=analysis
-).fit()
+).fit(disp=0)
+# compare_lr_test exists only on linear-model results, NOT LogitResults -- compute the LR test by hand.
+from scipy.stats import chi2
+lr_stat = 2 * (interaction_model.llf - main_model.llf)
+df_diff = int(interaction_model.df_model - main_model.df_model)
+interaction_pval = chi2.sf(lr_stat, df_diff)
+print(f'Treatment-by-subgroup interaction: LR chi2={lr_stat:.2f}, df={df_diff}, p={interaction_pval:.3f}')
 
-# Subgroup-specific ORs
+# Subgroup-specific ORs are DESCRIPTIVE ONLY (to draw the forest plot). Do NOT interpret their
+# individual p-values as evidence of a subgroup effect -- that is the invalid per-subgroup
+# significance pattern; the interaction p-value above is the only valid HTE test.
 labels, ors, lowers, uppers = [], [], [], []
 for group in analysis['SUBGROUP'].unique():
     sub = analysis[analysis['SUBGROUP'] == group]
@@ -196,13 +229,6 @@ for group in analysis['SUBGROUP'].unique():
     ors.append(or_val)
     lowers.append(ci[0])
     uppers.append(ci[1])
-
-# Multiplicity correction for subgroup p-values
-from statsmodels.stats.multitest import multipletests
-sub_pvals = [smf.logit('HAD_EVENT ~ C(ARM, Treatment(reference="Placebo"))',
-             data=analysis[analysis['SUBGROUP'] == g]).fit(disp=0).pvalues.iloc[1]
-             for g in labels]
-_, adjusted_pvals, _, _ = multipletests(sub_pvals, method='holm')
 
 # Forest plot
 fig, ax = plt.subplots(figsize=(8, 5))
@@ -219,7 +245,7 @@ plt.tight_layout()
 plt.savefig('forest_plot.png', dpi=150)
 ```
 
-**QC Checkpoint:** Interaction p-value reported. Multiplicity correction applied if testing multiple subgroups. Forest plot shows overall estimate for context.
+**QC Checkpoint:** Interaction p-value reported from a single LR test. Alpha for the subgroup family allocated in the pre-specified gMCP graph (not a post-hoc p-value correction on the descriptive subgroup ORs). Forest plot shows overall estimate for context.
 
 ## Step 6: Missing Data Sensitivity Analysis (per ICH E9(R1) and clinical-biostatistics/missing-data-sensitivity)
 
@@ -231,18 +257,24 @@ plt.savefig('forest_plot.png', dpi=150)
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 
-n_imputations = 20
-covariate_cols = ['AGE']  # Only impute covariates, not treatment or outcome
+n_imputations = 20   # practical starting count; von Hippel 2020 shows required m scales with the fraction of missing information (two-stage rule), so raise it when FMI is high
+# Impute AGE jointly WITH its predictors (SEX, TREATMENT, HAD_EVENT). A single-column imputer has
+# no predictors, so sample_posterior draws are identical -> between-imputation variance = 0 and the
+# MI collapses to complete-case. Including correlated columns makes the posterior draws actually vary.
+impute_cols = ['AGE', 'TREATMENT', 'HAD_EVENT']   # numeric only; SEX ('M'/'F') would break IterativeImputer and is restored below
 mi_data = analysis.dropna(subset=['HAD_EVENT', 'TREATMENT']).copy()
 
 results = []
 for i in range(n_imputations):
     imputer = IterativeImputer(max_iter=10, random_state=i, sample_posterior=True)
-    imputed_cov = pd.DataFrame(imputer.fit_transform(mi_data[covariate_cols]),
-                               columns=covariate_cols, index=mi_data.index)
+    imputed_cov = pd.DataFrame(imputer.fit_transform(mi_data[impute_cols]),
+                               columns=impute_cols, index=mi_data.index)
+    # Only AGE had missings; restore the observed discrete columns so they stay integer-valued.
     imputed_cov['HAD_EVENT'] = mi_data['HAD_EVENT'].values
     imputed_cov['TREATMENT'] = mi_data['TREATMENT'].values
-    model_imp = smf.logit('HAD_EVENT ~ TREATMENT + AGE', data=imputed_cov).fit(disp=0)
+    imputed_cov['SEX'] = mi_data['SEX'].values
+    # Mirror the primary ADJUSTED model's RHS (AGE + SEX) so the pooled OR is comparable to it.
+    model_imp = smf.logit('HAD_EVENT ~ TREATMENT + AGE + C(SEX)', data=imputed_cov).fit(disp=0)
     results.append({'coef': model_imp.params['TREATMENT'], 'se': model_imp.bse['TREATMENT']})
 
 pooled_coef = np.mean([r['coef'] for r in results])
@@ -271,6 +303,18 @@ print(f'Pooled OR: {pooled_or:.3f} ({pooled_ci[0]:.3f}-{pooled_ci[1]:.3f})')
 - [ ] CONSORT flow diagram numbers available
 - [ ] Harms per CONSORT 2025 item 15 (absorbs CONSORT-Harms 2022)
 
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| The analysis answers a different question | Estimand-estimator mismatch (e.g. a hypothetical estimand analyzed treatment-policy) | Derive the estimator FROM the ICE strategy; MMRM/MI/g-computation are consequences of attribute (iv), not free choices |
+| Spurious subgroup effect | Subgroups/sensitivity chosen after seeing the data | Pre-specify all subgroups + the multiplicity graph in the SAP; post-hoc is hypothesis-generating only |
+| Effect loses causal validity | PP swapped in as primary because it "looks cleaner" | ITT/FAS primary (randomization-protected); PP is sensitivity; define both a priori |
+| Survival results inverted | ADTTE CNSR sign flip (CDISC CNSR=0 means EVENT) | Convert the censoring indicator before passing to lifelines/survival |
+| False "imbalance" conclusions | Baseline characteristics tested with p-values | Report SMD (>0.1 notable); adjust prognostic imbalance via pre-specified ANCOVA |
+| Primary effect is the wrong parameter | Conditional OR reported as the marginal effect (non-collapsibility) | Marginal risk difference via g-computation is primary (FDA 2023); conditional OR supportive |
+| Over-conservative inference (CIs too wide, power lost) | Stratification/randomization factors omitted from the analysis model | Include the stratification factors; omitting them biases SEs upward and Type-I below nominal (Kahan-Morris 2012) |
+
 ## When to Add Specialized Skills
 
 This pipeline covers the typical binary-endpoint RCT workflow. For specific designs, add the corresponding specialized skill:
@@ -297,3 +341,11 @@ This pipeline covers the typical binary-endpoint RCT workflow. For specific desi
 - clinical-biostatistics/adaptive-designs - Group-sequential, SSR, RAR consensus, BOIN, platform trials
 - clinical-biostatistics/bayesian-trials - MAP/EXNEX/RWE, FDA Bayesian Jan 2026 draft, psborrow2
 - reporting/publication-tables - Table 1 construction (SMD not baseline p-values, show missingness) and Word/LaTeX export
+
+## References
+
+- ICH E9(R1) (2019) Addendum on Estimands and Sensitivity Analysis in Clinical Trials to the Guideline on Statistical Principles for Clinical Trials. International Council for Harmonisation. (the estimand's 5 attributes and 5 ICE strategies.)
+- Kahan BC, Cro S, Li F, et al (2023) Eliminating ambiguous treatment effects using estimands. *American Journal of Epidemiology* 192:987-994. DOI 10.1093/aje/kwad036. (98% of trials do not articulate the estimand.)
+- Senn S (1994) Testing for baseline balance in clinical trials. *Statistics in Medicine* 13:1715-1726. DOI 10.1002/sim.4780131703. (baseline SMD, not p-values.)
+- Kahan BC, Morris TP (2012) Improper analysis of trials randomised using stratified blocks or minimisation. *Statistics in Medicine* 31:328-340. DOI 10.1002/sim.4431. (omitting stratification factors makes inference conservative: SEs biased upward, Type-I below nominal, power lost.)
+- Carpenter JR, Roger JH, Kenward MG (2013) Analysis of longitudinal trials with protocol deviation: a framework for relevant, accessible assumptions, and inference via multiple imputation. *Journal of Biopharmaceutical Statistics* 23:1352-1371. DOI 10.1080/10543406.2013.834911. (reference-based MI.)

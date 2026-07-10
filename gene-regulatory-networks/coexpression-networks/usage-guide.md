@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build weighted gene co-expression networks to identify modules of co-regulated genes and relate them to phenotypes. WGCNA groups genes into modules by co-expression, summarizes each module by its eigengene, and correlates eigengenes with sample traits to surface biologically relevant modules and hub genes. The load-bearing insight: co-expression measures **marginal** correlation, so a module is a descriptive object (genes that vary together), not a regulatory network -- and the scale-free criterion used to pick the soft power is a heuristic, not proof the biology is scale-free. For direct (not indirect) edges, use a Gaussian graphical model; for directed TF-target regulation, use scenic-regulons or grn-inference.
+Build weighted gene co-expression networks to identify modules of co-regulated genes and relate them to phenotypes. WGCNA groups genes into modules by co-expression, summarizes each module by its eigengene, and correlates eigengenes with sample traits to surface biologically relevant modules and hub genes. The insight that bounds interpretation: co-expression measures **marginal** correlation, so a module is a descriptive object (genes that vary together), not a regulatory network -- and the scale-free criterion used to pick the soft power is a heuristic, not proof the biology is scale-free. For direct (not indirect) edges, use a Gaussian graphical model; for directed TF-target regulation, use scenic-regulons or grn-inference.
 
 ## Prerequisites
 

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Reference: Bowtie2 2.5.3+, Bracken 2.9+, HUMAnN 3.8+, Kraken2 2.1+, MetaPhlAn 4.1+, fastp 0.23+, matplotlib 3.8+, pandas 2.2+, seaborn 0.13+ | Verify API if version differs
+# Reference: Bowtie2 2.5.3+, Bracken 2.9+, HUMAnN 3.8+, Kraken2 2.1+, MetaPhlAn 4.1+, fastp 0.23+, samtools 1.19+, matplotlib 3.8+, pandas 2.2+, seaborn 0.13+ | Verify API if version differs
 # Complete metagenomics workflow: Kraken2 + Bracken + HUMAnN
 set -e
 
 THREADS=8
 KRAKEN_DB="/path/to/kraken2_standard"
-HOST_INDEX="/path/to/human_bt2"
+HOST_INDEX="/path/to/human_bt2"   # MUST be a T2T-CHM13 (CHM13v2, +HLA) bowtie2 index per the host-removal commitment, not GRCh38
 SAMPLES="sample1 sample2 sample3"
 OUTDIR="metagenomics_results"
 
@@ -35,12 +35,18 @@ done
 echo "=== Step 2: Host Removal ==="
 for sample in $SAMPLES; do
     echo "Removing host: ${sample}"
-    bowtie2 -p ${THREADS} -x ${HOST_INDEX} \
+    # Keep a pair ONLY if neither mate mapped host: -f 12 = UNMAP + MUNMAP (verified: samtools flags 12).
+    # --un-conc-gz keeps every non-CONCORDANT pair, so a pair whose mate mapped human survives -- that is
+    # a privacy leak (leaked human reads are identifiable), not merely a QC lapse. -F 256 drops secondaries.
+    bowtie2 -p ${THREADS} -x ${HOST_INDEX} --very-sensitive \
         -1 ${OUTDIR}/trimmed/${sample}_R1.fq.gz \
         -2 ${OUTDIR}/trimmed/${sample}_R2.fq.gz \
-        --un-conc-gz ${OUTDIR}/host_removed/${sample}_R%.fq.gz \
-        --very-sensitive \
-        > /dev/null 2> ${OUTDIR}/qc/${sample}_host_removal.log
+        2> ${OUTDIR}/qc/${sample}_host_removal.log \
+      | samtools view -b -f 12 -F 256 - \
+      | samtools sort -n -@ ${THREADS} - \
+      | samtools fastq -1 ${OUTDIR}/host_removed/${sample}_R1.fq.gz \
+                       -2 ${OUTDIR}/host_removed/${sample}_R2.fq.gz \
+                       -0 /dev/null -s /dev/null -n -
 
     # Stats
     total=$(zcat ${OUTDIR}/trimmed/${sample}_R1.fq.gz | wc -l)
@@ -114,10 +120,11 @@ for sample in $SAMPLES; do
     rm ${OUTDIR}/host_removed/${sample}_concat.fq.gz
 done
 
-# Join HUMAnN tables
-humann_join_tables -i ${OUTDIR}/humann -o ${OUTDIR}/humann/merged_pathabundance.tsv \
+# Join HUMAnN tables (--search-subdirectories: per-sample outputs are in humann/<sample>/ subdirs;
+# the join is non-recursive by default and would otherwise find zero files).
+humann_join_tables -i ${OUTDIR}/humann --search-subdirectories -o ${OUTDIR}/humann/merged_pathabundance.tsv \
     --file_name pathabundance
-humann_join_tables -i ${OUTDIR}/humann -o ${OUTDIR}/humann/merged_genefamilies.tsv \
+humann_join_tables -i ${OUTDIR}/humann --search-subdirectories -o ${OUTDIR}/humann/merged_genefamilies.tsv \
     --file_name genefamilies
 
 # Normalize

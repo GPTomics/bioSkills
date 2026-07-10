@@ -39,7 +39,7 @@ Tell your AI agent what you want to do:
 
 ## What the Agent Will Do
 
-1. Stage 1 -- Extract features with xcms 4.x (`readMsExperiment` -> `findChromPeaks` -> `adjustRtime` -> regroup -> `fillChromPeaks` -> `featureValues`), aligning to pooled QC and flagging filled values.
+1. Stage 1 -- Extract features with xcms 4.x (`readMsExperiment` -> `findChromPeaks` -> `adjustRtime` -> group -> `fillChromPeaks` -> `featureValues`), aligning to pooled QC and flagging filled values.
 2. Stage 2 -- Filter junk features, correct within-batch drift (QCRSC), apply RSD/D-ratio filters, PQN-normalize, and impute the sparse residual holes by missingness mechanism.
 3. Stage 3 -- Annotate features and attach an MSI/Schymanski confidence level to each name, collapsing ion families first.
 4. Stage 4 -- Run a univariate test with BH FDR AND a permutation-validated OPLS-DA, then reconcile.
@@ -72,7 +72,7 @@ QC2.mzML,QC,QC,1,4
 
 ## Tips
 
-- Pooled QC samples are load-bearing: drift correction, RSD/D-ratio filtering, and PQN reference all depend on them. No QCs, no honest pipeline.
+- Pooled QC samples are critical: drift correction, RSD/D-ratio filtering, and PQN reference all depend on them. No QCs, no honest pipeline.
 - Validate drift correction on held-out QCs and dilution linearity, never on "QCs cluster tighter" -- that metric is exactly what an over-flexible spline games.
 - A clean PLS-DA/OPLS-DA score plot is the generic output of p>>n data; require Q2 high AND a small permutation p before believing separation.
 - Never promote a database hit to an identification: a name without an MSI level is incomplete, and pathway enrichment launders that uncertainty into confident biology.

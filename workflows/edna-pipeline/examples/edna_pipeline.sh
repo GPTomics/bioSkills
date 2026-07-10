@@ -30,7 +30,7 @@ MIN_MERGED_LENGTH=100
 MAX_MERGED_LENGTH=500
 # count >=2: remove singletons (sequencing errors); increase to 5-10 for noisy data
 MIN_COUNT=2
-# --min-identity 0.97: species-level for COI; 0.95 for genus-level
+# identity 0.97: species-level for COI; 0.95 for genus-level (ecotag's flag is --minimum-identity/-m)
 # Lower for understudied taxa or markers with fewer references
 MIN_IDENTITY=0.97
 
@@ -66,16 +66,20 @@ for f in "$TRIMMED_DIR"/*_R1.fastq.gz; do
     echo "$sample: $count reads"
 done
 
-# --- Step 3: Concatenate trimmed reads and import into OBITools3 ---
-# OBITools3 works on merged files; concatenate per-sample outputs from cutadapt
-cat "$TRIMMED_DIR"/*_R1.fastq.gz > "$TRIMMED_DIR"/all_R1.fastq.gz
-cat "$TRIMMED_DIR"/*_R2.fastq.gz > "$TRIMMED_DIR"/all_R2.fastq.gz
-
-obi import --fastq-input "$TRIMMED_DIR"/all_R1.fastq.gz "$OBI_DIR"/reads1
-obi import --fastq-input "$TRIMMED_DIR"/all_R2.fastq.gz "$OBI_DIR"/reads2
-
-# --- Step 4: Paired-end alignment ---
-obi alignpairedend -R "$OBI_DIR"/reads2 "$OBI_DIR"/reads1 "$OBI_DIR"/aligned
+# --- Step 3+4: Per-sample import, paired-end alignment, and sample tagging ---
+# Reads are already demultiplexed, so obi ngsfilter cannot assign the `sample` tag from a tag file.
+# Set it explicitly with obi annotate -S (TAG:PYTHON_EXPRESSION), otherwise obi uniq -m sample has
+# nothing to merge on and the MERGED_sample tag that obi clean -s consumes is never created.
+cat_args=()
+for r1 in "$TRIMMED_DIR"/*_R1.fastq.gz; do
+    sample=$(basename "$r1" _R1.fastq.gz)
+    obi import --fastq-input "$r1" "$OBI_DIR"/"${sample}"_r1
+    obi import --fastq-input "${TRIMMED_DIR}/${sample}_R2.fastq.gz" "$OBI_DIR"/"${sample}"_r2
+    obi alignpairedend -R "$OBI_DIR"/"${sample}"_r2 "$OBI_DIR"/"${sample}"_r1 "$OBI_DIR"/"${sample}"_aligned
+    obi annotate -S "sample:'${sample}'" "$OBI_DIR"/"${sample}"_aligned "$OBI_DIR"/"${sample}"_tagged
+    cat_args+=(-c "$OBI_DIR"/"${sample}"_tagged)
+done
+obi cat "${cat_args[@]}" "$OBI_DIR"/aligned
 
 # Filter by alignment score (removes poorly overlapping pairs)
 obi grep -p "sequence[\"score\"] >= ${MIN_ALIGN_SCORE}" "$OBI_DIR"/aligned "$OBI_DIR"/score_filtered
@@ -85,32 +89,34 @@ obi grep -p "len(sequence) >= ${MIN_MERGED_LENGTH} and len(sequence) <= ${MAX_ME
     "$OBI_DIR"/score_filtered "$OBI_DIR"/length_filtered
 
 # --- Step 5: Dereplication ---
-obi uniq "$OBI_DIR"/length_filtered "$OBI_DIR"/dereplicated
+obi uniq -m sample "$OBI_DIR"/length_filtered "$OBI_DIR"/dereplicated
 
 # Remove singletons and low-count sequences
-obi grep -p "sequence[\"count\"] >= ${MIN_COUNT}" "$OBI_DIR"/dereplicated "$OBI_DIR"/denoised
+obi grep -p "sequence[\"COUNT\"] >= ${MIN_COUNT}" "$OBI_DIR"/dereplicated "$OBI_DIR"/denoised
 
 # --- Step 6: Denoise (remove PCR/sequencing errors) ---
 # ratio 0.05: sequences <5% abundance of a 1-mismatch parent are merged
-# -s merged_sample: per-sample denoising; -r 0.05: ratio threshold; -H: head sequences only
-obi clean -s merged_sample -r 0.05 -H "$OBI_DIR"/denoised "$OBI_DIR"/cleaned
+# -s MERGED_sample: per-sample denoising; -r 0.05: ratio threshold; -H: head sequences only
+obi clean -s MERGED_sample -r 0.05 -H "$OBI_DIR"/denoised "$OBI_DIR"/cleaned
 
-echo "=== Sequences after chimera removal ==="
+echo "=== Sequences after denoising ==="
 obi stats "$OBI_DIR"/cleaned
 
 # --- Step 7: Taxonomy assignment ---
 # ecotag uses LCA algorithm against reference database
+# Both $REF_DB and the taxonomy view must already be imported into the DMS
+# (obi import --taxdump ncbi_taxdump.tar.gz "$OBI_DIR"/taxonomy) before this runs.
 obi ecotag -R "$REF_DB" --taxonomy "$OBI_DIR"/taxonomy "$OBI_DIR"/cleaned "$OBI_DIR"/assigned
 
 # Filter by assignment quality
-obi grep -p "sequence[\"best_identity\"] >= ${MIN_IDENTITY}" \
+obi grep -p "sequence[\"BEST_IDENTITY\"] >= ${MIN_IDENTITY}" \
     "$OBI_DIR"/assigned "$OBI_DIR"/filtered_assigned
 
 # Export to tabular format
 obi export --tab-output "$OBI_DIR"/filtered_assigned > "$RESULTS_DIR"/taxonomy_table.tsv
 
 # QC checkpoint: assignment rate
-total=$(wc -l < "$RESULTS_DIR"/taxonomy_table.tsv)
+total=$(( $(wc -l < "$RESULTS_DIR"/taxonomy_table.tsv) - 1 ))    # minus the header row
 # COI/BOLD: >90% to phylum expected; lower for understudied markers
 assigned=$(awk -F'\t' 'NR>1 && $NF != "NA" {count++} END{print count+0}' "$RESULTS_DIR"/taxonomy_table.tsv)
 echo "Taxonomy assignment rate: $assigned / $total sequences"

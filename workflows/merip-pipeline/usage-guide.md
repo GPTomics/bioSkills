@@ -11,6 +11,8 @@ conda install -c bioconda star samtools deeptools preseq fastp multiqc macs3 hom
 ```
 
 ```r
+# NOTE: exomePeak2 exists only in Bioconductor 3.18 (deprecated 3.19, removed 3.20). On current
+# Bioconductor install it from the Bioc 3.18 archive (or substitute a successor m6A caller).
 BiocManager::install(c('exomePeak2', 'GenomicFeatures', 'BSgenome.Hsapiens.UCSC.hg38',
                        'TxDb.Hsapiens.UCSC.hg38.knownGene', 'rtracklayer',
                        'ChIPseeker', 'Guitar'))
@@ -65,7 +67,7 @@ BiocManager::install(c('exomePeak2', 'GenomicFeatures', 'BSgenome.Hsapiens.UCSC.
 - Peak counts are library-size-dependent. Rarefy to common depth or report saturation curves alongside.
 - exomePeak2 has NO `mode=` or `experiment_design=` argument. Populate `bam_treated_ip` + `bam_treated_input` for differential.
 - For batch / antibody-lot covariate adjustment, fall through to featureCounts-on-peaks then DESeq2 (see `epitranscriptomics/m6a-differential`).
-- DRACH motif is a sanity check on the peak set (HOMER E-value < 1e-50). NEVER post-hoc filter individual peaks by DRACH content.
+- DRACH motif is a sanity check on the peak set (HOMER P-value < 1e-50). NEVER post-hoc filter individual peaks by DRACH content.
 - Stop-codon enrichment in the Guitar metagene is the biological QC anchor (Dominissini 2012 *Nature* 485:201; Meyer 2012 *Cell* 149:1635). Absence means failed IP or non-m6A modification.
 - 5'UTR peaks (within ~50 nt of TSS) are m6A-or-m6Am ambiguous because anti-m6A antibodies cross-react with PCIF1-deposited cap m6Am.
 - N >= 3 biological replicates per condition; N=2 is under-powered for differential (McIntyre 2020 *Sci Rep* 10:6590).

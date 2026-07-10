@@ -19,8 +19,8 @@ raxml-ng --parse --msa "$ALIGNMENT" --model GTR+G --prefix "$OUT/parse"
 # --bs-metric fbp,tbe  Felsenstein proportion AND transfer bootstrap expectation
 # --threads auto{8}    auto thread/worker detection capped at 8
 raxml-ng --all --msa "$ALIGNMENT" --model GTR+G \
-         --bs-trees autoMRE{1000} --bs-metric fbp,tbe \
-         --threads auto{8} --seed 42 --prefix "$OUT/run_ng"
+         --bs-trees 'autoMRE{1000}' --bs-metric fbp,tbe \
+         --threads 'auto{8}' --seed 42 --prefix "$OUT/run_ng"
 
 echo "Best tree:    $OUT/run_ng.raxml.bestTree"
 echo "With support: $OUT/run_ng.raxml.support (FBP and TBE columns)"

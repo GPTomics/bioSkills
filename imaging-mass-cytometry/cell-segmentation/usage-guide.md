@@ -2,7 +2,7 @@
 
 ## Overview
 
-Delineates single cells in multiplexed IMC/MIBI images so that averaging channels inside each mask yields a single-cell expression table. The load-bearing point: segmentation is the single largest, irreversible source of error in the experiment -- under-segmentation fabricates impossible double-positive cell types while over-segmentation quietly miscounts cells and corrupts spatial statistics, and both are confounded with lateral signal spillover across cell boundaries.
+Delineates single cells in multiplexed IMC/MIBI images so that averaging channels inside each mask yields a single-cell expression table. What dominates everything downstream: segmentation is the single largest, irreversible source of error in the experiment -- under-segmentation fabricates impossible double-positive cell types while over-segmentation quietly miscounts cells and corrupts spatial statistics, and both are confounded with lateral signal spillover across cell boundaries.
 
 ## Prerequisites
 

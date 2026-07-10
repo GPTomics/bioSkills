@@ -2,7 +2,7 @@
 
 ## Overview
 
-Infer transcription factor regulons from single-cell RNA-seq using the pySCENIC three-step pipeline. GRNBoost2 finds TF-target co-expression, cisTarget prunes it to direct targets by requiring the TF's motif to be enriched in their regulatory regions, and AUCell scores per-cell regulon activity. The load-bearing idea: the motif-pruning step is what turns undirected co-expression into directed, motif-supported regulation, and AUCell activity is a rank statistic, so regulon activity is distinct from TF expression (it can be high while the TF transcript is dropout-zero). Regulons are strong directed hypotheses, not proof of causal regulation. For paired scRNA+scATAC use multiomics-grn; for bulk data and TF protein-activity use grn-inference.
+Infer transcription factor regulons from single-cell RNA-seq using the pySCENIC three-step pipeline. GRNBoost2 finds TF-target co-expression, cisTarget prunes it to direct targets by requiring the TF's motif to be enriched in their regulatory regions, and AUCell scores per-cell regulon activity. The key idea: the motif-pruning step is what turns undirected co-expression into directed, motif-supported regulation, and AUCell activity is a rank statistic, so regulon activity is distinct from TF expression (it can be high while the TF transcript is dropout-zero). Regulons are strong directed hypotheses, not proof of causal regulation. For paired scRNA+scATAC use multiomics-grn; for bulk data and TF protein-activity use grn-inference.
 
 ## Prerequisites
 

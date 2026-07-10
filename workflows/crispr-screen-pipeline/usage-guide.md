@@ -7,14 +7,18 @@ End-to-end pipeline for pooled and single-cell CRISPR screens. Takes raw FASTQ f
 ## Prerequisites
 
 ```bash
-# Core hit-calling tools
-pip install mageck mageck-vispr bagel-cas9 jacks pertpy scanpy anndata
+# Core hit-calling tools (MAGeCK/mageck-vispr are on bioconda, NOT PyPI)
+conda install -c bioconda mageck mageck-vispr
+# BAGEL2 and JACKS are GitHub clones (the PyPI `jacks` is an unrelated package)
+git clone https://github.com/hart-lab/bagel
+git clone https://github.com/felicityallen/JACKS
+pip install pertpy scanpy anndata
 # drugZ (clone from GitHub)
 git clone https://github.com/hart-lab/drugz
-# Editing analysis
-pip install CRISPResso2
-# Chronos for DepMap-style cancer-line CN+quality jointly
-pip install chronos-cn
+# Editing analysis (CRISPResso2 is on bioconda, not PyPI)
+conda install -c bioconda crispresso2
+# Chronos for DepMap-style cancer-line CN+quality jointly (GitHub, not PyPI)
+pip install git+https://github.com/broadinstitute/chronos
 # R packages
 R -e "BiocManager::install(c('CRISPRcleanR', 'MAGeCKFlute', 'sva', 'sceptre'))"
 # Helpers
@@ -100,7 +104,7 @@ Tell the AI agent what to run:
 - Cancer cell line screens ALWAYS require copy-number correction. The Aguirre 2016 / Munoz 2016 amplicon artifact is universal; ERBB2 in HER2+, MYC in MYC-amplified, FGFR1 in head-and-neck cases are textbook.
 - Choose hit calling by experimental design, not by familiarity. MAGeCK RRA is great for two-condition essentiality but fails on time course; Chronos is the DepMap standard for cancer panels but overkill for single-line screens.
 - For high-stakes hits (drug-target nomination), require 2-of-3 or 3-of-3 method consensus. Single-method hits at FDR 0.05 carry ~5% false discovery; tier-1 consensus shrinks this dramatically.
-- BAGEL2 BF >6 corresponds to FDR 0.05 from Hart 2017 G3 calibration; use this when cross-comparing methods.
+- BAGEL2 BF >6 corresponds to FDR <3% in the Hart 2017 G3 calibration (BF >3 is the FDR <5% threshold); use this when cross-comparing methods.
 - For low-quality screens (CEGv2 PR-AUC 0.5-0.7), tighten FDR from 0.05 to 0.01 to maintain effective specificity.
 - Switching from Cas9 to CRISPRi (Dolcetto library) is the cleanest way to bypass copy-number artifact in cancer lines. The tradeoff: CRISPRi knockdown is less complete than Cas9 KO.
 - For single-cell screens, MOI 0.3 is non-negotiable; high MOI creates multi-perturbation cells that violate every analysis assumption.

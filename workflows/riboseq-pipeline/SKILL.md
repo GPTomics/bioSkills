@@ -3,11 +3,24 @@ name: bio-workflows-riboseq-pipeline
 description: End-to-end Ribo-seq analysis from FASTQ through periodicity QC, P-site calibration, ORF detection, translation efficiency, and stalling. Use when orchestrating a full ribosome profiling pipeline and deciding harvest/dedup/alignment options and which downstream analyses the library can support.
 tool_type: mixed
 primary_tool: STAR
+workflow: true
+depends_on:
+  - ribo-seq/riboseq-preprocessing
+  - ribo-seq/ribosome-periodicity
+  - ribo-seq/orf-detection
+  - ribo-seq/translation-efficiency
+  - ribo-seq/ribosome-stalling
+  - ribo-seq/initiation-site-mapping
+qc_checkpoints:
+  - after_align: "EndToEnd footprint alignment; deduplicate ONLY with UMIs; transcriptome BAM emitted"
+  - periodicity_gate: "Strong 3-nt frame-0 periodicity REQUIRED before any ORF/stalling analysis; else gene-level counts only"
+  - after_psite: "Per-read-length P-site offsets calibrated (not a single hardcoded 28 / read 5' end)"
+  - after_te: "TE via count-based GLM (riborex/Xtail/anota2seq), never a ratio of ratios"
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: cutadapt 4.4+, umi_tools 1.1+, STAR 2.7.11+, SortMeRNA 4.3+, riboWaltz 2.0+, RiboCode 1.2+, riborex 2.4+, samtools 1.19+
+Reference examples tested with: cutadapt 4.4+, umi_tools 1.1+, STAR 2.7.11+, bowtie2 2.5.3+, plastid 0.6+, riboWaltz 2.0+, RiboCode 1.2+, riborex 2.4+, samtools 1.19+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
@@ -21,14 +34,23 @@ package and adapt the example to match the actual API rather than retrying.
 
 **"Analyze my ribosome profiling data from FASTQ to translation efficiency"** -> Orchestrate UMI handling, trimming, rRNA depletion, footprint-aware alignment, periodicity QC, P-site calibration, ORF detection, and differential translation, gating each downstream analysis on library quality.
 
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+A Ribo-seq analysis is decided at four seams, two of them set at the bench before any sequencing.
+
+1. **The harvest method is the deepest commitment and it fixes which analyses are even valid.** Cycloheximide (CHX) pre-treatment freezes elongating ribosomes but distorts codon-level dwell times (it can flip the codon-occupancy/tRNA-abundance correlation, Hussmann 2015); dwell-time / stalling / pausing analyses are only valid on flash-frozen, no-drug libraries. Gene-level footprint counts and TE are robust to CHX; codon-resolution analyses are not.
+2. **Deduplicate ONLY when a UMI is present.** Ribosome footprints are ~28-30 nt and massively over-represented at abundant transcripts, so identical reads are mostly real signal; position-deduplicating a non-UMI library destroys it. With UMIs, dedup BOTH the genome and the transcriptome BAM.
+3. **3-nt periodicity is a HARD gate, not a QC nicety.** Frame-based ORF calling and P-site analyses require strong frame-0 periodicity; a library that lacks it supports only gene-level counts. Certify it (riboWaltz frame-0 fraction) BEFORE any ORF/stalling step.
+4. **P-site offsets are per-read-length, and TE is a count model.** Never hardcode a single 28-nt offset or the read 5' end; calibrate per length. Differential translation efficiency is a count-based GLM (riborex/Xtail/anota2seq) on CDS counts from BOTH assays, never a ratio of ribo/RNA ratios.
+
 ## Pipeline overview
 
 ```
-FASTQ -> UMI extract -> trim -> rRNA remove -> STAR (EndToEnd) -> dedup
-      -> periodicity QC + P-site offsets -> [ORF detection | translation efficiency | stalling]
+FASTQ -> UMI extract -> trim -> rRNA remove -> STAR (EndToEnd) -> dedup (UMI only)
+      -> periodicity QC (HARD GATE) + per-length P-site offsets -> [ORF detection | translation efficiency | stalling]
 ```
-
-Two upstream facts gate the whole pipeline: how cells were harvested (CHX pre-treatment distorts dwell-time analysis) and whether the library has UMIs (decides deduplication). Periodicity QC is a hard gate: a library without 3-nt periodicity supports only gene-level counts, not ORF/stalling analysis.
 
 ## Step 1: Preprocess
 
@@ -46,7 +68,7 @@ STAR --genomeDir STAR_index --readFilesIn noncontam.fq.gz --readFilesCommand zca
 samtools index ribo_Aligned.sortedByCoord.out.bam
 ```
 
-`--quantMode TranscriptomeSAM` writes a SEPARATE `ribo_Aligned.toTranscriptome.out.bam` alongside the sorted genome BAM. RiboCode and riboWaltz transcriptome paths consume the TRANSCRIPTOME BAM; the sorted genome BAM is for plastid/genome-coordinate steps. With UMIs, deduplicate the transcriptome BAM too (`umi_tools dedup --per-contig`; see riboseq-preprocessing), or its ORF/periodicity inputs stay PCR-inflated.
+`--quantMode TranscriptomeSAM` writes a SEPARATE `ribo_Aligned.toTranscriptome.out.bam` alongside the sorted genome BAM. RiboCode and riboWaltz transcriptome paths consume the TRANSCRIPTOME BAM; the sorted genome BAM is for plastid/genome-coordinate steps. With UMIs, deduplicate the transcriptome BAM too (coordinate-sort it first, then plain `umi_tools dedup --method directional`; see riboseq-preprocessing), or its ORF/periodicity inputs stay PCR-inflated. Do NOT add `--per-contig`/`--per-gene` here: they treat all reads on a transcript as one position, collapsing the per-codon footprints periodicity depends on.
 
 ## Step 2: Periodicity QC and P-site offsets
 
@@ -116,3 +138,4 @@ Stalling/pausing (only on flash-frozen no-drug data; see ribosome-stalling) and 
 - McGlincy NJ, Ingolia NT. 2017. Transcriptome-wide measurement of translation by ribosome profiling. Methods 126:112-129. doi:10.1016/j.ymeth.2017.05.028
 - Lauria F, Tebaldi T, Bernabò P, Groen EJN, Gillingwater TH, Viero G. 2018. riboWaltz: Optimization of ribosome P-site positioning in ribosome profiling data. PLoS Comput Biol 14(8):e1006169. doi:10.1371/journal.pcbi.1006169
 - Xiao Z, Huang R, Xing X, Chen Y, Deng H, Yang X. 2018. De novo annotation and characterization of the translatome with ribosome profiling data. Nucleic Acids Res 46(10):e61. doi:10.1093/nar/gky179
+- Hussmann JA, Patchett S, Johnson A, Sawyer S, Press WH. 2015. Understanding biases in ribosome profiling experiments reveals signatures of translation dynamics in yeast. PLoS Genet 11(12):e1005732. doi:10.1371/journal.pgen.1005732 (cycloheximide distorts codon-level dwell times)

@@ -1,12 +1,16 @@
 #!/bin/bash
-# Reference: DESeq2 1.42+, cutadapt 4.4+ | Verify API if version differs
-# Complete small RNA-seq pipeline
+# Reference: cutadapt 4.4+, miRDeep2 2.0.1.3+, bowtie 1.3+ | Verify API if version differs
+# Small RNA-seq pipeline -- miRDeep2 NOVEL-DISCOVERY route (genome + bowtie1 + miRDeep2).
+# For the common known-miRNA + isomiR route, use miRge3.0 (see SKILL.md primary path).
+set -e
 
 FASTQ=$1
-GENOME_FA=$2
-GENOME_INDEX=$3  # bowtie index prefix
-MATURE_FA=$4     # mature miRNAs from miRBase
-HAIRPIN_FA=$5    # hairpin sequences from miRBase
+# miRDeep2.pl runs after a `cd` into the output dir, so resolve genome/miRBase inputs to
+# ABSOLUTE paths up front; relative positional args would not resolve after the cd.
+GENOME_FA=$(realpath "$2")
+GENOME_INDEX=$3  # bowtie index prefix (used before the cd, so relative is fine)
+MATURE_FA=$(realpath "$4")     # mature miRNAs from miRBase
+HAIRPIN_FA=$(realpath "$5")    # hairpin sequences from miRBase
 OUTPUT_DIR=${6:-"smrna_results"}
 ADAPTER=${7:-"TGGAATTCTCGGGTGCCAAGG"}  # Illumina TruSeq small RNA adapter
 
@@ -37,7 +41,9 @@ echo "=== Step 2: miRDeep2 Alignment ==="
 # -j: remove reads with non-canonical letters
 # -l 18: minimum read length
 # -m: collapse reads
-mapper.pl ${OUTPUT_DIR}/trimmed/trimmed.fastq.gz \
+# mapper.pl reads plain-text FASTQ (no gzip handling); decompress first.
+gunzip -kc ${OUTPUT_DIR}/trimmed/trimmed.fastq.gz > ${OUTPUT_DIR}/trimmed/trimmed.fastq
+mapper.pl ${OUTPUT_DIR}/trimmed/trimmed.fastq \
     -e -h -i -j -l 18 -m \
     -p $GENOME_INDEX \
     -s ${OUTPUT_DIR}/mirdeep2/reads_collapsed.fa \
@@ -45,7 +51,7 @@ mapper.pl ${OUTPUT_DIR}/trimmed/trimmed.fastq.gz \
     -v
 
 echo "=== Step 3: miRDeep2 Quantification ==="
-cd ${OUTPUT_DIR}/mirdeep2
+cd "${OUTPUT_DIR}/mirdeep2"
 
 # Run miRDeep2
 # Outputs: known miRNA counts, novel miRNA predictions

@@ -30,7 +30,7 @@ print(analysis['ARM'].value_counts())
 # --- Step 2: Table 1 ---
 columns = ['AGE', 'SEX']
 table1 = TableOne(analysis, columns=columns, categorical=['SEX'],
-                  groupby='ARM', pval=True, smd=True, missing=True)
+                  groupby='ARM', pval=False, smd=True, missing=True)   # SMD, NOT baseline p-values (Senn 1994)
 print(table1.tabulate(tablefmt='github'))
 
 # --- Step 3: Primary Analysis ---
@@ -41,9 +41,34 @@ or_table = pd.DataFrame({
     'Upper_CI': np.exp(model.conf_int()[1]),
     'p_value': model.pvalues
 })
-print('\nPrimary Analysis - Odds Ratios:')
+print('\nSupportive Analysis - Conditional Odds Ratios:')
 print(or_table.to_string(float_format='%.4f'))
 print(f'McFadden pseudo-R2: {model.prsquared:.4f}')
+
+# The conditional OR above is SUPPORTIVE. The FDA 2023 primary for a binary endpoint is the MARGINAL
+# risk difference: the OR is non-collapsible, so it answers a different question than the RD. Estimate
+# by g-computation -- predict every subject's risk under BOTH arms, average within arm, difference.
+REFERENCE_ARM = 'Placebo'
+ACTIVE_ARM = next(a for a in analysis['ARM'].unique() if a != REFERENCE_ARM)
+
+def marginal_rd(fitted, data):
+    return fitted.predict(data.assign(ARM=ACTIVE_ARM)).mean() - fitted.predict(data.assign(ARM=REFERENCE_ARM)).mean()
+
+rd = marginal_rd(model, analysis)
+
+# Percentile bootstrap: refit on each resample so the CI reflects estimation of the outcome model too.
+# 1000 resamples is the conventional floor for a stable 2.5/97.5 percentile.
+rng = np.random.default_rng(42)
+boot = []
+for _ in range(1000):
+    # reset_index: sampling with replacement duplicates index labels, and whenever a covariate is
+    # missing patsy drops those rows, forcing predict() to reindex -- which raises on duplicate labels.
+    resample = analysis.iloc[rng.integers(0, len(analysis), len(analysis))].reset_index(drop=True)
+    refit = smf.logit('HAD_EVENT ~ C(ARM, Treatment(reference="Placebo")) + AGE + C(SEX)', data=resample).fit(disp=0)
+    boot.append(marginal_rd(refit, resample))
+lo, hi = np.percentile(boot, [2.5, 97.5])
+print(f'\nPrimary Analysis - marginal risk difference ({ACTIVE_ARM} vs {REFERENCE_ARM}), g-computation:')
+print(f'RD = {rd:+.4f}  95% bootstrap CI [{lo:+.4f}, {hi:+.4f}]')
 
 # --- Step 4: Chi-square Test ---
 ct = pd.crosstab(analysis['ARM'], analysis['HAD_EVENT'])
@@ -55,20 +80,25 @@ else:
     print(f'\nChi-square: chi2={chi2:.2f}, p={p:.4f}, dof={dof}')
 
 # --- Step 5: Missing Data Sensitivity ---
-n_imputations = 20
-covariate_cols = ['AGE']
+n_imputations = 20   # practical starting count; von Hippel 2020 shows required m scales with the fraction of missing information (two-stage rule), so raise it when FMI is high
+# Impute AGE jointly WITH its predictors (SEX, TREATMENT, HAD_EVENT). A single-column imputer has no
+# predictors, so sample_posterior draws are identical -> between-imputation variance 0 and MI collapses
+# to complete-case. Correlated columns make the posterior draws vary.
+impute_cols = ['AGE', 'TREATMENT', 'HAD_EVENT']   # numeric only; SEX ('M'/'F') would break IterativeImputer and is restored below
 mi_analysis = analysis.dropna(subset=['HAD_EVENT', 'TREATMENT']).copy()
 mi_results = []
 for i in range(n_imputations):
     imputer = IterativeImputer(max_iter=10, random_state=i, sample_posterior=True)
     imputed_covariates = pd.DataFrame(
-        imputer.fit_transform(mi_analysis[covariate_cols]),
-        columns=covariate_cols, index=mi_analysis.index
+        imputer.fit_transform(mi_analysis[impute_cols]),
+        columns=impute_cols, index=mi_analysis.index
     )
     imputed = imputed_covariates.copy()
     imputed['HAD_EVENT'] = mi_analysis['HAD_EVENT'].values
     imputed['TREATMENT'] = mi_analysis['TREATMENT'].values
-    mi_model = smf.logit('HAD_EVENT ~ TREATMENT + AGE', data=imputed).fit(disp=0)
+    imputed['SEX'] = mi_analysis['SEX'].values
+    # Mirror the primary ADJUSTED model's RHS (AGE + SEX) so the pooled OR is comparable to it.
+    mi_model = smf.logit('HAD_EVENT ~ TREATMENT + AGE + C(SEX)', data=imputed).fit(disp=0)
     mi_results.append({'coef': mi_model.params['TREATMENT'], 'se': mi_model.bse['TREATMENT']})
 
 pooled_coef = np.mean([r['coef'] for r in mi_results])

@@ -44,6 +44,17 @@ Tell your AI agent what you want to do:
 
 > "Import my featureCounts output into DESeq2"
 
+### Pipeline-level decisions
+> "Which reference release should I pin, and does my Salmon index have to match the tx2gene?"
+
+> "Should I use Salmon or STAR+featureCounts for this experiment?"
+
+> "How do I set strandedness for featureCounts - my counts look collapsed"
+
+> "My samples were prepped in two batches - how do I handle it without inflating my results?"
+
+> "I want to run GSEA next - what ranking statistic should the DE table carry?"
+
 ## Input Requirements
 
 | Input | Format | Description |
@@ -55,11 +66,12 @@ Tell your AI agent what you want to do:
 
 ## What the Workflow Does
 
-1. **Quality Control** - Trim adapters and low-quality bases with fastp
-2. **Quantification** - Count reads per gene/transcript (Salmon or STAR+featureCounts)
-3. **Import** - Load counts into R with proper normalization offsets
-4. **Differential Expression** - Run DESeq2 statistical analysis
-5. **Results** - Export significant genes and visualizations
+1. **Commit the reference once** - Pin one Ensembl/GENCODE release for BOTH the Salmon index and the tx2gene/GTF, and fix the gene-ID namespace (ENSG backbone)
+2. **Quality Control** - Trim adapters and low-quality bases with fastp
+3. **Quantification** - Salmon (decoy-aware) or STAR+featureCounts to the committed reference, with strandedness verified not assumed
+4. **Import** - Collapse transcript->gene through tximport (carries the length offset), never by summing NumReads
+5. **Differential Expression** - Run DESeq2/edgeR/limma-voom on RAW counts with batch in the design
+6. **Results** - Shrink LFC for ranking (pull the Wald `stat` from the unshrunk fit for GSEA), visualize on VST, export the annotated table
 
 ## Choosing Between Paths
 

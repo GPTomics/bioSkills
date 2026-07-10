@@ -26,7 +26,9 @@ cat('Significant genes:', length(sig_genes), '\n')
 # Background universe = genes that entered the DE test (testable), NOT the genome
 universe_genes <- rownames(res[!is.na(res$pvalue), ])
 
-# Ranked vector of ALL genes: prefer the Wald stat over a bare log2FC
+# Ranked vector of ALL genes: prefer the Wald stat over a bare log2FC.
+# NOTE: lfcShrink(apeglm/ashr) tables have NO `stat` column -- rank from the unshrunken
+# results(dds)$stat (or limma `t` / edgeR sign(logFC)*-log10(PValue)).
 ranked <- res$stat
 names(ranked) <- rownames(res)
 ranked <- sort(ranked[!is.na(ranked)], decreasing = TRUE)
@@ -41,6 +43,7 @@ ranked_map <- bitr(names(ranked), fromType = 'SYMBOL', toType = 'ENTREZID', OrgD
 ranked_list <- ranked[ranked_map$SYMBOL]
 names(ranked_list) <- ranked_map$ENTREZID
 ranked_list <- ranked_list[!duplicated(names(ranked_list))]   # dedup or GSEA biases the score
+ranked_list <- sort(ranked_list, decreasing = TRUE)           # re-sort: bitr remap can reorder rows
 
 # === Stage 3a: ORA branch (list + universe) ===
 cat('\n=== GO ORA ===\n')
@@ -50,12 +53,12 @@ go_bp <- simplify(go_bp, cutoff = 0.7, by = 'p.adjust')   # collapse DAG redunda
 cat('GO BP terms (simplified):', nrow(as.data.frame(go_bp)), '\n')
 
 cat('\n=== KEGG ORA (LIVE DB) ===\n')
-kegg <- enrichKEGG(sig_entrez$ENTREZID, organism = 'hsa', pvalueCutoff = 0.05)
+kegg <- enrichKEGG(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, organism = 'hsa', pvalueCutoff = 0.05)
 kegg <- setReadable(kegg, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
 cat('KEGG pathways:', nrow(as.data.frame(kegg)), '\n')
 
 cat('\n=== Reactome ORA (local DB) ===\n')
-reactome <- enrichPathway(sig_entrez$ENTREZID, organism = 'human', pvalueCutoff = 0.05, readable = TRUE)
+reactome <- enrichPathway(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, organism = 'human', pvalueCutoff = 0.05, readable = TRUE)
 cat('Reactome pathways:', nrow(as.data.frame(reactome)), '\n')
 
 # === Stage 3b: GSEA branch (named decreasing vector of all genes) ===

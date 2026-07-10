@@ -2,7 +2,7 @@
 
 ## Overview
 
-Assess and filter phasing and imputation output. The load-bearing idea is that the routine quality score (Beagle DR2, Minimac R2, IMPUTE/GLIMPSE INFO) is the model grading its own posterior, not a measured accuracy: it estimates r2 from the dosage variance without ever seeing the truth, it is confounded with allele frequency, and a flat INFO >= 0.3 cutoff is therefore a hidden rare-variant filter. True accuracy comes only from masking known genotypes and computing dosage-r2 binned by MAF; concordance lies for rare variants. The other load-bearing point is the differential-imputation confound: imputing cases and controls separately manufactures false GWAS hits that every per-group QC metric passes. This skill covers the metrics, MAF-stratified filtering, masked-truth accuracy, phasing switch-error QC, and dosage-based downstream usage.
+Assess and filter phasing and imputation output. The core idea is that the routine quality score (Beagle DR2, Minimac R2, IMPUTE/GLIMPSE INFO) is the model grading its own posterior, not a measured accuracy: it estimates r2 from the dosage variance without ever seeing the truth, it is confounded with allele frequency, and a flat INFO >= 0.3 cutoff is therefore a hidden rare-variant filter. True accuracy comes only from masking known genotypes and computing dosage-r2 binned by MAF; concordance lies for rare variants. The second trap is the differential-imputation confound: imputing cases and controls separately manufactures false GWAS hits that every per-group QC metric passes. This skill covers the metrics, MAF-stratified filtering, masked-truth accuracy, phasing switch-error QC, and dosage-based downstream usage.
 
 ## Prerequisites
 

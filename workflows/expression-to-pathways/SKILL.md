@@ -72,7 +72,7 @@ A claim conditioned on universe + method + database version (record provenance)
 | Stage | Goal | Owns the nuance |
 |-------|------|-----------------|
 | 0. Decide generation | ORA vs GSEA from the available input | pathway-analysis README (method selection) |
-| 1. Prepare input | Build the gene list AND/OR the named ranked vector; define the universe | differential-expression/de-results (the stat); foundations (the universe rule) |
+| 1. Prepare input | Build the gene list AND/OR the named ranked vector; define the universe | differential-expression/de-results (the stat); pathway-analysis/go-enrichment (the universe rule) |
 | 2. Convert IDs | Map to the form each method needs (OrgDb keyType / kegg-id / ENTREZ) | go-enrichment, kegg-pathways, reactome-pathways |
 | 3a. ORA | Hypergeometric test of the list vs background | go-enrichment, kegg-pathways, reactome-pathways, wikipathways |
 | 3b. GSEA | Running-sum over the full ranking | gsea |
@@ -110,11 +110,13 @@ res <- read.csv('deseq2_results.csv', row.names = 1)
 sig_genes <- rownames(subset(res, padj < 0.05 & abs(log2FoldChange) > 1))
 
 # Background universe = genes that were TESTABLE (entered the DE test), NOT the genome.
-# Using the genome measures expression bias, not enrichment (foundations: the universe rule).
+# Using the genome measures expression bias, not enrichment (the universe rule; see pathway-analysis/go-enrichment).
 universe_genes <- rownames(res[!is.na(res$pvalue), ])
 
 # GSEA input: a NAMED vector of ALL genes, sorted DECREASING by a signed metric.
 # Prefer the Wald stat (magnitude + precision); a bare log2FC over-weights noisy low-count genes.
+# TRAP: a table from lfcShrink(type='apeglm'/'ashr') has NO `stat` column -- shrinkage drops it.
+# Rank from the UNSHRUNK results(dds)$stat; use edgeR `sign(logFC)*-log10(PValue)` or limma `t`.
 ranked <- res$stat
 names(ranked) <- rownames(res)
 ranked <- sort(ranked[!is.na(ranked)], decreasing = TRUE)
@@ -136,6 +138,7 @@ ranked_map <- bitr(names(ranked), fromType = 'SYMBOL', toType = 'ENTREZID', OrgD
 ranked_list <- ranked[ranked_map$SYMBOL]
 names(ranked_list) <- ranked_map$ENTREZID
 ranked_list <- ranked_list[!duplicated(names(ranked_list))]   # dedup or GSEA biases the score
+ranked_list <- sort(ranked_list, decreasing = TRUE)           # re-sort: bitr remap can reorder rows
 
 conv_rate <- nrow(sig_entrez) / length(sig_genes)   # report it; <0.85 -> wrong ID type/organism
 ```
@@ -160,12 +163,12 @@ go_bp <- enrichGO(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, OrgDb = or
 go_bp <- simplify(go_bp, cutoff = 0.7, by = 'p.adjust')
 
 # KEGG ORA - LIVE KEGG REST API; needs internet; record the access date for reproducibility
-kegg <- enrichKEGG(sig_entrez$ENTREZID, organism = 'hsa', keyType = 'ncbi-geneid', pvalueCutoff = 0.05)   # Entrez input; 'kegg' default is the prokaryote locus-tag path
+kegg <- enrichKEGG(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, organism = 'hsa', keyType = 'ncbi-geneid', pvalueCutoff = 0.05)   # Entrez input; keyType='kegg' = Entrez for eukaryotes / locus tags for prokaryotes, 'ncbi-geneid' is explicit
 kegg <- setReadable(kegg, OrgDb = org.Hs.eg.db, keyType = 'ENTREZID')
 
 # Reactome ORA - ENTREZ required; LOCAL reactome.db so reproducible given the release
 library(ReactomePA)
-reactome <- enrichPathway(sig_entrez$ENTREZID, organism = 'human', pvalueCutoff = 0.05, readable = TRUE)
+reactome <- enrichPathway(sig_entrez$ENTREZID, universe = bg_entrez$ENTREZID, organism = 'human', pvalueCutoff = 0.05, readable = TRUE)
 ```
 
 ## Stage 3b: GSEA Branch (named decreasing vector of all genes)
@@ -188,7 +191,7 @@ gsea_kegg <- gseKEGG(ranked_list, organism = 'hsa',
 
 **Goal:** Reduce overlapping terms to distinct findings before drawing conclusions, then plot deliberately.
 
-**Approach:** A list of 40 significant GO terms is often a few biological stories told many times (shared genes via the GO true-path rule). Collapse with `simplify`/`pairwise_termsim`, then plot - `emapplot`/`cnetplot` require `pairwise_termsim()` first, and `gseaplot2` is for a gseaResult not an enrichResult. Encoding choice and required pre-steps are owned by pathway-analysis/enrichment-visualization.
+**Approach:** A list of 40 significant GO terms is often a few biological stories told many times (shared genes via the GO true-path rule). Collapse with `simplify`/`pairwise_termsim`, then plot - `emapplot`/`treeplot` require `pairwise_termsim()` first (cnetplot does NOT; it draws the gene-concept network from the `geneID` column directly), and `gseaplot2` is for a gseaResult not an enrichResult. Encoding choice and required pre-steps are owned by pathway-analysis/enrichment-visualization.
 
 ```r
 library(enrichplot)
@@ -207,7 +210,8 @@ gseaplot2(gsea_go, geneSetID = 1:3)           # gseaResult only, not enrichResul
 
 ```r
 gene_clusters <- list(A = sig_A, B = sig_B, C = sig_C)
-cc <- compareCluster(gene_clusters, fun = 'enrichKEGG', organism = 'hsa')
+cc <- compareCluster(gene_clusters, fun = 'enrichKEGG', organism = 'hsa',
+                     universe = bg_entrez$ENTREZID)   # compareCluster forwards ... to fun; omitting universe silently reverts to the whole-genome background
 dotplot(cc, showCategory = 10)
 ```
 
@@ -224,6 +228,9 @@ dotplot(cc, showCategory = 10)
 
 ### GSEA without set.seed or with an unsorted vector
 **Trigger:** no seed, or a list that is not named and decreasing. **Mechanism:** permutation p-values drift run to run; an unsorted/unnamed vector errors or mis-ranks. **Symptom:** different leading edges each run, or a names error. **Fix:** build the named decreasing vector and `set.seed`.
+
+### Ranking a GSEA vector off a shrunken-LFC object
+**Trigger:** building the ranked vector from a `lfcShrink(type='apeglm'/'ashr')` table, or ranking by bare `log2FoldChange`. **Mechanism:** apeglm/ashr DROP the `stat` column, so the vector silently falls back to shrunken LFC; low-count genes with unstable large FC then hijack the leading edge. **Symptom:** the leading edge is dominated by low-baseMean genes, or `res$stat` is NULL. **Fix:** rank from the unshrunken `results(dds)$stat` (DESeq2), limma `topTable$t`, or edgeR `sign(logFC)*-log10(PValue)`; reserve shrunken LFC for visualization.
 
 ### Live-DB result reported as reproducible
 **Trigger:** KEGG/WikiPathways result with no recorded date. **Mechanism:** those query the current data release; the same code returns different pathways later. **Symptom:** a collaborator cannot reproduce the figure. **Fix:** record the access date and data version; prefer local GO/Reactome when reproducibility is paramount.
@@ -251,7 +258,7 @@ dotplot(cc, showCategory = 10)
 | enrichKEGG returns 0 terms | ENSEMBL passed (needs kegg-id/ENTREZ), wrong organism code, or KEGG API down | convert with bitr_kegg; check organism; retry (live DB) |
 | `--> No gene can be mapped` | wrong keyType/OrgDb for the input IDs | match keyType to the actual ID type |
 | gseGO error about names | vector not named or not sorted decreasing | build a named vector sorted `decreasing = TRUE` |
-| cnetplot/emapplot empty or errors | `pairwise_termsim()` not run first | run `pairwise_termsim()` before the plot |
+| emapplot/treeplot empty or errors | `pairwise_termsim()` not run first (cnetplot does not need it) | run `pairwise_termsim()` before emapplot/treeplot |
 | simplify fails on ont='ALL' | simplify needs one ontology | run BP/MF/CC separately, then simplify each |
 | different results each run | no set.seed, or the live KEGG/WP DB changed | set.seed; pin and record the DB version/date |
 | all terms have NA Description | `readable`/`setReadable` not applied | set `readable = TRUE` or call `setReadable` |

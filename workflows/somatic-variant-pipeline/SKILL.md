@@ -126,9 +126,9 @@ Models the strand-orientation artifacts (oxoG C>A/G>T from oxidative shearing da
 
 ```bash
 gatk GetPileupSummaries -I tumor.bam \
-    -V small_exac_common.vcf.gz -L small_exac_common.vcf.gz -O tumor_pileups.table
+    -V small_exac_common_3.vcf.gz -L small_exac_common_3.vcf.gz -O tumor_pileups.table
 gatk GetPileupSummaries -I normal.bam \
-    -V small_exac_common.vcf.gz -L small_exac_common.vcf.gz -O normal_pileups.table
+    -V small_exac_common_3.vcf.gz -L small_exac_common_3.vcf.gz -O normal_pileups.table
 
 gatk CalculateContamination -I tumor_pileups.table -matched normal_pileups.table \
     -O contamination.table --tumor-segmentation segments.table
@@ -231,7 +231,7 @@ Normalize BEFORE annotating (annotate-then-normalize is an order error): un-norm
 
 ## Interpretation: somatic tiers, NOT germline ACMG
 
-This is the load-bearing decision of the whole pipeline and the most common category error. Route the annotated somatic VCF to variant-calling/clinical-interpretation, which applies TWO orthogonal cancer frameworks:
+This is the critical decision of the whole pipeline and the most common category error. Route the annotated somatic VCF to variant-calling/clinical-interpretation, which applies TWO orthogonal cancer frameworks:
 
 **AMP/ASCO/CAP four-tier clinical actionability (Li 2017 *J Mol Diagn* 19:4-23):**
 
@@ -258,8 +258,12 @@ bcftools query -f '%FILTER\n' filtered.vcf.gz | sort | uniq -c   # counts by fil
 # Substitution spectrum: excess C>A/G>T flags residual oxoG; excess C>T/G>A flags FFPE deamination
 bcftools query -f '%REF>%ALT\n' somatic_final.vcf.gz | sort | uniq -c
 
-# VAF distribution (a spike near 0.5/1.0 in tumor-only suggests residual germline)
-bcftools query -f '[%AF]\n' somatic_final.vcf.gz | awk '{print int($1*100)/100}' | sort -n | uniq -c
+# VAF distribution (a spike near 0.5/1.0 in tumor-only suggests residual germline).
+# -s takes the read-group SM name, NOT the filename -- read it from the BAM header, as Step 2 does.
+TUMOR_SM=$(samtools view -H tumor.bam | awk '/^@RG/{for(i=1;i<=NF;i++) if($i ~ /^SM:/){sub(/^SM:/,"",$i); print $i; exit}}')
+# -s restricts to the tumor sample: a bare [%AF] iterates BOTH samples and concatenates
+# them with no separator (0.25 + 0.01 -> "0.250.01"), which awk then silently truncates to 0.25.
+bcftools query -s "$TUMOR_SM" -f '[%AF]\n' somatic_final.vcf.gz | awk '{print int($1*100)/100}' | sort -n | uniq -c
 ```
 
 Do NOT judge somatic SNVs by a fixed germline-like Ti/Tv (~2-3); the somatic spectrum is signature-dependent, and a collapse toward transversion excess signals artifact contamination, not a target value.

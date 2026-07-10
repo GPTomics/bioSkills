@@ -128,7 +128,7 @@ Tell your AI agent what you want to do:
 |-----------|-------------|-------|
 | ncomp | 2-5 | Tune via CV |
 | keepX | 10-100 | Tune per modality |
-| design | 0.1 | Low correlation between blocks |
+| design | 0.1 | Tutorial starting value, not a default; higher (~0.5-1) favors correlated blocks over prediction |
 
 ### SNF
 | Parameter | Recommended | Notes |

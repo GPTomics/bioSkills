@@ -51,11 +51,11 @@ Tell your AI agent what you want to do:
 
 ### Primary Analysis
 
-> "Run logistic regression on my prepared clinical dataset with treatment as the primary predictor, adjusting for age, sex, and randomisation strata. Extract BOTH conditional OR (model-fit) and marginal RD via g-computation with HC3 sandwich SE per FDA 2023."
+> "Run logistic regression on my prepared clinical dataset with treatment as the primary predictor, adjusting for age, sex, and randomisation strata. Extract BOTH conditional OR (model-fit, supportive) and marginal RD via g-computation with a percentile bootstrap CI per FDA 2023."
 
 ### Subgroup Analysis
 
-> "Test whether the treatment effect varies across pre-specified subgroups via INTERACTION terms in single model (NOT per-subgroup p-comparisons). For continuous biomarker subgroups, use STEPP. Generate forest plot. Apply graphical multiplicity allocation via gMCP with 20% alpha to subgroup family per Dane 2019 EFSPI white paper."
+> "Test whether the treatment effect varies across pre-specified subgroups via INTERACTION terms in single model (NOT per-subgroup p-comparisons). For continuous biomarker subgroups, use STEPP. Generate forest plot. Apply graphical multiplicity allocation via gMCP, allocating (for example) 20% of alpha to the subgroup family."
 
 ### Reporting
 
@@ -81,10 +81,10 @@ Tell your AI agent what you want to do:
 - Define the ICH E9(R1) estimand FIRST. Kahan 2023 Am J Epidemiol 192:987 documents 98% of trials don't articulate the estimand; pre-specify the 5 attributes in the SAP before choosing analysis.
 - Per FDA 2023, primary estimand for binary endpoints is marginal RD via g-computation; conditional OR is a DIFFERENT parameter due to OR non-collapsibility (Permutt 2020).
 - Boschloo's exact is uniformly more powerful than Fisher's exact at the same Type-I (Mehta-Senchaudhuri 2003); use as default for small 2x2.
-- Stratified randomisation factors MUST appear in analysis (Kahan-Morris 2012); ignoring inflates Type-I error up to 30%.
+- Stratified randomisation factors MUST appear in analysis (Kahan-Morris 2012); ignoring them makes inference conservative (SEs biased upward, Type-I below nominal, power lost).
 - Always set explicit reference category in logistic regression (e.g., Placebo) to avoid alphabetical reversal of OR direction.
 - Use INTERACTION terms in a single model to test subgroup effects; comparing per-subgroup p-values is statistically invalid.
-- Report standardized mean differences (SMD > 0.1) rather than p-values for Table 1 balance (Senn 1994 baseline testing incoherence).
+- Report standardized mean differences (SMD > 0.1 as a notable-imbalance convention) rather than p-values for Table 1 balance; baseline hypothesis testing is incoherent (Senn 1994).
 - Pre-specify subgroups before unblinding; post-hoc subgroup results are hypothesis-generating only per EMA 2019.
 - When continuous longitudinal endpoint with monotone MAR: use R mmrm with method="Kenward-Roger-Linear" to match SAS PROC MIXED.
 - For MNAR sensitivity with reference-based MI (J2R/CR/CIR per Carpenter-Roger 2013), report BOTH Rubin information-anchored variance AND frequentist CMI+jackknife (Cro vs Bartlett debate is unsettled).

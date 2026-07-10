@@ -4,10 +4,11 @@
 
 set -euo pipefail
 
-CDS_FASTA=${1:?usage: $0 CDS_FASTA PROTEIN_FASTA GFF OUTPUT_DIR}
-PROTEIN_FASTA=${2:?missing protein FASTA}
-GFF=${3:?missing GFF}
-OUTPUT_DIR=${4:?missing output dir}
+# wgd v2 `dmd` takes CDS and translates internally (protein is optional and unused in a single-species
+# paranome run), so this pipeline needs only the CDS FASTA -- do not require a protein FASTA it ignores.
+CDS_FASTA=${1:?usage: $0 CDS_FASTA GFF OUTPUT_DIR}
+GFF=${2:?missing GFF}
+OUTPUT_DIR=${3:?missing output dir}
 THREADS=${THREADS:-16}
 
 mkdir -p "$OUTPUT_DIR"/{paranome,ks_dist,syn,mix,dupgen}

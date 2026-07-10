@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from Bio.Seq import Seq
 from Bio.Data import CodonTable
 
-GC_MIN, GC_MAX = 0.40, 0.70    # outside this on-target activity falls off (Doench 2014); soft penalty
+GC_MIN, GC_MAX = 0.40, 0.70    # outside this on-target activity falls off (Doench 2014); hard-dropped here
 LENGTH_WEIGHT = 20.0           # MMEJ deletion-length decay (Bae 2014 framework)
 EDIT_TO_CUT_MAX = 10           # HDR incorporation falls sharply beyond ~10 bp (Paquet 2016)
 FWD = CodonTable.standard_dna_table.forward_table

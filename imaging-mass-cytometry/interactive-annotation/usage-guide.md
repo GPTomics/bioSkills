@@ -2,7 +2,7 @@
 
 ## Overview
 
-Labels cells and QCs segmentation by looking at the image with masks overlaid. The load-bearing point: annotation is the bridge between the raw pixel image and the single-cell table, and it is the only QC step that can catch the segmentation, spillover, and morphology artifacts that summary statistics on the cell table structurally cannot show. Manual labels are not ground truth (expert-vs-expert concordance is only ~86%), and the display contrast limit is a positivity threshold in disguise.
+Labels cells and QCs segmentation by looking at the image with masks overlaid. Why this step matters: annotation is the bridge between the raw pixel image and the single-cell table, and it is the only QC step that can catch the segmentation, spillover, and morphology artifacts that summary statistics on the cell table structurally cannot show. Manual labels are not ground truth (expert-vs-expert concordance is only ~86%), and the display contrast limit is a positivity threshold in disguise.
 
 ## Prerequisites
 

@@ -29,9 +29,10 @@ cat('Loading samples...\n')
 dba_obj <- dba(sampleSheet = samples)
 print(dba_obj)
 
-# Count reads
+# Count reads into a FIXED-WIDTH consensus (summits=250 -> 501 bp, matching Corces 2018) so
+# per-sample counts are comparable; variable-width peaks would make the matrix non-comparable.
 cat('Counting reads in peaks...\n')
-dba_obj <- dba.count(dba_obj, bUseSummarizeOverlaps = TRUE)
+dba_obj <- dba.count(dba_obj, summits = 250, bUseSummarizeOverlaps = TRUE)
 
 # Normalize
 cat('Normalizing...\n')
@@ -82,7 +83,7 @@ dba.plotVolcano(dba_obj)
 dev.off()
 
 pdf(file.path(output_dir, 'venn.pdf'), width = 6, height = 5)
-dba.plotVenn(dba_obj, contrast = 1, bDB = TRUE)
+dba.plotVenn(dba_obj, contrast = 1, bDB = TRUE, bGain = TRUE, bLoss = TRUE)   # needs >=2 peaksets; gain+loss (bAll alone = one set -> error
 dev.off()
 
 # Export BED files

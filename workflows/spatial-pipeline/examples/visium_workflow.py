@@ -33,8 +33,9 @@ fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 sc.pl.spatial(adata, color='total_counts', ax=axes[0, 0], show=False)
 sc.pl.spatial(adata, color='n_genes_by_counts', ax=axes[0, 1], show=False)
 sc.pl.spatial(adata, color='pct_counts_mt', ax=axes[0, 2], show=False)
-sc.pl.violin(adata, ['total_counts', 'n_genes_by_counts', 'pct_counts_mt'],
-             jitter=0.4, ax=axes[1, :], show=False)
+# sc.pl.violin takes a single Axes, not an array -> one violin per axis
+for a, key in zip(axes[1, :], ['total_counts', 'n_genes_by_counts', 'pct_counts_mt']):
+    sc.pl.violin(adata, key, jitter=0.4, ax=a, show=False)
 plt.tight_layout()
 plt.savefig(f'{output_dir}/plots/qc_metrics.pdf')
 plt.close()
@@ -67,7 +68,7 @@ sc.pp.scale(adata, max_value=10)
 sc.tl.pca(adata, n_comps=50)
 sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
 sc.tl.umap(adata)
-sc.tl.leiden(adata, resolution=0.5)
+sc.tl.leiden(adata, resolution=0.5, flavor='igraph', n_iterations=2, directed=False)
 
 # Cluster visualization
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
@@ -122,7 +123,8 @@ markers = sc.get.rank_genes_groups_df(adata, group=None)
 markers.to_csv(f'{output_dir}/cluster_markers.csv', index=False)
 
 # Marker plots
-sc.pl.rank_genes_groups_dotplot(adata, n_genes=5, save=f'_{output_dir}/plots/markers_dotplot.pdf')
+# scanpy save= appends onto ./figures/dotplot_ ; use a plain suffix (not a path)
+sc.pl.rank_genes_groups_dotplot(adata, n_genes=5, save='_markers_dotplot.pdf')
 
 # === Step 7: Save Results ===
 print('=== Step 7: Saving Results ===')

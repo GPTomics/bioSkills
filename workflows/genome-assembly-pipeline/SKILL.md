@@ -143,7 +143,7 @@ flye --nano-hq ont.fq.gz --out-dir flye_out --threads 16     # --genome-size opt
 hifiasm -o asm -t 16 hifi.fq.gz                              # add --h1/--h2 (Hi-C) or -1/-2 (trio) to phase
 
 # Community sample -> metagenome-assembly
-flye --meta ont.fq.gz --out-dir metaflye_out --threads 16    # then bin + CheckM2/GUNC
+flye --nano-hq ont.fq.gz --meta --out-dir metaflye_out --threads 16    # --meta is a modifier; still need a read-type selector. Then bin + CheckM2/GUNC
 ```
 
 ## Step 3: Polish IF Needed
@@ -151,10 +151,13 @@ flye --meta ont.fq.gz --out-dir metaflye_out --threads 16    # then bin + CheckM
 Polishing is read-type-matched and conditional. Route to genome-assembly/assembly-polishing.
 
 ```bash
-# Noisy long-read assembly: Racon (overlaps from minimap2) then medaka with the MATCHING model.
-minimap2 -ax map-ont flye_out/assembly.fasta ont.fq.gz | samtools sort -o aln.bam
+# Noisy long-read assembly: medaka with the MATCHING model. medaka_consensus does its own
+# read-to-assembly alignment from -i/-d (no separate minimap2/BAM step needed); add a Racon
+# round upstream only if the assembler did not already polish - see assembly-polishing.
 medaka_consensus -i ont.fq.gz -d flye_out/assembly.fasta -o medaka_out -t 16 \
     -m r1041_e82_400bps_sup_v5.0.0   # MUST match the basecaller model used to call the reads
+# For a BACTERIAL isolate, prefer the methylation-aware bacterial model (medaka 2.0+):
+#   medaka_consensus -i ont.fq.gz -d assembly.fasta -o medaka_out --bacteria
 ```
 
 Do NOT reflexively polish a HiFi assembly (already ~Q30+; over-polishing lowers QV). SPAdes output needs no separate long-read polish. The stop signal is a Merqury QV plateau, not a fixed iteration count, and the QV must be measured against reads independent of those used to polish.
@@ -197,10 +200,10 @@ meryl count k=$K output reads.meryl accurate_reads.fq.gz
 merqury.sh reads.meryl final.fasta merqury_out          # QV + k-mer completeness + spectra-cn
 ```
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely cause | Solution |
-|-------|--------------|----------|
+| Symptom | Cause | Fix |
+|---------|-------|-----|
 | Assembly ~1.5-2x profiled size, high BUSCO-Duplicated | uncollapsed haplotigs (false duplication) | purge_dups; check half-coverage depth peak; do not over-purge real segmental duplications |
 | Contiguous but gene models frameshift | noisy long-read assembly not polished | Racon -> medaka (matched model); measure QV |
 | QV drops after polishing | over-polishing an already-accurate (HiFi) assembly | stop polishing; HiFi rarely needs short-read polish |
@@ -222,3 +225,11 @@ merqury.sh reads.meryl final.fasta merqury_out          # QV + k-mer completenes
 - genome-assembly/assembly-qc - Three-axis QC: auN/NG50 + BUSCO + Merqury QV
 - read-qc/fastp-workflow - Short-read QC before assembly
 - long-read-sequencing/long-read-qc - Long-read length/quality QC and basecaller-era awareness
+- workflows/genome-annotation-pipeline - Downstream: only a decontaminated, QC-passed FASTA should hand off to annotation
+
+## References
+
+- Rhie A, Walenz BP, Koren S, Phillippy AM (2020) Merqury: reference-free quality, completeness, and phasing assessment for genome assemblies. *Genome Biology* 21:245. DOI 10.1186/s13059-020-02134-9. (QV/completeness from k-mers.)
+- Manni M, Berkeley MR, Seppey M, Simao FA, Zdobnov EM (2021) BUSCO update: novel and streamlined workflows. *Molecular Biology and Evolution* 38:4647-4654. DOI 10.1093/molbev/msab199.
+- Rhie A, McCarthy SA, Fedrigo O, et al (2021) Towards complete and error-free genome assemblies of all vertebrate species. *Nature* 592:737-746. DOI 10.1038/s41586-021-03451-0. (three-axis / VGP standard.)
+- Ranallo-Benavidez TR, Jaron KS, Schatz MC (2020) GenomeScope 2.0 and Smudgeplot for reference-free profiling of polyploid genomes. *Nature Communications* 11:1432. DOI 10.1038/s41467-020-14998-3.

@@ -35,6 +35,16 @@ pip install mirge3 umi_tools
 
 > "Profile the tRFs and piRNAs instead of miRNAs"
 
+### Pipeline-level decisions
+
+> "Which normalization should I use - my library is dominated by a few miRNAs?"
+
+> "My samples are plasma/serum - how do I normalize when there's no stable endogenous miRNA?"
+
+> "Should I quantify known miRNAs (miRge3) or discover novel ones (miRDeep2)?"
+
+> "My size factors look skewed and lots of miRNAs are 'down' - is that real?"
+
 ## What the Agent Will Do
 
 1. Trim the kit adapter (discarding untrimmed reads) and handle any 4N spacer or UMI

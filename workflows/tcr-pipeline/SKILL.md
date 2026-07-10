@@ -119,8 +119,13 @@ Preset by chemistry (verify against `mixcr analyze --help` and the built-in pres
 ```bash
 # One command runs align -> refineTagsAndSort -> (assemblePartial) -> assemble -> export.
 # From MiXCR 4.7, presets without an intrinsic assembling feature require --assemble-clonotypes-by.
+# generic-amplicon REQUIRES material type + both alignment-boundary mixins (it errors without them).
+# Multiplex primers on both ends -> floating boundaries; 5'RACE -> --rigid-left-alignment-boundary.
 mixcr analyze generic-amplicon \
     --species hsa \
+    --rna \
+    --floating-left-alignment-boundary \
+    --floating-right-alignment-boundary C \
     sample_R1.fastq.gz sample_R2.fastq.gz \
     results/sample
 
@@ -162,6 +167,8 @@ vdjtools CalcDiversityStats -m ds/metadata.txt diversity/
 vdjtools CalcPairwiseDistances -m ds/metadata.txt overlap/
 ```
 
+**Version caveat (MiXCR 4.x -> VDJtools):** VDJtools is unmaintained for MiXCR 4.x and its parser breaks on raw `exportClones` output (`Unable to parse clonotype string`; 4.x injects commas and renames/moves columns). For a MiXCR 4.7+ cohort, prefer MiXCR's own `mixcr postanalysis individual` / `mixcr postanalysis overlap` (its native 4.x replacement for VDJtools diversity/overlap, with the same downsample-first semantics) over the `vdjtools Convert -S mixcr` route; if VDJtools is required, strip the added contig/target-sequence columns before `Convert`. immunarch (R) is the other modern alternative.
+
 **QC checkpoint 3 (before diversity):** confirm all samples share one depth, and drop any sample whose rarefaction curve is still climbing steeply below that depth (under-sampled -- exclude rather than normalize the cohort down to it). Hold the clonotype match key (nt vs aa, +/-V, +/-J) constant study-wide; aa-level matching inflates apparent sharing via convergent recombination. Report clonality alongside a q=2 Hill number (inverse Simpson) and a rarefaction curve, not alone. immunarch is the modern R alternative with the same normalization semantics: tcr-bcr-analysis/vdjtools-analysis.
 
 ## Stage 3b: BCR clonal clustering, SHM and lineages (Immcantation)
@@ -192,9 +199,14 @@ airr = ir.io.read_airr('results/sample.airr.tsv')           # or read_10x_vdj on
 mdata = mu.MuData({'gex': gex_adata, 'airr': airr})         # scirpy 0.13+ stores AIRR as an awkward array
 ir.pp.index_chains(mdata)                                    # REQUIRED before chain_qc / clonotyping
 ir.tl.chain_qc(mdata)                                        # flag multichain (doublet) / orphan cells
-ir.pp.ir_dist(mdata)                                         # distance: identity vs alignment, nt vs aa
-ir.tl.define_clonotypes(mdata)                               # TCR: identity on CDR3-nt + V/J
-# BCR: SHM breaks identity -> ir.tl.define_clonotype_clusters(mdata, sequence='nt', metric='normalized_hamming', same_v_gene=True)
+# TCR path: exact-identity clonotypes on CDR3-nt + V/J
+ir.pp.ir_dist(mdata)                                         # default metric='identity'
+ir.tl.define_clonotypes(mdata)
+# BCR path: SHM breaks exact identity, so cluster. ir_dist MUST be recomputed with the SAME
+# metric+sequence the clustering call uses (scirpy keys the matrix as ir_dist_{sequence}_{metric};
+# the identity matrix above will not satisfy a normalized_hamming call).
+# ir.pp.ir_dist(mdata, metric='normalized_hamming', sequence='nt')
+# ir.tl.define_clonotype_clusters(mdata, sequence='nt', metric='normalized_hamming', same_v_gene=True)
 # integrate with the scanpy GEX modality; measure expansion vs cell state
 ```
 

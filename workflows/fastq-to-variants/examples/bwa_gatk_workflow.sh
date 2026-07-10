@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: BWA-MEM2 2.2.1+, Ensembl VEP 111+, GATK 4.5+, bcftools 1.19+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
+# Reference: BWA-MEM2 2.2.1+, GATK 4.5+, bcftools 1.19+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
 # Complete variant calling workflow: BWA-MEM2 + GATK HaplotypeCaller
 set -e
 
@@ -19,7 +19,7 @@ echo "Samples: ${SAMPLES}"
 echo ""
 
 # Check reference files
-if [ ! -f "${REF}.dict" ]; then
+if [ ! -f "${REF%.*}.dict" ]; then
     echo "Creating sequence dictionary..."
     gatk CreateSequenceDictionary -R ${REF}
 fi
@@ -103,8 +103,8 @@ done
 # Step 5: Joint Genotyping
 echo "=== Step 5: Joint Genotyping ==="
 
-# Create sample map
-> ${OUTDIR}/gvcf/sample_map.txt
+# Create sample map (`:` is a no-op command; `> file` alone truncates but reads as a stray redirect)
+: > ${OUTDIR}/gvcf/sample_map.txt
 for sample in $SAMPLES; do
     echo -e "${sample}\t${OUTDIR}/gvcf/${sample}.g.vcf.gz" >> ${OUTDIR}/gvcf/sample_map.txt
 done
@@ -160,7 +160,20 @@ gatk VariantFiltration \
 gatk MergeVcfs \
     -I ${OUTDIR}/variants/cohort.snps.filtered.vcf.gz \
     -I ${OUTDIR}/variants/cohort.indels.filtered.vcf.gz \
-    -O ${OUTDIR}/variants/cohort.filtered.vcf.gz
+    -O ${OUTDIR}/variants/cohort.merged.vcf.gz
+
+# Normalize (left-align + split multiallelics) so the delivered VCF is the advertised NORMALIZED
+# artifact (governing principle #2 / canonical step 6), before any annotation or benchmarking.
+bcftools norm -m-any -f ${REF} -Oz \
+    -o ${OUTDIR}/variants/cohort.norm.vcf.gz \
+    ${OUTDIR}/variants/cohort.merged.vcf.gz
+
+# Genotype-level pass after the site-level VariantFiltration (canonical step 7: site THEN genotype);
+# null out low-confidence genotypes (-S .) without dropping the site.
+bcftools filter -Oz -S . -e 'FMT/DP<8 | FMT/GQ<20' \
+    -o ${OUTDIR}/variants/cohort.filtered.vcf.gz \
+    ${OUTDIR}/variants/cohort.norm.vcf.gz
+bcftools index ${OUTDIR}/variants/cohort.filtered.vcf.gz
 
 echo "=== Pipeline Complete ==="
 echo "Filtered VCF: ${OUTDIR}/variants/cohort.filtered.vcf.gz"

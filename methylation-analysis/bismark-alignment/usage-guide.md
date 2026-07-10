@@ -1,7 +1,7 @@
 # Bismark Alignment - Usage Guide
 
 ## Overview
-Bismark aligns bisulfite-converted short reads (WGBS, RRBS, PBAT) and enzymatic-conversion reads (EM-seq) to an in-silico C->T/G->A-converted reference, recovering methylation by comparing the original read to the original reference. The load-bearing idea: methylation is never sequenced directly - the run reads which cytosines survived deamination, against a 3-letter genome stripped of cytosines. Every call rests on two silent bets: that conversion completed in both directions, and that the read mapped despite throwing its cytosines away. This skill covers the genome index, the directional/non-directional/PBAT strand flag, deduplication, and conversion QC; it stops at a deduplicated, M-bias-aware BAM, handing extraction to methylation-calling.
+Bismark aligns bisulfite-converted short reads (WGBS, RRBS, PBAT) and enzymatic-conversion reads (EM-seq) to an in-silico C->T/G->A-converted reference, recovering methylation by comparing the original read to the original reference. The idea underneath everything: methylation is never sequenced directly - the run reads which cytosines survived deamination, against a 3-letter genome stripped of cytosines. Every call rests on two silent bets: that conversion completed in both directions, and that the read mapped despite throwing its cytosines away. This skill covers the genome index, the directional/non-directional/PBAT strand flag, deduplication, and conversion QC; it stops at a deduplicated, M-bias-aware BAM, handing extraction to methylation-calling.
 
 ## Prerequisites
 ```bash

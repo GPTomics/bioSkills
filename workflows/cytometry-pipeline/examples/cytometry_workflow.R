@@ -22,14 +22,19 @@ fcs_files <- list.files(data_dir, pattern = '\\.fcs$')
 md <- data.frame(
     file_name = fcs_files,
     sample_id = gsub('\\.fcs$', '', fcs_files),
-    condition = ifelse(grepl('ctrl|control', fcs_files, ignore.case = TRUE), 'Control', 'Treatment')
+    condition = ifelse(grepl('ctrl|control', fcs_files, ignore.case = TRUE), 'Control', 'Treatment'),
+    patient_id = gsub('\\.fcs$', '', fcs_files)   # prepData's default md_cols$factors needs patient_id; one sample per patient here
 )
 cat('Found', nrow(md), 'FCS files\n')
 
 # === 3. LOAD AND PREPARE DATA ===
 cat('Loading data...\n')
 fcs_paths <- file.path(data_dir, md$file_name)
-fs <- read.flowSet(fcs_paths)
+# transformation=FALSE + truncate_max_range=FALSE: read RAW. flowCore's default transformation
+# ='linearize' silently applies $PnE log-linearization -- the #1 footgun (compensation must run
+# on linear data). For real fluorescence data, compensate BEFORE prepData transforms:
+#   sp <- spillover(fs[[1]]); fs <- compensate(fs, sp[[which(!vapply(sp, is.null, logical(1)))[1]]])   # first POPULATED slot (SPILL/$SPILLOVER, not always [[1]]); omitted here: synthetic demo has no spillover
+fs <- read.flowSet(fcs_paths, transformation = FALSE, truncate_max_range = FALSE)
 sce <- prepData(fs, panel, md, transform = TRUE, cofactor = 150, FACS = TRUE)
 cat('Loaded', ncol(sce), 'cells\n')
 

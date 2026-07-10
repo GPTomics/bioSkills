@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tests cell-cell co-location, discovers tissue niches, and quantifies spatial structure from segmented IMC/MIBI cell tables. The load-bearing point: a spatial interaction or niche is a hypothesis test against a null model, and the null chosen (label-shuffle vs CSR vs density-conditioned vs patient-level) silently decides whether the result is real biology, a density gradient, a segmentation artifact, or upstream clustering -- so the skill forces two questions onto every analysis: against which null, and at which unit.
+Tests cell-cell co-location, discovers tissue niches, and quantifies spatial structure from segmented IMC/MIBI cell tables. The point that shapes every result here: a spatial interaction or niche is a hypothesis test against a null model, and the null chosen (label-shuffle vs CSR vs density-conditioned vs patient-level) silently decides whether the result is real biology, a density gradient, a segmentation artifact, or upstream clustering -- so the skill forces two questions onto every analysis: against which null, and at which unit.
 
 ## Prerequisites
 

@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-grn-pipeline
-description: End-to-end gene regulatory network inference pipeline from processed single-cell data to regulon discovery and perturbation simulation. Supports RNA-only (pySCENIC) and multiome (SCENIC+) paths. Use when building gene regulatory networks from single-cell transcriptomic or multiome data.
+description: Orchestrates gene regulatory network inference from processed single-cell data to regulons and in-silico perturbation, via pySCENIC (RNA-only GRNBoost2 -> cisTarget -> AUCell), SCENIC+ (multiome cisTopic -> pycistarget -> eGRN), and CellOracle perturbation. Use when recognizing that an inferred GRN is UNDIRECTED by default and reporting only the evidence tier delivered (co-expression vs motif-pruned vs enhancer-resolved vs perturbation), matching species/assembly/namespace across the TF-list + cisTarget DB + motif2TF annotation, feeding RAW counts of the cleaned/doublet-free/batch-controlled cells (never imputed/batch-corrected values), running the cisTarget pruning that buys directionality (modules are not regulons without it), or choosing the RNA-only vs multiome path. Hands mechanism to the gene-regulatory-networks component skills; not a re-teach of any single step.
 tool_type: python
 primary_tool: pySCENIC
 workflow: true
@@ -17,7 +17,7 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: anndata 0.10+, pandas 2.2+, scanpy 1.10+, scipy 1.12+
+Reference examples tested with: pySCENIC 0.12+, arboreto 0.1.6+, ctxcore 0.2+, pycisTopic 2.0+, pycistarget 1.0+, SCENIC+ 1.0a1 (Snakemake CLI), CellOracle 0.18+, anndata 0.10+, pandas 2.2+, scanpy 1.10+, scipy 1.12+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -25,11 +25,29 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Note: SCENIC+ is now a Snakemake pipeline (`scenicplus init_snakemake`); the pre-2024 manual `create_SCENICPLUS_object`/`build_grn` object API is deprecated. GRNBoost2's arboreto dask backend is the #1 operational landmine — use the bundled multiprocessing if the dask cluster hangs. The TF-list, cisTarget ranking DB, and motif2TF `.tbl` must all be the SAME species + assembly + collection vintage. Confirm in-tool before quoting.
+
 # Gene Regulatory Network Pipeline
 
 **"Infer gene regulatory networks from my single-cell data"** -> Orchestrate pySCENIC regulon inference (GRNBoost2, cisTarget, AUCell), CellOracle perturbation simulation, and regulon-based cell type characterization.
 
-Complete workflow from processed single-cell data to regulon discovery and perturbation simulation.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+1. **An inferred GRN is an UNDIRECTED association graph by default; directionality is IMPORTED, and only the evidence tier actually delivered should be reported.** GRNBoost2 co-expression is tier-1 (undirected); the cisTarget motif-pruning step (Path A step 2) is what buys directionality and discards indirect edges — modules before ctx are NOT regulons, calling them so is a category error. SCENIC+ adds enhancer resolution; perturbation adds causal direction. Do not write tier-6 "master regulator drives X" prose over a tier-1 co-expression result.
+2. **Species/assembly/namespace must match across the TF-list, the cisTarget ranking DB, and the motif2TF `.tbl` — all three.** A mismatch (mouse genes in an hg38 DB; feather v1 DB with a v10 motif annotation) yields near-empty regulons. Also commit and report the search-space window (500bp/100bp proximal vs TSS±10kb) — results are not comparable across windows.
+3. **Feed RAW counts of the CLEANED, doublet-free, batch-controlled cells — never imputed or batch-corrected values.** GRNBoost2 on imputed counts inflates correlations (imputation smooths neighbors into agreement); on batch-corrected values a batch module can pass motif enrichment by chance; doublets create a fake "hybrid regulator." Run SCENIC ONCE on the integrated object.
+4. **Validate a regulon with an ORTHOGONAL modality, not the TF's own mRNA.** AUCell activity != TF expression; correlating a regulon's activity with its TF's expression is circular (and activity is dropout-robust while the TF mRNA may read zero). GRNBoost2 is stochastic — run multiple seeds and keep recurrent links (Van de Sande 2020).
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Species + assembly + gene namespace (HGNC vs MGI; hg38 vs mm10) | TF list, cisTarget DB, motif2TF `.tbl` must all match, or regulons are near-empty |
+| cisTarget DB vintage + search window (proximal vs TSS±10kb; gene- vs region-based) | Which edges survive ctx pruning; results not comparable across windows/vintages |
+| Input matrix identity (RAW counts, from the cleaned/doublet-free/integrated object) | Every adjacency and regulon; imputed/batch values fabricate edges |
+| RNA-only vs multiome availability | Which path is possible: SCENIC+ REQUIRES paired multiome; RNA-only -> pySCENIC or CellOracle-with-prebuilt-base-GRN |
 
 ## Pipeline Overview
 
@@ -72,7 +90,6 @@ Processed AnnData (QC'd, normalized, clustered)
 import scanpy as sc
 import pandas as pd
 from arboreto.algo import grnboost2
-from ctxcore.genesig import GeneSignature
 
 adata = sc.read_h5ad('processed.h5ad')
 
@@ -95,22 +112,24 @@ adjacencies.to_csv('adjacencies.tsv', sep='\t', index=False, header=False)
 
 ```python
 from pyscenic.prune import prune2df, df2regulons
+from pyscenic.utils import modules_from_adjacencies
 from ctxcore.rnkdb import FeatherRankingDatabase
 
 # cisTarget databases (~10 GB each, download once)
 # Human: hg38_10kbp_up_10kbp_down_full_tx_v10_clust.genes_vs_motifs.rankings.feather
 # Mouse: mm10_10kbp_up_10kbp_down_full_tx_v10_clust.genes_vs_motifs.rankings.feather
-dbs = [FeatherRankingDatabase(db) for db in [
+# FeatherRankingDatabase(fname, name) -- `name` is REQUIRED (no default) in ctxcore
+dbs = [FeatherRankingDatabase(db, name=os.path.splitext(os.path.basename(db))[0]) for db in [
     'hg38_500bp_up_100bp_down.genes_vs_motifs.rankings.feather',
     'hg38_10kbp_up_10kbp_down.genes_vs_motifs.rankings.feather'
 ]]
 
 motif_annotations = 'motifs-v10nr_clust-nr.hgnc-m0.001-o0.0.tbl'
 
-# Create modules from adjacencies (top 50 targets per TF)
-modules = [GeneSignature(name=tf, gene2weight=dict(zip(grp['target'], grp['importance'])))
-           for tf, grp in adjacencies.groupby('TF')
-           if len(grp) >= 10]
+# Build co-expression modules as Regulon objects. prune2df reads module.transcription_factor,
+# which a bare GeneSignature lacks (AttributeError); modules_from_adjacencies applies pySCENIC's
+# standard top-target/importance thresholds and returns the Regulon objects prune2df expects.
+modules = list(modules_from_adjacencies(adjacencies, expr_matrix))
 
 # Prune modules using motif enrichment
 # NES threshold 3.0 (default); rank_threshold=5000 matches the CLI (prune2df default is 1500).
@@ -154,7 +173,9 @@ def validate_grn(regulons, auc_matrix, adata, cell_type_key='cell_type'):
 
     # Gate 2: Known TFs present
     known_tfs = ['PAX6', 'SOX2', 'GATA1', 'SPI1', 'FOXP3', 'TBX21', 'EBF1']
-    found = [tf for tf in known_tfs if tf in regulon_names]
+    # df2regulons names regulons 'PAX6(+)' / 'PAX6(-)'; strip the suffix or this gate never fires
+    regulon_bases = {name.split('(')[0] for name in regulon_names}
+    found = [tf for tf in known_tfs if tf in regulon_bases]
     print(f'Known lineage TFs found: {found}')
 
     # Gate 3: AUCell separates cell types
@@ -186,7 +207,7 @@ from pycisTopic.lda_models import run_cgs_models
 
 # Create cisTopic object from fragments
 cistopic_obj = create_cistopic_object(
-    fragment_matrix=adata_atac.X,
+    fragment_matrix=adata_atac.X.T,   # cisTopic wants regions x cells; AnnData .X is cells x regions
     cell_names=adata_atac.obs_names.tolist(),
     region_names=adata_atac.var_names.tolist()
 )
@@ -199,29 +220,35 @@ models = run_cgs_models(
     n_cpu=8, n_iter=300, random_state=42
 )
 
-# Select best model by log-likelihood
+# evaluate_models plots the model-selection metrics; read the elbow and pass that topic COUNT
+# as select_model (an int, not True -- True==1 would select a non-existent 1-topic model).
 from pycisTopic.lda_models import evaluate_models
-model = evaluate_models(models, select_model=True)
+model = evaluate_models(models, select_model=40, return_model=True)
 cistopic_obj.add_LDA_model(model)
 ```
 
 ### Step 2: Enhancer-TF Mapping
 
 ```python
+import pyranges as pr
 from pycistarget.utils import region_names_to_coordinates
 from pycistarget.motif_enrichment_cistarget import run_cistarget
-
-region_sets = {}
 from pycisTopic.topic_binarization import binarize_topics
-region_bin = binarize_topics(cistopic_obj, method='otsu')
 
-for topic in region_bin:
-    region_sets[topic] = region_bin[topic]
+region_bin = binarize_topics(cistopic_obj, method='otsu')   # dict of DataFrames keyed by topic (region names in the index)
 
-# Run motif enrichment on accessible regions
+# run_cistarget needs a dict of pyranges.PyRanges, not the raw binarized DataFrames.
+region_sets = {topic: pr.PyRanges(region_names_to_coordinates(region_bin[topic].index.tolist()))
+               for topic in region_bin}
+
+# Run motif enrichment on accessible regions. The first arg is the cisTarget ranking DB: pass the
+# feather path and run_cistarget instantiates cisTargetDatabase itself. Prebuilt DBs at
+# https://resources.aertslab.org/cistarget/ . The parameter is spelled `specie`, not `species`.
+CTX_DB = '/path/to/hg38_screen_v10_clust.regions_vs_motifs.rankings.feather'
 cistarget_results = run_cistarget(
+    CTX_DB,
     region_sets=region_sets,
-    species='homo_sapiens',
+    specie='homo_sapiens',
     auc_threshold=0.005,
     nes_threshold=3.0,
     rank_threshold=0.05,
@@ -265,8 +292,9 @@ oracle = co.Oracle()
 oracle.import_anndata_as_raw_count(adata=adata, cluster_column_name='cell_type',
                                    embedding_name='X_umap')
 
-# Base GRN = motif-scanned accessible regions (or a prebuilt CellOracle base GRN);
+# Base GRN = motif-scanned accessible regions (preferred) or a prebuilt CellOracle base GRN;
 # this is NOT the pySCENIC adjacencies. See multiomics-grn / perturbation-simulation.
+base_grn = co.data.load_human_promoter_base_GRN()   # `version` must match the genome build
 oracle.import_TF_data(TF_info_matrix=base_grn)
 
 oracle.perform_PCA()
@@ -283,7 +311,7 @@ oracle.fit_GRN_for_simulation(alpha=10, use_cluster_specific_TFdict=True)
 oracle.simulate_shift(perturb_condition={'MYC': 0.0}, n_propagation=3)
 oracle.estimate_transition_prob(n_neighbors=200, knn_random=True, sampled_fraction=1)
 oracle.calculate_embedding_shift(sigma_corr=0.05)
-shift = np.sqrt((oracle.adata.obsm['delta_embedding'] ** 2).sum(axis=1))
+shift = np.sqrt((oracle.delta_embedding ** 2).sum(axis=1))
 ```
 
 ### QC Checkpoint: Perturbation
@@ -297,12 +325,14 @@ def validate_perturbation(oracle, perturbed_tf, expected_affected_cluster=None):
     '''
     import numpy as np, pandas as pd
     # Shift magnitude per cell from the simulated embedding shift (delta_embedding).
-    shift = np.sqrt((oracle.adata.obsm['delta_embedding'] ** 2).sum(axis=1))
+    shift = np.sqrt((oracle.delta_embedding ** 2).sum(axis=1))
+    # observed=True: cell_type is categorical, and the default retains filtered-out categories as NaN rows.
+    # Sort here, not at print time: the gate below reads index[:3], which is category order until sorted.
     mean_shift = pd.Series(shift, index=oracle.adata.obs_names).groupby(
-        oracle.adata.obs['cell_type'].values).mean()
+        oracle.adata.obs['cell_type'].values, observed=True).mean().sort_values(ascending=False)
 
     print(f'Mean shift magnitude by cell type after {perturbed_tf} KO:')
-    print(mean_shift.sort_values(ascending=False))
+    print(mean_shift)
 
     if expected_affected_cluster:
         if expected_affected_cluster in mean_shift.index[:3]:
@@ -321,8 +351,8 @@ import pandas as pd
 from arboreto.algo import grnboost2
 from pyscenic.prune import prune2df, df2regulons
 from pyscenic.aucell import aucell
+from pyscenic.utils import modules_from_adjacencies
 from ctxcore.rnkdb import FeatherRankingDatabase
-from ctxcore.genesig import GeneSignature
 
 def run_scenic_pipeline(adata_path, tf_list_path, db_paths, motif_annotations_path, output_prefix):
     '''Run complete pySCENIC pipeline.'''
@@ -340,9 +370,8 @@ def run_scenic_pipeline(adata_path, tf_list_path, db_paths, motif_annotations_pa
     adjacencies = grnboost2(expr_matrix, tf_names=tf_names, seed=42, verbose=True)
 
     print('Step 2: Regulon pruning')
-    dbs = [FeatherRankingDatabase(db) for db in db_paths]
-    modules = [GeneSignature(name=tf, gene2weight=dict(zip(grp['target'], grp['importance'])))
-               for tf, grp in adjacencies.groupby('TF') if len(grp) >= 10]
+    dbs = [FeatherRankingDatabase(db, name=os.path.splitext(os.path.basename(db))[0]) for db in db_paths]
+    modules = list(modules_from_adjacencies(adjacencies, expr_matrix))
     df_motifs = prune2df(dbs, modules, motif_annotations_path, rank_threshold=5000, num_workers=8)
     regulons = df2regulons(df_motifs)
     print(f'Discovered {len(regulons)} regulons')
@@ -369,17 +398,28 @@ def run_scenic_pipeline(adata_path, tf_list_path, db_paths, motif_annotations_pa
 | AUCell | auc_threshold | 0.05 (fraction of ranked genes) |
 | cisTopic | n_topics | Test 2x expected cell types |
 | CellOracle | n_propagation | 3 (default signal propagation steps) |
-| CellOracle | k (imputation) | 30 (neighborhood size for imputation) |
+| CellOracle | k (imputation) | int(0.025 * n_cells) (CellOracle tutorial rule; ~1250 at 50k cells) |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| < 50 regulons | Strict pruning or wrong TF list | Lower NES threshold to 2.5; verify TF list species |
-| > 500 regulons | Permissive thresholds | Increase NES threshold to 3.5 |
-| AUCell flat | Low regulon quality or normalization issue | Use raw counts; check regulon gene overlap |
-| CellOracle no shift | Weak GRN or wrong TF | Verify TF expressed in target cells |
-| Memory error | Large dataset | Subsample to 50k cells for GRNBoost2 |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Near-empty regulons | Species/namespace/DB-vintage mismatch across TF-list, ranking DB, motif2TF | Pin all three to the SAME species + assembly + collection vintage |
+| "Hybrid-state regulator" artifact | Ran GRN on a doublet-contaminated or un-integrated object | Infer on cleaned, doublet-free, batch-controlled cells; run SCENIC once on the integrated object |
+| Inflated adjacencies / everything correlates | Inferred on imputed/smoothed counts | Use RAW counts; imputation only inside CellOracle's simulation scope |
+| Regulon "validated" by TF-expression correlation | AUCell activity <-> TF mRNA circularity | Validate with an orthogonal modality (perturbation/ChIP), not the TF's own mRNA |
+| ctx step returns empty | Missing/mismatched motif2TF annotation (most common) | Confirm the `.tbl` matches the DB vintage + species |
+| SCENIC+ peaks miss rare types | Called peaks before/without cell-type labels | Label cells first; pycisTopic calls per-celltype pseudobulk peaks |
+| Perturbation magnitudes reported as quantitative | Over-read the direction-only local model | Report direction + a baseline; never a quantitative KO magnitude |
+| Modules called "regulons" without directionality | Skipped the cisTarget ctx pruning step | Run ctx; co-expression modules become regulons only after motif pruning |
+| < 50 regulons / > 500 regulons | Strict pruning-wrong TF list / permissive thresholds | Lower NES to 2.5 (verify species) / raise NES to 3.5 |
+| GRNBoost2 hangs or memory error | arboreto dask backend / large dataset | Use bundled multiprocessing; subsample to ~50k cells for GRNBoost2 |
+
+## References
+
+- Van de Sande B, Flerin C, Davie K, et al (2020) A scalable SCENIC workflow for single-cell gene regulatory network analysis. *Nature Protocols* 15:2247-2276. DOI 10.1038/s41596-020-0336-2. (pySCENIC 3-step; multi-run stability.)
+- Bravo González-Blas C, De Winter S, Hulselmans G, et al (2023) SCENIC+: single-cell multiomic inference of enhancers and gene regulatory networks. *Nature Methods* 20:1355-1367. DOI 10.1038/s41592-023-01938-4. (eRegulons; needs paired multiome + cell-type labels before peak calling.)
+- Kamimoto K, Stringa B, Hoffmann CM, et al (2023) Dissecting cell identity via network inference and in silico gene perturbation. *Nature* 614:742-751. DOI 10.1038/s41586-022-05688-9. (CellOracle; direction-only in-silico perturbation.)
 
 ## Related Skills
 
@@ -392,3 +432,5 @@ def run_scenic_pipeline(adata_path, tf_list_path, db_paths, motif_annotations_pa
 - atac-seq/co-accessibility - Cicero / SCENIC+ cis-regulatory connections
 - atac-seq/enhancer-gene-linking - ABC / ENCODE-rE2G enhancer-gene mapping
 - atac-seq/motif-deviation - chromVAR for TF motif accessibility
+- workflows/scrnaseq-pipeline - Upstream: provides the cleaned, annotated RNA object for Path A (pySCENIC)
+- workflows/multiome-pipeline - Upstream: provides the paired RNA+ATAC object for Path B (SCENIC+)

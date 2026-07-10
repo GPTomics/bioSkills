@@ -2,7 +2,7 @@
 
 ## Overview
 
-Turns raw imaging mass cytometry (IMC) and MIBI acquisitions into compensated, variance-stabilized single-cell intensities. The load-bearing point: IMC pixels are integer ion COUNTS in a low-count Poisson regime, so every step (hot-pixel removal, spillover compensation, transformation, normalization) is a count-statistics problem where non-negativity is a hard physical constraint, spillover is spatial, and aggressive "cleaning" silently deletes real sparse biology.
+Turns raw imaging mass cytometry (IMC) and MIBI acquisitions into compensated, variance-stabilized single-cell intensities. The fact that constrains every step: IMC pixels are integer ion COUNTS in a low-count Poisson regime, so every step (hot-pixel removal, spillover compensation, transformation, normalization) is a count-statistics problem where non-negativity is a hard physical constraint, spillover is spatial, and aggressive "cleaning" silently deletes real sparse biology.
 
 ## Prerequisites
 
