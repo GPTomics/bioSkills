@@ -378,7 +378,7 @@ The thresholds reflect convention: 0.62 traces back to BLOSUM62 derivation; 0.80
 | EVcouplings | HHfilter clusters at id=0.80 | ~0.5-1x of `pb` |
 | HHsuite `hhmake` | inverse-purity count | Closer to `pb` |
 
-Always report which estimator was used. Threshold rules ("Neff/L > 0.5 for DCA") are calibrated against a specific estimator -- Hopf et al 2017 use HHfilter-80 cluster count; Marks et al 2011 use position-based weighting. AlphaFold2's MSA-depth gating uses unweighted cluster count at 62% identity.
+Always report which estimator was used. Threshold rules ("Neff/L > 0.5 for DCA") are calibrated against a specific estimator -- Hopf et al 2017 use HHfilter-80 cluster count; Marks et al 2011 use 70%-identity cluster reweighting. AlphaFold2's MSA-depth gating uses unweighted cluster count at 62% identity.
 
 ## Coevolution: Mutual Information with APC
 
@@ -447,6 +447,6 @@ For Pfam-scale streaming (multi-gigabyte Stockholm or A3M databases that exceed 
 - Marks DS et al. 2011. Protein 3D structure computed from evolutionary sequence variation. PLOS One 6:e28766.
 - Jumper J et al. 2021. Highly accurate protein structure prediction with AlphaFold. Nature 596:583-589.
 - Simmons MP, Ochoterena H. 2000. Gaps as characters in sequence-based phylogenetic analyses. Syst Biol 49:369-381.
-- Mueller K. 2006. Incorporating information from length-mutational events into phylogenetic analysis. Cladistics 22:368-381.
+- Mueller K. 2006. Incorporating information from length-mutational events into phylogenetic analysis. Mol Phylogenet Evol 38:667-676.
 - Dwivedi B, Gadagkar SR. 2009. Phylogenetic inference under varying proportions of indel-induced alignment gaps. BMC Evol Biol 9:211.
 - Velankar S et al. 2013. SIFTS: structure integration with function, taxonomy and sequences resource. NAR 41:D483-D489.

@@ -52,7 +52,7 @@ There are four common denominators, producing **up to 11.5% difference** on the 
 | PID3 | Shorter sequence length (ungapped) | `min(len(s1.replace('-', '')), len(s2.replace('-', '')))` |
 | PID4 | Mean sequence length (ungapped) | `(len(s1.replace('-', '')) + len(s2.replace('-', ''))) / 2` |
 
-PID2 always gives the highest value; PID4 correlates best with structural similarity (Raghava & Barton 2006 BMC Bioinf, r=0.86 with Q-score) and is recommended for evolutionary analyses.
+PID2 always gives the highest value; PID4 correlates best with structural similarity (Raghava & Barton 2006 BMC Bioinf, r=0.86 with STAMP's Sc score) and is recommended for evolutionary analyses.
 
 **Length-asymmetry pathology:** When sequences differ greatly in length, PID4 and PID2 diverge sharply. Example: 80 matches between a 500-residue protein and a 100-residue domain fragment yields PID2 ~84% (matches over aligned residue pairs) but PID4 ~27% (matches over mean ungapped length). Neither is wrong; they answer different questions:
 - PID2 -> "how similar is the aligned region?" (motif/domain detection)

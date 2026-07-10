@@ -230,10 +230,10 @@ muscle -super5 input.fasta -output aligned.fasta -threads 8
 
 **Goal:** Quantify alignment uncertainty by generating multiple HMM-perturbed alignments and measuring column consistency.
 
-**Approach:** MUSCLE5 (Edgar 2022 Nat Comm) ships two ensemble modes: `-stratified` (4 replicates by default) and `-diversified` (100 replicates by default). Both write an Ensemble FASTA (.efa) file containing all replicates; column-level confidence is the fraction of replicates that place a given residue pair in the same column. `-perturb SEED` is a separate flag that sets the HMM-perturbation random seed, not an ensemble selector.
+**Approach:** MUSCLE5 (Edgar 2022 Nat Comm) ships two ensemble modes: `-stratified` (16 replicates by default: the `-replicates` flag defaults to 4 HMM-perturbation seeds x 4 guide-tree permutations) and `-diversified` (100 replicates by default). Both write an Ensemble FASTA (.efa) file containing all replicates; column-level confidence is the fraction of replicates that place a given residue pair in the same column. `-perturb SEED` is a separate flag that sets the HMM-perturbation random seed, not an ensemble selector.
 
 ```bash
-# Stratified ensemble: 4 replicates spanning HMM perturbation strata
+# Stratified ensemble: 16 replicates (4 HMM-perturbation seeds x 4 guide-tree permutations)
 muscle -super5 input.fasta -stratified -output ensemble.efa
 
 # Diversified ensemble: 100 replicates exploring guide-tree and HMM space
@@ -302,7 +302,7 @@ t_coffee -infile aligned.fasta -evaluate -output score_ascii > tcs_scores.ascii
 
 ### When Codon Alignment Is Required
 
-Coding sequences destined for selection analysis (dN/dS with PAML/codeml, HyPhy BUSTED/MEME/aBSREL) **must** be aligned respecting codon boundaries. Standard nucleotide MSA tools do not preserve reading frames and produce systematically incorrect dN/dS estimates -- Fletcher & Yang (2010 MBE) showed conventional aligners cause false-positive selection signals under PAML M8 even on clean simulated data.
+Coding sequences destined for selection analysis (dN/dS with PAML/codeml, HyPhy BUSTED/MEME/aBSREL) **must** be aligned respecting codon boundaries. Standard nucleotide MSA tools do not preserve reading frames and produce systematically incorrect dN/dS estimates -- Fletcher & Yang (2010 MBE) showed conventional aligners cause false-positive signals in the branch-site test of positive selection even on clean simulated data.
 
 ### Codon-Alignment Tool Decision Tree
 
@@ -311,7 +311,7 @@ Coding sequences destined for selection analysis (dN/dS with PAML/codeml, HyPhy 
 | Clean orthologs (no frameshifts, no internal stops) | MAFFT-protein + PAL2NAL (Suyama, Torrents & Bork 2006 NAR) | Fastest; standard PAML pipeline input |
 | Recently duplicated paralogs (indel-rich) | PRANK +F codon (Loytynoja & Goldman 2008 Science) | Phylogeny-aware indel model; fewest false-positive selection calls (Fletcher & Yang 2010) |
 | Frameshifts, pseudogenes, error-prone assemblies | MACSE v2 `alignSequences -fs <cost>` (Ranwez et al 2018 MBE) | Frameshift-tolerant; preserves reading frame across sequencing errors |
-| Mixed dataset with some bad genes | OMM_MACSE pipeline (Scornavacca, Belkhir, Lopez et al 2019; Ranwez group) | HMMER homology check + MAFFT prealignment + MACSE refinement |
+| Mixed dataset with some bad genes | OMM_MACSE pipeline (Scornavacca, Belkhir, Lopez et al 2019; Ranwez group) | MACSE non-homologous-fragment trimming + MAFFT prealignment + MACSE frameshift refinement + HMMcleaner |
 | HyPhy-grade quality (BUSTED, MEME, aBSREL input) | HyPhy `pre-msa.bf` / `post-msa.bf` (Pond lab; Kosakovsky Pond et al) | Strips stop codons, runs MSA at protein level, threads back, validates frames |
 
 ### PAL2NAL: Protein-Guided Codon Alignment
@@ -373,7 +373,7 @@ java -jar macse_v2.jar -prog enrichAlignment -align existing.fasta \
 
 ### OMM_MACSE: Recommended Pipeline Wrapper
 
-OMM_MACSE (Ranwez group, used in OrthoMaM v10+) chains: HMMER homology screening to drop non-homologous sequences, MAFFT pre-alignment for guide-tree, then MACSE refinement. This is the recommended pipeline for genome-scale ortholog datasets where some genes will contain frameshifts.
+OMM_MACSE (Ranwez group, used in OrthoMaM v10+) chains: MACSE `trimNonHomologousFragments` to remove non-homologous fragments (annotation errors, retained introns/UTRs), MAFFT pre-alignment for guide-tree, MACSE v2 frameshift-aware refinement, then soft HMMcleaner cleaning. This is the recommended pipeline for genome-scale ortholog datasets where some genes will contain frameshifts.
 
 ```bash
 OMM_MACSE_v12.02.sif --in_seq_file orthogroup.fasta --out_dir omm_out --out_file_prefix orthogroup --genetic_code_number 1
