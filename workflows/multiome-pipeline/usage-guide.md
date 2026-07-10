@@ -57,7 +57,7 @@ Tell your AI agent what you want to do:
 - **Stage order**: Per-modality QC and doublet removal first, then WNN embedding, then clustering, then annotation
 - **Annotate from RNA**: Cell-type labels come from RNA markers; ATAC gene-activity scores approximate expression and inform regulatory state, not identity
 - **Condition comparisons**: Aggregate to pseudobulk per sample for DE, and test proportion shifts separately with a differential-abundance method
-- **LSI component 1**: Often depth-correlated, skip it (always use `dims=2:30`)
+- **LSI component 1**: Usually (not always) depth-correlated; confirm with DepthCor and drop whichever component correlates with depth (commonly `dims=2:30`)
 - **WNN weights**: Check modality contribution per cluster; ATAC sparseness can dominate noise
 - **Gene-peak links**: Signac LinkPeaks for direct correlation; for full ABC enhancer-gene see atac-seq/enhancer-gene-linking
 - **Cell types**: Annotate using RNA markers primarily; gene activity scores from ATAC are approximate

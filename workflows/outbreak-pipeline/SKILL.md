@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-outbreak-pipeline
-description: End-to-end outbreak investigation from pathogen isolates to transmission networks. Orchestrates MLST typing, AMR surveillance, phylodynamic dating, and transmission inference with TransPhylo. Use when investigating disease outbreaks or tracking pathogen transmission chains.
+description: Orchestrates genomic-epidemiology outbreak investigation from pathogen isolates to transmission networks, forking bacterial (snippy -> Gubbins recombination-masking -> IQ-TREE -> TreeTime -> TransPhylo) vs viral (Nextstrain/augur), with parallel MLST typing (cgMLST delegated to epidemiological-genomics/pathogen-typing) and AMR surveillance. Use when committing ONE reference genome for SNP calling (every isolate and distance inherits its coordinates), applying MANDATORY Gubbins recombination-masking on core.full.aln before the tree for recombining bacteria (skipping it inflates the clock 2-5x), gating time-scaling on a temporal-signal test (TempEst R2 >= 0.3), using a pathogen- AND population-specific cluster threshold rather than a universal SNP cutoff, or pinning pangolin-data/Nextclade/Freyja versions for the viral route. Hands mechanism to the epidemiological-genomics component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: mlst
 workflow: true
@@ -11,9 +11,9 @@ depends_on:
   - epidemiological-genomics/transmission-inference
   - epidemiological-genomics/variant-surveillance
 qc_checkpoints:
-  - after_typing: "Valid ST assigned, cgMLST distance matrix computed"
-  - after_amr: "AMR genes identified with >90% identity"
-  - after_phylodynamics: "Root-to-tip R2 >0.5, clock rate plausible"
+  - after_typing: "Valid ST assigned (7-locus mlst); cgMLST via chewBBACA is deferred to epidemiological-genomics/pathogen-typing"
+  - after_amr: "AMR genes identified; AMRFinderPlus applies its curated per-gene thresholds (it does not use a flat 90% identity cutoff)"
+  - after_phylodynamics: "Root-to-tip R2 >=0.3, clock rate plausible"
   - after_transmission: "Transmission pairs consistent with epi data"
 ---
 
@@ -35,7 +35,26 @@ package and adapt the example to match the actual API rather than retrying.
 
 **"Characterize a pathogen outbreak from my isolate sequences"** -> Orchestrate MLST typing, SNP phylogeny, TreeTime time-scaled tree construction, TransPhylo transmission inference, AMR profiling, and variant surveillance for genomic epidemiology.
 
-Complete workflow for genomic epidemiology: from pathogen isolates to transmission networks and outbreak characterization.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+A transmission tree is the MAP estimate among many equally probable trees, and its trustworthiness is decided at four seams.
+
+1. **One reference genome for SNP calling, committed before any isolate.** snippy calls SNPs against ONE reference; every isolate, the core alignment, and the cluster distances inherit its coordinates. A build/coordinate mismatch (isolates called against different references, or an AMR panel keyed to a different build) fabricates or hides SNPs. Commit the reference (GenBank format for snippy) up front.
+2. **Recombination-masking is MANDATORY for recombining bacteria, on core.full.aln, before the tree.** Gubbins masking is not optional for S. pneumoniae, N. gonorrhoeae, E. coli, Klebsiella, Campylobacter, H. pylori — skipping it inflates the clock rate 2-5x and biases R_e. Input MUST be `core.full.aln` (full positions incl. invariant), NOT `core.aln` (variable-only). Skip masking ONLY for documented-clonal Mtb.
+3. **Time-scaling requires a passing temporal-signal test, committed before trusting any dated tree.** TempEst root-to-tip regression (Rambaut 2016) with R2 >= 0.3 as a field convention (the paper sets no threshold and cautions R2 is not a valid significance test); the date-randomisation test is a secondary check (can pass with narrow sampling windows), NOT a substitute. The outbreak-scale clock is lineage/host-specific, not a universal constant.
+4. **The cluster threshold is pathogen- AND population-specific — never a universal cutoff.** From the literature per pathogen (Mtb <=12/<=5 SNP; S. aureus <=15; K. pneumoniae KPC <=21; C. difficile <=2 masked; Salmonella <=5 cgMLST alleles). Walker's 5-SNP Mtb threshold was calibrated in low-transmission UK and inflates apparent recent transmission 2-5x in high-burden settings. A genomic distance is not an epidemiological distance without a time-scaled prior.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Reference genome + build (bacterial) | Every isolate's SNPs, the core alignment, cluster distances; a mismatch fabricates/hides SNPs |
+| Recombination-masking scheme (Gubbins on core.full.aln) | The clock rate and R_e; skipping inflates the clock 2-5x for recombining taxa |
+| Clock + temporal-signal (TempEst R2 >= 0.3) | Whether the dated tree is supported at all |
+| Cluster threshold (pathogen + population-specific) | Who is "linked"; a universal SNP cutoff over-clusters in high-burden settings |
+| Viral tool versions (pangolin-data/Nextclade/Freyja) | The lineage call; same genome, different call across versions — pin them |
 
 ## Workflow Overview
 
@@ -46,10 +65,11 @@ Pathogen Isolate Genomes (FASTA/FASTQ) + collection dates + (optional) contact d
    +---------+---------+
    |                   |
    v                   v
-[1a. MLST + cgMLST     [1b. AMR + species mode:
-     + serotyping +         AMRFinderPlus --organism,
-     Pangolin/UShER        TB-Profiler for Mtb,
-     for SARS-CoV-2]       hAMRonization across tools]
+[1a. MLST + serotyping    [1b. AMR + species mode:
+     + Pangolin/UShER          AMRFinderPlus --organism,
+     for SARS-CoV-2;           TB-Profiler for Mtb,
+     cgMLST ->                 hAMRonization across tools]
+     pathogen-typing]
    |                   |
    +--------+----------+
             |
@@ -177,7 +197,7 @@ echo "Recombination-masked alignment: ${OUTDIR}/alignment/gubbins.filtered_polym
 
 **Goal:** Time-scale the recombination-masked phylogeny with a global clock-rate estimate, gated by temporal-signal QC.
 
-**Approach:** IQ-TREE on the recombination-masked alignment with `+ASC` ascertainment correction; TreeTime with coalescent skyline prior and `--clock-filter 4`; inspect `root_to_tip_regression.pdf` BEFORE trusting downstream output (R^2 >= 0.3 minimum per Rambaut 2016 TempEst).
+**Approach:** IQ-TREE on the recombination-masked alignment with `+ASC` ascertainment correction; TreeTime with coalescent skyline prior and `--clock-filter 4`; inspect `root_to_tip_regression.pdf` BEFORE trusting downstream output (R^2 >= 0.3 minimum as a field convention; TempEst sets no threshold).
 
 ```python
 import subprocess
@@ -212,13 +232,14 @@ subprocess.run([
     '--dates', str(outdir / 'phylo/metadata.tsv'),
     '--outdir', str(outdir / 'phylo/treetime_output'),
     '--coalescent', 'skyline',
-    '--clock-filter', '4',  # SD multiplier; TreeTime convention (Boskova 2017)
+    '--clock-filter', '4',  # SD multiplier for TreeTime's clock filter
     '--confidence',
     '--reroot', 'best'
 ], check=True)
 
 # Temporal-signal QC: inspect root_to_tip_regression.pdf BEFORE trusting any downstream output.
-# R^2 >= 0.3 minimum (Rambaut 2016 TempEst convention). If R^2 < 0.3, time-scaling is not
+# R^2 >= 0.3 minimum (field convention, NOT from Rambaut 2016 -- TempEst sets no threshold and
+# states R^2 is an informal dispersion measure, not a significance test). If R^2 < 0.3, time-scaling is not
 # supported -- report uncertainty and consider extending the sampling window. The
 # date-randomisation test is a secondary check; it can pass with narrow sampling windows
 # (false negative).
@@ -242,34 +263,43 @@ tree <- read.nexus("outbreak_results/phylo/treetime_output/timetree.nexus")
 # dateT: date when sampling stopped
 # w.shape, w.scale: generation time distribution (Gamma)
 # For many bacteria: mean ~14 days, shape=2, scale=7
-dateT <- 2024.2  # Decimal year when sampling ended
+dateT <- 2024.2  # Decimal year when sampling ended (end of observation)
 w_shape <- 2     # Generation time shape (Gamma)
-w_scale <- 7/365 # Generation time scale in years (~7 days mean)
+w_scale <- 7/365 # Gamma SCALE = 7 days; mean generation time = shape*scale = 2*7 = ~14 days
+
+# TransPhylo operates on a `ptree` (dated phylogeny + last-sample date), NOT a raw ape phylo;
+# convert first or inferTTree errors on a NULL ptree$ptree/$nam.
+ptree <- ptreeFromPhylo(tree, dateLastSample = dateT)
 
 # Run TransPhylo with enough iterations for posterior convergence; 10k is a smoke-test only.
 # For publication, run >=1e5 (small outbreaks) to >=1e6+ iterations and inspect trace plots.
-res <- inferTTree(tree, dateT = dateT,
+res <- inferTTree(ptree, dateT = dateT,
                    w.shape = w_shape, w.scale = w_scale,
                    mcmcIterations = 1e5,
                    startNeg = 1, startPi = 0.5)
 
-# Extract results
+# medTTree returns a coloured transmission tree (ctree); plot it with plotCTree
 med_ctree <- medTTree(res)
 
 # Plot transmission tree
 pdf("outbreak_results/transmission/transmission_tree.pdf", width=10, height=8)
-plotTTree(med_ctree)
+plotCTree(med_ctree)
 dev.off()
 
-# Who infected whom matrix
-wiw <- computeMatWIW(res)
+# Who infected whom matrix (same 0.5 burn-in as the R_e estimate below, so both discard pre-convergence)
+wiw <- computeMatWIW(res, burnin = 0.5)
 write.csv(wiw, "outbreak_results/transmission/who_infected_whom.csv")
 
 # R_e estimate (effective reproduction number under current immunity / interventions).
 # This is NOT R_0 (basic reproduction number in a fully susceptible population);
 # the phylodynamics literature is explicit about this distinction.
-Re <- getOffspringMulti(res)
-cat("R_e estimate:", mean(Re), "(95% CI:", quantile(Re, 0.025), "-", quantile(Re, 0.975), ")\n")
+# getOffspringDist(record, burnin, k) gives the per-case offspring distribution; average
+# across sampled hosts for a cohort R_e (or use BEAST2 BDSKY for a posterior Re(t)).
+# Host names come from the ptree (res has no $ttree$nam field).
+offspring <- sapply(ptree$nam, function(k) mean(getOffspringDist(res, k = k, burnin = 0.5)))
+# The interval is the 2.5-97.5% spread of per-host mean offspring (across-host dispersion), NOT a
+# posterior credible interval (per-host posteriors were collapsed by mean() first).
+cat("R_e estimate:", mean(offspring), "(across-host 2.5-97.5%:", quantile(offspring, 0.025), "-", quantile(offspring, 0.975), ")\n")
 ```
 
 ### Python Alternative: TransPhylo via rpy2
@@ -298,15 +328,17 @@ date_t = 2024.2
 w_shape = 2
 w_scale = 7/365
 
-res = transphylo.inferTTree(tree, dateT=date_t, w_shape=w_shape, w_scale=w_scale,
+# Convert to a TransPhylo ptree before inference (inferTTree needs ptree, not a raw phylo).
+ptree = transphylo.ptreeFromPhylo(tree, dateLastSample=date_t)
+res = transphylo.inferTTree(ptree, dateT=date_t, w_shape=w_shape, w_scale=w_scale,
                              mcmcIterations=10000, startNeg=1, startPi=0.5)
 
-# Extract transmission pairs
-med_tree = transphylo.medTTree(res)
-
+# medTTree returns a ctree; hand it to R's global env and plot with plotCTree.
+med_ctree = transphylo.medTTree(res)
+ro.globalenv['med_ctree'] = med_ctree
 ro.r(f'''
 pdf("{outdir}/transmission/transmission_tree.pdf", width=10, height=8)
-plotTTree(medTTree({res}))
+plotCTree(med_ctree)
 dev.off()
 ''')
 
@@ -331,8 +363,6 @@ metadata['date'] = pd.to_datetime(metadata['date'])
 mlst = pd.read_csv('outbreak_results/mlst/all_mlst.tsv', sep='\t', header=None,
                     names=['file', 'scheme', 'ST'] + [f'locus{i}' for i in range(7)])
 mlst['sample'] = mlst['file'].apply(lambda x: x.split('/')[-1].replace('.fasta', ''))
-
-amr = pd.read_csv('outbreak_results/amr/amr_summary.tsv', sep='\t')
 
 # Merge data
 combined = metadata.merge(mlst[['sample', 'ST']], left_on='name', right_on='sample')
@@ -363,12 +393,12 @@ plt.savefig('outbreak_results/outbreak_timeline.pdf')
 | Gubbins | input | core.full.aln | Full positions required to estimate background SNP density; core.aln is wrong |
 | IQ-TREE | -m | GTR+G+ASC | +ASC ascertainment correction for SNP-only post-Gubbins input |
 | TreeTime | --clock-filter | 4 | SD multiplier on root-to-tip residual; TreeTime convention |
-| TreeTime | R^2 minimum | 0.3 | Below this, temporal signal insufficient (Rambaut 2016 TempEst) |
-| TransPhylo | w.shape, w.scale | 2, 7/365 | Generation time ~7 days for many bacteria; cite the pathogen-specific literature |
+| TreeTime | R^2 minimum | 0.3 | Below this, temporal signal treated as insufficient (field convention; TempEst itself sets no cutoff) |
+| TransPhylo | w.shape, w.scale | 2, 7/365 | Gamma scale 7 days x shape 2 = ~14-day mean generation time; cite the pathogen-specific literature |
 | TransPhylo | mcmcIterations | 1e5-1e6+ | 10k is a smoke-test only; inspect trace and ESS before reporting |
 | BEAST2 BDSKY | origin | > rootHeight | Initialise to ~(tMRCA + 0.1*tMRCA); origin == rootHeight biases R_e upward (Stadler 2013) |
 | BEAST2 chains | independent runs | >=3-4 | Single-chain ESS >=200 is necessary but not sufficient; combine after marginal overlap |
-| Pangolin | --analysis-mode | usher | pangoLEARN deprecated mid-2023; UShER default since v4 (Pongmoragot 2024) |
+| Pangolin | --analysis-mode | usher | pangoLEARN deprecated mid-2023; UShER default since v4 (de Bernardi Schneider 2024, Virus Evol 10:vead085) |
 
 ## Pathogen-Specific SNP / cgMLST Cluster Thresholds
 
@@ -377,30 +407,32 @@ Cluster definition is pathogen- AND population-specific. NEVER apply a universal
 | Pathogen | Cluster threshold | Source |
 |----------|-------------------|--------|
 | *M. tuberculosis* (core SNP) | <=12 SNPs (likely transmission); <=5 (recent) | Walker 2013 *Lancet Infect Dis* 13:137 (UK low-transmission setting -- inflates 2-5x in high-burden) |
-| *S. aureus* (core SNP) | <=15 SNPs (within hospital) | Coll 2017 *Clin Infect Dis* 65:1781 |
-| *K. pneumoniae* (KPC outbreak) | <=21 SNPs | Snitkin 2012 *Sci Transl Med* 4:148ra116 |
+| *S. aureus* (core SNP) | <=15 SNPs (within hospital) | Coll 2020 *Lancet Microbe* 1:e328 |
+| *K. pneumoniae* (KPC outbreak) | <=21 SNPs | Field convention; no threshold source |
 | *C. difficile* (recombination-masked core SNP) | <=2 SNPs (likely direct) | Eyre 2013 *NEJM* 369:1195 |
 | *Salmonella* (cgMLST, EnteroBase) | <=5 alleles | EnteroBase / EFSA convention |
 | *Listeria* (PulseNet cgMLST) | <=4 alleles | PulseNet protocol |
 | SARS-CoV-2 | NOT defined by SNP alone | 0-2 SNPs + epi link + sampling window |
 | HIV-1 subtype B | 1.5% TN93 distance | HIV-TRACE US-CDC default (re-tune for non-B subtypes) |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| No MLST match | Novel ST or poor assembly | Check assembly quality, submit novel ST |
-| Poor temporal signal | Insufficient sampling, recombination | Remove recombination with Gubbins, check dates |
-| TreeTime clock-filter removes many | Wrong root, contamination | Re-root tree, check sample quality |
-| TransPhylo non-convergence | Wrong generation time | Adjust w.shape/w.scale, increase iterations |
-| Missing AMR genes | Database mismatch | Try multiple databases (ncbi, card, resfinder) |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Fabricated or hidden SNPs / wrong distances | Build/coordinate mismatch (isolates called against different references, or AMR panel on another build) | One committed reference for every isolate + the AMR panel; verify contig/seqid consistency |
+| Clock inflated 2-5x, false transmission links | Recombination masking skipped | Gubbins on core.full.aln BEFORE the tree; the date-randomisation test is NOT a sufficient guard |
+| Over-clustered outbreak in a high-burden setting | Universal SNP cutoff | Pathogen- AND population-specific threshold from the literature; a genomic distance is not an epidemiological distance |
+| "Who infected whom" overclaimed | Transmission read from single-isolate SNP distances | "Transmission consistent with genomics"; single-isolate-per-host trees are under-identified (MAP among many) |
+| Same genome, different lineage across labs/dates (viral) | pangolin-data/Nextclade/Freyja version churn | Pin the versions in metadata; re-run all samples against ONE version before comparing |
+| Poor temporal signal | Insufficient sampling / recombination | Mask recombination (Gubbins); check dates; do not time-scale below TempEst R2 0.3 |
+| Missing AMR genes | Database mismatch | Try multiple databases (ncbi/card/resfinder); report allele identity, not just family |
 
 ## Output Files
 
 | File | Description |
 |------|-------------|
 | `mlst/all_mlst.tsv` | Sequence types for all isolates |
-| `amr/amr_summary.tsv` | AMR gene presence/absence matrix |
+| `amr/cohort.hamr.tsv` | AMR gene presence/absence matrix |
 | `alignment/core.aln` | Core genome SNP alignment |
 | `phylo/outbreak.treefile` | ML phylogenetic tree |
 | `phylo/treetime_output/` | Dated tree and molecular clock |
@@ -417,3 +449,10 @@ Cluster definition is pathogen- AND population-specific. NEVER apply a universal
 - epidemiological-genomics/transmission-inference - TransPhylo configuration
 - epidemiological-genomics/variant-surveillance - Nextclade for viral outbreaks
 - phylogenetics/modern-tree-inference - IQ-TREE2 model selection
+
+## References
+
+- Croucher NJ, Page AJ, Connor TR, et al (2015) Rapid phylogenetic analysis of large samples of recombinant bacterial whole genome sequences using Gubbins. *Nucleic Acids Research* 43:e15. DOI 10.1093/nar/gku1196. (recombination masking.)
+- Didelot X, Fraser C, Gardy J, Colijn C (2017) Genomic infectious disease epidemiology in partially sampled and ongoing outbreaks (TransPhylo). *Molecular Biology and Evolution* 34:997-1007. DOI 10.1093/molbev/msw275. (transmission inference.)
+- Walker TM, Ip CLC, Harrell RH, et al (2013) Whole-genome sequencing to delineate Mycobacterium tuberculosis outbreaks: a retrospective observational study. *Lancet Infectious Diseases* 13:137-146. DOI 10.1016/S1473-3099(12)70277-3. (5-SNP threshold, low-transmission calibration.)
+- Sagulenko P, Puller V, Neher RA (2018) TreeTime: maximum-likelihood phylodynamic analysis. *Virus Evolution* 4:vex042. DOI 10.1093/ve/vex042.

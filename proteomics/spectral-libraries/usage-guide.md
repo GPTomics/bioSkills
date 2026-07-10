@@ -1,7 +1,7 @@
 # Spectral Libraries - Usage Guide
 
 ## Overview
-Builds and manages DIA spectral libraries, which are tables of peptide query parameters (precursor m/z, a few fragment m/z plus relative intensities, normalized RT, optional CCS) rather than whole spectra. Covers experimental DDA, chromatogram, predicted (Koina-served Prosit/AlphaPeptDeep/MS2PIP, DeepLC), and empirically-corrected libraries, plus iRT/CiRT RT calibration, NCE tuning, format conversion, and QC/merge. The load-bearing point: a predicted library is only as good as its empirical RT/CCS calibration, and NCE must match the predictor's training.
+Builds and manages DIA spectral libraries, which are tables of peptide query parameters (precursor m/z, a few fragment m/z plus relative intensities, normalized RT, optional CCS) rather than whole spectra. Covers experimental DDA, chromatogram, predicted (Koina-served Prosit/AlphaPeptDeep/MS2PIP, DeepLC), and empirically-corrected libraries, plus iRT/CiRT RT calibration, NCE tuning, format conversion, and QC/merge. The point that decides library quality: a predicted library is only as good as its empirical RT/CCS calibration, and NCE must match the predictor's training.
 
 ## Prerequisites
 ```bash

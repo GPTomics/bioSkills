@@ -1,7 +1,7 @@
 # methylKit Analysis - Usage Guide
 
 ## Overview
-methylKit is the R/Bioconductor object model for short-read bisulfite (WGBS/RRBS) differential methylation. This skill owns the import-to-results spine: reading Bismark coverage or cytosine-report files into a methylRawList, then filtering by coverage, normalizing, uniting (with optional destranding), and testing for differential methylation at single CpGs (DMCs) or fixed tiles (DMRs). It also covers PCA/correlation/clustering QC and batch handling. The load-bearing point: filtering, normalization, destranding, and the overdispersion model are decisions that set the false-positive rate and which sites survive - the defaults offer no protection.
+methylKit is the R/Bioconductor object model for short-read bisulfite (WGBS/RRBS) differential methylation. This skill owns the import-to-results spine: reading Bismark coverage or cytosine-report files into a methylRawList, then filtering by coverage, normalizing, uniting (with optional destranding), and testing for differential methylation at single CpGs (DMCs) or fixed tiles (DMRs). It also covers PCA/correlation/clustering QC and batch handling. The point that sets your results: filtering, normalization, destranding, and the overdispersion model are decisions that set the false-positive rate and which sites survive - the defaults offer no protection.
 
 ## Prerequisites
 ```r

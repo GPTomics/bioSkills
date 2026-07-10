@@ -38,7 +38,7 @@ Tell your AI agent what you want to do:
 > "Process my paired-end ATAC-seq FASTQs through fastp, Bowtie2 with `-X 2000 --very-sensitive`, MAPQ>=30 + chrM strip, Picard MarkDuplicates, alignmentSieve `--ATACshift`, MACS3 with `-f BAM --shift -75 --extsize 150 -p 0.01` for ENCODE-style peaks."
 
 ### ENCODE-Compliant Quality Control
-> "Compute ENCODE 4 QC: TSS enrichment using pyTSSe, FRiP, NRF/PBC1/PBC2 from raw mapped BAM, fragment-size periodicity, mitochondrial fraction. Grade each metric PASS/WARN/FAIL."
+> "Compute ENCODE 4 QC: TSS enrichment using ATACseqQC TSSEscore, FRiP, NRF/PBC1/PBC2 from raw mapped BAM, fragment-size periodicity, mitochondrial fraction. Grade each metric PASS/WARN/FAIL."
 
 ### Consensus and Differential
 > "Build a Corces 2018 iterative-overlap consensus peakset (501 bp fixed-width). Run DiffBind on the consensus with `summits=250` and DESeq2 backend. If the treatment globally compacts chromatin, switch to `DBA_NORM_LIB` instead of `DBA_NORM_NATIVE`."
@@ -51,6 +51,15 @@ Tell your AI agent what you want to do:
 
 ### Variant Interpretation
 > "I have GWAS lead SNPs in my ATAC peaks. Run chromBPNet variant scoring (atac-seq/deep-learning-atac); cross-validate with allele-specific accessibility from WASP-filtered BAMs (atac-seq/allele-specific-accessibility)."
+
+### Pipeline-level decisions
+> "ATAC has no input control - what's the background for peak calling then?"
+
+> "Do I Tn5-shift with alignmentSieve AND use MACS --shift, or is that double-shifting?"
+
+> "When do I remove chrM, and why is my FRiP so low without it?"
+
+> "Why do I need a fixed-width consensus before differential accessibility?"
 
 ## Input Requirements
 
@@ -94,7 +103,7 @@ Tell your AI agent what you want to do:
 - MACS3 `-f BAMPE` silently ignores `--shift/--extsize`; use `-f BAM` for the ENCODE pattern.
 - Footprinting requires >= 50M nuclear reads; weaker libraries cannot reliably call transient TFs.
 - For consensus peaksets used in differential or ML, always re-center on summits with fixed width (501 bp Corces 2018 standard).
-- Spike-in normalization (Reske 2020) is required when treatment causes global accessibility shift.
+- When treatment causes a global accessibility shift, the normalization choice matters: Reske 2020 recommends background (loess) normalization; a spike-in reference is an alternative when one was included in the protocol.
 - For scATAC, use Signac/ArchR/SnapATAC2 instead; pipeline above is bulk-specific.
 
 ## Related Skills

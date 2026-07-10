@@ -36,6 +36,15 @@ Tell your AI agent what you want to do:
 
 > "Visualize the top 20 differential splicing events with sashimi plots."
 
+### Pipeline-level decisions
+> "Do I need one shared junction database for the cohort or per-sample 2-pass?"
+
+> "Should I test event-level (rMATS) or isoform-level (DTU), and how do I reconcile them?"
+
+> "How do I import for DTU - why is it different from my gene-level RNA-seq import?"
+
+> "My transcript-level FDR looks inflated - what's the stageR two-stage test for?"
+
 ## What the Agent Will Do
 1. Perform read QC and adapter trimming (fastp)
 2. Align with STAR 2-pass mode for junction detection
@@ -46,12 +55,13 @@ Tell your AI agent what you want to do:
 7. Generate sashimi plots for visualization
 
 ## Tips
-- STAR 2-pass mode is essential for novel junction discovery
+- STAR 2-pass must be cohort-consistent: pass 2 uses ONE combined junction DB from all samples, or PSI is not comparable across samples
 - Check junction saturation curves before trusting results
-- Use `--outSJfilterOverhangMin 8 8 8 8` for stringent junction filtering
-- rMATS-turbo combines quantification and differential testing
-- Standard thresholds: |deltaPSI| > 0.1, FDR < 0.05
-- Always require minimum junction reads (>= 10) for reliability
+- Use `--outSJfilterOverhangMin 8 8 8 8` to relax STAR's default (`30 12 12 12`) and retain shorter-overhang novel junctions; noise is removed later by the >=3 unique-read filter on the shared junction DB
+- rMATS-turbo combines quantification and differential testing; `--readLength` must match the trimmed reads
+- The DTU branch imports the OPPOSITE way from gene-level RNA-seq: `txOut=TRUE` + `countsFromAbundance="dtuScaledTPM"`
+- Transcript-level FDR is only honest through the stageR gene->transcript two-stage test
+- Standard thresholds: |deltaPSI| > 0.1, FDR < 0.05, and >= 10 supporting junction reads per event
 
 ## Related Skills
 

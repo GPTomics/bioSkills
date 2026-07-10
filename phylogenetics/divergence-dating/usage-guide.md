@@ -2,7 +2,7 @@
 
 ## Overview
 
-Divergence dating converts a rooted, branch-length tree into absolute node ages under a molecular-clock model. The load-bearing idea: because a branch length is the product rate x time, sequences alone fix only the relative rate-time tree, and calibrations are the one thing that turns it into millions of years. A node-age posterior is therefore dominated by the calibration prior and how the tree prior and neighboring calibrations reshape it, far more than by the sequence data. This guide covers clock-model choice (strict, UCLN, autocorrelated, random local clocks), calibration strategy (node priors, soft bounds, tip-dating, fossilized birth-death), the dating engines (BEAST2, MCMCTree/PAML, TreePL, LSD2), and the two checks that separate a real date from a prior reflected back: the sample-from-prior run and the temporal-signal test.
+Divergence dating converts a rooted, branch-length tree into absolute node ages under a molecular-clock model. The central idea: because a branch length is the product rate x time, sequences alone fix only the relative rate-time tree, and calibrations are the one thing that turns it into millions of years. A node-age posterior is therefore dominated by the calibration prior and how the tree prior and neighboring calibrations reshape it, far more than by the sequence data. This guide covers clock-model choice (strict, UCLN, autocorrelated, random local clocks), calibration strategy (node priors, soft bounds, tip-dating, fossilized birth-death), the dating engines (BEAST2, MCMCTree/PAML, TreePL, LSD2), and the two checks that separate a real date from a prior reflected back: the sample-from-prior run and the temporal-signal test.
 
 ## Prerequisites
 

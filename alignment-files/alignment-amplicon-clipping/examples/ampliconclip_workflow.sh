@@ -14,7 +14,7 @@ OUT=${4:?output BAM required}
 THREADS=${THREADS:-4}
 
 WORK=$(mktemp -d)
-trap "rm -rf $WORK" EXIT
+trap 'rm -rf "$WORK"' EXIT
 
 # 1. Soft-clip primers from BED.
 #    --both-ends:   primers may appear at 5' or 3' end of read

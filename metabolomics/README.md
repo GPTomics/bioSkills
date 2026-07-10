@@ -2,7 +2,7 @@
 
 ## Overview
 
-Decision-grade LC-MS and GC-MS metabolomics, from raw data to biological interpretation. Each skill makes the field's load-bearing traps explicit: the feature table is a model-dependent artifact, an annotation is a confidence level not an identification, normalization can create or erase signal, a score plot proves nothing without permutation-validated Q2, pathway enrichment launders annotation uncertainty into biology, a lipid name overstates its structural resolution, an absolute concentration is only as good as its internal standard, and labeling reports flux while pool size does not.
+Decision-grade LC-MS and GC-MS metabolomics, from raw data to biological interpretation. Each skill makes the field's make-or-break traps explicit: the feature table is a model-dependent artifact, an annotation is a confidence level not an identification, normalization can create or erase signal, a score plot proves nothing without permutation-validated Q2, pathway enrichment launders annotation uncertainty into biology, a lipid name overstates its structural resolution, an absolute concentration is only as good as its internal standard, and labeling reports flux while pool size does not.
 
 **Tool type:** mixed | **Primary tools:** XCMS, MS-DIAL, matchms, SIRIUS, ropls, MetaboAnalystR, lipidr, IsoCor
 

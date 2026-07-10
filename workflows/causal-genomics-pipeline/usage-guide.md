@@ -16,7 +16,7 @@ remotes::install_github('LizaDarrous/lhcMR')
 install.packages('coloc')
 install.packages('susieR')
 install.packages('MendelianRandomization')
-install.packages('GenomicSEM', repos = c('https://genomic-sem.github.io/repo', 'https://cran.r-project.org'))
+remotes::install_github('GenomicSEM/GenomicSEM')   # GenomicSEM is GitHub-only (not on CRAN)
 ```
 
 ```bash
@@ -24,8 +24,11 @@ git clone https://github.com/bulik/ldsc.git
 conda env create -n ldsc -f ldsc/environment.yml
 git clone https://github.com/hakyimlab/MetaXcan.git
 pip install pyfocus
-git clone https://ctg.cncr.nl/software/MAGMA/magma_v1.10.zip
-pip install pops
+# MAGMA ships as a zip, not a git repo. Grab the current program zip from the official CNCR page
+# (https://cncr.nl/research/magma/) -- the old vu.data.surfsara.nl direct links now 404 after SURF's
+# domain migration, so fetch the link from that page rather than hard-coding one here.
+unzip magma_v1.10.zip
+git clone https://github.com/FinucaneLab/pops.git   # PoPS is run as pops.py from the clone; PyPI `pops` is unrelated
 ```
 
 **Input data:**
@@ -137,17 +140,17 @@ Tell your AI agent what you want to do:
 - For mediation, run Imai sensitivity (rho_crit > 0.3 robust) or mediational E-value > 2; molecular mediators are best tested via two-step MR with cis-instruments
 
 ## Related Skills
-causal-genomics/mendelian-randomization - IVW, Egger, MR-RAPS, MVMR
-causal-genomics/colocalization-analysis - coloc.abf, coloc.susie, HyPrColoc, SMR-HEIDI
-causal-genomics/fine-mapping - SuSiE rss, FINEMAP-inf, PolyFun, SuSiEx
-causal-genomics/pleiotropy-detection - MR-PRESSO, CAUSE, LHC-MR, contamination-mixture
-causal-genomics/mediation-analysis - Two-step MR, MVMR, CMAverse 4-way, HIMA
-causal-genomics/transcriptome-wide-association - FUSION, S-PrediXcan, FOCUS, UTMOST
-causal-genomics/heritability-partitioning - LDSC, S-LDSC, LDAK, HDL, HESS
-causal-genomics/proteome-mr-drug-target - UKB-PPP, deCODE, cis-pQTL MR, pheWAS
-causal-genomics/effector-gene-prioritization - L2G, PoPS, cS2G, MAGMA, FLAMES
-causal-genomics/genetic-correlation - Cross-trait LDSC, HDL, LAVA, Popcorn
-causal-genomics/genomic-sem - Common-factor GWAS, Q_SNP, MTAG reconciliation
-population-genetics/association-testing - Upstream GWAS methods
-atac-seq/enhancer-gene-linking - ABC / ENCODE-rE2G priors for effector-gene step
-single-cell/preprocessing - scRNA / scATAC tissue priors for stratified LDSC
+- causal-genomics/mendelian-randomization - IVW, Egger, MR-RAPS, MVMR
+- causal-genomics/colocalization-analysis - coloc.abf, coloc.susie, HyPrColoc, SMR-HEIDI
+- causal-genomics/fine-mapping - SuSiE rss, FINEMAP-inf, PolyFun, SuSiEx
+- causal-genomics/pleiotropy-detection - MR-PRESSO, CAUSE, LHC-MR, contamination-mixture
+- causal-genomics/mediation-analysis - Two-step MR, MVMR, CMAverse 4-way, HIMA
+- causal-genomics/transcriptome-wide-association - FUSION, S-PrediXcan, FOCUS, UTMOST
+- causal-genomics/heritability-partitioning - LDSC, S-LDSC, LDAK, HDL, HESS
+- causal-genomics/proteome-mr-drug-target - UKB-PPP, deCODE, cis-pQTL MR, pheWAS
+- causal-genomics/effector-gene-prioritization - L2G, PoPS, cS2G, MAGMA, FLAMES
+- causal-genomics/genetic-correlation - Cross-trait LDSC, HDL, LAVA, Popcorn
+- causal-genomics/genomic-sem - Common-factor GWAS, Q_SNP, MTAG reconciliation
+- population-genetics/association-testing - Upstream GWAS methods
+- atac-seq/enhancer-gene-linking - ABC / ENCODE-rE2G priors for effector-gene step
+- single-cell/preprocessing - scRNA / scATAC tissue priors for stratified LDSC

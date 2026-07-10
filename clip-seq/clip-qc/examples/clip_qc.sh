@@ -50,13 +50,23 @@ echo "FRiP: $FRIP"
 echo "  Target: >= 0.005 (narrow-binding RBP)"
 echo "  Atypical-binding RBPs (rare-transcript binders) exempt"
 
-# IP vs SMInput global enrichment
-IP_RPKM=$(echo "scale=4; $DEDUP_TOTAL / 1000000" | bc)  # crude RPKM proxy at total level
+# IP vs SMInput enrichment. Comparing total library sizes measures sequencing depth, not enrichment;
+# the informative quantity is the fraction of reads falling in peaks, depth-normalized in each library:
+#   log2( (IP_in_peaks / IP_total) / (SMI_in_peaks / SMI_total) )
 SMI_TOTAL=$(samtools view -c -F 4 $SMINPUT_BAM)
-SMI_RPKM=$(echo "scale=4; $SMI_TOTAL / 1000000" | bc)
-echo "IP total reads:      $DEDUP_TOTAL"
-echo "SMInput total reads: $SMI_TOTAL"
-echo "  Global log2(IP/SMInput) should be > 0.5 for productive IP"
+SMI_IN_PEAKS=$(bedtools intersect -c -s -a $PEAKS_BED -b $SMINPUT_BAM | awk '{s+=$NF} END {print s+0}')
+echo "IP total reads:      $DEDUP_TOTAL  (in peaks: $READS_IN_PEAKS)"
+echo "SMInput total reads: $SMI_TOTAL  (in peaks: $SMI_IN_PEAKS)"
+if [ "$SMI_IN_PEAKS" -gt 0 ] && [ "$READS_IN_PEAKS" -gt 0 ]; then
+    # bc -l: l() is natural log, so l(x)/l(2) is log2(x)
+    ENRICH=$(echo "scale=4; l(($READS_IN_PEAKS / $DEDUP_TOTAL) / ($SMI_IN_PEAKS / $SMI_TOTAL)) / l(2)" | bc -l)
+    echo "Global log2(IP/SMInput) in peaks: $ENRICH"
+    awk -v e="$ENRICH" 'BEGIN { print (e+0 > 0.5) ? "  PASS: IP is enriched over SMInput" \
+                                                   : "  FAIL: IP not enriched -- suspect a failed IP or a mismatched SMInput" }'
+else
+    ENRICH="NA"
+    echo "Global log2(IP/SMInput) in peaks: NA (no reads in peaks in one library)"
+fi
 
 echo ""
 echo "=== Gate 5: IDR replicate reproducibility ==="
@@ -107,6 +117,7 @@ echo "=== Summary ==="
 echo "Aligned: $ALIGN_PCT% (target >= 60%)"
 echo "Predicted unique at 100M: $EXP_100M (target >= 10M)"
 echo "FRiP: $FRIP (target >= 0.005 narrow-binding)"
+echo "IP/SMInput log2 enrichment in peaks: $ENRICH (target > 0.5)"
 echo "rRNA fraction: $RRNA_FRAC (target < 0.02 post-prefilter)"
 echo ""
 echo "If multiple samples, run multiqc on the qc directory for a unified report:"

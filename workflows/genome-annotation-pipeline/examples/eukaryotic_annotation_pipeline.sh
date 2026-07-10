@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0+, eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+ | Verify API if version differs
+# Reference: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0.4+, eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+ | Verify API if version differs
 # Complete eukaryotic genome annotation pipeline
 # RepeatModeler/RepeatMasker -> BRAKER3 -> eggNOG-mapper -> Infernal/tRNAscan-SE
 set -e
@@ -7,19 +7,22 @@ set -e
 GENOME="assembly.fasta"
 RNASEQ_BAM="rnaseq_sorted.bam"
 PROTEINS="orthodb_proteins.fa"
-BUSCO_LINEAGE="eukaryota_odb10"
+BUSCO_LINEAGE=${BUSCO_LINEAGE:?set the DEEPEST applicable clade dataset (e.g. sauropsida_odb10, saccharomycetes_odb10); there is no safe default -- eukaryota_odb10 is too shallow and inflates completeness}
 THREADS=8
 
 mkdir -p qc_reports repeat_out braker_out functional_out ncrna_out
 
 echo "Step 0: Assembly QC"
 quast $GENOME -o qc_reports/quast --threads $THREADS --eukaryote
-busco -i $GENOME -l $BUSCO_LINEAGE -o qc_reports/busco_assembly -m genome --cpu $THREADS
+busco -i $GENOME -l $BUSCO_LINEAGE -o busco_assembly --out_path qc_reports -m genome --cpu $THREADS
 echo "CHECK: Verify assembly quality before proceeding"
 
 echo "Step 1: Repeat modeling and masking"
-# Build species-specific repeat library (~hours to days depending on genome size)
-RepeatModeler -database mygenome -pa $THREADS -LTRStruct
+# Build the RepeatModeler database FIRST, then the species-specific library (~hours to days)
+BuildDatabase -name mygenome $GENOME
+RepeatModeler -database mygenome -threads $THREADS -LTRStruct
+# Curate mygenome-families.fa against a protein DB before masking (see SKILL.md) or real
+# multi-copy gene families get masked and mis-reported as a gene-poor repertoire.
 
 # Mask the genome with soft-masking (-xsmall) for downstream gene prediction
 RepeatMasker \
@@ -31,10 +34,10 @@ RepeatMasker \
     $GENOME
 
 echo "Repeat masking summary:"
-tail -20 repeat_out/$(basename $GENOME).tbl
+tail -20 repeat_out/"$(basename "$GENOME")".tbl
 
 # QC: Check repeat content
-TOTAL_MASKED=$(grep 'total interspersed' repeat_out/$(basename $GENOME).tbl | awk '{print $NF}')
+TOTAL_MASKED=$(grep 'total interspersed' repeat_out/"$(basename "$GENOME")".tbl | awk '{print $NF}')
 echo "Total interspersed repeat content: $TOTAL_MASKED"
 echo "CHECK: Verify repeat content is within expected range for taxon"
 echo "  Vertebrate: 30-60%, Insect: 15-45%, Plant: 20-85%, Fungus: 3-20%"
@@ -61,7 +64,7 @@ echo "Predicted genes: $GENE_COUNT"
 echo "Predicted exons: $EXON_COUNT"
 
 echo "Step 2b: BUSCO QC on predicted proteins"
-busco -i braker_out/braker.aa -l $BUSCO_LINEAGE -o qc_reports/busco_proteins -m protein --cpu $THREADS
+busco -i braker_out/braker.aa -l $BUSCO_LINEAGE -o busco_proteins --out_path qc_reports -m proteins --cpu $THREADS
 
 echo "CHECK: BUSCO completeness should be > 90%"
 
@@ -90,7 +93,7 @@ fi
 echo "Step 3b: InterProScan for domain annotation"
 interproscan.sh \
     -i braker_out/braker.aa \
-    -o functional_out/interpro_results.tsv \
+    -b functional_out/interpro_results \
     -f tsv,gff3 \
     -goterms \
     -pa \

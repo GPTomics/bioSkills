@@ -94,10 +94,11 @@ Sample4,Treatment,2
 
 | File | Description |
 |------|-------------|
-| differential_proteins.csv | All proteins with statistics |
-| volcano_plot.pdf | Log2FC vs -log10(p-value) |
-| pca_plot.pdf | Sample clustering |
-| heatmap.pdf | Significant proteins |
+| proteomics_results.csv | All proteins with statistics |
+| proteomics_results_volcano.pdf | Log2FC vs -log10(p-value) |
+| proteomics_results_raw_boxplot.pdf | Raw per-sample log2 distributions, inspected before normalization |
+| proteomics_results_pca.pdf | Sample clustering |
+| proteomics_results_heatmap.pdf | Significant proteins |
 
 ## Typical Results
 

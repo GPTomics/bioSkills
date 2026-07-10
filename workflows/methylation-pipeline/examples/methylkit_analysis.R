@@ -55,7 +55,7 @@ meth_norm <- normalizeCoverage(meth_filtered, method = 'median')
 # Merge samples
 cat('Merging samples...\n')
 meth_merged <- unite(meth_norm, destrand = TRUE, min.per.group = 1L)
-cat('CpGs covered in all samples:', nrow(meth_merged), '\n')
+cat('CpGs covered in >=1 sample per group:', nrow(meth_merged), '\n')
 
 # Sample clustering
 pdf(file.path(output_dir, 'sample_clustering.pdf'), width = 8, height = 6)
@@ -65,7 +65,7 @@ dev.off()
 
 # Differential methylation (per CpG)
 cat('Calculating differential methylation...\n')
-diff_meth <- calculateDiffMeth(meth_merged, mc.cores = 4)
+diff_meth <- calculateDiffMeth(meth_merged, overdispersion = 'MN', test = 'Chisq', mc.cores = 4)   # MN correction avoids underdispersed p-values (seam #4)
 
 # Summary
 cat('\nDifferential methylation summary:\n')
@@ -80,7 +80,7 @@ cat('Hypomethylated CpGs:', nrow(dmc_hypo), '\n')
 # DMR detection using tiles
 cat('\nDetecting DMRs using tiles...\n')
 tiles <- tileMethylCounts(meth_merged, win.size = 1000, step.size = 1000)
-diff_tiles <- calculateDiffMeth(tiles, mc.cores = 4)
+diff_tiles <- calculateDiffMeth(tiles, overdispersion = 'MN', test = 'Chisq', mc.cores = 4)
 dmr <- getMethylDiff(diff_tiles, difference = 25, qvalue = 0.01)
 cat('Significant DMRs:', nrow(dmr), '\n')
 

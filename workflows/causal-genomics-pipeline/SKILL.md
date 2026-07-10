@@ -45,6 +45,17 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 **"Run post-GWAS causal inference from summary statistics"** -> Orchestrate heritability partitioning and tissue prioritization, genetic-correlation diagnostics, instrument selection, Mendelian randomization with CHP-aware sensitivity, colocalization, fine-mapping (SuSiE / FOCUS), mediation, TWAS triangulation, cis-pQTL drug-target MR, effector-gene prioritization, and (optionally) GenomicSEM common-factor GWAS to triangulate causal evidence and nominate publication-grade causal exposures, genes, and mechanisms.
 
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step. Every step below cross-references the component skill that teaches its mechanism.
+
+## The governing principle
+
+A causal claim is decided at the seams where summary statistics meet, not inside any single method.
+
+1. **Everything shares ONE genome build, and effect alleles are harmonized once.** The exposure and outcome sumstats, the LD reference, and any eQTL/pQTL panel must share a build; if they differ, liftover ONCE, strand-aware (the BBIS inverted-region danger), BEFORE harmonization. `harmonise_data` aligns effect alleles; a flipped palindrome (MAF near 0.5) flips the causal-effect SIGN silently — drop intermediate-frequency palindromes.
+2. **The LD reference ancestry must match the GWAS ancestry, committed once and inherited by clumping, coloc.susie, fine-mapping (SuSiE-rss), and TWAS.** A mismatched LD panel corrupts credible sets and colocalization silently; the in-pipeline alarms are `estimate_s_rss` lambda <0.05 and credible-set purity `min_abs_corr` >=0.5.
+3. **Order is causal: a diagnostic at step 0 decides whether a later step runs.** Cross-trait LDSC `abs(rg)>0.3` makes correlated horizontal pleiotropy (CHP) suspected, so CAUSE/LHC-MR becomes MANDATORY — MR-PRESSO is BLIND to CHP. Tissue picked at step 0 (stratified LDSC) flows into TWAS; picking it post-hoc is circular. Steiger pre-filter directionality and LD-clump BEFORE coloc/fine-mapping.
+4. **Triangulate; refuse the single number.** No single MR estimator, coloc PP.H4, or evidence stream is decisive — report IVW+Egger+median+mode concordance, coloc PP.H4 with a p12 sweep, and effector-gene evidence across >=3 of 6 streams. A bare headline statistic hides the seam.
+
 ## Pipeline Overview
 
 ```
@@ -140,7 +151,7 @@ presso <- mr_presso(BetaOutcome = 'beta.outcome', BetaExposure = 'beta.exposure'
     OUTLIERtest = TRUE, DISTORTIONtest = TRUE, data = dat,
     NbDistribution = 5000, SignifThreshold = 0.05)
 egger_int <- mr_pleiotropy_test(dat)
-isq <- Isq(dat$beta.exposure, dat$se.exposure)
+isq <- Isq(abs(dat$beta.exposure), dat$se.exposure)   # I^2_GX needs same-sign effects; pass abs(beta)
 het <- mr_heterogeneity(dat)
 loo <- mr_leaveoneout(dat)
 steiger <- directionality_test(dat)
@@ -155,8 +166,10 @@ library(cause)
 library(lhcMR)
 cause_fit <- cause(X = cause_dat, variants = top_vars, param_ests = params)
 elpd <- summary(cause_fit)$elpd
-lhc_fit <- lhc_mr(trait.df = sumstats_df, LD.filepath = ld_path, rho.filepath = rho_path,
-    nStep = 2, SP_single = 3, SP_pair = 50, run_local = FALSE)
+# lhcMR is a 3-call chain: merge_sumstats (takes LD/rho paths) -> calculate_SP -> lhc_mr
+lhc_df <- merge_sumstats(input.files, trait.names, LD.filepath = ld_path, rho.filepath = rho_path)
+SP_list <- calculate_SP(lhc_df, trait.names, nStep = 2, SP_single = 3, SP_pair = 50)
+lhc_fit <- lhc_mr(SP_list, trait.names, paral_method = 'lapply', nBlock = 200)
 ```
 
 CAUSE reports delta_elpd of sharing-vs-causal model; z > 1.96 favors true causation over CHP. LHC-MR jointly estimates causal effect and confounder effect via likelihood; the 95% credible interval excluding zero is the causal-effect verdict. Required when LDSC abs(rg) > 0.3. See causal-genomics/pleiotropy-detection.
@@ -195,7 +208,7 @@ If `estimate_s_rss` lambda > 0.05 the external LD is mismatched; rerun with in-s
 ```r
 library(TwoSampleMR)
 mv_exposures <- mv_extract_exposures(c('ieu-a-2', 'ieu-a-1089'))
-mv_outcome <- mv_extract_outcome(mv_exposures$SNP, 'ieu-a-7')
+mv_outcome <- extract_outcome_data(mv_exposures$SNP, 'ieu-a-7')
 mvdat <- mv_harmonise_data(mv_exposures, mv_outcome)
 mvmr_result <- mv_multiple(mvdat)
 ```
@@ -210,7 +223,7 @@ python MetaXcan/SPrediXcan.py --model_db_path mashr_Whole_Blood.db \
     --snp_column SNP --effect_allele_column A1 --non_effect_allele_column A2 \
     --beta_column BETA --se_column SE --pvalue_column P \
     --output_file twas.csv
-focus finemap gwas.sumstats.gz LD.bcor mashr.db --locations EUR.locations.bed --out twas.focus
+focus finemap gwas.sumstats.gz 1000G.EUR.QC.1 mashr.db --chr 1 --locations 37:EUR --out twas.focus
 ```
 
 **Goal:** Nominate gene-level causal hits and prune LD-induced TWAS false positives.
@@ -223,7 +236,7 @@ Tissue is picked from Step 0 stratified LDSC; Bonferroni at 0.05 / N_tissues. FO
 library(TwoSampleMR)
 pqtl_dat <- extract_instruments(outcomes = 'prot-a-XXX', p1 = 5e-8, clump = TRUE,
     r2 = 0.1, kb = 1000)
-pqtl_dat <- subset(pqtl_dat, chr == target_chr & pos > target_tss - 500000 & pos < target_tss + 500000)
+pqtl_dat <- subset(pqtl_dat, chr.exposure == target_chr & pos.exposure > target_tss - 500000 & pos.exposure < target_tss + 500000)   # extract_instruments returns chr.exposure/pos.exposure
 out_dat <- extract_outcome_data(snps = pqtl_dat$SNP, outcomes = c('ieu-a-7', 'ieu-b-31'))
 dat <- harmonise_data(pqtl_dat, out_dat)
 mr_results <- mr(dat, method_list = c('mr_ivw', 'mr_wald_ratio'))
@@ -237,8 +250,8 @@ Cross-platform replication on Olink (UKB-PPP) and SomaScan (deCODE) is mandatory
 
 ```bash
 magma --bfile g1000_eur --pval gwas.tsv N=N --gene-annot genes.annot --out trait
-pops_features.py --features pops.features.txt --gene_annot genes.txt --out trait.features
-pops.py --features trait.features --gene_results trait.genes.raw --out trait.pops
+python munge_feature_directory.py --gene_annot_path genes.txt --feature_dir features/ --save_prefix pops
+python pops.py --gene_annot_path genes.txt --feature_mat_prefix pops --num_feature_chunks 2 --magma_prefix trait --out_prefix trait.pops
 ```
 
 **Goal:** Map each fine-mapped credible set to a candidate effector gene by integrating six evidence streams.
@@ -281,10 +294,15 @@ Heywood cases (negative residual variance) require fixing residuals positive or 
 | LDSC | rg trigger for CHP-MR | abs(rg) > 0.3 |
 | LDSC | HDL sample overlap | < 5% |
 
-## Troubleshooting
+## Common Errors
 
 | Issue | Likely Cause | Solution |
 |-------|--------------|----------|
+| Nonsense / sign-flipped MR or coloc | Build/liftover mismatch across exposure/outcome/LD/eQTL | One build; liftover once strand-aware (BBIS danger), THEN harmonize |
+| Causal-effect sign flipped | Strand-flip/allele-swap at a MAF~0.5 palindrome in harmonise | Drop intermediate-frequency palindromes; verify effect-allele alignment |
+| Corrupted credible sets / wrong coloc | LD-panel ancestry mismatch (clumping/coloc/fine-map/TWAS) | Ancestry-matched LD; check estimate_s_rss lambda; prefer in-sample LD |
+| "Causal" effect passes sensitivity but is confounded | MR-PRESSO blind to CHP; rg>0.3 not checked | Run the rg gate at step 0; CAUSE/LHC-MR when triggered |
+| Two-sample MR biased toward observational | Sample overlap between exposure and outcome GWAS | Check overlap (<5% via HDL); MRlap/HDL correction |
 | No instruments | Underpowered GWAS | Relax p-value to 5e-6 with caution |
 | Weak instruments (F < 10) | Small effect SNPs | Drop weak instruments; use better-powered GWAS |
 | Inconsistent MR methods | Pleiotropy | Check MR-PRESSO outliers; use weighted median |
@@ -300,17 +318,25 @@ Heywood cases (negative residual variance) require fixing residuals positive or 
 
 ## Related Skills
 
-causal-genomics/mendelian-randomization - IVW, Egger, MR-RAPS, MVMR
-causal-genomics/colocalization-analysis - coloc.abf, coloc.susie, HyPrColoc, SMR-HEIDI
-causal-genomics/fine-mapping - SuSiE rss, FINEMAP-inf, PolyFun, SuSiEx
-causal-genomics/pleiotropy-detection - MR-PRESSO, CAUSE, LHC-MR, contamination-mixture
-causal-genomics/mediation-analysis - Two-step MR, MVMR, CMAverse 4-way, HIMA
-causal-genomics/transcriptome-wide-association - FUSION, S-PrediXcan, FOCUS, UTMOST
-causal-genomics/heritability-partitioning - LDSC, S-LDSC, LDAK, HDL, HESS
-causal-genomics/proteome-mr-drug-target - UKB-PPP, deCODE, cis-pQTL MR, pheWAS
-causal-genomics/effector-gene-prioritization - L2G, PoPS, cS2G, MAGMA, FLAMES
-causal-genomics/genetic-correlation - Cross-trait LDSC, HDL, LAVA, Popcorn
-causal-genomics/genomic-sem - Common-factor GWAS, Q_SNP, MTAG reconciliation
-population-genetics/association-testing - Upstream GWAS methods
-atac-seq/enhancer-gene-linking - ABC / ENCODE-rE2G priors for effector-gene step
-single-cell/preprocessing - scRNA / scATAC tissue priors for stratified LDSC
+- causal-genomics/mendelian-randomization - IVW, Egger, MR-RAPS, MVMR
+- causal-genomics/colocalization-analysis - coloc.abf, coloc.susie, HyPrColoc, SMR-HEIDI
+- causal-genomics/fine-mapping - SuSiE rss, FINEMAP-inf, PolyFun, SuSiEx
+- causal-genomics/pleiotropy-detection - MR-PRESSO, CAUSE, LHC-MR, contamination-mixture
+- causal-genomics/mediation-analysis - Two-step MR, MVMR, CMAverse 4-way, HIMA
+- causal-genomics/transcriptome-wide-association - FUSION, S-PrediXcan, FOCUS, UTMOST
+- causal-genomics/heritability-partitioning - LDSC, S-LDSC, LDAK, HDL, HESS
+- causal-genomics/proteome-mr-drug-target - UKB-PPP, deCODE, cis-pQTL MR, pheWAS
+- causal-genomics/effector-gene-prioritization - L2G, PoPS, cS2G, MAGMA, FLAMES
+- causal-genomics/genetic-correlation - Cross-trait LDSC, HDL, LAVA, Popcorn
+- causal-genomics/genomic-sem - Common-factor GWAS, Q_SNP, MTAG reconciliation
+- population-genetics/association-testing - Upstream GWAS methods
+- atac-seq/enhancer-gene-linking - ABC / ENCODE-rE2G priors for effector-gene step
+- single-cell/preprocessing - scRNA / scATAC tissue priors for stratified LDSC
+- workflows/gwas-pipeline - Upstream: produces the sumstats (CHR/POS/EA/OA/EAF/BETA/SE/P/N, build documented) this pipeline consumes
+
+## References
+
+- Hemani G, Zheng J, Elsworth B, et al (2018) The MR-Base platform supports systematic causal inference across the human phenome. *eLife* 7:e34408. DOI 10.7554/eLife.34408. (TwoSampleMR / harmonisation.)
+- Giambartolomei C, Vukcevic D, Schadt EE, et al (2014) Bayesian test for colocalisation between pairs of genetic association studies using summary statistics. *PLoS Genetics* 10:e1004383. DOI 10.1371/journal.pgen.1004383. (coloc.)
+- Wang G, Sarkar A, Carbonetto P, Stephens M (2020) A simple new approach to variable selection in regression, with application to genetic fine mapping. *Journal of the Royal Statistical Society Series B* 82:1273-1300. DOI 10.1111/rssb.12388. (SuSiE.)
+- Bulik-Sullivan BK, Loh PR, Finucane HK, et al (2015) LD Score regression distinguishes confounding from polygenicity in genome-wide association studies. *Nature Genetics* 47:291-295. DOI 10.1038/ng.3211. (LDSC intercept.)

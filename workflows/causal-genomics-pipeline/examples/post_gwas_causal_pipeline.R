@@ -33,7 +33,10 @@ exposure_dat <- read_exposure_data(
     effect_allele_col = 'A1',
     other_allele_col = 'A2',
     eaf_col = 'EAF',
-    pval_col = 'P'
+    pval_col = 'P',
+    chr_col = 'CHR',
+    pos_col = 'BP',
+    samplesize_col = 'N'    # required for the Steiger directionality_test; without it it returns NULL
 )
 
 # p < 5e-8: Standard GWAS significance; use 5e-6 for underpowered exposures
@@ -74,7 +77,8 @@ outcome_dat <- read_outcome_data(
     effect_allele_col = 'A1',
     other_allele_col = 'A2',
     eaf_col = 'EAF',
-    pval_col = 'P'
+    pval_col = 'P',
+    samplesize_col = 'N'    # Steiger directionality_test needs samplesize on both sides
 )
 
 dat <- harmonise_data(exposure_dat, outcome_dat)
@@ -110,7 +114,7 @@ if (length(unique(directions)) == 1) {
 cat('\n=== Step 3: Sensitivity Analysis ===\n')
 
 # MR-PRESSO: detect and correct for outlier instruments
-# NbDistribution=3000: Standard; use 10000 for publication
+# NbDistribution=5000: publication-grade (> 1/SignifThreshold); use 10000 for stringent
 presso <- mr_presso(
     BetaOutcome = 'beta.outcome',
     BetaExposure = 'beta.exposure',
@@ -119,7 +123,7 @@ presso <- mr_presso(
     OUTLIERtest = TRUE,
     DISTORTIONtest = TRUE,
     data = dat,
-    NbDistribution = 3000,
+    NbDistribution = 5000,
     SignifThreshold = 0.05
 )
 

@@ -1,10 +1,11 @@
 #!/bin/bash
-# Reference: DESeq2 1.42+, MACS3 3.0+, STAR 2.7.11+, bedtools 2.31+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
-# Complete MeRIP-seq pipeline
+# Reference: STAR 2.7.11+, samtools 1.19+, exomePeak2 1.14+, Guitar 2.18+ | Verify API if version differs
+# Complete MeRIP-seq pipeline (single-condition peak call; for differential populate bam_treated_ip/input)
+set -e
 
 SAMPLE_SHEET=$1    # CSV: sample,read1,read2,type (IP or Input),condition
 STAR_INDEX=$2
-GTF=$3
+GTF=$(cd "$(dirname "$3")" && pwd)/$(basename "$3")    # absolute: the R step runs after cd into OUTPUT_DIR
 OUTPUT_DIR=${4:-"merip_results"}
 THREADS=${5:-8}
 
@@ -42,25 +43,23 @@ library(exomePeak2)
 ip_bams <- list.files('aligned', pattern = 'IP.*\\.bam$', full.names = TRUE)
 input_bams <- list.files('aligned', pattern = 'Input.*\\.bam$', full.names = TRUE)
 
-# Peak calling
+# Peak calling. gff_dir (NOT gff) is the annotation argument. exomePeak2 auto-writes
+# Mod.bed / Mod.csv / Mod.rds under save_dir/; also export a plain BED for the Guitar step.
 result <- exomePeak2(
     bam_ip = ip_bams,
     bam_input = input_bams,
-    gff = Sys.getenv('GTF'),
+    gff_dir = Sys.getenv('GTF'),
     genome = 'hg38',
     paired_end = TRUE,
-    p_cutoff = 0.05,
-    log2FC_cutoff = 1
+    save_dir = 'exomePeak2_output'
 )
 
-# Export
-exportResults(result, format = 'BED', file = 'peaks/m6a_peaks.bed')
-exportResults(result, format = 'CSV', file = 'peaks/m6a_peaks.csv')
-
+library(rtracklayer)
+export(rowRanges(result), 'peaks/m6a_peaks.bed')   # peak GRangesList -> BED12
 print(result)
 RSCRIPT
 
-cd $OUTPUT_DIR
+cd "$OUTPUT_DIR"
 GTF=$GTF Rscript peaks/call_peaks.R
 cd -
 
@@ -70,16 +69,15 @@ library(Guitar)
 library(rtracklayer)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 
-peaks <- import('peaks/m6a_peaks.bed')
-
+# Guitar 2.x API: stBedFiles (site sets), txTxdb (annotation), miscOutFilePrefix (output prefix)
 GuitarPlot(
-    peaks,
-    txdb = TxDb.Hsapiens.UCSC.hg38.knownGene,
-    saveToPDFprefix = 'peaks/m6a_metagene'
+    stBedFiles = list('peaks/m6a_peaks.bed'),
+    txTxdb = TxDb.Hsapiens.UCSC.hg38.knownGene,
+    miscOutFilePrefix = 'peaks/m6a_metagene'
 )
 RSCRIPT
 
-cd $OUTPUT_DIR
+cd "$OUTPUT_DIR"
 Rscript peaks/metagene_plot.R
 cd -
 

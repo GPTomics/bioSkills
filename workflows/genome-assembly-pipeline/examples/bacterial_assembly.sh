@@ -7,14 +7,16 @@ THREADS=16
 LONG_READS="nanopore.fastq.gz"           # ONT R10 / Dorado-SUP basecalled
 SHORT_R1="illumina_R1.fastq.gz"
 SHORT_R2="illumina_R2.fastq.gz"
-BASECALLER_MODEL="r1041_e82_400bps_sup_v5.0.0"   # MUST match the model the reads were basecalled with
+# shellcheck disable=SC2034  # consumed only when swapping medaka's --bacteria for -m (see Step 3)
+BASECALLER_MODEL="r1041_e82_400bps_sup_v5.0.0"   # generic fallback for `-m` if medaka <2.0 lacks --bacteria; MUST match the model the reads were basecalled with
 TAXID=562                                 # NCBI tax-id of the organism, for FCS-GX foreign screen
 GXDB="/path/to/gxdb"                       # dir holding the ~470 GiB FCS-GX database (gxdb); resident in RAM
 KMER=21                                   # common GenomeScope2 default; best_k.sh derives a smaller k for Mb genomes (harmless here, the QV step recomputes)
 BUSCO_LINEAGE="bacteria_odb10"
 OUTDIR="bacterial_assembly"
 
-mkdir -p ${OUTDIR}/{profile,qc,flye,medaka,fcsgx,final,quast,busco,merqury}
+# NOTE: 'busco' is intentionally NOT pre-created -- BUSCO aborts if its --out_path/-o dir already exists (needs -f).
+mkdir -p ${OUTDIR}/{profile,qc,flye,medaka,fcsgx,final,quast,merqury}
 
 echo "=== Step 0: Profile the genome (size, heterozygosity, ploidy) ==="
 # Count from ACCURATE Illumina reads, never noisy ONT (error k-mers swamp the spectrum and break the fit).
@@ -37,7 +39,7 @@ head -20 ${OUTDIR}/flye/assembly_info.txt
 
 echo "=== Step 3: Polish with medaka (model-matched); stop at the Merqury QV plateau, do not over-iterate ==="
 medaka_consensus -i ${LONG_READS} -d ${OUTDIR}/flye/assembly.fasta \
-    -o ${OUTDIR}/medaka -t ${THREADS} -m ${BASECALLER_MODEL}
+    -o ${OUTDIR}/medaka -t ${THREADS} --bacteria    # methylation-aware bacterial model (medaka 2.0+); beats the generic -m ${BASECALLER_MODEL} on isolates
 cp ${OUTDIR}/medaka/consensus.fasta ${OUTDIR}/final/assembly.fasta
 
 echo "=== Step 4: Decontaminate -- FCS-GX foreign screen (single-organism path; GenBank-mandatory) ==="

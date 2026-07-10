@@ -53,7 +53,7 @@ echo ""
 echo "=========================================="
 echo "Repeat Masking Summary"
 echo "=========================================="
-cat ${OUTDIR}/repeatmasker/$(basename $ASSEMBLY).tbl
+cat "${OUTDIR}/repeatmasker/$(basename "$ASSEMBLY").tbl"
 
 # Verify softmasking
 SOFTMASKED=${OUTDIR}/repeatmasker/$(basename $ASSEMBLY).masked

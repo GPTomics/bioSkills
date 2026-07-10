@@ -20,7 +20,7 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: Bowtie2 2.5.3+, Bracken 2.9+, HUMAnN 3.8+, Kraken2 2.1+, MetaPhlAn 4.1+, fastp 0.23+, matplotlib 3.8+, pandas 2.2+, seaborn 0.13+
+Reference examples tested with: Bowtie2 2.5.3+, Bracken 2.9+, HUMAnN 3.8+, Kraken2 2.1+, MetaPhlAn 4.1+, fastp 0.23+, samtools 1.19+, matplotlib 3.8+, pandas 2.2+, seaborn 0.13+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -33,7 +33,25 @@ package and adapt the example to match the actual API rather than retrying.
 
 **"Analyze my metagenomic samples from FASTQ to taxonomic and functional profiles"** -> Orchestrate controls and host depletion, Kraken2/Bracken taxonomic classification, MetaPhlAn profiling, and HUMAnN3 functional analysis - reporting results relative to a consistent pipeline, never as a direct observation of the community.
 
-Complete workflow from metagenomic FASTQ to taxonomic and functional profiles. Every result is a position in a choice-chain (extraction -> depletion -> depth -> classifier -> database -> normalization); hold the chain constant across a study and report each link.
+Complete workflow from metagenomic FASTQ to taxonomic and functional profiles. This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+A taxonomic/functional profile is a position in a choice-chain (extraction -> depletion -> depth -> classifier -> DB -> normalization), never a direct observation; the trustworthy result is decided at these seams.
+
+1. **The reference DB + version is THE inherited commitment.** The Kraken2/GTDB (or standard/RefSeq/UHGG) DB chosen at classification fixes what is detectable — a zero means below-detection OR not-in-DB OR lost-in-extraction OR removed-by-depletion, almost never biological absence. Pin the DB build (version alone moves species/genus calls); match DB to habitat (UHGG for gut); report the CLASSIFIED FRACTION (a low fraction is the tell that the DB is wrong).
+2. **Host removal against T2T-CHM13 is a made-once commitment done BEFORE profiling.** Prefer the complete T2T over gapped GRCh38 (which lets human reads masquerade as novel microbes); mask rDNA; discard both mates if either maps host. It is a privacy obligation (leaked human reads are identifiable), not just QC.
+3. **Controls-first is a design commitment, not a step added later.** Extraction blanks + a whole-cell mock carried through the WHOLE workflow. NO low-biomass result (skin, BAL, CSF, blood, tissue) is interpretable without blanks + DNA-concentration + decontam; at near-zero biomass the signal IS the kitome (Salter 2014). A blank cannot be retrofitted.
+4. **Read-fraction is not cell-fraction, and tools/DBs are not comparable.** Kraken2 read-fraction (genome-size/copy-number biased) and MetaPhlAn cell-fraction must never be merged into one table. Holding tool+DB constant within a study is the only way a comparison measures biology and not the tool.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Reference DB + version + habitat match | What is detectable; a zero is below-detection/not-in-DB, not absence; report classified fraction |
+| Host-removal reference (T2T-CHM13) | Human reads masquerading as microbes; a privacy obligation; removed before profiling |
+| Controls (blanks + mock) carried through | Whether any low-biomass result is interpretable; the signal IS the kitome without them |
+| Extraction method held constant | Extraction bias outweighs much biological signal (Costea 2017); interacts with read-vs-assembly choice |
 
 ## Workflow Overview
 
@@ -79,12 +97,16 @@ done
 for sample in sample1 sample2 sample3; do
     hostile clean --fastq1 trimmed/${sample}_R1.fq.gz --fastq2 trimmed/${sample}_R2.fq.gz \
         --index human-t2t-hla --aligner bowtie2 --output host_removed/
+    # hostile names each paired output from its OWN input basename: fastq1 -> {R1}.clean_1.fastq.gz,
+    # fastq2 -> {R2}.clean_2.fastq.gz. Rename to the ${sample}_R1/_R2.fq.gz the steps below consume.
+    mv host_removed/${sample}_R1.clean_1.fastq.gz host_removed/${sample}_R1.fq.gz
+    mv host_removed/${sample}_R2.clean_2.fastq.gz host_removed/${sample}_R2.fq.gz
 done
 # Then run decontam on the classifier output table using the blanks (contamination-controls),
 # and confirm depth adequacy with Nonpareil before interpreting any non-detection.
 ```
 
-### Step 2A: Kraken2 Classification
+### Step 1A: Kraken2 Classification
 
 ```bash
 # Classify reads. Raise --confidence above the default 0 to suppress single-k-mer false positives,
@@ -102,7 +124,7 @@ for sample in sample1 sample2 sample3; do
 done
 ```
 
-### Step 2B: Bracken Abundance Estimation
+### Step 1B: Bracken Abundance Estimation
 
 ```bash
 # Estimate species abundance
@@ -121,7 +143,7 @@ combine_bracken_outputs.py \
     -o bracken/combined_species.txt
 ```
 
-### Step 2C: Alternative - MetaPhlAn Profiling
+### Step 1C: Alternative - MetaPhlAn Profiling
 
 ```bash
 # Profile with MetaPhlAn 4. Pin --index (DB version is a batch variable). MetaPhlAn % is a cell
@@ -139,7 +161,7 @@ done
 merge_metaphlan_tables.py metaphlan/*_profile.txt > metaphlan/merged_abundance.txt
 ```
 
-### Step 3: Functional Profiling with HUMAnN
+### Step 2: Functional Profiling with HUMAnN
 
 ```bash
 # Run HUMAnN
@@ -154,12 +176,16 @@ for sample in sample1 sample2 sample3; do
         --metaphlan-options "--bowtie2db metaphlan_db"
 done
 
-# Normalize and join tables
-humann_renorm_table --input humann/sample1/sample1_pathabundance.tsv \
-    --output humann/sample1/sample1_pathabundance_cpm.tsv \
+# Normalize and join tables. HUMAnN names outputs from the input STEM, so the ${sample}_concat.fq.gz
+# input above yields sample1_concat_pathabundance.tsv (not sample1_pathabundance.tsv).
+humann_renorm_table --input humann/sample1/sample1_concat_pathabundance.tsv \
+    --output humann/sample1/sample1_concat_pathabundance_cpm.tsv \
     --units cpm
 
+# --search-subdirectories: per-sample outputs live in humann/<sample>/ subdirs; the join is
+# non-recursive by default and would otherwise find zero files.
 humann_join_tables --input humann \
+    --search-subdirectories \
     --output humann/merged_pathabundance.tsv \
     --file_name pathabundance
 ```
@@ -171,8 +197,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Load Bracken species table
+# Load Bracken species table. combine_bracken_outputs.py emits name, taxonomy_id, taxonomy_lvl,
+# then per-sample {sample}_num / {sample}_frac columns. Keep ONLY the fractions: taxonomy_lvl is a
+# string ('S') and summing it raises TypeError; summing taxonomy_id would be meaningless anyway.
 species = pd.read_csv('bracken/combined_species.txt', sep='\t', index_col=0)
+species = species.filter(regex='_frac$').rename(columns=lambda c: c.replace('_frac', ''))
 
 # Top 20 species heatmap
 top20 = species.sum(axis=1).nlargest(20).index
@@ -209,14 +238,24 @@ plt.savefig('species_barplot.pdf')
 | MetaPhlAn | --min_cu_len | 2000 (default) |
 | HUMAnN | --threads | 8+ |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| Low classification rate | Database mismatch, novel organisms | Try different database, check sample type |
-| High unclassified | Novel microbes, host contamination | Remove host, use larger database |
-| High host reads | Incomplete host removal | Use multiple host reference genomes |
-| HUMAnN slow | Large files | Increase threads, pre-filter reads |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| A "novel community" that is the kitome | Negative controls skipped / contamination bleed | Blanks + mock through the full workflow; decontam; skepticism toward canonical kitome genera |
+| Same organism appears twice under different names | Merged GTDB-Tk-labelled and NCBI-labelled tables (Firmicutes vs Bacillota) | State which taxonomy each table uses; never name-merge without a crosswalk |
+| Cross-study comparison is really tool differences | Compared across tools/DBs | Hold tool + DB constant within a study; benchmark on a mock with OPAL |
+| A zero read as biological absence | Confused detection-limit with biology | Name which link (depth/DB/extraction/depletion) is responsible before any biological reading; Nonpareil depth check |
+| Read-fraction and cell-fraction merged | Kraken2 % joined to MetaPhlAn % | Keep separate tables; they use different absence semantics |
+| Low classification rate | Database mismatch / novel organisms | Match DB to habitat; report classified fraction; a low fraction = wrong/incomplete DB |
+| High host reads | Incomplete host removal | Use the complete T2T host reference; mask rDNA |
+
+## References
+
+- Salter SJ, Cox MJ, Turek EM, et al (2014) Reagent and laboratory contamination can critically impact sequence-based microbiome analyses. *BMC Biology* 12:87. DOI 10.1186/s12915-014-0087-z. (the kitome.)
+- Costea PI, Zeller G, Sunagawa S, et al (2017) Towards standards for human fecal sample processing in metagenomic studies. *Nature Biotechnology* 35:1069-1076. DOI 10.1038/nbt.3960. (extraction dominates.)
+- Meyer F, Bremges A, Belmann P, et al (2019) Assessing taxonomic metagenome profilers with OPAL. *Genome Biology* 20:51. DOI 10.1186/s13059-019-1646-y.
+- Sczyrba A, Hofmann P, Belmann P, et al (2017) Critical Assessment of Metagenome Interpretation (CAMI). *Nature Methods* 14:1063-1071. DOI 10.1038/nmeth.4458.
 
 ## Complete Pipeline Script
 
@@ -226,7 +265,7 @@ set -e
 
 THREADS=8
 KRAKEN_DB="kraken2_standard_db"
-HOST_INDEX="human_bt2_index"
+HOST_INDEX="human_bt2_index"   # MUST be built from T2T-CHM13 (CHM13v2, +HLA) per the made-once host-removal commitment, not a legacy GRCh38 index
 SAMPLES="sample1 sample2 sample3"
 OUTDIR="metagenomics_results"
 
@@ -245,11 +284,18 @@ done
 # Host removal
 echo "=== Host Removal ==="
 for sample in $SAMPLES; do
-    bowtie2 -p ${THREADS} -x ${HOST_INDEX} \
+    # -f 12 (read unmapped AND mate unmapped) keeps only pairs where NEITHER mate hit the host.
+    # --un-conc-gz would instead keep every non-CONCORDANT pair, retaining pairs whose mate mapped
+    # human -- a privacy leak, not just a QC lapse. -F 256 drops secondary alignments.
+    bowtie2 -p ${THREADS} -x ${HOST_INDEX} --very-sensitive \
         -1 ${OUTDIR}/trimmed/${sample}_R1.fq.gz \
         -2 ${OUTDIR}/trimmed/${sample}_R2.fq.gz \
-        --un-conc-gz ${OUTDIR}/host_removed/${sample}_R%.fq.gz \
-        > /dev/null 2> ${OUTDIR}/qc/${sample}_host.log
+        2> ${OUTDIR}/qc/${sample}_host.log \
+      | samtools view -b -f 12 -F 256 - \
+      | samtools sort -n -@ ${THREADS} - \
+      | samtools fastq -1 ${OUTDIR}/host_removed/${sample}_R1.fq.gz \
+                       -2 ${OUTDIR}/host_removed/${sample}_R2.fq.gz \
+                       -0 /dev/null -s /dev/null -n -
 done
 
 # Step 2: Kraken2

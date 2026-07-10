@@ -23,7 +23,7 @@ TOTAL=$(grep -v '^>' $GENOME | tr -cd 'a-zA-Z' | wc -c)
 MASK_PCT=$(echo "scale=2; $LOWER * 100 / $TOTAL" | bc)
 echo "Repeat masking: ${MASK_PCT}%"
 
-if [ $(echo "$MASK_PCT < 1" | bc) -eq 1 ]; then
+if [ "$(echo "$MASK_PCT < 1" | bc)" -eq 1 ]; then
     echo "WARNING: Very low masking (<1%). Run RepeatMasker first."
     echo "Unmasked genomes produce many false positive gene predictions."
     exit 1

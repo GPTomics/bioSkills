@@ -54,7 +54,7 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - The softmax max from `predict(soft=True)` answers "which label," not "does it belong" -- gate on weighted-kNN uncertainty (HLCA threshold 0.2) or a Mahalanobis/ensemble OOD signal
-- `weight_decay=0.0` and frozen weights are load-bearing: they keep the shared latent fixed so queries mapped to the same atlas stay comparable
+- `weight_decay=0.0` and frozen weights are not optional: they keep the shared latent fixed so queries mapped to the same atlas stay comparable
 - `prepare_query_anndata` is mandatory; skipping it silently corrupts the encoder input rather than raising an error
 - For trajectories or suspected novel states, prefer unsupervised scVI surgery and annotate the query independently
 - CellTypist expects log1p of CP10k input and is a classifier, not a mapper (no shared embedding, no batch handling)

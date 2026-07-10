@@ -83,7 +83,7 @@ Tell your AI agent what you want to do:
 | Gubbins input | core.full.aln | NOT core.aln; variable-only alignment cannot estimate background SNP density |
 | IQ-TREE model | GTR+G+ASC | +ASC for SNP-only post-Gubbins input |
 | TreeTime --clock-filter | 4 | SD multiplier on root-to-tip residual; TreeTime convention |
-| TreeTime R^2 minimum | 0.3 | Below this, temporal signal insufficient (Rambaut 2016 TempEst) |
+| TreeTime R^2 minimum | 0.3 | Below this, temporal signal treated as insufficient (field convention; TempEst itself sets no cutoff) |
 | Generation time | pathogen-specific | Bacteria ~7-14 days; TB years; SARS-CoV-2 ~5 days; never hardcode |
 | TransPhylo mcmcIterations | 1e5-1e6+ | 10k is a smoke-test only |
 | BEAST2 BDSKY origin | > rootHeight | Setting origin == rootHeight biases R_e upward systematically |
@@ -98,8 +98,8 @@ No universal cutoff. See epidemiological-genomics/transmission-inference for the
 | Pathogen | Threshold | Source |
 |----------|-----------|--------|
 | *M. tuberculosis* (core SNP) | <=12 SNPs (likely); <=5 (recent) | Walker 2013 *Lancet Infect Dis* 13:137 -- UK low-transmission; inflates 2-5x in high-burden |
-| *S. aureus* (core SNP) | <=15 SNPs (within hospital) | Coll 2017 *Clin Infect Dis* 65:1781 |
-| *K. pneumoniae* (KPC) | <=21 SNPs | Snitkin 2012 *Sci Transl Med* 4:148ra116 |
+| *S. aureus* (core SNP) | <=15 SNPs (within hospital) | Coll 2020 *Lancet Microbe* 1:e328 |
+| *K. pneumoniae* (KPC) | <=21 SNPs | Field convention; no threshold source |
 | *C. difficile* (recombination-masked) | <=2 SNPs (direct) | Eyre 2013 *NEJM* 369:1195 |
 | *Salmonella* (cgMLST) | <=5 alleles | EFSA / EnteroBase convention |
 | *Listeria* (PulseNet cgMLST) | <=4 alleles | PulseNet protocol |
@@ -121,7 +121,7 @@ No universal cutoff. See epidemiological-genomics/transmission-inference for the
 
 - Verify clonality first: MLST should show same or closely related STs; cgMLST distance triages outbreak vs distinct introductions.
 - Recombination masking with Gubbins on `core.full.aln` is mandatory for recombining bacteria (S. pneumoniae, N. gonorrhoeae, E. coli, Klebsiella, Campylobacter, H. pylori). Skipping inflates the clock rate 2-5x; the date-randomisation test is NOT a sufficient guard.
-- Check temporal signal via TempEst root-to-tip regression. R^2 >= 0.3 minimum (Rambaut 2016). If R^2 < 0.3, time-scaling is not supported.
+- Check temporal signal via TempEst root-to-tip regression (Rambaut 2016). R^2 >= 0.3 is a field convention, not a threshold from that paper. If R^2 < 0.3, time-scaling is not supported.
 - AMRFinderPlus has NO Mtb organism mode; for any Mtb resistance call route to TB-Profiler interpreted against the WHO 2nd-edition catalogue. Report Group 3 (Uncertain) mutations explicitly -- never collapse to "S".
 - For cross-tool AMR comparison, hAMRonization is mandatory; raw AMRFinderPlus / RGI / ResFinder outputs are not directly comparable (CARD ARO vs NCBI ReferenceGeneCatalog vs ResFinder gene-name registries).
 - For SARS-CoV-2 lineage assignment, Pangolin `--analysis-mode usher` is the modern default (pangoLEARN deprecated mid-2023); pin pangolin-data version explicitly for any cross-time-point comparison.

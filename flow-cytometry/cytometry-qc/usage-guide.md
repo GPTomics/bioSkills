@@ -1,7 +1,7 @@
 # Cytometry QC - Usage Guide
 
 ## Overview
-Quality control detects and removes acquisition artifacts before any downstream analysis. The Time parameter is the master axis: flow-rate instability, signal drift, clogs, and CyTOF sensitivity decay all show up as signal-versus-time anomalies, which is what flowAI, flowCut, flowClean, and PeacoQC detect. This skill covers tool selection, the load-bearing QC ordering (compensate -> transform -> margins -> time QC -> gating), CyTOF-specific checks, the instrument calibration/standardization machinery (MESF, CS&T, peak-2) that makes cross-study comparison possible, and batch-level outlier flagging.
+Quality control detects and removes acquisition artifacts before any downstream analysis. The Time parameter is the master axis: flow-rate instability, signal drift, clogs, and CyTOF sensitivity decay all show up as signal-versus-time anomalies, which is what flowAI, flowCut, flowClean, and PeacoQC detect. This skill covers tool selection, the mandatory QC ordering (compensate -> transform -> margins -> time QC -> gating), CyTOF-specific checks, the instrument calibration/standardization machinery (MESF, CS&T, peak-2) that makes cross-study comparison possible, and batch-level outlier flagging.
 
 ## Prerequisites
 ```bash

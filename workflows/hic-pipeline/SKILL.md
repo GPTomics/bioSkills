@@ -77,8 +77,10 @@ Hi-C features (compartments / boundaries / loops)
 **Approach:** Align the two mates independently with `bwa-mem2 -SP5M` (proper pairing would destroy long-range contacts), then parse, sort, deduplicate, and split with pairtools, reading the long-range cis fraction as the go/no-go.
 
 ```bash
-# Align Hi-C reads (each end separately, then combine)
-bwa-mem2 mem -SP5M -t 16 reference.fa reads_R1.fastq.gz | \
+# Pass BOTH mates to ONE bwa-mem2 call. -SP5M: -S/-P make bwa treat the mates as single-end and
+# skip proper-pair rescue (so long-range contacts survive), while both sides are still emitted for
+# pairtools to form the pair; -5 reports the 5'-most alignment of split reads, -M flags secondaries.
+bwa-mem2 mem -SP5M -t 16 reference.fa reads_R1.fastq.gz reads_R2.fastq.gz | \
     pairtools parse --min-mapq 40 --walks-policy 5unique \
     --max-inter-align-gap 30 --nproc-in 8 --nproc-out 8 \
     --chroms-path reference.genome | \
@@ -86,15 +88,6 @@ bwa-mem2 mem -SP5M -t 16 reference.fa reads_R1.fastq.gz | \
     pairtools dedup --nproc-in 8 --nproc-out 8 \
     --mark-dups --output-stats stats.txt | \
     pairtools split --nproc-in 8 --output-pairs sample.pairs.gz
-
-# Alternative: align both ends
-bwa-mem2 mem -SP5M -t 16 reference.fa \
-    reads_R1.fastq.gz reads_R2.fastq.gz | \
-    pairtools parse --min-mapq 40 --walks-policy 5unique \
-    --max-inter-align-gap 30 --chroms-path reference.genome | \
-    pairtools sort | \
-    pairtools dedup --mark-dups --output-stats stats.txt | \
-    pairtools split --output-pairs sample.pairs.gz
 ```
 
 **QC Checkpoint:** read `pairtools stats` as the go/no-go. The one-number readout is the LONG-RANGE cis fraction (>=20kb), not bare %valid: short-range cis is inflated by dangling ends and self-circles. Trans fraction is a noise floor but its acceptable value is genome-size-dependent (a human <10% threshold is meaningless for a microbe). High duplicate rate = low library complexity (not rescuable by sequencing deeper). See `hi-c-analysis/contact-pairs` for the orientation-balance QC and the Micro-C/Arima variants.
@@ -117,18 +110,24 @@ cooler zoomify sample.1000.cool \
 
 ## Step 3: Normalization (ICE Balancing)
 
+**Goal:** ICE-balance the matrix so every bin has equal marginal coverage, without letting empty/artifact bins corrupt the result.
+
+**Approach:** Mask low-coverage and blacklist bins BEFORE balancing, then balance per resolution. ICE assumes equal visibility per bin, so an unmasked empty or repeat/blacklist bin is iteratively up-weighted into a bright stripe artifact; `mad_max` filters bins whose coverage is `mad_max` MADs below the median, and a blacklist/`--blacklist` (or pre-masking bad bins) removes known artifacts. Balancing is REQUIRED before any analysis, but it does NOT make two maps comparable across conditions — that needs depth-matching + distance-stratified normalization (hi-c-analysis/hic-differential).
+
 ```python
 import cooler
 import cooltools
 
-# Load matrix
-clr = cooler.Cooler('sample.mcool::/resolutions/10000')
+# Mask before balancing: mad_max drops low-coverage bins that would otherwise become stripes.
+# Balance EVERY resolution the downstream steps analyze -- weights are resolution-specific, and an
+# unbalanced cooler has no 'weight' column, so cooltools (eigs_cis, insulation, dots) fails on it.
+# Steps 4-6 below use 100kb (compartments) and 10kb (loops and insulation).
+for res in (10000, 25000, 100000):
+    clr = cooler.Cooler(f'sample.mcool::/resolutions/{res}')
+    cooler.balance_cooler(clr, store=True, mad_max=5, ignore_diags=2, min_nnz=10)   # masked bins are NaN by design
 
-# Balance (ICE normalization)
-cooler.balance_cooler(clr, store=True, mad_max=5)
-
-# Or via command line
-# cooler balance sample.mcool::/resolutions/10000
+# CLI equivalent (add --blacklist regions.bed to remove known-artifact bins first):
+# for res in 10000 25000 100000; do cooler balance --mad-max 5 --ignore-diags 2 --min-nnz 10 sample.mcool::/resolutions/${res}; done
 ```
 
 ## Step 4: Compartment Analysis
@@ -153,7 +152,8 @@ gc = bioframe.frac_gc(clr.bins()[:][['chrom', 'start', 'end']], bioframe.load_fa
 
 eig_values, eig_vectors = cooltools.eigs_cis(clr, gc, view_df=view_df, n_eigs=3)
 compartments = eig_vectors[['chrom', 'start', 'end', 'E1']].copy()
-compartments['compartment'] = np.where(compartments['E1'] > 0, 'A', 'B')
+# Masked bins have E1 = NaN; NaN > 0 is False, so guard or a bare np.where mislabels them all 'B'.
+compartments['compartment'] = np.where(compartments['E1'].isna(), None, np.where(compartments['E1'] > 0, 'A', 'B'))
 compartments.to_csv('compartments.tsv', sep='\t', index=False)
 ```
 
@@ -173,8 +173,9 @@ clr = cooler.Cooler('sample.mcool::/resolutions/10000')
 # (is_boundary_<W>, boundary_strength_<W>) -- there is no separate find_boundaries call.
 ins = cooltools.insulation(clr, window_bp=[100000, 200000, 500000])
 
-# Boundaries at the 200kb window; keep the continuous strength (comparable across samples)
-boundaries = ins[ins['is_boundary_200000']][['chrom', 'start', 'end', 'boundary_strength_200000']]
+# Boundaries at the 200kb window; keep the continuous strength (comparable across samples).
+# is_boundary is NaN for bad/low-mappability bins; fillna(False) before masking or pandas raises.
+boundaries = ins[ins['is_boundary_200000'].fillna(False).astype(bool)][['chrom', 'start', 'end', 'boundary_strength_200000']]
 boundaries.to_csv('tad_boundaries.tsv', sep='\t', index=False)
 
 # Alternative: use HiCExplorer
@@ -209,7 +210,7 @@ loops.to_csv('loops.tsv', sep='\t', index=False)
 ```python
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-import cooltools.lib.plotting   # registers 'fall'; needs matplotlib < 3.9 with cooltools 0.7.x (else use 'afmhot_r')
+import cooltools.lib.plotting   # registers the 'fall' cmap; if unavailable in your stack, use 'afmhot_r'
 
 # A square balanced map on a log scale; importing cooltools.lib.plotting registers 'fall'.
 # Show O/E with a symmetric diverging cmap to see compartments/loops (see hic-visualization).
@@ -298,6 +299,26 @@ loops.to_csv(f'{outdir}/loops.tsv', sep='\t')
 
 print(f'Results saved to {outdir}/')
 ```
+
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Long-range contacts missing / map looks like short-range only | Mates aligned as a proper pair instead of independently | Align with `bwa-mem2 mem -SP5M` (each end separately, no proper-pair rescue) |
+| Library "passed" %valid but is unusable | Judged on bare %valid; short-range cis is inflated by dangling ends/self-circles | Read the long-range cis (>=20kb) fraction as the go/no-go |
+| Bright stripes/plaid artifacts after balancing | Empty/repeat/blacklist bins not masked before ICE | Mask with `mad_max`/`--blacklist`/`min_nnz` before balancing |
+| A/B compartments flipped between samples | Eigenvector sign is arbitrary without phasing | Phase E1 by a GC track matching the cooler binning exactly |
+| De-novo loops look sparse/noisy | Called `dots` on a shallow map | Only de-novo call on deep maps (~billions of contacts, Rao 2014); else APA on known anchors |
+| Cross-condition differences dominated by depth | Compared balanced maps directly | Depth-match + distance-stratified normalize first (hi-c-analysis/hic-differential) |
+| HiChIP/PLAC "loops" full of false positives | Generic dots/HiCCUPS null on peak-anchored coverage | Route to FitHiChIP/MAPS/CHiCAGO (hi-c-analysis/hichip-plac-loops) |
+
+## References
+
+- Rao SSP, Huntley MH, Durand NC, et al (2014) A 3D map of the human genome at kilobase resolution reveals principles of chromatin looping. *Cell* 159:1665-1680. DOI 10.1016/j.cell.2014.11.021. (depth-vs-resolution; ~5B contacts for kilobase loops.)
+- Imakaev M, Fudenberg G, McCord RP, et al (2012) Iterative correction of Hi-C data reveals hallmarks of chromosome organization. *Nature Methods* 9:999-1003. DOI 10.1038/nmeth.2148. (ICE balancing.)
+- Abdennur N, Mirny LA (2020) Cooler: scalable storage for Hi-C data and other genomically labeled arrays. *Bioinformatics* 36:311-316. DOI 10.1093/bioinformatics/btz540.
+- Open2C, Abdennur N, Fudenberg G, et al (2024) Cooltools: enabling high-resolution Hi-C analysis in Python. *PLOS Computational Biology* 20:e1012067. DOI 10.1371/journal.pcbi.1012067.
+- Open2C, Abdennur N, Fudenberg G, et al (2024) Pairtools: from sequencing data to chromosome contacts. *PLOS Computational Biology* 20:e1012164. DOI 10.1371/journal.pcbi.1012164.
 
 ## Related Skills
 

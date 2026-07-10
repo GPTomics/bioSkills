@@ -39,6 +39,15 @@ Tell your AI agent what you want to do:
 
 > "Annotate my DMRs with gene features"
 
+### Pipeline-level decisions
+> "How do I check bisulfite conversion, and why does it matter before I compute methylation levels?"
+
+> "My coverage looks doubled in mate-overlap regions - did I call methylation correctly?"
+
+> "Should I use methylKit tiles or dmrseq/DSS for region-level DMRs?"
+
+> "Is a t-test on beta values good enough, or do I need a count model?"
+
 ## Input Requirements
 
 | Input | Format | Description |
@@ -58,6 +67,7 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - **Coverage**: WGBS needs 10-30x coverage; RRBS can work with less
+- **RRBS: skip deduplication** - reads legitimately stack at MspI cut sites, so positional dedup destroys real coverage (dedup WGBS/EM-seq only)
 - **Conversion rate**: Should be >99%; check with spike-in controls
 - **M-bias**: Check for position bias and trim if needed
 - **Replicates**: Minimum 2-3 per condition for reliable DMR calling

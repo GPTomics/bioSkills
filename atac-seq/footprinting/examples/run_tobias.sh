@@ -18,7 +18,7 @@ mkdir -p $OUTDIR/{cond1,cond2,bindetect,validation}
 
 # Step 1: Bias correction per condition (matched peakset and blacklist)
 for cond in cond1 cond2; do
-    BAM=$(eval echo \$${cond^^}_BAM)
+    [ "$cond" = cond1 ] && BAM=$COND1_BAM || BAM=$COND2_BAM
     echo "=== ATACorrect: $cond ==="
     TOBIAS ATACorrect \
         --bam $BAM --genome $GENOME \
@@ -48,10 +48,14 @@ TOBIAS BINDetect \
     --cores $CORES
 
 # Validation: aggregate footprint at CTCF (gold-standard QC -- expect clean V-shape)
-CTCF_BED=$OUTDIR/bindetect/CTCF_*/beds/CTCF_*_bound.bed   # Whatever motif id JASPAR uses
-if [ -f $CTCF_BED ]; then
+# A glob in a scalar assignment stays literal; `[ -f $CTCF_BED ]` then expands it at test time and
+# aborts with "too many arguments" whenever two motif dirs match. Expand into an array, take the first.
+# shellcheck disable=SC2206  # unquoted glob expansion into array elements is the intent here
+CTCF_BEDS=( $OUTDIR/bindetect/CTCF_*/beds/CTCF_*_bound.bed )   # whatever motif id JASPAR uses
+CTCF_BED=${CTCF_BEDS[0]:-}
+if [ -f "$CTCF_BED" ]; then
     TOBIAS PlotAggregate \
-        --TFBS $CTCF_BED \
+        --TFBS "$CTCF_BED" \
         --signals $OUTDIR/cond1/*_corrected.bw $OUTDIR/cond2/*_corrected.bw \
         --output $OUTDIR/validation/ctcf_aggregate.pdf \
         --share_y both --plot_boundaries

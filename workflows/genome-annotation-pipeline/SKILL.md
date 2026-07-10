@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-genome-annotation-pipeline
-description: End-to-end genome annotation pipeline from assembled contigs to functional annotation, covering repeat masking, gene prediction, and functional assignment for both prokaryotic and eukaryotic genomes. Use when annotating a newly assembled genome from scratch.
+description: Orchestrates genome annotation from assembled contigs to functional annotation, forking prokaryotic (Bakta one-step, genetic-code table from GTDB-Tk) vs eukaryotic (RepeatMask -> BRAKER3 -> functional -> ncRNA), then eggNOG/InterProScan functional assignment and Infernal/tRNAscan ncRNA. Use when committing the pro-vs-eukaryotic path and the genetic-code table from taxonomy (never guessing), annotating ONLY a decontaminated QC-passed assembly (CheckM2 before prokaryotic annotation is non-negotiable), committing the evidence set (RNA-seq + protein drives BRAKER3 training), soft-masking with a curated repeat library before gene prediction, or pinning the tool + DB version for any pangenome comparison. Hands mechanism to the genome-annotation component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: Bakta
 goal_approach_exempt: true
@@ -21,7 +21,7 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0+, eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+
+Reference examples tested with: BRAKER3 3.0+, BUSCO 5.5+, Bakta 1.9+, Infernal 1.1+, InterProScan 5.66+, Prokka 1.14+, RepeatMasker 4.1+, RepeatModeler 2.0.4+ (-threads replaced -pa in 2.0.4), eggNOG-mapper 2.1+, pandas 2.2+, tRNAscan-SE 2.0+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -34,7 +34,25 @@ package and adapt the example to match the actual API rather than retrying.
 
 **"Annotate my genome assembly"** -> Orchestrate prokaryotic (Bakta) or eukaryotic (BRAKER3) gene prediction, repeat masking (RepeatMasker), functional annotation (eggNOG-mapper, InterProScan), and ncRNA annotation (Infernal).
 
-Complete workflow from assembled contigs to functional annotation for prokaryotic or eukaryotic genomes.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+A gene set is ~95% right and 100% confident; its trustworthiness is decided at four seams, not inside the gene-finder.
+
+1. **Pro- vs eukaryotic is THE fork, committed from taxonomy up front, and it fixes the genetic-code table.** Prokaryote -> Bakta one-step (verify the genetic-code TABLE from GTDB-Tk classification, never guess — a Mycoplasma under table 11 splits every gene at internal UGA). Eukaryote -> multi-step RepeatMask -> BRAKER3 -> functional -> ncRNA. There is no general-purpose eukaryote annotator: alternative genetic codes, trans-splicing, and polycistronic transcription break standard pipelines.
+2. **Annotate ONLY a decontaminated, QC-passed assembly.** CheckM2 before prokaryotic annotation is non-negotiable: contamination >5% mixes two organisms' genes into one chimeric set; a gene-finder trained on a contaminated/fragmented assembly produces confidently-wrong models genome-wide that are invisible in the GFF3. Annotation quality is bounded above by assembly quality.
+3. **The evidence set is a committed input, not an afterthought.** Eukaryotic: RNA-seq BAM + protein (OrthoDB) evidence drives BRAKER3's high-confidence training-set mining (the real advance — learning from loci where transcripts AND homology agree). Committing RNA-seq (ideally Iso-Seq for isoforms+UTRs) is decided at project design; without it the annotation is one-isoform, CDS-only, UTR-less and silently poisons AS/3'-tag/APA analyses.
+4. **Tool + DB version + date is a reproducibility commitment.** Bakta's DB is versioned (record it); Prokka's is frozen ~2019 (a post-2019 gene is "hypothetical" in Prokka, "named" in Bakta — accessory-vs-core flips on tool vintage alone). For any comparison, re-annotate everyone with ONE pipeline + ONE DB version from FASTA.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Pro- vs eukaryotic path + genetic-code table (from taxonomy) | The whole tool chain; a wrong code table splits genes at recoded stops |
+| Decontaminated, QC-passed assembly (CheckM2 gate) | Chimeric gene set / genome-wide corrupt training if skipped; annotation quality is bounded by assembly quality |
+| Evidence set (RNA-seq + protein) | BRAKER3 training quality; without RNA-seq the annotation is isoform-naive, UTR-less |
+| Tool + DB version | Named-vs-hypothetical and accessory-vs-core flip on tool vintage; re-annotate all with one version for comparison |
 
 ## Pipeline Overview
 
@@ -88,9 +106,13 @@ bakta \
     --genus Escherichia --species "coli" \
     --strain K12 \
     --gram - \
-    --complete \
+    --translation-table 11 \
     --threads 8 \
     assembly.fasta
+# Set --translation-table from the GTDB-Tk classification, never a guess: table 11 for most
+# bacteria, but --translation-table 4 for Mycoplasma/Spiroplasma (UGA = Trp, not stop) --
+# annotating a Mycoplasma under table 11 splits every gene at its internal UGA codons.
+# Add --complete ONLY for finished replicons; omit it for draft contigs (the common input).
 ```
 
 ### Prokaryotic QC Checkpoint
@@ -134,15 +156,15 @@ def validate_prokaryotic_annotation(bakta_dir, prefix, expected_cds_range=(500, 
 ### Step 1: Repeat Masking
 
 ```bash
-# Build species-specific repeat library
+# Build the RepeatModeler database FIRST, then the species-specific library
+BuildDatabase -name mygenome assembly.fasta
 RepeatModeler -database mygenome -threads 8 -LTRStruct
 
-# Combine with known repeats
-cat mygenome-families.fa /path/to/RepeatMasker/Libraries/RepeatMaskerLib.h5 > combined_lib.fa
-
-# Mask the genome
+# CURATE the de novo library against a protein DB before masking, or real multi-copy gene
+# families (NLR/R-genes, zinc-fingers) get masked and "discovered" as a gene-poor repertoire.
+# Then soft-mask with the curated library (RepeatMasker uses the bundled Dfam DB in addition).
 RepeatMasker \
-    -lib combined_lib.fa \
+    -lib mygenome-families.fa \
     -pa 8 \
     -xsmall \
     -gff \
@@ -186,7 +208,7 @@ def check_repeat_content(repeatmasker_tbl, taxon='vertebrate'):
 # BRAKER3 combines GeneMark-ETP, AUGUSTUS, and TSEBRA
 # Uses both RNA-seq and protein evidence for best results
 braker.pl \
-    --genome=assembly.fasta.masked \
+    --genome=repeat_out/assembly.fasta.masked \
     --bam=rnaseq_sorted.bam \
     --prot_seq=proteins.fa \
     --softmasking \
@@ -197,7 +219,7 @@ braker.pl \
 
 # If only RNA-seq evidence available
 braker.pl \
-    --genome=assembly.fasta.masked \
+    --genome=repeat_out/assembly.fasta.masked \
     --bam=rnaseq_sorted.bam \
     --softmasking \
     --threads 8 \
@@ -206,7 +228,7 @@ braker.pl \
 
 # If only protein evidence available (use OrthoDB proteins)
 braker.pl \
-    --genome=assembly.fasta.masked \
+    --genome=repeat_out/assembly.fasta.masked \
     --prot_seq=orthodb_proteins.fa \
     --softmasking \
     --threads 8 \
@@ -287,7 +309,7 @@ emapper.py \
 # InterProScan for domain annotation (complementary to eggNOG)
 interproscan.sh \
     -i braker_out/braker.aa \
-    -o interpro_results.tsv \
+    -b interpro_results \
     -f tsv,gff3 \
     -goterms \
     -pa \
@@ -374,16 +396,17 @@ def merge_annotations(braker_gff, trna_gff, rfam_tbl, eggnog_tsv, output_gff):
     print(f'Merged annotations written to {output_gff}')
 ```
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| Low gene count | Repeat masking too aggressive | Use `-xsmall` (soft-masking) not `-x` (hard-masking) |
-| BUSCO < 80% | Poor assembly or missing evidence | Add RNA-seq data; check assembly contiguity |
-| Many partial genes | Fragmented assembly | Scaffold first; use `--min_contig` in BRAKER |
-| < 60% annotated | Divergent organism | Use broader `--tax_scope`; try InterProScan |
-| Too many genes | Gene prediction artifacts | Increase `--min_intron_len`; filter short ORFs |
-| Missing ncRNAs | Wrong Rfam models | Verify Rfam version matches genome build |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Chimeric gene set; training corrupted genome-wide | Annotated a contaminated assembly | CheckM2/FCS-GX gate BEFORE annotation; decontaminate first |
+| Genes split at recoded stops; low coding density, high hypothetical | Wrong genetic-code table | Set the table from GTDB-Tk taxonomy, not a guess |
+| Real NLR/immune gene families deleted; suspiciously gene-poor | Over-masking with an uncurated repeat library | Filter the RepeatModeler library against a protein DB; confirm conserved families survive; soft-mask `-xsmall` |
+| Accessory genome inflated ~10x in a pangenome | Frozen-DB annotation drift (Panaroo) | Re-annotate all assemblies with ONE pipeline + DB version from FASTA; existing GenBank annotations are unusable for pangenomics |
+| BUSCO looks great but models are wrong | BUSCO-only quality claim (certifies ~1000 easy genes) | Proteome-mode BUSCO on delivered proteins; add mono-exonic fraction + length distribution + mRNA:gene ratio |
+| Low gene count | Repeat masking too aggressive | Soft-mask (`-xsmall`) not hard-mask; curate the TE library first |
+| Isoform-naive annotation (mRNA:gene = 1.00) | No RNA-seq evidence | Add RNA-seq (Iso-Seq for isoforms/UTRs) to BRAKER3 |
 
 ## Complete Pipeline Script
 
@@ -402,14 +425,24 @@ ORGANISM_TYPE="${1:-eukaryotic}"  # prokaryotic or eukaryotic
 
 if [ "$ORGANISM_TYPE" == "prokaryotic" ]; then
     echo "Running prokaryotic annotation with Bakta"
-    bakta --db $BAKTA_DB --output bakta_out --prefix genome \
+    echo "Step 0: Contamination/completeness gate (CheckM2 before annotation is non-negotiable)"
+    checkm2 predict --input $GENOME --output-directory checkm2_out --threads $THREADS
+    # Inspect checkm2_out/quality_report.tsv: proceed only if Completeness is high and Contamination < 5%
+    # --translation-table comes from the GTDB-Tk classification, never a guess (rule 1). Bakta silently
+    # assumes table 11; Mycoplasma/Spiroplasma need 4 (UGA = Trp, not stop) or every gene is truncated.
+    bakta --db $BAKTA_DB --output bakta_out --prefix genome --translation-table 11 \
           --locus-tag MYORG --threads $THREADS $GENOME
     echo "Done. Results in bakta_out/"
 
 else
     echo "Running eukaryotic annotation pipeline"
 
+    echo "Step 0: Assembly QC (contiguity + completeness before committing to annotation)"
+    quast.py $GENOME -o quast_out --threads $THREADS
+    busco -i $GENOME -l "${LINEAGE:?set the DEEPEST applicable clade dataset, e.g. insecta_odb10 / embryophyta_odb10; eukaryota_odb10 is too shallow and inflates completeness}" -o busco_asm -m genome --cpu $THREADS
+
     echo "Step 1: Repeat masking"
+    BuildDatabase -name mygenome $GENOME
     RepeatModeler -database mygenome -threads $THREADS -LTRStruct
     RepeatMasker -lib mygenome-families.fa -pa $THREADS -xsmall -gff -dir repeat_out $GENOME
 
@@ -419,7 +452,7 @@ else
               --softmasking --threads $THREADS --gff3 --workingdir=braker_out
 
     echo "Step 3: BUSCO QC (use the deepest applicable clade dataset, not eukaryota_odb10)"
-    busco -i braker_out/braker.aa -l ${LINEAGE:-eukaryota_odb10} -o busco_check -m proteins --cpu $THREADS
+    busco -i braker_out/braker.aa -l "${LINEAGE:?set the DEEPEST applicable clade dataset, e.g. insecta_odb10 / embryophyta_odb10; eukaryota_odb10 is too shallow and inflates completeness}" -o busco_check -m proteins --cpu $THREADS
 
     echo "Step 4: Functional annotation"
     emapper.py -i braker_out/braker.aa --output eggnog_out --cpu $THREADS -m diamond
@@ -443,3 +476,11 @@ fi
 - genome-annotation/annotation-qc - BUSCO genome-vs-proteome, OMArk, CheckM2 gates
 - genome-assembly/assembly-qc - Pre-annotation assembly quality checks
 - genome-intervals/gtf-gff-handling - GFF3/GTF hierarchy traversal, AGAT sanitizing/validation, coordinate conversion, and seqid-consistency checks on the merged annotation
+- workflows/genome-assembly-pipeline - Upstream: hands off the decontaminated, QC-passed FASTA (with its QV/BUSCO)
+
+## References
+
+- Salzberg SL (2019) Next-generation genome annotation: we still struggle to get it right. *Genome Biology* 20:92. DOI 10.1186/s13059-019-1715-2. (error propagation.)
+- Gabriel L, Bruna T, Hoff KJ, et al (2024) BRAKER3: fully automated genome annotation using RNA-seq and protein evidence with GeneMark-ETP, AUGUSTUS, and TSEBRA. *Genome Research* 34:769-777. DOI 10.1101/gr.278090.123. (high-confidence training-set mining.)
+- Tonkin-Hill G, MacAlasdair N, Ruis C, et al (2020) Producing polished prokaryotic pangenomes with the Panaroo pipeline. *Genome Biology* 21:180. DOI 10.1186/s13059-020-02090-4. (annotation-drift accessory inflation.)
+- Schwengers O, Jelonek L, Dieckmann MA, et al (2021) Bakta: rapid and standardized annotation of bacterial genomes via alignment-free sequence identification. *Microbial Genomics* 7:000685. DOI 10.1099/mgen.0.000685.

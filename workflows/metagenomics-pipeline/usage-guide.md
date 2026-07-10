@@ -8,7 +8,7 @@ This workflow takes shotgun metagenomic FASTQ to taxonomic and functional profil
 
 ```bash
 # CLI tools
-conda install -c bioconda kraken2 bracken metaphlan humann bowtie2 fastp hostile nonpareil
+conda install -c bioconda kraken2 bracken metaphlan humann bowtie2 samtools fastp hostile nonpareil
 
 # Taxonomic database: the database DEFINES what can be detected, so it is the dominant batch variable.
 # Use a standard/PlusPF-style DB and PIN its version for the whole study; a custom DB only for a

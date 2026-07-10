@@ -49,7 +49,7 @@ Tell your AI agent what you want to do:
 - The graph is the model: Moran's I, neighborhood enrichment, and co-occurrence are all `f(expression, W)`, so the graph choice silently sets the answer -- report results under at least two graphs.
 - Squidpy's `nhood_enrichment` builds a Delaunay graph by default; many published z-scores are Delaunay-specific and shift under kNN.
 - Fixed-radius graphs bias toward dense regions (more neighbors of everything = fake enrichment); kNN fixes the count but distorts physical distance. There is no free lunch -- pick the distortion the tissue can tolerate.
-- Coordinate units are load-bearing: a radius in pixels when coords are in microns (or vice versa) silently builds the wrong graph. Visium array row/col is a lattice index, not microns.
+- Coordinate units decide the graph: a radius in pixels when coords are in microns (or vice versa) silently builds the wrong graph. Visium array row/col is a lattice index, not microns.
 - Unpruned Delaunay leaps across necrotic holes and folds; prune by a max edge length (a few cell diameters).
 - A Visium spot is a 1-10-cell mixture, not a cell -- spot adjacency is not cell-cell contact.
 - A section is one ~5-10 micron plane of a 3D tissue; planar neighbors are not guaranteed 3D neighbors, and truncated cells carry partial profiles.

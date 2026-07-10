@@ -1,7 +1,7 @@
 # Nanopore Methylation Calling - Usage Guide
 
 ## Overview
-This skill calls DNA base modifications (5mC, 5hmC, 6mA, 4mC) directly from Oxford Nanopore and PacBio HiFi long reads and piles them into per-site methylation with modkit (or pb-CpG-tools for PacBio). The load-bearing fact is that methylation is a basecalling decision: modifications are inferred from raw signal at basecall time and stored as MM/ML SAM tags, so a BAM basecalled without a modification model can never yield methylation, and the tags silently die in a normal alignment workflow unless preserved. The skill covers the modBAM pipeline, the MM/ML tag spec, modkit's 18-column bedMethyl and its 10th-percentile auto-threshold, 5mC vs 5hmC handling relative to bisulfite, phased allele-specific methylation, and the PacBio path. RNA modifications are out of scope (see epitranscriptomics).
+This skill calls DNA base modifications (5mC, 5hmC, 6mA, 4mC) directly from Oxford Nanopore and PacBio HiFi long reads and piles them into per-site methylation with modkit (or pb-CpG-tools for PacBio). The fact that governs the whole pipeline is that methylation is a basecalling decision: modifications are inferred from raw signal at basecall time and stored as MM/ML SAM tags, so a BAM basecalled without a modification model can never yield methylation, and the tags silently die in a normal alignment workflow unless preserved. The skill covers the modBAM pipeline, the MM/ML tag spec, modkit's 18-column bedMethyl and its 10th-percentile auto-threshold, 5mC vs 5hmC handling relative to bisulfite, phased allele-specific methylation, and the PacBio path. RNA modifications are out of scope (see epitranscriptomics).
 
 ## Prerequisites
 ```bash

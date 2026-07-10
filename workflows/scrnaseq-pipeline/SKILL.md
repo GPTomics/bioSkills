@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-scrnaseq-pipeline
-description: End-to-end single-cell RNA-seq workflow from 10X Genomics data to annotated cell types. Covers QC, normalization, clustering, marker detection, and cell type annotation. Use when analyzing single-cell RNA-seq data.
+description: Orchestrates the end-to-end single-cell RNA-seq pipeline from 10x Cell Ranger output to annotated cell types, chaining ambient-RNA removal, doublet detection, MAD-adaptive QC, normalization, integration, clustering, marker annotation, and (separately) pseudobulk DE + differential abundance. Use when honoring the made-once counting commitments (reference build/Ensembl vintage, --include-introns, cell-calling, feature namespace), ordering correct-then-detect-then-normalize (ambient before doublet before normalize), running per-sample QC before merge, integrating-then-clustering (never testing on integrated values), aggregating to pseudobulk for condition DE instead of cells-as-replicates, or pairing DE with differential abundance. Hands mechanism to the single-cell component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: Seurat
 goal_approach_exempt: true
@@ -20,7 +20,7 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: Cell Ranger 8.0+, ggplot2 3.5+, numpy 1.26+, scanpy 1.10+
+Reference examples tested with: Cell Ranger 10.0+ (human/mouse refs on Ensembl v110), Seurat 5.1+, Scanpy 1.10+, scDblFinder 1.16+, SoupX 1.6+, CellBender 0.3+, harmony/scvi-tools current, ggplot2 3.5+, numpy 1.26+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -29,15 +29,27 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Note: the Cell Ranger `filtered_feature_bc_matrix` is cell-CALLING only, NOT ambient-corrected; recovering low-RNA cells or running SoupX/CellBender needs the RAW matrix. `--include-introns` is default TRUE since Cell Ranger 7 (essential for nuclei). `gex_only=True`/default silently drops Antibody Capture/CRISPR/HTO features. Confirm in-tool before quoting.
+
 # Single-Cell RNA-seq Pipeline
 
 **"Analyze my single-cell RNA-seq data from counts to cell types"** -> Orchestrate QC filtering, normalization (scanpy/Seurat), batch integration (scVI/Harmony), clustering, marker detection, cell type annotation, and trajectory inference.
 
-Complete workflow from 10X Genomics Cell Ranger output to annotated cell types.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step. Every step below cross-references the component skill that teaches its mechanism.
+
+## Made-once commitments (decided at `cellranger count`, inherited downstream)
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Reference build + Ensembl vintage (CR v10 = Ensembl v110) | Every gene ID/marker lookup/cross-dataset merge; join on `gene_ids` (stable), not symbols (lossy across releases) |
+| `--include-introns` (default TRUE since CR 7) | Total UMI/cell and snRNA-vs-scRNA comparability; nuclei need introns; mixing intron-on/off samples is a hidden batch axis |
+| Cell-vs-empty-droplet calling | The filtered matrix is cell-CALLING only, NOT ambient-corrected; SoupX/CellBender and low-RNA-cell rescue need the RAW matrix (filtered-only is irreversible loss) |
+| Feature/barcode namespace (`gex_only`) | `gex_only=True` silently drops ADT/HTO/CRISPR features; set False and split by `feature_types` for CITE-seq/hashed pools |
 
 ## Pipeline orchestration: the ordering decisions that make or break the result
 
-Stage order is not arbitrary; getting it wrong silently corrupts every downstream step. Six cross-cutting decisions this pipeline must get right:
+Stage order is not arbitrary; getting it wrong silently corrupts every downstream step. The cross-cutting decisions this pipeline must get right:
+- Correct-then-detect-then-normalize, never reorder. Ambient-RNA removal (SoupX/CellBender) reads the RAW droplet matrix and MUST precede doublet detection and the final QC thresholds (ambient inflation distorts both doublet scores and per-cell QC); doublet detection precedes integration (doublets seed fake intermediate clusters). See single-cell/preprocessing.
 - Multiplexed (hashed) pools are demultiplexed FIRST. When samples are pooled with cell hashing (HTO/MULTI-seq) or genotype multiplexing, assign each cell to its sample of origin and remove cross-sample doublets before any per-sample step; the per-sample QC and doublet operations below assume the pool is already split by sample. See single-cell/hashing-demultiplexing.
 - Per-sample QC and doublet detection come BEFORE any merge or integration. Ambient-RNA cleanup (SoupX/CellBender), mito/gene-count filtering, and doublet calling (expected rate ~0.8% per 1,000 recovered cells) are per-capture operations; running them on a pooled object lets one lane's artifacts contaminate the shared null and lets surviving doublets form fake intermediate clusters. See single-cell/preprocessing and single-cell/doublet-detection.
 - Integrate, THEN cluster, THEN annotate - never reorder. For multi-sample designs, batch-correct on a shared embedding (Harmony/scVI/RPCA) and cluster on the corrected graph; clustering before correction makes clusters track samples or lanes instead of biology, and annotation has nothing to label until clusters exist. See single-cell/batch-integration, single-cell/clustering, single-cell/cell-annotation.
@@ -50,13 +62,16 @@ The Seurat and Scanpy paths below are written single-sample for clarity. A multi
 ## Workflow Overview
 
 ```
-10X data (filtered_feature_bc_matrix)
+10X data (RAW + filtered_feature_bc_matrix)
+    |
+    v
+[0. Ambient removal] ---> SoupX/CellBender on RAW (per sample)   (single-cell/preprocessing)
     |
     v
 [1. Load Data] ---------> Read10X / read_10x_h5
     |
     v
-[2. QC Filtering] ------> nFeature, percent.mt, doublets
+[2. QC + Doublets] -----> MAD-adaptive nFeature/percent.mt; scDblFinder/Scrublet (per sample, before merge)
     |
     v
 [3. Normalization] -----> SCTransform or LogNormalize
@@ -81,6 +96,8 @@ Annotated Seurat/AnnData object
 ```
 
 ## Primary Path: Seurat (R)
+
+The Seurat/Scanpy paths below start from the filtered matrix for clarity. In practice, run ambient-RNA removal FIRST on the RAW droplet matrix per sample (SoupX needs raw+filtered+clusters; CellBender folds calling+denoise and is best for snRNA/high-ambient) — pick ONE (double-correction over-strips). See single-cell/preprocessing.
 
 ### Step 1: Load 10X Data
 
@@ -259,7 +276,10 @@ sc.pp.normalize_total(adata, target_sum=1e4)
 sc.pp.log1p(adata)
 sc.pp.highly_variable_genes(adata, n_top_genes=2000)
 
-# PCA, neighbors, UMAP
+# PCA, neighbors, UMAP -- stash log-normalized values in .raw BEFORE scaling, or rank_genes_groups
+# later computes logfoldchanges from z-scores (negative means -> NaN/garbage LFCs)
+adata.raw = adata
+adata = adata[:, adata.var.highly_variable]
 sc.pp.scale(adata, max_value=10)
 sc.tl.pca(adata, n_comps=50)
 sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
@@ -355,6 +375,24 @@ dev.off()
 cat('Pipeline complete. Object saved to:', output_dir, '\n')
 ```
 
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Ambient markers everywhere (e.g. Hb across all PBMCs) | Ran SoupX/CellBender on the FILTERED matrix (soup already removed) | Run ambient removal on the RAW droplet matrix, before QC |
+| Fake intermediate cell states | Doublets removed AFTER clustering/integration | Call doublets per sample before merge/normalize |
+| Clusters track sample/lane, not biology | Clustered before integration | Integrate -> cluster -> annotate |
+| Inflated DE, thousands of false positives | Tested cells as replicates (on integrated values) | Pseudobulk RAW counts per sample x cell-type -> DESeq2/edgeR/limma (Squair 2021) |
+| "DE change" is really a proportion shift | Only ran DE, not abundance | Pair with differential abundance (Milo/scCODA/propeller) |
+| Biology collapses to one blob | Reflexively regressed total_counts/cell-cycle | Regress only a validated, non-confounded covariate |
+| CITE-seq/hashtag features vanish | `gex_only=True` default | Set False; split by `feature_types` |
+
+## References
+
+- Heumos L, Schaar AC, Lance C, et al (2023) Best practices for single-cell analysis across modalities. *Nature Reviews Genetics* 24:550-572. DOI 10.1038/s41576-023-00586-w. (canonical pipeline order.)
+- Squair JW, Gautier M, Kathe C, et al (2021) Confronting false discoveries in single-cell differential expression. *Nature Communications* 12:5692. DOI 10.1038/s41467-021-25960-2. (cells-as-replicates is pseudoreplication; pseudobulk.)
+- Fleming SJ, Chaffin MD, Arduini A, et al (2023) Unsupervised removal of systematic background noise from droplet-based single-cell experiments using CellBender. *Nature Methods* 20:1323-1335. DOI 10.1038/s41592-023-01943-7. (ambient removal on the RAW matrix.)
+
 ## Related Skills
 
 - database-access/geo-data - Resolve GSE to SRA; detect SuperSeries before processing
@@ -373,3 +411,5 @@ cat('Pipeline complete. Object saved to:', output_dir, '\n')
 - differential-expression/deseq2-basics - Pseudobulk condition DE engine for aggregated counts
 - differential-expression/de-results - Shrink, filter, and interpret pseudobulk DE results
 - pathway-analysis/go-enrichment - Functional interpretation of marker and DE gene lists
+- workflows/grn-pipeline - Downstream: infer gene regulatory networks (pySCENIC Path A) from the annotated object
+- workflows/spatial-pipeline - Downstream: the annotated reference deconvolves spatial spots

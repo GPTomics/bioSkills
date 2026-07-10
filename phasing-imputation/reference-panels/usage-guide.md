@@ -2,7 +2,7 @@
 
 ## Overview
 
-Select and prepare the reference panel that statistical phasing and imputation copy haplotypes from. The load-bearing decision is ancestry match: imputation can only impute variants the panel contains and copies haplotypes from samples that resemble the target, so a panel whose ancestry does not match the study population imputes poorly no matter how large it is. This skill covers panel choice (1000 Genomes, HRC, TOPMed, HGDP+1kGP, CAAPA), genome-build and chromosome-naming reconciliation, the strand/allele harmonization gate that silently corrupts results when skipped, and conversion to the engine-specific panel format. It does not run the phasing or imputation engines (those are sibling skills) and routes classical HLA-allele panels out to clinical-databases.
+Select and prepare the reference panel that statistical phasing and imputation copy haplotypes from. The decision that dominates results is ancestry match: imputation can only impute variants the panel contains and copies haplotypes from samples that resemble the target, so a panel whose ancestry does not match the study population imputes poorly no matter how large it is. This skill covers panel choice (1000 Genomes, HRC, TOPMed, HGDP+1kGP, CAAPA), genome-build and chromosome-naming reconciliation, the strand/allele harmonization gate that silently corrupts results when skipped, and conversion to the engine-specific panel format. It does not run the phasing or imputation engines (those are sibling skills) and routes classical HLA-allele panels out to clinical-databases.
 
 ## Prerequisites
 

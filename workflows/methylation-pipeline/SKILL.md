@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-methylation-pipeline
-description: End-to-end bisulfite sequencing workflow from FASTQ to differentially methylated regions. Covers Bismark alignment, methylation calling, and DMR detection with methylKit. Use when analyzing bisulfite sequencing data.
+description: Orchestrates the end-to-end bisulfite/EM-seq methylation pipeline from FASTQ to differentially methylated regions, chaining Trim Galore/fastp QC, Bismark alignment + deduplication, methylation calling, methylKit coverage-filtering/normalization, and selection-aware DMR detection (dmrseq/DSS). Use when gating the run on bisulfite conversion (lambda + pUC19 controls) BEFORE any beta value, committing the genome build + library directionality once, keeping mate-overlap deduplicated (--no_overlap), M-bias-trimming from the plot, filtering coverage before testing, choosing a count model (beta-binomial/DSS) over a bare-beta t-test, or using a region-selection-aware FDR (dmrseq/DSS) rather than raw methylKit tiles. Hands mechanism to the methylation-analysis component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: Bismark
 workflow: true
@@ -30,9 +30,28 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Methylation Pipeline
 
-**"Analyze my bisulfite sequencing data from FASTQ to DMRs"** -> Orchestrate Bismark alignment, methylation calling, methylKit analysis, DMR detection, annotation with genomic features, and visualization of methylation patterns.
+**"Analyze my bisulfite sequencing data from FASTQ to DMRs"** -> Chain QC/trim, Bismark alignment + dedup, methylation calling, coverage-filtered per-CpG testing, and selection-aware DMR detection.
+- CLI + R: Trim Galore/fastp -> bismark -> deduplicate_bismark -> bismark_methylation_extractor -> methylKit (filter/normalize/unite) -> DSS/dmrseq
 
-Complete workflow from bisulfite sequencing FASTQ to differentially methylated regions.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step. Every step below cross-references the component skill that teaches its mechanism.
+
+## The governing principle
+
+A methylation callset is decided at four seams, not inside the caller.
+
+1. **Bisulfite conversion is verified BEFORE any beta value is trusted — this is the gate that most pipelines skip.** An unmethylated lambda (or spike-in) bounds UNDER-conversion (residual C read as methylated -> false hyper); a methylated pUC19 control bounds OVER-conversion (5mC deaminated -> false hypo). Require conversion >99% from the lambda control before computing a single methylation level; a 98% library silently shifts every call.
+2. **Mate overlap must be deduplicated once.** In paired-end WGBS the R1/R2 insert overlaps, and counting a CpG in both mates double-weights it. `bismark_methylation_extractor --paired-end` applies `--no_overlap` by default; running the extractor in single-end mode on paired data (or losing `--no_overlap`) inflates coverage and distorts levels.
+3. **M-bias is trimmed from the plot, and coverage is filtered BEFORE testing.** End-repair fill-in biases the first/last few bases (read the M-bias plot, trim positionally — not a fixed number). Then filter low- and extreme-coverage CpGs before any test: variance depends on coverage, so unfiltered low-coverage sites dominate the FDR.
+4. **The statistic must respect counts, and region FDR must respect selection.** A bare-beta t-test discards coverage (the precision unique to sequencing); use a beta-binomial/overdispersion model (DSS, methylKit `overdispersion='MN'`) for counts, or limma-on-M-values for arrays. For REGIONS, methylKit fixed tiles do not correct for the region-selection step — use dmrseq (permutation null over selection) or DSS `callDMR` for a rigorous region-level FDR.
+
+## Made-once commitments
+
+| Commitment | Choice | Consequence inherited downstream |
+|------------|--------|----------------------------------|
+| Genome build + library model | One build; directional (WGBS/EM-seq) vs non-directional/PBAT | Wrong strand model tanks mapping; build fixes all coordinates |
+| Conversion controls | Lambda (unmethylated) + pUC19 (methylated) spike-ins | Without them, under/over-conversion is undetectable and biases every call |
+| Assay entry | WGBS/EM-seq (this pipeline) vs Infinium array (array-preprocessing) | Array data enters at beta/M matrix, not Bismark |
+| Context | CpG (default) vs CHG/CHH (plants/non-CpG) | Non-CpG contexts need conversion-aware calling and separate testing |
 
 ## Workflow Overview
 
@@ -99,21 +118,26 @@ bismark --genome genome/ \
 
 **QC Checkpoint:** Check Bismark report
 - Mapping efficiency >50% (the 3-letter alphabet lowers uniqueness; 50-70% is normal for WGBS)
-- Bisulfite conversion >99% from the unmethylated lambda spike-in (bounds under-conversion -> false hyper); also check a methylated pUC19 control for over-conversion (-> false hypo)
+- Bisulfite conversion >99% from the unmethylated lambda spike-in (bounds under-conversion -> false hyper); also check a methylated pUC19 control for over-conversion (-> false hypo). With NO spike-in, use the genome-wide non-CpG (CHH) methylation rate as a conversion proxy in mammals (expected near 0)
 
-### Step 3: Deduplication
+### Step 3: Deduplication (WGBS / EM-seq ONLY)
+
+Deduplicate WGBS and EM-seq. Do NOT deduplicate RRBS, amplicon, or other target-enrichment libraries: their reads legitimately stack at the MspI cut sites, so positional dedup destroys real coverage (Bismark's own docs say so). Skip this step entirely for RRBS.
 
 ```bash
+# WGBS / EM-seq only -- skip for RRBS/amplicon
 deduplicate_bismark \
     --bam \
     -p \
-    -o deduplicated/ \
+    --output_dir deduplicated/ \
     aligned/sample_R1_val_1_bismark_bt2_pe.bam
 ```
 
 ### Step 4: Methylation Calling
 
 ```bash
+# --paired-end enables --no_overlap by DEFAULT (deduplicates the R1/R2 insert overlap so a CpG in
+# the overlap is not double-counted). Do NOT run the extractor in single-end mode on paired data.
 bismark_methylation_extractor \
     --paired-end \
     --comprehensive \
@@ -197,15 +221,16 @@ A bare-beta t-test discards coverage (the precision information unique to sequen
 methylKit fixed tiles are a fast screen, but their region q-value is not corrected for the region-selection step. For a rigorous region-level FDR use dmrseq (a permutation null over the selection) or DSS callDMR, and confirm with cross-tool overlap - see methylation-analysis/dmr-detection.
 
 ```r
-# Calculate differential methylation (per CpG)
-diff_meth <- calculateDiffMeth(meth_merged)
+# Calculate differential methylation (per CpG). overdispersion='MN' + test='Chisq' applies the
+# overdispersion correction seam #4 requires; the default 'none' gives underdispersed p-values.
+diff_meth <- calculateDiffMeth(meth_merged, overdispersion = 'MN', test = 'Chisq')
 
 # Get significant DMCs
 dmc <- getMethylDiff(diff_meth, difference = 25, qvalue = 0.01)
 
 # Tile into regions (DMRs)
 tiles <- tileMethylCounts(meth_merged, win.size = 1000, step.size = 1000)
-diff_tiles <- calculateDiffMeth(tiles)
+diff_tiles <- calculateDiffMeth(tiles, overdispersion = 'MN', test = 'Chisq')   # same overdispersion correction as per-CpG (seam #4)
 dmr <- getMethylDiff(diff_tiles, difference = 25, qvalue = 0.01)
 
 # Export
@@ -229,62 +254,26 @@ annotateWithGeneParts(as(dmr, 'GRanges'), gene_obj)
 | methylKit | qvalue | 0.01 |
 | DMR tiles | win.size | 500-1000 bp |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| Low mapping rate | Normal for BS-seq | Expect 40-70% |
-| Low conversion | Failed bisulfite treatment | Check spike-in controls |
-| Few DMRs | Low coverage, small differences | Increase sequencing, relax thresholds |
-| Biased positions | M-bias (end-repair fill-in) | Trim the affected read ends from the M-bias plot, not a fixed number |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Genome-wide hyper- or hypo-methylation shift | Under/over-conversion never checked | Gate on lambda (>99%) + pUC19 controls BEFORE trusting any beta value |
+| Coverage inflated, levels off in mate-overlap regions | Extractor run single-end on paired data / lost `--no_overlap` | Use `--paired-end` (applies `--no_overlap`); do not single-end paired data |
+| Systematic bias at read ends | M-bias from end-repair fill-in | Trim positionally from the M-bias plot, not a fixed number |
+| Low-coverage CpGs dominate the DMC list | No coverage filter before testing | `filterByCoverage(lo.count=10, hi.perc=99.9)` before `calculateDiffMeth` |
+| Spurious DMCs / underdispersed p-values | Bare-beta t-test ignores counts/overdispersion | Beta-binomial/DSS or methylKit `overdispersion='MN'`; limma-M for arrays |
+| Region q-values too optimistic | methylKit fixed tiles ignore the region-selection step | Use dmrseq (permutation null) or DSS `callDMR` for region-level FDR |
+| Very low mapping efficiency | Wrong library directionality (PBAT/non-directional aligned as directional) | Set the correct Bismark strand model (methylation-analysis/bismark-alignment) |
 
-## Complete Pipeline Script
+The full per-step chain is shown above; the runnable methylKit analysis is in this skill's examples/ (`methylkit_analysis.R`).
 
-```bash
-#!/bin/bash
-set -e
+## References
 
-THREADS=4
-GENOME="genome/"
-SAMPLES="control_1 control_2 treated_1 treated_2"
-OUTDIR="methylation_results"
-
-mkdir -p ${OUTDIR}/{trimmed,aligned,deduplicated,methylation,qc}
-
-# Step 1: QC
-for sample in $SAMPLES; do
-    trim_galore --paired --fastqc -o ${OUTDIR}/trimmed/ \
-        ${sample}_R1.fastq.gz ${sample}_R2.fastq.gz
-done
-
-# Step 2: Alignment
-for sample in $SAMPLES; do
-    bismark --genome ${GENOME} \
-        -1 ${OUTDIR}/trimmed/${sample}_R1_val_1.fq.gz \
-        -2 ${OUTDIR}/trimmed/${sample}_R2_val_2.fq.gz \
-        -o ${OUTDIR}/aligned/ \
-        --parallel ${THREADS} --temp_dir tmp/
-done
-
-# Step 3: Deduplication
-for sample in $SAMPLES; do
-    deduplicate_bismark --bam -p \
-        -o ${OUTDIR}/deduplicated/ \
-        ${OUTDIR}/aligned/${sample}_R1_val_1_bismark_bt2_pe.bam
-done
-
-# Step 4: Methylation calling
-for sample in $SAMPLES; do
-    bismark_methylation_extractor --paired-end --comprehensive \
-        --bedGraph --cytosine_report \
-        --genome_folder ${GENOME} \
-        -o ${OUTDIR}/methylation/ \
-        ${OUTDIR}/deduplicated/${sample}_R1_val_1_bismark_bt2_pe.deduplicated.bam
-done
-
-bismark2report
-echo "Pipeline complete. Run R script for DMR analysis."
-```
+- Krueger F, Andrews SR (2011) Bismark: a flexible aligner and methylation caller for Bisulfite-Seq applications. *Bioinformatics* 27:1571-1572. DOI 10.1093/bioinformatics/btr167.
+- Akalin A, Kormaksson M, Li S, et al (2012) methylKit: a comprehensive R package for the analysis of genome-wide DNA methylation profiles. *Genome Biology* 13:R87. DOI 10.1186/gb-2012-13-10-r87.
+- Feng H, Conneely KN, Wu H (2014) A Bayesian hierarchical model to detect differentially methylated loci from single nucleotide resolution sequencing data. *Nucleic Acids Research* 42:e69. DOI 10.1093/nar/gku154. (DSS.)
+- Korthauer K, Chakraborty S, Benjamini Y, Irizarry RA (2019) Detection and accurate false discovery rate control of differentially methylated regions from whole genome bisulfite sequencing. *Biostatistics* 20:367-383. DOI 10.1093/biostatistics/kxy007. (dmrseq; region-selection-aware FDR.)
 
 ## Related Skills
 

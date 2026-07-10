@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-edna-pipeline
-description: End-to-end eDNA metabarcoding from raw amplicons to community ecology. Covers QC, primer removal (mandatory before DADA2 filterAndTrim), denoising with OBITools3 v3 (obi stats plural; DMS-based) or DADA2 ASVs (Callahan 2017), decontam combined method as screening-not-classifier (Davis 2018), tag-jumping with NovaSeq 10x MiSeq caveat (Schnell 2015), Hill-number effective species counts with coverage-based rarefaction (Jost 2006; Chao & Jost 2012; doubling rule), beta-diversity decomposition with MANDATORY PERMANOVA + PERMDISP pair (Anderson & Walsh 2013), constrained ordination, and the read-counts-not-abundance critique (Lamb 2019). Use when processing eDNA samples for biodiversity assessment, deciding ASV vs OTU, configuring OBITools3 v3, interpreting decontam screening, or reporting community comparisons with the dispersion confound check.
+description: End-to-end eDNA metabarcoding from raw amplicons to community ecology. Covers QC, primer removal (mandatory before DADA2 filterAndTrim), denoising with OBITools3 v3 (obi stats plural; DMS-based) or DADA2 ASVs (Callahan 2017), decontam combined method as screening-not-classifier (Davis 2018), tag-jumping (Schnell 2015) with a platform-dependent baseline (NovaSeq patterned flow cells ~10x MiSeq), Hill-number effective species counts with coverage-based rarefaction (Jost 2006; Chao & Jost 2012; doubling rule), beta-diversity decomposition with MANDATORY PERMANOVA + PERMDISP pair (Anderson & Walsh 2013), constrained ordination, and the read-counts-not-abundance critique (Lamb 2019). Use when processing eDNA samples for biodiversity assessment, deciding ASV vs OTU, configuring OBITools3 v3, interpreting decontam screening, or reporting community comparisons with the dispersion confound check.
 tool_type: mixed
 primary_tool: obitools3
 goal_approach_exempt: true
@@ -13,8 +13,8 @@ depends_on:
 qc_checkpoints:
   - after_demux: "Reads per sample >1000; negative controls <100 reads"
   - after_denoising: "Chimera rate <20% (>30% indicates library-prep issues); ASV/OTU count reasonable for marker"
-  - after_decontam: "decontam combined method at threshold 0.1 (0.05 for low-biomass); biological-plausibility review of each flagged ASV; tag-jumping rate quantified and filtered (~0.001-0.005 MiSeq; ~0.005-0.01 NovaSeq per Schnell 2015)"
-  - after_taxonomy: "Assignment rate marker-specific: 50-85% unassigned is typical per Wangensteen 2018; report gap honestly"
+  - after_decontam: "decontam combined method at threshold 0.1 (0.05 for low-biomass); biological-plausibility review of each flagged ASV; tag-jumping (Schnell 2015) rate quantified and filtered (~0.001-0.005 MiSeq; ~0.005-0.01 NovaSeq patterned flow cells)"
+  - after_taxonomy: "Assignment rate marker-specific: 50-85% unassigned at species level is typical; report gap honestly"
   - after_diversity: "Hill numbers reported as effective species counts (not raw Shannon); coverage-based rarefaction at C=0.95; extrapolation bounded at 2x reference (doubling rule); sample completeness >80%"
   - after_ordination: "PERMANOVA + PERMDISP reported TOGETHER (Anderson & Walsh 2013); if betadisper significant, location conclusion is not supported"
 ---
@@ -34,7 +34,25 @@ package and adapt the example to match the actual API rather than retrying.
 
 **"Process my eDNA samples from raw reads to community ecology"** -> Orchestrate primer removal, denoising (OBITools3 or DADA2), contamination filtering, taxonomy assignment, Hill number diversity estimation, and constrained ordination for species-environment analysis.
 
-Complete workflow from raw amplicon sequences to community ecology analysis, supporting both OBITools3 and DADA2 processing paths.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+An eDNA community table is a position in a choice-chain (marker -> primer bias -> denoise -> decontam -> tag-jump -> taxonomy DB), never a census; the trustworthy result is decided at these seams.
+
+1. **The marker + primer set + reference DB are committed together (COI/12S/ITS/rbcL/18S).** The marker fixes both what taxa amplify and the achievable assignment rate; 50-85% unassigned AT SPECIES LEVEL is TYPICAL (higher ranks assign far better) and must be reported honestly (a high unassigned fraction is a database gap, not a pipeline failure). Report the marker's known primer bias with every result.
+2. **Read counts are NOT abundance (Lamb 2019).** eDNA read counts reflect biomass AND primer affinity AND copy number AND degradation — commit to presence/occupancy or effective-species-count framing, never raw-read "abundance". This is the eDNA analogue of the metagenomics read-fraction != cell-fraction seam.
+3. **Coverage-based (not size-based) rarefaction; Hill numbers as effective species counts; Chao1 is a LOWER bound.** Commit to iNEXT coverage-standardization at C~0.95 and the doubling-rule extrapolation bound (Chao & Jost 2012); report Chao1 as ">=" and NEVER compute it after aggressive denoising (singletons stripped -> Chao1 degenerates to observed richness).
+4. **The platform sets the tag-jump baseline, committed at sequencing.** The tag-jump phenomenon (Schnell 2015) has a platform-dependent rate: MiSeq index-hopping ~0.001-0.005 vs NovaSeq patterned flow cells ~10x higher; quantify and platform-filter the residual rate. And decontam is SCREENING, not a classifier (Davis 2018) — every flagged ASV gets a biological-plausibility review; retain only where statistics AND plausibility agree.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Marker + primer set + reference DB | What amplifies + the assignment rate; 50-85% unassigned at species level is typical; report the primer bias + DB release |
+| Read-counts-not-abundance framing | Presence/occupancy or effective-species-count only; raw-read "abundance" is invalid |
+| Rarefaction baseline (coverage-based iNEXT, C~0.95) | Hill effective counts; Chao1 as a lower bound, never post-denoising |
+| Platform (MiSeq vs NovaSeq) | The tag-jump baseline; NovaSeq ~10x higher index hopping; quantify + filter |
 
 ## Pipeline Overview
 
@@ -125,12 +143,17 @@ done
 ### Path A: OBITools3
 
 ```bash
-# Import paired FASTQ into OBITools3 DMS
-obi import --fastq-input trimmed/reads_R1.fastq.gz reads/reads1
-obi import --fastq-input trimmed/reads_R2.fastq.gz reads/reads2
-
-# Paired-end alignment
-obi alignpairedend -R reads/reads2 reads/reads1 reads/aligned
+# Import, align, and SAMPLE-TAG each demultiplexed sample separately, then concatenate.
+# On multiplexed data `obi ngsfilter -t tagfile` assigns the `sample` tag; with pre-demultiplexed
+# FASTQ it must be set explicitly (-S takes TAG:PYTHON_EXPRESSION), otherwise `obi uniq -m sample`
+# has nothing to merge on and the MERGED_sample tag `obi clean -s` needs is never created.
+for s in $(cat samples.txt); do
+    obi import --fastq-input trimmed/${s}_R1.fastq.gz reads/${s}_r1
+    obi import --fastq-input trimmed/${s}_R2.fastq.gz reads/${s}_r2
+    obi alignpairedend -R reads/${s}_r2 reads/${s}_r1 reads/${s}_aligned
+    obi annotate -S "sample:'${s}'" reads/${s}_aligned reads/${s}_tagged
+done
+obi cat $(for s in $(cat samples.txt); do printf -- '-c reads/%s_tagged ' "$s"; done) reads/aligned
 
 # Filter by alignment score
 # score >= 50: removes poorly overlapping pairs
@@ -142,15 +165,15 @@ obi grep -p 'len(sequence) >= 100 and len(sequence) <= 500' \
     reads/filtered reads/length_filtered
 
 # Dereplicate
-obi uniq reads/length_filtered reads/dereplicated
+obi uniq -m sample reads/length_filtered reads/dereplicated   # -m sample creates the MERGED_sample tag obi clean -s needs
 
 # Remove singletons
 # count >=2: removes sequencing errors; increase to 5-10 for noisy datasets
-obi grep -p 'sequence["count"] >= 2' reads/dereplicated reads/denoised
+obi grep -p 'sequence["COUNT"] >= 2' reads/dereplicated reads/denoised   # obi uniq writes the COUNT tag uppercase (case-sensitive)
 
 # Denoise (remove PCR/sequencing errors)
 # ratio 0.05: sequences <5% abundance of a 1-mismatch parent are merged
-obi clean -s merged_sample -r 0.05 -H reads/denoised reads/cleaned
+obi clean -s MERGED_sample -r 0.05 -H reads/denoised reads/cleaned
 ```
 
 ### Path B: DADA2 (R)
@@ -288,7 +311,7 @@ if ((n_before - n_after) / n_before > 0.5) {
 obi ecotag -R reads/refdb --taxonomy reads/taxonomy reads/cleaned reads/assigned
 
 # Filter by assignment quality (species-level for COI)
-obi grep -p 'sequence["best_identity"] >= 0.97' reads/assigned reads/filtered_assigned
+obi grep -p 'sequence["BEST_IDENTITY"] >= 0.97' reads/assigned reads/filtered_assigned   # ecotag writes BEST_IDENTITY uppercase (case-sensitive)
 
 obi export --tab-output reads/filtered_assigned > taxonomy_results.tsv
 ```
@@ -332,13 +355,18 @@ library(iNEXT)
 
 otu_matrix <- as(otu_table(ps_clean), 'matrix')
 
-# Hill numbers: q=0 (richness), q=1 (Shannon diversity), q=2 (Simpson diversity)
-# endpoint: extrapolation to 2x observed sample size
+# Hill numbers: q=0 (richness), q=1 (Shannon diversity), q=2 (Simpson diversity).
+# Default endpoint = per-sample 2x reference size (the Chao 2014 doubling rule); do NOT hardcode a
+# single global 2*max, which over-extrapolates small samples under unequal library sizes.
 inext_out <- iNEXT(as.list(as.data.frame(t(otu_matrix))),
-                   q = c(0, 1, 2), datatype = 'abundance',
-                   endpoint = 2 * max(rowSums(otu_matrix)))
+                   q = c(0, 1, 2), datatype = 'abundance')
 
-# Sample completeness: fraction of estimated diversity observed
+# Coverage-based standardization at C=0.95: the fair cross-sample comparison (equalizes completeness,
+# not raw depth). estimateD returns Hill numbers at that coverage.
+div_c95 <- estimateD(as.list(as.data.frame(t(otu_matrix))),
+                     q = c(0, 1, 2), datatype = 'abundance', base = 'coverage', level = 0.95)
+
+# Sample completeness diagnostic: fraction of estimated diversity observed
 completeness <- inext_out$DataInfo$SC
 message(sprintf('Sample completeness range: %.1f%% - %.1f%%',
                 min(completeness) * 100, max(completeness) * 100))
@@ -352,10 +380,12 @@ if (min(completeness) < 0.80) {
     message('WARNING: Some samples have low completeness (<80%). Deeper sequencing recommended.')
 }
 
-# Gate 2: reasonable richness estimates
-q0_estimates <- inext_out$AsyEst[inext_out$AsyEst$Diversity == 'Species richness', ]
-message(sprintf('Estimated richness range: %d - %d species',
-                min(q0_estimates$Estimator), max(q0_estimates$Estimator)))
+# Gate 2: richness. Use the COVERAGE-STANDARDIZED q=0, NOT inext_out$AsyEst 'Species richness' (the
+# Chao1 asymptotic): denoising stripped singletons (COUNT >= 2), leaving Chao1 no f1, so it degenerates
+# to observed richness -- the collapse rule 3 forbids. estimateD returns Order.q / qD.
+q0_c95 <- div_c95[div_c95$Order.q == 0, ]
+message(sprintf('Coverage-standardized (C=0.95) richness range: %.0f - %.0f effective species',   # qD is fractional; %d errors on doubles
+                min(q0_c95$qD), max(q0_c95$qD)))
 ```
 
 ## Step 7: Community Comparison
@@ -429,16 +459,21 @@ summary(indval, alpha = 0.05)
 | decontam | method | 'combined' if concentration AND controls; 'prevalence' fallback |
 | decontam | threshold | 0.1 default; 0.05 for low-biomass samples |
 | Tag-jumping MiSeq | threshold | 0.001-0.005 fraction of ASV total |
-| Tag-jumping NovaSeq | threshold | 0.005-0.01 (~10x MiSeq per Schnell 2015) |
+| Tag-jumping NovaSeq | threshold | 0.005-0.01 (~10x MiSeq; patterned flow cells) |
 | Taxonomy | minBoot | 50 (sensitive); 80 (conservative) |
-| ecotag | --min-identity | 0.97 (COI species); 0.95 (genus); marker-dependent |
-| iNEXT | endpoint | 2x max observed sample size |
+| ecotag | --minimum-identity (-m) | 0.97 (COI species); 0.95 (genus); marker-dependent |
+| iNEXT | endpoint | per-sample 2x reference size (default doubling rule); do not set a global 2*max |
 | vegan | permutations | 999 (standard); 9999 (publication) |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Over-called rare-species presence (worst on NovaSeq) | Tag-jump rate never quantified ("we used dual indexing" and stop) | Report the residual rate (reads in should-be-zero cells / total) and platform-filter |
+| Real low-biomass taxa deleted | decontam output treated as ground truth | Biological-plausibility review of every flag; retain only where statistics AND plausibility agree |
+| Chao1 collapses to observed richness | Chao1 computed after aggressive denoising (singletons stripped) | Use incidence-based Chao2, or estimators only on data with a real singleton/doubleton distribution |
+| A "community shift" that is really dispersion | PERMANOVA reported without PERMDISP | Always pair adonis2 with betadisper/permutest; if dispersion is significant, the location conclusion is not supported |
+| Read counts interpreted as abundance | eDNA reads treated as biomass | Presence/occupancy or effective-species-count framing only (Lamb 2019) |
 | Few reads after primer removal | Wrong primer sequences or orientation | Verify primer sequences; try --revcomp |
 | High chimera rate (>20%) | Excessive PCR cycles or low-quality input | Reduce PCR cycles; improve DNA extraction |
 | Many unassigned ASVs | Incomplete reference database | Use marker-specific database; lower minBoot |
@@ -456,3 +491,10 @@ summary(indval, alpha = 0.05)
 - read-qc/quality-reports - Raw read quality assessment
 - reporting/automated-qc-reports - Aggregate FastQC across samples with MultiQC (a triage snapshot, not a pass/fail gate)
 - microbiome/amplicon-processing - 16S clinical alternative
+
+## References
+
+- Lamb PD, Hunter E, Pinnegar JK, et al (2019) How quantitative is metabarcoding? A meta-analytical approach. *Molecular Ecology* 28:420-430. DOI 10.1111/mec.14920. (read counts are not abundance.)
+- Schnell IB, Bohmann K, Gilbert MTP (2015) Tag jumps illuminated - reducing sequence-to-sample misidentifications in metabarcoding studies. *Molecular Ecology Resources* 15:1289-1303. DOI 10.1111/1755-0998.12402. (tag jumping.)
+- Davis NM, Proctor DM, Holmes SP, Relman DA, Callahan BJ (2018) Simple statistical identification and removal of contaminant sequences in marker-gene and metagenomics data. *Microbiome* 6:226. DOI 10.1186/s40168-018-0605-2. (decontam.)
+- Anderson MJ, Walsh DCI (2013) PERMANOVA, ANOSIM, and the Mantel test in the face of heterogeneous dispersions. *Ecological Monographs* 83:557-574. DOI 10.1890/12-2010.1. (PERMANOVA + PERMDISP.)

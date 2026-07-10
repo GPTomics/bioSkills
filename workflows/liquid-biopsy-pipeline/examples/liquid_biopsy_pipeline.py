@@ -37,18 +37,24 @@ def preprocess_cfdna(input_bam, output_bam, reference, work_dir):
     ], check=True)
 
     aligned = work_dir / f'{prefix}_aligned.bam'
-    subprocess.run(f'bwa mem -t 8 -Y {reference} {with_umis} | samtools view -bS - > {aligned}',
+    # bwa reads FASTQ; emit FASTQ carrying RX, align, then re-attach uBAM tags so RX survives for GroupReadsByUmi
+    subprocess.run(f'samtools fastq -T RX {with_umis} | bwa mem -C -p -t 8 -Y {reference} - | '
+                   f'fgbio ZipperBams --unmapped {with_umis} --ref {reference} --output {aligned}',
                    shell=True, check=True)
 
     sorted_bam = work_dir / f'{prefix}_sorted.bam'
     pysam.sort('-@', '8', '-o', str(sorted_bam), str(aligned))
 
     grouped = work_dir / f'{prefix}_grouped.bam'
+    # --family-size-histogram is where genome-equivalents and the duplication plateau are read off.
+    # A VAF without input GE is undefined (0.1% on 100 GE is noise; on 30,000 GE it is solid).
     subprocess.run([
         'fgbio', 'GroupReadsByUmi',
         '--input', str(sorted_bam),
         '--output', str(grouped),
-        '--strategy', 'adjacency'
+        '--strategy', 'adjacency',
+        '--edits', '1',
+        '--family-size-histogram', str(work_dir / f'{prefix}_family_sizes.txt')
     ], check=True)
 
     consensus = work_dir / f'{prefix}_consensus.bam'
@@ -99,8 +105,48 @@ def call_variants_vardict(bam_file, reference, bed_file, output_vcf, min_vaf=0.0
     return output_vcf
 
 
-def filter_chip(variants_df):
-    '''Filter CHIP variants.'''
+def load_panel_genes(bed_path):
+    '''chrom -> [(start, end, gene)] from the panel BED. Column 4 is the gene, per VarDict's -g 4.'''
+    regions = {}
+    with open(bed_path) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith(('#', 'track', 'browser')):
+                continue
+            f = line.rstrip('\n').split('\t')
+            regions.setdefault(f[0], []).append((int(f[1]), int(f[2]), f[3] if len(f) > 3 else ''))
+    return regions
+
+
+def variants_to_df(vcf_path, panel_regions=None):
+    '''Read a VCF into chrom/pos/ref/alt/gene rows.
+
+    var2vcf_valid.pl declares no INFO/GENE tag and never writes the gene it parses, so reading
+    rec.info['GENE'] silently yields '' for every record. Recover the gene from the same panel BED
+    VarDict was handed via -g 4. BED is 0-based half-open, VCF pos is 1-based: start < pos <= end.
+    '''
+    rows = []
+    with pysam.VariantFile(str(vcf_path)) as vcf:
+        for rec in vcf:
+            gene = next((name for start, end, name in (panel_regions or {}).get(rec.chrom, [])
+                         if start < rec.pos <= end), '')
+            rows.append({'chrom': rec.chrom, 'pos': rec.pos, 'ref': rec.ref,
+                         'alt': rec.alts[0] if rec.alts else '', 'gene': gene})
+    return pd.DataFrame(rows)
+
+
+def filter_chip(variants_df, wbc_variants=None):
+    '''Subtract CHIP. Matched WBC is the definitive control; the gene list is a weak fallback.'''
+    if wbc_variants is not None:
+        # Any variant also seen in matched buffy-coat/WBC DNA is hematopoietic, not tumor -- regardless
+        # of which gene it lands in. This is the commitment; the gene list below cannot substitute.
+        key = ['chrom', 'pos', 'ref', 'alt']
+        wbc_keys = set(map(tuple, wbc_variants[key].itertuples(index=False, name=None)))
+        is_chip = variants_df[key].apply(lambda r: tuple(r) in wbc_keys, axis=1)
+        return variants_df[~is_chip], variants_df[is_chip]
+
+    # Fallback only. ~81.6% of cfDNA variants in controls and ~53.2% in cancer patients are CHIP
+    # (Razavi 2019), and CHIP is not confined to these genes, so this UNDER-removes.
+    print('WARNING: no matched WBC supplied -- gene-list CHIP filter only; calls are presumptively CHIP-contaminated')
     chip_genes = ['DNMT3A', 'TET2', 'ASXL1', 'PPM1D', 'JAK2', 'SF3B1', 'SRSF2', 'TP53']
     chip = variants_df[variants_df['gene'].isin(chip_genes)]
     somatic = variants_df[~variants_df['gene'].isin(chip_genes)]
@@ -137,6 +183,13 @@ def run_pipeline(config):
                                     config['output_vcf'])
         results['vcf'] = vcf
 
+        # CHIP subtraction is not optional: an unsubtracted plasma call is presumptively hematopoietic.
+        panel = load_panel_genes(config['bed_file'])
+        wbc = variants_to_df(config['wbc_vcf'], panel) if config.get('wbc_vcf') else None
+        somatic, chip = filter_chip(variants_to_df(vcf, panel), wbc_variants=wbc)
+        results['somatic'], results['chip'] = somatic, chip
+        print(f'Somatic after CHIP subtraction: {len(somatic)}; CHIP removed: {len(chip)}')
+
     return results
 
 
@@ -149,3 +202,7 @@ if __name__ == '__main__':
     print('4. call_variants_vardict() - Mutation detection')
     print('5. filter_chip() - Remove CHIP variants')
     print('6. run_pipeline() - Complete pipeline')
+    print()
+    print("config keys: bam_file, reference, bed_file (col 4 = gene), output_vcf, data_type='panel'")
+    print("             wbc_vcf  - matched buffy-coat/WBC calls; WITHOUT it, CHIP subtraction falls")
+    print("                        back to a weak gene list and calls stay presumptively CHIP-contaminated")

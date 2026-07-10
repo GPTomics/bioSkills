@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-spatial-pipeline
-description: End-to-end spatial transcriptomics workflow for Visium/Xenium data. Covers data loading, preprocessing, spatial analysis, domain detection, and visualization with Squidpy. Use when analyzing spatial transcriptomics data.
+description: Orchestrates the end-to-end spatial transcriptomics pipeline from Space Ranger / vendor output to spatial domains and statistics, branching FIRST on platform class (imaging in-situ Xenium/MERFISH/CosMx vs sequencing/capture Visium/Visium HD/Slide-seq). Use when deciding segmentation-vs-deconvolution and the QC floors from the platform class, committing the coordinate/image-registration frame and panel identity, deconvolving multi-cell spots against an annotated scRNA reference (never relabeling spot clusters as cell types), building the spatial neighbor graph on PHYSICAL not expression space, gating spatially-variable genes on FDR, or using a real domain method (BANKSY/BayesSpace/STAGATE) rather than clustering the spatial graph alone. Hands off deconvolution and cell-cell communication to the component skills; not a re-teach of any single step.
 tool_type: python
 primary_tool: Squidpy
 goal_approach_exempt: true
@@ -23,7 +23,7 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: matplotlib 3.8+, numpy 1.26+, scanpy 1.10+, squidpy 1.3+
+Reference examples tested with: Space Ranger 4.1+ (Visium HD; nucleus/cell segmentation in the count pipeline since v4.0), scanpy 1.10+, squidpy 1.3+, spatialdata-io current (imaging platforms), matplotlib 3.8+, numpy 1.26+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -31,11 +31,23 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Note: `squidpy.read` provides `visium`/`vizgen`/`nanostring` only — there is NO `sq.read.xenium`; imaging platforms load via `spatialdata_io` (returns a SpatialData object preserving the molecule table). Visium HD default bin is 8 µm. Confirm in-tool before quoting.
+
 # Spatial Transcriptomics Pipeline
 
 **"Analyze my spatial transcriptomics data end-to-end"** -> Orchestrate data loading (squidpy/scanpy), QC, normalization, spatial neighbor analysis, spatial statistics, spatial domain detection, and tissue visualization. Composition estimation (deconvolution, spatial-deconvolution) and cell-cell communication (spatial-communication) are deliberately separate steps -- this pipeline hands off to those skills rather than inlining them.
 
-Complete workflow for analyzing Visium, Xenium, or other spatial transcriptomics data.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Platform class (imaging vs sequencing) | EVERY downstream choice: segment-vs-deconvolve, discovery-vs-classification, QC floors, panel-bounded-vs-whole-transcriptome |
+| Coordinate system + image-registration frame | All spatial neighbors/overlays/niches; a wrong registration frame silently misplaces every spot relative to histology |
+| Panel identity (targeted vs whole-transcriptome; FFPE probe vs FF poly-A) | What "gene absent" means: on a targeted panel absence = "not in panel", not "not expressed"; RIN (FF) vs DV200 (FFPE) QC metric switch |
+| Spot/bin geometry (Visium 55 µm >> cell; Visium HD 2/8 µm; Xenium single-molecule) | Whether to DECONVOLVE (spot >> cell), SEGMENT/bin-up (spot << cell), or neither |
+| Segmentation policy (imaging: Baysor / Cellpose / vendor Xenium; Visium HD bin-to-cell: Space Ranger v4+) | Every cell x gene value; segmentation is the DOMINANT imaging error source and over-expansion manufactures cross-type DE |
 
 ## The platform-class fork (decide first)
 
@@ -145,7 +157,7 @@ sc.pp.scale(adata, max_value=10)
 sc.tl.pca(adata, n_comps=50)
 sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
 sc.tl.umap(adata)
-sc.tl.leiden(adata, resolution=0.5)
+sc.tl.leiden(adata, resolution=0.5, flavor='igraph', n_iterations=2, directed=False)
 
 # Visualize clusters in space. On Visium these spot clusters are REGIONS/niches,
 # NOT cell types -- a spot is a 1-10-cell mixture, so recovering cell-type
@@ -194,7 +206,8 @@ print('Spatially autocorrelated genes (FDR<0.05):', svg.head(10).index.tolist())
 # tune the spatial weight. See spatial-domains.
 sq.gr.spatial_neighbors(adata, coord_type='grid', n_neighs=6)
 sc.tl.leiden(adata, resolution=0.3, key_added='spatial_domains',
-             adjacency=adata.obsp['spatial_connectivities'])
+             adjacency=adata.obsp['spatial_connectivities'],
+             flavor='igraph', n_iterations=2, directed=False)
 
 # Visualize domains
 sc.pl.spatial(adata, color='spatial_domains', spot_size=1.5)
@@ -267,7 +280,7 @@ adata = adata[:, adata.var.highly_variable]
 sc.pp.scale(adata, max_value=10)
 sc.tl.pca(adata, n_comps=50)
 sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
-sc.tl.leiden(adata, resolution=0.5)
+sc.tl.leiden(adata, resolution=0.5, flavor='igraph', n_iterations=2, directed=False)
 
 # Spatial analysis (Visium hex -> coord_type='grid'; nhood z and top-Moran genes
 # need the caveats from Step 4 before interpretation)
@@ -286,10 +299,34 @@ adata.write(f'{output_dir}/spatial_analyzed.h5ad')
 print(f'Results saved to {output_dir}/')
 ```
 
+## Common Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Spot clusters mislabeled as cell types | Skipped deconvolution on multi-cell Visium spots | Deconvolve against an annotated scRNA reference; clusters = niches (spatial-deconvolution) |
+| Nearly all imaging cells filtered; small cells lost | Applied scRNA QC floor (min_counts=500) to single-molecule data | Low-count-aware floors (~10 transcripts) + negative-control-probe gating |
+| Spurious cross-type DE (neuronal markers in astrocytes) | Over-aggressive segmentation expansion | Molecule-aware (Baysor) or uniform re-segmentation; segmentation is critical |
+| "Spatial" neighbors are wrong | Built the neighbor graph on the expression embedding | Build on PHYSICAL coordinates (grid for Visium, kNN for imaging) |
+| Overlays/niches misplaced | Image-vs-expression coordinate/registration mismatch | Verify fiducial registration; keep tissue and matrix coordinates reconciled |
+| "Novel cell state" on a targeted panel | Treated a fixed panel as discovery | Classification/label-transfer only; absence = not-in-panel |
+| Top-Moran gene over-interpreted as regulation | Gated on raw Moran's I / read a composition marker as within-type | Gate SVGs on FDR; a top-Moran gene usually marks a spatially-clustered cell TYPE |
+
+## References
+
+- Palla G, Spitzer H, Klein M, et al (2022) Squidpy: a scalable framework for spatial omics analysis. *Nature Methods* 19:171-178. DOI 10.1038/s41592-021-01358-2. (spatial neighbor graph / neighborhood enrichment / autocorrelation.)
+- Kleshchevnikov V, Shmatko A, Dann E, et al (2022) Cell2location maps fine-grained cell types in spatial transcriptomics. *Nature Biotechnology* 40:661-671. DOI 10.1038/s41587-021-01139-4. (deconvolution: spot != cell.)
+- Cable DM, Murray E, Zou LS, et al (2022) Robust decomposition of cell type mixtures in spatial transcriptomics (RCTD). *Nature Biotechnology* 40:517-526. DOI 10.1038/s41587-021-00830-w.
+- Petukhov V, Xu RJ, Soldatov RA, et al (2022) Cell segmentation in imaging-based spatial transcriptomics with Baysor. *Nature Biotechnology* 40:345-354. DOI 10.1038/s41587-021-01044-w. (segmentation as the dominant imaging error source.)
+
 ## Related Skills
 
-- spatial-transcriptomics/spatial-data-io - Loading formats
-- spatial-transcriptomics/spatial-preprocessing - QC details
-- spatial-transcriptomics/spatial-statistics - Moran's I, co-occurrence
-- spatial-transcriptomics/spatial-domains - Domain detection methods
-- spatial-transcriptomics/spatial-deconvolution - Cell type estimation
+- spatial-transcriptomics/spatial-data-io - Loading formats (Visium/imaging; SpatialData)
+- spatial-transcriptomics/spatial-preprocessing - QC floors and normalization by platform
+- spatial-transcriptomics/image-analysis - Cell segmentation for imaging platforms
+- spatial-transcriptomics/spatial-neighbors - Physical-space neighbor graphs
+- spatial-transcriptomics/spatial-statistics - Moran's I, co-occurrence, neighborhood enrichment nulls
+- spatial-transcriptomics/spatial-domains - BANKSY/BayesSpace/STAGATE domain methods
+- spatial-transcriptomics/spatial-deconvolution - Cell-type composition of multi-cell spots
+- spatial-transcriptomics/spatial-communication - Cell-cell communication / ligand-receptor (separate hand-off)
+- spatial-transcriptomics/spatial-visualization - Spatial overlays and figures
+- workflows/scrnaseq-pipeline - Upstream: provides the annotated scRNA reference for deconvolution

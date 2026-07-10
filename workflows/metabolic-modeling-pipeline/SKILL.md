@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-metabolic-modeling-pipeline
-description: End-to-end genome-scale metabolic modeling from genome sequence to flux predictions. Covers automated reconstruction with CarveMe, model validation with memote, FBA/FVA analysis, and gene essentiality prediction. Use when building metabolic models or predicting metabolic phenotypes from genomic data.
+description: Orchestrates genome-scale metabolic modeling from a protein FASTA to flux predictions, chaining CarveMe/gapseq reconstruction, memote QC, gap-filling, media-constrained FBA/FVA, gene essentiality, and context-specific models. Use when committing the reconstruction tool (which locks the identifier NAMESPACE forever - BiGG vs ModelSEED vs KEGG, no automatic translation), setting the medium BEFORE FBA (the exchange bounds ARE the medium; essentiality and gap-fill are computed relative to it), curating iteratively (stoichiometric-consistency first, then mass/charge, then directionality, then GPR) with energy-generating-cycle removal, and reading a MEMOTE score as well-formedness NOT correctness. Hands mechanism to the systems-biology component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: cobrapy
 goal_approach_exempt: true
@@ -33,7 +33,25 @@ package and adapt the example to match the actual API rather than retrying.
 
 **"Build and analyze a metabolic model for my organism"** -> Orchestrate CarveMe reconstruction, memote quality scoring, gap-filling, FBA/FVA flux analysis, gene essentiality prediction, and context-specific model building from expression data.
 
-Complete workflow for genome-scale metabolic modeling: from protein sequences to flux predictions and phenotype analysis.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step.
+
+## The governing principle
+
+An automated reconstruction is a HYPOTHESIS about metabolism, not a finished model — the tool does only stage 1 of a four-stage process (Thiele & Palsson) and makes a 30-second draft look finished. Three commitments are made before flux ever means anything, and a high MEMOTE score does NOT certify any of them.
+
+1. **The reconstruction tool locks the identifier NAMESPACE forever.** D-glucose is `glc__D_c` (BiGG, CarveMe) = `cpd00027_c0` (ModelSEED, gapseq) = `C00031` (KEGG). Mixing namespaces (merging a BiGG CarveMe model with a ModelSEED gapseq model) is a silent, error-free failure: metabolites fail to string-match, producing duplicated metabolites, disconnected reactions, and wrong growth. MetaNetX/MNXref is the required, non-automatic reconciliation layer before ANY cross-tool merge.
+2. **The medium IS the model, and it is set before FBA means anything.** The exchange-reaction bounds (`EX_*_e` lower bounds = uptake) define what the cell can do; FBA on a wrong/default medium invalidates everything, and gap-fill + essentiality are computed RELATIVE to the medium (a biosynthetic gene is essential in minimal, non-essential in rich). The in-silico medium must match the wet-lab condition being validated against.
+3. **The biomass objective function drives every flux and every knockout call.** The BOF is a gene-less pseudo-reaction whose flux = growth rate; copying E. coli biomass into a non-model organism carries the wrong physiology. Two ATP-maintenance terms both matter (GAM inside biomass; NGAM as a separate `ATPM` with a fixed floor — `ATPM` lower bound = 0 is a red flag).
+4. **MEMOTE 95% is well-formedness, not correctness.** It scores stoichiometric consistency + annotation coverage + SBO, and is partly gameable; the predictive tests (energy-generating-cycle sweep, essentiality, Biolog) are NOT in the scored total. A 95% model can still make ATP from nothing.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Reconstruction tool = namespace (BiGG/ModelSEED/KEGG) | Every metabolite ID; a cross-namespace merge silently duplicates metabolites and breaks growth |
+| Input = protein FASTA with genes split (CarveMe) vs genome FASTA (gapseq) | Whether the reconstruction runs at all; feeding a raw assembly to CarveMe is the classic trap |
+| Medium (exchange bounds) | What the cell can do; gap-fill and essentiality are computed relative to it |
+| Biomass objective function + GAM/NGAM | Every flux and knockout call; a foreign or zero-ATPM BOF invalidates essentiality |
 
 ## Workflow Overview
 
@@ -44,16 +62,19 @@ Protein FASTA (genome annotation)
 [1. Reconstruction] --> CarveMe / gapseq / ModelSEED
         |
         v
-[2. Model Curation] --> memote QC, gap-filling
+[2. Model Validation] --> memote QC (snapshot report)
+        |
+        v
+[3. Model Curation] --> gap-filling, mass/charge balance
         |
         | <---- Iterative refinement loop
         v
-[3. FBA Analysis] --> Growth prediction, flux distribution
+[4. FBA Analysis] --> Growth prediction, flux distribution
         |
         +-----------------------+
         |                       |
         v                       v
-[4a. Gene Essentiality]   [4b. Context-Specific]
+[5a. Gene Essentiality]   [5b. Context-Specific]
     Single/double KO       Tissue-specific models
         |                       |
         v                       v
@@ -67,6 +88,8 @@ pip install cobra carveme memote escher pandas numpy matplotlib seaborn
 
 conda install -c bioconda diamond
 ```
+
+CarveMe's MILP carving needs a commercial solver (CPLEX or Gurobi, both free for academics) via `reframed` (CarveMe 1.5+ depends on reframed, the refactored `framed`) — the #1 install pain; the open SCIP fallback is far slower. gapseq (GLPK default) is the solver-free reconstruction alternative.
 
 **Required data:**
 - Protein FASTA file from genome annotation
@@ -123,6 +146,8 @@ code, result = test_model(model, results=True)   # result is a MemoteResult of t
 
 ### Step 3: Model Curation (Iterative)
 
+Curation order matters and the steps interact: fix stoichiometric consistency FIRST (unconserved metabolites poison everything), then per-reaction mass/charge balance, then directionality, then GPR. Gap-filling can break a balance and an energy-generating-cycle fix frequently unmasks a SECOND nested EGC, so re-run memote + the EGC sweep + a growth check after every change. Mechanism lives in systems-biology/model-curation.
+
 ```python
 import cobra
 from cobra.flux_analysis import gapfill
@@ -142,8 +167,10 @@ def diagnose_model(model):
         elif len(producing) == 0 and len(consuming) > 0:
             issues.append(f'Dead-end (not produced): {met.id}')
 
-    # Blocked reactions
-    fva = cobra.flux_analysis.flux_variability_analysis(model)
+    # Blocked reactions: reactions that CANNOT carry flux under any feasible state. fraction_of_optimum
+    # defaults to 1.0, which instead pins growth at the optimum and reports reactions unused by that
+    # particular optimal solution -- a different, much larger set. Pass 0 (or use find_blocked_reactions).
+    fva = cobra.flux_analysis.flux_variability_analysis(model, fraction_of_optimum=0)
     blocked = fva[(fva['minimum'] == 0) & (fva['maximum'] == 0)]
     if len(blocked) > 0:
         issues.append(f'Blocked reactions: {len(blocked)}')
@@ -172,7 +199,10 @@ target_medium = {
     'EX_so4_e': 100,     # Sulfate
 }
 
-# Apply medium (model.exchanges yields Reaction objects, not id strings)
+# Apply medium (model.exchanges yields Reaction objects, not id strings). This is a FULLY DEFINED
+# medium: every exchange absent from target_medium is closed, so target_medium must also list the
+# trace metals and cofactors biomass requires (Fe, K, Mg, Ca, Zn, ...) or growth is zero. To vary only
+# the carbon source instead, layer overrides onto `model.medium` rather than replacing it.
 for rxn in model.exchanges:
     rxn.lower_bound = -target_medium[rxn.id] if rxn.id in target_medium else 0  # block other uptakes
 
@@ -190,6 +220,9 @@ for rxn in gapfill_solution[0]:
 # Verify growth
 solution = model.optimize()
 print(f'Growth after gap-fill: {solution.objective_value:.4f} h^-1')
+
+# Persist the curated model -- downstream steps read model_curated.xml, not the draft
+cobra.io.write_sbml_model(model, 'model_curated.xml')
 ```
 
 ### Step 4: Flux Balance Analysis
@@ -296,7 +329,7 @@ from corda import CORDA, reaction_confidence
 # Translate expression into CORDA confidence classes (-1 absent, 0 unknown, 1 low, 2 med, 3 high)
 # through the GPR, then build the context model.
 gene_conf = {g.id: 2 for g in model.genes}                       # derive from expression quantiles
-rxn_conf = {r.id: reaction_confidence(r, gene_conf) for r in model.reactions}   # pass the Reaction, not its GPR string
+rxn_conf = {r.id: reaction_confidence(r, gene_conf) for r in model.reactions}   # corda 0.5+ takes the Reaction object (reads r.gpr); the old GPR-string form was removed
 opt = CORDA(model, rxn_conf)
 opt.build()
 context_model = opt.cobra_model('tissue')
@@ -334,15 +367,25 @@ builder.save_html('flux_map.html')
 | Essentiality | growth threshold | 0.1 | Standard 10% of WT growth |
 | Context | expression percentile | 25 | Balance specificity vs viability |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| No growth | Missing essential reactions | Gap-fill with universal model |
-| Unrealistic growth rate | Unbounded uptake | Constrain medium properly |
-| Many blocked reactions | Dead-end metabolites | Check metabolite connectivity |
-| Low memote score | Missing GPR, mass balance | Run memote report for details |
-| Essentiality mismatch | Missing isozymes | Add alternative pathways |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Duplicated metabolites, disconnected reactions, wrong growth | Mixed identifier namespaces (BiGG + ModelSEED merge) | Reconcile via MetaNetX/MNXref before any merge; never string-join across namespaces |
+| Every yield and essentiality inflated | Energy-generating cycle (free ATP from over-permissive reversibility + gap-fill) | Close exchanges + add ATP demand, confirm max=0; constrain directionality (eQuilibrator dG); EGCs nest, re-test |
+| Unrealistic growth rate | Unbounded/wrong uptake | Audit the full boundary set; set `model.medium` (POSITIVE magnitudes) to mirror the assay |
+| MEMOTE 95% but predictions wrong | MEMOTE scores well-formedness, not correctness | Treat MEMOTE as a hygiene floor; add EGC + essentiality/Biolog validation (not in the scored total) |
+| Extra "essential" genes vs literature | Essentiality reported without stating the medium | In-silico medium = wet-lab medium; report and SWEEP the cutoff (1/2/5/10% WT growth) |
+| Gap-filled reactions trusted as real | Gap-fill adds reactions to force growth, not from evidence | Flag low-confidence, keep distinguishable, prioritize for experimental verification |
+| No growth | Missing reactions on THIS medium | Gap-fill FOR the specified medium; do not gap-fill to one medium then predict on another |
+
+## References
+
+- Machado D, Andrejev S, Tramontano M, Patil KR (2018) Fast automated reconstruction of genome-scale metabolic models for microbial species and communities. *Nucleic Acids Research* 46:7542-7553. DOI 10.1093/nar/gky537. (CarveMe.)
+- Zimmermann J, Kaleta C, Waschina S (2021) gapseq: informed prediction of bacterial metabolic pathways and reconstruction of accurate metabolic models. *Genome Biology* 22:81. DOI 10.1186/s13059-021-02295-1.
+- Lieven C, Beber ME, Olivier BG, et al (2020) MEMOTE for standardized genome-scale metabolic model testing. *Nature Biotechnology* 38:272-276. DOI 10.1038/s41587-020-0446-y.
+- Thiele I, Palsson BO (2010) A protocol for generating a high-quality genome-scale metabolic reconstruction. *Nature Protocols* 5:93-121. DOI 10.1038/nprot.2009.203. (four-stage reconstruction.)
+- Fritzemeier CJ, Hartleb D, Szappanos B, Papp B, Lercher MJ (2017) Erroneous energy-generating cycles in published genome scale metabolic networks: identification and removal. *PLoS Computational Biology* 13:e1005494. DOI 10.1371/journal.pcbi.1005494.
 
 ## Output Files
 
@@ -352,8 +395,10 @@ builder.save_html('flux_map.html')
 | `model_curated.xml` | Gap-filled and validated model |
 | `model_report.html` | Memote QC report |
 | `essential_genes.txt` | Predicted essential genes |
+| `gene_essentiality.tsv` | Full single-gene-deletion table (growth ratio per gene) |
 | `fba_fluxes.tsv` | Optimal flux distribution |
 | `fva_results.tsv` | Flux variability ranges |
+| `model_analysis_summary.pdf` / `.png` | Summary figure (exchanges, FVA, essentiality) |
 | `flux_map.html` | Escher visualization |
 
 ## Extensions

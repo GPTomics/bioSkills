@@ -61,7 +61,7 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **Database version is load-bearing** - Record the Bakta DB version in methods; annotation content tracks the DB, not just the binary. Two runs months apart can differ purely from DB updates.
+- **Database version determines the result** - Record the Bakta DB version in methods; annotation content tracks the DB, not just the binary. Two runs months apart can differ purely from DB updates.
 - **Never compare gene counts across tools/versions** - For any collection, re-annotate from FASTA with one pipeline + one pinned DB, then cluster with an error-aware tool (Panaroo). Merging published annotations inflates the accessory genome ~10x.
 - **Translation table from taxonomy** - Default 11; table 4 for Mycoplasma/Mollicutes (UGA=Trp), table 25 for Gracilibacteria/SR1 (UGA=Gly). A wrong table is silent and looks like fragmentation.
 - **"Hypothetical" is honest** - 25-50% hypothetical is healthy for a non-model organism; near 0% means over-confident transfer. Open Bakta's `.inference.tsv` to see why a product was assigned, and prefer the InterPro/Pfam domain architecture over a loose free-text product name.

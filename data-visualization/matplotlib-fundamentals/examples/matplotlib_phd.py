@@ -9,6 +9,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# Illustrative stand-ins so the recipes below run as-is; replace with real results in practice.
+rng = np.random.default_rng(0)
+df = pd.DataFrame({'pc1': rng.normal(size=500), 'pc2': rng.normal(size=500),
+                   'cluster': rng.integers(0, 4, 500), 'log_fc': rng.normal(size=500),
+                   'neg_log_p': rng.exponential(2, size=500),
+                   'significance': rng.choice(['up', 'down', 'ns'], 500)})
+panel_data = {k: {'x': rng.normal(size=200), 'y': rng.normal(size=200)} for k in list('abcdef')}
+matrix = rng.normal(size=(30, 12))
+
 # 1. RCPARAMS FOR PUBLICATION COMPLIANCE
 mpl.rcParams.update({
     'pdf.fonttype': 42,                          # TrueType -- searchable PDFs

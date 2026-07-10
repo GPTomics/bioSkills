@@ -24,7 +24,7 @@ NanoPlot \
     --fastq ${READS} \
     --outdir ${OUTDIR}/qc \
     --threads ${THREADS} \
-    --plots hex dot
+    --plots dot    # 'hex' is deprecated in current NanoPlot and silently ignored unless --legacy hex
 echo "QC complete. Check ${OUTDIR}/qc/NanoStats.txt (gate: read N50 >10 kb, mean quality >Q10)"
 
 # Step 2: Alignment (-Y keeps breakpoint sequence on soft-clipped supplementary alignments)

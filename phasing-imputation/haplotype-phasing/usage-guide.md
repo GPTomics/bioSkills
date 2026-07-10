@@ -2,7 +2,7 @@
 
 ## Overview
 
-Estimate haplotype phase from population linkage disequilibrium - turning unphased genotypes (0/1) into phased haplotypes (0|1) using SHAPEIT5, SHAPEIT4, Eagle2, or Beagle. The load-bearing idea is that statistical phase is an inference, not a measurement: it works well for common variants in LD with their neighbors and degrades steeply for rare variants, so the deliverable is a switch-error rate stratified by minor allele count, not a single genome-wide number, and rare-variant cis/trans calls (compound heterozygotes) need biobank-scale phasing or orthogonal trio/read-backed evidence. This skill owns the statistical paradigm and carves the boundary to read-backed phasing, which is a physically different signal owned by long-read-sequencing.
+Estimate haplotype phase from population linkage disequilibrium - turning unphased genotypes (0/1) into phased haplotypes (0|1) using SHAPEIT5, SHAPEIT4, Eagle2, or Beagle. The idea that governs use is that statistical phase is an inference, not a measurement: it works well for common variants in LD with their neighbors and degrades steeply for rare variants, so the deliverable is a switch-error rate stratified by minor allele count, not a single genome-wide number, and rare-variant cis/trans calls (compound heterozygotes) need biobank-scale phasing or orthogonal trio/read-backed evidence. This skill owns the statistical paradigm and carves the boundary to read-backed phasing, which is a physically different signal owned by long-read-sequencing.
 
 ## Prerequisites
 

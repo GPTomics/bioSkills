@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: CNVkit 0.9+, GATK 4.5+ | Verify API if version differs
+# Reference: CNVkit 0.9.10+ | Verify API if version differs
 # CNVkit workflow for exome CNV detection
 set -e
 
@@ -81,8 +81,10 @@ for bam in ${TUMOR_BAMS}; do
     cnvkit.py segment ${OUTDIR}/cnv/${sample}.cnr \
         -o ${OUTDIR}/cnv/${sample}.cns
 
-    # Call
+    # Call integer copy numbers. For TUMORS, fit purity/ploidy (ASCAT/FACETS/PURPLE) first and pass
+    # them here -- defaults invert calls on impure/WGD tumors. Placeholders shown:
     cnvkit.py call ${OUTDIR}/cnv/${sample}.cns \
+        --purity 0.6 --ploidy 2 \
         -o ${OUTDIR}/cnv/${sample}.call.cns
 done
 
@@ -103,15 +105,17 @@ for bam in ${TUMOR_BAMS}; do
         -o ${OUTDIR}/plots/${sample}_diagram.pdf
 done
 
-# Heatmap
-cnvkit.py heatmap ${OUTDIR}/cnv/*.cns \
+# Heatmap. Glob *.call.cns, NOT *.cns: the latter also matches the ${sample}.cns segment files
+# written alongside ${sample}.call.cns, double-plotting every tumor.
+cnvkit.py heatmap ${OUTDIR}/cnv/*.call.cns \
     -o ${OUTDIR}/plots/heatmap.pdf
 
 # === Step 6: Export ===
 echo "=== Step 6: Export ==="
 
-# SEG format
-cnvkit.py export seg ${OUTDIR}/cnv/*.cns \
+# SEG format (this feeds GISTIC2 -- a *.cns glob would emit 2N 'samples' for N tumors,
+# mixing log2 segments with integer calls)
+cnvkit.py export seg ${OUTDIR}/cnv/*.call.cns \
     -o ${OUTDIR}/export/all_samples.seg
 
 # Gene metrics

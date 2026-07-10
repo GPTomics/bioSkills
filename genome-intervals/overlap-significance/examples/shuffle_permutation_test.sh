@@ -21,8 +21,8 @@ bedtools fisher -a query.sorted.bed -b annotation.sorted.bed -g "$GENOME"
 observed=$(bedtools jaccard -a query.sorted.bed -b annotation.sorted.bed | awk 'NR==2{print $3}')
 echo "observed jaccard: $observed"
 
-> null_jaccards.txt
-for i in $(seq 1 "$N_PERMUTATIONS"); do
+: > null_jaccards.txt
+for _ in $(seq 1 "$N_PERMUTATIONS"); do
     bedtools shuffle -i query.sorted.bed -g "$GENOME" -incl "$WORKSPACE" -excl "$BLACKLIST" -chrom \
         | sort -k1,1 -k2,2n \
         | bedtools jaccard -a - -b annotation.sorted.bed \

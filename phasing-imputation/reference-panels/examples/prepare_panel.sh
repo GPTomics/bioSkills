@@ -14,7 +14,9 @@ PANEL_SITES=${2:?'panel sites/legend VCF (site-only) for the harmonization check
 REF_FA=${3:?'reference FASTA matching the PANEL build'}
 OUT=${OUT:-panel_prep_out}
 
+# shellcheck disable=SC2034  # Rayner HRC-check reads these thresholds from its own config; surfaced here as the documented defaults
 PALINDROME_MAF=0.4   # Rayner-check default: A/T and C/G SNPs above this are dropped; strand is unresolvable and frequency is too near 0.5 to disambiguate
+# shellcheck disable=SC2034
 AF_DIFF=0.2          # flag variants whose study-vs-panel allele-frequency gap exceeds this; a large gap signals strand, build, or ancestry mismatch
 
 mkdir -p "${OUT}"

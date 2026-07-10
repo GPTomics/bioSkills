@@ -4,7 +4,7 @@
 
 This skill covers the design-and-inference layer of an epigenome-wide association study (EWAS) on 450K/EPIC array or bisulfite methylation - the part that decides whether a hit is credible, which lives BEFORE the per-CpG test. It teaches the confounding hierarchy (cell composition as the dominant confounder, then batch/Sentrix chip/array position, age/sex, smoking, genetic ancestry/mQTL, and reverse causation/tissue relevance), how to randomize samples to chips at design time, how to remove unwanted variation with surrogate variable analysis (sva/SmartSVA), ComBat, and RUVm without over-correcting, how to handle genomic inflation with BACON instead of GWAS genomic control, which genome-wide significance threshold to use per array, how to power an EWAS with pwrEWAS, how to meta-analyze, how to replicate via the EWAS Catalog/Atlas, and how to build and interpret a methylation risk score (MRS).
 
-The load-bearing idea: an EWAS hit is a cell-composition difference until proven otherwise, and the signal (often under 2% methylation) is smaller than every confounder, so the p-value is the last and least interesting thing.
+The idea that reframes the whole analysis: an EWAS hit is a cell-composition difference until proven otherwise, and the signal (often under 2% methylation) is smaller than every confounder, so the p-value is the last and least interesting thing.
 
 ## Prerequisites
 

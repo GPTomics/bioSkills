@@ -1,4 +1,4 @@
-# Reference: Cell Ranger 8.0+, ggplot2 3.5+, numpy 1.26+, scanpy 1.10+ | Verify API if version differs
+# Reference: Cell Ranger 10.0+, Seurat 5.1+, scDblFinder 1.16+, ggplot2 3.5+ | Verify API if version differs
 # Complete single-cell RNA-seq workflow with Seurat
 
 library(Seurat)
@@ -70,7 +70,10 @@ cat('After doublet removal:', ncol(seurat_obj), 'cells\n')
 
 # === Step 4: Normalization ===
 cat('Running SCTransform...\n')
-seurat_obj <- SCTransform(seurat_obj, vars.to.regress = 'percent.mt', verbose = FALSE)
+# Do NOT reflexively regress percent.mt/nCount/cell-cycle -- those covariates are confounded with
+# real cell state and regressing them can erase biology. Pass vars.to.regress only for a validated,
+# non-confounded covariate (see single-cell/preprocessing).
+seurat_obj <- SCTransform(seurat_obj, verbose = FALSE)
 
 # === Step 5: Dimensionality Reduction ===
 cat('Running PCA...\n')
@@ -89,7 +92,7 @@ seurat_obj <- RunUMAP(seurat_obj, dims = 1:n_pcs, verbose = FALSE)
 # === Step 6: Clustering ===
 cat('Finding clusters...\n')
 seurat_obj <- FindNeighbors(seurat_obj, dims = 1:n_pcs, verbose = FALSE)
-seurat_obj <- FindClusters(seurat_obj, resolution = c(0.2, 0.4, 0.6, 0.8, 1.0), verbose = FALSE)
+seurat_obj <- FindClusters(seurat_obj, resolution = c(0.2, 0.4, 0.5, 0.6, 0.8, 1.0), verbose = FALSE)
 
 # UMAP plots at different resolutions
 pdf(file.path(output_dir, 'plots', 'umap_resolutions.pdf'), width = 15, height = 10)

@@ -13,6 +13,12 @@ depends_on:
   - flow-cytometry/gating-analysis
   - flow-cytometry/clustering-phenotyping
   - flow-cytometry/differential-analysis
+qc_checkpoints:
+  - after_load: "Read RAW (transformation=FALSE); >~10K cells/sample for stable per-sample frequencies"
+  - after_compensation: "Compensate/unmix on LINEAR data before transform; single-stain controls >= as bright as sample; FMO for boundaries"
+  - after_qc: "Margins removed BEFORE density QC; doublets removed BEFORE clustering; dead cells gated"
+  - after_clustering: "10-30 metaclusters (over-provision then merge); cluster on TYPE markers only, test STATE in DS"
+  - after_testing: ">=2-3 biological replicates/group (the sample is the unit); batch modeled in the design; BH FDR across clusters (and clusters x markers for DS)"
 ---
 
 ## Version Compatibility
@@ -32,7 +38,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 ## The Single Most Important Modern Insight -- A Pipeline Is a Chain of Irreversible Decisions, and the Unit of Inference Is the Sample
 
-Each early choice silently gates the validity of the final test: reading raw (not log-linearized), compensating BEFORE transforming, removing margin events before density QC, assigning type-vs-state markers correctly, and removing doublets before clustering. None of these is recoverable downstream - a doublet clustered as a "double-positive," a state marker used for clustering, or an uncompensated channel becomes a false population that the differential test then "confirms." The second load-bearing thread is that the SAMPLE/subject, not the cell, is the experimental unit: diffcyt aggregates cells to per-sample-per-cluster counts (DA) and medians (DS) before testing, so biological replication (>= 2-3 per group) is mandatory and a per-cell test is invalid. Two normalization layers sit at OPPOSITE ends of the pipeline - EQ-bead drift correction on raw counts at the very front (CyTOF), and CytoNorm cross-batch harmonization after clustering - and conflating them is a classic error.
+Each early choice silently gates the validity of the final test: reading raw (not log-linearized), compensating BEFORE transforming, removing margin events before density QC, assigning type-vs-state markers correctly, and removing doublets before clustering. None of these is recoverable downstream - a doublet clustered as a "double-positive," a state marker used for clustering, or an uncompensated channel becomes a false population that the differential test then "confirms." The second critical thread is that the SAMPLE/subject, not the cell, is the experimental unit: diffcyt aggregates cells to per-sample-per-cluster counts (DA) and medians (DS) before testing, so biological replication (>= 2-3 per group) is mandatory and a per-cell test is invalid. Two normalization layers sit at different points in the pipeline - EQ-bead drift correction on raw counts at the very front (CyTOF), and CytoNorm cross-batch harmonization on transformed data before the analytical clustering (its internal FlowSOM clustering is part of the batch model, not the analysis) - and conflating them is a classic error.
 
 ## Decision Tree: Which Path
 
@@ -43,14 +49,14 @@ Each early choice silently gates the validity of the final test: reading raw (no
 | Mass cytometry (CyTOF) | EQ-bead normalize (raw) -> arcsinh cofactor 5 -> `compCytof` if needed | metals barely spill (~1-4%); drift correction first |
 | High-dim discovery, no prior gates | cluster (FlowSOM via CATALYST) | scales; finds unexpected populations |
 | Well-defined populations / rare events (MRD) | hierarchical gating (openCyto) | interpretable; clustering fails for ultra-rare |
-| Multi-batch / multi-day | anchor sample per batch -> CytoNorm (after clustering) | model batch in the design for inference |
+| Multi-batch / multi-day | anchor sample per batch -> CytoNorm (normalize transformed data before analytical clustering) | model batch in the design for inference |
 
 ## Pipeline Overview
 
 ```
 FCS -> compensate/unmix -> transform -> QC (margins, time, dead) -> doublets
      -> [ cluster (FlowSOM) | gate (openCyto) ] -> annotate -> diffcyt DA/DS -> report
-EQ-bead drift normalization (CyTOF) runs on raw counts BEFORE everything; CytoNorm runs LAST.
+EQ-bead drift normalization (CyTOF) runs on raw counts BEFORE everything; CytoNorm runs on transformed data and its normalized output feeds the cluster/gate step.
 ```
 
 ## 1. Panel, Metadata, and Load
@@ -80,7 +86,8 @@ fs <- read.flowSet(file.path('data', md$file_name), transformation = FALSE, trun
 **Approach:** Conventional flow compensates (matrix before transform); CyTOF skips fluorescence compensation and uses cofactor 5; spectral unmixes then uses ~150. See flow-cytometry/compensation-transformation.
 
 ```r
-fs_comp <- compensate(fs, spillover(fs[[1]])[[1]])      # conventional flow; CyTOF: omit or use compCytof
+spill <- spillover(fs[[1]]); spill <- spill[[which(!vapply(spill, is.null, logical(1)))[1]]]  # first POPULATED matrix; FACS stores it under SPILL/$SPILLOVER, not always [[1]]
+fs_comp <- compensate(fs, spill)                        # conventional flow; CyTOF: omit or use compCytof
 COFACTOR <- 150                                          # 5 for CyTOF, ~150 for fluorescence/spectral
 sce <- prepData(fs_comp, panel, md, transform = TRUE, cofactor = COFACTOR, FACS = TRUE)
 ```
@@ -93,7 +100,7 @@ sce <- prepData(fs_comp, panel, md, transform = TRUE, cofactor = COFACTOR, FACS 
 
 ```r
 # per-sample sanity + sample-similarity MDS (flag outlier samples)
-plotExprs(sce, color_by = 'condition'); plotMDS(sce, color_by = 'condition')
+plotExprs(sce, color_by = 'condition'); pbMDS(sce, color_by = 'condition')
 # event-level cleaning runs per-FCS upstream: PeacoQC::RemoveMargins() -> PeacoQC()/flowAI on transformed data
 ```
 
@@ -183,7 +190,7 @@ res_DA <- diffcyt(sce, clustering_to_use = 'meta20', analysis_type = 'DA',
 
 ```r
 library(flowWorkspace)
-tl <- estimateLogicle(fs_comp[[1]], colnames(spillover(fs[[1]])[[1]]))
+tl <- estimateLogicle(fs_comp[[1]], colnames(spill))
 gs <- GatingSet(transform(fs_comp, tl))
 # add openCyto template or manual gates (time -> debris -> singlets -> live -> lineage), then:
 recompute(gs); gs_pop_get_stats(gs, type = 'count')
@@ -198,7 +205,7 @@ recompute(gs); gs_pop_get_stats(gs, type = 'count')
 ```python
 import flowkit as fk
 sample = fk.Sample('sample.fcs')
-sample.apply_compensation(sample.metadata['spill'])    # use FlowKit's API, not a hand-rolled matrix inverse
+sample.apply_compensation(sample.metadata['spillover'])    # FlowKit lowercases + strips $ from keys, so $SPILLOVER -> 'spillover' (not 'spill'); use FlowKit's API, not a hand-rolled inverse
 df = sample.as_dataframe(source='comp')
 ```
 
@@ -231,7 +238,7 @@ df = sample.as_dataframe(source='comp')
 | Error / symptom | Cause | Solution |
 |-----------------|-------|----------|
 | `testDA_edgeR(sce, ...)` not found / wrong | fabricated signature | use the `diffcyt()` wrapper; results in `res$res` |
-| `compensate()` errors on a list | `spillover(ff)` returns a list | index `[[1]]` |
+| `compensate()` errors / silent NULL | `spillover(ff)` returns a 3-slot list; the matrix is often under `SPILL`/`$SPILLOVER`, not `[[1]]` | select the first non-null slot, not positional `[[1]]` |
 | empty DS results | state markers not flagged | set `marker_class='state'` in the panel |
 | paired design ignored | used fixed-effect method | `diffcyt-DA-GLMM` with a random effect |
 

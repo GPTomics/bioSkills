@@ -13,6 +13,13 @@ depends_on:
   - metabolomics/lipidomics
   - metabolomics/targeted-analysis
   - metabolomics/msdial-preprocessing
+qc_checkpoints:
+  - after_extraction: "Feature count plausible after redundancy collapse; EICs of top hits inspect cleanly; is_filled cells tracked"
+  - after_drift: "QC RSD DROPS after correction AND biological-sample RSD is unchanged (a rise means the spline absorbed signal)"
+  - after_qc_filter: "QC RSD <=20-30%, D-ratio <=0.5, blank ratio >=3-5x, detection rate >=50-80% applied BEFORE imputation"
+  - after_stats: "Univariate FDR (BH) AND permutation-validated multivariate (permI>=1000; Q2 high with small pQ2)"
+  - after_annotation: "MSI/Schymanski level assigned per compound; only Level 1-2 enter identified-ORA"
+  - after_pathway: "Background = assay coverage (identified ORA) OR full feature table (mummichog); PREDICTED vs MEASURED stated"
 ---
 
 ## Version Compatibility
@@ -32,6 +39,14 @@ package and adapt the example to match the actual API rather than retrying.
 **"Process my LC-MS metabolomics data end-to-end"** -> Chain xcms feature extraction, QC/normalization, confidence-stratified annotation, validated statistics, and background-aware pathway mapping, treating each stage's output as a hypothesis its component skill scrutinizes.
 - R: `readMsExperiment()` -> `findChromPeaks()` -> `groupChromPeaks()` -> `fillChromPeaks()` -> `featureValues()` (xcms), then `QCRSC()`/`pqn_normalisation()` (pmp), `opls()` (ropls), `CalculateOraScore()`/`PerformPSEA()` (MetaboAnalystR)
 
+## The governing principle
+
+An untargeted metabolomics result is only as honest as its weakest seam: a feature table is a PARAMETERIZED HYPOTHESIS, not a measurement; injection-order drift is technical variance collinear with run order that masquerades as biology unless corrected BEFORE stats; and a database name is an MSI Level 4-5 guess until an authentic standard makes it Level 1. Three commitments are fixed at the bench and inherited by everything downstream:
+
+1. **Ionization mode is a mode-lock.** Positive and negative ESI have entirely different adduct chemistries ([M+H]+/[M+Na]+ vs [M-H]-/[M+Cl]-); the mode selects which mass-shift table is legal for every candidate, so annotation and pathway mapping must run against the SAME mode the feature was acquired in, and mixed-mode data must carry a per-feature mode column all the way through.
+2. **The annotation-confidence contract gates entry into pathway mapping.** MSI/Schymanski level is a made-once reporting decision: a bare DB hit with no orthogonal MS/MS or RT evidence is Level 4-5, NOT Level 2-3, and feeding tentative IDs into ORA as if confirmed launders uncertainty into a pathway p-value.
+3. **The pooled-QC + blank + dilution baseline, fixed at the bench, makes every correction possible.** The pooled QC is the substrate for BOTH drift correction and feature-quality filtering; biological samples MUST be block-randomized in run order (group confounded with order is the unwinnable "original sin"); conditioning injections are excluded from drift modeling.
+
 ## What Each Stage Decides and Where the Traps Are
 
 This skill is an orchestrator: it sequences the five component skills and enforces the honest handoffs between them. It does not re-teach each stage's parameters -- those live in the component SKILLs cited per row.
@@ -49,7 +64,7 @@ This skill is an orchestrator: it sequences the five component skills and enforc
 ```
 raw mzML (centroided)
    |  metabolomics/xcms-preprocessing
-   v  readMsExperiment -> findChromPeaks -> adjustRtime -> (re)groupChromPeaks -> fillChromPeaks
+   v  readMsExperiment -> findChromPeaks -> adjustRtime -> groupChromPeaks -> fillChromPeaks
 features x samples table (+ is_filled flags, mzmed/rtmed)
    |  metabolomics/normalization-qc
    v  blank/detection filter -> within-batch drift (QCRSC) -> RSD/D-ratio filter -> PQN -> mechanism-aware impute
@@ -72,7 +87,7 @@ Stable-isotope tracing (flux) is a SEPARATE branch off labeled raw data, not a s
 
 **Goal:** Turn centroided mzML into a features-by-samples table, carrying the parameters as part of the result.
 
-**Approach:** Use the `MsExperiment`/`XcmsExperiment` containers with `*Param` objects; align to pooled QC, regroup after alignment, and treat filled values as imputations. Full parameter rationale (ppm, peakwidth, bw, prefilter) lives in metabolomics/xcms-preprocessing.
+**Approach:** Use the `MsExperiment`/`XcmsExperiment` containers with `*Param` objects; align to pooled QC, group AFTER alignment (obiwarp aligns the raw profile directly, so no pre-grouping is needed; the PeakGroups method instead needs group -> align -> regroup because it uses grouped anchor peaks), and treat filled values as imputations. Full parameter rationale (ppm, peakwidth, bw, prefilter) lives in metabolomics/xcms-preprocessing.
 
 ```r
 library(xcms)
@@ -82,10 +97,11 @@ raw <- readMsExperiment(spectraFiles = mzml_files, sampleData = pd)
 cwp <- CentWaveParam(ppm = 10, peakwidth = c(2, 20), snthresh = 10,
                      prefilter = c(3, 1000), noise = 1000)   # set from instrument; see xcms-preprocessing
 xdata <- findChromPeaks(raw, param = cwp)
-xdata <- adjustRtime(xdata, param = ObiwarpParam(binSize = 0.6))
+xdata <- adjustRtime(xdata, param = ObiwarpParam(binSize = 0.6,
+    subset = which(sampleData(xdata)$sample_group == 'QC'), subsetAdjust = 'average'))   # anchor RT alignment on pooled QCs
 pdp <- PeakDensityParam(sampleGroups = sampleData(xdata)$sample_group,
                         bw = 5, minFraction = 0.5, binSize = 0.025)
-xdata <- groupChromPeaks(xdata, param = pdp)        # regroup on corrected RT
+xdata <- groupChromPeaks(xdata, param = pdp)        # group on corrected RT (obiwarp needs no pre-grouping)
 xdata <- fillChromPeaks(xdata, param = ChromPeakAreaParam())
 
 feat <- featureValues(xdata, value = 'into')        # features x samples; filled cells are imputations
@@ -187,7 +203,7 @@ Each gate hands off to its component skill when it fails; "refresh" means re-run
 |---|---|---|
 | `could not find function "readMSData"` | Legacy xcms <3 API | Use `readMsExperiment()` + `*Param` verbs (xcms 4.x) |
 | `unused argument (ppm = ...)` | Loose args to `findChromPeaks` | Wrap in `CentWaveParam(...)`, pass via `param =` |
-| Features on uncorrected RT | Skipped regroup after `adjustRtime` | Call `groupChromPeaks` again post-alignment |
+| Features on uncorrected RT | Grouped before alignment and never grouped after | Group AFTER `adjustRtime` (obiwarp needs no pre-grouping; PeakGroups alignment needs group -> align -> regroup) |
 | Significance explodes after imputation | Half-min impute then test | Mechanism-aware QRILC/GSimp on sparse holes only |
 | Clean OPLS-DA plot but it is noise | `permI = 20` (ropls default) | `permI >= 1000`; read `pQ2` from `getSummaryDF` |
 | FDR is actually Holm/Holm-Sidak | R `p.adjust` default `'holm'`; statsmodels `'hs'` | Pass BH explicitly |

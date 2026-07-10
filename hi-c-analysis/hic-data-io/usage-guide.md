@@ -59,7 +59,7 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - Always use the `::/resolutions/<bp>` URI; never hand a bare `.mcool` to a downstream tool.
-- The `weight` column name is load-bearing: cooler `weight` is multiplicative; KR/VC/VC_SQRT are auto-divisive. Do not rename Juicer norms to `weight`.
+- The `weight` column name is not cosmetic: cooler `weight` is multiplicative; KR/VC/VC_SQRT are auto-divisive. Do not rename Juicer norms to `weight`.
 - Record the hic2cool version - the 0.5.0 boundary flips how norms are stored.
 - All-NaN balanced rows on a balanced file are masked low-coverage bins, not a bug; an outright error means the file is unbalanced.
 - Balanced pixels cannot be summed to coarsen - sum raw counts and re-ICE per resolution (`cooler zoomify --balance`).

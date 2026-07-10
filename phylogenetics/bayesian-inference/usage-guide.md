@@ -2,7 +2,7 @@
 
 ## Overview
 
-A Bayesian phylogeny is not a tree; it is a posterior distribution over trees conditioned on the data and on the priors, approximated by an MCMC that may not have converged. The deliverable is a distribution WITH diagnostics. This skill covers the load-bearing decisions: which tool (MrBayes, BEAST2, RevBayes, PhyloBayes-MPI) fits the question, how to prove MCMC convergence (ESS, PSRF, ASDSF, and the crucial scalar-vs-topology distinction), why posterior probabilities run higher than bootstrap and are overconfident under model misspecification, why the default branch-length prior inflates tree length, why model comparison must use stepping-stone sampling and never the harmonic mean, and when site-heterogeneous CAT-GTR is required at depth. The honest one-sentence framing: PP near 1 means the data are decisive GIVEN the model, not that the clade is true.
+A Bayesian phylogeny is not a tree; it is a posterior distribution over trees conditioned on the data and on the priors, approximated by an MCMC that may not have converged. The deliverable is a distribution WITH diagnostics. This skill covers the decisions that drive the result: which tool (MrBayes, BEAST2, RevBayes, PhyloBayes-MPI) fits the question, how to prove MCMC convergence (ESS, PSRF, ASDSF, and the crucial scalar-vs-topology distinction), why posterior probabilities run higher than bootstrap and are overconfident under model misspecification, why the default branch-length prior inflates tree length, why model comparison must use stepping-stone sampling and never the harmonic mean, and when site-heterogeneous CAT-GTR is required at depth. The honest one-sentence framing: PP near 1 means the data are decisive GIVEN the model, not that the clade is true.
 
 ## Prerequisites
 

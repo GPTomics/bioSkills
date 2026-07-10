@@ -1,14 +1,15 @@
 '''pySCENIC RNA-only GRN inference pipeline.'''
 # Reference: anndata 0.10+, pandas 2.2+, scanpy 1.10+, scipy 1.12+ | Verify API if version differs
 
+import os
 import scanpy as sc
 import pandas as pd
 import numpy as np
 from arboreto.algo import grnboost2
 from pyscenic.prune import prune2df, df2regulons
 from pyscenic.aucell import aucell
+from pyscenic.utils import modules_from_adjacencies
 from ctxcore.rnkdb import FeatherRankingDatabase
-from ctxcore.genesig import GeneSignature
 import matplotlib.pyplot as plt
 
 # Configuration
@@ -56,16 +57,16 @@ print(f'TF-target adjacencies: {len(adjacencies)}')
 # Step 2: Regulon pruning with RcisTarget
 # cisTarget databases: ~10 GB each, download once from:
 # https://resources.aertslab.org/cistarget/databases/
-dbs = [FeatherRankingDatabase(db) for db in DB_PATHS]
+dbs = [FeatherRankingDatabase(db, name=os.path.splitext(os.path.basename(db))[0]) for db in DB_PATHS]   # `name` is a required arg, not optional
 
-# Build modules from adjacencies (minimum 10 targets per TF)
-modules = [GeneSignature(name=tf, gene2weight=dict(zip(grp['target'], grp['importance'])))
-           for tf, grp in adjacencies.groupby('TF') if len(grp) >= 10]
+# Build Regulon modules (prune2df needs module.transcription_factor, which a bare GeneSignature
+# lacks; modules_from_adjacencies applies pySCENIC's standard thresholds and returns Regulons).
+modules = list(modules_from_adjacencies(adjacencies, expr_sub))
 print(f'TF modules before pruning: {len(modules)}')
 
 # NES threshold 3.0: Standard motif enrichment cutoff
 # Lower to 2.5 for more permissive; raise to 3.5 for stringent
-df_motifs = prune2df(dbs, modules, MOTIF_ANNOTATIONS, num_workers=NUM_WORKERS)
+df_motifs = prune2df(dbs, modules, MOTIF_ANNOTATIONS, rank_threshold=5000, num_workers=NUM_WORKERS)
 regulons = df2regulons(df_motifs)
 print(f'Regulons after pruning: {len(regulons)}')
 
@@ -87,8 +88,8 @@ adata.write(f'{OUTPUT_PREFIX}_scenic.h5ad')
 
 # QC: Check known lineage TFs
 known_tfs = ['PAX6', 'SOX2', 'GATA1', 'SPI1', 'FOXP3', 'TBX21', 'EBF1', 'IRF4']
-regulon_names = [r.name for r in regulons]
-found_known = [tf for tf in known_tfs if tf in regulon_names]
+regulon_bases = {r.name.split('(')[0] for r in regulons}   # df2regulons emits 'PAX6(+)'/'PAX6(-)'
+found_known = [tf for tf in known_tfs if tf in regulon_bases]
 print(f'Known lineage TFs found: {found_known}')
 
 # Visualization: top regulons by specificity
@@ -97,8 +98,8 @@ if 'cell_type' in adata.obs.columns:
     cell_types = adata.obs['cell_type'].unique()
 
     regulon_specificity = {}
-    for i, rname in enumerate(regulon_names):
-        scores = auc_matrix.iloc[:, i]
+    for rname in auc_matrix.columns:   # aucell columns ARE the regulon names; indexing by position assumed an ordering aucell does not promise
+        scores = auc_matrix[rname]
         max_diff = 0
         for ct in cell_types:
             ct_mask = adata.obs['cell_type'] == ct

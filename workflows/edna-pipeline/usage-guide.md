@@ -1,7 +1,7 @@
 # eDNA Metabarcoding Pipeline - Usage Guide
 
 ## Overview
-Complete environmental DNA metabarcoding workflow from raw amplicon sequences to biodiversity assessment and community ecology. Supports two processing paths: OBITools3 v3 (CLI-based, with the `obi stats` plural command convention and DMS-based ingestion) and DADA2 (R-based, single-nucleotide ASV resolution per Callahan 2017). Includes decontam contamination screening (Davis 2018; treated as classifier-not-truth), Hill-number diversity reported as effective species counts (Jost 2006) with coverage-based rarefaction (Chao & Jost 2012), beta-diversity decomposition with the mandatory PERMANOVA + PERMDISP pair (Anderson & Walsh 2013), and constrained ordination with vegan. Honest reporting of the 50-85% taxonomic-assignment gap (Wangensteen 2018) and the read-counts-are-not-abundance critique (Lamb 2019 meta-analysis).
+Complete environmental DNA metabarcoding workflow from raw amplicon sequences to biodiversity assessment and community ecology. Supports two processing paths: OBITools3 v3 (CLI-based, with the `obi stats` plural command convention and DMS-based ingestion) and DADA2 (R-based, single-nucleotide ASV resolution per Callahan 2017). Includes decontam contamination screening (Davis 2018; treated as classifier-not-truth), Hill-number diversity reported as effective species counts (Jost 2006) with coverage-based rarefaction (Chao & Jost 2012), beta-diversity decomposition with the mandatory PERMANOVA + PERMDISP pair (Anderson & Walsh 2013), and constrained ordination with vegan. Honest reporting of the species-level taxonomic-assignment gap (50-85% unassigned is typical) and the read-counts-are-not-abundance critique (Lamb 2019 meta-analysis).
 
 ## Prerequisites
 ```bash
@@ -36,7 +36,7 @@ Tell your AI agent what you want to do:
 - "Process my COI amplicon data from raw FASTQ through species lists, using DADA2 ASVs and BOLD/MIDORI2 taxonomy"
 - "Run the OBITools3 v3 pipeline (note: v3 uses `obi stats` plural and DMS ingestion)"
 - "Apply decontam with combined method (concentration + negative controls) at threshold 0.1; treat output as screening, not classification"
-- "Quantify tag-jumping rate; for NovaSeq libraries apply ~10x heavier filtering than MiSeq per Schnell 2015"
+- "Quantify tag-jumping rate; for NovaSeq libraries apply ~10x heavier filtering than MiSeq (patterned flow cells; the tag-jump phenomenon is Schnell 2015)"
 - "Compare communities with PERMANOVA AND betadisper (mandatory pair per Anderson & Walsh 2013)"
 - "Report Hill-number effective species counts (NOT raw Shannon) with coverage-based rarefaction at C=0.95"
 
@@ -64,8 +64,8 @@ Tell your AI agent what you want to do:
 4. Merge paired ends and denoise (OBITools3 v3 with `obi stats`/`obi clean`/`obi ecotag`, OR DADA2 with `method='consensus'` chimeras)
 5. Validate: chimera rate <20% (>30% indicates library-prep issues)
 6. Apply decontam combined method (DNA concentration + negative controls; threshold 0.1 default, 0.05 for low-biomass); treat output as SCREENING and require biological-plausibility check per flagged ASV
-7. Quantify residual tag-jumping rate from per-ASV cross-sample appearance; apply `metabaR::tagjumpslayer` with platform-appropriate threshold (~0.001-0.005 MiSeq; ~0.005-0.01 NovaSeq per Schnell 2015)
-8. Validate: assignment rate meets marker expectations (50-85% unassigned is typical per Wangensteen 2018; report this gap honestly)
+7. Quantify residual tag-jumping rate from per-ASV cross-sample appearance; apply `metabaR::tagjumpslayer` with platform-appropriate threshold (~0.001-0.005 MiSeq; ~0.005-0.01 NovaSeq patterned flow cells)
+8. Validate: assignment rate meets marker expectations (50-85% unassigned at species level is typical; report this gap honestly)
 9. Compute Hill numbers q=0,1,2 as effective species counts (NOT raw Shannon/Simpson) with iNEXT coverage-based rarefaction at C=0.95; bound extrapolation at 2x reference sample size (Chao et al. 2014 doubling rule)
 10. Validate: sample completeness >80%
 11. Compare communities with PERMANOVA (`adonis2`) AND PERMDISP (`betadisper`); MANDATORY pair (Anderson & Walsh 2013). If betadisper is significant, location conclusion is not supported
@@ -78,7 +78,7 @@ Tell your AI agent what you want to do:
 - Primer removal is MANDATORY before DADA2 filterAndTrim; primer-bearing reads corrupt the DADA2 error model
 - OBITools3 v3 uses `obi stats` (plural; was `obistat` in v1) and `.tar.gz` taxonomy ingestion (NOT a directory)
 - ASV (DADA2, UNOISE3) vs OTU (swarm v2): Callahan 2017 recommends ASVs for COI/12S/18S/fungi; Schloss 2021 critique applies for bacterial 16S where multi-copy rRNA may split single genomes into multiple ASVs
-- Tag-jumping rate is ~10x higher on NovaSeq patterned flow cells than MiSeq (Schnell 2015); MiSeq-tuned thresholds underfilter NovaSeq data
+- Tag-jumping rate is ~10x higher on NovaSeq patterned flow cells than MiSeq (the tag-jump phenomenon is Schnell 2015); MiSeq-tuned thresholds underfilter NovaSeq data
 - decontam output is SCREENING, not classification; the default threshold 0.1 is over-aggressive in low-biomass samples (reduce to 0.05 and inspect each flagged ASV)
 - Read counts are NOT biomass; the correlation is weak, non-linear, and taxon-specific (Lamb 2019 meta-analysis). Report presence/absence or relative abundance with explicit caveat; quantitative claims require mock-community calibration
 - Hill numbers are EFFECTIVE species counts (Jost 2006); report q=0 (richness), q=1 (exp(Shannon)), q=2 (1/Simpson) NOT raw Shannon/Simpson

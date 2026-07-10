@@ -1,12 +1,14 @@
 #!/bin/bash
 # Reference: Bowtie2 2.5.3+, MACS3 3.0+, bedtools 2.31+, fastp 0.23+, samtools 1.19+ | Verify API if version differs
-# ChIP-seq workflow for narrow peaks (TFs, H3K4me3)
+# ChIP-seq workflow for narrow peaks (TFs, H3K4me3): align -> pre-dedup complexity QC ->
+# dedup -> chrM + ENCODE-blacklist filter -> MACS3 (IP vs input) -> FRiP -> bigWig
 set -e
 
 THREADS=8
 INDEX="bt2_index/genome"
-GENOME_SIZE="hs"  # hs, mm, ce, dm
+GENOME_SIZE="hs"  # hs, mm, ce, dm -- must match the build/read length
 OUTDIR="chipseq_results"
+BLACKLIST="ENCODE_blacklist.bed"  # ENCODE blacklist for THIS build; subtracted before peak calling
 
 IP_SAMPLES="IP_rep1 IP_rep2"
 INPUT_SAMPLES="Input_rep1 Input_rep2"
@@ -28,10 +30,11 @@ for sample in $IP_SAMPLES $INPUT_SAMPLES; do
         -w ${THREADS}
 done
 
-# Step 2: Alignment
-echo "=== Step 2: Alignment ==="
+# Step 2: Alignment, PRE-dedup complexity QC, dedup, chrM + blacklist filtering
+echo "=== Step 2: Alignment + filtering ==="
 for sample in $IP_SAMPLES $INPUT_SAMPLES; do
     echo "Aligning ${sample}..."
+    A=${OUTDIR}/aligned
     bowtie2 -p ${THREADS} -x ${INDEX} \
         -1 ${OUTDIR}/trimmed/${sample}_R1.fq.gz \
         -2 ${OUTDIR}/trimmed/${sample}_R2.fq.gz \
@@ -40,17 +43,30 @@ for sample in $IP_SAMPLES $INPUT_SAMPLES; do
         2> ${OUTDIR}/qc/${sample}_bowtie2.log | \
     samtools view -@ ${THREADS} -bS -q 30 -f 2 - | \
     samtools fixmate -@ ${THREADS} -m - - | \
-    samtools sort -@ ${THREADS} -o ${OUTDIR}/aligned/${sample}.sorted.bam
+    samtools sort -@ ${THREADS} -o ${A}/${sample}.sorted.bam
 
-    samtools markdup -r -@ ${THREADS} \
-        ${OUTDIR}/aligned/${sample}.sorted.bam \
-        ${OUTDIR}/aligned/${sample}.bam
+    # Library-complexity QC on the PRE-dedup BAM (NRF/PBC1 are meaningless after markdup -r)
+    bedtools bamtobed -i ${A}/${sample}.sorted.bam 2>/dev/null \
+      | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | sort | uniq -c \
+      | awk -v s=${sample} '{tot+=$1; dist++; if($1==1) one++} END{if(tot) printf "  %s NRF=%.3f PBC1=%.3f\n", s, dist/tot, one/dist}'
 
-    samtools index ${OUTDIR}/aligned/${sample}.bam
-    rm ${OUTDIR}/aligned/${sample}.sorted.bam
+    samtools markdup -r -@ ${THREADS} ${A}/${sample}.sorted.bam ${A}/${sample}.dedup.bam
+    samtools index ${A}/${sample}.dedup.bam
+
+    # Drop chrM, then SUBTRACT the ENCODE blacklist (committed step, not optional cleanup)
+    samtools idxstats ${A}/${sample}.dedup.bam | cut -f1 | grep -v -e '^chrM$' -e '^MT$' \
+      | xargs samtools view -b ${A}/${sample}.dedup.bam > ${A}/${sample}.nochrM.bam
+    if [ -f "$BLACKLIST" ]; then
+        bedtools intersect -v -a ${A}/${sample}.nochrM.bam -b "$BLACKLIST" > ${A}/${sample}.bam
+    else
+        echo "  WARNING: $BLACKLIST not found -- peaks will contain blacklist artifacts; supply the ENCODE blacklist BED"
+        mv ${A}/${sample}.nochrM.bam ${A}/${sample}.bam
+    fi
+    samtools index ${A}/${sample}.bam
+    rm -f ${A}/${sample}.sorted.bam ${A}/${sample}.dedup.bam ${A}/${sample}.dedup.bam.bai ${A}/${sample}.nochrM.bam
 
     echo "Alignment stats for ${sample}:"
-    samtools flagstat ${OUTDIR}/aligned/${sample}.bam | head -5
+    samtools flagstat ${A}/${sample}.bam | head -5
 done
 
 # Step 3: Peak calling
@@ -68,7 +84,7 @@ macs3 callpeak \
     -n experiment \
     --outdir ${OUTDIR}/peaks \
     -q 0.01 \
-    --keep-dup auto
+    --keep-dup all
 
 echo "Peaks called: $(wc -l < ${OUTDIR}/peaks/experiment_peaks.narrowPeak)"
 

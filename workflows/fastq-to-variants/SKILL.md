@@ -19,7 +19,7 @@ qc_checkpoints:
   - after_qc: "Q30 >85%, adapter content <1%"
   - after_alignment: "Mapping rate >95%, properly paired >90%"
   - after_dedup: "Duplication rate <30% for WGS, <50% for exome"
-  - after_calling: "Ti/Tv ratio ~2.0-2.1 for WGS, ~3.0-3.3 for exome, dbSNP overlap >95%"
+  - after_calling: "Ti/Tv ratio ~2.0-2.1 for WGS, ~3.0-3.3 for exome; dbSNP overlap >95% only after annotating the ID column"
 ---
 
 ## Version Compatibility
@@ -68,9 +68,11 @@ FASTQ
   v
   | [7] Filter: site-level THEN genotype-level         (variant-calling/filtering-best-practices)
   v
-  | [8] Annotate -------------------> VEP / SnpEff      (variant-calling/variant-annotation)
+  | [8] Recompute cohort QC on the genotype-filtered matrix  (missingness, Ti/Tv, het/hom, excess-het HWE)
   v
-  | [9] Benchmark & QC -------------> hap.py/vcfeval, bcftools stats  (variant-calling/vcf-statistics)
+  | [9] Annotate -------------------> VEP / SnpEff      (variant-calling/variant-annotation)
+  v
+  | [10] Benchmark & QC ------------> hap.py/vcfeval, bcftools stats  (variant-calling/vcf-statistics)
   v
 Filtered, normalized, benchmarked VCF
 ```
@@ -95,9 +97,9 @@ Each step assumes the previous; the order is defensible under review (canonical 
 1. **QC/trim** -- remove adapters and low-quality tails before they corrupt alignment and duplicate detection.
 2. **Align** -- to the committed reference, with read groups (SM/ID/PL/LB); read groups are a hard GATK requirement.
 3. **Mark duplicates** -- PCR/optical duplicates are not independent evidence; marking (not removing) lets the caller down-weight them. Skip for amplicon/UMI data.
-4. **BQSR -- honestly optional on modern instruments.** BQSR corrected context/cycle-dependent miscalibration on 2010-era continuous-quality Illumina. NovaSeq/NovaSeq X emit ~4 quality bins, leaving little to recalibrate; callsets are largely unchanged with vs without it. DeepVariant explicitly recommends NOT running BQSR (its CNN learned the raw-quality error model); DRAGEN recalibrates internally (DRAGSTR). Keep it for GATK-HaplotypeCaller consistency if a frozen pipeline demands it; otherwise the modern indel-accuracy lever is STR-aware error modeling (`--dragen-mode`), not BQSR.
+4. **BQSR -- honestly optional on modern instruments.** BQSR corrected context/cycle-dependent miscalibration on 2010-era continuous-quality Illumina. NovaSeq/NovaSeq X emit ~4 quality bins, leaving little to recalibrate; callsets are largely unchanged with vs without it. DeepVariant explicitly recommends NOT running BQSR (its CNN learned the raw-quality error model); DRAGEN handles quality internally (and uses DRAGSTR for STR/indel error modeling). Keep it for GATK-HaplotypeCaller consistency if a frozen pipeline demands it; otherwise the modern indel-accuracy lever is STR-aware error modeling (`--dragen-mode`), not BQSR.
 5. **Call** -- per-sample VCF, or per-sample gVCF (`-ERC GVCF`) if a cohort will be joint-genotyped.
-6. **Normalize BEFORE annotate/compare** -- `bcftools norm -m-any -f ref.fa` (split multiallelics, then left-align + parsimony), against the SAME reference used for annotation. Add `-a` (atomize) only when the downstream database is decomposed. This is the most common real ordering bug: annotate-then-normalize attaches consequences to a non-canonical representation that fails to match the database.
+6. **Normalize BEFORE annotate/compare** -- `bcftools norm -m-any -f ref.fa` (split multiallelics, then left-align + parsimony), against the SAME reference used for annotation. Add `-a` (atomize) only when the downstream database is decomposed. This is the most common real ordering bug: annotate-then-normalize attaches consequences to a non-canonical representation that fails to match the database. The binding constraint is normalize-before-ANNOTATE/COMPARE, not normalize-before-filter: GATK convention runs `VariantFiltration` on the raw multiallelic records (its annotations are computed on that representation), then normalizes -- `bwa_gatk_workflow.sh` does exactly that, while `bwa_bcftools_workflow.sh` normalizes first. Both are correct; neither annotates before normalizing.
 7. **Filter site-level, then genotype-level** -- site filters (VQSR/hard/ML) decide whether a *site* is real; genotype filters (`GQ`/`DP`/allele-balance) decide whether an *individual genotype* is trustworthy. SNPs and indels are filtered separately (different error processes and truth resources).
 8. **Recompute cohort QC on the genotype-filtered matrix** -- missingness, Ti/Tv, het/hom, excess-het HWE. Doing HWE before genotype filtering lets low-GQ garbage drive spurious deviation.
 9. **Annotate** on the normalized (and, where consequence matters, haplotype-resolved) representation.
@@ -250,7 +252,7 @@ Discipline that separates a senior benchmark from a naive one:
 | QC/trim | Q30 >85%, adapter <1% | DNA is typically higher quality than RNA |
 | Alignment | Mapped >95%, properly paired >90% (`samtools flagstat`) | Low mapping rate: wrong reference or contamination |
 | Dedup | Duplicates <30% WGS, <50% exome | High duplication: PCR over-amplification, low input |
-| Calling | Ti/Tv ~2.0-2.1 WGS, ~3.0-3.3 exome; dbSNP overlap >95% | Ti/Tv sliding toward 0.5 (random) signals false-positive inflation -- filters too loose |
+| Calling | Ti/Tv ~2.0-2.1 WGS, ~3.0-3.3 exome; dbSNP overlap >95% | Ti/Tv sliding toward 0.5 (random) signals false-positive inflation -- filters too loose. `bcftools stats` counts known sites from the ID column, and callers leave it as `.`: run `bcftools annotate -c ID -a dbsnp.vcf.gz` first or the dbSNP-overlap line reads 0% regardless of quality |
 
 ## Common Errors
 

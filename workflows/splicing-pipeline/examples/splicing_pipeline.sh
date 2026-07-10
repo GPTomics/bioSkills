@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: STAR 2.7.11+, fastp 0.23+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
+# Reference: STAR 2.7.11+, fastp 0.23+, rMATS-turbo 4.3+, RSeQC 5.0+, samtools 1.19+ | Verify API if version differs
 # Complete alternative splicing analysis pipeline
 set -e
 
@@ -29,6 +29,10 @@ for sample in $SAMPLES; do
 done
 
 echo "Step 2: STAR 2-pass alignment - Pass 1"
+# --outSJfilterOverhangMin 8 8 8 8 RELAXES STAR's default (30 12 12 12) so shorter-overhang novel
+# junctions survive into SJ.out.tab -- sensitivity, not stringency; the >=3 unique-read filter below
+# is what removes noise. --alignSJDBoverhangMin 1 is likewise permissive for ANNOTATED junctions
+# (rMATS-style; STAR default is 3) so known short-overhang junctions are not lost.
 for sample in $SAMPLES; do
     STAR \
         --runThreadN $THREADS \
@@ -41,7 +45,8 @@ for sample in $SAMPLES; do
         --alignSJDBoverhangMin 1
 done
 
-# Combine splice junctions from all samples
+# Combine splice junctions from ALL samples into ONE shared DB for pass 2 (cohort-consistent PSI).
+# col 7 = uniquely-mapping reads spanning the junction; require >=3 to drop noisy singletons.
 cat aligned/*_p1_SJ.out.tab | \
     awk '$7 >= 3' | \
     cut -f1-6 | sort -u > aligned/combined_SJ.out.tab
@@ -72,13 +77,11 @@ done
 echo "CHECK: Verify junction saturation curves plateau before proceeding"
 
 echo "Step 4: Create sample lists"
-rm -f control_bams.txt treatment_bams.txt
-for sample in $CONTROL_SAMPLES; do
-    echo "aligned/${sample}_Aligned.sortedByCoord.out.bam" >> control_bams.txt
-done
-for sample in $TREATMENT_SAMPLES; do
-    echo "aligned/${sample}_Aligned.sortedByCoord.out.bam" >> treatment_bams.txt
-done
+# rMATS --b1/--b2 expect ONE line of comma-separated BAM paths, NOT one path per line.
+control_bams=$(for s in $CONTROL_SAMPLES; do printf 'aligned/%s_Aligned.sortedByCoord.out.bam,' "$s"; done | sed 's/,$//')
+treatment_bams=$(for s in $TREATMENT_SAMPLES; do printf 'aligned/%s_Aligned.sortedByCoord.out.bam,' "$s"; done | sed 's/,$//')
+echo "$control_bams" > control_bams.txt
+echo "$treatment_bams" > treatment_bams.txt
 
 echo "Step 5: rMATS differential splicing"
 rmats.py \
@@ -87,15 +90,30 @@ rmats.py \
     --gtf $GTF \
     -t paired \
     --readLength $READ_LENGTH \
+    --variable-read-length \
     --nthread $THREADS \
     --od rmats_output \
     --tmp rmats_tmp
 
-echo "Step 6: Filter significant events"
+echo "Step 6: Filter significant events (|deltaPSI|>0.1, FDR<0.05, >=10 junction reads/replicate)"
+# Column positions DIFFER by event type: MXE has 2 extra exon-coordinate columns, so FDR and
+# IncLevelDifference shift +2 for MXE. Resolve every column by HEADER NAME, never by hardcoded position.
+# The read floor is not optional: PSI is a ratio, so an event backed by 2 reads can show |dPSI|=0.9
+# and pass FDR on noise alone. IJC_/SJC_SAMPLE_{1,2} are comma-separated per replicate; average total
+# support per replicate and require >=10, the field-convention floor this pipeline commits to.
 for event in SE A5SS A3SS MXE RI; do
-    awk -F'\t' 'NR==1 || ($20 < 0.05 && ($23 > 0.1 || $23 < -0.1))' \
-        rmats_output/${event}.MATS.JC.txt > rmats_output/${event}_significant.txt
-    echo "$event significant events: $(wc -l < rmats_output/${event}_significant.txt)"
+    f=rmats_output/${event}.MATS.JC.txt
+    awk -F'\t' '
+        function sumlist(s,   n,a,i,t){n=split(s,a,","); t=0; for(i=1;i<=n;i++) t+=a[i]; return t}
+        NR==1{for(i=1;i<=NF;i++) h[$i]=i; print; next}
+        {
+            nrep = split($h["IJC_SAMPLE_1"], r1, ",") + split($h["IJC_SAMPLE_2"], r2, ",")
+            support = (sumlist($h["IJC_SAMPLE_1"]) + sumlist($h["SJC_SAMPLE_1"]) + \
+                       sumlist($h["IJC_SAMPLE_2"]) + sumlist($h["SJC_SAMPLE_2"])) / nrep
+            fdr = $h["FDR"] + 0; d = $h["IncLevelDifference"] + 0
+            if (fdr < 0.05 && (d > 0.1 || d < -0.1) && support >= 10) print
+        }' "$f" > rmats_output/${event}_significant.txt
+    echo "$event significant events: $(( $(wc -l < rmats_output/${event}_significant.txt) - 1 ))"
 done
 
 echo "Pipeline complete!"

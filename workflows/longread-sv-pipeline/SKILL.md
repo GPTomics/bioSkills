@@ -149,6 +149,7 @@ cuteSV as an alternative - its defaults are NOT platform-appropriate, and `--gen
 
 ```bash
 # ONT param set shown. HiFi: 1000/0.9/1000/0.5. CLR: 100/0.3/200/0.5. See structural-variants.
+mkdir -p work_dir   # cuteSV requires the work dir to pre-exist; it does not create it
 cuteSV aligned.bam reference.fa svs.vcf work_dir/ --threads 8 --genotype \
     --max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 \
     --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3
@@ -193,8 +194,8 @@ For sequence-aware AF work across callsets, prefer Truvari `collapse` over posit
 ```bash
 # Report EVERY parameter. --pctseq 0 disables alt-sequence checking and quietly inflates INS scores.
 truvari bench -b HG002_SV_Tier1.vcf.gz -c svs.vcf.gz -o bench_tier1/ --passonly \
-    --refdist 500 --pctsize 0.70 --pctseq 0.70 --sizemin 50
-truvari refine bench_tier1/                                     # harmonized breakpoint re-comparison
+    -f reference.fa --refdist 500 --pctsize 0.70 --pctseq 0.70 --sizemin 50   # -f persists reference to params.json
+truvari refine bench_tier1/                                     # harmonized breakpoint re-comparison (needs the reference bench recorded)
 
 # CMRG is NOT optional: Tier 1 EXCLUDES the medically relevant repetitive genes.
 truvari bench -b HG002_CMRG_SV.vcf.gz -c svs.vcf.gz -o bench_cmrg/ --passonly \
@@ -207,7 +208,7 @@ Three escalating bars are routinely conflated, and a pipeline can pass the first
 - Breakpoint accuracy - POS/END within a few bp (tight `--refdist`, `--pctseq` on). Matters at exon/splice boundaries.
 - Genotype accuracy - the sample GT (het/hom) is correct (genotype-aware comparison). A caller can detect an event perfectly and still call het-as-hom, which is fatal for Mendelian analyses.
 
-Region stratification is decisive: Tier 1 (Zook 2020 *Nat Biotechnol* 38:1347) is conservative isolated SVs, while CMRG (Wagner 2022 *Nat Biotechnol* 40:672) covers the repetitive medically relevant genes Tier 1 leaves out - where GRCh37/38 false duplications cause reference-specific misses that masking raised from 8% to 100% recall. A good Tier 1 F1 certifies nothing about the genes clinicians care about; run both.
+Region stratification is decisive: Tier 1 (Zook 2020 *Nat Biotechnol* 38:1347) is conservative isolated SVs, while CMRG (Wagner 2022 *Nat Biotechnol* 40:672) covers the repetitive medically relevant genes Tier 1 leaves out - where GRCh38 false duplications cause reference-specific misses that masking raised from 8% to 100% recall. A good Tier 1 F1 certifies nothing about the genes clinicians care about; run both.
 
 ## Filtering and annotation
 

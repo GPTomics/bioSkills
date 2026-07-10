@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tests and estimates rhythmicity at a PRE-SPECIFIED period (canonically 24h) in a single condition of time-series omics. This is known-period TESTING (the period is fixed, then rhythmicity, phase, amplitude, and MESOR are tested/estimated at it), which is categorically different from unknown-period DISCOVERY (finding the period; see temporal-genomics/periodicity-detection) and from comparing rhythms BETWEEN conditions (differential rhythmicity; see temporal-genomics/differential-rhythmicity). It fits cosinor regression (CosinorPy), runs JTK_CYCLE/ARSER/Lomb-Scargle meta-analysis (MetaCycle meta2d), and non-parametric tests for asymmetric waveforms (RAIN, DiscoRhythm). The load-bearing rule: temporal conclusions are dominated by SAMPLING DESIGN, not the algorithm.
+Tests and estimates rhythmicity at a PRE-SPECIFIED period (canonically 24h) in a single condition of time-series omics. This is known-period TESTING (the period is fixed, then rhythmicity, phase, amplitude, and MESOR are tested/estimated at it), which is categorically different from unknown-period DISCOVERY (finding the period; see temporal-genomics/periodicity-detection) and from comparing rhythms BETWEEN conditions (differential rhythmicity; see temporal-genomics/differential-rhythmicity). It fits cosinor regression (CosinorPy), runs JTK_CYCLE/ARSER/Lomb-Scargle meta-analysis (MetaCycle meta2d), and non-parametric tests for asymmetric waveforms (RAIN, DiscoRhythm). The governing rule: temporal conclusions are dominated by SAMPLING DESIGN, not the algorithm.
 
 ## Prerequisites
 

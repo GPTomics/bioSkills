@@ -2,7 +2,7 @@
 
 ## Overview
 
-Compare co-expression and regulatory networks between conditions to find rewired gene-gene relationships. DiffCorr tests correlation differences with Fisher's z (gained/lost/reversed edges); DiffCoEx finds rewired modules; DINGO/iDINGO test direct (partial-correlation) rewiring; CoDiNA compares many networks. The load-bearing insight: differential connectivity is NOT differential expression -- a gene can rewire its partners with no change in mean expression and be the key signal (Hudson's myostatin). The dominant pitfall is power: rewiring needs more samples than DE, and pairwise testing has a p^2/2 multiple-testing explosion, so most small-cohort "rewired hub" claims are underpowered noise.
+Compare co-expression and regulatory networks between conditions to find rewired gene-gene relationships. DiffCorr tests correlation differences with Fisher's z (gained/lost/reversed edges); DiffCoEx finds rewired modules; DINGO/iDINGO test direct (partial-correlation) rewiring; CoDiNA compares many networks. The key insight: differential connectivity is NOT differential expression -- a gene can rewire its partners with no change in mean expression and be the key signal (Hudson's myostatin). The dominant pitfall is power: rewiring needs more samples than DE, and pairwise testing has a p^2/2 multiple-testing explosion, so most small-cohort "rewired hub" claims are underpowered noise.
 
 ## Prerequisites
 

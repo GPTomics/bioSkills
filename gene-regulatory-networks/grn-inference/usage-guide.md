@@ -2,7 +2,7 @@
 
 ## Overview
 
-Infer gene regulatory networks from bulk (or general) expression data and read transcription-factor protein activity from the resulting regulons. Edge inference uses mutual information (ARACNe-AP) or tree ensembles (GENIE3, GRNBoost2); activity inference uses VIPER/msVIPER. The load-bearing idea is the Califano-lab "activity, not edges" paradigm: an expression-derived GRN is an undirected association graph whose individual edges are unreliable, but a regulon read as a multiplexed reporter gives a robust estimate of a TF's protein activity -- which can be high even when the TF's own mRNA is unchanged. DREAM5 showed no single inference method dominates (ensembles win) and that synthetic-benchmark accuracy does not transfer to real eukaryotic data. This is the bulk counterpart to the single-cell scenic-regulons skill.
+Infer gene regulatory networks from bulk (or general) expression data and read transcription-factor protein activity from the resulting regulons. Edge inference uses mutual information (ARACNe-AP) or tree ensembles (GENIE3, GRNBoost2); activity inference uses VIPER/msVIPER. The central claim is the Califano-lab "activity, not edges" paradigm: an expression-derived GRN is an undirected association graph whose individual edges are unreliable, but a regulon read as a multiplexed reporter gives a robust estimate of a TF's protein activity -- which can be high even when the TF's own mRNA is unchanged. DREAM5 showed no single inference method dominates (ensembles win) and that synthetic-benchmark accuracy does not transfer to real eukaryotic data. This is the bulk counterpart to the single-cell scenic-regulons skill.
 
 ## Prerequisites
 

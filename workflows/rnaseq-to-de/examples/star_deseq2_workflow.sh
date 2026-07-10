@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: DESeq2 1.42+, STAR 2.7.11+, Salmon 1.10+, Subread 2.0+, fastp 0.23+, ggplot2 3.5+, kallisto 0.50+, scanpy 1.10+ | Verify API if version differs
+# Reference: STAR 2.7.11+, Subread/featureCounts 2.0.2+ (--countReadPairs), fastp 0.23+, DESeq2 1.42+ | Verify API if version differs
 # Complete RNA-seq workflow: STAR + featureCounts + DESeq2
 set -e
 
@@ -47,6 +47,10 @@ for sample in $SAMPLES; do
 done
 
 echo "=== Step 3: featureCounts ==="
+# VERIFY strandedness before counting -- do not assume -s 2. STAR --quantMode GeneCounts wrote
+# ReadsPerGene.out.tab per sample: sum col 3 (forward) vs col 4 (reverse); the larger column
+# picks -s (col2/unstranded=0, col3=1, col4=2). -s 2 (dUTP/TruSeq reverse) is the common case,
+# not a universal default; a wrong -s collapses counts and mimics a failed library.
 featureCounts \
     -T ${THREADS} \
     -p --countReadPairs \

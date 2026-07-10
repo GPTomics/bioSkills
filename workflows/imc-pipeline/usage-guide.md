@@ -141,7 +141,7 @@ channel,name,full_name,keep,segment
 | masks/ | Cell segmentation masks |
 | intensities/ | Single-cell marker expression |
 | imc_analysis.h5ad | Complete analysis object |
-| cell_type_proportions.csv | Cell type frequencies |
+| cluster_proportions.csv | Per-image frequencies of each Leiden cluster |
 | umap_celltypes.png | Cluster visualization |
 | spatial_celltypes.png | Spatial cell maps |
 | neighborhood_enrichment.png | Spatial interactions |
@@ -156,7 +156,7 @@ channel,name,full_name,keep,segment
 
 ## References
 
-- steinbock: doi:10.1186/s12859-022-04716-7
+- steinbock: Windhager 2023 Nat Protoc, doi:10.1038/s41596-023-00881-0
 - Cellpose: doi:10.1038/s41592-020-01018-x
 - squidpy: doi:10.1038/s41592-021-01358-2
 - imcRtools: Bioconductor package

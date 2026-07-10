@@ -62,7 +62,7 @@ Tell your AI agent:
 2. STAR Log.final.out (unique alignment >= 60% eCLIP, 70% iCLIP)
 3. `preseq lc_extrap` on pre-dedup BAM (>= 1M unique predicted)
 4. FRiP calculation against stringent peaks (>= 0.005 narrow-binding)
-5. log2(IP/SMInput) global enrichment check
+5. log2(IP/SMInput) in-peak enrichment check
 6. IDR true-replicate and pseudo-replicate; ENCODE rescue/self-consistency rules
 7. RSeQC read_distribution + geneBody_coverage for metagene QC
 8. Antibody sanity: top peaks match expected RBP biology

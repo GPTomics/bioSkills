@@ -2,7 +2,7 @@
 
 ## Overview
 
-Simulate transcription factor perturbation effects on cell state with CellOracle (and Dynamo for velocity-based fields; GEARS/CPA for response prediction). CellOracle combines a base GRN from chromatin accessibility with scRNA-seq to predict how cell identities shift under TF knockout or overexpression. The load-bearing caveats: these methods predict a DIRECTION, not a calibrated magnitude; they are a local linear approximation valid only near the observed manifold for a few steps; they inherit every error of the underlying GRN (CellOracle) or velocity field (Dynamo); and for perturbation-response prediction, deep models often fail to beat trivial mean/additive baselines (Ahlmann-Eltze 2025). Use them for hypothesis generation, validated against real perturbation data.
+Simulate transcription factor perturbation effects on cell state with CellOracle (and Dynamo for velocity-based fields; GEARS/CPA for response prediction). CellOracle combines a base GRN from chromatin accessibility with scRNA-seq to predict how cell identities shift under TF knockout or overexpression. The caveats that limit interpretation: these methods predict a DIRECTION, not a calibrated magnitude; they are a local linear approximation valid only near the observed manifold for a few steps; they inherit every error of the underlying GRN (CellOracle) or velocity field (Dynamo); and for perturbation-response prediction, deep models often fail to beat trivial mean/additive baselines (Ahlmann-Eltze 2025). Use them for hypothesis generation, validated against real perturbation data.
 
 ## Prerequisites
 

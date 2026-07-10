@@ -2,7 +2,7 @@
 
 ## Overview
 
-Predict protein-coding gene structures in eukaryotic genomes by matching the pipeline to the available evidence: BRAKER3 (RNA-seq + protein), BRAKER1 (RNA-seq), GALBA or BRAKER2 (protein-only), Funannotate (fungi), GeMoMa (homology projection from a close relative), or Helixer/Tiberius (deep-learning ab initio when no evidence exists). The load-bearing decisions are upstream of the tool: soft-mask repeats first, decontaminate and check assembly contiguity before training, and pick the right OrthoDB clade partition. Output is gene models in GFF3/GTF with protein and CDS sequences.
+Predict protein-coding gene structures in eukaryotic genomes by matching the pipeline to the available evidence: BRAKER3 (RNA-seq + protein), BRAKER1 (RNA-seq), GALBA or BRAKER2 (protein-only), Funannotate (fungi), GeMoMa (homology projection from a close relative), or Helixer/Tiberius (deep-learning ab initio when no evidence exists). The decisions that matter most are upstream of the tool: soft-mask repeats first, decontaminate and check assembly contiguity before training, and pick the right OrthoDB clade partition. Output is gene models in GFF3/GTF with protein and CDS sequences.
 
 ## Prerequisites
 

@@ -7,7 +7,7 @@ Complete workflow from Ribo-seq FASTQ through periodicity QC, P-site calibration
 ## Prerequisites
 
 ```bash
-conda install -c bioconda cutadapt umi_tools bowtie2 star sortmerna samtools ribocode
+conda install -c bioconda cutadapt umi_tools bowtie2 star plastid samtools ribocode
 ```
 
 ```r

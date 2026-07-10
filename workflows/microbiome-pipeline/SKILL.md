@@ -168,8 +168,10 @@ counts <- as.matrix(otu_table(ps_filt)); if (!taxa_are_rows(ps_filt)) counts <- 
 groups <- as.character(sample_data(ps_filt)$Group)
 
 ax <- aldex(counts, groups, mc.samples = 128, test = 't', effect = TRUE, denom = 'all')
-sig_aldex <- rownames(ax)[ax$we.eBH < 0.05 & abs(ax$effect) > 1]   # q AND |effect|>1 (~2 SD); NOT p alone
+sig_aldex <- rownames(ax)[ax$we.eBH < 0.05 & abs(ax$effect) > 1]   # q AND |effect|>1 (between-group diff exceeds within-condition dispersion); NOT p alone
 
+# Multi-run study: carry run as a batch covariate -> fix_formula = 'run_id + Group'. (ALDEx2 cannot
+# take a covariate via aldex(); use aldex.clr() + aldex.glm() on a model matrix for the run-adjusted arm.)
 ab <- ancombc2(data = ps_filt, fix_formula = 'Group', p_adj_method = 'BH',   # default is 'holm' - set BH deliberately
                prv_cut = 0.10, group = 'Group', struc_zero = TRUE, pseudo_sens = TRUE)$res
 dcol <- grep('^diff_Group', names(ab), value = TRUE)[1]   # coefficient = variable+factor level, verbatim case (e.g. 'Grouptreated')
@@ -227,7 +229,7 @@ picrust2_pipeline.py -s asv_seqs.fna -i asv_table.biom -o picrust2_out -p 8 --ma
 | PERMANOVA permutations >= 999, paired with betadisper | vegan docs; Anderson & Walsh 2013 *Ecol Monogr* 83:557 | resolution floor; separates a location shift from a dispersion difference |
 | Rarefy for diversity, NOT for DA | McMurdie 2014; Schloss 2024 *mSphere* 9:e00354-23 | per-analysis decision; DA needs the raw counts |
 | Prevalence cut 10-25% before DA | Nearing 2022 *Nat Commun* 13:342; tool defaults | rare features crush the BH denominator; declare and test sensitivity |
-| ALDEx2 `we.eBH` <= 0.05 AND `|effect|` > 1 | Gloor 2016 *J Comput Graph Stat* 25:971 | gate on a ~2-SD standardized effect, not p alone; large n makes trivial diffs "significant" |
+| ALDEx2 `we.eBH` <= 0.05 AND `|effect|` > 1 | Gloor 2016 *J Comput Graph Stat* 25:971 | gate on the standardized effect (|effect|>1 = between-group diff exceeds within-condition dispersion), not p alone; large n makes trivial diffs "significant" |
 | Consensus of >=2 CoDA tools | Nearing 2022 *Nat Commun* 13:342 | tool choice drives the hit list more than biology; intersection = confident |
 | PICRUSt2 `--max_nsti` 2.0 (default) | Douglas 2020 *Nat Biotechnol* 38:685 | ASVs >2 substitutions/site from a reference genome are too extrapolated; report the dropped read fraction |
 
@@ -256,7 +258,7 @@ picrust2_pipeline.py -s asv_seqs.fna -i asv_table.biom -o picrust2_out -p 8 --ma
 - Schloss PD. 2024. Rarefaction is currently the best approach to control for uneven sequencing effort in amplicon sequence analyses. *mSphere* 9:e00354-23.
 - Anderson MJ, Walsh DCI. 2013. PERMANOVA, ANOSIM, and the Mantel test in the face of heterogeneous dispersions: what null hypothesis are you testing? *Ecol Monogr* 83:557-574.
 - Fernandes AD, Reid JNS, Macklaim JM, McMurrough TA, Edgell DR, Gloor GB. 2014. Unifying the analysis of high-throughput sequencing datasets by compositional data analysis. *Microbiome* 2:15.
-- Gloor GB, Macklaim JM, Fernandes AD. 2016. Displaying variation in large datasets: plotting a visual summary of effect sizes. *J Comput Graph Stat* 25:971-979.
+- Gloor GB, Macklaim JM, Fernandes AD. 2016. Displaying Variation in Large Datasets: Plotting a Visual Summary of Effect Sizes. *J Comput Graph Stat* 25:971-979.
 - Lin H, Peddada SD. 2020. Analysis of compositions of microbiomes with bias correction. *Nat Commun* 11:3514.
 - Nearing JT, Douglas GM, Hayes MG, et al. 2022. Microbiome differential abundance methods produce different results across 38 datasets. *Nat Commun* 13:342.
 - Douglas GM, Maffei VJ, Zaneveld JR, et al. 2020. PICRUSt2 for prediction of metagenome functions. *Nat Biotechnol* 38:685-688.

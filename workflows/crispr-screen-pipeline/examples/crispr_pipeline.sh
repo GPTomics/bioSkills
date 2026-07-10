@@ -1,6 +1,7 @@
 #!/bin/bash
 # Reference: MAGeCK 0.5+, ggplot2 3.5+, matplotlib 3.8+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 # Complete CRISPR screen analysis pipeline
+set -e
 
 # Configuration
 LIBRARY="library.csv"
@@ -28,10 +29,12 @@ mageck test \
 
 # Step 3: Extract hits
 echo "Step 3: Calling hits..."
-python3 << 'EOF'
+python3 - "${OUTPUT_PREFIX}" << 'EOF'
+import sys
 import pandas as pd
 
-gene_summary = pd.read_csv('screen_analysis_rra.gene_summary.txt', sep='\t')
+prefix = sys.argv[1]
+gene_summary = pd.read_csv(f'{prefix}_rra.gene_summary.txt', sep='\t')
 
 # Negative selection hits (dropout)
 neg_hits = gene_summary[(gene_summary['neg|fdr'] < 0.05) & (gene_summary['neg|lfc'] < -0.5)]

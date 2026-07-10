@@ -1,7 +1,7 @@
 # Compensation and Transformation - Usage Guide
 
 ## Overview
-Compensation removes fluorophore spillover on conventional cytometers (a linear matrix subtraction); spectral cytometers instead solve an overdetermined unmixing of the full emission spectrum, with autofluorescence modeled as an extra signature. Transformation (logicle/biexponential for fluorescence, arcsinh for mass) then stabilizes variance so populations separate. The key expert point this skill encodes: neither compensation nor unmixing removes spreading error - the Poisson-driven widening of negative populations - which is fixed at panel design, not downstream. It also covers the load-bearing compensate-then-transform ordering and the arcsinh cofactor decision.
+Compensation removes fluorophore spillover on conventional cytometers (a linear matrix subtraction); spectral cytometers instead solve an overdetermined unmixing of the full emission spectrum, with autofluorescence modeled as an extra signature. Transformation (logicle/biexponential for fluorescence, arcsinh for mass) then stabilizes variance so populations separate. The key expert point this skill encodes: neither compensation nor unmixing removes spreading error - the Poisson-driven widening of negative populations - which is fixed at panel design, not downstream. It also covers the compensate-then-transform ordering, which cannot be swapped, and the arcsinh cofactor decision.
 
 ## Prerequisites
 ```bash

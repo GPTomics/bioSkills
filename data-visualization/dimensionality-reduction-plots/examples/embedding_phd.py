@@ -15,6 +15,8 @@ import phate
 sc.set_figure_params(dpi_save=300, figsize=(4, 4), frameon=False)
 sc.settings.figdir = './figures/'                # REPLACE WITH ABSOLUTE PATH IN PRODUCTION; relative ./figures/ for testing
 
+adata = sc.read_h5ad('processed.h5ad')           # QC-filtered counts; the category README covers upstream QC
+
 # 1. PCA -- variance-explained axes, deterministic
 sc.pp.normalize_total(adata, target_sum=1e4)
 sc.pp.log1p(adata)

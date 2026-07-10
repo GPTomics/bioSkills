@@ -67,7 +67,7 @@ Tell your AI agent what you want to do:
 - Prefer RPC over the textbook-default CP in EpiDISH; it is more robust to noisy CpGs.
 - When entering fractions as covariates, drop one reference cell type (or use a compositional transform) - all K fractions sum to ~1 and are collinear.
 - Reference-free correction can absorb real biology; use it only when no reference exists and confirm top hits survive.
-- A cell-type-specific call from bulk is a hypothesis about what to sort next, not a finding; validate load-bearing attributions in sorted or single-cell data.
+- A cell-type-specific call from bulk is a hypothesis about what to sort next, not a finding; validate the attributions your conclusions rest on in sorted or single-cell data.
 - Report each cell type's mean fraction alongside any cell-type-resolved result; distrust specific calls for cell types below ~5%.
 
 ## Related Skills

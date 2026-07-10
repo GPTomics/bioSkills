@@ -49,6 +49,15 @@ Tell your AI agent what you want to do:
 
 > "Compare peaks between treatment and control with DiffBind background-bin normalization."
 
+### Pipeline-level decisions
+> "Which ENCODE blacklist do I use and when in the pipeline do I subtract it?"
+
+> "Why are my NRF/PBC values all ~1.0 - when should complexity be computed?"
+
+> "I ran a spike-in (ChIP-Rx) experiment - how do I make tracks without erasing the global shift?"
+
+> "Should I call peaks per replicate or pooled, and how does that affect IDR?"
+
 ## Input Requirements
 
 | Input | Format | Description |
@@ -96,7 +105,7 @@ ENCODE-style replicate concordance differs by mark type. Use the matching method
 | Sharp histone (H3K4me3, H3K27ac) | IDR or naive overlap | Same as TF or >=40% reciprocal |
 | Broad histone (H3K27me3, H3K36me3) | Naive overlap | >=40% reciprocal, present in >=2 of N replicates |
 
-Apply the ENCODE Nself/Nt consistency rule for IDR: both `max(N_t, max(N_self)) / min(...)` and per-replicate self-consistency ratios must be <= 2.
+Apply the ENCODE IDR consistency rules: the rescue ratio `max(Np, Nt) / min(Np, Nt)` (pooled-pseudoreplicate vs true-replicate peak counts) and the self-consistency ratio `max(N1, N2) / min(N1, N2)` must both be <= 2.
 
 ## When to Use Spike-In Normalization
 

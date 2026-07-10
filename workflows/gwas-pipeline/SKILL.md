@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-gwas-pipeline
-description: End-to-end GWAS workflow from VCF to association results. Covers PLINK QC, population structure correction, and association testing for case-control or quantitative traits. Use when running genome-wide association studies.
+description: Orchestrates the GWAS pipeline from genotypes to association results, chaining PLINK2 QC (variant-then-sample missingness, controls-only HWE, KING relatedness), panel harmonization + joint phasing/imputation to dosages, long-range-LD-excluded PCA, and an engine chosen by sample structure (PLINK2-GLM / regenie / SAIGE / BOLT-LMM), with LDSC-intercept diagnostics. Use when committing the genome build + ancestry-matched imputation panel once (ancestry match > panel size), running the strand/allele harmonization gate (drop intermediate-frequency palindromes), imputing cases+controls TOGETHER on dosages, excluding long-range-LD regions before PCA, choosing an LMM when relatedness/structure is present (PCs cannot remove a covariance), or separating polygenicity from confounding via the LDSC intercept. Hands mechanism to the population-genetics and phasing-imputation component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: PLINK2
 workflow: true
@@ -23,7 +23,7 @@ qc_checkpoints:
 
 ## Version Compatibility
 
-Reference examples tested with: ggplot2 3.5+
+Reference examples tested with: PLINK 2.0 (alpha 5+), regenie 3.4+, SAIGE 1.3+, Eagle 2.4+ / SHAPEIT5, Minimac4 / Beagle 5.4, bcftools 1.19+, LDSC 1.0, qqman 0.1.9+, ggplot2 3.5+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
@@ -32,11 +32,31 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
+Note: regenie/SAIGE run a two-step design (step 1 whole-genome ridge / null GLMM on LD-pruned common markers; step 2 tests the imputed set with LOCO) — step-1 and step-2 sample IDs + variance-ratio file MUST match or calibration silently fails. Binary PLINK2 `--glm` defaults to `firth-fallback` (output `.glm.logistic.hybrid`). Sequencing/WGS and non-EUR LD shift the genome-wide threshold off the 5e-8 EUR-array folklore. Confirm in-tool before quoting.
+
 # GWAS Pipeline
 
 **"Run a GWAS from my genotype data"** -> Orchestrate sample/variant QC (PLINK2), population stratification (PCA), association testing (linear/logistic regression), multiple testing correction, and Manhattan/QQ plot visualization.
 
-Complete workflow for genome-wide association studies from genotype data to significant associations.
+This is a workflow skill: it owns the chaining decisions and hand-offs, not the internals of any one step. Every step below cross-references the component skill that teaches its mechanism.
+
+## The governing principle
+
+A GWAS result is decided at four seams, not inside the association test.
+
+1. **The genome build + ancestry-matched imputation panel is a made-once commitment.** The panel fixes what can be imputed (HRC MAF floor ~5e-4; TOPMed imputes far rarer) AND the build (HRC/1000G-P3 are GRCh37; TOPMed/1000G-NYGC are GRCh38). Ancestry match > panel size: a bigger ancestry-mismatched panel imputes WORSE because there are no matching haplotypes to copy.
+2. **Strand/allele harmonization is a made-once GATE, and the silent corruptor.** Align every study variant's alleles to the panel REF/ALT, fix strand, and DROP unresolvable palindromes (A/T, C/G at MAF>0.4). A flipped palindrome or a build mismatch flips BETA and cancels/manufactures signal WITHOUT erroring — caught only on the AF-concordance plot (points on the y=1-x anti-diagonal), not by a crash.
+3. **QC runs before association and in a defensible internal order; the engine is chosen by structure, not convenience.** Variant missingness before sample missingness; HWE in CONTROLS only (a true non-additive risk variant deviates in cases); impute cases+controls TOGETHER; exclude long-range-LD regions before PCA. PC-covariate GLM is valid only for unrelated, continuous-ancestry cohorts — relatedness/structure needs an LMM (regenie/SAIGE/BOLT) with LOCO, because PCs remove a mean shift, not a covariance.
+4. **Refuse the bare lambda.** lambda_GC alone cannot separate polygenicity from confounding — read it WITH the LDSC intercept (~1 = polygenic, fine; >1 = confounding). Do not reflexively genomic-control (it over-corrects true signal). Filter INFO/R2 MAF-stratified (a flat cutoff is a hidden rare-variant filter).
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| Genome build + imputation panel (ancestry-matched) | What can be imputed + the build; ancestry mismatch imputes worse regardless of size |
+| Strand/allele harmonization | A flipped palindrome / build mismatch flips BETA silently; drop MAF>0.4 palindromes |
+| Ancestry/LD reference for structure | Flows into PCA and (if LMM) the GRM; must match the cohort |
+| Association engine (by structure) | PC-GLM (unrelated) vs LMM+LOCO (related/structured); SPA/Firth for imbalance/low MAC |
 
 ## Workflow Overview
 
@@ -72,17 +92,12 @@ Significant associations
 ```bash
 # VCF to PLINK binary format
 plink2 --vcf input.vcf.gz \
-    --make-bed \
-    --out study
-
-# Or with phenotype/covariate files
-plink2 --vcf input.vcf.gz \
     --pheno phenotypes.txt \
     --make-bed \
-    --out study
+    --out study   # load --pheno at conversion so PHENO1 is in the .fam for the controls-only HWE gate below
 ```
 
-QC order is load-bearing (-> population-genetics/plink-basics): variant missingness runs FIRST, in its own invocation, so a sample is not dropped for missingness driven by variants slated for removal.
+QC order is critical (-> population-genetics/plink-basics): variant missingness runs FIRST, in its own invocation, so a sample is not dropped for missingness driven by variants slated for removal.
 
 ### Variant call-rate (first)
 
@@ -190,7 +205,15 @@ ggsave('pca_plot.pdf', width = 8, height = 6)
 
 Run the association on imputed DOSAGES, not hard calls, so the imputation uncertainty is propagated (PLINK2 reads dosages with `--vcf imputed.qc.vcf.gz dosage=DS`, or use a `.pgen` built from dosages). The examples below use the QC'd best-guess genotypes for brevity; substitute the dosage input for an imputed analysis.
 
-The engine choice is set by sample structure, not convenience (-> population-genetics/association-testing). PC-covariate GLM (below) is valid only for unrelated samples whose confounding is continuous ancestry; any related, family-based, or fine-scale-structured cohort needs a linear mixed model (BOLT-LMM, SAIGE, regenie) with leave-one-chromosome-out, because PCs cannot remove a covariance structure. Use SPA (SAIGE) or Firth when the case:control ratio is more extreme than ~1:10 or minor-allele counts are low. For aggregating rare variants by gene rather than testing them one at a time, branch to population-genetics/rare-variant-association (burden/SKAT/SKAT-O via SAIGE-GENE+/regenie).
+The engine choice is set by sample structure, not convenience (-> population-genetics/association-testing). PC-covariate GLM (below) is valid only for unrelated samples whose confounding is continuous ancestry; any related, family-based, or fine-scale-structured cohort needs a linear mixed model with leave-one-chromosome-out, because PCs cannot remove a covariance structure.
+
+| Situation | Engine | Hand off to |
+|-----------|--------|-------------|
+| Unrelated, continuous-ancestry confounding only | PLINK2 `--glm` (PC covariates) | population-genetics/association-testing |
+| Relatedness / family / fine-scale structure | LMM (regenie / SAIGE / BOLT-LMM) with LOCO | population-genetics/association-testing |
+| Biobank binary, case:control worse than ~1:10 or low MAC | SAIGE (SPA) or regenie (`--firth`/`--spa`) | population-genetics/association-testing |
+| Rare-variant, aggregate by gene | burden/SKAT/SKAT-O via SAIGE-GENE+/regenie | population-genetics/rare-variant-association |
+| Threshold | 5e-8 is EUR-common-array folklore; ~1e-8-3e-8 (African LD), ~5e-9 (WGS/rare) | population-genetics/association-testing |
 
 ### Case-Control (Binary Trait)
 
@@ -241,8 +264,13 @@ plink2 --bfile study_qc \
 library(qqman)
 
 # Load results
-results <- read.table('gwas_results.PHENO.glm.logistic.hybrid', header = TRUE)
+# comment.char='' is REQUIRED: PLINK2's header starts with '#CHROM', which the default
+# comment.char='#' would eat (dropping the header and the first variant).
+results <- read.table('gwas_results.PHENO.glm.logistic.hybrid', header = TRUE, comment.char = '')
 results <- results[!is.na(results$P),]
+# qqman's manhattan needs a NUMERIC chromosome: recode X/Y/MT (e.g. X->23) or filter to autosomes first.
+results$X.CHROM <- suppressWarnings(as.integer(sub('^chr', '', results$X.CHROM)))
+results <- results[!is.na(results$X.CHROM),]
 
 # Manhattan plot
 png('manhattan.png', width = 1200, height = 600)
@@ -288,15 +316,26 @@ awk 'NR==1{for(i=1;i<=NF;i++) if($i=="P") p=i; print; next} $p<1e-5' \
 | PCA | --pca | 10 |
 | Significance | p-value | 5e-8 |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| Elevated lambda | Polygenicity OR confounding - lambda alone cannot tell them apart | Check the LDSC intercept (~1 = polygenic inflation, not confounding); do NOT reflexively genomic-control, which over-corrects true signal |
-| Residual structure after PCs | Relatedness/fine-scale structure (a covariance PCs cannot remove) | Switch to a linear mixed model (BOLT-LMM/SAIGE/regenie) with LOCO |
-| Inflation at low MAC or extreme case:control ratio | Score/Wald test anti-conservative | Use SPA (SAIGE) or Firth regression |
-| No significant hits | Low power | Increase sample size, meta-analysis; for rare variants aggregate by gene (rare-variant-association) |
-| QQ deviation at low end | Batch effects / differential missingness | Check technical artifacts and case/control missingness skew |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| "0 variants matched" the panel | chr-naming (`1` vs `chr1`) or build mismatch | `bcftools annotate --rename-chrs`; match study build to the panel before any check |
+| Flipped BETA / cancelled or manufactured signal | Strand-flip / allele-swap at intermediate-frequency palindromes | Run the Rayner check + AF-concordance FreqPlot; drop MAF>0.4 palindromes |
+| Case-control association that is imputation artifact | Cases and controls imputed SEPARATELY | Impute jointly; separate imputation makes error differ between arms |
+| Disproportionate rare-variant loss | Flat INFO/R2 cutoff | MAF-stratified R2 thresholds + a MAF floor |
+| A PC tracks an inversion, not ancestry | Long-range-LD region kept before pruning | Exclude MHC/8p23.1/17q21.31/LCT BEFORE `--indep-pairwise` |
+| Elevated lambda | Polygenicity OR confounding (lambda alone cannot separate) | Read the LDSC intercept (~1 = polygenic, fine); do NOT reflexively genomic-control |
+| Residual structure after PCs | Relatedness/fine-scale structure (a covariance PCs cannot remove) | LMM (regenie/SAIGE/BOLT) with LOCO |
+| Inflation at low MAC / extreme case:control ratio | Score/Wald anti-conservative | SPA (SAIGE) or Firth |
+| chrX mis-analyzed | chrX coded as an autosome | split-PAR, sex covariate, explicit X handling |
+
+## References
+
+- McCarthy S, Das S, Kretzschmar W, et al (2016) A reference panel of 64,976 haplotypes for genotype imputation. *Nature Genetics* 48:1279-1283. DOI 10.1038/ng.3643. (HRC.)
+- Taliun D, Harris DN, Kessler MD, et al (2021) Sequencing of 53,831 diverse genomes from the NHLBI TOPMed Program. *Nature* 590:290-299. DOI 10.1038/s41586-021-03205-y. (TOPMed diversity.)
+- Sheng X, Xia L, Cahoon JL, et al (2023) Inverted genomic regions between reference genome builds. *HGG Advances* 4:100159. DOI 10.1016/j.xhgg.2022.100159. (liftover/BBIS strand danger.)
+- Mbatchou J, Barnard L, Backman J, et al (2021) Computationally efficient whole-genome regression for quantitative and binary traits. *Nature Genetics* 53:1097-1103. DOI 10.1038/s41588-021-00870-7. (regenie.)
 
 ## Complete Pipeline Script
 
@@ -311,7 +350,7 @@ OUTDIR="gwas_results"
 mkdir -p ${OUTDIR}
 
 # Step 1: Convert, then QC in order (variant missingness, then sample, then MAF + controls-only HWE).
-plink2 --vcf ${INPUT_VCF} --make-bed --out ${OUTDIR}/raw
+plink2 --vcf ${INPUT_VCF} --pheno ${PHENO} --make-bed --out ${OUTDIR}/raw   # --pheno embeds PHENO1 in .fam for the controls-only HWE gate
 plink2 --bfile ${OUTDIR}/raw --geno 0.05 --make-bed --out ${OUTDIR}/var_qc
 plink2 --bfile ${OUTDIR}/var_qc --mind 0.05 --king-cutoff 0.0884 --make-bed --out ${OUTDIR}/samp_qc
 plink2 --bfile ${OUTDIR}/samp_qc --keep-if "PHENO1 == control" --hwe 1e-6 midp \
@@ -350,3 +389,4 @@ echo "Results: ${OUTDIR}/gwas.*.glm.*"
 - population-genetics/association-testing - Single-variant models (PC-GLM vs LMM, SPA/Firth) on dosages
 - population-genetics/rare-variant-association - Gene-based burden/SKAT/SKAT-O for rare variants
 - population-genetics/linkage-disequilibrium - LD concepts
+- workflows/causal-genomics-pipeline - Downstream: the emitted sumstats (CHR/POS/EA/OA/EAF/BETA/SE/P/N, build documented) are its input contract

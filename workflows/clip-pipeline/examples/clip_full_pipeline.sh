@@ -15,10 +15,14 @@ SMINPUT_R1=$3
 SMINPUT_R2=$4
 STAR_INDEX=$5
 GENOME_FA=$6
-SPECIES=${7:-"hg38"}
-PROTOCOL=${8:-"eclip"}        # eclip | iclip2 | parclip
+SPECIES=${7:-"GRCh38"}    # CLIPper species key; bundled annotations use GRCh38, not hg38
+PROTOCOL=${8:-"eclip"}        # eclip (paired-end); iclip2/parclip are single-end -- see guard in case block
 OUTPUT_DIR=${9:-"clip_results"}
 THREADS=${10:-8}
+# Motif background inputs. The background must be drawn from the EXPRESSED transcriptome, not the whole
+# genome and not HOMER's auto-scramble, or a UV-CLIP motif logo collapses to a U/AU-rich artifact.
+CHROM_SIZES=${11:-"${GENOME_FA}.chrom.sizes"}
+EXPRESSED_3UTR_BED=${12:-"expressed_3utr.bed"}
 
 mkdir -p ${OUTPUT_DIR}/{preprocessed,aligned,qc,peaks,crosslinks,annotation,motifs}
 
@@ -32,18 +36,11 @@ case $PROTOCOL in
     TWO_PASS="yes"
     MISMATCH=0.04
     ;;
-  iclip2)
-    # Assumes demultiplexed input. For multiplexed, demultiplex by NNNXXXXNN library barcode first.
-    UMI_PATTERN="NNNNN"
-    ADAPTER_3P_R1="AGATCGGAAGAGCGGTTCAG"
-    TWO_PASS="no"
-    MISMATCH=0.04
-    ;;
-  parclip)
-    UMI_PATTERN="NNNN"
-    ADAPTER_3P_R1="TCGTATGCCGTCTTCTGCTTG"
-    TWO_PASS="no"
-    MISMATCH=0.07   # PAR-CLIP exception: T->C signal would otherwise be filtered
+  iclip2|parclip)
+    # iCLIP2/PAR-CLIP are single-end; this reference script implements the paired-end eCLIP path
+    # only (its R2-dependent umi_tools/cutadapt/STAR steps have no single-end equivalent here).
+    echo "PROTOCOL=$PROTOCOL is single-end. Use the clip-seq/clip-preprocessing + clip-seq/clip-alignment single-end flow (crosslink from R1 5', no R2 steps; PAR-CLIP raises STAR mismatch to 0.07 for T->C)." >&2
+    exit 1
     ;;
   *) echo "Unknown protocol: $PROTOCOL"; exit 1 ;;
 esac
@@ -137,9 +134,8 @@ clipper \
     -s $SPECIES \
     -o ${OUTPUT_DIR}/peaks/clipper.bed \
     --FDR 0.05 \
-    --superlocal \
     --save-pickle \
-    --processors $THREADS
+    --processors $THREADS   # super-local p-values are hard-coded ON in current CLIPper; --superlocal was removed
 
 # SMInput normalization: log2(IP/SMI) and -log10 p per peak
 # Requires Yeo lab eclip-pipeline scripts on PATH (github.com/YeoLab/eclip)
@@ -196,9 +192,23 @@ echo "=== Motif analysis ==="
 bedtools getfasta -fi $GENOME_FA -bed ${OUTPUT_DIR}/peaks/stringent.bed -s \
     -fo ${OUTPUT_DIR}/motifs/peaks.fa
 
+# Motif discovery runs ONLY with an explicit GC-matched background. WITHOUT -fasta, HOMER falls back to
+# first-order-scrambling the input, which on a UV-CLIP library yields a spuriously U/AU-rich logo -- the
+# exact artifact the stringent peaks were called to avoid. So if the background inputs are absent, SKIP
+# the step rather than produce a misleading logo. -incl restricts the shuffle to the expressed
+# transcriptome so the background matches peak nucleotide composition, not the whole genome.
 if command -v findMotifs.pl > /dev/null; then
-    findMotifs.pl ${OUTPUT_DIR}/motifs/peaks.fa fasta ${OUTPUT_DIR}/motifs/homer \
-        -rna -len 5,6,7,8 -p $THREADS
+    if [ -f "$CHROM_SIZES" ] && [ -f "$EXPRESSED_3UTR_BED" ]; then
+        bedtools shuffle -i ${OUTPUT_DIR}/peaks/stringent.bed -g "$CHROM_SIZES" \
+            -incl "$EXPRESSED_3UTR_BED" -seed 42 > ${OUTPUT_DIR}/motifs/background.bed
+        bedtools getfasta -fi $GENOME_FA -bed ${OUTPUT_DIR}/motifs/background.bed -s \
+            -fo ${OUTPUT_DIR}/motifs/background.fa
+        findMotifs.pl ${OUTPUT_DIR}/motifs/peaks.fa fasta ${OUTPUT_DIR}/motifs/homer \
+            -rna -len 5,6,7,8 -p $THREADS -fasta ${OUTPUT_DIR}/motifs/background.fa
+    else
+        echo "SKIP motif discovery: needs CHROM_SIZES ('$CHROM_SIZES') and EXPRESSED_3UTR_BED ('$EXPRESSED_3UTR_BED')." >&2
+        echo "  Running HOMER without -fasta would auto-scramble the input and report a spurious U/AU-rich logo." >&2
+    fi
 fi
 
 echo ""

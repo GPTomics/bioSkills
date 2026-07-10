@@ -2,7 +2,7 @@
 
 ## Overview
 
-Assigns cell-type identities to segmented IMC/MIBI cells from marker expression. The load-bearing point: a "cell type" in imaging is an inference conditioned on a segmentation guess, so the most dangerous phenotypes (CD3+CD20+ double-positives) are usually boundary artifacts, not biology -- clustering invents them as named populations while marker-dictionary classifiers refuse them, which is why the choice of method matters as much as the parameters.
+Assigns cell-type identities to segmented IMC/MIBI cells from marker expression. The core caveat: a "cell type" in imaging is an inference conditioned on a segmentation guess, so the most dangerous phenotypes (CD3+CD20+ double-positives) are usually boundary artifacts, not biology -- clustering invents them as named populations while marker-dictionary classifiers refuse them, which is why the choice of method matters as much as the parameters.
 
 ## Prerequisites
 

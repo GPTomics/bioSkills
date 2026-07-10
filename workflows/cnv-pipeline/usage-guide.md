@@ -2,7 +2,7 @@
 
 ## Overview
 
-This workflow detects copy number variants from exome or targeted sequencing data using CNVkit.
+This workflow detects copy number variants and forks by question: germline CNVs -> GATK gCNV; somatic exome/panel -> CNVkit; WGS -> ASCAT/FACETS/PURPLE; cfDNA -> ichorCNA. It commits the build + target BED + assay-matched panel-of-normals, builds the reference before segmentation, fits purity/ploidy before integer calls, and diploid-centers before GISTIC2. CNVkit (below) is the somatic exome/panel path.
 
 ## Prerequisites
 

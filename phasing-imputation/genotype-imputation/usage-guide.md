@@ -2,7 +2,7 @@
 
 ## Overview
 
-Impute untyped genotypes against a reference panel - for array data (Beagle, Minimac4, IMPUTE5) or low-coverage WGS from genotype likelihoods (GLIMPSE2, QUILT2, STITCH). The load-bearing idea is that an imputed genotype is a posterior, not a measurement: the deliverable is a dosage (expected alt-allele count in [0,2]) plus a self-estimated quality (Beagle DR2, Minimac R2, IMPUTE INFO) that estimates r2 from the posterior spread without ever seeing the truth. Downstream GWAS regresses on dosages, not hard calls. This skill covers engine choice, the dosage/quality output fields, the phasing prerequisite, per-chromosome chunking, the Michigan/TOPMed servers, and low-coverage WGS as the modern array replacement. It routes phasing, panel preparation, and quality filtering to sibling skills.
+Impute untyped genotypes against a reference panel - for array data (Beagle, Minimac4, IMPUTE5) or low-coverage WGS from genotype likelihoods (GLIMPSE2, QUILT2, STITCH). The idea that shapes downstream use is that an imputed genotype is a posterior, not a measurement: the deliverable is a dosage (expected alt-allele count in [0,2]) plus a self-estimated quality (Beagle DR2, Minimac R2, IMPUTE INFO) that estimates r2 from the posterior spread without ever seeing the truth. Downstream GWAS regresses on dosages, not hard calls. This skill covers engine choice, the dosage/quality output fields, the phasing prerequisite, per-chromosome chunking, the Michigan/TOPMed servers, and low-coverage WGS as the modern array replacement. It routes phasing, panel preparation, and quality filtering to sibling skills.
 
 ## Prerequisites
 

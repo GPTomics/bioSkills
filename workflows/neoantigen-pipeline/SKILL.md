@@ -1,6 +1,6 @@
 ---
 name: bio-workflows-neoantigen-pipeline
-description: End-to-end neoantigen discovery from somatic variants to ranked vaccine candidates. Integrates HLA typing, MHC binding prediction, pVACtools neoantigen calling, and immunogenicity scoring. Use when identifying tumor neoantigens for personalized vaccine design or checkpoint biomarkers.
+description: Orchestrates neoantigen discovery from somatic variants to ranked vaccine candidates, chaining HLA typing (OptiType/arcasHLA + LOHHLA), VEP annotation (Wildtype+Frameshift plugins) + expression/readcount annotation, proximal-variant phasing, pVACseq MHC-I/II binding, CCF/clonality, and immunogenicity/quality ranking. Use when recognizing that binding is single-digit PPV and the critical steps are downstream (full-resolution HLA + LOH gating, proximal-variant phasing, clonality from purity+CN not raw VAF, expression), sequencing normalize+annotate -> phase -> HLA -> binding -> quality in the defensible order, dropping candidates on LOH-lost alleles, supplying --phased-proximal-variants-vcf so the mutant peptide is real, or ranking WITHIN patient rather than a fixed IC50 threshold. Hands mechanism to the immunoinformatics component skills; not a re-teach of any single step.
 tool_type: mixed
 primary_tool: pVACtools
 goal_approach_exempt: true
@@ -14,14 +14,14 @@ depends_on:
   - immunoinformatics/epitope-prediction
 qc_checkpoints:
   - after_hla: "HLA types resolved to 4-digit, coverage adequate"
-  - after_binding: "Predictions generated for all alleles, IC50 <500nM filter"
-  - after_neoantigen: "Neoantigens identified with VAF >0.1, expressed"
-  - after_scoring: "Top candidates prioritized by immunogenicity"
+  - after_binding: "Predictions for ALL alleles (LOH-lost alleles dropped); ranked within patient, not hard-thresholded across patients"
+  - after_neoantigen: "Expressed (RNA-confirmed); clonality via CCF from purity+CN, not raw VAF"
+  - after_scoring: "Top candidates are a tier-1 hypothesis list for MS + T-cell validation"
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: Ensembl VEP 111+, MHCflurry 2.1+, OptiType 1.3+, matplotlib 3.8+, numpy 1.26+, pVACtools 4.1+, pandas 2.2+, seaborn 0.13+
+Reference examples tested with: Ensembl VEP 111+, pVACtools 4.1+ (Frameshift plugin REPLACED the legacy Downstream in 2.0+), MHCflurry 2.1+, NetMHCpan 4.1, OptiType 1.3+ / arcasHLA, LOHHLA, WhatsHap 2.0+ (phasing), matplotlib 3.8+, numpy 1.26+, pandas 2.2+, seaborn 0.13+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -38,7 +38,26 @@ Complete workflow from somatic variants to ranked neoantigen vaccine candidates 
 
 ## Key Judgment -- binding is the easy part; PPV lives downstream
 
-A binding-only pipeline has single-digit-percent positive predictive value (TESLA; Wells 2020 Cell 183:818). The load-bearing steps are downstream of binding: correct full-resolution HLA typing (wrong allele = confident garbage), HLA loss-of-heterozygosity (run LOHHLA and DROP candidates on a lost allele — it invalidates predictions silently), proximal-variant phasing (supply `--phased-proximal-variants-vcf` or the mutant peptide is wrong), cancer cell fraction for clonality (clonal beats subclonal; use purity + copy number, not raw VAF), expression, and quality features (agretopicity, foreignness). Treat the ranked output as a tier-1 hypothesis list for immunopeptidomics MS and functional T-cell validation, not a final answer. Add MHC class II (CD4) neoantigens for vaccine help (see immunoinformatics/mhc-class-ii-prediction). Note on DAI below: agretopicity is most often the WT/MT binding ratio; whichever form is used, an anchor-position mutation inflates it without changing the TCR-facing surface, and a barely-presented WT makes it unstable — pair it with anchor evaluation.
+A binding-only pipeline has single-digit-percent positive predictive value (TESLA; Wells 2020 Cell 183:818). The critical steps are downstream of binding: correct full-resolution HLA typing (wrong allele = confident garbage), HLA loss-of-heterozygosity (run LOHHLA and DROP candidates on a lost allele — it invalidates predictions silently), proximal-variant phasing (supply `--phased-proximal-variants-vcf` or the mutant peptide is wrong), cancer cell fraction for clonality (clonal beats subclonal; use purity + copy number, not raw VAF), expression, and quality features (agretopicity, foreignness). Treat the ranked output as a tier-1 hypothesis list for immunopeptidomics MS and functional T-cell validation, not a final answer. Add MHC class II (CD4) neoantigens for vaccine help (see immunoinformatics/mhc-class-ii-prediction). Note on DAI below: agretopicity is most often the WT/MT binding ratio; whichever form is used, an anchor-position mutation inflates it without changing the TCR-facing surface, and a barely-presented WT makes it unstable — pair it with anchor evaluation.
+
+## Made-once commitments
+
+| Commitment | Consequence inherited downstream |
+|------------|----------------------------------|
+| HLA typing at full 4-digit resolution (class I + II) | A wrong allele is confident garbage; every binding prediction inherits it; reconcile DNA vs RNA calls |
+| Variant source + somatic caller (matched-normal preferred) | Tumor-only calling leaks germline; indels/frameshifts are disproportionately valuable; expression must be RNA-confirmed and annotated INTO the VCF |
+| Proximal-variant phasing | Without it the mutant peptide is one the tumor never makes; germline SNPs in cis are especially treacherous |
+| HLA-LOH gate | Candidates on a lost allele are silently invalid (~17% pan-cancer, 30%+ HNSCC/NSCLC/cervical) |
+
+## The canonical order and why
+
+Somatic PASS calls -> normalize + VEP-annotate (Wildtype + Frameshift plugins) -> annotate expression + DNA/RNA readcounts INTO the VCF -> PHASE proximal variants -> HLA typing + LOHHLA -> MHC binding -> clonality (CCF from purity+CN) -> quality features -> tier/rank -> pVACview review.
+
+- **Order-trap 1 - normalize + annotate with the RIGHT plugins BEFORE pVACseq.** pVACseq needs the Wildtype plugin (matched WT peptide -> agretopicity) and the Frameshift plugin (novel ORF); Frameshift REPLACED the legacy Downstream in pVACtools 2.0+. Normalize before annotate.
+- **Order-trap 2 - PHASE proximal variants BEFORE translating the mutant peptide.** THE review-sinker: editing variants independently yields a peptide the patient never makes. Merge somatic+germline, phase (WhatsHap/GATK), supply `--phased-proximal-variants-vcf`.
+- **Order-trap 3 - HLA typing (+ LOHHLA) BEFORE binding.** Binding is per-allele; a wrong or lost allele makes every downstream prediction garbage. Drop LOH-lost alleles before ranking.
+- **Order-trap 4 - CCF/clonality from purity+copy-number BEFORE calling something subclonal.** Low purity makes clonal look subclonal; correct VAF to cancer-cell fraction (copy-number/allele-specific-copy-number). Clonal beats subclonal.
+- **Order-trap 5 - rank WITHIN patient; do NOT hard-threshold IC50 across patients.** Immunogenicity scores are relative.
 
 ## Workflow Overview
 
@@ -68,7 +87,7 @@ pip install pvactools mhcflurry vatools
 
 mhcflurry-downloads fetch
 
-conda install -c bioconda vep arcashla optitype
+conda install -c bioconda ensembl-vep arcas-hla optitype
 ```
 
 ## Primary Path: pVACseq Pipeline
@@ -81,7 +100,7 @@ HLA types are critical for MHC binding prediction. If not already known from cli
 # From tumor RNA-seq BAM
 arcasHLA extract tumor.bam -t 8 -o hla_output/
 arcasHLA genotype hla_output/tumor.extracted.1.fq.gz hla_output/tumor.extracted.2.fq.gz \
-    -g A,B,C,DRB1,DQB1,DPB1 -t 8 -o hla_output/
+    -g A,B,C,DRB1,DQB1,DQA1,DPB1,DPA1 -t 8 -o hla_output/   # type the DQA1/DPA1 alpha chains too: NetMHCIIpan needs PAIRED DQ/DP alleles
 
 # Parse results
 cat hla_output/tumor.genotype.json
@@ -96,7 +115,8 @@ with open('hla_output/tumor.genotype.json') as f:
 hla_alleles = []
 for gene, alleles in hla_data.items():
     for allele in alleles:
-        hla_alleles.append(f'HLA-{allele}')
+        # arcasHLA emits 3-field alleles (A*01:01:01); pVACseq/IEDB validate 2-field (HLA-A*01:01)
+        hla_alleles.append('HLA-' + ':'.join(allele.split(':')[:2]))
 
 # Format for pVACseq: HLA-A*02:01,HLA-A*24:02,HLA-B*07:02,...
 hla_string = ','.join(hla_alleles)
@@ -122,6 +142,12 @@ vcf-expression-annotator somatic.vep.vcf \
     expression.tsv custom gene \
     -s tumor_sample --id-column gene_id --expression-column tpm \
     -o somatic.vep.expression.vcf
+
+# PHASE proximal variants (the review-sinker). Merge somatic + germline, phase with WhatsHap,
+# and pass the result to pVACseq via --phased-proximal-variants-vcf so a second variant in the
+# same codon-window (esp. a germline SNP in cis) yields the peptide the tumor ACTUALLY makes.
+whatshap phase -o phased.vcf.gz --reference reference.fa somatic_plus_germline.vcf.gz tumor.bam
+tabix -p vcf phased.vcf.gz
 ```
 
 ### Step 3: Run pVACseq (Ensembl VEP 111+)
@@ -146,11 +172,14 @@ pvacseq run \
     MHCflurry NetMHCpan \
     pvacseq_output/ \
     -e1 8,9,10,11 \
+    --phased-proximal-variants-vcf phased.vcf.gz \
     --tumor-purity 0.7 \
-    --trna-vaf 0.1 \
+    --tdna-vaf 0.1 \
     --expn-val 1 \
     -t 8
 ```
+
+Drop candidates on HLA-LOH-lost alleles (run LOHHLA/DASH) BEFORE ranking, and correct clonality to cancer-cell fraction (CCF from purity + copy number, not raw VAF; see copy-number/allele-specific-copy-number) — the raw-VAF filter below is a coarse proxy.
 
 ### Step 4: Filter and Rank Candidates
 
@@ -164,9 +193,9 @@ results = pd.read_csv('pvacseq_output/MHC_Class_I/tumor_sample.filtered.tsv', se
 # IC50 <500nM: strong binder; 500-5000nM: weak binder
 strong_binders = results[results['Median MT IC50 Score'] < 500].copy()
 
-# Differential agretopicity index (DAI): difference between MT and WT binding
-# Higher DAI = more tumor-specific
-strong_binders['DAI'] = strong_binders['Median WT IC50 Score'] - strong_binders['Median MT IC50 Score']
+# Differential agretopicity index (DAI): WT/MT IC50 ratio (== pVACtools Fold Change), matching the
+# WT/MT ratio definition. DAI > 1 = MT binds better than WT (mutation created/improved binding); higher = more tumor-specific.
+strong_binders['DAI'] = strong_binders['Median WT IC50 Score'] / strong_binders['Median MT IC50 Score']
 
 # Expression filter (if available)
 if 'Gene Expression' in strong_binders.columns:
@@ -186,10 +215,10 @@ def immunogenicity_score(row):
     elif row['Median MT IC50 Score'] < 500:
         score += 2
 
-    # High DAI (tumor-specificity)
-    if row['DAI'] > 1000:
+    # High DAI (tumor-specificity). DAI is the WT/MT IC50 ratio: >1 = MT binds better than WT.
+    if row['DAI'] > 10:
         score += 2
-    elif row['DAI'] > 500:
+    elif row['DAI'] > 2:
         score += 1
 
     # Clonal mutation (high VAF)
@@ -224,7 +253,7 @@ print(ranked[['Gene Name', 'MT Epitope Seq', 'HLA Allele', 'Median MT IC50 Score
 pvacseq run \
     somatic.vep.vcf \
     tumor_sample \
-    "DRB1*01:01,DRB1*07:01,DQB1*02:01,DQB1*03:01" \
+    "DRB1*01:01,DRB1*07:01,DQA1*05:01-DQB1*02:01,DQA1*03:01-DQB1*03:01" \
     MHCnuggetsII NetMHCIIpan \
     pvacseq_class2_output/ \
     -e2 15 \
@@ -295,17 +324,26 @@ plt.savefig('neoantigen_summary.pdf')
 | Filtering | IC50 | <500nM | Standard strong binder threshold |
 | Filtering | VAF | >0.1 | Ensures clonal representation |
 | Filtering | Expression | >1 TPM | Detectable transcription |
-| Ranking | DAI | >500 | Good tumor specificity |
+| Ranking | DAI (WT/MT IC50 ratio) | >2 moderate, >10 strong | MT binds better than WT (>1); higher = more tumor-specific |
 
-## Troubleshooting
+## Common Errors
 
-| Issue | Likely Cause | Solution |
-|-------|--------------|----------|
-| No neoantigens found | Low mutation burden | Lower IC50 threshold to 1000nM |
-| Missing HLA alleles | Incomplete typing | Use OptiType with WES data |
-| VEP annotation errors | Plugin missing | Install Frameshift, Wildtype plugins |
-| Expression data mismatch | Sample naming | Verify sample IDs match between VCF and expression |
-| Low DAI values | Germline contamination | Ensure proper somatic filtering |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Peptides the tumor never makes | Proximal variants edited independently (unphased) | `--phased-proximal-variants-vcf` (WhatsHap/GATK); include germline in cis |
+| Frameshift ORFs lost / no agretopicity | Wrong/legacy VEP plugin (Downstream instead of Frameshift; missing Wildtype) | `pvacseq install_vep_plugin`; run `--plugin Wildtype --plugin Frameshift` |
+| Confident but invalid predictions | HLA allele wrong or on a LOH-lost haplotype | Full 4-digit typing + LOHHLA drop before ranking |
+| `--expn-val`/VAF filters silently pass everything | Expression/readcounts not annotated into the VCF | `vcf-expression-annotator` + `vcf-readcount-annotator` before pVACseq |
+| Clonal candidate mis-tiered subclonal | Raw VAF used as clonality on a low-purity tumor | CCF from purity + copy number (copy-number/allele-specific-copy-number) |
+| Candidates mis-ranked across patients | Fixed IC50 threshold applied cross-patient | Rank WITHIN patient (immunoinformatics/immunogenicity-scoring) |
+| No neoantigens found | Low mutation burden | Lower IC50 threshold to 1000nM; check TMB/MSI first |
+
+## References
+
+- Hundal J, Kiwala S, Feng YY, et al (2020) pVACtools: a computational toolkit to identify and visualize cancer neoantigens. *Cancer Immunology Research* 8:409-420. DOI 10.1158/2326-6066.CIR-19-0401.
+- Wells DK, van Buuren MM, Dang KK, et al (2020) Key parameters of tumor epitope immunogenicity revealed through a consortium approach improve neoantigen prediction (TESLA). *Cell* 183:818-834. DOI 10.1016/j.cell.2020.09.015. (single-digit PPV of binding-only.)
+- McGranahan N, Rosenthal R, Hiley CT, et al (2017) Allele-specific HLA loss and immune escape in lung cancer evolution. *Cell* 171:1259-1271. DOI 10.1016/j.cell.2017.10.001. (LOHHLA.)
+- Wood MA, Nguyen A, Struck AJ, et al (2020) neoepiscope improves neoepitope prediction with multivariant phasing. *Bioinformatics* 36:713-720. DOI 10.1093/bioinformatics/btz653. (phasing matters.)
 
 ## Output Files
 

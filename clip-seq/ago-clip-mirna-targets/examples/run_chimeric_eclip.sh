@@ -8,7 +8,7 @@ MIRNA_FA=$2                  # mature miRNA sequences FASTA (mature_human_miRNA.
 MRNA_FA=$3                   # target mRNA FASTA (e.g., GENCODE protein-coding transcripts)
 EXPRESSED_MIRNAS=${4:-""}    # optional: BED/TSV of miRNAs > 100 TPM in matched small-RNA-seq
 OUT_PREFIX=${5:-"chimera"}
-THREADS=${6:-8}
+# hyb drives bowtie2 threading internally; there is no thread knob to pass through at this wrapper level.
 
 # Step 1: Build combined miRNA + mRNA index for Hyb
 # Hyb expects a single FASTA with miRNAs and mRNAs concatenated

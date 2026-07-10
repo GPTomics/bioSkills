@@ -27,7 +27,10 @@ plink2 --bfile "$BFILE" \
     --glm firth-fallback hide-covar cols=+a1freq \
     --out "$OUTDIR/gwas"
 
-RESULT_FILE=$(ls "$OUTDIR"/gwas.*.glm.* 2>/dev/null | grep -v '\.log$' | head -1 || true)
+RESULT_FILE=""
+for f in "$OUTDIR"/gwas.*.glm.*; do
+    [[ -f "$f" && "$f" != *.log ]] && { RESULT_FILE="$f"; break; }
+done
 if [[ -z "${RESULT_FILE:-}" || ! -f "$RESULT_FILE" ]]; then
     echo "No association output produced"
     exit 1
