@@ -36,7 +36,7 @@ Standard amplicon BAMs should NEVER be processed by `samtools markdup` -- by des
 | Tool | When | Notes |
 |------|------|-------|
 | `samtools ampliconclip` | Default for amplicon panels (since 1.11) | Soft- or hard-clip from BED; modifies CIGAR; invalidates MD/NM |
-| `iVar trim` | SARS-CoV-2 ARTIC pipelines | Coordinates by primer name/position; applies hard or soft clip |
+| `iVar trim` | Illumina SARS-CoV-2 / PrimalSeq route (Andersen lab) | Coordinates by primer name/position; soft-clips only + quality sliding-window |
 | `BAMClipper` | Capture / hybrid panels with primer overlap | 5'-end clipping with overlap handling |
 | `fgbio ClipBam` | When read-pair coordination matters | Soft/hard-clip with mate-aware end adjustment |
 | `cutadapt` (pre-alignment) | Legacy / when alignment is downstream | Trims at FASTQ stage; less precise for amplicon |
@@ -58,11 +58,11 @@ Soft-clip is the recommended default. Hard-clip is irreversible -- once applied,
 
 **Goal:** Trim primers from a coordinate-sorted, indexed amplicon BAM and produce a downstream-ready BAM.
 
-**Approach:** Run `ampliconclip` with primer BED, optionally `--both-ends` and `--strand`, then re-fixmate (CIGAR changed) and re-calmd (MD/NM tags invalidated by clip).
+**Approach:** Run `ampliconclip` with primer BED, choosing either `--strand` (5' strand-aware) or `--both-ends` (read-through amplicons; note `--both-ends` overrides `--strand`), then re-fixmate (CIGAR changed) and re-calmd (MD/NM tags invalidated by clip).
 
 ```bash
-# 1. Soft-clip primers (default; reversible)
-samtools ampliconclip --both-ends --strand --soft-clip \
+# 1. Soft-clip primers (default; reversible). --strand clips only the designed strand.
+samtools ampliconclip --strand --soft-clip \
     -b primers.bed input.bam -o clipped.bam
 
 # 2. Re-pair tags (CIGARs changed -- mate info needs refresh)
@@ -81,7 +81,11 @@ samtools index clipped_final.bam
 
 ### Both-End Clipping
 
-`--both-ends` allows clipping at both 5' and 3' positions of the read (some primers can appear at either end after alignment). Necessary for amplicon designs where reads can read through the entire amplicon.
+`--both-ends` allows clipping at both 5' and 3' positions of the read (some primers can appear at either end after alignment). Necessary for amplicon designs where reads can read through the entire amplicon. When `--both-ends` is set, `--strand` is ignored -- primer sites at both ends are clipped regardless of the BED strand column:
+
+```bash
+samtools ampliconclip --both-ends --soft-clip -b primers.bed input.bam -o clipped.bam
+```
 
 ## Primer BED Format
 
@@ -99,10 +103,10 @@ Tools that consume the BED: column 1-3 (region), column 6 (strand) is required f
 
 | Tool | Approach | When |
 |------|----------|------|
-| `samtools ampliconclip` | Soft-clip from BED, post-alignment | nf-core/viralrecon, modern ARTIC workflows |
-| `iVar trim` | Soft- or hard-clip with primer-position parsing | Original ARTIC field bioinformatics |
+| `samtools ampliconclip` | Soft-clip from BED, post-alignment | General amplicon panels; modern ARTIC workflows |
+| `iVar trim` | Soft-clip with primer-position parsing + quality trim | nf-core/viralrecon; Illumina PrimalSeq route (Andersen lab) |
 
-Modern viral consensus pipelines tend to use ampliconclip then `samtools consensus --config illumina --ambig` for IUPAC heterozygote handling. See reference-operations for consensus generation.
+Note: the ARTIC network's own nanopore field-bioinformatics pipeline (`artic minion`) trims primers with its `align_trim` tool, not iVar; iVar (Grubaugh et al. 2019, Genome Biol 20:8) is the Illumina/PrimalSeq route. Modern viral consensus pipelines tend to use ampliconclip then `samtools consensus --config hiseq --ambig` (Illumina preset) for IUPAC heterozygote handling. See reference-operations for consensus generation.
 
 ## After Clipping: Required Re-Processing
 
@@ -138,8 +142,9 @@ Amplicon reads at primer locations are by design coordinate-degenerate -- every 
 
 | Task | Command |
 |------|---------|
-| Soft-clip primers | `samtools ampliconclip --both-ends --strand -b primers.bed in.bam -o clipped.bam` |
-| Hard-clip (irreversible) | `samtools ampliconclip --both-ends --strand --hard-clip -b primers.bed in.bam -o clipped.bam` |
+| Soft-clip primers (strand-aware) | `samtools ampliconclip --strand -b primers.bed in.bam -o clipped.bam` |
+| Soft-clip primers (read-through amplicons) | `samtools ampliconclip --both-ends -b primers.bed in.bam -o clipped.bam` |
+| Hard-clip (irreversible) | `samtools ampliconclip --strand --hard-clip -b primers.bed in.bam -o clipped.bam` |
 | Repair MD/NM after clip | `samtools calmd -b clipped.bam ref.fa > final.bam` |
 | Repair mate info | `samtools sort -n - \| samtools fixmate -m - - \| samtools sort -o out.bam -` |
 

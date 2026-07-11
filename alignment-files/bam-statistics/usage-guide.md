@@ -182,11 +182,12 @@ for bam in *.bam; do
     sample=$(basename "$bam" .bam)
     samtools flagstat "$bam" | awk -v s="$sample" '
         /in total/ {total=$1}
-        /mapped \(/ {mapped=$1}
+        /^[0-9]+ \+ [0-9]+ mapped \(/ {mapped=$1}
         /properly paired/ {paired=$1}
-        /duplicates/ {dup=$1}
+        /^[0-9]+ \+ [0-9]+ duplicates$/ {dup=$1}
         END {print s"\t"total"\t"mapped"\t"paired"\t"dup}
     ' >> summary.tsv
+    # Anchored patterns target the totals; samtools 1.13+ also emits primary mapped / primary duplicates lines.
 done
 ```
 

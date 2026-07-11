@@ -168,9 +168,9 @@ Two different concepts that are routinely conflated:
 | BWA-MEM / BWA-MEM2 | 0-60 | 60 | `-q 30` is sensible "high confidence" |
 | minimap2 (DNA / pbmm2) | 0-60 | 60 | Spec-compliant |
 | HISAT2 | 0-60 | 60 | Spec-compliant |
-| Bowtie2 | 0-42 | 42 (rare) | `-q 60` drops everything; `-q 23` is the established 99% threshold |
-| STAR | 0, 1, 2, 3, 255 | **255 = uniquely mapped (sentinel, not a quality)** | `-q 255` for "unique only"; `-q 30` accidentally keeps unique only too |
-| DRAGEN | 0 to `--mapq-max` (often ~250) | varies | `-q 30` still meaningful; distribution shape differs |
+| Bowtie2 | 0-42 | 42 (rare) | `-q 60` drops everything; `-q 23` is a common "uniquely mapped" convention (not a probabilistic 99% threshold) |
+| STAR | 0, 1, 3, 255 | **255 = uniquely mapped (sentinel, not a quality)** | `-q 255` for "unique only"; `-q 30` accidentally keeps unique only too |
+| DRAGEN | 0 to `--mapq-max` (default 60) | varies | `-q 30` still meaningful; distribution shape differs |
 | Cell Ranger / STARsolo | inherits STAR | 255 | Same trap as STAR |
 
 Verify the actual scale of any unfamiliar BAM:
@@ -211,7 +211,7 @@ samtools view -H input.bam | grep '^@PG' | head -1   # which aligner produced th
 
 Example: `50M2I30M` = 50 bases match, 2 base insertion, 30 bases match
 
-CIGAR `M` is overloaded -- it is the union of `=` and `X`. Some aligners (minimap2, BWA with `-Y`) emit `=`/`X` directly; bcftools / Picard often need `M` and rebuild MD/NM with `samtools calmd`. `N` operations break naive coverage calculations: a 1000 bp RNA-seq read with one 50 kb intron does not cover 50 kb. Distinguish soft-clip (`S`, bases retained) from hard-clip (`H`, bases discarded -- irreversible).
+CIGAR `M` is overloaded -- it is the union of `=` and `X`. Some aligners emit `=`/`X` directly (e.g. minimap2 with `--eqx`); bcftools / Picard often need `M` and rebuild MD/NM with `samtools calmd`. `N` operations break naive coverage calculations: a 1000 bp RNA-seq read with one 50 kb intron does not cover 50 kb. Distinguish soft-clip (`S`, bases retained) from hard-clip (`H`, bases discarded -- irreversible).
 
 ## Context-Specific Tags
 
@@ -222,16 +222,17 @@ Beyond the standard fields, downstream tools depend on optional tags whose prese
 | NM:i | bwa, samtools calmd | Edit distance to reference | mapDamage, many filters |
 | MD:Z | bwa, samtools calmd | Mismatch positions (text) | bcftools mpileup BAQ, IGV mismatch coloring |
 | MC:Z | samtools fixmate -m | Mate CIGAR | samtools markdup |
-| MS:i | samtools fixmate -m | Mate score | samtools markdup |
+| ms:i | samtools fixmate -m | Mate score (lowercase per SAMtags) | samtools markdup |
 | RG:Z | aligner from -R | Read group ID | GATK BQSR, MarkDuplicates LB lookup |
 | SA:Z | All split-read aligners | Comma-list of supplementary coords | Sniffles, Manta, cuteSV, GRIDSS, Delly |
 | NH:i | STAR, HISAT2 | Number of reported hits | featureCounts multimapper handling, Salmon |
-| HI:i | STAR | Hit index (0-based among NH) | RSEM |
-| XS:A | STAR, HISAT2, minimap2 -ax splice | Strand inferred from splice motif | StringTie, Cufflinks |
+| HI:i | STAR | Hit index among NH (1-based by default; `--outSAMattrIHstart 0` for 0-based) | RSEM |
+| XS:A | STAR (`--outSAMstrandField intronMotif`), HISAT2 | Strand inferred from splice motif | StringTie, Cufflinks |
+| ts:A | minimap2 `-ax splice` | Transcript strand from splice motif | StringTie |
 | CB:Z | Cell Ranger, STARsolo | Corrected cell barcode | scRNA quantification |
 | UB:Z | Cell Ranger, STARsolo | Corrected UMI | UMI-aware dedup |
 | RX:Z | fgbio AnnotateBamWithUmis | Raw UMI (bulk) | fgbio GroupReadsByUmi |
-| MI:Z | fgbio CallMolecularConsensusReads | Molecular identifier (consensus) | Duplex calling |
+| MI:Z | fgbio GroupReadsByUmi | Molecular identifier (UMI group) | CallMolecularConsensusReads, duplex calling |
 | cs:Z | minimap2 --cs | Compact CIGAR-with-bases | paftools, SV tools |
 
 Missing tags fail in two modes: silently wrong (featureCounts ignoring multimappers without NH; markdup marking nothing without MC/MS) or loudly (consensus tools rejecting input without MD).
@@ -259,23 +260,22 @@ A broken/missing chain (no PP, unknown tools, gaps) means the BAM cannot be reli
 CRAM stores reads relative to a reference; without it, the file is unreadable. htslib resolves the reference in this order:
 
 1. Command-line `-T ref.fa` / `--reference`
-2. `REF_CACHE` env var (local MD5-named cache)
-3. `REF_PATH` env var (colon-separated; can include URLs)
-4. `UR:` URL in SAM `@SQ` header
-5. Last resort: EBI ENA download via MD5 in `M5:` tag (fails on offline HPC)
+2. `REF_CACHE` env var (local MD5-named cache; searched *before* `REF_PATH`)
+3. `REF_PATH` env var (colon-separated; each element matched by the `@SQ M5:` MD5). A remote server such as EBI ENA is consulted only if its URL is present here -- it was the built-in default through htslib 1.21, but that default was **removed in 1.22** to reduce EBI load, so modern htslib does no network lookup unless that URL is added explicitly.
+4. Local file named in the `@SQ UR:` header tag (local / `file://` paths only; `http`/`ftp` URIs in `UR:` are ignored)
 
 On HPC nodes without internet, populate a local cache once:
 ```bash
 mkdir -p $HOME/cram_cache
 seq_cache_populate.pl -root $HOME/cram_cache reference.fa
 export REF_CACHE=$HOME/cram_cache/%2s/%2s/%s
-export REF_PATH=$REF_CACHE   # disables ENA fallback
+export REF_PATH=$REF_CACHE   # local only; no network/ENA lookup
 
 samtools quickcheck -v file.cram   # header + EOF only
 samtools view -c file.cram          # forces full decode; proves reference reachable
 ```
 
-CRAM operations can be irreversibly lossy: `--output-fmt-option=archive=1` enables 8-bin Illumina quality binning (~30-50% additional size reduction; benign for >=30x germline WGS, harmful for low-coverage / somatic / forensic / archival). Convert against the *exact* reference the BAM was aligned to (matched by `@SQ M5:`); a different reference silently corrupts bases on read-back.
+CRAM can be made irreversibly lossy, but the `archive` profile is NOT how: `--output-fmt-option archive` is a *lossless* maximum-compression preset (fqzcomp quality codec, name tokenization, larger slices) that does not alter bases or qualities. Irreversible loss comes instead from explicit quality **binning** (e.g. Illumina 8-bin), which must be applied deliberately and is harmful for low-coverage / somatic / forensic / archival data. Convert against the *exact* reference the BAM was aligned to (matched by `@SQ M5:`); a different reference silently corrupts bases on read-back.
 
 ## pysam Python Alternative
 

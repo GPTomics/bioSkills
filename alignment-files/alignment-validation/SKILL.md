@@ -66,7 +66,7 @@ diff \
     <(samtools dict ref.fa | grep '^@SQ' | tr '\t' '\n' | grep '^M5:' | sort)
 ```
 
-If M5s differ, the BAM was aligned to a different sequence than the current reference (even if contig names match). Concrete failure modes: GRCh38 vs GRCh38.p13 vs GRCh38_no_alt (alt contigs differ); UCSC `chr1` vs Ensembl `1` (names differ, M5s match -- pure renaming); soft-masked vs hard-masked (M5 matches, viewers differ). The M5 tag is the only definitive identity check.
+If M5s differ, the BAM was aligned to a different sequence than the current reference (even if contig names match). Concrete failure modes: GRCh38 vs GRCh38.p13 vs GRCh38_no_alt (alt contigs differ); UCSC `chr1` vs Ensembl `1` (names differ, M5s match -- pure renaming); soft-masked vs unmasked (M5 matches -- case is normalized to uppercase before hashing, so lowercase soft-masking is invisible to M5). Note hard-masking is different: it replaces bases with `N`, changing the sequence, so its M5 does NOT match the unmasked reference. The M5 tag is the only definitive identity check.
 
 ### Contamination and Sample Swap
 
@@ -75,7 +75,7 @@ No alignment QC is complete without these in production:
 # Cross-sample contamination
 verifybamid2 --SVDPrefix /resources/1000g.b38.vcf.gz.SVD \
     --Reference ref.fa --BamFile sample.bam --Output sample.contam
-# VerifyBamID2 README flags FREEMIX > 0.03 as concerning; values escalate from there.
+# FREEMIX > 0.03 is the commonly used contamination-concern threshold; values escalate from there.
 
 # Relatedness, sex check, sample swap detection
 somalier extract -d extracted/ -s /resources/sites.GRCh38.vcf.gz \
@@ -116,15 +116,15 @@ java -jar picard.jar CollectInsertSizeMetrics \
 
 | Library | Mean insert | Distribution shape | Diagnostic |
 |---------|-------------|-------------------|-----------|
-| TruSeq DNA PCR-free WGS | 400-500 bp | Roughly Gaussian | Sharp peak; bimodality = degraded sample |
-| TruSeq DNA Nano (PCR) WGS | 300-400 bp | Gaussian, narrower | |
+| TruSeq DNA PCR-free WGS | 400-500 bp | Roughly Gaussian, tight/sharp | Sharpest, most symmetric peak (no PCR bias); bimodality = degraded sample |
+| TruSeq DNA Nano (PCR) WGS | 300-400 bp | Gaussian, broadened by PCR amplification bias | |
 | Twist / IDT exome capture | 250-350 bp | Gaussian | |
 | TruSeq Stranded mRNA | 200-300 bp | Right-skewed (transcript distribution) | Long tail = poor size selection |
 | Ribo-Zero rRNA-depleted | 250-400 bp | Right-skewed | |
 | Smart-seq2 / Smart-seq3 | 200-700 bp | Broad | |
 | 10x Chromium (3') | n/a -- not informative | n/a | |
 | TruSeq ChIP | 200-400 bp | Sharp | |
-| ATAC-seq (Buenrostro / Omni-ATAC) | Multimodal | Peaks at ~50, ~180, ~340 bp | **Missing multimodal pattern = bad library**; missing ~180 bp = under-digested |
+| ATAC-seq (Buenrostro / Omni-ATAC) | Multimodal | Peaks at ~50, ~180, ~370 bp | **Missing multimodal pattern = bad library**; missing ~180 bp mononucleosome peak = over-transposition (Tn5 over-titrated) or degraded DNA |
 | Hi-C / Micro-C | Multimodal | Peak at ligation-junction size | |
 | cfDNA / ctDNA | 160-180 bp | Multimodal; ~167 bp mononucleosomal + ~340 dinuc | Tumor-derived shorter (~145 bp); shape itself is a biomarker |
 | FFPE | 100-250 bp | Right-skewed, broad | |
@@ -375,7 +375,7 @@ class AlignmentValidator:
         ...
 ```
 
-The first-N-reads sampling pattern is biased toward chr1 (different GC content and complexity than chrM/chrX/chrY/alt contigs). For unbiased per-chromosome statistics, use `samtools view -s 42.01 input.bam` (seed-prefixed fraction `INT.FRAC` is reproducible; bare `0.01` is not) instead of head-of-file iteration.
+The first-N-reads sampling pattern is biased toward chr1 (different GC content and complexity than chrM/chrX/chrY/alt contigs). For unbiased per-chromosome statistics, use `samtools view -s 42.01 input.bam` (the `INT.FRAC` form uses `INT` as the seed; specify an explicit nonzero seed so the subsample is documented and consistent across paired runs) instead of head-of-file iteration.
 
 ## Quality Thresholds Summary
 

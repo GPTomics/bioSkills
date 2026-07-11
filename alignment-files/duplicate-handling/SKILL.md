@@ -26,7 +26,7 @@ Mark and remove PCR/optical duplicates using samtools.
 
 ## Why Remove Duplicates?
 
-PCR duplicates are identical copies of the same original molecule, created during library preparation. They inflate coverage, bias allele frequencies, and create false positive variant calls. Optical duplicates are flowcell-proximity artifacts of bridge amplification (especially on patterned NovaSeq / NovaSeq X / NextSeq 1000 flowcells).
+PCR duplicates are identical copies of the same original molecule, created during library preparation. They inflate coverage, bias allele frequencies, and create false positive variant calls. Optical duplicates are flowcell-proximity artifacts: on unpatterned flowcells they arise when the imaging software splits one cluster into two adjacent calls; on patterned flowcells (NovaSeq, NovaSeq X, NextSeq 1000/2000, HiSeq X/4000) the dominant source is ExAmp (exclusion-amplification) "pad-hopping", where a library molecule re-seeds a nearby nanowell.
 
 ## When to Mark Duplicates -- and When NOT To
 
@@ -58,7 +58,7 @@ If the BAM came from 10x Cell Ranger / STARsolo and `samtools markdup` produces 
 
 | Tool | Speed | Threading | Optical | UMI | Notes |
 |------|-------|-----------|---------|-----|-------|
-| `samtools markdup` | Fast | Yes | Yes (`-d`) | Limited (`--barcode-tag` exact-match) | Modern production default (nf-core/sarek) |
+| `samtools markdup` | Fast | Yes | Yes (`-d`) | Limited (`--barcode-tag` exact-match) | Fast production choice (nf-core/sarek defaults to GATK MarkDuplicates) |
 | `picard MarkDuplicates` | Slow | No | Yes | UmiAware variant (BETA, transcriptome bug) | GATK Best Practices reference |
 | `biobambam2 bammarkduplicates2` | Fastest | Yes | Yes | No | Sanger / 1KGP pipelines |
 | `samblaster` | Streaming, fast | No | Optional | No | Pipe directly from aligner; no name sort |
@@ -78,15 +78,17 @@ Picard `UmiAwareMarkDuplicatesWithMateCigar` is BETA and has known bugs on trans
 | HiSeq 2000/2500 (random) | 100 | Picard historic default |
 | HiSeq 3000/4000/X (patterned) | 2500 | Patterned tile size larger |
 | NovaSeq 6000 (patterned) | 2500 | Same as HiSeq X |
-| NovaSeq X (10B) | 2500 (some Illumina field guidance suggests up to 12000) | Larger tiles |
+| NovaSeq X (10B) | 2500 | Patterned; same starting point as NovaSeq 6000 |
 | NextSeq 1000/2000 (patterned) | 2500 | ExAmp duplicates span larger pixel distances |
 | MiSeq, NextSeq 500/550 | 100 | Smaller / unpatterned |
 | Element AVITI, MGI / DNBseq | Custom regex | Different read-name format -- supply via `--read-coords` |
 
 ```bash
-samtools markdup -d 2500 -t -f stats.txt input.bam marked.bam
+samtools markdup -d 2500 -f stats.txt input.bam marked.bam
 
-# Count optical (SQ) vs library/PCR (LB) duplicates
+# Count optical (SQ) vs library/PCR (LB) duplicates. The dt:Z:SQ/LB tag is
+# emitted automatically because -d is set (it is not produced by -t, which
+# instead adds a 'do' tag carrying the original read's name).
 samtools view -f 1024 marked.bam | grep -o 'dt:Z:[A-Z][A-Z]' | sort | uniq -c
 ```
 
@@ -96,7 +98,7 @@ Setting `-d 2500` on a HiSeq run does no harm. Forgetting `-d 2500` on NovaSeq s
 
 Without `--use-read-groups`, multi-library BAMs systematically over-mark: independent molecules from different libraries with the same coordinates get wrongly flagged as PCR duplicates. With `--use-read-groups`, RG tags must also match for two reads to be a duplicate (verify availability with `samtools markdup --help`):
 ```bash
-samtools markdup --use-read-groups -d 2500 -t in.bam out.bam
+samtools markdup --use-read-groups -d 2500 in.bam out.bam
 ```
 
 samtools `--use-read-groups` keys on RG ID; Picard's library-aware behavior keys on the LB tag (allowing dedup across multiple lanes of the same library). For multi-lane single-library BAMs, Picard MarkDuplicates with `READ_NAME_REGEX` is closer to canonical.
@@ -131,7 +133,7 @@ samtools index marked.bam
 samtools collate -O -u input.bam tmpdir/collate | \
     samtools fixmate -m -u - - | \
     samtools sort -u -@ 4 -T tmpdir/sort - | \
-    samtools markdup -@ 4 -d 2500 -t --use-read-groups \
+    samtools markdup -@ 4 -d 2500 --use-read-groups \
         -f markdup_stats.txt - marked.bam
 
 samtools index marked.bam
@@ -188,8 +190,8 @@ samtools markdup -s input.bam marked.bam 2> markdup_stats.txt
 ### Optical Duplicate Distance
 ```bash
 # Default -d 0 disables optical detection. Set per platform; see decision table above.
-samtools markdup -d 2500 -t input.bam marked.bam   # NovaSeq / patterned
-samtools markdup -d 100 -t input.bam marked.bam    # HiSeq / random
+samtools markdup -d 2500 input.bam marked.bam   # NovaSeq / patterned
+samtools markdup -d 100 input.bam marked.bam    # HiSeq / random
 ```
 
 ### Multi-threaded
@@ -315,7 +317,7 @@ fgbio CallMolecularConsensusReads -i grouped.bam -o consensus.bam --min-reads=1
 fgbio CallDuplexConsensusReads -i grouped.bam -o duplex.bam --min-reads 1 1 0
 ```
 
-`--method=directional` is the default and correct -- do not use `--method=unique`, which treats single-base UMI errors as different molecules. `samtools markdup --barcode-tag RX` (since ~1.13) does exact-match UMI grouping; adequate for IDT xGen Duplex but insufficient for single-UMI applications where 1-edit errors are common.
+`--method=directional` is the default and correct -- do not use `--method=unique`, which treats single-base UMI errors as different molecules. `samtools markdup --barcode-tag RX` (UMI/barcode handling added in samtools 1.16) does exact-match UMI grouping; adequate for IDT xGen Duplex but insufficient for single-UMI applications where 1-edit errors are common.
 
 ## Quick Reference
 

@@ -78,7 +78,7 @@ Tell your AI agent what you want to do:
 6. **Fragment-size diagnostic**: extract distribution; classify as sub-nucleosomal (TF), mono-nucleosomal (histone), or over-sonicated (rescue impossible)
 7. **Cross-correlation QC**: phantompeakqualtools for NSC, RSC, fragment-length estimate
 8. **Peak calling with MACS3**: `-f BAMPE` for paired-end, `-g` from deepTools effective-genome-size table, `--keep-dup all` since dedup applied upstream
-9. **FRiP and enrichment QC**: deepTools plotFingerprint (JS distance, AUC, synthetic JS); FRiP >1% (TF) or >5% (histone)
+9. **FRiP and enrichment QC**: deepTools plotFingerprint (JS distance, AUC, synthetic JS); FRiP >1% (TF) or >5% (sharp histone; broad marks such as H3K27me3/H3K9me3 legitimately run lower)
 10. **Replicate concordance**: IDR with Nself/Nt rule for TFs; naive overlap with >=40% reciprocal for histones
 11. **Hyper-ChIPable filter**: build top-1% input signal blacklist; flag peaks in rRNA / mtDNA / housekeeping artifact regions
 12. **Peak annotation**: ChIPseeker with custom GTF or pre-built TxDb; ENCODE cCRE cross-reference
@@ -124,7 +124,7 @@ For spike-in workflow, see chip-seq/spike-in-normalization.
 ## Tips
 
 - **Always include matched input controls**: sonicated input from the same library prep batch, same fragmentation. IgG is not equivalent for histone marks.
-- **20-50M reads for TF / sharp histone, 40-60M for broad histone**: ENCODE 2012 standard; under-sequencing produces sparse peaks and unreliable FRiP.
+- **20-50M reads for TF / sharp histone, 40-60M for broad histone**: ENCODE3/4 (post-2016) practice; the original ENCODE 2012 minimums (Landt 2012) were >=10M uniquely-mapped for TF/point-source and >=20M for broad histone. Under-sequencing produces sparse peaks and unreliable FRiP.
 - **Apply the ENCODE BAM filter consistently**: `samtools view -F 1804 -q 30` for uniquely-mapped non-duplicate non-secondary; do this AFTER MarkDuplicates and AFTER NRF/PBC computation.
 - **Filter against ENCODE blacklist v2**: Amemiya 2019; catches repeat-driven artifacts but NOT hyper-ChIPable transcribed genes (rRNA, tRNA, HIST cluster, mtDNA).
 - **Build a custom hyper-ChIPable blacklist**: top-1% input signal regions for the cell type; intersect-out before downstream interpretation.

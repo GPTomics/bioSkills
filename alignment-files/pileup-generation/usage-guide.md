@@ -104,7 +104,7 @@ samtools mpileup -f reference.fa -l targets.bed input.bam
 ```
 
 ### Variant Calling Pipeline
-`samtools mpileup -g/-u` (BCF output) was deprecated in samtools 1.9; use `bcftools mpileup` for variant calling.
+`samtools mpileup -g/-u` (BCF output) was deprecated in samtools 1.9 and removed in 1.15; use `bcftools mpileup` for variant calling.
 ```bash
 # Modern single-sample pipeline (with quality filtering and per-sample annotations)
 bcftools mpileup -f reference.fa -d 1000000 -q 20 -Q 20 -a FORMAT/AD,FORMAT/DP input.bam | \

@@ -199,7 +199,7 @@ def compare_to_ref(bam_path, ref_path, chrom, start, end):
 
 ```
 chr1    248956422    6    60    61
-chr2    242193529    253404903    60    61
+chr2    242193529    253105708    60    61
 ```
 
 | Column | Description |

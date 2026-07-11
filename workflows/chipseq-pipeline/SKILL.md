@@ -18,7 +18,7 @@ qc_checkpoints:
   - after_qc: "Q30 >85%, adapter content <5%"
   - after_alignment: "Mapping rate >80%, unique mapping >70%"
   - before_dedup: "NRF >0.8, PBC1 >0.8 (computed on the PRE-dedup BAM; after dedup the metric is meaningless)"
-  - after_peaks: "FRiP >1% (TF) or >5% (histone); NSC >1.05; RSC >0.8; fingerprint separates IP from input"
+  - after_peaks: "FRiP >1% (TF) or >5% (sharp histone; broad marks run lower); NSC >1.05; RSC >0.8; fingerprint separates IP from input"
   - after_idr: "IDR rescue ratio max(Np,Nt)/min and self-consistency ratio max(N1,N2)/min both <=2 (ENCODE); IDR run on PER-REPLICATE peaks"
 ---
 
@@ -161,7 +161,7 @@ Annotation uses a project GTF via `makeTxDbFromGFF()` when provided, else a pre-
 | QC/trim | Q30 >85%, adapter <5% | DNA higher quality than RNA |
 | Alignment | Mapping >80%, unique >70% | Low unique = repeats/contamination/wrong build |
 | PRE-dedup | NRF >0.8, PBC1 >0.8 | Low complexity = over-amplification/low input; MUST be computed before dedup |
-| Peaks | FRiP >1% (TF) / >5% (histone); NSC >1.05; RSC >0.8; fingerprint separates IP/input | Low FRiP/flat fingerprint = weak antibody or failed enrichment (chip-seq/chipseq-qc) |
+| Peaks | FRiP >1% (TF) / >5% (sharp histone; broad marks run lower); NSC >1.05; RSC >0.8; fingerprint separates IP/input | Low FRiP/flat fingerprint = weak antibody or failed enrichment (chip-seq/chipseq-qc) |
 | IDR | rescue ratio and self-consistency ratio both <=2 | Poor replicate consistency; run IDR on PER-replicate peaks |
 
 ## Common Errors
