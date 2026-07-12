@@ -51,8 +51,8 @@ Splicing analysis is more demanding than DGE on read length, depth, library prep
 
 | Decision | For splicing analysis | Rationale |
 |----------|------------------------|-----------|
-| **Library prep** | rRNA depletion (Ribo-Zero, RiboCop) | poly(A) selection loses pre-mRNA, nascent transcripts, and detained introns; for IR analysis rRNA depletion is mandatory (Sims 2014 *Genome Res*) |
-| **Read length** | PE 100-150 nt (PE 150 strongly preferred) | Junction-spanning reads need >=8 nt overhang on each exon; 50 nt SE biases toward shorter exons (Wang 2008 *Nature*) |
+| **Library prep** | rRNA depletion (Ribo-Zero, RiboCop) | poly(A) selection loses pre-mRNA, nascent transcripts, and detained introns; for IR analysis rRNA depletion is mandatory (convention) |
+| **Read length** | PE 100-150 nt (PE 150 strongly preferred) | Junction-spanning reads need >=8 nt overhang on each exon; shorter single-end reads bias junction detection toward shorter exons (convention) |
 | **Pairing** | Paired-end | Single-end loses fragment-level disambiguation of junctions |
 | **Depth** | 50-100M reads/sample | DGE-grade 30M misses low-PSI events; 100M for low-abundance event discovery |
 | **Strandedness** | Stranded library (Illumina TruSeq stranded) | Distinguishes overlapping antisense; some tools double-count unstranded junctions |
@@ -127,8 +127,7 @@ junction_saturation.py \
     -i sample.bam \
     -r gencode_v45.bed \
     -o sample_junc_sat \
-    -m 50 \
-    -v 100000
+    -m 50
 ```
 
 ```python
@@ -164,12 +163,13 @@ junction_annotation.py -i sample.bam -r gencode_v45.bed -o sample_junc_annot
 ```python
 import pandas as pd
 
+# RSeQC .junction.xls has a header: chrom, intron_st(0-based), intron_end(1-based), read_count, annotation
 junc = pd.read_csv('sample_junc_annot.junction.xls', sep='\t')
-total = junc['total_splicing_events'].sum()
+total = junc['read_count'].sum()
 
-by_class = junc.groupby('annotation')['total_splicing_events'].sum()
-known_frac = by_class.get('known', 0) / total
-novel_frac = (by_class.get('partial_novel', 0) + by_class.get('novel', 0)) / total
+by_class = junc.groupby('annotation')['read_count'].sum()
+known_frac = by_class.get('annotated', 0) / total
+novel_frac = (by_class.get('partial_novel', 0) + by_class.get('complete_novel', 0)) / total
 
 print(f'known: {known_frac:.1%}, novel: {novel_frac:.1%}')
 ```
@@ -253,9 +253,8 @@ print(f"3'ss MaxEnt: {score3(acceptor):.2f}")
 | 5'ss MaxEnt < 5 | Weak / cryptic | |
 | 3'ss MaxEnt > 8 | Strong acceptor | |
 | 3'ss MaxEnt < 5 | Weak / cryptic | |
-| SpliceAI delta > 0.2 | PP3 supporting (ClinGen SVI 2023) | Walker 2023 *AJHG* |
-| SpliceAI delta > 0.5 | PP3 moderate | |
-| SpliceAI delta > 0.8 | PP3 strong | |
+| SpliceAI delta >= 0.2 | PP3 (applied at supporting weight); BP4 at <= 0.1 | Walker 2023 *AJHG* (ClinGen SVI 2023) |
+| SpliceAI delta 0.5 / 0.8 | Higher-precision cutoffs (SpliceAI recommended/high-precision tiers) | Jaganathan 2019 *Cell* — NOT ClinGen graded evidence-strength upgrades |
 
 **MaxEntScan vs SpliceAI:**
 - **MaxEntScan** scores sequence information content (intrinsic strength). Captures position-wise dependencies at the consensus.
@@ -424,14 +423,14 @@ samtools view -c -L rRNA_intervals.bed sample.bam | awk '{print "rRNA:",$0}'
 
 | Metric | Good | Acceptable | Poor | Source |
 |--------|------|------------|------|--------|
-| Read length (PE) | 150 nt | 100 nt | <75 nt | Wang 2008 *Nature* |
+| Read length (PE) | 150 nt | 100 nt | <75 nt | convention |
 | Sequencing depth | >=100M | 50-100M | <30M | DGE-grade insufficient |
 | Junction saturation | Plateau (<2% growth in last 20%) | Near plateau | Still rising | RSeQC convention |
 | Known-junction fraction | >=80% | 60-80% | <60% (suspect or interesting) | RSeQC convention |
 | Junctions >=10 reads | >=50% | 30-50% | <30% | rMATS reliability cutoff |
 | 5'ss / 3'ss MaxEnt | >8 | 5-8 | <5 | Yeo & Burge 2004 |
 | Strandedness | >90% one direction | 70-90% | <70% | RSeQC convention |
-| rRNA in depleted library | <5% | 5-20% | >20% | Sims 2014 *Genome Res* |
+| rRNA in depleted library | <5% | 5-20% | >20% | convention |
 | 2-pass STAR | Cohort-style | Per-sample basic | 1-pass only | Veeneman 2016 *Bioinformatics* |
 
 ## Troubleshooting Low Event Detection
@@ -474,8 +473,6 @@ samtools view -c -L rRNA_intervals.bed sample.bam | awk '{print "rRNA:",$0}'
 - Jaganathan et al 2019 *Cell* - SpliceAI
 - Walker et al 2023 *Am J Hum Genet* - ClinGen SVI splicing thresholds
 - Veeneman et al 2016 *Bioinformatics* - STAR 2-pass benchmark
-- Wang et al 2008 *Nature* - PE 75+ recommendation for AS
-- Sims et al 2014 *Genome Res* - rRNA depletion vs poly(A) for AS
 - Brown et al 2022 *Nature* - cryptic exons in TDP-43 loss
 - Klim et al 2019 *Nat Neurosci* - STMN2 cryptic splicing in ALS
 - Darman et al 2015 *Cell Rep* - SF3B1 cryptic 3'ss

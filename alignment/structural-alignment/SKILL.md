@@ -60,7 +60,7 @@ TM-align and US-align report two TM-scores by default: one normalised by chain 1
 | TM-score | > 0.5 | Same fold (Zhang & Skolnick 2004 Proteins; reported by TM-align, US-align, Foldseek, DALI) |
 | TM-score | > 0.8 | Equivalent topology (homologous) |
 | TM-score | < 0.2 | Random structural similarity |
-| DALI Z-score | > 20 | Definitely homologous (Holm 2020 Prot Sci) |
+| DALI Z-score | > 20 | Definitely homologous (Holm 2020 Methods Mol Biol) |
 | DALI Z-score | 8 - 19 | Probable homology |
 | DALI Z-score | 2 - 8 | Candidate; verify with TM-score or biology |
 | DALI Z-score | < 2 | Not significant (random) |
@@ -254,7 +254,7 @@ Run a pLM aligner (TM-Vec, vcMSA, DEDAL, pLM-BLAST) when no structure is availab
 | Tool | Reference | Embedding source |
 |------|-----------|------------------|
 | vcMSA | McWhite, Armour-Garb & Singh 2023 Genome Res | ProtT5 vector clustering for MSA (alpha-stage tool per its repo README; last release Oct 2023; test on representative inputs before pipeline use) |
-| DEDAL | Llinares-Lopez et al 2023 Bioinf | Differentiable end-to-end alignment with pLM features |
+| DEDAL | Llinares-Lopez et al 2023 Nat Methods | Differentiable end-to-end alignment with pLM features |
 | TM-Vec | Hamamsy et al 2024 Nat Biotech | TM-score prediction from ProtT5 embeddings (active fork: `valentynbez/tmvec`; original `tymor22/tm-vec` is in limited maintenance) |
 | pLM-BLAST | Kaminski et al 2023 Bioinf | BLAST-style hits via pLM cosine similarity |
 

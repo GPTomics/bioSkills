@@ -53,7 +53,7 @@ Tell your AI agent what you want to do:
 
 1. Inspect the BAM to confirm it is amplicon-style (read coordinates clustered at amplicon start/end positions; check `samtools view -H` for `@PG` indicating an amplicon panel kit).
 2. Locate or generate the primer BED file matching the kit.
-3. Run `samtools ampliconclip --both-ends --strand --soft-clip -b primers.bed`.
+3. Run `samtools ampliconclip --strand --soft-clip -b primers.bed` (or `--both-ends` instead of `--strand` for read-through amplicons).
 4. Re-fixmate and re-calmd to repair invalidated tags.
 5. Confirm with a region inspection (`samtools view -h clipped.bam chr1:start-end`) that primer footprint has soft-clip CIGAR ops.
 
@@ -61,14 +61,14 @@ Tell your AI agent what you want to do:
 
 - **Soft-clip vs hard-clip**: default to soft-clip (reversible). Hard-clip only when archiving and the trimmed bases will never be needed.
 - **`--strand` on or off**: on for primer-strand-specific trimming (default for amplicon panels with single-stranded primers); off only if both strands carry primer-derived sequence.
-- **`--both-ends` on or off**: on when reads can read through the entire amplicon and primers can appear at either 5' or 3'. Standard for short-amplicon panels (<300 bp).
+- **`--both-ends` on or off**: on when reads can read through the entire amplicon and primers can appear at either 5' or 3'. Standard for short-amplicon panels (<300 bp). Note: `--both-ends` overrides `--strand` (both ends are clipped regardless of strand), so use one or the other.
 - **Re-calmd**: required if downstream uses BAQ in `bcftools mpileup`, IGV mismatch visualization, or any tool that reads NM/MD.
 
 ## Tips
 
 - Do NOT run `samtools markdup` on amplicon BAMs without UMIs -- amplicon reads share start coordinates by design and markdup will erase the dataset. See duplicate-handling for the assay-aware decision matrix.
 - For UMI amplicon panels (Twist UMI, IDT xGen UMI, Roche AVENIO): use `fgbio GroupReadsByUmi` -> `CallMolecularConsensusReads` instead of markdup.
-- For ARTIC SARS-CoV-2 specifically, modern pipelines often pair ampliconclip with `samtools consensus --config illumina --ambig` for IUPAC heterozygote handling.
+- For ARTIC SARS-CoV-2 specifically, modern pipelines often pair ampliconclip with `samtools consensus --config hiseq --ambig` (Illumina preset) for IUPAC heterozygote handling.
 - Strand bias at every amplicon end usually means `--strand` was forgotten.
 - After clipping, mpileup with default BAQ may be wrong (MD tag stale); always re-calmd.
 - For long-read amplicon (ONT viral, PacBio HiFi 16S): tool support varies; `samtools ampliconclip` works but verify CIGAR semantics with the long-read team's recommended pipeline.

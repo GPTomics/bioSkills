@@ -17,18 +17,18 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
 # 1. Soft-clip primers from BED.
-#    --both-ends:   primers may appear at 5' or 3' end of read
-#    --strand:      respects column-6 strand in BED (only clips matching strand)
+#    --both-ends:   clip primers at 5' or 3' end of read (read-through amplicons).
+#                   Note: --both-ends overrides --strand, so they are not combined here.
+#                   For strand-aware 5'-only clipping instead, use --strand without --both-ends.
 #    --soft-clip:   reversible (CIGAR S, bases retained); preferred over --hard-clip
 samtools ampliconclip \
     --both-ends \
-    --strand \
     --soft-clip \
     -b "$PRIMERS" \
     "$BAM" \
     -o "$WORK/clipped.bam"
 
-# 2. Repair mate info (CIGARs changed by clipping invalidate MC, MS, TLEN).
+# 2. Repair mate info (CIGARs changed by clipping invalidate MC, ms, TLEN).
 #    collate (faster) -> fixmate -m -> coord sort.
 samtools collate -O -u "$WORK/clipped.bam" "$WORK/collate" | \
     samtools fixmate -m -u - - | \

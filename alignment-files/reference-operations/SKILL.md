@@ -66,7 +66,7 @@ samtools faidx -i reference.fa chr1:1000-2000
 ### FAI File Format
 ```
 chr1    248956422    6    60    61
-chr2    242193529    253404903    60    61
+chr2    242193529    253105708    60    61
 ```
 Columns: name, length, offset, line bases, line width
 
@@ -86,7 +86,7 @@ samtools dict -a GRCh38 -s "Homo sapiens" reference.fa -o reference.dict
 
 ### Dictionary Format
 ```
-@HD VN:1.6 SO:unsorted
+@HD VN:1.0 SO:unsorted
 @SQ SN:chr1 LN:248956422 M5:6aef897c3d6ff0c78aff06ac189178dd UR:file:reference.fa
 @SQ SN:chr2 LN:242193529 M5:f98db672eb0993dcfdabafe2a882905c UR:file:reference.fa
 ```
@@ -111,7 +111,7 @@ Mixing no-alt and ALT-aware BAMs in one cohort produces inconsistent multi-mappi
 | UCSC (hg19, hg38) | UCSC Genome Browser | chr1 | chrM |
 | Ensembl (GRCh37, GRCh38) | Ensembl, ENA | 1 | MT |
 | NCBI RefSeq (recent) | NCBI | chr1 | chrM |
-| 1000G analysis sets | 1000G Phase II/III | chr1 | chrM |
+| 1000G analysis sets | 1000G GRCh38 analysis set | chr1 | chrM |
 
 A BAM with `@SQ SN:chr1` cannot be analyzed against a `1`-named reference (and vice versa). Detect:
 ```bash
@@ -160,20 +160,20 @@ samtools consensus -a input.bam -o consensus.fa
 samtools consensus --ambig --het-fract 0.2 --call-fract 0.5 input.bam -o consensus.fa
 ```
 
-`--het-fract` controls the fraction of the second-most-common base relative to the most common required to call a heterozygote (default ~0.15). Without `--ambig`, columns where the second base passes `--het-fract` resolve to `N` rather than the IUPAC code. `--show-ins` / `--show-del` control insertion / deletion display, not ambiguity.
+`--het-fract` controls the fraction of the second-most-common base relative to the most common required to call a heterozygote (verify the default for the installed version with `samtools consensus --help`; the manpage documents none). Without `--ambig`, columns where the second base passes `--het-fract` resolve to `N` rather than the IUPAC code. `--show-ins` / `--show-del` control insertion / deletion display, not ambiguity.
 
 ### Platform-Aware Consensus
 ```bash
-# Default: Bayesian Illumina profile
+# Default: Bayesian algorithm (no --config needed)
 samtools consensus -f fasta input.bam -o consensus.fa
 
-# Platform-specific profiles (samtools 1.21+; verify via samtools consensus --help for installed version)
-samtools consensus --config hifi    input.bam -o consensus.fa   # PacBio HiFi
-samtools consensus --config ont     input.bam -o consensus.fa   # ONT R10.4+
-samtools consensus --config ultima  input.bam -o consensus.fa   # Ultima Genomics
-samtools consensus --config illumina input.bam -o consensus.fa  # default
+# Platform-specific profiles (samtools 1.17+; verify via samtools consensus --help for installed version)
+samtools consensus --config hifi       input.bam -o consensus.fa   # PacBio HiFi
+samtools consensus --config r10.4_sup  input.bam -o consensus.fa   # ONT R10.4+ (r10.4_dup for duplex)
+samtools consensus --config ultima     input.bam -o consensus.fa   # Ultima Genomics
+samtools consensus --config hiseq      input.bam -o consensus.fa   # Illumina
 
-# Report ref base where consensus unavailable (low coverage)
+# Report ref base where consensus unavailable (low coverage; -T added in samtools 1.22)
 samtools consensus -T ref.fa input.bam -o consensus.fa
 ```
 
@@ -189,7 +189,7 @@ Different operations -- conflating them produces nonsense:
 For viral consensus from BAM:
 ```bash
 # Modern: samtools consensus
-samtools consensus --config illumina -d 10 --het-fract 0.5 \
+samtools consensus --config hiseq -d 10 --het-fract 0.5 \
     --show-ins yes --show-del yes input.bam -o consensus.fa
 
 # Apply called variants to reference (different question)

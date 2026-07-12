@@ -28,8 +28,8 @@ Create indices for random access to alignment files using samtools and pysam.
 
 | Index | Extension | Max contig | Bin shift | When required |
 |-------|-----------|-----------|-----------|---------------|
-| BAI | `.bai` / `.bam.bai` | 2^29-1 = ~536 Mbp | fixed (16 kb) | Default for human, mouse, fly, fish |
-| CSI | `.csi` / `.bam.csi` | 2^(min_shift + depth*3) | configurable via `-m` | **Required** for any contig >536 Mbp |
+| BAI | `.bai` / `.bam.bai` | 2^29 bp ≈ 537 Mbp | fixed (16 kb) | Default for human, mouse, fly, fish |
+| CSI | `.csi` / `.bam.csi` | 2^(min_shift + depth*3) | configurable via `-m` | **Required** for any contig >537 Mbp |
 | CRAI | `.crai` / `.cram.crai` | chunk-based | n/a | CRAM only |
 | TBI | `.tbi` | 2^29-1 | fixed | tabix VCF/BED -- same limit as BAI |
 
@@ -40,20 +40,20 @@ Create indices for random access to alignment files using samtools and pysam.
 | GRCh38 / GRCh37 (human) | 248 Mbp | BAI |
 | GRCm39 (mouse) | 195 Mbp | BAI |
 | GRCz11 (zebrafish), TAIR10 (Arabidopsis) | 78 Mbp / 30 Mbp | BAI |
-| Wheat IWGSC (Triticum aestivum) | ~830 Mbp avg | **CSI** |
+| Wheat IWGSC (Triticum aestivum) | ~830 Mbp (chr3B) | **CSI** |
 | Pine, fir, axolotl, sugar pine | multi-Gbp | **CSI with larger `-m`** |
 | Long-read assembly with very large contigs | varies | check `cut -f2 ref.fa.fai \| sort -nr \| head -1` |
 
 For polyploid plants and salamander-scale genomes, increase the bin shift:
 ```bash
-# Default CSI matches BAI bin layout: 2^(14 + 5*3) = 2^29 ≈ 512 Mbp per contig
+# Default CSI matches BAI bin layout: 2^(14 + 5*3) = 2^29 bp ≈ 537 Mbp per contig
 samtools index -c file.bam
 
-# Larger min_shift for contigs >512 Mbp (wheat, axolotl, sugar pine)
+# Larger min_shift for contigs >537 Mbp (wheat, axolotl, sugar pine)
 samtools index -c -m 18 file.bam   # 2^(18+15) = 2^33 = ~8.5 Gbp per contig
 ```
 
-**Index file precedence trap:** when both `.bai` and `.csi` exist, samtools uses `.bai`. After re-indexing to CSI for a long contig, delete the old `.bai` or operations fail confusingly.
+**Index file precedence:** htslib (and therefore the samtools CLI) tries `.csi` before `.bai` on auto-load, so when both exist the `.csi` is used -- a stale `.bai` left over after re-indexing to CSI is generally ignored. (Note: htsjdk/Java prefers `.bai`, the opposite order.) Removing the obsolete `.bai` still avoids confusion.
 
 ## samtools index
 
@@ -265,7 +265,7 @@ with pysam.FastaFile('reference.fa') as ref:
 | Task | samtools | pysam |
 |------|----------|-------|
 | Create BAI | `samtools index file.bam` | `pysam.index('file.bam')` |
-| Create CSI | `samtools index -c file.bam` | `pysam.index('file.bam', csi=True)` |
+| Create CSI | `samtools index -c file.bam` | `pysam.index('-c', 'file.bam')` |
 | Fetch region | `samtools view file.bam chr1:1-1000` | `bam.fetch('chr1', 0, 1000)` |
 | Count in region | `samtools view -c file.bam chr1:1-1000` | `bam.count('chr1', 0, 1000)` |
 | Index stats | `samtools idxstats file.bam` | `bam.get_index_statistics()` |
@@ -300,7 +300,7 @@ UCSC convention uses `chr1`/`chrM`; Ensembl/NCBI uses `1`/`MT`. The two are not 
 | `file is not sorted` | Unsorted BAM | Sort first with `samtools sort` |
 | `chromosome not found` | Wrong chromosome name | Check names with `samtools view -H` |
 | Region query returns zero reads on a known-populated locus | Stale BAI / `chr` vs no-`chr` mismatch | Re-index; verify naming convention |
-| BAI silently truncates reads on contigs >536 Mbp | Plant / amphibian / amplified genome | Use CSI: `samtools index -c file.bam` |
+| BAI silently truncates reads on contigs >537 Mbp | Plant / amphibian / amplified genome | Use CSI: `samtools index -c file.bam` |
 
 ## Related Skills
 

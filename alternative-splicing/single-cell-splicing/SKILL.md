@@ -184,12 +184,10 @@ BRIE2 (Huang & Sanguinetti 2021 *Genome Biol*) uses a sequence-derived feature p
 **Approach:** Compute per-gene splicing Z-score across cells; test for cell-state association via permutation.
 
 ```bash
-spliz \
-    --bams sample1.bam sample2.bam \
-    --metadata cell_metadata.tsv \
-    --gtf annotation.gtf \
-    --output spliz_output/ \
-    --threads 8
+# SpliZ is a Nextflow pipeline (not a standalone CLI). Configure inputs in a .config
+# file (dataname, input_file, libraryType, grouping_level_1/2) - either SICILIAN
+# output (SICILIAN=true) or BAMs via a samplesheet CSV + metadata + GTF (SICILIAN=false).
+nextflow run salzmanlab/spliz -r main -latest -c spliz.config
 ```
 
 SpliZ (Olivieri 2022 *Nat Methods*) is robust to dropout because it pools junction information across the gene; particularly useful for discovering splicing diversity in heterogeneous tumor samples.
@@ -237,7 +235,21 @@ counts <- CountPeaks(
     whitelist.file = 'barcodes.tsv'
 )
 
-apa_results <- DUTest(counts, group1 = ctrl_cells, group2 = trt_cells)
+# CountPeaks returns a peak x cell matrix; annotate it and build a peak Seurat
+# object before differential-usage testing.
+peak.annotations <- AnnotatePeaksFromGTF(
+    peak.sites.file = 'peaks.txt',
+    gtf.file = 'annotation.gtf',
+    output.file = 'peak_annotations.txt'
+)
+
+peaks.seurat <- NewPeakSeurat(
+    peak.data = counts,
+    annot.info = peak.annotations,
+    cell.idents = cell_identities
+)
+
+apa_results <- DUTest(peaks.seurat, population.1 = ctrl_cells, population.2 = trt_cells)
 ```
 
 If only 10X 3' data is available, this is often what is actually wanted. Distinct UTRs change miRNA targeting, RBP binding, and stability — biologically meaningful but not splicing.
@@ -267,7 +279,7 @@ Use pseudobulk for differential splicing **between** well-defined cell types; us
 In 2024-2026, full-length single-cell long-read sequencing has become practical and is the recommended chemistry for splicing-focused single-cell experiments:
 
 - **MAS-Iso-seq / PacBio Kinnex**: concatenated full-length cDNA arrays, ~16x throughput vs plain Iso-Seq, compatible with 10X 5' libraries (Al'Khafaji 2024 *Nat Biotech*)
-- **scISOr-Seq2**: hybrid 10X + PacBio for cell typing + isoform structure (Joglekar et al, scISOr-Seq2 mouse cortex atlas; consult most recent publication for exact citation)
+- **scISOr-Seq2**: hybrid 10X + PacBio for cell typing + isoform structure (Joglekar et al 2024 *Nat Neurosci* 27:1051-1063, single-cell long-read brain isoform mapping)
 - **ONT direct cDNA + 10X**: lower cost, similar information content
 - **FLAMES**: barcode demultiplexing + isoform quantification + SNV calling for ONT scRNA (Tian 2021 *Genome Biol* 22:310)
 
@@ -358,7 +370,7 @@ For splicing-specific full-length single-cell analysis, see `long-read-splicing`
 
 | System | Event | Regulator |
 |--------|-------|-----------|
-| Neural microexons | 3-27 nt exons enriched in brain | SRRM4 (nSR100); SRRM3 in retina (Irimia 2014 *Cell*) |
+| Neural microexons | 3-27 nt exons enriched in brain | SRRM4/nSR100 (Irimia 2014 *Cell*); SRRM3 in retina/photoreceptors (Ciampi 2022 *PNAS*) |
 | Neural differentiation | PTBP1 -> PTBP2 switch | miR-124 represses PTBP1; derepresses neural exons (Boutz 2007 *Genes Dev*) |
 | T-cell activation | CD45 RA -> RO | hnRNP-L, ESRP-mediated |
 | Erythropoiesis | EPB41 exon 16 | Splicing factor switching during maturation |
@@ -424,10 +436,11 @@ For splicing-specific full-length single-cell analysis, see `long-read-splicing`
 - Hagemann-Jensen et al 2022 *Nat Biotech* - Smart-seq3xpress
 - Hahaut et al 2022 *Nat Biotech* - FLASH-seq
 - Salmen et al 2022 *Nat Biotech* - VASA-seq
-- Johnson et al 2023 *Nat Commun* - STORM-seq
+- Johnson et al 2022 *bioRxiv* 10.1101/2022.03.14.484332 - STORM-seq (preprint)
 - Al'Khafaji et al 2024 *Nat Biotech* - MAS-Iso-seq / Kinnex
 - Tian et al 2021 *Genome Biology* 22:310 - FLAMES
-- Joglekar et al - scISOr-Seq2 mouse cortex atlas (consult most recent publication for venue/year)
+- Joglekar et al 2024 *Nat Neurosci* 27:1051-1063 - scISOr-Seq2 single-cell brain isoform mapping
 - Irimia et al 2014 *Cell* - neural microexons / SRRM4
+- Ciampi et al 2022 *PNAS* 119:e2117090119 - SRRM3-dependent photoreceptor microexons
 - Boutz et al 2007 *Genes Dev* - PTBP1/PTBP2 neural switch
 - Tian & Manley 2017 *Nat Rev Mol Cell Biol* - alternative polyadenylation and 3' UTR isoforms

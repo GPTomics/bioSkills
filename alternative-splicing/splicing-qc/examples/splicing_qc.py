@@ -17,7 +17,7 @@ def run_junction_saturation(bam_file, bed_file, output_prefix):
     Run RSeQC junction saturation analysis.
     Checks if sequencing depth is sufficient for junction detection.
 
-    Note: -s flag removed in RSeQC v3.0
+    Note: -s sets the percentile sampling step (default 5).
     '''
     subprocess.run([
         'junction_saturation.py',

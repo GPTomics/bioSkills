@@ -58,13 +58,13 @@ Tell your AI agent what you want to do:
 ## Index Types
 
 ### BAI (BAM Index)
-Standard index for BAM files. Chromosomes must be < 512 Mbp.
+Standard index for BAM files. Chromosomes must be < 537 Mbp (2^29 bp).
 ```bash
 samtools index input.bam  # Creates input.bam.bai
 ```
 
 ### CSI (Coordinate-Sorted Index)
-For genomes with large chromosomes (> 512 Mbp).
+For genomes with large chromosomes (> 537 Mbp).
 ```bash
 samtools index -c input.bam  # Creates input.bam.csi
 ```

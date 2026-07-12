@@ -8,7 +8,7 @@ library(leafcutter)
 # Step 1: Convert BAMs to junction files using regtools
 # Run from command line:
 # for bam in *.bam; do
-#     regtools junctions extract -a 8 -m 50 -s 0 $bam -o ${bam%.bam}.junc
+#     regtools junctions extract -a 8 -m 50 -s XS $bam -o ${bam%.bam}.junc
 # done
 
 # Step 2: Create junction file list
@@ -48,8 +48,13 @@ load_leafcutter_results <- function(cluster_sig_file, effect_sizes_file) {
     cat(sprintf('Total clusters tested: %d\n', nrow(sig)))
     cat(sprintf('Significant clusters (FDR < 0.05): %d\n', nrow(significant)))
 
-    # Merge with effect sizes
-    results <- merge(significant, effects, by = 'cluster', all.x = TRUE)
+    # Merge with effect sizes. The effect-sizes file is per-intron (no `cluster`
+    # column); its cluster id lives inside the `intron` string (chr:start:end:clu_N).
+    # The significance file keys on `cluster` (chr:clu_N). Match on the run-unique clu_N.
+    extract_clu <- function(x) sub('.*?(clu_[0-9]+).*', '\\1', x)
+    significant$clu <- extract_clu(significant$cluster)
+    effects$clu <- extract_clu(effects$intron)
+    results <- merge(significant, effects, by = 'clu', all.x = TRUE)
 
     # Sort by significance
     results <- results[order(results$p.adjust), ]
@@ -68,11 +73,11 @@ load_leafcutter_results <- function(cluster_sig_file, effect_sizes_file) {
 annotate_clusters <- function(results, exon_file) {
     exons <- read.table(exon_file, header = TRUE)
 
-    # Match cluster coordinates to genes
-    # Leafcutter cluster format: chr:start:end:clu_N
-    results$chr <- sapply(strsplit(results$cluster, ':'), '[', 1)
-    results$start <- as.numeric(sapply(strsplit(results$cluster, ':'), '[', 2))
-    results$end <- as.numeric(sapply(strsplit(results$cluster, ':'), '[', 3))
+    # Match intron coordinates to genes
+    # Leafcutter intron format: chr:start:end:clu_N (coordinates live in the intron key)
+    results$chr <- sapply(strsplit(results$intron, ':'), '[', 1)
+    results$start <- as.numeric(sapply(strsplit(results$intron, ':'), '[', 2))
+    results$end <- as.numeric(sapply(strsplit(results$intron, ':'), '[', 3))
 
     return(results)
 }

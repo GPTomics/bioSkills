@@ -34,7 +34,7 @@ rev=$(samtools view -c -f 16 $BAM)
 echo "Forward: $fwd, Reverse: $rev, Ratio: $(echo "scale=3; $fwd/$rev" | bc)"
 
 echo -e "\n--- MAPQ Distribution ---"
-echo "MAPQ 0 (multi-mapper): $(samtools view -q 0 -Q 1 $BAM | wc -l)"
+echo "MAPQ 0 (multi-mapper): $(samtools view $BAM | awk '$5==0{n++} END{print n+0}')"
 echo "MAPQ >= 30: $(samtools view -c -q 30 $BAM)"
 
 echo -e "\n--- Top Chromosomes ---"

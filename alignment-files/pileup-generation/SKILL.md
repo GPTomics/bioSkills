@@ -37,7 +37,7 @@ Pileup shows all reads covering each position in the reference, used for:
 
 ## samtools mpileup vs bcftools mpileup (Deprecation)
 
-`samtools mpileup -g/-u` (BCF output for variant calling) has been **deprecated since samtools 1.9** -- the genotype-likelihood code now lives in `bcftools mpileup`, which keeps mpileup logic versioned alongside `bcftools call` and avoids version-skew bugs.
+`samtools mpileup -g/-u` (BCF output for variant calling) was **deprecated in samtools 1.9 and removed in 1.15** (the option no longer exists; the usage/manpage directs users to `bcftools mpileup`) -- the genotype-likelihood code now lives in `bcftools mpileup`, which keeps mpileup logic versioned alongside `bcftools call` and avoids version-skew bugs.
 
 | Use case | Recommended tool |
 |----------|------------------|
@@ -161,7 +161,7 @@ When `-f ref.fa` is passed, BAQ is enabled by default. BAQ Phred-scales the prob
 | Short-read tumor WGS | `-q 1 -Q 13 -d 0 -B` (low MAPQ kept; BAQ off) |
 | Amplicon viral (ARTIC) | `-aa -A -d 600000 -B -Q 20` |
 | Capture / exome | `-q 20 -Q 20 -d 250` |
-| Long-read ONT R10.4+ | `-q 30 -Q 0 -B -d 0 --max-BQ 50` |
+| Long-read ONT R10.4+ | `-q 30 -Q 0 -B -d 0`; for `bcftools mpileup` add `--max-BQ 30` (its `ont` preset value) |
 | PacBio HiFi | `-q 20 -Q 0 -B -d 0` |
 | RNA-seq variants | `-q 20 -Q 20 -B -d 0` |
 | Forensic / aDNA | `-q 0 -Q 0 -A -d 0 -B` |
@@ -192,7 +192,7 @@ For somatic / low-VAF, prefer Mutect2 / Strelka2 / DeepVariant -- materially bet
 
 ### Overlap Detection Defaults
 
-When fragment length < 2 * read_length, R1 and R2 overlap. Both `samtools mpileup` and `bcftools mpileup` enable overlap detection by default (per samtools-mpileup(1)) and count overlapping bases once; pass `-x`/`--ignore-overlaps` to disable. Disabling overlap correction can inflate somatic VAFs at sites covered by overlapping pairs (especially in cfDNA / FFPE).
+When fragment length < 2 * read_length, R1 and R2 overlap. Both `samtools mpileup` and `bcftools mpileup` enable overlap detection by default (per samtools-mpileup(1)) and count overlapping bases once; pass `-x` to disable (long form is `--disable-overlap-removal` in samtools since 1.16, but `--ignore-overlaps` in bcftools). Disabling overlap correction can inflate somatic VAFs at sites covered by overlapping pairs (especially in cfDNA / FFPE).
 
 ## pysam Python Alternative
 
@@ -343,9 +343,9 @@ pileup_text('input.bam', 'reference.fa', 'chr1', 1000000, 1000100)
 | `-B` | Disable BAQ | Often correct for long reads, SV, viral, consensus |
 | `-A` | Count anomalous pairs | Required for amplicon |
 | `-aa` | Output all positions | Required for consensus generation |
-| `--ignore-overlaps` | Disable mate-overlap correction | Rarely correct |
-| `--max-BQ INT` | Cap BQ (default 60) | Useful for ONT (Q values inflated) |
-| `-g` (DEPRECATED) | Old BCF output | Use `bcftools mpileup` instead |
+| `-x` (`--disable-overlap-removal`; bcftools: `--ignore-overlaps`) | Disable mate-overlap correction | Rarely correct |
+| `--max-BQ INT` (`bcftools mpileup` only) | Cap baseQ/BAQ (default 60) | Not a `samtools mpileup` option; useful for ONT/HiFi (Q values inflated) |
+| `-g` (REMOVED in 1.15) | Old BCF output | Use `bcftools mpileup` instead |
 
 ## Quick Reference
 

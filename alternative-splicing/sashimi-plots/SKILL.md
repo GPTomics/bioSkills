@@ -1,6 +1,6 @@
 ---
 name: bio-sashimi-plots
-description: Creates sashimi-style plots showing RNA-seq read coverage and splice junction counts using ggsashimi (general-purpose, condition-grouped overlays), rmats2sashimiplot (rMATS-output-aware), MAJIQ-VOILA (LSV posteriors interactive HTML), leafviz (leafcutter clusters Shiny), Jutils (tool-agnostic heatmaps and sashimi for rMATS/leafcutter/SUPPA2/MAJIQ output), or pyGenomeTracks (multi-track publication figures). Tool choice depends on the upstream differential-splicing tool's output format and the publication vs interactive use case. Use when visualizing specific splicing events, validating differential splicing calls, or producing publication-quality figures.
+description: Creates sashimi-style plots showing RNA-seq read coverage and splice junction counts using ggsashimi (general-purpose, condition-grouped overlays), rmats2sashimiplot (rMATS-output-aware), MAJIQ-VOILA (LSV posteriors interactive HTML), leafviz (leafcutter clusters Shiny), Jutils (tool-agnostic heatmaps and sashimi for rMATS/leafcutter/MntJULiP/MAJIQ output), or pyGenomeTracks (multi-track publication figures). Tool choice depends on the upstream differential-splicing tool's output format and the publication vs interactive use case. Use when visualizing specific splicing events, validating differential splicing calls, or producing publication-quality figures.
 tool_type: python
 primary_tool: ggsashimi
 ---
@@ -28,7 +28,7 @@ Visualize RNA-seq coverage tracks with splice junction arcs labeled by read coun
 | rmats2sashimiplot | One-line plot from rMATS output | rMATS event file + BAMs | No manual coord extraction | rMATS-specific; doesn't handle leafcutter or MAJIQ |
 | MAJIQ-VOILA | Interactive LSV browsing with posterior PSI distributions | MAJIQ build + psi/deltapsi | Splice-graph topology; LSV-aware; posterior violins | Static figures; non-academic license |
 | leafviz | Cluster-level interactive browsing with NMD annotation | leafcutter differential output | Filter table + sashimi-like plots; NMD-aware | leafcutter-specific |
-| Jutils | Unified output across rMATS, leafcutter, SUPPA2, MAJIQ | Tool-specific differential output | Heatmaps, Venn, sashimi tool-agnostically | Output less polished than ggsashimi |
+| Jutils | Unified output across rMATS, leafcutter, MntJULiP, MAJIQ | Tool-specific differential output | Heatmaps, Venn, sashimi tool-agnostically | Output less polished than ggsashimi |
 | pyGenomeTracks | Multi-track publication figures (RNA-seq + ChIP/ATAC) | BigWig + BED + GTF | Combine RNA with chromatin tracks | Not splicing-specific; configure tracks manually |
 | IGV (interactive) | Quick ad-hoc inspection | BAM + region | Scrollable, instant | Not for publication figures |
 | MISO sashimi | Historical | MISO output | Original sashimi format | MISO unmaintained; no longer recommended |
@@ -56,10 +56,11 @@ Visualize RNA-seq coverage tracks with splice junction arcs labeled by read coun
 import subprocess
 import pandas as pd
 
+# ggsashimi input: col1 = sample id, col2 = BAM path, col3 = group (for -O/-C overlay/color)
 groups = pd.DataFrame({
+    'sample_id': ['ctrl1', 'ctrl2', 'ctrl3', 'trt1', 'trt2', 'trt3'],
     'bam': ['ctrl1.bam', 'ctrl2.bam', 'ctrl3.bam', 'trt1.bam', 'trt2.bam', 'trt3.bam'],
-    'group': ['Control', 'Control', 'Control', 'Treatment', 'Treatment', 'Treatment'],
-    'color': ['#1f77b4'] * 3 + ['#ff7f0e'] * 3
+    'group': ['Control', 'Control', 'Control', 'Treatment', 'Treatment', 'Treatment']
 })
 groups.to_csv('sashimi_groups.tsv', sep='\t', index=False, header=False)
 
@@ -197,15 +198,16 @@ Standalone alternative: `jackhump/leafviz` GitHub repo for the lightweight insta
 
 ## Jutils for Tool-Agnostic Output
 
-**Goal:** Visualize differential splicing output uniformly across rMATS, leafcutter, SUPPA2, and MAJIQ.
+**Goal:** Visualize differential splicing output uniformly across rMATS, leafcutter, MntJULiP, and MAJIQ.
 
 **Approach:** Convert tool output to Jutils' standard format, then plot.
 
 ```bash
-jutils convert -t rmats -i SE.MATS.JC.txt -o rmats_jutils.tsv
-jutils heatmap -i rmats_jutils.tsv -o heatmap.pdf --top 50
-jutils sashimi -i rmats_jutils.tsv -b sashimi_groups.tsv -g annotation.gtf -o sashimi_jutils/
-jutils venn -i rmats_jutils.tsv leafcutter_jutils.tsv -o overlap_venn.pdf
+python3 jutils.py convert-results --rmats-dir rmats_output/ --out-dir jutils_out/
+python3 jutils.py heatmap --tsv-file jutils_out/rmats.tsv --meta-file meta.tsv --q-value 0.05
+python3 jutils.py sashimi --tsv-file jutils_out/rmats.tsv --meta-file meta.tsv \
+    --gtf annotation.gtf --coordinate chr1:1000-2000 --bam-list bam_list.tsv
+python3 jutils.py venn-diagram --tsv-file-list jutils_out/rmats.tsv,jutils_out/leafcutter.tsv
 ```
 
 (Yang 2021 *Bioinformatics*) Useful when comparing multiple tools' outputs across publications or doing meta-analysis.
@@ -287,7 +289,7 @@ pyGenomeTracks --tracks tracks.ini --region chr17:43094000-43125000 -o figure.pd
 
 **Symptom:** Implausible junctions in regions with overlapping antisense genes; "noise" arcs at unexpected locations.
 
-**Fix:** Use `-S RF` (reverse-forward) for Illumina TruSeq stranded; verify with RSeQC `infer_experiment.py`. Alternatively, pre-filter BAM by strand with `samtools view -f 16` / `-F 16`.
+**Fix:** Set library strandedness with `-s MATE2_SENSE` (dUTP/TruSeq reverse-stranded PE; use `-s MATE1_SENSE` for forward, `-s SENSE`/`ANTISENSE` for single-end); verify orientation with RSeQC `infer_experiment.py`. Alternatively, pre-filter BAM by strand with `samtools view -f 16` / `-F 16`.
 
 ### rmats2sashimiplot: Wrong Coordinate Convention
 
@@ -332,7 +334,7 @@ pyGenomeTracks --tracks tracks.ini --region chr17:43094000-43125000 -o figure.pd
 | Custom palette | Edit colors in groups TSV |
 | Filter junction noise | `-M 10` (raise to 20+) |
 | Transparency | `--alpha 0.25` |
-| GTF feature filter | `--gtf-filter protein_coding` |
+| Restrict to protein-coding | pre-filter the GTF (`awk '$0 ~ /protein_coding/'`); ggsashimi has no feature-filter flag |
 
 ## Best Practices
 
@@ -365,7 +367,7 @@ pyGenomeTracks --tracks tracks.ini --region chr17:43094000-43125000 -o figure.pd
 |-------|-------|----------|
 | No junctions shown | Default `-M 10` too strict | Lower to `-M 3` or `-M 5` |
 | Plot too crowded | Many samples without aggregation | Use `-O 3` to overlay groups |
-| Annotation missing or wrong gene | GTF lacks gene_name attribute or wrong build | Verify GTF version vs BAM reference; switch to `--gtf-filter protein_coding` |
+| Annotation missing or wrong gene | GTF lacks gene_name attribute or wrong build | Verify GTF version vs BAM reference; pre-filter the GTF to the relevant features |
 | Memory issues on large regions | >100 kb regions with many samples | Plot smaller windows or pre-extract reads with samtools view |
 | Y-axis dominated by one peak | Outlier sample | Use `-A mean_j` to aggregate; or filter outlier |
 

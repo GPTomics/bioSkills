@@ -189,14 +189,14 @@ A large class of conserved alternative splicing events is **deliberately PTC-int
 
 - **All major SR proteins** (SRSF1-12) autoregulate via poison exons (Lareau 2007 *Nature*; Ni 2007 *Genes Dev*)
 - **All major hnRNPs** likewise
-- **~70% of ribosomal protein genes** use AS-NMD (Mauger 2016 *Neuron*; Pirnie 2017 *RNA*)
+- **Ribosomal protein genes** use AS-NMD autoregulation (e.g. rpL3, rpL12; Cuccurese 2005 *NAR*)
 - **SCN1A** poison exon -> Stoke STK-001 ASO in Phase 1/2 for Dravet syndrome (Han 2020 *Sci Transl Med*)
 
 **Functional implication:** an *increase* in PSI of a poison exon *decreases* functional protein. Sign-of-effect in DTU output is opposite from intuition for these genes. Always check whether the alternative form is PTC-bearing before interpreting direction.
 
 **Disease examples:**
 - TDP-43 cryptic exons (UNC13A, STMN2) introduce PTCs -> NMD on disease-relevant transcript (Brown 2022 *Nature*)
-- Last-exon variants in MYH7, CARDIA: escape NMD -> dominant-negative protein
+- Last-exon truncating variants in TTN (and MYH7): escape NMD -> stable poison/dominant-negative protein
 
 ## Manual DTU Pipeline (DRIMSeq + DEXSeq + stageR)
 
@@ -421,8 +421,8 @@ extractSplicingSummary(aSwitchList, asFractionTotal = FALSE)
 
 ## References
 
-- Vitting-Seerup 2025 *bioRxiv* - IsoformSwitchAnalyzeR v2
-- Vitting-Seerup & Sandelin 2017 *Bioinformatics* - IsoformSwitchAnalyzeR original
+- Han et al 2025 *bioRxiv* 10.64898/2025.12.08.693027 - IsoformSwitchAnalyzeR v2
+- Vitting-Seerup & Sandelin 2019 *Bioinformatics* 35:4469-4471 - IsoformSwitchAnalyzeR original
 - Anders et al 2012 *Genome Res* - DEXSeq
 - Nowicka & Robinson 2016 *F1000Research* - DRIMSeq
 - Gilis et al 2022 *F1000Research* - satuRn
@@ -433,6 +433,7 @@ extractSplicingSummary(aSwitchList, asFractionTotal = FALSE)
 - Lykke-Andersen & Jensen 2015 *Nat Rev Mol Cell Biol* - NMD update
 - Lindeboom et al 2016 *Nat Genet* - NMD escape rates from RNA-seq
 - Lareau et al 2007 *Nature* - SR protein AS-NMD autoregulation
-- Mauger et al 2016 *Neuron* - ribosomal protein AS-NMD
+- Ni et al 2007 *Genes Dev* - ultraconserved-element AS-NMD in splicing regulators
+- Cuccurese et al 2005 *NAR* 33:5965-5977 - ribosomal protein AS-NMD autoregulation
 - Brown et al 2022 *Nature* - UNC13A cryptic exon (TDP-43)
 - Han et al 2020 *Sci Transl Med* - SCN1A poison exon ASO

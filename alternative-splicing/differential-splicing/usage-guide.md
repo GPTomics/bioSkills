@@ -5,16 +5,16 @@ Detect alternative splicing changes between conditions using rMATS-turbo (binomi
 
 ## Prerequisites
 ```bash
-# Python tools
-pip install rmats-turbo suppa pandas numpy
+# Python tools (rMATS-turbo is not on PyPI; install via bioconda below)
+pip install suppa pandas numpy
 
 # R / Bioconductor
 BiocManager::install(c('DESeq2'))
-# leafcutter (GitHub)
+# leafcutter (GitHub, not Bioconductor)
 # devtools::install_github('davidaknowles/leafcutter/leafcutter')
 
 # CLI tools
-conda install -c bioconda regtools
+conda install -c bioconda rmats regtools
 # MAJIQ V3 from majiq.biociphers.org (academic license)
 ```
 

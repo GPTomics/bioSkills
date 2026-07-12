@@ -112,8 +112,8 @@ samtools collate -O -u in.bam tmp_prefix | \
 | GATK HaplotypeCaller, Mutect2 | coordinate |
 | featureCounts / HTSeq | coordinate or name (`-p` for paired) |
 | umi_tools dedup | coordinate (with index) |
-| fgbio GroupReadsByUmi | queryname (hard requirement) |
-| fgbio CallMolecularConsensusReads | TemplateCoordinate (`fgbio SortBam`) |
+| fgbio GroupReadsByUmi | any order accepted (template-coordinate recommended to avoid an internal re-sort) |
+| fgbio CallMolecularConsensusReads | grouped by MI tag (consumes GroupReadsByUmi output) |
 | Sniffles, cuteSV, Manta, Delly | coordinate (need SA tags) |
 | Salmon alignment-mode | name |
 | RSEM (with STAR `--quantMode TranscriptomeSAM`) | name (hard requirement) |
@@ -130,8 +130,11 @@ samtools view -H input.bam | grep "^@HD"
 
 ### Verify Sorted
 ```bash
-# Check if coordinate sorted (returns 0 if sorted)
-samtools view input.bam | awk '$4 < prev {exit 1} {prev=$4}'
+# Check if coordinate sorted (returns 0 if sorted). Reset the position tracker
+# on each new contig, else the POS reset at every chromosome boundary of a
+# correctly sorted multi-contig BAM would falsely report "unsorted".
+samtools view input.bam | awk '$3!=c {c=$3; prev=0} $4<prev {exit 1} {prev=$4}'
+# Simpler and authoritative: trust the @HD SO: header shown above.
 ```
 
 ## pysam Python Alternative

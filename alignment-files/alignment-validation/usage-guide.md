@@ -72,7 +72,7 @@ Tell your AI agent what you want to do:
 ## Key Metrics and Thresholds
 
 ### Mapping Rate, Proper Pairing, Insert Size
-Thresholds and expected ranges are assay-specific. See SKILL.md "QC Thresholds Are Assay-Specific" table for mapping rate, proper-pair rate, duplicate rate, mean MAPQ, and Mt fraction across WGS, WES, panels, RNA-seq, scRNA, ATAC, ChIP, long-read, and aDNA.
+Thresholds and expected ranges are assay-specific. See the bam-statistics skill's per-assay QC table for mapping rate, proper-pair rate, duplicate rate, mean MAPQ, and Mt fraction across WGS, WES, panels, RNA-seq, scRNA, ATAC, ChIP, long-read, and aDNA.
 
 ### Strand Balance
 Forward/reverse strand ratio should be approximately 0.5 (balanced).

@@ -68,6 +68,11 @@ extract_sequences <- function(switchList, output_dir) {
 
 # Step 4: Import external annotations and analyze consequences
 analyze_consequences <- function(switchList, annotation_dir) {
+    # ORF analysis MUST precede consequence analysis so NMD_status, ORF_seq_similarity,
+    # and coding_potential can be computed (unless ORFs were pre-loaded via
+    # importRdata(addAnnotatedORFs=TRUE)).
+    switchList <- analyzeORF(switchList, orfMethod = 'longest')
+
     # Import CPC2 coding potential predictions
     if (file.exists(file.path(annotation_dir, 'cpc2_results.txt'))) {
         switchList <- analyzeCPC2(

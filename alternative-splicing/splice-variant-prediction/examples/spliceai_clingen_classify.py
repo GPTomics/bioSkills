@@ -53,9 +53,14 @@ def parse_spliceai_vcf(vcf_path):
 
 
 def apply_clingen_svi(df):
-    '''Apply ClinGen SVI 2023 thresholds for PP3/BP4 (Walker 2023 AJHG).'''
+    '''Apply ClinGen SVI 2023 thresholds for PP3/BP4 (Walker 2023 AJHG).
+
+    ClinGen SVI applies predictive splice PP3/BP4 at supporting weight only.
+    The 0.5/0.8 cutoffs are SpliceAI precision tiers (Jaganathan 2019), NOT
+    ACMG evidence-strength upgrades; moderate/strong needs functional PS3/BS3.
+    '''
     bins = [-0.01, 0.10, 0.20, 0.50, 0.80, 1.01]
-    labels = ['BP4', 'inconclusive', 'PP3_supporting', 'PP3_moderate', 'PP3_strong']
+    labels = ['BP4', 'inconclusive', 'PP3_supporting', 'PP3_supporting_prec0.5', 'PP3_supporting_prec0.8']
     df = df.copy()
     df['acmg_evidence'] = pd.cut(df['delta_max'], bins=bins, labels=labels)
     return df
@@ -80,12 +85,28 @@ def main():
     df_50 = apply_clingen_svi(df_50)
     df_50 = flag_deep_intronic_candidates(df_50)
 
-    # Re-run with extended window only on candidates likely to be deep-intronic
+    # Re-run with extended window only on candidates likely to be deep-intronic.
+    # SpliceAI needs a valid VCF, so subset the ORIGINAL input VCF (keep its header)
+    # rather than reconstructing one from the dataframe.
     candidates = df_50[df_50['extend_window_candidate']]
     if not candidates.empty:
+        cand_keys = set(zip(candidates['chrom'], candidates['pos'].astype(int)))
         candidates_vcf = Path('extend_window_candidates.vcf')
-        candidates[['chrom', 'pos', 'ref', 'alt']].to_csv(candidates_vcf, sep='\t', index=False)
+        with open(input_vcf) as fin, open(candidates_vcf, 'w') as fout:
+            for line in fin:
+                if line.startswith('#'):
+                    fout.write(line)
+                else:
+                    f = line.split('\t')
+                    if (f[0], int(f[1])) in cand_keys:
+                        fout.write(line)
         run_spliceai(candidates_vcf, spliceai_2000, genome, distance=2000)
+        # Merge the stronger extended-window delta back onto the flagged rows
+        df_2000 = parse_spliceai_vcf(spliceai_2000)[['chrom', 'pos', 'alt', 'gene', 'delta_max']]
+        df_50 = df_50.merge(df_2000, on=['chrom', 'pos', 'alt', 'gene'], how='left', suffixes=('', '_2000'))
+        rescued = df_50['delta_max_2000'].notna()
+        df_50.loc[rescued, 'delta_max'] = df_50.loc[rescued, 'delta_max_2000']
+        df_50 = apply_clingen_svi(df_50.drop(columns='delta_max_2000'))
 
     df_50.to_csv('spliceai_clingen_classified.tsv', sep='\t', index=False)
     summary = df_50.groupby('acmg_evidence', observed=True).size()

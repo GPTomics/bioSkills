@@ -120,7 +120,7 @@ patient_results <- patient_results[order(patient_results$padjust), ]
 - Pseudocount and filtering parameter optimization
 - Bioconductor package version >=1.99.0 == FRASER 2.0
 
-`q = 10` is the autoencoder dimension hyperparameter. **Tune via `optimHyperParams(fds, type='jaccard')` for cohort-specific optimum** — too low: confounders not removed; too high: real signal absorbed.
+`q = 10` is the autoencoder dimension hyperparameter. **Tune via `estimateBestQ(fds, type='jaccard')` for cohort-specific optimum** — too low: confounders not removed; too high: real signal absorbed.
 
 ## OUTRIDER for Gene-Level Outlier Expression
 
@@ -135,8 +135,9 @@ countTable <- read.table('counts.tsv', header=TRUE, row.names=1)
 ods <- OutriderDataSet(countData = countTable)
 
 ods <- filterExpression(ods, minCounts=TRUE, filterGenes=TRUE)
-ods <- estimateBestQ(ods, BPPARAM = MulticoreParam(8))
-ods <- OUTRIDER(ods, BPPARAM = MulticoreParam(8))
+# OUTRIDER's estimateBestQ returns a scalar q (unlike FRASER's, which returns the object)
+q_best <- estimateBestQ(ods)
+ods <- OUTRIDER(ods, q = q_best, BPPARAM = MulticoreParam(8))
 
 res <- results(ods, padjCutoff = 0.05, zScoreCutoff = 0)
 patient_outliers <- res[res$sampleID == 'PATIENT_001', ]
@@ -148,7 +149,7 @@ OUTRIDER (Brechtmann 2018 *Am J Hum Genet*) catches loss-of-function alleles pro
 
 **Goal:** Detect outlier intron usage relative to a control panel without annotation dependence.
 
-**Approach:** Run LeafCutter in MD (Mahalanobis Distance) mode against the control panel.
+**Approach:** Run LeafcutterMD (LeafCutter's Dirichlet-multinomial outlier mode for Mendelian disease) against the control panel.
 
 ```bash
 for bam in *.bam; do
@@ -241,7 +242,9 @@ For UDN-style cases: blood first, then fibroblast if blood lacks expression of c
 ## Hyperparameter Tuning
 
 ```r
-fds <- estimateBestQ(fds, type='jaccard', useOHT=TRUE)
+# useOHT=FALSE runs the injection-based q grid so plotEncDimSearch has a curve to show;
+# useOHT=TRUE (default) is the fast deterministic OHT estimate but produces no search table to plot.
+fds <- estimateBestQ(fds, type='jaccard', useOHT=FALSE, q_param=c(2, 5, 10, 15, 20))
 plotEncDimSearch(fds, type='jaccard')
 ```
 
@@ -285,7 +288,7 @@ For typical 50-100 sample cohorts, q=8-15 is the usual operating range (DROP / F
 
 **Trigger:** Very few clusters in patient sample (low coverage or filtered out).
 
-**Mechanism:** LeafcutterMD computes Mahalanobis distance over clusters; few observations -> unstable distance.
+**Mechanism:** LeafcutterMD fits a Dirichlet-multinomial (Beta-binomial per-intron) model over cluster counts; few observations -> unstable fit -> unreliable p-values.
 
 **Symptom:** Inflated or deflated p-values; few significant calls.
 
@@ -332,7 +335,7 @@ For each, the gene must be expressed in the queried tissue. Verify with GTEx bef
 | `FRASER: cohort too small` | n<10 | Pool with auxiliary controls; or recruit more patients |
 | `FRASER: countRNAData failed on chromosome X` | BAM index missing or corrupted | Re-index BAMs; check `samtools idxstats` |
 | `estimateBestQ: convergence not reached` | Default q range insufficient | Expand `q_param=c(2,5,10,15,20)`; or use `useOHT=TRUE` for the fast deterministic alternative |
-| `OUTRIDER: estimateBestQ slow` | Default range tries q=2-30 | Restrict to expected range (`q=4:15`) |
+| `OUTRIDER: encoding-dim search slow` | `findEncodingDim` grids many q values | Use `estimateBestQ(ods)` for a fast single-q estimate |
 | `DROP: snakemake job failed at FRASER` | DROP-FRASER version mismatch | Update DROP to latest; verify FRASER 2.0 compatibility |
 | `LeafcutterMD: insufficient clusters` | Cluster filter too strict | Lower `-m` minimum cluster reads |
 | `Variant integration: chrom format mismatch` | VCF uses 1, FRASER uses chr1 (or vice versa) | Standardize with `bcftools annotate --rename-chrs` |
