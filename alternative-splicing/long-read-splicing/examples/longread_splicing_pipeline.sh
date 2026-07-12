@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: minimap2 2.26+, samtools 1.19+, IsoQuant 3.5+, SQANTI3 5.2+, FLAIR 2.0+ | Verify CLI flags if version differs
+# Reference: minimap2 2.26+, samtools 1.19+, IsoQuant 3.5+, SQANTI3 5.4+, FLAIR 2.0+ | Verify CLI flags if version differs
 # Long-read splicing analysis pipeline
 #
 # Workflow:
@@ -48,8 +48,9 @@ isoquant.py \
     --data_type ${DATA_TYPE} \
     --output ${OUTPUT_DIR}/isoquant \
     --threads ${THREADS} \
-    --prefix ${SAMPLE} \
-    --model_construction_strategy default_${DATA_TYPE}
+    --prefix ${SAMPLE}
+# --model_construction_strategy is auto-selected from --data_type
+# (default_pacbio for pacbio_ccs, default_ont for nanopore); override only if needed
 
 # 2b. Alternative: FLAIR end-to-end pipeline
 # Convert BAM to BED12 for FLAIR
@@ -70,18 +71,18 @@ flair collapse \
     --output ${OUTPUT_DIR}/flair_collapsed_${SAMPLE} \
     --threads ${THREADS}
 
-# 3. SQANTI3 classification (use SQANTI-LR branch for long reads)
+# 3. SQANTI3 classification (filter intra-priming and RT-switching flags before reporting)
 sqanti3_qc.py \
-    ${OUTPUT_DIR}/isoquant/${SAMPLE}/${SAMPLE}.transcript_models.gtf \
-    ${GTF} \
-    ${REFERENCE} \
+    --isoforms ${OUTPUT_DIR}/isoquant/${SAMPLE}/${SAMPLE}.transcript_models.gtf \
+    --refGTF ${GTF} \
+    --refFasta ${REFERENCE} \
     --output ${OUTPUT_DIR}/sqanti3 \
     --aligner_choice minimap2 \
     --cpus ${THREADS}
 
 sqanti3_filter.py rules \
-    ${OUTPUT_DIR}/sqanti3/${SAMPLE}_classification.txt \
-    --gtf ${OUTPUT_DIR}/isoquant/${SAMPLE}/${SAMPLE}.transcript_models.gtf \
+    --sqanti_class ${OUTPUT_DIR}/sqanti3/${SAMPLE}_classification.txt \
+    --filter_gtf ${OUTPUT_DIR}/isoquant/${SAMPLE}/${SAMPLE}.transcript_models.gtf \
     --output ${OUTPUT_DIR}/sqanti3_filtered
 
 echo "Pipeline complete. Outputs in ${OUTPUT_DIR}/"

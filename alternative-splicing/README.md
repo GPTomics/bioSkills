@@ -32,15 +32,21 @@ Alternative splicing analysis for short-read and long-read RNA-seq, covering eve
 ## Requirements
 ```bash
 # Python tools
-pip install rmats-turbo suppa spliceai pangolin mmsplice brie2 \
+pip install suppa spliceai mmsplice brie \
  rseqc maxentpy pysam pandas numpy scanpy anndata flair-brookslab isoquant
+
+# rMATS-turbo via bioconda; splicing Pangolin from GitHub
+# (NOT the PyPI 'pangolin', which is the unrelated SARS-CoV-2 lineage tool)
+conda install -c bioconda rmats
+pip install git+https://github.com/tkzeng/Pangolin.git
 
 # R / Bioconductor
 BiocManager::install(c(
- 'IsoformSwitchAnalyzeR', 'leafcutter', 'FRASER', 'OUTRIDER',
- 'DRIMSeq', 'DEXSeq', 'satuRn', 'stageR', 'fishpond', 'tximeta',
- 'bambu', 'Sierra', 'MARVEL'
+ 'IsoformSwitchAnalyzeR', 'FRASER', 'OUTRIDER', 'DRIMSeq', 'DEXSeq',
+ 'satuRn', 'stageR', 'fishpond', 'tximeta', 'bambu'
 ))
+# Not on Bioconductor: leafcutter, Sierra, MARVEL (GitHub; MARVEL was archived from CRAN 2025-10)
+# devtools::install_github(c('davidaknowles/leafcutter/leafcutter', 'VCCRI/Sierra', 'wenweixiong/MARVEL'))
 
 # CLI tools
 conda install -c bioconda regtools ggsashimi pygenometracks rmats2sashimiplot \

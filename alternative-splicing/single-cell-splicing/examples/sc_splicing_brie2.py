@@ -3,75 +3,63 @@
 Single-cell splicing analysis using BRIE2.
 Estimates PSI values with uncertainty quantification for sparse scRNA-seq data.
 '''
-# Reference: anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
+# Reference: brie 2.2+, anndata 0.10+, numpy 1.26+, pandas 2.2+, scanpy 1.10+ | Verify API if version differs
 
 import subprocess
-from pathlib import Path
 
 
-def prepare_splicing_events(gtf_file, output_file):
+def prepare_splicing_events(gtf_file, output_gff):
     '''
-    Generate splicing event annotations from GTF for BRIE2.
+    Generate exon-skipping event annotations for BRIE.
+
+    BRIE's public interface is CLI-based. Events come from the companion briekit
+    package (briekit-event); alternatively use BRIE's precomputed human/mouse
+    annotation GFF3 from the BRIE documentation.
     '''
-    import brie
+    subprocess.run(['briekit-event', '-a', gtf_file, '-o', output_gff], check=True)
 
-    brie.preprocessing.get_events(
-        gtf_file=gtf_file,
-        out_file=output_file
-    )
-
-    print(f'Splicing events written to: {output_file}')
+    print(f'Splicing events written to: {output_gff}')
 
 
-def count_splicing_reads(bam_file, gff_file, output_dir, barcode_file=None):
+def count_splicing_reads(bam_file, events_gff, output_dir, barcode_file, n_proc=15):
     '''
-    Count reads for splicing events from 10X BAM.
+    Count splice-junction reads per cell with brie-count (10X droplet mode).
 
     Args:
         bam_file: Possorted BAM from Cell Ranger
-        gff_file: Splicing events GFF from prepare_splicing_events
-        output_dir: Output directory for count matrices
-        barcode_file: Optional filtered barcodes (barcodes.tsv)
+        events_gff: Splicing-event GFF3 from prepare_splicing_events
+        output_dir: Output directory (writes brie_count.h5ad)
+        barcode_file: Filtered barcodes (barcodes.tsv[.gz])
+        n_proc: Parallel processes
+    '''
+    subprocess.run([
+        'brie-count', '-a', events_gff, '-s', bam_file,
+        '-b', barcode_file, '-o', output_dir, '-p', str(n_proc)
+    ], check=True)
+
+    print(f'BRIE counts written to: {output_dir}/brie_count.h5ad')
+
+
+def run_brie2_inference(count_h5ad, cell_features, output_h5ad):
+    '''
+    Run BRIE2 quantification (brie-quant) for PSI + cell-feature effects.
+
+    Args:
+        count_h5ad: brie_count.h5ad from brie-count
+        cell_features: TSV of cell covariates for the design matrix
+        output_h5ad: Output AnnData path
+
+    Returns AnnData with PSI estimates in layers ('Psi').
     '''
     import brie
 
-    kwargs = {
-        'bam_file': bam_file,
-        'gff_file': gff_file,
-        'out_dir': output_dir
-    }
-
-    if barcode_file:
-        kwargs['cell_file'] = barcode_file
-
-    brie.preprocessing.count(**kwargs)
-
-    print(f'BRIE counts written to: {output_dir}')
-
-
-def run_brie2_inference(count_dir, n_epochs=400, batch_size=512):
-    '''
-    Run BRIE2 variational inference for PSI estimation.
-
-    Returns AnnData with PSI estimates in layers.
-    '''
-    import brie
-
-    adata = brie.read_h5ad(f'{count_dir}/brie_count.h5ad')
-
-    # Run BRIE2 model
     # Probabilistic PSI estimation handles sparse data
-    brie.fit(
-        adata,
-        layer='raw',
-        n_epochs=n_epochs,
-        batch_size=batch_size
-    )
+    subprocess.run([
+        'brie-quant', '-i', count_h5ad, '-c', cell_features,
+        '-o', output_h5ad, '--interceptMode', 'gene', '--LRTindex', 'All'
+    ], check=True)
 
-    # PSI estimates: adata.layers['Psi']
-    # Uncertainty: adata.layers['Psi_var']
-
-    return adata
+    return brie.read_h5ad(output_h5ad)
 
 
 def find_variable_splicing(adata_splice, cell_type_col='cell_type', min_cells=50):
@@ -196,7 +184,9 @@ if __name__ == '__main__':
     # )
 
     # Step 3: Run BRIE2 inference
-    # adata_splice = run_brie2_inference('brie_counts/')
+    # adata_splice = run_brie2_inference(
+    #     'brie_counts/brie_count.h5ad', 'cell_features.tsv', 'brie_quant.h5ad'
+    # )
 
     # Step 4: Find variable events
     # variable_events, mean_psi = find_variable_splicing(adata_splice)

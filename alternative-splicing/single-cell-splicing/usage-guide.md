@@ -6,10 +6,11 @@ Analyze alternative splicing at single-cell resolution. The first decision is li
 ## Prerequisites
 ```bash
 # Python
-pip install brie2 scanpy anndata scipy
+pip install brie scanpy anndata scipy
 
-# R
-BiocManager::install(c('Sierra', 'MARVEL'))
+# R - both from GitHub (Sierra not on Bioconductor; MARVEL archived from CRAN 2025-10)
+# devtools::install_github('VCCRI/Sierra')
+remotes::install_github('wenweixiong/MARVEL')
 
 # scQuint, SpliZ, Psix from GitHub
 pip install git+https://github.com/songlab-cal/scquint

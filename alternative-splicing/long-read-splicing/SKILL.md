@@ -1,13 +1,13 @@
 ---
 name: bio-long-read-splicing
-description: Analyzes alternative splicing from PacBio Iso-Seq (HiFi, Kinnex/MAS-Iso-seq) and Oxford Nanopore (direct cDNA, direct RNA, R10.4.1+) long-read RNA-seq with full-isoform resolution. Tools include FLAIR (correct/collapse/quantify/diffSplice for PacBio + ONT), IsoQuant (de-novo or annotation-guided isoform discovery 2024 SOTA), Bambu (annotation-aware Bayesian discovery + quantification with Novel Discovery Rate), SQANTI3/SQANTI-LR (isoform classification: FSM/ISM/NIC/NNC + artifact flags), rMATS-long (event calling on long-read isoforms), and minimap2 (-ax splice:hq for HiFi; -ax splice -k14 for ONT cDNA; add -uf only for direct RNA or stranded cDNA preps). Solves microexon detection, recursive splicing, complex multi-exon isoforms, and DTU without transcript-quantification uncertainty. Use when short-read AS limitations (anchor length, complex isoforms, microexons, recursive splicing, transcript ambiguity) demand full-isoform resolution.
+description: Analyzes alternative splicing from PacBio Iso-Seq (HiFi, Kinnex/MAS-Iso-seq) and Oxford Nanopore (direct cDNA, direct RNA, R10.4.1+) long-read RNA-seq with full-isoform resolution. Tools include FLAIR (correct/collapse/quantify/diffSplice for PacBio + ONT), IsoQuant (de-novo or annotation-guided isoform discovery 2024 SOTA), Bambu (annotation-aware Bayesian discovery + quantification with Novel Discovery Rate), SQANTI3 (isoform classification: FSM/ISM/NIC/NNC + artifact flags), rMATS-long (event calling on long-read isoforms), and minimap2 (-ax splice:hq for HiFi; -ax splice -k14 for ONT cDNA; add -uf only for direct RNA or stranded cDNA preps). Solves microexon detection, recursive splicing, complex multi-exon isoforms, and DTU without transcript-quantification uncertainty. Use when short-read AS limitations (anchor length, complex isoforms, microexons, recursive splicing, transcript ambiguity) demand full-isoform resolution.
 tool_type: mixed
 primary_tool: FLAIR
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: FLAIR 2.0+, IsoQuant 3.5+, Bambu 3.4+, SQANTI3 5.2+, minimap2 2.26+, samtools 1.19+, rMATS-long 0.2+, IsoSeq3 4.0+
+Reference examples tested with: FLAIR 2.0+, IsoQuant 3.5+, Bambu 3.4+, SQANTI3 5.4+, minimap2 2.26+, samtools 1.19+, rMATS-long 0.2+, IsoSeq3 4.0+
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -125,9 +125,9 @@ flair quantify \
 
 flair diffSplice \
     --isoforms flair_collapsed.isoforms.bed \
-    --counts_matrix flair_quantified_counts.tsv \
-    --conditions_table conditions.tsv \
-    --output flair_diffsplice \
+    --counts_matrix flair_quantified.counts.tsv \
+    --out_dir flair_diffsplice \
+    --test \
     --threads 16
 ```
 
@@ -201,19 +201,19 @@ Excellent for combined discovery + quantification when statistical filtering mat
 
 ```bash
 sqanti3_qc.py \
-    isoforms.gtf \
-    gencode.v45.annotation.gtf \
-    reference.fa \
+    --isoforms isoforms.gtf \
+    --refGTF gencode.v45.annotation.gtf \
+    --refFasta reference.fa \
     --output sqanti3_qc \
     --aligner_choice minimap2 \
-    --cage_peak refTSS_v3.3_human_coordinate.hg38.bed \
+    --CAGE_peak refTSS_v3.3_human_coordinate.hg38.bed \
     --polyA_motif_list mouse_and_human.polyA_motif.txt \
     --cpus 8
 
 sqanti3_filter.py rules \
-    sqanti3_qc_classification.txt \
-    --isoforms isoforms.fa \
-    --gtf isoforms.gtf \
+    --sqanti_class sqanti3_qc_classification.txt \
+    --filter_isoforms isoforms.fa \
+    --filter_gtf isoforms.gtf \
     --output sqanti3_filtered
 ```
 
@@ -228,7 +228,7 @@ sqanti3_filter.py rules \
 | Intergenic | Between genes |
 | Fusion | Spans multiple genes |
 
-SQANTI-LR (Pardo-Palacios 2024 *Nat Methods*) is the long-read-specific branch with QC tailored to ONT/PacBio error patterns. **Filter intra-priming and RT-switching** flags before reporting.
+SQANTI3 (Pardo-Palacios 2024 *Nat Methods* 21:793-797) is the long-read isoform-curation/QC tool, with structural categories and QC tailored to ONT/PacBio error patterns. **Filter intra-priming and RT-switching** flags before reporting.
 
 ## rMATS-long for Differential Isoform Analysis on Long-Read Data
 
@@ -253,16 +253,18 @@ rmats-long organize_alignment_info_by_gene_and_chr.py \
     --out-dir organized/ \
     --samples-tsv samples.tsv
 
-rmats-long detect_splicing_events.py --align-dir organized/ --out-dir events/
+rmats-long detect_splicing_events.py --align-dir organized/ --gtf-dir gene_info_by_chr/ --out-dir events/
 rmats-long create_gtf_from_asm_definitions.py --event-dir events/ --out-gtf asm.gtf
-rmats-long count_reads_for_asms.py --align-dir organized/ --event-dir events/ --out-dir asm_counts/
+rmats-long count_reads_for_asms.py --align-dir organized/ --event-dir events/ --gtf-dir gene_info_by_chr/ --out-dir asm_counts/
 
 # Main differential analysis (ASM mode)
-# Note: in ASM mode, --group-1 / --group-2 take sample IDs (matching the BAM basenames
-# you organized into --align-dir); the BAM-to-counts step is done by count_reads_for_asms.py above.
+# --group-1 / --group-2 each take the PATH to a file whose single line is a
+# comma-separated list of sample IDs (matching the BAM basenames in --align-dir).
+echo 'ctrl1,ctrl2,ctrl3' > group1.txt
+echo 'trt1,trt2,trt3' > group2.txt
 rmats-long rmats_long.py \
-    --group-1 ctrl1,ctrl2,ctrl3 \
-    --group-2 trt1,trt2,trt3 \
+    --group-1 group1.txt \
+    --group-2 group2.txt \
     --event-dir events/ \
     --asm-counts-dir asm_counts/ \
     --align-dir organized/ \
@@ -276,8 +278,8 @@ rmats-long rmats_long.py \
 rmats-long rmats_long.py \
     --abundance abundance.esp \
     --updated-gtf updated.gtf \
-    --group-1 sample1,sample2,sample3 \
-    --group-2 sample4,sample5,sample6 \
+    --group-1 group1.txt \
+    --group-2 group2.txt \
     --out-dir rmats_long_output/ \
     --no-splice-graph-plot
 ```
@@ -334,7 +336,7 @@ match_cell_barcode \
     --output flames_demuxed.bam
 ```
 
-Joglekar and colleagues used this approach for the mouse cortex isoform atlas (consult most recent publication for exact venue/year). See `single-cell-splicing` for tools that work on the demultiplexed data.
+Joglekar et al 2024 (*Nat Neurosci* 27:1051-1063) used this approach to map single-cell isoforms across developing and adult mouse and human brain. See `single-cell-splicing` for tools that work on the demultiplexed data.
 
 ## Per-Tool Failure Modes
 
@@ -472,13 +474,14 @@ Pre-R10 ONT (R9.4.1) had ~85-90% junction concordance and is no longer recommend
 - Prjibelski et al 2023 *Nat Biotech* - IsoQuant
 - Chen et al 2023 *Nat Methods* 20:1187-1195 - Bambu
 - Tardaguila et al 2018 *Genome Res* - SQANTI (original)
-- Pardo-Palacios et al 2024 *Nat Methods* - SQANTI3 / LRGASP benchmark
+- Pardo-Palacios et al 2024 *Nat Methods* 21:793-797 - SQANTI3
+- Pardo-Palacios et al 2024 *Nat Methods* 21:1349-1363 - LRGASP benchmark
 - Wyman et al 2020 *bioRxiv* - TALON (note: not formally peer-reviewed)
 - Li 2018 / 2021 *Bioinformatics* - minimap2
 - Sahlin & Makinen 2021 *Bioinformatics* - uLTRA
 - Sibley et al 2015 *Nature* - recursive splicing
 - Al'Khafaji et al 2024 *Nat Biotech* - MAS-Iso-seq / Kinnex
-- Joglekar et al - scISOr-Seq2 mouse cortex (consult most recent publication for venue/year)
+- Joglekar et al 2024 *Nat Neurosci* 27:1051-1063 - scISOr-Seq2 single-cell brain isoform mapping
 - Tian et al 2021 *Genome Biology* 22:310 - FLAMES
 - Brown et al 2022 *Nature* - UNC13A cryptic exon (TDP-43)
 - Klim et al 2019 *Nat Neurosci* - STMN2 cryptic splicing

@@ -6,11 +6,13 @@ Quantify alternative splicing events from RNA-seq data as PSI (percent spliced i
 ## Prerequisites
 ```bash
 # Python tools
-pip install rmats-turbo suppa pandas
+pip install suppa pandas
 
-# leafcutter (R) and regtools (CLI)
-BiocManager::install('leafcutter')
-conda install -c bioconda regtools
+# rMATS-turbo + regtools (CLI via bioconda; rMATS-turbo is not on PyPI)
+conda install -c bioconda rmats regtools
+
+# leafcutter R package (GitHub, not Bioconductor)
+# devtools::install_github('davidaknowles/leafcutter/leafcutter')
 
 # MAJIQ V3 (academic license at majiq.biociphers.org)
 # VAST-TOOLS (perl-based; conda install -c bioconda vast-tools)

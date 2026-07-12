@@ -64,7 +64,7 @@ Tell your AI agent what you want to do:
 - ONT R10.4.1+ is required for reliable splicing; pre-R10 had ~85-90% junction concordance and false-positive novel junctions
 - Bambu's NDR (Novel Discovery Rate) replaces per-sample heuristic thresholds with one calibrated parameter
 - IsoQuant memory requirement: >=64 GB for atlas-scale runs
-- SQANTI-LR is the long-read-specific QC branch; use it over generic SQANTI3
+- SQANTI3 is the standard long-read isoform-curation/QC tool; filter intra-priming and RT-switching flags before reporting
 - Direct RNA sequencing preserves modifications (m6A) and true 5'/3' termini but is lower throughput
 - For single-cell long-read, MAS-Iso-seq + 10X 5' is the practical SOTA in 2024-2026
 - Long-read DTU bypasses Salmon EM uncertainty - counts are read-level isoform identities

@@ -9,8 +9,8 @@ Visualize splicing events as sashimi-style plots showing per-sample read coverag
 pip install pandas
 conda install -c bioconda ggsashimi rmats2sashimiplot pygenometracks
 
-# R for leafviz
-BiocManager::install('leafcutter')
+# R for leafviz (leafcutter is on GitHub, not Bioconductor)
+# devtools::install_github('davidaknowles/leafcutter/leafcutter')
 
 # MAJIQ-VOILA bundled with MAJIQ V3 (majiq.biociphers.org)
 

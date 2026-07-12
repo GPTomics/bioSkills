@@ -29,7 +29,7 @@ rmats.py \
     --nthread "$THREADS" \
     --od "$OUTPUT_DIR" \
     --tmp "$TMP_DIR" \
-    --cstat 0.01  # Chi-square cutoff for significance
+    --cstat 0.01  # splicing-difference (dPSI) cutoff c for the null test |PSI1-PSI2|<=c (default 0.0001)
 
 # Output files:
 # SE.MATS.JC.txt - Skipped exons (junction counts only)

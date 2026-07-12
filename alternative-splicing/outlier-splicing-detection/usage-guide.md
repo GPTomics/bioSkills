@@ -5,8 +5,9 @@ Detect aberrant splicing in single rare-disease patients vs a control panel - th
 
 ## Prerequisites
 ```bash
-# R Bioconductor
-BiocManager::install(c('FRASER', 'OUTRIDER', 'leafcutter'))
+# R Bioconductor (leafcutter is on GitHub, not Bioconductor)
+BiocManager::install(c('FRASER', 'OUTRIDER'))
+# devtools::install_github('davidaknowles/leafcutter/leafcutter')
 
 # DROP pipeline (bioconda; not on PyPI)
 mamba create -n drop_env -c conda-forge -c bioconda drop --override-channels

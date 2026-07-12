@@ -6,24 +6,27 @@ Visualizes splicing events with read coverage and junction counts.
 # Reference: pandas 2.2+ | Verify API if version differs
 
 import subprocess
+import numpy as np
 import pandas as pd
 from pathlib import Path
 
 
-def create_grouping_file(bam_files, conditions, colors, output_file):
+def create_grouping_file(bam_files, conditions, output_file):
     '''
-    Create ggsashimi grouping file.
+    Create a ggsashimi input TSV.
+
+    ggsashimi expects column 1 = sample id/label, column 2 = BAM path,
+    column 3 = group (usable for overlay/coloring via ggsashimi -O/-C + --palette).
 
     Args:
         bam_files: List of BAM file paths
-        conditions: List of condition labels (same length as bam_files)
-        colors: Dict mapping condition to hex color
+        conditions: List of group labels (same length as bam_files)
         output_file: Output TSV path
     '''
     groups = pd.DataFrame({
+        'sample_id': [Path(b).stem for b in bam_files],
         'bam': bam_files,
-        'group': conditions,
-        'color': [colors[c] for c in conditions]
+        'group': conditions
     })
     groups.to_csv(output_file, sep='\t', index=False, header=False)
     return output_file
@@ -34,7 +37,7 @@ def plot_sashimi(grouping_file, region, output_prefix, gtf_file, options=None):
     Generate sashimi plot for a genomic region.
 
     Args:
-        grouping_file: TSV with bam, group, color columns
+        grouping_file: ggsashimi TSV (sample_id, bam, group columns)
         region: Genomic coordinates (chr:start-end)
         output_prefix: Output file prefix
         gtf_file: GTF annotation file
@@ -92,7 +95,7 @@ def batch_plot_rmats_events(rmats_file, grouping_file, gtf_file, output_dir,
     ].copy()
 
     # Sort by significance and effect size
-    significant['score'] = -significant['FDR'].apply(lambda x: max(x, 1e-300)).apply(pd.np.log10) * significant['IncLevelDifference'].abs()
+    significant['score'] = -significant['FDR'].apply(lambda x: max(x, 1e-300)).apply(np.log10) * significant['IncLevelDifference'].abs()
     significant = significant.nlargest(n_top, 'score')
 
     print(f'Plotting top {len(significant)} significant events')
@@ -152,9 +155,8 @@ if __name__ == '__main__':
     # Example: Create grouping file
     bams = ['ctrl1.bam', 'ctrl2.bam', 'treat1.bam', 'treat2.bam']
     conditions = ['Control', 'Control', 'Treatment', 'Treatment']
-    colors = {'Control': '#1f77b4', 'Treatment': '#ff7f0e'}
 
-    # create_grouping_file(bams, conditions, colors, 'sashimi_groups.tsv')
+    # create_grouping_file(bams, conditions, 'sashimi_groups.tsv')
 
     # Example: Plot single region
     # plot_sashimi('sashimi_groups.tsv', 'chr1:1000000-1010000', 'example', 'annotation.gtf')

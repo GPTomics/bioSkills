@@ -33,23 +33,24 @@ def run_suppa2_quantification(gtf_file, tpm_file, output_prefix, event_types=Non
         check=True
     )
 
-    # Step 2: Calculate PSI for each event type
-    event_codes = {'SE': 'SE', 'SS': 'A5', 'MX': 'MX', 'RI': 'RI', 'FL': 'FL'}
+    # Step 2: Calculate PSI for each output event code.
+    # generateEvents writes one file per OUTPUT code: SS -> A5 and A3; FL -> AF and AL.
+    event_codes = {'SE': ['SE'], 'SS': ['A5', 'A3'], 'MX': ['MX'], 'RI': ['RI'], 'FL': ['AF', 'AL']}
     psi_files = {}
 
     for et in event_types:
-        code = event_codes.get(et, et)
-        ioe_file = f'{output_prefix}_{code}_strict.ioe'
-        psi_output = f'{output_prefix}_psi_{code}'
+        for code in event_codes.get(et, [et]):
+            ioe_file = f'{output_prefix}_{code}_strict.ioe'
+            psi_output = f'{output_prefix}_psi_{code}'
 
-        if Path(ioe_file).exists():
-            subprocess.run([
-                'suppa.py', 'psiPerEvent',
-                '-i', ioe_file,
-                '-e', tpm_file,
-                '-o', psi_output
-            ], check=True)
-            psi_files[code] = f'{psi_output}.psi'
+            if Path(ioe_file).exists():
+                subprocess.run([
+                    'suppa.py', 'psiPerEvent',
+                    '-i', ioe_file,
+                    '-e', tpm_file,
+                    '-o', psi_output
+                ], check=True)
+                psi_files[code] = f'{psi_output}.psi'
 
     return psi_files
 

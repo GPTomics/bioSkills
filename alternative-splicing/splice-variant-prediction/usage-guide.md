@@ -8,8 +8,8 @@ Predict whether a DNA variant alters mRNA splicing using sequence-based deep-lea
 # Python
 pip install spliceai tensorflow pyfaidx pyensembl pysam
 
-# Pangolin
-pip install pangolin
+# Pangolin (splicing) from GitHub - NOT the PyPI 'pangolin' (SARS-CoV-2 lineage tool)
+pip install git+https://github.com/tkzeng/Pangolin.git
 # Plus a gffutils annotation database
 python -c "import gffutils; gffutils.create_db('gencode.v45.gff3', 'gencode.db')"
 
@@ -61,7 +61,7 @@ Tell your AI agent what you want to do:
 7. Recommend RNA validation for clinical-grade reporting
 
 ## Tips
-- ClinGen SVI 2023: SpliceAI >=0.2 = PP3 supporting, >=0.5 + concordance = moderate, >=0.8 = strong
+- ClinGen SVI 2023: SpliceAI >=0.2 = PP3, <=0.1 = BP4, both applied at SUPPORTING weight only (0.5/0.8 raise SpliceAI precision but are not ClinGen evidence-strength upgrades; moderate/strong needs RNA/functional PS3 evidence)
 - SpliceAI default window is 50nt; extend to 500-2000 for unsolved Mendelian cases (5-15% are deep-intronic pseudoexons)
 - Tissue-agnostic prediction (SpliceAI) is fine for screening; use Pangolin/SpliceTransformer when disease tissue is known
 - RNA validation (PS3) supersedes computational evidence (PP3); run RT-PCR or RNA-seq when possible

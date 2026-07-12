@@ -43,7 +43,7 @@ Predict whether a DNA variant alters mRNA splicing. **Distinct from "variant pat
 | SpliceVault | Empirical mis-splicing outcome | Top-N events at the affected splice site | Predicting consequence (skip vs cryptic) of canonical-disrupting variants | Variants not represented in 300K-RNA training |
 | CADD-Splice | Single composite score | Scaled C-score | Clinical pipelines wanting one number | When knowing which sub-component drove the score is needed |
 
-Methodology evolves; verify benchmarks (Strawn 2025 *bioRxiv*; You et al 2024 *Nat Commun*) and ClinGen SVI splicing recommendations before reporting clinical interpretations. Concordance across SpliceAI + Pangolin + MMSplice is gold-standard evidence; discordance flags need RNA validation.
+Methodology evolves; verify benchmarks (Smith & Kitzman 2023 *Genome Biol* 24:294; You et al 2024 *Nat Commun*) and ClinGen SVI splicing recommendations before reporting clinical interpretations. Concordance across SpliceAI + Pangolin + MMSplice is gold-standard evidence; discordance flags need RNA validation.
 
 ## Decision Tree by Use Case
 
@@ -65,14 +65,12 @@ The ClinGen Sequence Variant Interpretation (SVI) splicing subgroup (Walker 2023
 
 | Evidence code | Threshold | Notes |
 |----------------|-----------|-------|
-| **PP3** (supporting pathogenic) | SpliceAI delta >= 0.20 | Computational evidence supporting pathogenicity |
-| **PP3 moderate** | SpliceAI delta >= 0.50 | Or concordance across multiple predictors |
-| **PP3 strong** | SpliceAI delta >= 0.80 | Typically requires concordance + canonical site |
-| **BP4** (supporting benign) | SpliceAI delta <= 0.10 | Computational evidence against pathogenicity |
+| **PP3** (supporting pathogenic) | SpliceAI delta >= 0.20 | ClinGen SVI: apply at **supporting** weight (not standalone) |
+| **BP4** (supporting benign) | SpliceAI delta <= 0.10 | ClinGen SVI: apply at **supporting** weight |
 | **PVS1** (very strong null) | Canonical +/-1, +/-2 site disruption with predicted LoF + NMD | Requires gene where LoF is established mechanism (Abou Tayoun 2018 *Hum Mutat* PVS1 decision tree) |
 | **PS3 / BS3** (functional) | RNA evidence (RT-PCR, RNA-seq, minigene) | Supersedes computational evidence |
 
-**Operational rules:** Computational evidence (PP3/BP4) is *supporting*, not standalone. Splicing variants benefit from concordance across SpliceAI + Pangolin + MMSplice. RNA validation supersedes prediction. Always log SpliceAI version, distance window, and reference transcript. SpliceAI alone is **not sufficient** for PVS1; canonical site disruption requires gene-level LoF context.
+**Operational rules:** Computational evidence (PP3/BP4) is *supporting*, not standalone. ClinGen SVI 2023 recommends applying predictive splice PP3/BP4 at **supporting** weight only; higher SpliceAI cutoffs (0.5, 0.8) increase precision but are the tool's own tiers (Jaganathan 2019), NOT ClinGen-endorsed evidence-strength upgrades — reaching moderate/strong requires functional/RNA evidence (PS3/BS3), not a higher SpliceAI score alone. Splicing variants benefit from concordance across SpliceAI + Pangolin + MMSplice. RNA validation supersedes prediction. Always log SpliceAI version, distance window, and reference transcript. SpliceAI alone is **not sufficient** for PVS1; canonical site disruption requires gene-level LoF context.
 
 ## SpliceAI Workflow
 
@@ -132,7 +130,9 @@ df = parse_spliceai_vcf('output.vcf')
 df['acmg_evidence'] = pd.cut(
     df['delta_max'],
     bins=[-0.01, 0.10, 0.20, 0.50, 0.80, 1.01],
-    labels=['BP4', 'inconclusive', 'PP3_supporting', 'PP3_moderate', 'PP3_strong']
+    # ClinGen SVI applies splice PP3/BP4 at supporting weight; 0.5/0.8 are SpliceAI
+    # precision tiers (Jaganathan 2019), NOT ACMG evidence-strength upgrades
+    labels=['BP4', 'inconclusive', 'PP3_supporting', 'PP3_supporting_prec0.5', 'PP3_supporting_prec0.8']
 )
 ```
 
@@ -177,7 +177,7 @@ import requests
 # Returns top-N most likely mis-splicing events: exon skipping, cryptic 3'ss usage, etc.
 ```
 
-SpliceVault (Dawes 2023 *Nat Genet*) showed that the **Top-4 events** at any splice site explain >95% of empirical mis-splicing — a striking regularity that makes consequence prediction tractable. Use SpliceVault when the question is not "will splicing change?" but "what specific aberrant splicing will occur?".
+SpliceVault (Dawes 2023 *Nat Genet*) showed that the **Top-4 events** at any splice site predict variant-associated mis-splicing with ~92% sensitivity overall (96% of exon-skipping and 86% of cryptic-activation events) — a striking regularity that makes consequence prediction tractable. Use SpliceVault when the question is not "will splicing change?" but "what specific aberrant splicing will occur?".
 
 ## MMSplice for Calibrated ΔPSI
 
@@ -218,7 +218,7 @@ Following den Dunnen 2016 *Hum Mutat*:
 | `p.0?` | Unknown protein consequence |
 | `p.(=)` | No predicted protein change (silent) |
 
-Validation tools: VariantValidator (Freeman 2018 *Hum Mutat*), Mutalyzer 3 (Lefter 2021 *Hum Mutat*).
+Validation tools: VariantValidator (Freeman 2018 *Hum Mutat*), Mutalyzer 2 (Lefter et al 2021 *Bioinformatics* 37:2811-2817).
 
 ## Extended-Window Scoring for Deep-Intronic Variants
 
@@ -228,7 +228,7 @@ SpliceAI's default precomputed scores use a **50-nt window**, missing variants t
 # Recompute with extended window
 spliceai -I input.vcf -O output_2kb.vcf -R genome.fa -A grch38 -D 2000
 
-# Or use CI-SpliceAI (Strauch 2022 Bioinformatics) optimized for distal effects
+# Or use CI-SpliceAI (Strauch 2022 PLoS One), SpliceAI retrained on curated GENCODE splice sites
 ```
 
 | Window | Tradeoff |
@@ -265,10 +265,10 @@ merged['interpretation'] = merged['concordance'].map({
 
 | Concordance | Interpretation | Action |
 |-------------|----------------|--------|
-| 3/3 above threshold | High confidence | Report PP3 strong |
-| 2/3 above | Concordant evidence | Report PP3 moderate |
+| 3/3 above threshold | High confidence | PP3 (supporting); strong candidate for RNA validation (PS3) |
+| 2/3 above | Concordant evidence | PP3 (supporting) |
 | 1/3 above | Discordant | Report inconclusive; flag for RNA validation |
-| 0/3 above | Concordant benign | BP4 supporting |
+| 0/3 above | Concordant benign | BP4 (supporting) |
 
 Discordance is the most informative pattern — variants where one model sees impact and others don't are high priority for RNA validation.
 
@@ -278,10 +278,10 @@ All current tools are **weak at branchpoint variants** because the BPS motif (yU
 
 | Tool | Method | Notes |
 |------|--------|-------|
-| BPP | Position-weight matrix | Zhang 2017 *NAR* |
-| LaBranchoR | Bidirectional LSTM | Paggi & Bejerano 2018 *Genome Biol* |
+| BPP | Mixture model (BP motif + polypyrimidine tract) | Zhang 2017 *Bioinformatics* 33:3166 |
+| LaBranchoR | Bidirectional LSTM | Paggi & Bejerano 2018 *RNA* 24:1647 |
 | SVM-BPfinder | SVM on conservation+sequence | Corvelo 2010 *PLoS Comput Biol* |
-| BPHunter | Genome-wide branchpoint screen using GTEx-derived BP database | Zhang 2022 *PNAS* |
+| BPHunter | Genome-wide branchpoint screen against an aggregated experimental (lariat/RNA-seq) + computational BP database | Zhang 2022 *PNAS* |
 
 Branchpoint variants are under-recognized in clinical pipelines; SpliceAI captures only some because branchpoint motifs have low information content. **Recommendation:** when SpliceAI delta is borderline (0.1-0.3) for a variant in the BPS region (-18 to -40 from 3'ss), run BPHunter as supplement.
 
@@ -306,7 +306,7 @@ Branchpoint variants are under-recognized in clinical pipelines; SpliceAI captur
 # - GalNAc-conjugated: hepatic targeting
 ```
 
-Approved precedents: **nusinersen** (SMA ISS-N1 occlusion, exon 7 inclusion); **risdiplam** (small-molecule SMN2 splicing modulator); **eteplirsen/golodirsen/casimersen/viltolarsen** (DMD exon skipping). Design references: Hua 2008 *AJHG*; Aartsma-Rus 2023 *Nat Rev Drug Discov*.
+Approved precedents: **nusinersen** (SMA ISS-N1 occlusion, exon 7 inclusion); **risdiplam** (small-molecule SMN2 splicing modulator); **eteplirsen/golodirsen/casimersen/viltolarsen** (DMD exon skipping). Design references: Hua 2008 *AJHG*; Roberts et al 2023 *Nat Rev Drug Discov* 22:917 (DMD therapeutic approaches).
 
 ## Per-Tool Failure Modes
 
@@ -318,7 +318,7 @@ Approved precedents: **nusinersen** (SMA ISS-N1 occlusion, exon 7 inclusion); **
 
 **Symptom:** Known pathogenic deep-intronic variant scores low (<0.2); no pseudoexon detected.
 
-**Fix:** Re-run with `-D 500` or `-D 2000`; or use CI-SpliceAI optimized for distal effects.
+**Fix:** Re-run with `-D 500` or `-D 2000`; or try CI-SpliceAI (SpliceAI retrained on curated GENCODE splice sites) as a second predictor.
 
 ### SpliceAI: Tissue Agnosticism
 
@@ -332,7 +332,7 @@ Approved precedents: **nusinersen** (SMA ISS-N1 occlusion, exon 7 inclusion); **
 
 ### Pangolin: Out-of-Training Tissue
 
-**Trigger:** Disease tissue not represented in Pangolin's 4-species, GTEx-tissue training set.
+**Trigger:** Disease tissue not represented in Pangolin's 4-species, 4-tissue (Cardoso-Moreira 2019 developmental) training set.
 
 **Mechanism:** Pangolin extrapolates poorly to tissues outside training distribution.
 
@@ -411,12 +411,11 @@ Always check ClinVar first for existing classifications; cross-reference with gn
 | Metric | Recommendation | Source |
 |--------|----------------|--------|
 | Default SpliceAI window | -D 50 (clinical screening) | Jaganathan 2019 |
-| Deep-intronic SpliceAI window | -D 500-2000 (unsolved Mendelian) | Smith 2024 *Nat Commun* |
-| ACMG PP3 supporting | SpliceAI delta >= 0.2 | Walker 2023 *AJHG* |
-| ACMG PP3 moderate | SpliceAI >= 0.5 + concordant predictor | Walker 2023 |
-| ACMG PP3 strong | SpliceAI >= 0.8 + canonical site OR + RNA validation | Walker 2023 |
-| ACMG BP4 | SpliceAI <= 0.1 | Walker 2023 |
-| Off-target ASO match | <=16/20 nt to any non-target transcript | Aartsma-Rus 2023 |
+| Deep-intronic SpliceAI window | -D 500-2000 (unsolved Mendelian) | Convention (verify current literature) |
+| ACMG PP3 (supporting) | SpliceAI delta >= 0.2 | Walker 2023 *AJHG* (apply at supporting weight) |
+| ACMG BP4 (supporting) | SpliceAI delta <= 0.1 | Walker 2023 *AJHG* |
+| SpliceAI higher-precision cutoffs | 0.5 / 0.8 raise precision, NOT ACMG strength | Jaganathan 2019 (not ClinGen graded tiers) |
+| Off-target ASO match | <=16/20 nt to any non-target transcript | Design convention |
 | Concordance for high-confidence | 2/3 predictors above PP3 threshold | Pragmatic |
 
 ## Related Skills
@@ -433,8 +432,9 @@ Always check ClinVar first for existing classifications; cross-reference with gn
 - Zeng & Li 2022 *Genome Biol* - Pangolin
 - Cheng et al 2019 *Genome Biol* - MMSplice
 - Cheng et al 2021 *Genome Biol* - MTSplice (tissue MMSplice)
-- You et al 2024 *Nat Commun* - SpliceTransformer
-- Strauch et al 2022 *Bioinformatics* - CI-SpliceAI extended window
+- You et al 2024 *Nat Commun* 15:9129 - SpliceTransformer
+- Strauch et al 2022 *PLoS One* 17:e0269159 - CI-SpliceAI extended window
+- Smith & Kitzman 2023 *Genome Biol* 24:294 - SpliceAI/Pangolin MPSA benchmark
 - Rentzsch et al 2021 *Genome Med* - CADD-Splice
 - Dawes et al 2023 *Nat Genet* - SpliceVault
 - Walker et al 2023 *Am J Hum Genet* - ClinGen SVI splicing recommendations
@@ -444,6 +444,5 @@ Always check ClinVar first for existing classifications; cross-reference with gn
 - den Dunnen et al 2016 *Hum Mutat* - HGVS standard
 - Zhang et al 2022 *PNAS* (PMID 36306325) - BPHunter for branchpoints
 - Hua et al 2008 *AJHG* - ISS-N1 / nusinersen mechanism
-- Aartsma-Rus 2023 *Nat Rev Drug Discov* - DMD exon-skipping ASOs
-- (Extended-window SpliceAI in unsolved Mendelian: consult current literature for citation — earlier draft attribution to "Smith 2024 Nat Commun" could not be verified.)
+- Roberts et al 2023 *Nat Rev Drug Discov* 22:917-934 - DMD therapeutic approaches (exon-skipping ASOs)
 - Findlay et al 2018 *Nature* - BRCA1 saturation genome editing (MAVE)

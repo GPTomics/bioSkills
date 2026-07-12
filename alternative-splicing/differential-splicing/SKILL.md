@@ -37,7 +37,7 @@ Detect splicing changes between conditions. Tool choice is a decision about **st
 
 The first decision is which **regime** the design falls into: between-group with replicates, heterogeneous cohort, or single-sample-vs-cohort. Within each regime, tool choice is much smaller (1-2 options).
 
-Comprehensive 2023-2026 benchmarks: Olofsson 2023 *Brief Bioinform*; Tran 2025 *WIREs RNA*; Kubota 2025 *NAR*. Methodology evolves — verify benchmarks and tool docs before reporting. Default 2026 recommendation: run **two complementary tools** (rMATS + leafcutter) and require concordance for high-confidence calls.
+Comprehensive 2023-2026 benchmarks: Olofsson 2023 *Biochem Biophys Res Commun*; Tran 2025 *WIREs RNA*; Kubota 2025 *NAR*. Methodology evolves — verify benchmarks and tool docs before reporting. Default 2026 recommendation: run **two complementary tools** (rMATS + leafcutter) and require concordance for high-confidence calls.
 
 ## Decision Tree by Experimental Design
 
@@ -137,7 +137,7 @@ intron_effects <- read.table('ds_results_effect_sizes.txt', header = TRUE, sep =
 sig_clusters <- subset(cluster_sig, p.adjust < 0.05)
 ```
 
-**LeafCutter2** (Quan 2025 *bioRxiv*) extends leafcutter with NMD-aware classification of unproductive splicing — useful when AS-NMD coupling is the question.
+**LeafCutter2** (Buen Abad Najar 2025 *bioRxiv*) extends leafcutter with NMD-aware classification of unproductive splicing — useful when AS-NMD coupling is the question.
 
 ## MAJIQ V3 Differential Analysis
 
@@ -407,13 +407,13 @@ Cross-reference top hits with:
 - Shen et al 2014 *PNAS* - rMATS original
 - Wang et al 2024 *Nat Protoc* - rMATS-turbo
 - Li et al 2018 *Nat Genet* - leafcutter (Dirichlet-multinomial GLM)
-- Quan et al 2025 *bioRxiv* - LeafCutter2 (NMD-aware unproductive splicing)
+- Buen Abad Najar et al 2025 *bioRxiv* - LeafCutter2 (NMD-aware unproductive splicing)
 - Vaquero-Garcia et al 2016 *eLife* - MAJIQ LSV framework
-- Norton et al 2023 *Nat Commun* - MAJIQ-HET heterogeneity module
+- Vaquero-Garcia et al 2023 *Nat Commun* - MAJIQ-HET heterogeneity module
 - Aicher, Slaff, Jewell, Barash 2024 *bioRxiv* - MAJIQ V3
 - Trincado et al 2018 *Genome Biol* - SUPPA2
 - Kubota et al 2025 *NAR* - Shiba (junction-imbalance correction)
-- Olofsson et al 2023 *Brief Bioinform* - benchmark across tools
+- Olofsson et al 2023 *Biochem Biophys Res Commun* 653:31-37 - benchmark across tools
 - Tran et al 2025 *WIREs RNA* - methodology review
 - Brown et al 2022 *Nature* - UNC13A cryptic exon (TDP-43 / ALS)
 - Klim et al 2019 *Nat Neurosci* - STMN2 cryptic splicing (ALS)
