@@ -18,7 +18,7 @@ If code throws unexpected errors, introspect the installed binary (`<tool> -h`) 
 
 **"Call accessible regions from my ATAC-seq BAM"** -> Identify Tn5-hypersensitive open chromatin, treating fragments as point insertion events (not protein-bound regions as in ChIP-seq) and accounting for the lack of input control.
 
-- CLI (canonical, ENCODE 4): `macs2 callpeak -t atac.bam -f BAMPE -g hs -n sample --nomodel --shift -75 --extsize 150 --keep-dup all -B --SPMR -p 0.01`
+- CLI (canonical, ENCODE 4): `macs2 callpeak -t atac.bam -f BAM -g hs -n sample --nomodel --shift -75 --extsize 150 --keep-dup all -B --SPMR -p 0.01` (use `-f BAM`, not `-f BAMPE` -- BAMPE reads true fragment ends and ignores `--shift`/`--extsize`)
 - CLI (HMM-based, single sample): `macs3 hmmratac -i atac.bam -n sample --outdir hmm_out`
 - CLI (joint replicates): `Genrich -j -t rep1.bam,rep2.bam -o peaks.narrowPeak -e chrM -E blacklist.bed`
 
@@ -52,10 +52,10 @@ For most bulk ATAC, Pattern A matches ENCODE convention and is reproducible agai
 
 | Genome | MACS shorthand | Actual mappable size | Source |
 |--------|---------------|----------------------|--------|
-| hg38 | `-g hs` (2.7e9) | 2.913e9 (50bp k-mer), 2.747e9 (75bp), 2.701e9 (100bp) | deepTools `effectiveGenomeSize` |
-| hg19 | `-g hs` (2.7e9) | 2.864e9 (50bp), 2.701e9 (100bp) | deepTools |
-| mm10 | `-g mm` (1.87e9) | 2.652e9 (50bp), 2.467e9 (75bp), 2.407e9 (100bp) | deepTools |
-| mm39 | none | 2.654e9 (50bp), 2.494e9 (100bp) | deepTools |
+| hg38 | `-g hs` (2.7e9) | 2.701e9 (50bp), 2.748e9 (75bp), 2.806e9 (100bp), 2.862e9 (150bp) | deepTools `effectiveGenomeSize` |
+| hg19 | `-g hs` (2.7e9) | 2.686e9 (50bp), 2.777e9 (100bp) | deepTools |
+| mm10 | `-g mm` (1.87e9) | 2.308e9 (50bp), 2.408e9 (75bp), 2.467e9 (100bp) | deepTools |
+| mm39 | none | 2.310e9 (50bp), 2.468e9 (100bp) | deepTools |
 
 Wrong size shifts every q-value but rarely changes peak ranks. Use `unique-kmers.py` (khmer) or the deepTools tabulated values for exact sizes; the shorthand is a decade-old approximation.
 
@@ -85,7 +85,7 @@ Wrong size shifts every q-value but rarely changes peak ranks. Use `unique-kmers
 
 **Trigger:** Replicates with very different library sizes; high-mitochondrial samples not pre-filtered.
 
-**Mechanism:** Genrich's joint mode pools reads via Fisher's method. Library-size imbalance dominates the joint p-value; chrM reads inflate background unless `-e chrM` is set.
+**Mechanism:** Genrich's joint mode combines the per-replicate p-values at each position via Fisher's method. Library-size imbalance dominates the joint p-value; chrM reads inflate background unless `-e chrM` is set.
 
 **Symptom:** Most-significant peaks cluster on chrM or on the largest-library replicate's high-coverage regions.
 
@@ -99,7 +99,7 @@ Wrong size shifts every q-value but rarely changes peak ranks. Use `unique-kmers
 
 **Symptom:** Output BED is empty, or all peaks are tiny (~150 bp) with no nucleosome flanks called; runtime explodes (>24h) on shallow data.
 
-**Fix:** Verify fragment-size periodicity in QC first (atac-qc skill). If flat, fall back to MACS3 callpeak. HMMRATAC needs >= 30M deduplicated nuclear reads per ENCODE recommendation.
+**Fix:** Verify fragment-size periodicity in QC first (atac-qc skill). If flat, fall back to MACS3 callpeak. HMMRATAC needs deep coverage (a practical minimum around 30M deduplicated nuclear reads).
 
 ### HOMER findPeaks -- Window-size sensitivity
 
@@ -117,7 +117,7 @@ Wrong size shifts every q-value but rarely changes peak ranks. Use `unique-kmers
 
 **Symptom:** Peaks called from chromap output are shifted by ~5-10 bp relative to bwa output at the same locus.
 
-**Fix:** When using chromap, drop `--shift` and `--extsize` (chromap's pre-shift is sufficient) OR use chromap's `--no-correction` flag to disable Tn5 shift and proceed with standard MACS parameters. Document the aligner version and any shift choices in methods. Within a project, pin the aligner.
+**Fix:** When using chromap, drop `--shift` and `--extsize` (chromap's pre-shift is sufficient) OR omit chromap's `--Tn5-shift` (the shift is opt-in, applied only when that flag or an ATAC preset is set) so it is not double-applied, then proceed with standard MACS parameters. Document the aligner version and any shift choices in methods. Within a project, pin the aligner.
 
 ### Single-sample (no replicate) -- Rotation / circular-shift permutation
 
@@ -172,7 +172,7 @@ macs2 callpeak \
     -f BAM -g hs -n pooled --outdir peaks/pooled/ \
     --nomodel --shift -75 --extsize 150 --keep-dup all -B --SPMR -p 0.01
 
-# Pseudoreplicates (split each rep BAM in half)
+# Pseudoreplicates (two independent 50% subsamples; approximate, not a disjoint partition)
 samtools view -b -h -s 1.5 rep1.filt.dedup.bam > rep1.psr1.bam   # seed.fraction
 samtools view -b -h -s 2.5 rep1.filt.dedup.bam > rep1.psr2.bam   # different seed
 # (call peaks on each pseudoreplicate the same way)
@@ -265,7 +265,7 @@ macs2 callpeak -t nfr.bam -f BAM -g hs -n sample_nfr \
     --keep-dup all -p 0.01
 ```
 
-`--shift -37 --extsize 75` halves both parameters to match shorter fragments; this is what TOBIAS recommends for footprinting input.
+`--shift -37 --extsize 75` halves both parameters to match shorter fragments; this is a fragment-scaled convention for NFR-focused input, not a TOBIAS-specified setting (TOBIAS instead applies the +4/-5 Tn5 correction to the full BAM via ATACorrect).
 
 ## Output Files (narrowPeak)
 
@@ -280,7 +280,7 @@ macs2 callpeak -t nfr.bam -f BAM -g hs -n sample_nfr \
 | 9 | qValue | -log10 q (BH-FDR) |
 | 10 | summit_offset | Peak summit relative to start |
 
-Convert to bigWig for browsers: `sort -k1,1 -k2,2n sample_treat_pileup.bdg | bedGraphToBigWig - chrom.sizes sample.bw`.
+Convert to bigWig for browsers: `sort -k1,1 -k2,2n sample_treat_pileup.bdg > sample.sorted.bdg && bedGraphToBigWig sample.sorted.bdg chrom.sizes sample.bw` (bedGraphToBigWig is multi-pass and cannot read from a pipe/stdin, so sort to a file first).
 
 ## Common Errors
 
@@ -290,16 +290,17 @@ Convert to bigWig for browsers: `sort -k1,1 -k2,2n sample_treat_pileup.bdg | bed
 | 0 peaks called | Forgot `--nomodel`; MACS tries to build a shifting model and fails | Add `--nomodel --shift -75 --extsize 150` |
 | Peak count >> 500k | Did not deduplicate; or did not remove chrM; or `-q` too loose | Pre-filter (samtools view -F 1804 -q 30; samtools idxstats); use `-q 0.01` |
 | `Sequence chrM not found` (Genrich) | Wrong chromosome name in `-e` flag (chrM vs MT) | Match BAM header naming convention |
-| HMMRATAC out of memory | `-Xmx` heap too small; HMMRATAC defaults to 4G | Increase heap: `java -Xmx16g -jar HMMRATAC.jar ...` |
+| HMMRATAC out of memory | Deep library / large genome; the current tool is `macs3 hmmratac` (Python, not Java) | Increase available RAM and use a scratch `--outdir`; the `-Xmx`/`HMMRATAC.jar` heap flags apply only to the deprecated standalone Java HMMRATAC |
 | Peaks shifted by 75 bp from expected positions | Forgot `--shift -75` (cuts at one end of read) | Add the shift; positions are now centered on Tn5 cut site |
 | IDR returns 0 reproducible peaks | Sorted by wrong column; ranks are random | Sort each peakset by `-k8,8nr` (p-value descending) |
 
 ## References
 
 - Buenrostro JD et al 2013 Nat Methods 10:1213 (ATAC-seq protocol)
-- Corces MR et al 2017 Nat Methods 14:959 (Omni-ATAC, fixed-width peaks)
+- Corces MR et al 2017 Nat Methods 14:959 (Omni-ATAC protocol)
+- Corces MR et al 2018 Science 362:eaav1898 (iterative-overlap fixed-width 501 bp consensus peaks)
 - Tarbell ED & Liu T 2019 Nucleic Acids Res 47:e91 (HMMRATAC)
-- Gaspar JM 2018 bioRxiv 459545 (Genrich)
+- Gaspar JM, Genrich: detecting sites of genomic enrichment (github.com/jsh58/Genrich; no published paper)
 - Li Q et al 2011 Ann Appl Stat 5:1752 (IDR framework)
 - Landt SG et al 2012 Genome Res 22:1813 (ENCODE/modENCODE peak calling guidelines, IDR Nself rule)
 - Amemiya HM et al 2019 Sci Rep 9:9354 (ENCODE blacklist v2)

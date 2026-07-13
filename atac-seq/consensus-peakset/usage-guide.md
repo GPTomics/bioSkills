@@ -73,7 +73,7 @@ Tell your AI agent what you want to do:
 |-----------|-------|-----|
 | 100 bp | 201 bp | Fine-resolution; sub-peak structure preserved |
 | 150 bp | 301 bp | Mid-resolution |
-| 250 bp | 501 bp | Corces 2018 / DiffBind default |
+| 250 bp | 501 bp | Corces 2018 convention (DiffBind `summits` default is 200 -> 401 bp) |
 | 500 bp | 1001 bp | Coarse; broad regulatory regions |
 
 501 bp is the modern de facto standard; smaller widths preserve resolution at the cost of more peaks; larger widths consolidate but lose specificity.

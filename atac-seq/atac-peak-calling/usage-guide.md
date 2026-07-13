@@ -75,12 +75,12 @@ Tell your AI agent what you want to do:
 
 | Genome | 50 bp reads | 75 bp reads | 100 bp reads |
 |--------|-------------|-------------|--------------|
-| hg38 | 2.913e9 | 2.747e9 | 2.701e9 |
-| hg19 | 2.864e9 | 2.770e9 | 2.701e9 |
-| mm10 | 2.652e9 | 2.467e9 | 2.407e9 |
-| mm39 | 2.654e9 | 2.494e9 | 2.494e9 |
+| hg38 | 2.701e9 | 2.748e9 | 2.806e9 |
+| hg19 | 2.686e9 | 2.736e9 | 2.777e9 |
+| mm10 | 2.308e9 | 2.408e9 | 2.467e9 |
+| mm39 | 2.310e9 | 2.410e9 | 2.468e9 |
 
-Source: deepTools `effectiveGenomeSize` documentation. Values change by read length because shorter reads have more multimappers excluded.
+Source: deepTools `effectiveGenomeSize` documentation. Effective size increases with read length because longer reads map uniquely to more of the genome.
 
 ## ENCODE Self-Consistency Rule
 
@@ -97,7 +97,7 @@ Both ratios > 2 means the library is rejected per ENCODE 4 standards.
 - `--keep-dup all` is mandatory for ATAC: Tn5 generates legitimate duplicate cuts at hyperaccessible sites.
 - Always remove chrM before peak calling (`samtools view -h sample.bam | grep -v "chrM"`); chrM accumulates ATAC reads at >50% of total in poor preps.
 - For broad accessibility regions (super-enhancers, MYOD1 regulons), narrow mode fragments them; use `--broad --broad-cutoff 0.1`. But do not run IDR on broad peaks.
-- Re-center peaks on summits +/- 250 bp (Corces 2017 Omni-ATAC convention) for differential analysis to avoid width-driven count differences.
+- Re-center peaks on summits +/- 250 bp (Corces 2018 Science fixed-width convention) for differential analysis to avoid width-driven count differences.
 - IDR ranking column matters: use `--rank p.value` (column 8 of narrowPeak); `--rank signal.value` is unreliable when MACS pileup scaling differs.
 - HMMRATAC needs >= 30M deduplicated nuclear reads and clear fragment-size periodicity; verify with the atac-qc skill first.
 - Genrich's joint mode does NOT need pre-deduplication when `-r` is used; doing both is double-removing.

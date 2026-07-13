@@ -31,16 +31,16 @@ Tell your AI agent what you want to do:
 ## Example Prompts
 
 ### Standard 3v3 Comparison
-> "Run DiffBind on three replicates per group with DESeq2 backend, `summits=250` for fixed-width counting, native (RiP) normalization, and report peaks with FDR < 0.05 and abs(log2FC) >= 1."
+> "Run DiffBind on three replicates per group with DESeq2 backend, `summits=250` for fixed-width counting, native normalization (`DBA_NORM_NATIVE`, i.e. DESeq2 RLE), and report peaks with FDR < 0.05 and abs(log2FC) >= 1."
 
 ### Low Replicate Power
 > "I have 2 reps per condition. Use DiffBind with edgeR backend (better at low n) or skip DiffBind and run edgeR QL directly. Do not use DESeq2 + apeglm shrinkage because shrinkage at n=2 is over-aggressive."
 
 ### Global Accessibility Shift
-> "Treatment is an HDAC inhibitor that globally opens chromatin. Run DiffBind with `normalize=DBA_NORM_LIB` (full library) instead of the RiP default, since RiP normalization will erase the global biology."
+> "Treatment is an HDAC inhibitor that globally opens chromatin. Run DiffBind with `normalize=DBA_NORM_LIB` (full library; also DiffBind's default) instead of reads-in-peaks (`library=DBA_LIBSIZE_PEAKREADS`), since RiP normalization will erase the global biology."
 
 ### Window-based Analysis
-> "Conditions are pre- and post-differentiation. Peak structure differs dramatically. Use csaw with `width=150` windows, `filter.global` at log2FC >= 3, edgeR QL F-test, then merge significant adjacent windows."
+> "Conditions are pre- and post-differentiation. Peak structure differs dramatically. Use csaw with `width=150` windows, `filterWindowsGlobal` at 3-fold over background (`$filter > log2(3)`), edgeR QL F-test, then merge significant adjacent windows."
 
 ### Hidden Batch Correction
 > "Three batches of samples processed weeks apart. Run svaseq with n.sv=2 to estimate hidden surrogates, then re-fit DESeq2 with `~SV1 + SV2 + condition` design."
@@ -90,7 +90,7 @@ Add `Donor`, `Sex`, `Time`, etc. columns as needed and include in the design for
 
 | Treatment biology | Normalization |
 |-------------------|---------------|
-| Localized differential (most experiments) | DiffBind default `DBA_NORM_NATIVE` (RiP) |
+| Localized differential (most experiments) | DiffBind `DBA_NORM_NATIVE` (RLE for DESeq2 / TMM for edgeR; DiffBind's own default is `DBA_NORM_LIB`) |
 | Global accessibility shift (HDACi, DNMTi) | `DBA_NORM_LIB` OR exogenous spike-in |
 | Outlier-prone counts | `DBA_NORM_TMM` (edgeR-style) |
 | Cross-cell-type comparison | `DBA_NORM_LIB` (cell-type biology often global) |
@@ -106,14 +106,14 @@ Add `Donor`, `Sex`, `Time`, etc. columns as needed and include in the design for
 
 ## Tips
 
-- DiffBind's default RiP normalization erases global accessibility shifts; switch to `DBA_NORM_LIB` whenever the biology is whole-genome.
+- DiffBind's reads-in-peaks normalization (`library=DBA_LIBSIZE_PEAKREADS`) erases global accessibility shifts; keep the full-library default (`DBA_NORM_LIB`/`DBA_LIBSIZE_FULL`) whenever the biology is whole-genome.
 - Always set `summits=250` to re-center peaks on summit; otherwise peak-width differences inflate counts.
 - For low replicates (n=2), edgeR QL is the safe choice. DESeq2 + apeglm shrinkage at n=2 over-shrinks.
 - csaw is the only valid choice when peak structure differs dramatically between conditions; don't force a stable consensus when one doesn't exist.
 - Filter low-count peaks aggressively (`filterByExpr`) before fitting; tail peaks inflate dispersion and FDR.
 - Compute log2FC on shrunken estimates only when n >= 3; below that, report unshrunken with caveat.
 - For peak-to-gene assignment, use `tssRegion=c(-2000, 500)` not the ChIPseeker default `(-3000, 3000)` -- the default over-counts promoter assignments by lumping in distal elements.
-- Spike-in normalization (Reske 2020) is the gold standard for global-shift biology; budget for it in experimental design.
+- Spike-in normalization is the strongest approach for global-shift biology (Reske 2020 raises spike-in as a candidate for such settings but does not test it); budget for it in experimental design.
 - Reproducibility: report the consensus peakset strategy, normalization, and exact tool versions; results vary across DiffBind versions even with identical inputs.
 
 ## Related Skills

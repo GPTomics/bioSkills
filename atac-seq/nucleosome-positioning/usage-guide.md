@@ -11,8 +11,10 @@ Map nucleosome center positions, occupancy, and fuzziness from ATAC-seq fragment
 conda create -n nucleoatac python=3.7 numpy=1.18 scipy=1.5 pysam
 conda run -n nucleoatac pip install nucleoatac
 
-conda install -c bioconda samtools danpos
-pip install pysam pyBigWig matplotlib scprinter
+conda install -c bioconda samtools
+# DANPOS3 (python danpos.py) installs from github.com/sklasfeld/DANPOS3 (bioconda `danpos` is DANPOS2)
+# scPrinter installs from source: git clone https://github.com/buenrostrolab/scPrinter && cd scPrinter && pip install ./
+pip install pysam pyBigWig matplotlib
 ```
 
 ```r
@@ -29,7 +31,7 @@ Tell your AI agent what you want to do:
 - "Generate a V-plot at TSSs to verify nucleosome positioning is recoverable"
 - "Estimate the nucleosome repeat length (NRL) from fragment-size autocorrelation"
 - "Call +1 nucleosomes downstream of every protein-coding TSS"
-- "Run DANPOS3 dpeak with ATAC-tuned parameters for differential positioning"
+- "Run DANPOS3 dpos with ATAC-tuned parameters for differential positioning"
 - "Use scprinter for single-cell nucleosome positioning per cell type"
 
 ## Example Prompts
@@ -44,7 +46,7 @@ Tell your AI agent what you want to do:
 > "Define gene bodies starting at TSS+50 to TSS+1000 (where +1 nucleosome lives in metazoa); run NucleoATAC; for each gene, report the most-downstream nucleosome center as the +1 position."
 
 ### Differential Positioning
-> "Compare two conditions with DANPOS3 dpeak using `--width 145 --smooth_width 80` (ATAC-tuned). Filter to nucleosome shifts >= 30 bp at FDR < 0.05."
+> "Compare two conditions with DANPOS3 dpos using `--width 145 --smooth_width 80` (ATAC-tuned). Filter to nucleosome shifts >= 30 bp at FDR < 0.05."
 
 ### NRL Estimation
 > "Calculate the autocorrelation of cumulative Tn5 cut signal across a 2 kb window; the first non-zero peak position is the NRL. Compare against expected NRL for the cell type."
@@ -60,7 +62,7 @@ Tell your AI agent what you want to do:
 4. Define analysis regions (consensus peaks merged, or TSS-flanking, or whole genome)
 5. Choose tool (NucleoATAC for ATAC-specific calls; DANPOS3 for differential; scprinter for single-cell)
 6. Run nucleosome calling; output nucleosome positions, occupancy, fuzziness
-7. For differential: DANPOS3 dpeak with ATAC parameters, filter at >= 30 bp shift
+7. For differential: DANPOS3 dpos with ATAC parameters, filter at >= 30 bp shift
 8. Optionally: estimate NRL from autocorrelation; report per-region positioning summary
 9. Annotate +1 / -1 / +2 / etc. nucleosomes relative to TSS
 
@@ -70,7 +72,7 @@ Tell your AI agent what you want to do:
 |------|------|
 | Per-base occupancy track | NucleoATAC (caveat: unmaintained); scprinter alternative |
 | V-plot at features | ATACseqQC vPlot |
-| Differential positioning between conditions | DANPOS3 dpeak (ATAC-tuned params) |
+| Differential positioning between conditions | DANPOS3 dpos (ATAC-tuned params) |
 | +1 calling | NucleoATAC + downstream filter |
 | Single-cell | scprinter |
 | NRL estimation | Custom autocorrelation script |
@@ -104,7 +106,7 @@ Tell your AI agent what you want to do:
 - DANPOS3's MNase defaults are wrong for ATAC. Use `--width 145 --smooth_width 80`.
 - scprinter is GPU-recommended; CPU runs are slow on large datasets.
 - Pioneer TFs (FOXA1, GATA, OCT4) produce asymmetric V-plots because one DNA face is on the histone. This is biology, not artefact.
-- Differential positioning calls (DANPOS3 dpeak) require >= 30 bp shift at FDR < 0.05 to be biologically meaningful; smaller shifts are within fragment-size noise.
+- Differential positioning calls (DANPOS3 dpos) require >= 30 bp shift at FDR < 0.05 to be biologically meaningful; smaller shifts are within fragment-size noise.
 - Nucleosome fuzziness 20-50 bp is "well-positioned" in metazoan; > 100 bp is effectively unpositioned.
 
 ## Related Skills

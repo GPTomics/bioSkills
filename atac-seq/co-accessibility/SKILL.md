@@ -164,40 +164,38 @@ library(ArchR)
 proj <- loadArchRProject('ArchR_out')
 proj <- addCoAccessibility(proj, reducedDims='IterativeLSI',
                           k=100, knnIteration=500,
-                          maxDist=250000)               # 250 kb cis (tighter than default)
+                          maxDist=250000)               # 250 kb cis (wider than the 100 kb default)
 co_acc <- getCoAccessibility(proj, corCutOff=0.5,       # Default 0.5 in ArchR; lower for more (calibrate against Hi-C/HiChIP)
-                             returnLoops=FALSE)
+                             returnLoops=TRUE)           # TRUE (default) -> GRanges loops object; FALSE -> DataFrame of peak-pair correlations
 ```
 
-ArchR returns connections as a GRanges object compatible with `GenomicInteractions` for direct overlap with Hi-C loops.
+With `returnLoops=TRUE` (the default) ArchR returns the connections as a GRanges loops object compatible with `GenomicInteractions` for direct overlap with Hi-C loops; `returnLoops=FALSE` instead returns a DataFrame of peak-pair correlations.
 
 ## Visualizing Connections
 
 ```r
 # As arc plot at a locus of interest
 library(Gviz); library(GenomicInteractions)
-gi <- GenomicInteractions(anchorOne=GRanges(strong[, 1:3]),
-                          anchorTwo=GRanges(strong[, 4:6]),
+# Cicero Peak1/Peak2 are chr_start_end strings; convert to chr:start-end for GRanges()
+gi <- GenomicInteractions(anchor1=GRanges(sub('_(\\d+)_(\\d+)$', ':\\1-\\2', strong$Peak1)),
+                          anchor2=GRanges(sub('_(\\d+)_(\\d+)$', ':\\1-\\2', strong$Peak2)),
                           counts=as.integer(strong$coaccess * 100))
-plotInteractions(gi, view='arc', interactions.color='red')
+track <- InteractionTrack(gi, name='co-accessibility')
+plotTracks(track)
 ```
 
 For genome-browser visualization with ArchR: `plotPeak2GeneHeatmap()` shows the peak-gene linkage matrix; `plotBrowserTrack()` overlays connections on tracks.
 
 ## SCENIC+ TF-Driven Networks
 
-```python
-import scenicplus as sp
+SCENIC+ 1.0 runs as a Snakemake pipeline (CLI), not a single monolithic Python call. Prepare the inputs first (a pycisTopic cisTopic object, motif-enrichment results, and paired RNA AnnData), then scaffold and run the workflow:
 
-# Multi-step: requires preprocessed pycisTopic models + paired RNA AnnData
-scplus_obj = sp.create_SCENICPLUS_object(
-    GEX_anndata=rna_adata,
-    cisTopic_obj=topic_obj,
-    menr=motif_enr_dict)
-
-# Calculate eRegulons (TF + target genes + linked enhancers)
-sp.run_scenicplus(scplus_obj, ...)
-scplus_obj.uns['eRegulon_metadata']
+```bash
+# Scaffold the pipeline, then edit its config.yaml to point at the cisTopic object,
+# motif-enrichment results, and GEX AnnData
+scenicplus init_snakemake --out_dir scplus_pipeline/
+snakemake --cores 16 --snakefile scplus_pipeline/Snakemake/workflow/Snakefile
+# eRegulons (TF + target genes + linked enhancers) are written to the output MuData (scplusmdata.h5mu)
 ```
 
 SCENIC+ is significantly more complex than Cicero; budget 1-2 days for setup. The benefit is that outputs are TF -> enhancer -> gene triples, not just peak-peak co-accessibility.
@@ -206,15 +204,15 @@ SCENIC+ is significantly more complex than Cicero; budget 1-2 days for setup. Th
 
 **Trigger:** Tuning Cicero's regularization parameter for the graphical lasso step.
 
-**Mechanism:** `estimate_distance_parameter()` fits a regression of pairwise correlation versus genomic distance for nearby peaks; the slope gives the expected co-accessibility decay with distance. Cicero's alpha penalty is set proportional to this slope so the graph sparsifies at biologically appropriate distance scales.
+**Mechanism:** `estimate_distance_parameter()` searches for the smallest distance-penalty scaling (Cicero's `distance_parameter`, called "alpha" here) such that, across random genomic windows, no more than ~5% of peak pairs beyond `distance_constraint` retain non-zero graphical-lasso entries and fewer than 80% of all entries are non-zero. This penalizes long-range co-accessibility so the graph sparsifies at biologically appropriate distance scales -- it is not a correlation-vs-distance regression slope.
 
-**Implementation:** Cicero internally calls `estimate_distance_parameter(cicero_cds, window=window, maxit=100, sample_num=100)` -- the function bootstraps 100 windows, fits per-window distance-correlation regression, and averages the alpha estimates. Default value is robust at typical peak densities; manual override is rarely needed.
+**Implementation:** Cicero calls `estimate_distance_parameter(cicero_cds, window=window, maxit=100, sample_num=100, genomic_coords=genome_df)` over `sample_num` random windows and returns one `distance_parameter` per window; take the mean and pass it to `generate_cicero_models(cicero_cds, distance_parameter=mean(...))`. Supply `genomic_coords` explicitly -- its default is `cicero::human.hg19.genome`, wrong for an hg38 analysis.
 
-**When manual tuning helps:** Very dense peaksets (>200k peaks) may need higher alpha to control false positives; very sparse (<10k peaks) may need lower alpha to recover signal. Verify by running on technical replicates -- the expected outcome is ~0 strong connections.
+**When manual tuning helps:** Very dense peaksets (>200k peaks) may need a higher `distance_parameter` to control false positives; very sparse (<10k peaks) may need a lower one to recover signal. Verify by running on a permutation / cell-label-shuffle negative control -- the expected outcome is ~0 strong connections (technical replicates should instead reproduce connections).
 
 ## ABC Model Cross-Reference
 
-For enhancer-to-gene linking with paired Hi-C/Micro-C, the canonical method is the ABC model (Fulco 2019, Nasser 2021), not Cicero. ABC computes ABC = (Activity_E * Contact_E,G) / sum_e(Activity_e * Contact_e,G); standardizes on combined ATAC + H3K27ac activity and Hi-C contact frequencies. ENCODE-rE2G (2024) is the modern logistic-regression replacement.
+For enhancer-to-gene linking with paired Hi-C/Micro-C, the canonical method is the ABC model (Fulco 2019, Nasser 2021), not Cicero. ABC computes ABC = (Activity_E * Contact_E,G) / sum_e(Activity_e * Contact_e,G); standardizes on combined ATAC + H3K27ac activity and Hi-C contact frequencies. ENCODE-rE2G (Gschwind et al 2023, bioRxiv) is the modern logistic-regression enhancer-gene link predictor.
 
 See atac-seq/enhancer-gene-linking for full ABC and ENCODE-rE2G coverage. Cicero is the ATAC-only fallback when no Hi-C is available.
 
@@ -244,10 +242,11 @@ Cicero is appropriate when no 3D data exists; do not use Cicero in lieu of ABC w
 ```r
 # Compare Cicero against published Hi-C loops
 library(GenomicInteractions)
-hic_loops <- import('hiccups_loops.bedpe', format='bedpe')
-ci <- GenomicInteractions(anchorOne=GRanges(strong$Peak1),
-                          anchorTwo=GRanges(strong$Peak2))
-overlap <- countOverlaps(ci, hic_loops, type='equal') > 0
+hic_loops <- makeGenomicInteractionsFromFile('hiccups_loops.bedpe', type='bedpe',
+                                             experiment_name='hiccups', description='HiCCUPS loops')
+ci <- GenomicInteractions(anchor1=GRanges(sub('_(\\d+)_(\\d+)$', ':\\1-\\2', strong$Peak1)),
+                          anchor2=GRanges(sub('_(\\d+)_(\\d+)$', ':\\1-\\2', strong$Peak2)))
+overlap <- countOverlaps(ci, hic_loops) > 0   # anchor-anchor 'any' overlap; 'equal' is too stringent at loop bin resolution
 cat(sprintf('Cicero connections overlapping HiCCUPS loops: %.1f%%\n',
             100 * mean(overlap)))
 ```

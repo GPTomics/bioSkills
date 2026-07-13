@@ -61,7 +61,7 @@ Per-cell thresholds are looser than bulk because individual cells have orders of
 
 | Tool | Method | Strength | Fails when |
 |------|--------|---------|------------|
-| AMULET (Thibodeau 2021) | Collision-based: detects cells with too many fragments at same position (mathematically impossible from single cell because of 2-allele limit) | Specific to ATAC biology; orthogonal to clustering | Requires high depth; sensitive at >5000 fragments/cell |
+| AMULET (Thibodeau 2021) | Collision-based: detects cells with too many fragments at same position (mathematically impossible from single cell because of 2-allele limit) | Specific to ATAC biology; orthogonal to clustering | Requires high depth; recall drops sharply below ~15-16K valid read pairs/cell (peaks ~90% near ~25K) |
 | ArchR addDoubletScores | Synthetic doublet simulation + projection into LSI | Built into ArchR; auto-thresholds | Tied to ArchR's LSI; not portable |
 | scDblFinder (Germain 2021) | Synthetic doublets + classifier | Works on Signac and SCE objects; well-benchmarked | RNA-developed; ATAC adaptation requires careful settings |
 
@@ -186,7 +186,8 @@ obj <- NormalizeData(obj, normalization.method='LogNormalize',
 # Signac wrapper around MACS3
 peaks <- CallPeaks(obj, group.by='seurat_clusters',
                    macs2.path='/path/to/macs3', cleanup=FALSE,
-                   format='BAMPE', extra.args='--shift -75 --extsize 150 -p 0.01')
+                   format='BED', shift=-75, extsize=150,   # Tn5 cut-site recipe; shift only applies to format='BED'
+                   additional.args='-p 0.01')
 # Then iterative-overlap consensus across clusters (atac-seq/consensus-peakset)
 ```
 
@@ -202,7 +203,7 @@ addArchRGenome('hg38')
 
 # 1. Create Arrow files from fragment files
 ArrowFiles <- createArrowFiles(
-    inputFiles=c('rep1=fragments_rep1.tsv.gz', 'rep2=fragments_rep2.tsv.gz'),
+    inputFiles=c('fragments_rep1.tsv.gz', 'fragments_rep2.tsv.gz'),
     sampleNames=c('rep1', 'rep2'),
     minTSS=4, minFrags=1000,
     addTileMat=TRUE, addGeneScoreMat=TRUE)
@@ -301,7 +302,7 @@ gene_mat = snap.pp.make_gene_matrix(data, gene_anno=snap.genome.hg38)
 
 **Mechanism:** XIST locus accessibility is high in female cells (X-inactivation); chrY peak count is essentially zero in females. Per-cell or per-sample, the XIST/chrY ratio identifies sex unambiguously.
 
-**Detection:** In a per-cell counts matrix, compute fraction of fragments at XIST locus (chrX:73820651-73852723 hg38) and chrY peak count; classify cells; flag cells/samples where assignment disagrees with metadata.
+**Detection:** In a per-cell counts matrix, compute fraction of fragments at XIST locus (chrX:73820651-73852753 hg38) and chrY peak count; classify cells; flag cells/samples where assignment disagrees with metadata.
 
 **XCI escapees:** Genes that escape X-inactivation (KDM6A, DDX3X, EIF1AX) are biallelically accessible in female cells but not male; can be used as additional sex confirmation if XIST is ambiguous.
 
@@ -334,7 +335,7 @@ For most studies, this is reserved for top 5-10 priority clusters; running chrom
 
 ## AMULET Depth Threshold
 
-AMULET is most reliable at >= 5,000 fragments per cell. Below 5,000 fragments, the collision-based detection has insufficient power: the expected number of collisions per cell is too small for the binomial test to distinguish doublet from singleton. For < 5,000 fragment libraries, use synthetic-doublet methods (ArchR addDoubletScores, scDblFinder) instead.
+AMULET reaches maximum recall (~90%) near ~25,000 valid read pairs (~fragments) per cell and degrades sharply below ~15,000-16,000, where the collision-based detection has insufficient power: the expected number of collisions per cell is too small for the binomial test to distinguish doublet from singleton. For lower-depth libraries, use synthetic-doublet methods (ArchR addDoubletScores, scDblFinder) instead.
 
 ## Multiome WNN Integration (Signac)
 
@@ -365,7 +366,7 @@ obj <- RunUMAP(obj, nn.name='weighted.nn', reduction.name='wnn.umap')
 | ArchR "TileMatrix not found" | Forgot `addTileMat=TRUE` in createArrowFiles | Re-create Arrow files with the flag |
 | Signac CreateChromatinAssay fails on missing fragments file | Path to fragments.tsv.gz incorrect; or missing tabix index | Provide full path; run `tabix -p bed fragments.tsv.gz` |
 | MACS3 fails on tiny pseudobulk | Cluster too small | Use cluster aggregation; require >= 200 cells per cluster |
-| AMULET reports 100% doublets | Threshold mis-set or input is technical replicates | Check fragment-count distribution; AMULET works at >= 5000 fragments/cell |
+| AMULET reports 100% doublets | Threshold mis-set or input is technical replicates | Check fragment-count distribution; AMULET needs high depth (recall peaks near ~25K valid read pairs/cell) |
 | Multiome WNN clusters dominated by ATAC noise | Equal modality weighting | Inspect modality weights; manually adjust if needed |
 | chromVAR / motif assay all NA | Run before peakset finalized | Re-run AddMotifs / RunChromVAR after peaks stable |
 | EnsDb / BSgenome version mismatch | hg38 BSgenome with wrong-build EnsDb | Match builds; `EnsDb.Hsapiens.v86` is GRCh38 (Ensembl v86); use `EnsDb.Hsapiens.v75` for hg19. Newer hg38 EnsDb releases (v98+) reflect newer GENCODE annotations |

@@ -20,13 +20,15 @@ calculate_atac_qc <- function(bam_file, peaks_file = NULL, output_prefix = 'atac
     cat(sprintf('Paired alignments (MAPQ >= 30): %d\n', length(gal)))
 
     # ATACseqQC TSS enrichment (sum-over-window method; not ENCODE-comparable)
+    # TSSEscore requires a GAlignments (not GAlignmentPairs), so read one for this step
     txs <- transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene)
-    tsse <- TSSEscore(gal, txs)
+    gal_se <- readGAlignments(bam_file, param = ScanBamParam(mapqFilter = 30))
+    tsse <- TSSEscore(gal_se, txs)
     cat(sprintf('ATACseqQC TSSEscore: %.2f\n', tsse$TSSEscore))
     cat('  (ATACseqQC uses 100bp center / 1000bp flanks; typically 2-3x ENCODE pyTSSe)\n')
 
     # Fragment-size class fractions
-    frags <- width(gal)
+    frags <- width(granges(gal))
     nfr <- sum(frags < 100); mono <- sum(frags >= 180 & frags <= 247)
     di <- sum(frags >= 315 & frags <= 473); tri <- sum(frags >= 558 & frags <= 615)
     cat(sprintf('NFR: %d (%.1f%%)  Mono: %d (%.1f%%)  Di: %d (%.1f%%)  Tri: %d\n',

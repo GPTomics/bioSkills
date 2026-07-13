@@ -7,14 +7,16 @@ Infer enhancer-promoter and enhancer-enhancer cis-regulatory connections from sc
 ## Prerequisites
 
 ```r
-BiocManager::install(c('cicero', 'monocle3', 'GenomicInteractions',
-                       'BSgenome.Hsapiens.UCSC.hg38'))
+BiocManager::install(c('GenomicInteractions', 'BSgenome.Hsapiens.UCSC.hg38'))
+# monocle3 and the monocle3-compatible Cicero are GitHub-only (the Bioconductor `cicero` targets monocle2)
+remotes::install_github('cole-trapnell-lab/monocle3')
+remotes::install_github('cole-trapnell-lab/cicero-release', ref='monocle3')
 remotes::install_github('GreenleafLab/ArchR', ref='master')
 ```
 
 ```bash
-# SCENIC+ for TF-driven networks (Multiome only)
-pip install scenicplus pycistopic
+# SCENIC+ for TF-driven networks (Multiome only); source-only install, pulls in pycisTopic
+git clone https://github.com/aertslab/scenicplus && cd scenicplus && pip install .
 ```
 
 Inputs: scATAC peak-cell matrix (from Signac, ArchR, or SnapATAC2 preprocessing) and a UMAP/dim-reduction for metacell construction. SCENIC+ additionally requires paired RNA AnnData (Multiome).
@@ -76,7 +78,7 @@ Tell your AI agent what you want to do:
 | Score | Use |
 |-------|-----|
 | > 0.5 | Stringent / high-confidence |
-| > 0.25 | Standard reporting (Pliner 2018) |
+| > 0.25 | Standard reporting (Cicero vignette convention) |
 | > 0.05 | Exploratory; many false positives |
 | < 0.05 | Not biologically meaningful |
 

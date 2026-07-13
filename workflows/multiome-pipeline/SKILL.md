@@ -31,7 +31,7 @@ Before using code patterns, verify installed versions match. If versions differ:
 If code throws ImportError, AttributeError, or TypeError, introspect the installed
 package and adapt the example to match the actual API rather than retrying.
 
-Note: `cellranger-arc count` (NOT `cellranger-atac`) emits the paired RNA+ATAC per-nucleus barcodes. Seurat `FindClusters(algorithm=3)` is SLM, not Leiden (1=Louvain, 2=Louvain-multilevel, 3=SLM, 4=Leiden). The `atac_fragments.tsv.gz` must be block-gzipped + tabix-indexed; the Tn5 +4/-5 offset is already applied by 10x — do not re-shift. Confirm in-tool before quoting.
+Note: `cellranger-arc count` (NOT `cellranger-atac`) emits the paired RNA+ATAC per-nucleus barcodes. Seurat `FindClusters(algorithm=3)` is SLM, not Leiden (1=Louvain, 2=Louvain-multilevel, 3=SLM, 4=Leiden). The `atac_fragments.tsv.gz` must be block-gzipped + tabix-indexed; the Tn5 +4/-5 offset is already applied by 10x -- do not re-shift. Confirm in-tool before quoting.
 
 # Multiome Pipeline
 
@@ -46,8 +46,8 @@ This is a workflow skill: it owns the chaining decisions and hand-offs, not the 
 | `cellranger-arc` run (NOT `cellranger-atac`) | Only ARC emits the joined RNA+ATAC per-nucleus barcodes; -atac gives ATAC-only barcodes and the join is impossible |
 | Shared cell-barcode join | RNA and ATAC QC pass DIFFERENT barcodes; the analyzable set is their INTERSECTION. A namespace mismatch (`-1` suffix, RNA vs ATAC whitelist) silently empties the join |
 | Same genome build for GEX + ATAC (EnsDb + BSgenome) | Gene activity, LinkPeaks, and motif coordinates require identical build, else peak-to-gene linking is garbage |
-| Consensus peak set (multi-sample) | Peaks are dataset-specific; merging samples on discordant peaks fabricates batch structure — re-quantify against a unified peak set |
-| Intron inclusion (GEX half) | Multiome is nuclei (mostly unspliced) — introns are essential for the RNA UMI totals |
+| Consensus peak set (multi-sample) | Peaks are dataset-specific; merging samples on discordant peaks fabricates batch structure -- re-quantify against a unified peak set |
+| Intron inclusion (GEX half) | Multiome is nuclei (mostly unspliced) -- introns are essential for the RNA UMI totals |
 
 ## Pipeline orchestration: the joint-modality decisions that make or break the result
 
@@ -178,7 +178,7 @@ DepthCor(seurat_obj)
 
 ## Step 3b: Doublet detection (per modality, BEFORE WNN)
 
-Remove doublets before the joint embedding, or fake intermediate states drive the joint clustering. RNA-based callers (scDblFinder/Scrublet) MISS ATAC doublets — ATAC needs a fragment-based caller (AMULET), run on the same nuclei. Detect per modality, drop the union of doublets, then build WNN. Mechanism: single-cell/doublet-detection (RNA) and single-cell/scatac-analysis (AMULET).
+Remove doublets before the joint embedding, or fake intermediate states drive the joint clustering. RNA-based callers (scDblFinder/Scrublet) MISS ATAC doublets -- ATAC needs a fragment-based caller (AMULET), run on the same nuclei. Detect per modality, drop the union of doublets, then build WNN. Mechanism: single-cell/doublet-detection (RNA) and single-cell/scatac-analysis (AMULET).
 
 ## Step 4: Weighted Nearest Neighbors (WNN)
 

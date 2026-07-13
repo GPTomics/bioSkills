@@ -33,7 +33,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | Alignment rate | Mapped / total reads | >= 95% | 80-95% | < 80% | ENCODE 4 |
 | Mitochondrial fraction | chrM / total mapped | < 5% (Omni-ATAC), < 20% (standard) | 20-50% | > 50% | Corces 2017 (Omni-ATAC) |
 | NRF (Non-Redundant Fraction) | Distinct positions / total reads | >= 0.9 | 0.7-0.9 | < 0.7 | Landt 2012 |
-| PBC1 (Pre-seq Bottleneck Coefficient 1) | Positions w/ 1 read / Positions w/ >= 1 read | >= 0.9 | 0.7-0.9 | < 0.7 | Landt 2012 |
+| PBC1 (PCR Bottlenecking Coefficient 1) | Positions w/ 1 read / Positions w/ >= 1 read | >= 0.9 | 0.7-0.9 | < 0.7 | Landt 2012 |
 | PBC2 | Positions w/ 1 read / Positions w/ 2 reads | >= 3.0 | 1.0-3.0 | < 1.0 | Landt 2012 |
 | TSS enrichment (hg38, GENCODE v29) | Avg signal at TSS / avg flanking | >= 7 | 5-7 | < 5 | ENCODE 4 |
 | FRiP (Fraction Reads in Peaks) | Reads in MACS peaks / total | >= 0.3 | 0.2-0.3 | < 0.2 | ENCODE 4, Landt 2012 |
@@ -201,19 +201,19 @@ plotFingerprint -p 8 -b rep1.bam rep2.bam rep3.bam \
     --outQualityMetrics fingerprint_metrics.txt
 ```
 
-deepTools fingerprint quality metrics report Jensen-Shannon distance and synthetic JS distance; values > 0.3 indicate strong enrichment (ATAC-grade).
+deepTools fingerprint quality metrics report a synthetic JS distance without a reference; the (non-synthetic) Jensen-Shannon distance column is only computed when a reference sample is supplied via `--JSDsample`. Larger values indicate stronger enrichment.
 
 ## Library Complexity Extrapolation (preseq)
 
 **Goal:** Predict whether re-sequencing would rescue a low-NRF library, separating "library is bottlenecked" from "we just sequenced too shallow."
 
-**Approach:** Fit preseq's Lomax model on observed BAM read positions; extrapolate distinct-fragment yield as a function of additional sequencing depth.
+**Approach:** Fit preseq's rational-function (Pade) approximation of the Good-Toulmin power-series estimator on observed BAM read positions; extrapolate distinct-fragment yield as a function of additional sequencing depth.
 
 ```bash
 # c_curve: observed complexity at current depth
 preseq c_curve -B sample.bam -o sample.ccurve.tsv -s 1e6
 
-# lc_extrap: predicted complexity at higher depth (default 100M reads, step 1M)
+# lc_extrap: predicted complexity at higher depth (extrapolation -e here 200M; preseq default -e is 1e10, step -s default 1M)
 preseq lc_extrap -B sample.bam -o sample.lcextrap.tsv -e 200000000 -s 5000000
 ```
 
@@ -229,8 +229,8 @@ Interpretation: if `lc_extrap` shows distinct-fragment count flattening before 1
 # chrY read fraction
 samtools idxstats sample.bam | awk '$1=="chrY"{print $3 / $2}'   # reads per bp
 
-# XIST locus accessibility (chrX:73820651-73852723 in hg38)
-samtools view -c sample.bam chrX:73820651-73852723
+# XIST locus accessibility (chrX:73820651-73852753 in hg38)
+samtools view -c sample.bam chrX:73820651-73852753
 ```
 
 Female: chrY reads/bp ~0; XIST count high. Male: chrY reads/bp ~male coverage; XIST count low. Discrepancy with sample metadata flags swap.
@@ -251,7 +251,7 @@ Female: chrY reads/bp ~0; XIST count high. Male: chrY reads/bp ~male coverage; X
 
 **Mechanism:** Per-library normalization (RPM, CPM) erases global accessibility shifts because total reads are nominally constant. Exogenous chromatin spike-in (Drosophila S2 or E. coli Tn5-naive chromatin added pre-Tn5) provides an external scaling reference.
 
-**Pipeline:** Align reads to a concatenated human + Drosophila reference; count spike-in reads per sample; normalize by spike-in (not by total reads). Reske 2020 Epigenetics Chromatin documents the protocol with HDAC inhibitor as case study.
+**Pipeline:** Align reads to a concatenated human + Drosophila reference; count spike-in reads per sample; normalize by spike-in (not by total reads). Reske 2020 Epigenetics Chromatin shows that normalization-method choice materially changes differential-accessibility results when a global accessibility shift is expected (ARID1A/PIK3CA endometrial-epithelium case study), motivating an external reference such as a chromatin spike-in.
 
 **QC threshold:** spike-in fraction 0.5-5% of total reads is the workable range. Below 0.1% spike-in is unreliable; above 10% suggests too much spike-in (loss of cellular reads).
 
@@ -321,11 +321,11 @@ MultiQC ingests Picard CollectInsertSizeMetrics, samtools flagstat, deepTools pl
 
 - Buenrostro JD et al 2013 Nat Methods 10:1213 (ATAC-seq protocol; fragment-size periodicity)
 - Corces MR et al 2017 Nat Methods 14:959 (Omni-ATAC; mt fraction reduction protocol)
-- Landt SG et al 2012 Genome Res 22:1813 (ENCODE/modENCODE QC framework, NRF/PBC definitions)
+- Landt SG et al 2012 Genome Res 22:1813 (ENCODE/modENCODE QC framework, NRF/PBC definitions; the PBC1/PBC2 split is a later ENCODE-pipeline refinement)
 - ENCODE 4 ATAC-seq Data Standards (encodeproject.org/atac-seq) -- canonical thresholds
 - Ou J et al 2018 BMC Genomics 19:169 (ATACseqQC R package; TSSEscore implementation)
 - Ramirez F et al 2016 Nucleic Acids Res 44:W160 (deepTools, plotFingerprint JSD)
-- Daley T & Smith AD 2013 Nat Methods 10:325 (preseq complexity model behind PBC)
+- Daley T & Smith AD 2013 Nat Methods 10:325 (preseq library-complexity extrapolation model; the lc_extrap re-sequencing decision)
 
 ## Related Skills
 

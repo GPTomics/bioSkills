@@ -7,8 +7,8 @@ Detect transcription factor binding footprints in ATAC-seq data: short DNA stret
 ## Prerequisites
 
 ```bash
-conda install -c bioconda tobias rgt-hint pydnase samtools bedtools
-pip install scprinter pyBigWig    # scprinter for multi-scale / single-cell
+conda install -c bioconda tobias rgt pydnase samtools bedtools   # HINT-ATAC ships in the `rgt` package (invoked as `rgt-hint`)
+pip install pyBigWig    # scPrinter installs from source: git clone https://github.com/buenrostrolab/scPrinter && cd scPrinter && pip install ./
 ```
 
 Inputs required:
@@ -90,7 +90,7 @@ Tell your AI agent what you want to do:
 
 | Method | Tool | Pros | Cons |
 |--------|------|------|------|
-| 9-bp k-mer PWM | TOBIAS ATACorrect | Default; well-validated | Genome-wide; single-process |
+| +/-12 bp k-mer window, DWM | TOBIAS ATACorrect | Default; well-validated | Genome-wide; single-process |
 | Dinucleotide HMM | HINT-ATAC | Built into HINT pipeline | Less control over output |
 | seqOutBias | seqOutBias | Independent of footprinting tool | Manual integration |
 | Empirical from naked DNA | (research-grade) | Most accurate | Requires input library |

@@ -24,7 +24,8 @@ conda install -c bioconda samtools bcftools vcftools plink2 bowtie2 bwa-mem2
 ```
 
 ```r
-BiocManager::install(c('MatrixEQTL', 'QuASAR'))
+install.packages('MatrixEQTL')                # CRAN
+remotes::install_github('piquelab/QuASAR')    # GitHub-only (not on Bioconductor/CRAN)
 ```
 
 Inputs:
@@ -56,7 +57,7 @@ Tell your AI agent what you want to do:
 > "Aggregate per-SNP ASE counts within each peak in the consensus peakset; pooled binomial test per peak with effect size |ref_frac - 0.5| >= 0.2 and BH-adjusted p < 0.05."
 
 ### Cohort caQTL with RASQUAL
-> "Run RASQUAL per chromosome: pre-compute LD with plink, supply genotype VCF + counts + WASP-filtered allele counts. Joint p-value typically gives 1.5-3x more caQTLs than MatrixEQTL alone at N=50."
+> "Run RASQUAL per feature: stream the cis-window genotype VCF (with allele-specific counts) through tabix into rasqual, which models genotype/allelic correlation internally -- no external LD-precompute step. Joint p-value typically gives 1.5-3x more caQTLs than MatrixEQTL alone at N=50."
 
 ### Genotype-Free ASE
 > "I don't have genotypes but want to detect ASE. Use QuASAR which infers genotypes from the BAM directly using a HMM."

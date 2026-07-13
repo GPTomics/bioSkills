@@ -22,7 +22,7 @@ If code throws unexpected errors, introspect the installed package and adapt rat
 
 - CLI: `nucleoatac run --bed regions.bed --bam sample.bam --fasta genome.fa`
 - R: `ATACseqQC::splitGAlignmentsByCut()` -> fragment classes; `factorFootprints()` -> per-TF flanking nuc analysis
-- CLI: `danpos3 dpos sample.bam` (alternative; supports MNase, ATAC, DNase)
+- CLI: `python danpos.py dpos sample.bam` (alternative; supports MNase, ATAC, DNase)
 - Python: `scprinter` for multi-scale nucleosome inference
 
 ## Nucleosome Physics for ATAC
@@ -73,11 +73,11 @@ V-plots are the primary diagnostic for whether nucleosome-positioning analysis w
 |------|--------|-----------|----------|------------|
 | NucleoATAC | Cross-correlation with idealized V-plot template; per-base occupancy + nucleosome calls | Single-bp | ATAC-specific; provides occupancy + fuzziness | Unmaintained since 2018; pegs Python 2/3.6; struggles on chromatin without clear NRL |
 | ATACseqQC | Fragment-size split + Tn5-shifted GAlignments + V-plot from BAM | Region-level | R/Bioconductor; integrates with TxDb / motif analysis | No per-base nucleosome calls; visualization-focused |
-| DANPOS3 | Smoothing + peak call on cleavage signal; tested on MNase, ATAC, DNase | ~50 bp | Robust differential mode (`dpeak`); MNase legacy; broadly maintained | Designed for MNase-Seq; ATAC adaptation needs careful parameter tuning |
+| DANPOS3 | Smoothing + peak call on cleavage signal; tested on MNase, ATAC, DNase | ~50 bp | Robust differential mode (`dpos`); MNase legacy; broadly maintained | Designed for MNase-Seq; ATAC adaptation needs careful parameter tuning |
 | scprinter | CNN multi-scale; resolves co-occurring TF + nucleosome footprints | Single-bp | Modern; single-cell aware; multi-scale | Newer; benchmarks evolving; GPU recommended |
 | custom (pysam V-plot) | Fragment counting + 2D density | Region-level | Maximally flexible; reproducible | Requires manual calling logic; slow |
 
-Methodology evolves; verify against current Schep 2015 (NucleoATAC), Chen 2013 (DANPOS), Bao 2024 (scprinter) before locking pipelines.
+Methodology evolves; verify against current Schep 2015 (NucleoATAC), Chen 2013 (DANPOS), Hu 2025 (scPrinter) before locking pipelines.
 
 ## +1 Nucleosome Calling
 
@@ -136,7 +136,7 @@ A failure to detect a clear +1 peak in aggregate V-plot suggests TSS annotation 
 
 ### DANPOS dpos with default parameters -- ATAC mismatch
 
-**Trigger:** Running `danpos3 dpos` with MNase defaults on ATAC.
+**Trigger:** Running `python danpos.py dpos` with MNase defaults on ATAC.
 
 **Mechanism:** DANPOS3's smoothing window and peak-calling defaults are tuned for MNase signal (smoother coverage). ATAC's sharper signal requires `--smooth_width 80 --width 145` or similar; otherwise calls are over-smoothed.
 
@@ -158,7 +158,7 @@ A failure to detect a clear +1 peak in aggregate V-plot suggests TSS annotation 
 |------|---------------------|
 | Per-base nucleosome occupancy track | NucleoATAC (with caveat about maintenance); or scprinter |
 | V-plot at TSS or motif center | ATACseqQC vPlot |
-| Differential nucleosome positioning between conditions | DANPOS3 dpeak |
+| Differential nucleosome positioning between conditions | DANPOS3 dpos |
 | +1 nucleosome calling at all genes | NucleoATAC + post-process to first nuc downstream of TSS |
 | Single-cell nucleosome positioning | scprinter |
 | Quick fragment-size QC plot | ATACseqQC fragSizeDist |
@@ -223,38 +223,38 @@ plt.savefig('vplot.png', dpi=200, bbox_inches='tight')
 
 V-plot quality is the most useful diagnostic before nucleosome calling. Classic V at TSS = positioning info recoverable; flat band = not.
 
-## Differential Nucleosome Positioning (DANPOS3 dpeak)
+## Differential Nucleosome Positioning (DANPOS3 dpos)
 
 ```bash
-# Compare control vs treatment nucleosome positions
-danpos3 dpeak \
-    -b condition2.bam:condition1.bam \
-    -c control.bam \
+# Compare control vs treatment nucleosome positions.
+# The sample pair is the POSITIONAL argument (a:b means a minus b); -b is for background/input to
+# subtract, and -c specifies a read-count to normalize to (an integer, NOT a control BAM path).
+python danpos.py dpos condition2.bam:condition1.bam \
     -o danpos_diff/ \
     --paired 1 \
-    --width 145 --smooth_width 80
+    --smooth_width 80
 ```
 
 DANPOS reports four event types: shifted nucleosomes, gained, lost, fuzziness change. ENCODE has no official threshold; require >= 30 bp shift and FDR < 0.05 for nucleosome shift calls.
 
 **Full ATAC-tuned DANPOS3 recipe:**
 ```bash
-# --width 145: nucleosome footprint width
-# --smooth_width 80: ATAC-specific (MNase default 60 too narrow)
+# --width 145: summit-scan window (DANPOS -jw/--width; default 40)
+# --smooth_width 80: smoothing kernel width (DANPOS -z; default 20, widened for ATAC)
 # -jd 145: min distance between adjacent nuc calls (single-dash short flag)
-# --pheight 0.95: peak height fraction for calling
+# --pheight 1e-5: occupancy P-value cutoff (DANPOS -p; dpos default 0). -q/--height is the separate density cutoff
 # --frsz 200: fragment size used (mono-nuc)
-danpos3 dpos sample.bam \
+python danpos.py dpos sample.bam \
     --paired 1 \
     --width 145 \
     --smooth_width 80 \
     -jd 145 \
-    --pheight 0.95 \
+    --pheight 1e-5 \
     --frsz 200 \
     --out danpos_out/
 ```
 
-Verify exact flags with `danpos3 dpos --help`; DANPOS3 documentation has been spotty and flag names can drift across releases.
+Verify exact flags with `python danpos.py dpos --help`; DANPOS3 (github.com/sklasfeld/DANPOS3) is invoked as `python danpos.py`, not a `danpos3` executable, and installs from GitHub (the bioconda `danpos` package is DANPOS2). Its documentation has been spotty and flag names can drift across releases.
 
 Adapted from DANPOS3 docs for ATAC; `--smooth_width 80` widens the smoothing kernel to match ATAC's sharper signal vs MNase's broader cleavage. `-jd 145` (single-dash short, alternative `--distance 145`) enforces nucleosome spacing >= 145 bp (one nucleosome footprint).
 
@@ -262,7 +262,7 @@ Adapted from DANPOS3 docs for ATAC; `--smooth_width 80` widens the smoothing ker
 
 **Trigger:** Suspected H2A.Z- or H3.3-containing nucleosomes; differential nucleosome composition between conditions.
 
-**Mechanism:** H2A.Z replacement of H2A produces nucleosomes with weaker DNA-histone interaction (lower thermal stability); fragment-size shifts ~10-15 bp shorter than canonical H2A nucleosomes (Voong 2016 *Cell* 167:1555-1570 supplementary). H3.3 replacement is more subtle but H3.3-H2A.Z double-variant nucleosomes are particularly destabilized at active promoters.
+**Mechanism:** H2A.Z replacement of H2A produces nucleosomes with weaker DNA-histone interaction (lower thermal stability); the H2A.Z population tends toward shorter fragment sizes than canonical H2A nucleosomes. H3.3 replacement is more subtle, but H3.3-H2A.Z double-variant nucleosomes are particularly destabilized at active promoters (Jin 2009 *Nat Genet* 41:941-945).
 
 **Detection:** Aggregate fragment-size distribution at H2A.Z ChIP-seq peaks vs H3K4me3-only peaks; the H2A.Z population shows mean fragment size ~10 bp shorter. ATAC alone CANNOT definitively call H2A.Z; H2A.Z ChIP-seq is needed for ground truth. ATAC fragment-size analysis is a hypothesis generator.
 
@@ -284,7 +284,6 @@ def region_frag_size(bam, region):
 |--------|------|-----------|----------|
 | Fiber-seq (Stergachis 2020) | PacBio HiFi + DNA methylation footprinting | Per-molecule single-bp | Reads continuous chromatin fiber up to 20 kb; resolves haplotype-specific positioning |
 | NanoNOMe (Lee 2020 *Nat Methods* 17:1191-1199) | Nanopore + GpC methyltransferase | Per-molecule single-bp | Same single-molecule but cheaper than PacBio |
-| MOSE (Dong 2024) | Nanopore + methylation | Improved Nanopore | Newer; benchmarks emerging |
 
 Fiber-seq can detect nucleosome occupancy directly per single chromatin molecule (no aggregation needed). Resolves cell-cycle-dependent and stochastic positioning that bulk ATAC averages out. Preferred for fine-structure analysis of regulatory elements.
 
@@ -301,9 +300,9 @@ Fuzziness measures how sharply positioned a nucleosome is across cells. Defined 
 | 50-100 bp | Fuzzy; constitutive but non-stable |
 | > 100 bp | Effectively unpositioned |
 
-These ranges are field-convention bands (drawn from NucleoATAC / DANPOS practice); no single primary paper prescribes them — verify against tool-specific documentation when reporting.
+These ranges are field-convention bands (drawn from NucleoATAC / DANPOS practice); no single primary paper prescribes them -- verify against tool-specific documentation when reporting.
 
-NucleoATAC reports per-nucleosome fuzziness as `nuc_size`; values around the NRL are expected.
+NucleoATAC reports per-nucleosome fuzziness in the fuzziness column (column 13) of `.nucpos.bed` -- a measure of how wide the signal peak is; well-positioned nucleosomes show low fuzziness (~20-50 bp), consistent with the table above.
 
 ## Common Errors
 
@@ -324,9 +323,10 @@ NucleoATAC reports per-nucleosome fuzziness as `nuc_size`; values around the NRL
 - Chen K et al 2013 Genome Res 23:341 (DANPOS)
 - Buenrostro JD et al 2013 Nat Methods 10:1213 (ATAC fragment-size classes)
 - Ou J et al 2018 BMC Genomics 19:169 (ATACseqQC)
-- Bao Y et al 2024 bioRxiv (scprinter)
+- Hu Y et al 2025 Nature 638:779 (scPrinter/PRINT; multiscale footprints)
 - Mavrich TN et al 2008 Nature 453:358 (+1 nucleosome positioning)
-- Voong LN et al 2016 Cell 167:1555-1570 (high-resolution nucleosome mapping)
+- Voong LN et al 2016 Cell 167:1555-1570 (high-resolution chemical nucleosome mapping)
+- Jin C et al 2009 Nat Genet 41:941 (H3.3/H2A.Z double-variant nucleosome instability at active regions)
 - Teif VB et al 2012 Nat Struct Mol Biol 19:1185 (NRL variation across cell types)
 
 ## Related Skills
