@@ -12,9 +12,9 @@ GENOME=${4:-hg38.fa}
 SIZES=${5:-hg38.chrom.sizes}
 OUTDIR=${6:-chrombpnet_out}
 DATA_TYPE=${7:-ATAC}                               # ATAC | DNASE
-BIAS_SCALING=${8:-0.5}
+BIAS_THRESH=${8:-0.5}
 
-mkdir -p $OUTDIR/{bias,model,splits,variants}
+mkdir -p $OUTDIR/{bias,model,splits,variants,preds}
 
 # 1. Generate train/val/test chromosome splits (output is JSON with chrom assignments)
 # Train chroms = whatever is not in -tcr / -vcr (auto-inferred); `-tecr` flag does NOT exist.
@@ -31,7 +31,7 @@ chrombpnet bias pipeline \
     -g $GENOME -c $SIZES \
     -p $PEAKS -n $NONPEAKS \
     -fl $OUTDIR/splits/fold_0.json \
-    -b $BIAS_SCALING \
+    -b $BIAS_THRESH \
     -o $OUTDIR/bias/
 
 # 3. Train accessibility model with bias correction
@@ -41,12 +41,12 @@ chrombpnet pipeline \
     -g $GENOME -c $SIZES \
     -p $PEAKS -n $NONPEAKS \
     -fl $OUTDIR/splits/fold_0.json \
-    -b $OUTDIR/bias/bias.h5 \
+    -b $OUTDIR/bias/models/bias.h5 \
     -o $OUTDIR/model/
 
-echo "Trained model: $OUTDIR/model/chrombpnet_no_bias.h5"
-echo "Bias model: $OUTDIR/bias/bias.h5"
-echo "Bias-corrected bigWig: $OUTDIR/model/chrombpnet_no_bias_predictions/profile.bw"
+echo "Trained model: $OUTDIR/model/models/chrombpnet_nobias.h5"
+echo "Bias model: $OUTDIR/bias/models/bias.h5"
+echo "Generate bias-corrected bigWigs separately: chrombpnet pred_bw -bm $OUTDIR/bias/models/bias.h5 -cmb $OUTDIR/model/models/chrombpnet_nobias.h5 -r regions.bed -g genome.fa -c chrom.sizes -op $OUTDIR/preds/pred"
 
 # 4. Predict variant effects (optional; requires variants.tsv with chrom, pos, ref, alt)
 # Uses kundajelab/variant-scorer (separate repo); `chrombpnet snp_score` is commented out in current chrombpnet
@@ -54,7 +54,7 @@ if [ -f "${9:-}" ]; then
     VARIANTS=$9
     VARIANT_SCORER=${VARIANT_SCORER:-/path/to/variant-scorer}    # Clone from kundajelab/variant-scorer
     python $VARIANT_SCORER/src/variant_scoring.py \
-        --model $OUTDIR/model/chrombpnet_no_bias.h5 \
+        --model $OUTDIR/model/models/chrombpnet_nobias.h5 \
         --list $VARIANTS \
         --genome $GENOME \
         --chrom_sizes $SIZES \
@@ -65,6 +65,6 @@ fi
 
 # 5. Validation: aggregate corrected profile at CTCF (sanity check; expect clean V)
 echo "Next steps:"
-echo "  - Run TOBIAS PlotAggregate on \$OUTDIR/model/.../profile.bw at CTCF motifs"
+echo "  - Generate corrected bigWigs with chrombpnet pred_bw (see above), then run TOBIAS PlotAggregate at CTCF motifs"
 echo "  - For motif discovery: compute DeepLIFT contributions and run TF-MoDISco-lite"
 echo "  - For variant scoring: tangermeme.variant_effect.substitution_effect on bulk SNP lists"

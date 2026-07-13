@@ -22,26 +22,26 @@ If code throws unexpected errors, introspect the installed package and adapt rat
 - CLI: `TOBIAS ATACorrect` -> `TOBIAS ScoreBigwig` (formerly `FootprintScores`) -> `TOBIAS BINDetect`
 - CLI: `rgt-hint footprinting --atac-seq` (HINT-ATAC, single-step)
 - CLI: `wellington_footprints.py` (legacy DNase, adapted for ATAC)
-- Python: `scprinter` (multi-scale, single-cell aware; Bao Yu 2024 bioRxiv)
+- Python: `scprinter` (multi-scale, single-cell aware; Hu 2025 Nature)
 
-Tn5 has a strong sequence preference (Lazarovici 2013, Calviello 2019), reading approximately +/- 4 bp around the insertion site. Without bias correction, "footprints" reflect Tn5 sequence preference rather than TF binding. This is the single most important step.
+Tn5 has a strong sequence preference (Karabacak Calviello 2019), reading approximately +/- 4 bp around the insertion site. Without bias correction, "footprints" reflect Tn5 sequence preference rather than TF binding. This is the single most important step.
 
 ## Algorithmic Taxonomy
 
 | Tool | Bias model | Scoring | Min depth | Strength | Fails when |
 |------|-----------|---------|-----------|----------|------------|
-| TOBIAS (BINDetect) | k-mer (default 9bp) PWM-style; per-base correction | Two-step: continuous footprint score then motif-anchored bound/unbound classification | >= 50M nuclear reads | Mature, peer-reviewed (Bentsen 2020), differential support, modular pipeline | Below 50M reads; sequencing errors near motif inflate background |
+| TOBIAS (BINDetect) | +/-12 bp k-mer window (`--k_flank` 12), dinucleotide weight matrix (DWM) | Two-step: continuous footprint score then motif-anchored bound/unbound classification | >= 50M nuclear reads | Mature, peer-reviewed (Bentsen 2020), differential support, modular pipeline | Below 50M reads; sequencing errors near motif inflate background |
 | HINT-ATAC | Hidden-Markov + dinucleotide bias correction | HMM emits open/footprint/closed states; calls ranked footprints | >= 50M | Single-step; integrates motif matching; handles DNase too | Less control over individual stages; HMM occasionally over-segments |
 | Wellington (pyDNase) | DNase-developed; ATAC adaptation by post-shift | Cleavage-rate Poisson Z-score | >= 50M (DNase >= 80M) | Original footprinting framework; well-validated for DNase | Designed for DNase II; ATAC-specific bias not corrected as carefully |
 | PIQ | Bayesian latent variable on cut sites | Genome-wide PWM scan + cleavage profile | >= 30M (lower because of model) | Per-TF posterior probabilities; works on lower depth | Outdated; not actively maintained; harder to install |
 | scprinter | Multi-scale CNN-based footprint and TF activity | Resolves footprints at multiple TF size scales (CTCF vs nuclear receptors) | >= 1M cells (sc) or 50M (bulk) | Modern ML approach; single-cell; multi-scale resolves problematic TF families | Newer tool; benchmarks evolving; GPU recommended |
 | TOBIAS + scprinter combination | TOBIAS bias correction + scprinter scoring | Two-step bridging | >= 50M | Combines the best bias model with multi-scale scoring | Manual pipeline, no single CLI |
 
-Methodology evolves; verify against the current Bentsen 2020, Calviello 2019, and scprinter 2024 benchmarks. ATAC footprinting power saturates above 100M nuclear reads; below 50M, weak-binding TFs (transient occupancy) cannot be reliably called.
+Methodology evolves; verify against the current Bentsen 2020, Karabacak Calviello 2019, and scPrinter (Hu 2025) benchmarks. ATAC footprinting power saturates above 100M nuclear reads; below 50M, weak-binding TFs (transient occupancy) cannot be reliably called.
 
 ## Tn5 Bias and Why Correction Matters
 
-**Trigger:** Tn5 inserts preferentially at certain k-mers (Lazarovici 2013 reported strong A/T preference at -3 to -1 and +1 to +3; Calviello 2019 measured the full PWM). The preference is reproducible and biologically uninteresting.
+**Trigger:** Tn5 inserts preferentially at certain k-mers (Karabacak Calviello 2019 measured the protocol-specific 6-mer insertion-bias model used for bias correction). The preference is reproducible and biologically uninteresting.
 
 **Mechanism:** Without correction, every "TF footprint" near a high-bias k-mer reads as occupancy. Conversely, regions with low-bias flanks but real binding may show no footprint dip relative to corrected expectation.
 
@@ -84,9 +84,9 @@ Tn5 dimers cut both strands of DNA but with a 9 bp staggered offset. The cleavag
 
 | Method | Approach | When to use |
 |--------|---------|-------------|
-| TOBIAS ATACorrect | 9-bp k-mer PWM | Default for most ATAC; fast |
+| TOBIAS ATACorrect | +/-12 bp k-mer window, dinucleotide weight matrix (DWM) | Default for most ATAC; fast |
 | chromBPNet bias model (Pampari 2024) | CNN trained on naked-DNA control or k-mer baseline | Best when sequence context complex; handles low-complexity flanks |
-| seqOutBias (Martins 2018) | Genome-wide naive Bayes on k-mer counts | Independent of footprinting tool; works upstream |
+| seqOutBias (Martins 2018) | Genome-wide k-mer frequency scaling (observed vs expected cut counts) | Independent of footprinting tool; works upstream |
 | HINT-ATAC dinucleotide | HMM-integrated dinucleotide bias | Built into HINT pipeline; less control |
 | Naked-DNA empirical | Sequence Tn5 on protein-free DNA | Gold standard for non-model organisms; expensive wet-lab |
 
@@ -96,7 +96,7 @@ For non-model organisms (no published Tn5 bias model), naked-DNA control is requ
 
 **Trigger:** A GWAS-fine-mapped or rare variant falls inside a TOBIAS-bound motif site.
 
-**Mechanism:** Sequence-based DL models (chromBPNet, EnFormer) predict per-base accessibility at ref vs alt allele; combined with footprint evidence (TOBIAS bound site overlap), this produces a mechanistic hypothesis: "variant disrupts binding of TF X at enhancer Y."
+**Mechanism:** Sequence-based DL models (chromBPNet, Enformer) predict per-base accessibility at ref vs alt allele; combined with footprint evidence (TOBIAS bound site overlap), this produces a mechanistic hypothesis: "variant disrupts binding of TF X at enhancer Y."
 
 **Workflow:** Run TOBIAS BINDetect to identify bound motif sites; for variants in bound sites, score with chromBPNet (atac-seq/deep-learning-atac) for ref/alt log2FC; |log2FC| > 1 supports functional disruption. Cross-reference with allele-specific accessibility (atac-seq/allele-specific-accessibility) for observed evidence.
 
@@ -210,7 +210,7 @@ BINDetect output columns: `output_prefix`, motif info, condition counts (`cond1_
 | Both `cond1_bound` and `cond2_bound` near 0 | Motif present but no footprint either condition; TF likely not active |
 | `cond1_bound` >> `cond2_bound` but change small | High dynamic range; differential per-site rather than aggregate |
 
-The differential score is the difference in mean footprint score across motif sites, not a fold-change. Magnitudes around 0.1-0.5 are typical for biologically relevant changes (TOBIAS BINDetect tutorials / Bentsen 2020 examples; no formally published cutoff — calibrate against positive controls in the current dataset).
+The differential score is the difference in mean footprint score across motif sites, not a fold-change. Magnitudes around 0.1-0.5 are typical for biologically relevant changes (TOBIAS BINDetect tutorials / Bentsen 2020 examples; no formally published cutoff -- calibrate against positive controls in the current dataset).
 
 ## Reconciling TOBIAS vs HINT-ATAC
 
@@ -244,8 +244,8 @@ Filtering NFR strengthens footprint signal but discards di-nucleosome-borne info
 
 | Database | Coverage | Format | Notes |
 |----------|---------|--------|-------|
-| JASPAR 2024 CORE vertebrates | ~1900 motifs (curated, ChIP-validated) | JASPAR PFM, MEME, etc. | Default for vertebrate ATAC |
-| HOCOMOCO v12 | ~1400 high-confidence + 600 derived | JASPAR PFM | Best for resolving paralogues; provides per-cell-type variants |
+| JASPAR 2024 CORE vertebrates | ~880 vertebrate non-redundant motifs (curated, experimentally derived) | JASPAR PFM, MEME, etc. | Default for vertebrate ATAC |
+| HOCOMOCO v12 | ~1443 curated motifs (v12 CORE) | JASPAR PFM | Best for resolving paralogues; provides secondary motif subtypes per TF |
 | CIS-BP 2.0 | ~80,000 motifs across 1000+ species | PWM, .meme | Broadest coverage including non-model species |
 | MEME-CHIP / homer | Custom from peaks | .meme, .motif | When de novo motif needed |
 
@@ -256,7 +256,7 @@ JASPAR motifs are conservatively curated; HOCOMOCO is comprehensive for human/mo
 | Error / symptom | Cause | Solution |
 |-----------------|-------|----------|
 | Aggregate footprint inverted (peak instead of dip) | No bias correction; or wrong genome FASTA | Run ATACorrect; verify FASTA matches BAM build |
-| BINDetect reports zero bound sites | Default cutoff too stringent; or peakset too narrow | Lower `--prefix` and inspect; verify peaks include where binding expected |
+| BINDetect reports zero bound sites | Default cutoff too stringent; or peakset too narrow | Raise `--bound-pvalue` (default 0.001) and inspect; verify peaks include where binding expected |
 | TOBIAS ATACorrect out of memory | Genome FASTA huge or many cores | Reduce `--cores`; use `samtools faidx` to confirm FASTA index exists |
 | Differential score noisy / random | Per-condition bias correction inconsistent | Re-run ATACorrect with identical peakset and blacklist for each |
 | Empty motif file warning | JASPAR PFM format mismatch | Use `MEME suite` to convert; TOBIAS expects JASPAR format |
@@ -267,16 +267,15 @@ JASPAR motifs are conservatively curated; HOCOMOCO is comprehensive for human/mo
 ## References
 
 - Buenrostro JD et al 2013 Nat Methods 10:1213 (ATAC-seq protocol)
-- Lazarovici A et al 2013 PNAS 110:6376 (Tn5 insertion bias in ATAC)
-- Calviello AK et al 2019 BMC Genomics (Tn5 bias PWM characterization; verify exact volume/pages in current literature search)
+- Karabacak Calviello A et al 2019 Genome Biol 20:42 (protocol-specific Tn5/DNase bias modeling for footprinting)
 - Bentsen M et al 2020 Nat Commun 11:4267 (TOBIAS framework, benchmark)
 - Li Z et al 2019 Genome Biol 20:45 (HINT-ATAC)
 - Piper J et al 2013 NAR 41:e201 (Wellington / pyDNase)
 - Sherwood RI et al 2014 Nat Biotechnol 32:171 (PIQ)
-- Bao Y et al 2024 bioRxiv (scprinter; multi-scale single-cell footprinting)
+- Hu Y et al 2025 Nature 638:779 (scPrinter/PRINT; multi-scale single-cell footprinting)
 - Martins AL et al 2018 NAR 46:e9 (seqOutBias bias correction alternative)
 - Castro-Mondragon JA et al 2022 NAR 50:D165 (JASPAR 2022, recently 2024)
-- Vorontsov IE et al 2024 NAR 52:D116 (HOCOMOCO v12)
+- Vorontsov IE et al 2024 NAR 52:D154 (HOCOMOCO v12)
 
 ## Related Skills
 

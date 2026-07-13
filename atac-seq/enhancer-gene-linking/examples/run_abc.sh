@@ -15,7 +15,7 @@ GENE_BED=${6:-refseq_protein_coding.bed}
 ABC_REPO=${7:-/path/to/ABC-Enhancer-Gene-Prediction}    # broadinstitute/ABC-Enhancer-Gene-Prediction
 CELL_TYPE=${8:-K562}
 OUTDIR=${9:-abc_out}
-EFFECTIVE_GENOME=${10:-2913022398}        # hg38 100bp reads (deepTools)
+EFFECTIVE_GENOME=${10:-2913022398}        # hg38 total effective genome (deepTools, read-length-independent)
 
 mkdir -p $OUTDIR/{tracks,peaks,neighborhoods,predictions}
 
@@ -44,28 +44,35 @@ bedtools intersect -v -a atac_peaks.narrowPeak \
 python $ABC_REPO/workflow/scripts/run.neighborhoods.py \
     --candidate_enhancer_regions $OUTDIR/peaks/candidate_enhancers.bed \
     --genes $GENE_BED \
-    --H3K27ac $OUTDIR/tracks/h3k27ac.bw \
-    --DHS $OUTDIR/tracks/atac.bw \
+    --H3K27ac $H3K27AC_BAM \
+    --DHS $ATAC_BAM \
     --chrom_sizes $SIZES \
+    --chrom_sizes_bed ${SIZES}.bed \
     --ubiquitously_expressed_genes ubiquitously_expressed.txt \
     --cellType $CELL_TYPE \
     --outdir $OUTDIR/neighborhoods/
 
-# 4. ABC predictions: Activity * Contact, normalize, threshold
+# 4. ABC predictions: Activity * Contact -- generates ALL unthresholded links
 python $ABC_REPO/workflow/scripts/predict.py \
     --enhancers $OUTDIR/neighborhoods/EnhancerList.txt \
     --genes $OUTDIR/neighborhoods/GeneList.txt \
-    --HiCdir $HIC_DIR \
+    --hic_file $HIC_DIR \
+    --hic_type avg \
     --hic_resolution 5000 \
+    --hic_pseudocount_distance 5000 \
+    `# --hic_type choices: hic | juicebox | bedpe | avg -- must match the Hi-C input format` \
+    `# --chrom_sizes and --hic_pseudocount_distance are both required=True in predict.py` \
+    --chrom_sizes $SIZES \
     --score_column ABC.Score \
-    --threshold 0.02 \
     --cellType $CELL_TYPE \
     --outdir $OUTDIR/predictions/
 
-# 5. Filter and report
-echo "ABC predictions: $OUTDIR/predictions/EnhancerPredictionsAllPutative.txt"
+# 5. Threshold at ABC.Score >= 0.02 by column header (the ABC Snakemake pipeline runs
+# filter_predictions.py with its full --output_* argument set; this is the standalone equivalent).
+echo "ABC predictions (unthresholded): $OUTDIR/predictions/EnhancerPredictionsAllPutative.tsv.gz"
 echo "Above threshold (ABC.Score >= 0.02):"
-awk -F'\t' 'NR > 1 && $11 >= 0.02' $OUTDIR/predictions/EnhancerPredictionsAllPutative.txt | wc -l
+zcat $OUTDIR/predictions/EnhancerPredictionsAllPutative.tsv.gz | \
+    awk -F'\t' 'NR==1{for(i=1;i<=NF;i++)if($i=="ABC.Score")c=i; next} $c>=0.02' | wc -l
 
 # Optional: cross-validation
 # Compare against published CRISPRi-FlowFISH catalog (Fulco 2019 K562)

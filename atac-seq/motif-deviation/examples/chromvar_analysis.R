@@ -21,9 +21,9 @@ colData(se)$condition <- factor(c('control','control','control','treated','treat
 # Add GC content for matched-bias background sampling
 se <- addGCBias(se, genome=BSgenome.Hsapiens.UCSC.hg38)
 
-# chromVAR thresholds: 1500 reads/sample, FRiP >= 0.15; 10 reads/peak in >= 10% samples
+# chromVAR thresholds: 1500 reads/sample, FRiP >= 0.15; drop peaks with < 10 total fragments
 se <- filterSamples(se, min_depth=1500, min_in_peaks=0.15, shiny=FALSE)
-se <- filterPeaks(se, non_overlapping=TRUE, min_count=10, n_samples_frac=0.1)
+se <- filterPeaks(se, non_overlapping=TRUE, min_fragments_per_peak=10)
 cat(sprintf('After filtering: %d peaks, %d samples\n', nrow(se), ncol(se)))
 stopifnot(nrow(se) >= 5000)             # chromVAR requires >= 5000 peaks for stable inference
 
@@ -38,7 +38,7 @@ motif_ix <- matchMotifs(pfm, se, genome=BSgenome.Hsapiens.UCSC.hg38, p.cutoff=5e
 # Background peaks: 50 iterations is the default; do not reduce below 30
 bg <- getBackgroundPeaks(object=se, niterations=50)
 dev <- computeDeviations(object=se, annotations=motif_ix, background_peaks=bg)
-zscores <- deviations(dev)
+zscores <- deviationScores(dev)
 variability <- computeVariability(dev)
 variability <- variability[order(-variability$variability), ]
 cat('\nTop 10 variable motifs:\n'); print(head(variability, 10))

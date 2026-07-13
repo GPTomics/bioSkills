@@ -21,7 +21,7 @@ analyze_nucleosomes <- function(bam_file, output_prefix='nucleosome', upstream=1
     cat(sprintf('Paired alignments (MAPQ>=30): %d\n', length(gal)))
 
     # Fragment-class counts (Buenrostro 2013 / ENCODE convention)
-    frags <- width(gal)
+    frags <- width(granges(gal))
     nfr  <- gal[frags < 100]
     mono <- gal[frags >= 180 & frags <= 247]
     di   <- gal[frags >= 315 & frags <= 473]
@@ -31,24 +31,22 @@ analyze_nucleosomes <- function(bam_file, output_prefix='nucleosome', upstream=1
 
     # Tn5 shift correction is required before splitting by fragment class
     cat('Applying Tn5 shift correction...\n')
-    gal_shifted <- shiftGAlignmentsList(GAlignmentsList(gal))
+    gal_shifted <- shiftGAlignmentsList(as(gal, 'GAlignmentsList'))
 
-    # Get TSS regions (protein-coding only avoids ncRNA noise)
+    # Get TSS regions (all knownGene transcripts; restrict to protein-coding upstream to avoid ncRNA noise)
     txs <- transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene)
     tss <- promoters(txs, upstream=upstream, downstream=downstream)
 
     # Split fragments into NFR / mono / di and compute aggregate signal at TSS
     cat('Computing TSS-aligned fragment-class signal...\n')
     objs <- splitGAlignmentsByCut(gal_shifted, txs=txs, genome=BSgenome.Hsapiens.UCSC.hg38)
-    sigs <- featureAlignedSignal(cvglist=objs, feature.gr=tss,
+    cvgs <- lapply(objs, coverage)                       # featureAlignedSignal needs coverage (RleList), not GAlignments
+    sigs <- featureAlignedSignal(cvglists=cvgs, feature.gr=tss,
                                  upstream=upstream, downstream=downstream)
 
-    # V-plot at TSS (fragment size vs position; classic V/W indicates positioning is recoverable)
-    cat('Generating V-plot at TSS...\n')
-    pdf(sprintf('%s_vplot.pdf', output_prefix), 8, 6)
-    vPlot(gal_shifted, tss, genome=BSgenome.Hsapiens.UCSC.hg38,
-          upstream=upstream, downstream=downstream)
-    dev.off()
+    # Note: ATACseqQC::vPlot() is a MOTIF-centered V-plot (requires a pfm + bindingSites), not a TSS
+    # V-plot -- the TSS-aligned heatmap below is the TSS positioning view; call vPlot() with a CTCF
+    # pfm and its binding sites for a motif V-plot.
 
     # Nucleosome positioning heatmap (NFR + mono signal aligned to TSS)
     pdf(sprintf('%s_heatmap.pdf', output_prefix), 8, 10)
@@ -56,7 +54,7 @@ analyze_nucleosomes <- function(bam_file, output_prefix='nucleosome', upstream=1
     dev.off()
 
     # Export NFR and mono BAMs for downstream tools
-    rtracklayer::export(objs$NucleosomeFree %||% objs$NussomeFree,
+    rtracklayer::export(objs$NucleosomeFree,
                         sprintf('%s_nfr.bam', output_prefix))
     rtracklayer::export(objs$mononucleosome,
                         sprintf('%s_mono.bam', output_prefix))
@@ -74,8 +72,6 @@ analyze_nucleosomes <- function(bam_file, output_prefix='nucleosome', upstream=1
     cat('\nSummary:\n'); print(summary)
     invisible(summary)
 }
-
-`%||%` <- function(a, b) if (!is.null(a)) a else b
 
 args <- commandArgs(trailingOnly=TRUE)
 if (length(args) > 0) analyze_nucleosomes(args[1],

@@ -7,7 +7,7 @@ primary_tool: bedtools
 
 ## Version Compatibility
 
-Reference examples tested with: bedtools 2.31+, samtools 1.19+, BEDOPS 2.4.41+, GenomicRanges 1.54+, DiffBind 3.12+, Subread 2.0+ (featureCounts), pybedtools 0.10+.
+Reference examples tested with: bedtools 2.31+, samtools 1.19+, BEDOPS 2.4.41+, GenomicRanges 1.54+, DiffBind 3.12+, Subread 2.0.2+ (featureCounts; `--countReadPairs` requires >= 2.0.2), pybedtools 0.10+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -18,9 +18,9 @@ If code throws unexpected errors, introspect the installed package and adapt rat
 
 # Consensus Peakset Construction
 
-**"Build a single peakset I can count reads against across all my samples"** -> Combine per-replicate or per-condition peak calls into a non-redundant, fixed-width set of regions. The strategy chosen drives FDR calibration, peak-width fairness, and reproducibility downstream.
+**"Build a single peakset to count reads against for all my samples"** -> Combine per-replicate or per-condition peak calls into a non-redundant, fixed-width set of regions. The strategy chosen drives FDR calibration, peak-width fairness, and reproducibility downstream.
 
-- CLI: `bedtools merge` (simple union) and `bedtools multiinter -j` (per-sample membership)
+- CLI: `bedtools merge` (simple union) and `bedtools multiinter` (per-sample membership columns emitted by default)
 - CLI: Corces 2018 iterative overlap removal (custom shell)
 - R: `DiffBind::dba.count(summits=250)` (built-in fixed-width)
 - Python: `pybedtools` for programmatic merging
@@ -41,7 +41,7 @@ For ENCODE-style differential analysis: ALL samples must be counted against the 
 | Naive intersection | `bedtools multiinter` requiring all samples | Variable | High-stringency reproducibility | Loses real condition-specific peaks |
 | Majority-rule overlap | `multiinter` requiring >= n/2 samples | Variable | Balance; DiffBind default with `minOverlap` | Width still varies; counts are width-biased |
 | Iterative overlap removal (Corces 2018) | Sort by significance, greedily keep non-overlapping at fixed width | 501 bp fixed | ML features; cross-study comparison; modern ATAC standard | Loses sub-501bp resolution; overweights high-significance peaks |
-| Summit-centered fixed width (DiffBind) | `dba.count(summits=250)` re-centers all peaks on summit +/- 250 bp | 501 bp fixed | Default for DiffBind workflows; integrates with replicate counts | Requires summit info (MACS narrowPeak); broad peaks lose width info |
+| Summit-centered fixed width (DiffBind) | `dba.count(summits=250)` re-centers all peaks on summit +/- 250 bp | 501 bp fixed | Matches the Corces 501 bp convention (note: `dba.count` default is `summits=200` -> 401 bp); integrates with replicate counts | Requires summit info (MACS narrowPeak); broad peaks lose width info |
 | IDR-filtered union | Union of IDR-passed peaks across rep pairs | Variable | ENCODE pipeline-compliant; reproducibility-aware | Requires running IDR per pair; computationally heavier |
 | Per-condition union, then global union | Each group consensus separately, then merge | Variable | Different cell types / strong condition shift | Same width issues as naive union |
 | Width-controlled extension | Extend each peak to median width centered on midpoint | User-set | Quick fixed-width without summit info | Midpoint != summit; can shift biology |
@@ -71,7 +71,7 @@ WIDTH_HALF=250                                       # 501 bp total width
 
 # 1. Pool all peaks, re-center on summit, extend
 awk -v w=$WIDTH_HALF 'BEGIN{OFS="\t"}
-    {summit=$2+$10; print $1, summit-w, summit+w, $4, $7, $6}' \
+    {summit=$2+$10; print $1, summit-w, summit+w+1, $4, $7, $6}' \
     $PEAKS_DIR/*.narrowPeak | \
     awk '$2 >= 0' | \
     bedtools slop -i - -g $GENOME_SIZES -b 0 | \
@@ -101,7 +101,7 @@ sort -k1,1 -k2,2n consensus_iterative.bed > consensus_final.bed
 echo "Consensus peakset: $(wc -l < consensus_final.bed) fixed-width 501bp peaks"
 ```
 
-For better performance at scale, replace the Python loop with `bedtools cluster` followed by per-cluster top-significance selection.
+For a faster approximation at scale, `bedtools cluster` + per-cluster top-significance selection is tempting, but it is NOT equivalent to greedy iterative overlap: `cluster` groups transitively-overlapping peaks (a chain can span well beyond 501 bp), so keeping one peak per cluster discards non-overlapping peaks the greedy algorithm would retain. Use it only as an approximation.
 
 ## Per-Strategy Failure Modes
 
@@ -117,7 +117,7 @@ For better performance at scale, replace the Python loop with `bedtools cluster`
 
 ### Intersection (peak in all reps) -- Loses condition-specific biology
 
-**Trigger:** Using `bedtools multiinter -i ... -j -intervals` requiring all samples.
+**Trigger:** Using `bedtools multiinter -i ...` (which emits per-sample membership columns by default) and requiring all samples.
 
 **Mechanism:** Peaks present only in one condition fail intersection requirement and are excluded from the consensus, even though they are the biology of interest.
 
@@ -198,9 +198,10 @@ def fix_width_recenter(narrowpeak_path, half_width=250, out_path='consensus.bed'
 ```bash
 # For each condition, build a within-condition consensus first
 for cond in cond1 cond2; do
-    bedtools multiinter -i ${cond}_rep1.narrowPeak ${cond}_rep2.narrowPeak ${cond}_rep3.narrowPeak \
-        -names rep1 rep2 rep3 \
-        -empty | \
+    bedtools multiinter -i <(sort -k1,1 -k2,2n ${cond}_rep1.narrowPeak) \
+                            <(sort -k1,1 -k2,2n ${cond}_rep2.narrowPeak) \
+                            <(sort -k1,1 -k2,2n ${cond}_rep3.narrowPeak) \
+        -names rep1 rep2 rep3 | \
         awk '$4 >= 2 {print $1"\t"$2"\t"$3}' > ${cond}_consensus.bed
 done
 
@@ -220,10 +221,14 @@ For Bioconductor pipelines that avoid intermediate BED files. The iterative-over
 library(GenomicRanges); library(rtracklayer)
 
 peaks <- import('peaks.narrowPeak')                    # GRanges
+# trim() below only clamps ranges when seqlengths are set, so attach them from the genome index
+chrom_sizes <- read.table('hg38.chrom.sizes', col.names=c('chrom', 'len'))
+seqlengths(peaks) <- setNames(chrom_sizes$len, chrom_sizes$chrom)[seqlevels(peaks)]
 peaks_summit <- peaks                                  # column 10 of narrowPeak is summit offset
-start(peaks_summit) <- start(peaks) + peaks$peak       # peak summit position
+start(peaks_summit) <- start(peaks) + peaks$peak       # move start to the summit position
+end(peaks_summit) <- start(peaks_summit)               # collapse to 1 bp at the summit before centering
 peaks_fixed <- resize(peaks_summit, width=501, fix='center')
-peaks_fixed <- trim(peaks_fixed)                       # clamp to chromosome bounds
+peaks_fixed <- trim(peaks_fixed)                       # clamp to chromosome bounds (requires seqlengths, set above)
 
 # Sort by signalValue (column 7) descending; greedy iterative non-overlap
 peaks_sorted <- peaks_fixed[order(-peaks_fixed$signalValue)]
@@ -274,14 +279,14 @@ For human -> mouse comparison, use synteny-based mapping (`bnMapper` or `halLift
 
 ## ENCODE-rE2G Candidate Element Lists
 
-**Alternative to iterative-overlap:** ENCODE-rE2G (atac-seq/enhancer-gene-linking) publishes candidate cis-regulatory element (cCRE) lists for ENCODE cell types, ranked by predicted regulatory function rather than just ATAC signal strength. These are biologically prioritized and serve as an alternative consensus peakset for ML feature engineering. Trade-off: limited to ENCODE cell types; cell-type-specific cCREs may not align with the actual peakset of any specific dataset.
+**Alternative to iterative-overlap:** ENCODE-rE2G (atac-seq/enhancer-gene-linking) predicts scored enhancer-gene regulatory links for ENCODE cell types, prioritizing elements by predicted regulatory function rather than just ATAC signal strength (the genome-wide cCRE registry itself is a distinct product, SCREEN/ENCODE cCREs). Its predicted regulatory elements serve as an alternative consensus peakset for ML feature engineering. Trade-off: limited to ENCODE cell types; cell-type-specific elements may not align with the actual peakset of any specific dataset.
 
 ## Counting Reads in Consensus Peaks
 
 ```bash
-# Convert BED to SAF for featureCounts
+# Convert BED to SAF for featureCounts (BED start is 0-based half-open; SAF Start is 1-based inclusive, so +1)
 awk 'BEGIN{OFS="\t"; print "GeneID","Chr","Start","End","Strand"}
-     {print $1"_"$2"_"$3, $1, $2, $3, "+"}' consensus.bed > consensus.saf
+     {print $1"_"$2"_"$3, $1, $2+1, $3, "+"}' consensus.bed > consensus.saf
 
 featureCounts -F SAF -a consensus.saf \
     -o consensus_counts.tsv \
@@ -313,7 +318,7 @@ echo "After blacklist: $(wc -l < consensus_no_blacklist.bed) peaks"
 | Iterative overlap output much smaller than expected | Too many peaks within 500 bp; strict non-overlap | Try smaller half-width (e.g. 100) for higher resolution |
 | `multiinter` output empty | Peak files not sorted; or wrong chromosome naming | Sort all inputs first; confirm chr name consistency |
 | Per-condition union has 2x peaks of any per-condition | Strong condition-specific biology -- expected | Confirm with browser tracks; use this consensus |
-| DiffBind takes hours on consensus | All-by-all counting is N samples x M peaks | Use `bParallel=TRUE`; provide `BPPARAM` |
+| DiffBind takes hours on consensus | All-by-all counting is N samples x M peaks | Use `bParallel=TRUE` (default `DBA$config$RunParallel`); limit cores via `DBA$config$cores` |
 
 ## References
 

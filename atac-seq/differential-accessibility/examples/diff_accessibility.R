@@ -22,14 +22,16 @@ run_diff <- function(sample_sheet, output_prefix = 'diff_atac',
                 fixed_width_summit, min_overlap))
     dba <- dba.count(dba, summits = fixed_width_summit, minOverlap = min_overlap, bParallel = TRUE)
 
-    # Normalize: NATIVE = reads-in-peaks (default); LIB = full library size for global shifts
+    # Normalize: NATIVE = per-tool native method (RLE for DESeq2, TMM for edgeR); LIB = full library size for global shifts.
+    # DiffBind's own default is DBA_NORM_LIB; reads-in-peaks is a library-size option (library = DBA_LIBSIZE_PEAKREADS).
     cat('Normalizing (', deparse(substitute(normalize_mode)), ')...\n')
     dba <- dba.normalize(dba, normalize = normalize_mode)
 
     # Optional: hidden-batch SVA before fitting
     if (use_sva) {
         cat('Estimating surrogate variables with SVA...\n')
-        counts_mat <- dba.peakset(dba, bRetrieve = TRUE) |> as.matrix()
+        se <- dba(dba, bSummarizedExperiment = TRUE)
+        counts_mat <- SummarizedExperiment::assay(se)
         meta <- as.data.frame(dba(dba)$samples)
         mod  <- model.matrix(~Condition, meta)
         mod0 <- model.matrix(~1, meta)

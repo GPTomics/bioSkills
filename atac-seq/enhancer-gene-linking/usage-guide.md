@@ -7,16 +7,19 @@ Predict which gene each distal enhancer regulates using ABC, ENCODE-rE2G, HiChIP
 ## Prerequisites
 
 ```bash
-# ABC pipeline
+# ABC pipeline (Snakemake-based; install its conda env)
 git clone https://github.com/broadinstitute/ABC-Enhancer-Gene-Prediction
-pip install -r ABC-Enhancer-Gene-Prediction/requirements.txt
+mamba env create -f ABC-Enhancer-Gene-Prediction/workflow/envs/abcenv.yml
+conda activate abc-env
 
 # ENCODE-rE2G
 git clone https://github.com/EngreitzLab/ENCODE_rE2G
 pip install snakemake
 
 # HiChIP loop calling
-conda install -c bioconda fithichip hicpro samtools bedtools
+conda install -c bioconda samtools bedtools
+# HiC-Pro and FitHiChIP are not on bioconda: install HiC-Pro via its environment.yml
+# (github.com/nservant/HiC-Pro) and FitHiChIP from github.com/ay-lab/FitHiChIP (Docker/Singularity)
 ```
 
 ```r
@@ -47,10 +50,10 @@ Tell your AI agent what you want to do:
 > "Run ABC on K562 with cell-type-matched Micro-C at 5 kb resolution. Pre-filter promoter regions from candidate enhancers. Threshold ABC.Score >= 0.02 for high-confidence predictions."
 
 ### ENCODE-rE2G
-> "Use ENCODE-rE2G with the GM12878-trained model on my B-cell ATAC. Report predictions with re2g_score >= 0.5 and effective HiC; cross-check against ABC."
+> "Use ENCODE-rE2G with the GM12878-trained model on my B-cell ATAC. Report predictions with ENCODE-rE2G.Score >= 0.5 and effective HiC; cross-check against ABC."
 
 ### No Hi-C Fallback
-> "I only have ATAC + H3K27ac, no Hi-C. Run ABC with the average HiC fallback (5 ENCODE cell types pooled) and acknowledge degraded performance in methods. Or fall back to Cicero co-accessibility."
+> "I only have ATAC + H3K27ac, no Hi-C. Run ABC with the average HiC fallback (10 ENCODE cell types pooled) and acknowledge degraded performance in methods. Or fall back to Cicero co-accessibility."
 
 ### Method Combination
 > "Run both ABC and ENCODE-rE2G; intersect with HiChIP H3K27ac loops at FDR < 0.05. Report the triple-overlapping enhancer-gene pairs as high-confidence and the union as exploratory."
@@ -101,7 +104,7 @@ Tell your AI agent what you want to do:
 - Cicero co-accessibility is NOT enhancer-gene linking. Cicero predicts co-varying peak pairs; ABC predicts target genes. Concordance is ~30-50%.
 - HiChIP H3K27ac directly measures enhancer-promoter loops; orthogonal to accessibility-based methods.
 - For high-confidence reporting, agree across two methods. Single-method calls are exploratory.
-- CRISPRi-FlowFISH ground truth catalogs (Fulco 2019, Gasperini 2019, Schraivogel 2020) cover ~10 cell types with ~thousands of enhancer-gene pairs; benchmark predictions against these.
+- CRISPR enhancer-screen ground-truth catalogs (Fulco 2019 K562 FlowFISH, Gasperini 2019 K562, Schraivogel 2020 K562 TAP-seq) are primarily K562 with ~thousands of enhancer-gene pairs; the ENCODE-rE2G combined CRISPR benchmark is what spans ~10 cell types. Benchmark predictions against these.
 - For GWAS variant interpretation, combine with deep-learning-atac (chromBPNet) variant effect predictions; SNP at predicted enhancer + ABC target gene + chromBPNet effect = strong functional hypothesis.
 - ENCODE 4 published pre-computed ENCODE-rE2G predictions for many cell types -- check availability before retraining.
 - EpiMap and GeneHancer are useful baselines but cell-type-agnostic; do not use as primary calls for cell-type-specific biology.

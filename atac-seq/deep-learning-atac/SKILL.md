@@ -1,13 +1,13 @@
 ---
 name: bio-atac-seq-deep-learning-atac
-description: Sequence-based deep learning for ATAC-seq using chromBPNet, BPNet, scBasset, or EnFormer. Use when correcting Tn5 bias with neural networks beyond k-mer models, predicting per-base accessibility profiles, scoring in silico variant effects at GWAS or rare-variant SNPs, discovering motifs via DeepLIFT/TF-MoDISco from a trained model, or generating cell-type-specific accessibility predictions for unobserved cell states.
+description: Sequence-based deep learning for ATAC-seq using chromBPNet, BPNet, scBasset, or Enformer. Use when correcting Tn5 bias with neural networks beyond k-mer models, predicting per-base accessibility profiles, scoring in silico variant effects at GWAS or rare-variant SNPs, discovering motifs via DeepLIFT/TF-MoDISco from a trained model, or generating cell-type-specific accessibility predictions for unobserved cell states.
 tool_type: python
 primary_tool: chrombpnet
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: chrombpnet 0.1.7+, bpnet-lite 0.6+ (DOI 10.5281/zenodo.7011327), scBasset 0.1.0+ (basenji2 fork), tangermeme 0.1+, tfmodisco-lite 2.2+, DeepLIFT 0.6+, captum 0.7+, tensorflow 2.13+, pytorch 2.1+, kipoi 0.8+.
+Reference examples tested with: chrombpnet 0.1.7+, bpnet-lite 0.6+ (github.com/jmschrei/bpnet-lite), scBasset 0.1.0+ (basenji2 fork), tangermeme 0.1+, tfmodisco-lite 2.2+, DeepLIFT 0.6+, captum 0.7+, tensorflow 2.13+, pytorch 2.1+, kipoi 0.8+.
 
 Verify before use:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -22,7 +22,7 @@ If code throws unexpected errors, introspect the installed package and adapt rat
 - CLI: `chrombpnet pipeline --bigwig signal.bw --bigwig-bias bias.bw ...`
 - Python: `bpnet-lite` for custom architectures; `tangermeme` for fast scoring
 - Python (single-cell): `scBasset` for per-cell sequence-based predictions
-- Python (long-context): EnFormer pre-trained models via Kipoi
+- Python (long-context): Enformer pre-trained models via Kipoi
 
 Sequence models are NOT a replacement for MACS+TOBIAS at every step. They excel at three specific tasks where classical pipelines struggle: (1) Tn5 bias correction in low-complexity sequence contexts, (2) variant effect prediction in non-genic regions, (3) cell-type-specific motif discovery beyond what JASPAR provides.
 
@@ -30,12 +30,12 @@ Sequence models are NOT a replacement for MACS+TOBIAS at every step. They excel 
 
 | Tool | Architecture | Training | Output | Strength | Fails when |
 |------|-------------|----------|--------|----------|------------|
-| chromBPNet (Pampari 2025 Nat Genet) | Two-track CNN: bias model + accessibility model; bias trained on naked-DNA control or k-mer baseline, accessibility trained on chromatin signal | Per-cell-type, paired bias track | Bias-corrected per-base profile + total counts | Best-in-class bias correction; established in Kundaje lab pipelines | Requires GPU, ~24h training per cell type; needs >= 50M reads |
+| chromBPNet (Pampari 2024 bioRxiv) | Two-track CNN: bias model + accessibility model; bias trained on naked-DNA control or k-mer baseline, accessibility trained on chromatin signal | Per-cell-type, paired bias track | Bias-corrected per-base profile + total counts | Strongest bias correction of the compared tools; established in Kundaje lab pipelines | Requires GPU, ~24h training per cell type; needs >= 50M reads |
 | BPNet (Avsec 2021 Nat Genet 53:354) | Original counts + profile dual-head CNN | TF ChIP-seq or ATAC | Per-base profile prediction | Foundational; widely cited; bpnet-lite reimpl maintained | Less polished than chromBPNet for ATAC; bias correction needs separate model |
 | scBasset (Yuan & Kelley 2022) | Basenji2-derived CNN, per-cell projection layer | Single-cell ATAC | Per-cell sequence-derived peak score | First sequence model that predicts per-cell accessibility; outperforms chromVAR for cluster discrimination | Fixed architecture, hard to extend; benchmarks evolving |
-| EnFormer (Avsec 2021 Nat Methods 18:1196) | Long-context Transformer (196 kb input) | Reference epigenome (DNase + histones + CAGE) | Per-bin epigenome prediction | Best for distal regulation modeling; pre-trained available | Pre-trained models cell-line specific; finetuning on custom data is expensive |
-| Borzoi (Linder 2025 Nat Genet) | EnFormer extension trained on RNA + ATAC | Multi-tissue paired data | Sequence -> RNA + chromatin | Recent SOTA for variant effect on RNA via ATAC linkage | Newer; benchmarks still emerging |
-| DeepATAC / Basset (legacy) | Earlier CNN architectures | -- | Binary peak prediction | Historical context; cited in older literature | Superseded by chromBPNet + EnFormer; do not use for new work |
+| Enformer (Avsec 2021 Nat Methods 18:1196) | Long-context Transformer (196 kb input) | Reference epigenome (DNase + histones + CAGE) | Per-bin epigenome prediction | Best for distal regulation modeling; pre-trained available | Pre-trained models cell-line specific; finetuning on custom data is expensive |
+| Borzoi (Linder 2025 Nat Genet) | Enformer extension trained on RNA + ATAC | Multi-tissue paired data | Sequence -> RNA + chromatin | Current best benchmark for variant effect on RNA via ATAC linkage | Newer; benchmarks still emerging |
+| DeepATAC / Basset (legacy) | Earlier CNN architectures | -- | Binary peak prediction | Historical context; cited in older literature | Superseded by chromBPNet + Enformer; do not use for new work |
 | tangermeme | Inference-only fast wrapper | Use any saved model | Marginal scoring of variants | Speeds up variant effect prediction 100x; works with chromBPNet/BPNet outputs | Inference only; cannot train |
 
 Methodology evolves; verify against current Kundaje lab pipelines (chrombpnet GitHub), Greenleaf lab (scBasset), and Avsec / Linder publications before locking pipelines.
@@ -47,11 +47,11 @@ Methodology evolves; verify against current Kundaje lab pipelines (chrombpnet Gi
 | Peak calling | MACS3 / Genrich (sufficient) | chromBPNet (overkill unless variant downstream) |
 | Tn5 bias correction at TF motifs | TOBIAS ATACorrect (good) | chromBPNet (better at hard cases: low-complexity flanks, deep TF footprints) |
 | Differential accessibility | DiffBind / DESeq2 (sufficient) | -- (no clear DL advantage) |
-| GWAS variant effect prediction at causal SNPs | Limited (overlap heuristics) | chromBPNet / EnFormer (essential) |
+| GWAS variant effect prediction at causal SNPs | Limited (overlap heuristics) | chromBPNet / Enformer (essential) |
 | Motif discovery from de novo data | MEME / HOMER (good) | chromBPNet + TF-MoDISco (better; finds composite + cooperative motifs) |
 | Per-cell TF activity | chromVAR (sufficient at the cluster level) | scBasset (better at fine-grained cell states) |
-| Cross-cell-type accessibility prediction | -- | EnFormer / Borzoi (only option) |
-| Predicting cell-type-specific enhancer activity from sequence | -- | chromBPNet / EnFormer (essential) |
+| Cross-cell-type accessibility prediction | -- | Enformer / Borzoi (only option) |
+| Predicting cell-type-specific enhancer activity from sequence | -- | chromBPNet / Enformer (essential) |
 
 For most standard ATAC analysis, classical pipelines remain primary. Deep learning enters when (a) variant interpretation is the goal, (b) cell-type prediction is needed beyond observed data, or (c) bias correction quality is paramount (low-input, FFPE, transcription factors with weak motifs).
 
@@ -91,13 +91,13 @@ For most standard ATAC analysis, classical pipelines remain primary. Deep learni
 
 **Fix:** Aggregate cells to clusters before training, OR use chromBPNet trained on pseudobulks per cluster instead.
 
-### EnFormer -- Pre-trained models lack target cell type
+### Enformer -- Pre-trained models lack target cell type
 
-**Trigger:** Using EnFormer for variant effects in a cell type not in its training set (e.g. GTEx tissues are covered; novel primary cell types are not).
+**Trigger:** Using Enformer for variant effects in a cell type not in its training set (e.g. GTEx tissues are covered; novel primary cell types are not).
 
-**Mechanism:** EnFormer's outputs are per-track predictions; if the target cell type wasn't trained, the agent can use a similar track as proxy but accuracy degrades.
+**Mechanism:** Enformer's outputs are per-track predictions; if the target cell type wasn't trained, the agent can use a similar track as proxy but accuracy degrades.
 
-**Fix:** Use a similar tissue track as proxy (HepG2 for liver biology; GM12878 for B-cell-like) OR fine-tune EnFormer on custom data (expensive). Document the proxy.
+**Fix:** Use a similar tissue track as proxy (HepG2 for liver biology; GM12878 for B-cell-like) OR fine-tune Enformer on custom data (expensive). Document the proxy.
 
 ### tangermeme -- Marginal vs in silico mutagenesis confusion
 
@@ -114,7 +114,7 @@ For most standard ATAC analysis, classical pipelines remain primary. Deep learni
 | Score 100 GWAS SNPs for chromatin effects | Pre-trained chromBPNet model on closest cell type; tangermeme for fast scoring |
 | Score 1 lead SNP at high resolution | chromBPNet + tangermeme + ISM saturation map |
 | Identify TF binding motifs from a new cell type's ATAC | chromBPNet train + DeepLIFT contributions + TF-MoDISco-lite |
-| Predict accessibility in a cell type not in training | EnFormer pre-trained (best for ENCODE cell types) or scBasset for sc state interpolation |
+| Predict accessibility in a cell type not in training | Enformer pre-trained (best for ENCODE cell types) or scBasset for sc state interpolation |
 | Bias-correct a low-input ATAC library before footprinting | chromBPNet bias model output as `--bias` to TOBIAS or directly use chromBPNet corrected track |
 | Cell-type-specific enhancer prediction | chromBPNet trained on each cell type; per-cell-type ISM at candidate loci |
 | Replace TOBIAS bias correction | chromBPNet corrected bigWig as input to TOBIAS ScoreBigwig; skip ATACorrect |
@@ -155,14 +155,14 @@ chrombpnet pipeline \
     -p peaks.narrowPeak \
     -n nonpeaks.bed \
     -fl splits/fold_0.json \
-    -b bias_model/bias.h5 \
+    -b bias_model/models/bias.h5 \
     -o output/
 
 # 4. Variant effect prediction at GWAS SNPs uses the SEPARATE kundajelab/variant-scorer repo
 # (the `chrombpnet snp_score` subcommand is commented out in current chrombpnet/parsers.py)
 git clone https://github.com/kundajelab/variant-scorer
 python variant-scorer/src/variant_scoring.py \
-    --model output/chrombpnet_no_bias.h5 \
+    --model output/models/chrombpnet_nobias.h5 \
     --list variants.tsv \
     --genome hg38.fa \
     --chrom_sizes hg38.chrom.sizes \
@@ -170,7 +170,7 @@ python variant-scorer/src/variant_scoring.py \
 # Output: variants_predicted.variant_scores.tsv with per-SNP log2FC magnitudes
 ```
 
-`-b 0.5` is the bias scaling factor; chromBPNet docs recommend 0.5-1.0 depending on enrichment. For variant scoring, use the standalone `kundajelab/variant-scorer` companion repo, NOT a chrombpnet subcommand. Verify exact flag names with `python variant_scoring.py --help` because the API evolves.
+`-b 0.5` is the bias threshold factor (`--bias-threshold-factor`); chromBPNet docs recommend a start value of 0.5 for ATAC (0.8 for DNase). For variant scoring, use the standalone `kundajelab/variant-scorer` companion repo, NOT a chrombpnet subcommand. Verify exact flag names with `python variant_scoring.py --help` because the API evolves.
 
 ## DeepLIFT + TF-MoDISco for Motif Discovery
 
@@ -200,7 +200,7 @@ modisco report \
     -s modisco_report/
 ```
 
-`-n 2000` caps seqlets per metacluster; `-w 500` is the sliding-window length. `motifs_meme.txt` (e.g. JASPAR or HOCOMOCO MEME-format) lets `modisco report` annotate clusters against known motifs.
+`-n 2000` caps seqlets per metacluster; `-w 500` is the window around each peak center considered for motif discovery (default 400; the seqlet-core sliding-window size is a separate flag, `-z`/`--size`, default 20). `motifs_meme.txt` (e.g. JASPAR or HOCOMOCO MEME-format) lets `modisco report` annotate clusters against known motifs.
 
 ## In Silico Variant Effect Prediction
 
@@ -219,7 +219,7 @@ from tangermeme.predict import predict
 # chromBPNet wraps Keras; load with tensorflow.keras.models.load_model and wrap for tangermeme.
 # `load_chrombpnet_model` below is pseudocode -- substitute the actual loader for the installed version
 # (e.g. tf.keras.models.load_model + tangermeme.io.adapter, or torch.load for PyTorch checkpoints).
-model = load_chrombpnet_model('output/chrombpnet_no_bias.h5')
+model = load_chrombpnet_model('output/models/chrombpnet_nobias.h5')
 
 # substitution_effect: per-SNP ref vs alt prediction across a sequence window
 # X shape (N, 4, L); substitutions is a sparse-COO tensor of shape (-1, 3) where each row is
@@ -237,11 +237,11 @@ For motif marginalization (testing a candidate motif's effect by inserting it in
 | Pattern | Likely cause | Action |
 |---------|--------------|--------|
 | chromBPNet predicts strong effect; MACS does not call peak | Sequence model captures latent regulatory potential | Trust chromBPNet for variant effect; not for peak calling |
-| EnFormer prediction differs from chromBPNet at same locus | Different context windows (196 kb vs 1-2 kb); different cell types | Both can be correct at different scales; report both with their context size |
+| Enformer prediction differs from chromBPNet at same locus | Different context windows (196 kb vs 1-2 kb); different cell types | Both can be correct at different scales; report both with their context size |
 | TF-MoDISco motifs differ from JASPAR | Different methodology (sequence-based vs ChIP-validated) | TF-MoDISco can find composites and cooperative; check JASPAR for confirmation |
 | chromBPNet bias correction differs from TOBIAS ATACorrect | Different bias models (CNN vs k-mer) | chromBPNet is more accurate but slower; TOBIAS still publishable for standard use |
 
-**Operational rule:** For high-confidence variant prediction, agree across two approaches: chromBPNet + EnFormer (or Borzoi). Single-tool calls should be reported as exploratory. For motif discovery, validate TF-MoDISco hits against JASPAR/HOCOMOCO before publication.
+**Operational rule:** For high-confidence variant prediction, agree across two approaches: chromBPNet + Enformer (or Borzoi). Single-tool calls should be reported as exploratory. For motif discovery, validate TF-MoDISco hits against JASPAR/HOCOMOCO before publication.
 
 ## GPU and Compute Considerations
 
@@ -249,12 +249,12 @@ For motif marginalization (testing a candidate motif's effect by inserting it in
 |------|---------|-----------|
 | chromBPNet training (per cell type) | 1 A100 GPU, 80 GB RAM | ~24 h |
 | chromBPNet inference at 1M variants | 1 A100 | ~4 h |
-| EnFormer pre-trained inference | 1 V100+ | ~30 min for 100k variants |
+| Enformer pre-trained inference | 1 V100+ | ~30 min for 100k variants |
 | Borzoi training | 1 A100, ~250 GB RAM | ~7 days |
 | scBasset training (10k cells) | 1 V100, 32 GB RAM | ~12 h |
 | TF-MoDISco on 1M peaks | CPU 32 cores | ~6 h |
 
-For most labs without sustained GPU access: use pre-trained chromBPNet/EnFormer models for inference; only train custom models when the cell type is not in the public model zoo (encodeproject.org/atac-seq pre-trained chromBPNet).
+For most labs without sustained GPU access: use pre-trained chromBPNet/Enformer models for inference; only train custom models when the cell type is not in the public model zoo (encodeproject.org/atac-seq pre-trained chromBPNet).
 
 ## Common Errors
 
@@ -264,22 +264,22 @@ For most labs without sustained GPU access: use pre-trained chromBPNet/EnFormer 
 | Out of memory during training | Default batch size too large for GPU | `--batch-size 64` or smaller; reduce `--num-filters` |
 | Predicted profile is constant | Model collapsed (training too short) | Increase epochs; verify input peaks are non-empty |
 | TF-MoDISco produces too many small clusters | `target_seqlet_fdr` too loose | Tighten to 0.01; or increase `flank_size` |
-| EnFormer prediction has wrong shape | Pre-trained model expects 196 kb input | Pad input to exactly 196,608 bp |
+| Enformer prediction has wrong shape | Pre-trained model expects 196 kb input | Pad input to exactly 196,608 bp |
 | Variant effect predictions cluster near zero | SNP outside model's effective window | Predict on window-centered sequences (variant at the center) |
 | chromBPNet model not converging | Peaks file contains chrM or blacklist | Pre-filter; chromBPNet does not auto-filter |
 | scBasset training crashes on Apple Silicon | TensorFlow Metal incompatible with operations | Use CPU mode or run on Linux GPU |
 
 ## References
 
-- Pampari A et al 2025 Nat Genet (chromBPNet; Tn5 bias correction with deep learning; consult current publication for exact volume/pages)
+- Pampari A et al 2024 bioRxiv 2024.12.25.630221 (chromBPNet; Tn5 bias correction with deep learning; preprint)
 - Avsec Z et al 2021 Nat Genet 53:354-366 (BPNet; foundational sequence-to-profile)
-- Avsec Z et al 2021 Nat Methods 18:1196-1203 (EnFormer; long-context Transformer)
+- Avsec Z et al 2021 Nat Methods 18:1196-1203 (Enformer; long-context Transformer)
 - Linder J et al 2025 Nat Genet (Borzoi; multi-tissue sequence-to-RNA+chromatin; consult current publication for exact volume/pages)
 - Yuan H & Kelley DR 2022 Nat Methods 19:1088 (scBasset)
 - Shrikumar A et al 2017 ICML (DeepLIFT)
-- Schreiber J et al 2024 (tangermeme; fast inference utilities)
-- Shrikumar A et al 2018 bioRxiv (TF-MoDISco)
-- Kelley DR 2020 Genome Res 30:1133 (Basenji2; precursor)
+- Schreiber J 2025 bioRxiv 2025.08.08.669296 (tangermeme; fast inference utilities)
+- Shrikumar A et al 2018 arXiv:1811.00416 (TF-MoDISco)
+- Kelley DR 2020 PLoS Comput Biol 16:e1008050 (Basenji2; cross-species precursor)
 
 ## Related Skills
 

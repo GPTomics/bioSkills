@@ -12,7 +12,7 @@ conda install -c bioconda fastp bowtie2 samtools macs3 deeptools bedtools \
     tobias picard idr subread
 
 # Optional: deep learning, ENCODE-rE2G, WASP
-pip install chrombpnet tangermeme tfmodisco-lite
+pip install chrombpnet tangermeme modisco-lite
 git clone https://github.com/broadinstitute/ABC-Enhancer-Gene-Prediction
 git clone https://github.com/bmvdgeijn/WASP
 ```

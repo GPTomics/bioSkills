@@ -27,7 +27,7 @@ bedtools slop -i $OUTDIR/pooled_recentered.bed -g $GENOME_SIZES -b 0 > $OUTDIR/p
 sort -k5,5gr $OUTDIR/pooled_clamped.bed > $OUTDIR/pooled_by_sig.bed
 
 # 3. Iterative greedy non-overlap (Python because bedtools cluster doesn't preserve significance order)
-python3 - <<'PYEOF'
+OUTDIR="$OUTDIR" python3 - <<'PYEOF'
 import os
 indir = os.environ.get('OUTDIR', 'consensus_out')
 kept = []
@@ -44,8 +44,6 @@ with open(f'{indir}/consensus_iterative.bed', 'w') as out:
 print(f'Iterative overlap kept {len(kept)} peaks')
 PYEOF
 
-OUTDIR=$OUTDIR python3 -c "import os; pass"   # Make sure subshell sees var
-
 # 4. Blacklist filter
 echo "Blacklist filtering..."
 bedtools intersect -v -a $OUTDIR/consensus_iterative.bed -b $BLACKLIST | \
@@ -53,9 +51,9 @@ bedtools intersect -v -a $OUTDIR/consensus_iterative.bed -b $BLACKLIST | \
 
 echo "Final peakset: $(wc -l < $OUTDIR/consensus_final.bed) peaks at $((2 * HALF_WIDTH + 1)) bp fixed-width"
 
-# 5. Convert to SAF format for featureCounts
+# 5. Convert to SAF format for featureCounts (BED start is 0-based half-open; SAF Start is 1-based inclusive, so +1)
 awk 'BEGIN{OFS="\t"; print "GeneID","Chr","Start","End","Strand"}
-     {print $1"_"$2"_"$3, $1, $2, $3, "+"}' $OUTDIR/consensus_final.bed \
+     {print $1"_"$2"_"$3, $1, $2+1, $3, "+"}' $OUTDIR/consensus_final.bed \
     > $OUTDIR/consensus.saf
 
 echo "Done. Use $OUTDIR/consensus_final.bed (BED) or $OUTDIR/consensus.saf (featureCounts SAF)."

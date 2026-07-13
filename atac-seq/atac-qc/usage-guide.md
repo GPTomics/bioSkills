@@ -24,7 +24,7 @@ Tell your AI agent what you want to do:
 - "Compute TSS enrichment using the ENCODE pyTSSe formula, not ATACseqQC's"
 - "Diagnose why fragment-size distribution is flat -- over-transposition vs degraded chromatin"
 - "Calculate NRF, PBC1, and PBC2 from the raw mapped BAM (pre-dedup)"
-- "Run plotFingerprint with JSD metric and compare across replicates"
+- "Run plotFingerprint and compare fingerprint QC metrics across replicates (the plain JS distance column needs a --JSDsample reference)"
 
 ## Example Prompts
 
@@ -53,7 +53,7 @@ Tell your AI agent what you want to do:
 3. Generate fragment-size distribution with Picard CollectInsertSizeMetrics; classify periodicity pattern
 4. Compute TSS enrichment (ENCODE pyTSSe convention by default; ATACseqQC if requested)
 5. Calculate FRiP from MACS peaks
-6. Run plotFingerprint with JSD; cross-replicate Spearman correlation via `multiBamSummary`
+6. Run plotFingerprint (synthetic JS distance; the plain JS distance requires a --JSDsample reference); cross-replicate Spearman correlation via `multiBamSummary`
 7. Aggregate everything via MultiQC
 8. Grade each metric PASS/WARN/FAIL and write a per-sample report card
 

@@ -15,19 +15,30 @@ OUTDIR=${7:-ase_out}
 
 mkdir -p $OUTDIR/{wasp,ase,peak_aggregation}
 
-SAMPLE=$(basename $BAM .bam)
+SAMPLE=$(basename $BAM .bam)   # must match the genotype sample ID in the VCF/haplotype H5, else WASP finds no het sites
 
 # 0. Pre-filter VCF to biallelic heterozygous sites (GATK ASE requirement)
 bcftools view -m2 -M2 -v snps -i 'GT="het"' $VCF > $OUTDIR/wasp/${SAMPLE}.het.vcf
 bgzip $OUTDIR/wasp/${SAMPLE}.het.vcf
 tabix -p vcf $OUTDIR/wasp/${SAMPLE}.het.vcf.gz
 
+# 0b. Build WASP HDF5 SNP/haplotype tables from the phased het VCF (snp2h5).
+#     find_intersecting_snps.py reads these .h5 files; they do not exist until snp2h5 makes them.
+mkdir -p $OUTDIR/wasp/snp_h5
+samtools faidx $GENOME_FA
+cut -f1,2 ${GENOME_FA}.fai > $OUTDIR/wasp/chromInfo.txt
+snp2h5 --chrom $OUTDIR/wasp/chromInfo.txt \
+    --format vcf \
+    --snp_tab $OUTDIR/wasp/snp_h5/snp_tab.h5 \
+    --snp_index $OUTDIR/wasp/snp_h5/snp_index.h5 \
+    --haplotype $OUTDIR/wasp/snp_h5/haps.h5 \
+    $OUTDIR/wasp/${SAMPLE}.het.vcf.gz
+
 # 1. WASP: find reads at SNP sites
 python $WASP_DIR/mapping/find_intersecting_snps.py \
     --is_paired_end \
     --is_sorted \
     --output_dir $OUTDIR/wasp/ \
-    --snp_dir $OUTDIR/wasp/snp_h5/ \
     --snp_tab $OUTDIR/wasp/snp_h5/snp_tab.h5 \
     --snp_index $OUTDIR/wasp/snp_h5/snp_index.h5 \
     --haplotype $OUTDIR/wasp/snp_h5/haps.h5 \

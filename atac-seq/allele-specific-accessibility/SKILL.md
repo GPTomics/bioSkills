@@ -7,7 +7,7 @@ primary_tool: WASP
 
 ## Version Compatibility
 
-Reference examples tested with: WASP 0.3.4+, GATK 4.4+, RASQUAL 1.1+, samtools 1.19+, bcftools 1.19+, vcftools 0.1.16+, plink 2.00+, MatrixEQTL 2.3+, QuASAR 0.1+, bowtie2 2.5+, bwa-mem2 2.2.1+.
+Reference examples tested with: WASP 0.3.4+, GATK 4.4+, RASQUAL 1.1+, samtools 1.19+, bcftools 1.19+, vcftools 0.1.16+, plink 2.00+, MatrixEQTL 2.3+, QuASAR 0.1+, bowtie2 2.5+, bwa-mem2 2.2.1+, scipy 1.11+ (false_discovery_control), pandas 2+, pybedtools 0.10+.
 
 Verify before use:
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
@@ -38,7 +38,7 @@ ASE/ASB analysis is fundamentally different from cohort-level differential. Stat
 | MatrixEQTL on per-feature counts | Linear model fit on accessibility per peak | Genotypes + peak counts | Standard cohort-level caQTL; well-supported | No allelic imbalance information; needs sample size N >= 50 |
 | Allelic Imbalance from Bayesian models (MAJIQ-style) | Bayesian beta-binomial | BAM + VCF | Models overdispersion appropriately | Niche; less mature than WASP+GATK |
 
-Methodology evolves; verify against current Geijn 2015, Kumasaka 2016, Buchkovich 2015 (review) before locking pipelines. Modern caQTL studies (Kumasaka 2019, Anderson 2024) typically combine WASP + RASQUAL at modest N or WASP + GATK + linear caQTL at large N.
+Methodology evolves; verify against current Geijn 2015, Kumasaka 2016, Buchkovich 2015 before locking pipelines. Modern caQTL studies typically combine WASP + RASQUAL at modest N or WASP + GATK + linear caQTL at large N.
 
 ## Reference Allele Mapping Bias (The Single Most Important Issue)
 
@@ -68,7 +68,10 @@ python $WASP_DIR/mapping/find_intersecting_snps.py \
     --is_paired_end \
     --is_sorted \
     --output_dir wasp_out/ \
-    --snp_dir snp_h5/ \
+    --snp_tab snp_h5/snp_tab.h5 \
+    --snp_index snp_h5/snp_index.h5 \
+    --haplotype snp_h5/haps.h5 \
+    --samples $SAMPLE \
     $SAMPLE.bam
 
 # 2. Re-align flipped-allele reads
@@ -119,11 +122,11 @@ gatk ASEReadCounter \
 
 ### RASQUAL -- LD computation requirement
 
-**Trigger:** Running RASQUAL without pre-computing LD matrix.
+**Trigger:** RASQUAL exits or returns NA for a feature.
 
-**Mechanism:** RASQUAL needs a per-feature linkage disequilibrium calculation; missing causes the joint model to fail.
+**Mechanism:** RASQUAL estimates genotype/allelic correlation internally from the tabix-streamed VCF (no external LD matrix is needed or accepted). Failures instead come from the `-l` (testing SNP) and `-m` (feature SNP) counts not matching the SNPs actually present in the cis-window, or a feature with zero fSNPs.
 
-**Fix:** Pre-compute LD with `plink --ld-window-kb 5000` per region; supply via `--correlation-bias`.
+**Fix:** Compute `-l`/`-m` from the actual VCF window rather than a fixed guess, and skip features with no feature SNPs; there is no LD-precompute step.
 
 ### WASP -- Phased vs unphased genotypes
 
@@ -213,7 +216,7 @@ def peak_ase(group):
     return pd.Series({'ref_frac': ref / total, 'p_value': p, 'snp_count': len(group)})
 
 peak_ase_df = ase.groupby('peak').apply(peak_ase)
-peak_ase_df['adj_p'] = stats.false_discovery_control(peak_ase_df['p_value'].dropna())
+peak_ase_df['adj_p'] = stats.false_discovery_control(peak_ase_df['p_value'].fillna(1.0))
 sig_ase = peak_ase_df[(peak_ase_df['adj_p'] < 0.05) & (abs(peak_ase_df['ref_frac'] - 0.5) >= 0.2)]
 ```
 
@@ -229,24 +232,24 @@ RASQUAL uses a non-standard CLI: it reads the VCF from stdin via tabix and uses 
 
 ```bash
 # 1. Pre-compute genotype offsets and binary count files (rasqualTools R package)
-# (see rasqualTools::saveRasqualMatricesAsBinary; produces .bin files for -y, -k)
+# (see rasqualTools::saveRasqualMatrices; produces .bin files for -y, -k)
 
 # 2. Per-feature (peak) RASQUAL call: pipe tabix VCF in via stdin
-# Per-line meaning: feature name, chromosome, start, end, n_total_SNPs, n_test_SNPs
-while IFS=$'\t' read -r name chr start end n_all n_test; do
+# Per-line meaning: feature name, chromosome, start, end, n_testing_SNPs (cis-window rSNP candidates), n_feature_SNPs (fSNPs in the peak)
+while IFS=$'\t' read -r name chr start end n_testing n_feature; do
     tabix cohort.vcf.gz $chr:$((start-500000))-$((end+500000)) | \
         rasqual -y counts.bin \
                 -k offsets.bin \
                 -n $N_SAMPLES \
                 -j $FEATURE_INDEX \
-                -l $n_all -m $n_test \
+                -l $n_testing -m $n_feature \
                 -s $start -e $end \
                 -f $name \
                 > $name.rasqual.txt
 done < features.tsv
 ```
 
-`-y` is the binary count file; `-k` is the binary size-factor / offset file (both produced by `rasqualTools::saveRasqualMatricesAsBinary` from R); `-j` is the row index of the feature; `-l/-m` are total / test SNP counts in the feature window. RASQUAL does NOT use `--features`, `--counts`, `--vcf` flags; those are common in newer caQTL wrappers but not in stock RASQUAL.
+`-y` is the binary count file; `-k` is the binary size-factor / offset file (both produced by `rasqualTools::saveRasqualMatrices` from R); `-j` is the row index of the feature; `-l` is the number of testing SNPs (cis-window rSNP candidates) and `-m` the number of feature SNPs (fSNPs overlapping the peak). RASQUAL does NOT use `--features`, `--counts`, `--vcf` flags; those are common in newer caQTL wrappers but not in stock RASQUAL.
 
 For modern usage, the `rasqualTools` R wrapper (Kumasaka GitHub) handles this orchestration. Verify against `rasqual --help` because the flag set is unusual.
 
@@ -269,7 +272,7 @@ RASQUAL output includes joint p-values, total-only and ASE-only sub-tests; the j
 |-----------------|-------|----------|
 | Reference allele systematically over-represented | WASP not run | Mandatory WASP filter |
 | ASE per-SNP coverage too low | Sparse coverage; rare alleles | Aggregate across SNPs in peak; or filter SNPs with allele freq 0.1-0.9 |
-| RASQUAL crashes on small features | Per-feature LD missing | Pre-compute LD with plink |
+| RASQUAL crashes/NA on small features | Feature has no fSNPs, or `-l`/`-m` counts mismatch the VCF window | Skip features with 0 feature-SNPs; compute `-l`/`-m` from the actual window |
 | caQTL replication low | Cohort-effect vs cis-effect confusion | Use RASQUAL joint or replicate ASE separately |
 | Phased vs unphased confusion | Different software expectations | Phase with SHAPEIT5/BEAGLE before any ASE |
 | GATK ASEReadCounter fails on multiallelic sites | Multi-allelic complications | Pre-filter VCF to biallelic only with bcftools |
@@ -281,8 +284,7 @@ RASQUAL output includes joint p-values, total-only and ASE-only sub-tests; the j
 - Castel SE et al 2015 Genome Biol 16:195 (GATK ASEReadCounter; ASE framework)
 - Kumasaka N et al 2016 Nat Genet 48:206 (RASQUAL; joint total + ASE caQTL)
 - Harvey CT et al 2015 Bioinformatics 31:1235 (QuASAR)
-- Buchkovich ML et al 2015 Genome Biol 16:185 (mapping bias review)
-- (Modern caQTL workflow citations: consult current literature; earlier placeholder removed pending verified citation)
+- Buchkovich ML et al 2015 BMC Med Genomics 8:43 (reference mapping-bias correction with limited/no genotype data; AA-ALIGNER)
 - Browning SR & Browning BL 2007 Am J Hum Genet 81:1084 (BEAGLE phasing)
 - Patterson M et al 2015 J Comput Biol 22:498 (whatshap; read-based phasing)
 

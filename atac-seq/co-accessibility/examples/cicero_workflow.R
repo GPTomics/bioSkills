@@ -53,16 +53,16 @@ run_cicero_pipeline <- function(peak_matrix, peak_metadata, cell_metadata,
         tss <- import(tss_bed)
         tss_extended <- resize(tss, width=2 * tss_pad, fix='center')
 
-        # Convert connections to GRanges (each connection has two peaks)
-        peak1 <- GRanges(strong$Peak1)
-        peak2 <- GRanges(strong$Peak2)
+        # Convert connections to GRanges (Cicero peaks are chr_start_end; convert to chr:start-end)
+        peak1 <- GRanges(sub('_(\\d+)_(\\d+)$', ':\\1-\\2', strong$Peak1))
+        peak2 <- GRanges(sub('_(\\d+)_(\\d+)$', ':\\1-\\2', strong$Peak2))
         ov1 <- findOverlaps(peak1, tss_extended)
         ov2 <- findOverlaps(peak2, tss_extended)
 
         eg_pairs <- data.frame(
             enhancer = c(strong$Peak2[queryHits(ov1)], strong$Peak1[queryHits(ov2)]),
-            gene = c(tss_extended$gene_id[subjectHits(ov1)],
-                     tss_extended$gene_id[subjectHits(ov2)]),
+            gene = c(tss_extended$name[subjectHits(ov1)],
+                     tss_extended$name[subjectHits(ov2)]),
             coaccess = c(strong$coaccess[queryHits(ov1)], strong$coaccess[queryHits(ov2)]))
         eg_pairs <- unique(eg_pairs)
         write.csv(eg_pairs, sprintf('%s_enhancer_gene_pairs.csv', output_prefix),

@@ -47,12 +47,12 @@ This is a workflow skill: it owns the chaining decisions and hand-offs, not the 
 
 ATAC-seq differs from ChIP-seq at four seams, and each is where the analysis goes wrong.
 
-1. **There is NO input control — the shift-extend cut-site model IS the background.** ATAC has no matched IP/input; peak significance comes from local lambda over the Tn5 insertion signal. Do not invent a "control"; commit instead to the build + ENCODE blacklist (removed before calling) as the coordinate frame.
+1. **There is NO input control -- the shift-extend cut-site model IS the background.** ATAC has no matched IP/input; peak significance comes from local lambda over the Tn5 insertion signal. Do not invent a "control"; commit instead to the build + ENCODE blacklist (removed before calling) as the coordinate frame.
 2. **The Tn5 +4/-5 shift is applied EXACTLY ONCE, after dedup and chrM removal.** `alignmentSieve --ATACshift` (or one bedtools awk) applies it. Applying it twice, or combining `-f BAMPE` with `--shift/--extsize` (silently ignored), misplaces every cut site. Pick ONE calling mode: cut-site (`-f BAM`/`-f BED` + `--nomodel --shift -75 --extsize 150`) OR fragment (`-f BAMPE` on shifted reads, NO `--shift`).
 3. **chrM is removed BEFORE peak calling.** Mitochondrial reads dominate ATAC libraries (often 20-50%, less with Omni-ATAC); leaving them in inflates depth and distorts FRiP and normalization.
 4. **Differential accessibility requires a FIXED-WIDTH consensus peakset.** Variable-width MACS peaks make per-sample counts non-comparable. Build the Corces 501 bp iterative-overlap consensus (Corces 2018) so every region is the same width before counting; DiffBind/csaw then count into uniform intervals.
 
-Reporting corollary: ENCODE ATAC v3 and v4 define TSS-enrichment/FRiP thresholds differently — pick one standard and state which; do not mix rows across versions.
+Reporting corollary: ENCODE ATAC v3 and v4 define TSS-enrichment/FRiP thresholds differently -- pick one standard and state which; do not mix rows across versions.
 
 ## Pipeline map
 
@@ -90,11 +90,11 @@ Accessibility peaks + differential regions + TF activity
 
 1. **QC/trim** with Nextera adapters (`CTGTCTCTTATACACATCT`).
 2. **Align** (bowtie2 `--very-sensitive -X 2000`) so the full nucleosome-spanning fragment distribution is captured.
-3. **Remove chrM, then compute NRF/PBC, then dedup** — order-trap on both ends: `markdup -r` physically removes duplicates, so NRF/PBC1 computed afterwards are identically 1.0; and mito reads are over-amplified, so computing them before chrM removal measures chrM chemistry, not nuclear-library complexity. The binding constraint is PRE-DEDUP. Mito must go before peak calling regardless.
+3. **Remove chrM, then compute NRF/PBC, then dedup** -- order-trap on both ends: `markdup -r` physically removes duplicates, so NRF/PBC1 computed afterwards are identically 1.0; and mito reads are over-amplified, so computing them before chrM removal measures chrM chemistry, not nuclear-library complexity. The binding constraint is PRE-DEDUP. Mito must go before peak calling regardless.
 4. **Dedup** (collate -> fixmate -m -> sort -> markdup -r).
 5. **Tn5 shift ONCE** (`alignmentSieve --ATACshift`).
-6. **Call peaks in ONE mode** — order-trap: `-f BAMPE` + `--shift/--extsize` silently drops the flags.
-7. **Build the fixed-width consensus** (Corces 501 bp) — order-trap: differential on variable-width peaks is not comparable.
+6. **Call peaks in ONE mode** -- order-trap: `-f BAMPE` + `--shift/--extsize` silently drops the flags.
+7. **Build the fixed-width consensus** (Corces 501 bp) -- order-trap: differential on variable-width peaks is not comparable.
 8. **QC, differential (DiffBind/csaw on the consensus), footprinting (TOBIAS)**.
 
 ## Choosing the caller and calling mode

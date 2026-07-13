@@ -20,8 +20,8 @@ ArchR::installExtraPackages()
 # SnapATAC2 (Python)
 pip install snapatac2
 
-# Doublet detection
-pip install amulet-py
+# Doublet detection: AMULET is a GitHub release (jar + AMULET.sh; needs numpy/pandas/scipy/statsmodels + Java 8+)
+# from github.com/UcarLab/AMULET, or use the R amulet() implementation in the scDblFinder Bioconductor package
 ```
 
 ```r

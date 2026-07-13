@@ -7,7 +7,7 @@ primary_tool: ABC-Enhancer-Gene-Prediction
 
 ## Version Compatibility
 
-Reference examples tested with: ABC-Enhancer-Gene-Prediction 0.2.2+ (Engreitz lab), ENCODE-rE2G v1.0+ (2024 release), Cicero 1.20+, GenomicInteractions 1.36+, FitHiChIP 9.1+, hicpro 3.1+, FAN-C 0.9+, MACS3 3.0+, samtools 1.19+, bedtools 2.31+.
+Reference examples tested with: ABC-Enhancer-Gene-Prediction 0.2.2+ (Engreitz lab), ENCODE-rE2G v1.0+ (EngreitzLab), Cicero 1.20+, GenomicInteractions 1.36+, FitHiChIP 9.1+, HiC-Pro 3.1+, FAN-C 0.9+, MACS3 3.0+, samtools 1.19+, bedtools 2.31+.
 
 Verify before use:
 - CLI: `<tool> --version` then `<tool> --help` to confirm flags
@@ -21,7 +21,7 @@ If code throws unexpected errors, introspect the installed package and adapt rat
 **"Which gene does this distal accessible region regulate?"** -> Predict the enhancer's target gene using a model that combines accessibility activity, 3D contact frequency, and (optionally) sequence-based chromatin predictions. Output is a per-(enhancer, gene) score that can be thresholded for high-confidence calls.
 
 - CLI: ABC pipeline (`run.neighborhoods.py`, `predict.py` from Engreitz lab)
-- CLI: ENCODE-rE2G (Snakemake-based; ENCODE 4 standard 2024)
+- CLI: ENCODE-rE2G (Snakemake-based; ENCODE 4 enhancer-gene standard)
 - R: Cicero (ATAC-only; covered in atac-seq/co-accessibility)
 - CLI: FitHiChIP / hichipper for HiChIP H3K27ac loops
 - Database: EpiMap (Boix 2021), GeneHancer, FANTOM5 (pre-computed reference)
@@ -32,8 +32,8 @@ ABC and ENCODE-rE2G are the canonical predictors when Hi-C/Micro-C data is avail
 
 | Method | Inputs | Mathematics | Strength | Fails when |
 |--------|--------|-------------|----------|------------|
-| ABC (Fulco 2019, Nasser 2021) | ATAC + H3K27ac + Hi-C/Micro-C | ABC = (Activity_E x Contact_E,G) / sum_e(Activity_e x Contact_e,G); threshold typically >= 0.02 | Mechanistically grounded; published gold-standard for human cell lines | Requires matched Hi-C / Micro-C; cell-type-specific; default contact uses average across 5 ENCODE cell types if Hi-C not available |
-| ENCODE-rE2G (ENCODE 2024) | ATAC + H3K27ac + (Hi-C optional) | Logistic regression trained on CRISPRi-FlowFISH ground truth; uses ABC features + sequence features + distance | ENCODE 4 standard; pre-trained models for many cell types | Pre-trained models only available for ENCODE cell types; retraining requires CRISPRi data |
+| ABC (Fulco 2019, Nasser 2021) | ATAC + H3K27ac + Hi-C/Micro-C | ABC = (Activity_E x Contact_E,G) / sum_e(Activity_e x Contact_e,G); threshold typically >= 0.02 | Mechanistically grounded; published gold-standard for human cell lines | Requires matched Hi-C / Micro-C; cell-type-specific; default contact uses average across 10 ENCODE cell types if Hi-C not available |
+| ENCODE-rE2G (Gschwind 2023) | ATAC + H3K27ac + (Hi-C optional) | Logistic regression trained on CRISPRi-FlowFISH ground truth; uses ABC features + sequence features + distance | ENCODE 4 standard; pre-trained models for many cell types | Pre-trained models only available for ENCODE cell types; retraining requires CRISPRi data |
 | Cicero (Pliner 2018) | scATAC peak-cell matrix | Graphical lasso on metacell co-accessibility | ATAC-only; works without Hi-C | Less concordant with Hi-C than ABC; cis-distance-limited; alpha-sensitive |
 | HiChIP H3K27ac + FitHiChIP | H3K27ac HiChIP | Statistically significant loops at FDR < 0.05 | Direct experimental loop measurement; cell-type-specific; orthogonal to ATAC | Requires HiChIP wet-lab; only captures loops within HiChIP resolution (~10 kb) |
 | Hi-C + HiCCUPS | Bulk Hi-C | Fold-enrichment loop calling | Most-validated 3D contact method | Resolution typically 5-25 kb; misses sub-loop fine structure |
@@ -57,11 +57,11 @@ ABC(E -> G) = Activity_E * Contact_E,G / sum_{all e in window}(Activity_e * Cont
 
 Threshold typical: ABC >= 0.02 for high-confidence; >= 0.01 for exploratory.
 
-When Hi-C is unavailable, ABC uses an "average contact" derived from 5 ENCODE Hi-C cell types as proxy. Performance degrades but it's not zero (Fulco 2019).
+When Hi-C is unavailable, ABC uses an "average contact" averaged across 10 ENCODE Hi-C cell types as proxy (Nasser 2021); it performs comparably to cell-type-matched Hi-C. The alternative powerlaw approximation of contact-vs-distance is the Fulco 2019 fallback.
 
 ## ENCODE-rE2G Differences from ABC
 
-ENCODE-rE2G (2024) is a reformulation:
+ENCODE-rE2G (Gschwind et al 2023, bioRxiv) is a reformulation:
 
 - **Logistic regression** trained on CRISPRi-FlowFISH ground truth (~10 cell types)
 - **Features:** ABC score components + 3D contact + distance + activity ratios
@@ -81,7 +81,7 @@ ENCODE-rE2G generally outperforms ABC at CRISPRi recall, especially at modest di
 
 **Symptom:** ABC predictions concentrate at known K562-specific loci even when ATAC data is from GM12878.
 
-**Fix:** Use cell-type-matched Hi-C or Micro-C. If unavailable, ABC's "average HiC" (5-cell-type pooled) is the documented fallback with acknowledged degradation. Document the proxy in methods.
+**Fix:** Use cell-type-matched Hi-C or Micro-C. If unavailable, ABC's "average HiC" (10-cell-type pooled) is the documented fallback with acknowledged degradation. Document the proxy in methods.
 
 ### ABC -- H3K27ac normalization
 
@@ -91,7 +91,7 @@ ENCODE-rE2G generally outperforms ABC at CRISPRi recall, especially at modest di
 
 **Symptom:** Activity scores skewed; some peaks have very high activity from H3K27ac alone, others from ATAC alone.
 
-**Fix:** Normalize both signals to reads-per-million in peaks (RPM-IP) before combining. Use ABC's `--qnorm` flag with a quantile-normalization reference file (e.g. `--qnorm src/EnhancersQNormRef.K562.txt` from the ABC repo).
+**Fix:** Normalize both signals to reads-per-million in peaks (RPM-IP) before combining. Use ABC's `--qnorm` flag with a quantile-normalization reference file (e.g. `--qnorm reference/EnhancersQNormRef.K562.txt` from the ABC repo).
 
 ### ENCODE-rE2G -- Cell type not in pre-trained set
 
@@ -143,12 +143,12 @@ ENCODE-rE2G generally outperforms ABC at CRISPRi recall, especially at modest di
 
 **Goal:** Compute per-(enhancer, gene) ABC scores combining ATAC accessibility, H3K27ac activity, and Hi-C contact.
 
-**Approach:** Build RPGC-normalized ATAC and H3K27ac bigWigs, define non-promoter candidate enhancers from ATAC peaks, run ABC neighborhoods to compute per-candidate activity, then run ABC predict against a Hi-C contact matrix and threshold the per-pair ABC score.
+**Approach:** Define non-promoter candidate enhancers from ATAC peaks, run ABC neighborhoods (which counts reads directly from the ATAC/H3K27ac BAMs) to compute per-candidate activity, then run ABC predict against a Hi-C contact matrix and threshold the per-pair ABC score.
 
 ```bash
-# 1. Generate ATAC and H3K27ac signal tracks (BAM -> bigWig)
+# 1. (Optional, browser tracks only) ATAC/H3K27ac bigWigs -- ABC neighborhoods below reads the BAMs directly, not bigWigs
 bamCoverage --bam atac.bam --outFileName atac.bw --binSize 50 --normalizeUsing RPGC \
-    --effectiveGenomeSize 2913022398 --numberOfProcessors 8
+    --effectiveGenomeSize 2701495711 --numberOfProcessors 8
 
 # 2. Define enhancer candidates (typically MACS narrowPeak from ATAC)
 # Filter to non-promoter regions
@@ -159,25 +159,35 @@ bedtools intersect -v -a atac_peaks.narrowPeak -b promoter_regions.bed > candida
 python /path/ABC-Enhancer-Gene-Prediction/workflow/scripts/run.neighborhoods.py \
     --candidate_enhancer_regions candidate_enhancers.bed \
     --genes refseq_protein_coding.bed \
-    --H3K27ac h3k27ac.bw \
-    --DHS atac.bw \
+    --H3K27ac h3k27ac.bam \
+    --DHS atac.bam \
     --chrom_sizes hg38.chrom.sizes \
+    --chrom_sizes_bed hg38.chrom.sizes.bed \
     --ubiquitously_expressed_genes Genes.ubiquitously_expressed.txt \
     --cellType MyCellType \
     --outdir abc_out/
 
-# 4. Run ABC predictions (Activity * Contact)
+# 4. Run ABC predictions (Activity * Contact) -- generates ALL unthresholded links
 python /path/ABC-Enhancer-Gene-Prediction/workflow/scripts/predict.py \
     --enhancers abc_out/EnhancerList.txt \
     --genes abc_out/GeneList.txt \
-    --HiCdir hic_data/ \
+    --hic_file hic_data/ \
+    --hic_type avg \
+    `# --hic_type choices: hic | juicebox | bedpe | avg -- must match the Hi-C input format` \
     --hic_resolution 5000 \
+    --hic_pseudocount_distance 5000 \
+    `# --hic_pseudocount_distance (required): powerlaw fit at this distance is added as a pseudocount (config default 5000)` \
+    --chrom_sizes hg38.chrom.sizes \
     --score_column ABC.Score \
-    --threshold 0.02 \
     --cellType MyCellType \
     --outdir abc_out/Predictions/
 
-# Output: EnhancerPredictionsAllPutative.txt with per-pair ABC scores
+# predict.py writes EnhancerPredictionsAllPutative.tsv.gz (all unthresholded E-G links).
+# 5. Threshold at ABC.Score >= 0.02. The ABC Snakemake pipeline runs filter_predictions.py with its
+# full set of --output_* arguments; for a standalone cut, select by the ABC.Score column (by header):
+zcat abc_out/Predictions/EnhancerPredictionsAllPutative.tsv.gz | \
+    awk -F'\t' 'NR==1{for(i=1;i<=NF;i++)if($i=="ABC.Score")c=i; print; next} $c>=0.02' \
+    > abc_out/Predictions/EnhancerPredictions_thresholded.tsv
 ```
 
 ABC.Score >= 0.02 is the standard threshold validated in Fulco 2019 against CRISPRi-FlowFISH; >= 0.04 is a stricter cut sometimes used in the ABC pipeline documentation for higher precision (no separate primary-paper calibration).
@@ -189,15 +199,12 @@ ABC.Score >= 0.02 is the standard threshold validated in Fulco 2019 against CRIS
 git clone https://github.com/EngreitzLab/ENCODE_rE2G
 cd ENCODE_rE2G
 
-# Edit config.yaml with cell type, ATAC, H3K27ac paths
-# Run with appropriate model (cell-type-matched logistic regression weights)
-snakemake --use-conda --cores 16 \
-    --config cell_type=K562 \
-             atac_bw=atac.bw \
-             h3k27ac_bw=h3k27ac.bw \
-             hic_directory=hic_data/
+# Inputs are supplied through config/config.yaml, whose ABC_BIOSAMPLES field points to
+# an ABC biosamples TSV carrying the cell type and the ATAC / H3K27ac / Hi-C paths --
+# there is no cell_type=/atac_bw= --config override interface.
+snakemake -j1 --use-conda
 
-# Output: scored_predictions.tsv.gz with per-pair scores and binarized predictions
+# Output: encode_e2g_predictions.tsv.gz with per-pair ENCODE-rE2G.Score and thresholded predictions
 ```
 
 Pre-trained models are at https://github.com/EngreitzLab/ENCODE_rE2G/tree/main/models. Choose by tissue similarity if exact cell type not present.
@@ -213,7 +220,7 @@ CRISPRi-FlowFISH (Fulco 2019) is the experimental gold-standard:
 A 2-fold expression decrease (p < 0.05) confirms the enhancer regulates the gene.
 
 For predictions to be publication-grade, ENCODE 4 expects:
-- **Test set sensitivity / specificity** against published CRISPRi-FlowFISH catalogs (Fulco 2019: K562; Gasperini 2019; Schraivogel 2020 multi-cell-type)
+- **Test set sensitivity / specificity** against published CRISPR enhancer-screen catalogs (Fulco 2019: K562 FlowFISH; Gasperini 2019: K562; Schraivogel 2020: K562 TAP-seq)
 - **Effect-size correlation** between predicted score and observed expression effect
 - **Distance bias check** (predictors over-rank close-distance pairs)
 
@@ -244,7 +251,7 @@ hichip = pd.read_csv('fithichip_loops.bedpe', sep='\t', header=None,
 
 # High-confidence intersection
 high_conf = abc[abc['ABC.Score'] >= 0.02].merge(
-    re2g[re2g['re2g_score'] >= 0.5],
+    re2g[re2g['ENCODE-rE2G.Score'] >= 0.5],
     on=['enhancer_id', 'gene'])
 
 # Add HiChIP support flag
@@ -268,12 +275,12 @@ high_conf['hichip_support'] = high_conf['enhancer_id'].isin(hichip_anchors)
 
 - Fulco CP et al 2019 Nat Genet 51:1664 (ABC; CRISPRi-FlowFISH validation)
 - Nasser J et al 2021 Nature 593:238 (ABC genome-wide application)
-- ENCODE Project Consortium 2024 (ENCODE-rE2G)
+- Gschwind AR et al 2023 bioRxiv 2023.11.09.563812 (ENCODE-rE2G; encyclopedia of enhancer-gene regulatory interactions; preprint)
 - Mumbach MR et al 2017 Nat Genet 49:1602 (HiChIP H3K27ac)
 - Bhattacharyya S et al 2019 Nature Communications 10:4221 (FitHiChIP)
 - Boix CA et al 2021 Nature 590:300 (EpiMap reference)
 - Gasperini M et al 2019 Cell 176:377 (CRISPRi at scale)
-- Schraivogel D et al 2020 Nat Methods 17:629 (multi-cell-type CRISPRi)
+- Schraivogel D et al 2020 Nat Methods 17:629 (TAP-seq targeted Perturb-seq enhancer screen, K562; scRNA-seq readout)
 - Pliner HA et al 2018 Mol Cell 71:858 (Cicero co-accessibility)
 
 ## Related Skills

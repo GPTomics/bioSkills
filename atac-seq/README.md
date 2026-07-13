@@ -4,7 +4,7 @@
 
 Decision-grade ATAC-seq workflows: peak calling (MACS, Genrich, HMMRATAC), ENCODE 4 quality control with citation-anchored thresholds, fixed-width consensus peakset construction (Corces 2018 iterative overlap), differential accessibility across replicate-count regimes (DiffBind, csaw, DESeq2, edgeR), TF footprinting with Tn5 bias correction (TOBIAS, HINT-ATAC, scprinter), nucleosome positioning, motif accessibility variability (chromVAR), single-cell ATAC (Signac/ArchR/SnapATAC2), and cis-regulatory co-accessibility (Cicero, SCENIC+).
 
-**Tool type:** mixed | **Primary tools:** MACS3, DiffBind, csaw, chromVAR, TOBIAS, scprinter, NucleoATAC, ArchR, Signac, SnapATAC2, Cicero, ABC, ENCODE-rE2G, chromBPNet, BPNet, scBasset, EnFormer, WASP, GATK ASEReadCounter, RASQUAL
+**Tool type:** mixed | **Primary tools:** MACS3, DiffBind, csaw, chromVAR, TOBIAS, scprinter, NucleoATAC, ArchR, Signac, SnapATAC2, Cicero, ABC, ENCODE-rE2G, chromBPNet, BPNet, scBasset, Enformer, WASP, GATK ASEReadCounter, RASQUAL
 
 ## Skills
 
@@ -12,14 +12,14 @@ Decision-grade ATAC-seq workflows: peak calling (MACS, Genrich, HMMRATAC), ENCOD
 |-------|-------------|
 | atac-peak-calling | MACS / Genrich / HMMRATAC peak calling; ENCODE 4 IDR; pseudoreplicate self-consistency; chromap shift; super-enhancer ROSE/LILY |
 | atac-qc | ENCODE 4 thresholds (TSS enrichment, FRiP, NRF/PBC1/PBC2, mt fraction); fragment-size periodicity; preseq lc_extrap; sex-chr / cell-cycle / spike-in QC |
-| consensus-peakset | Corces 2018 iterative overlap; DiffBind summits=250; per-condition union; cross-build liftOver; ENCODE-rE2G cCRE |
-| differential-accessibility | DiffBind / csaw / DESeq2 / edgeR by replicate count; normalization choice; spike-in (Reske 2020); permutation; Hi-C-loop-anchored |
+| consensus-peakset | Corces 2018 iterative overlap; DiffBind summits=250; per-condition union; cross-build liftOver; ENCODE-rE2G enhancer-gene links |
+| differential-accessibility | DiffBind / csaw / DESeq2 / edgeR by replicate count; normalization choice (Reske 2020); spike-in; permutation; Hi-C-loop-anchored |
 | footprinting | TOBIAS three-step + Tn5 +4/-5 dual-cut; bias correction alternatives (chromBPNet, seqOutBias, naked-DNA); per-TF failure modes |
-| motif-deviation | chromVAR matched-background z-scores; scBasset / EnFormer alternatives; DecoupleR multi-method TF activity |
+| motif-deviation | chromVAR matched-background z-scores; scBasset / Enformer alternatives; DecoupleR multi-method TF activity |
 | nucleosome-positioning | NucleoATAC / DANPOS3 / ATACseqQC; V-plot interpretation; +1 calling; H2A.Z detection; Fiber-seq long-read |
 | single-cell-atac | 10X scATAC + Multiome (cellranger-arc); Signac / ArchR / SnapATAC2; AMULET; cell-cycle + sex-chr QC; scArches |
 | co-accessibility | Cicero / ArchR getCoAccessibility; alpha math; HiChIP integration; Hi-C concordance; (ABC: see enhancer-gene-linking) |
-| deep-learning-atac | chromBPNet, BPNet, scBasset, EnFormer; in silico variant effect at GWAS SNPs; DeepLIFT + TF-MoDISco motif discovery |
+| deep-learning-atac | chromBPNet, BPNet, scBasset, Enformer; in silico variant effect at GWAS SNPs; DeepLIFT + TF-MoDISco motif discovery |
 | enhancer-gene-linking | ABC (Fulco 2019, Nasser 2021); ENCODE-rE2G; HiChIP H3K27ac; CRISPRi-FlowFISH validation framework |
 | allele-specific-accessibility | WASP reference-bias correction; GATK ASEReadCounter; RASQUAL joint caQTL; per-peak ASE aggregation |
 
@@ -56,16 +56,20 @@ Decision-grade ATAC-seq workflows: peak calling (MACS, Genrich, HMMRATAC), ENCOD
 ```bash
 # Core CLI
 conda install -c bioconda macs3 macs2 genrich samtools bedtools idr \
-    deeptools picard tobias rgt-hint multiqc subread bedops chromap preseq fithichip
+    deeptools picard tobias rgt multiqc subread bedops chromap preseq
+# rgt provides the rgt-hint command; FitHiChIP is not on bioconda (Docker/Singularity or source: github.com/ay-lab/FitHiChIP)
 
 # Single-cell (Python)
-pip install snapatac2 amulet-py scprinter scenicplus pycistopic scvi-tools
+pip install snapatac2 scvi-tools
+# SCENIC+ (bundles pycisTopic): source-only, git clone github.com/aertslab/scenicplus && cd scenicplus && pip install .
+# AMULET: GitHub release from github.com/UcarLab/AMULET (or R amulet() in scDblFinder)
+# scPrinter: install from source, git clone github.com/buenrostrolab/scPrinter && pip install ./
 
 # QC and visualization
 pip install pysam pyBigWig numpy pandas matplotlib pybedtools
 
 # Deep learning (chromBPNet, BPNet, scBasset, tangermeme, TF-MoDISco)
-pip install tensorflow torch chrombpnet bpnet-lite tangermeme tfmodisco-lite captum kipoi
+pip install tensorflow torch chrombpnet bpnet-lite tangermeme modisco-lite captum kipoi
 
 # Allele-specific (WASP, GATK, RASQUAL)
 git clone https://github.com/bmvdgeijn/WASP
@@ -84,9 +88,12 @@ BiocManager::install(c(
     'chromVAR', 'motifmatchr', 'JASPAR2024', 'TFBSTools',
     'ATACseqQC', 'GenomicRanges', 'GenomicAlignments', 'GenomicInteractions',
     'BSgenome.Hsapiens.UCSC.hg38', 'TxDb.Hsapiens.UCSC.hg38.knownGene',
-    'EnsDb.Hsapiens.v86', 'Signac', 'Seurat', 'cicero', 'monocle3', 'scDblFinder'
+    'EnsDb.Hsapiens.v86', 'Signac', 'Seurat', 'scDblFinder'
 ))
 remotes::install_github('GreenleafLab/ArchR', ref='master', repos=BiocManager::repositories())
+# monocle3 and the monocle3-compatible Cicero are GitHub-only (Bioconductor 'cicero' targets monocle2):
+remotes::install_github('cole-trapnell-lab/monocle3')
+remotes::install_github('cole-trapnell-lab/cicero-release', ref='monocle3')
 ```
 
 External resources:

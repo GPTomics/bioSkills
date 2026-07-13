@@ -35,7 +35,7 @@ macs2 callpeak \
     -f BAM -g $GENOME -n pooled --outdir $OUTDIR/pooled \
     --nomodel --shift -75 --extsize 150 --keep-dup all -B --SPMR -p 0.01
 
-# 3. Pseudoreplicates (split each rep BAM in half with different seeds)
+# 3. Pseudoreplicates (two independent 50% subsamples per rep, different seeds; approximate, not a disjoint partition)
 samtools view -b -h -s 1.5 $REP1 > $OUTDIR/psr1_1/rep1.psr1.bam
 samtools view -b -h -s 2.5 $REP1 > $OUTDIR/psr1_2/rep1.psr2.bam
 samtools view -b -h -s 1.5 $REP2 > $OUTDIR/psr2_1/rep2.psr1.bam
