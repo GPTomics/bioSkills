@@ -7,10 +7,12 @@ Generate novel molecules biased toward desired properties using REINVENT 4 (de n
 ## Prerequisites
 
 ```bash
-pip install reinvent rdkit pytorch
+git clone https://github.com/MolecularAI/REINVENT4.git
+cd REINVENT4
+pip install -e .
 ```
 
-REINVENT 4 (Loeffler 2024, AstraZeneca, Apache 2.0).
+Follow the selected REINVENT 4 release's installation instructions and use its matching example configs. `pip install reinvent` does not install REINVENT 4.
 
 ## Quick Start
 
@@ -23,7 +25,7 @@ Tell the AI agent what to do:
 ## Example Prompts
 
 ### De novo design with MPO
-> "Run REINVENT 4 in de novo mode for 500 steps with this scoring function: 0.4 weight on kinase QSAR, 0.2 QED, 0.2 SA score, 0.2 Tanimoto diversity. Output 100 unique molecules."
+> "Run a release-matched REINVENT 4 de novo pilot. Justify each scoring component from project data, monitor learning/diversity curves, and post-process the stage CSV."
 
 ### Scaffold decoration
 > "Decorate scaffold 'c1ccc(NC(=O)[*:1])cc1' for 200 RL steps. Optimize predicted pIC50 for target X using qsar_model.pkl. Output top 50 with QED > 0.5."
@@ -37,20 +39,21 @@ Tell the AI agent what to do:
 ## What the Agent Will Do
 
 1. Set up REINVENT 4 config (TOML) with chosen generator + algorithm.
-2. Define scoring function (geometric mean of activity, QED, SA, diversity).
+2. Define and validate a project-specific scoring function; aggregation may be geometric, arithmetic, or otherwise justified.
 3. Run RL/TL/CL training for N steps.
-4. Filter generated molecules to those passing all components.
+4. Annotate and prioritize generated molecules using project-defined decision rules.
 5. Standardize and deduplicate outputs.
 6. Report novelty (Tanimoto to known), drug-likeness, predicted activity.
 
 ## Tips
 
-- Always include synthetic accessibility (SA score) to avoid unsynthesizable outputs.
-- Use geometric mean (not arithmetic) for combining scoring components.
+- Treat SA score as a heuristic annotation, not proof of a route; validate selected molecules with reaction- or route-based methods.
+- Choose geometric versus arithmetic aggregation from the desired compensation behavior and validation results.
+- REINVENT writes a live CSV per stage and the configured checkpoint at stage termination; it does not emit per-iteration `.smi` and checkpoint files by default.
 - Watch for mode collapse: monitor pairwise Tanimoto in generated batch.
 - Validate top-N with retrosynthesis (AiZynthFinder).
-- PAINS filter as `filter_only=true`; do not reward avoidance.
-- For RL: start with 100 steps; increase if score plateaus.
+- REINVENT 4 `CustomAlerts` zeroes matches before score aggregation; there is no `filter_only` setting. Treat PAINS as triage alerts unless the project defines a justified exclusion rule.
+- Treat 100 RL steps, the prompt weights, and prompt similarity cutoffs as repository starting values only; tune them against learning curves, diversity, oracle validity, and project objectives.
 
 ## Related Skills
 

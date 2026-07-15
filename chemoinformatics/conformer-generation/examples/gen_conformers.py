@@ -15,31 +15,35 @@ def gen_conformer_ensemble(smiles, n_conf=20, seed=42, optimize=True):
     params = AllChem.ETKDGv3()
     params.randomSeed = seed
     params.useRandomCoords = True
-    params.maxAttempts = 1000
+    params.maxIterations = 1000
     ids = AllChem.EmbedMultipleConfs(mol, numConfs=n_conf, params=params)
 
-    energies = []
-    if optimize:
-        mmff_props = AllChem.MMFFGetMoleculeProperties(mol, mmffVariant='MMFF94s')
-        if mmff_props is None:
-            # Fallback to UFF for elements MMFF cannot handle
-            for cid in ids:
-                ff = AllChem.UFFGetMoleculeForceField(mol, confId=cid)
-                ff.Minimize()
-                energies.append(ff.CalcEnergy())
-        else:
-            for cid in ids:
-                ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props, confId=cid)
-                ff.Minimize()
-                energies.append(ff.CalcEnergy())
-    return mol, list(zip(ids, energies))
+    if not optimize:
+        return mol, [(int(cid), None) for cid in ids]
+
+    conf_data = []
+    mmff_props = AllChem.MMFFGetMoleculeProperties(mol, mmffVariant='MMFF94s')
+    use_uff = mmff_props is None
+    if use_uff and not AllChem.UFFHasAllMoleculeParams(mol):
+        raise ValueError('Neither MMFF94s nor UFF covers this molecule')
+
+    for cid in ids:
+        ff = (AllChem.UFFGetMoleculeForceField(mol, confId=cid) if use_uff else
+              AllChem.MMFFGetMoleculeForceField(mol, mmff_props, confId=cid))
+        if ff is None:
+            raise ValueError(f'Could not construct force field for conformer {cid}')
+        status = ff.Minimize(maxIts=1000)
+        if status != 0:
+            raise RuntimeError(f'Optimization did not converge for conformer {cid}')
+        conf_data.append((int(cid), float(ff.CalcEnergy())))
+    return mol, conf_data
 
 
 def macrocycle_conformers(smiles, n_conf=200, seed=42):
     '''Generate conformers with macrocycle torsion preferences for >=12 atom rings.'''
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
-        return None
+        raise ValueError(f'Invalid SMILES: {smiles!r}')
     mol = Chem.AddHs(mol)
 
     params = AllChem.ETKDGv3()
@@ -47,8 +51,10 @@ def macrocycle_conformers(smiles, n_conf=200, seed=42):
     params.useRandomCoords = True
     params.useMacrocycleTorsions = True
     params.useSmallRingTorsions = True
-    params.maxAttempts = 5000
-    AllChem.EmbedMultipleConfs(mol, numConfs=n_conf, params=params)
+    params.maxIterations = 5000
+    ids = list(AllChem.EmbedMultipleConfs(mol, numConfs=n_conf, params=params))
+    if not ids:
+        raise RuntimeError(f'No macrocycle conformers embedded for {smiles!r}')
     return mol
 
 
@@ -71,6 +77,8 @@ def filter_energy_window(conf_data, window_kcal=10.0):
     '''Keep only conformers within energy window of the minimum.'''
     if not conf_data:
         return []
+    if any(e is None for _, e in conf_data):
+        raise ValueError('Energy filtering requires optimized conformers with energies')
     min_e = min(e for _, e in conf_data)
     return [(cid, e) for cid, e in conf_data if (e - min_e) <= window_kcal]
 

@@ -41,8 +41,8 @@ Tell your AI agent what you want to do:
 5. Find MCS for shared scaffold analysis
 
 ## Tips
-- Tanimoto > 0.85 = very similar (same scaffold), > 0.7 = similar (related series)
-- Butina cutoff = 1 - similarity threshold (cutoff 0.3 = 70% similarity)
+- For ECFP4, >0.85 and >0.7 are repository starting heuristics for close and related analogs; calibrate them on the project's known series and fingerprint settings
+- Butina distance cutoff = 1 - centroid-neighbor similarity threshold (cutoff 0.3 assigns neighbors at >=0.7 similarity to a selected centroid; it does not guarantee >=0.7 for every member pair)
 - BulkTanimotoSimilarity is faster for large libraries
 - ECFP4 (radius=2) is the most common fingerprint for similarity
 - MCS timeout should be set for large molecule sets

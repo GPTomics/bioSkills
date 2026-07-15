@@ -1,6 +1,6 @@
 ---
 name: bio-molecular-io
-description: Reads, writes, and converts molecular file formats (SMILES, InChI, SDF V2000/V3000, MOL2, PDB, MMTF) using RDKit and Open Babel with rigorous handling of aromaticity perception, stereochemistry, implicit/explicit hydrogens, kekulization, and salt/fragment separation. Use when loading chemical libraries, debugging parse failures, or preparing molecules for downstream standardization, descriptor calculation, or docking.
+description: Reads, writes, and converts molecular file formats (SMILES, InChI, SDF V2000/V3000, MOL2, PDB, and BinaryCIF) using RDKit and Open Babel with rigorous handling of aromaticity perception, stereochemistry, implicit/explicit hydrogens, kekulization, and salt/fragment separation. Use when loading chemical libraries, debugging parse failures, or preparing molecules for downstream standardization, descriptor calculation, or docking.
 tool_type: python
 primary_tool: RDKit
 ---
@@ -26,16 +26,16 @@ For full standardization (canonicalization, salt stripping, tautomer enumeration
 
 | Format | Dim | Stereo | Charges | Strength | Fails when |
 |--------|-----|--------|---------|----------|------------|
-| SMILES | 2D | Explicit `/\@` | Net charges only | Compact, web-friendly, fast parse | Loses absolute coordinates; aromatic perception ambiguous across toolkits; tautomers not canonical |
-| InChI | 2D | Layer 't,s' | pH-fixed std layer 'p' | Canonical by construction; cross-toolkit identity | Loses tautomers (std InChI merges); loses stereo at C^x metals; large molecules timeout |
+| SMILES | 2D | Atom chirality `@/@@`; double-bond `/` and `\` | Atom-local formal charges | Compact, web-friendly, fast parse | Loses absolute coordinates; aromatic perception ambiguous across toolkits; tautomers not canonical |
+| InChI | 2D | `/b`, `/t`, `/m`, `/s` stereo sublayers | `/q` charge and `/p` added/removed-proton sublayers; `/p` is not a pH model | Canonical by construction; cross-toolkit identity | Standard InChI normalizes mobile-H forms; limited organometallic stereo; large molecules may require special handling |
 | SDF V2000 | 2D/3D | Wedge bonds | M CHG line | Industry default; metadata via tags | 999-atom limit; cannot encode multi-component reactions; query atoms ambiguous |
 | SDF V3000 | 2D/3D | Wedge + stereo flag | Inline charge | No atom limit; query support; rich properties | Some software (legacy) cannot read; verbose |
-| MOL2 (Tripos) | 3D | Wedge bonds | Per-atom partial | SYBYL atom types preserved for docking | Atom-type dialects diverge (SYBYL vs Corina); RDKit MOL2 parser brittle |
+| MOL2 (Tripos) | 3D | Common records rely on 3D coordinates and toolkit perception; no portable explicit stereo field | Per-atom partial | SYBYL atom types preserved for docking | Atom-type dialects diverge (SYBYL vs Corina); RDKit MOL2 parser brittle |
 | PDB | 3D | None | None standard | Universal protein format | No bond orders; aromatic perception lost; ligand names truncated to 3 chars |
 | PDBQT | 3D | None | Gasteiger / AD4 | AutoDock-ready; torsion tree encoded | Specific to docking; no aromaticity layer |
-| BinaryCIF (MMTF retired) | 3D | Encoded | Encoded | BinaryCIF (`.bcif`) is the current compact structural format; MMTF was retired by RCSB in July 2024 (read-only legacy) | Not all toolkits parse; binary format |
+| BinaryCIF (MMTF retired) | 3D | Encoded | Encoded | BinaryCIF (`.bcif`) is the current compact structural format; RCSB stopped serving MMTF files on July 2, 2024 and recommends BinaryCIF (RCSB PDB 2024) | Not all toolkits parse; binary format |
 | CDX/CDXML | 2D | Drawing | Drawing | ChemDraw native | Not a structural format; converts unreliably |
-| InChIKey | Hash | Stereo layer | n/a | Database key, fast lookup | Hash collisions ~10^-9 but possible; cannot recover structure |
+| InChIKey | Hash | Stereo layer | n/a | Database key, fast lookup | Collision probability depends on key block and collection size; cannot recover structure |
 
 ## Aromaticity Perception (most common silent error)
 
@@ -45,21 +45,21 @@ Different toolkits perceive aromaticity differently. The same SMILES round-tripp
 |-------|---------|------|---------------------|
 | Daylight | OpenEye, Daylight | 4n+2 π on planar ring | Furan, thiophene aromatic |
 | RDKit default | RDKit | Daylight-like with extensions for fused / N-containing | Compatible with Daylight for drug-like molecules |
-| MDL | Indigo, ChemAxon | Reduced (only pyrrole-type) | Pyrrole NH aromatic but tropone non-aromatic |
+| MDL | Available in several toolkits, including RDKit as `AROMATICITY_MDL` | Five-membered rings are not aromatic unless part of a fused aromatic system; only C/N and one-electron donors qualify; exocyclic double bonds exclude an atom | Five-membered heteroaromatics and exocyclic-bond systems may differ from the default RDKit model |
 | OpenEye | OEAroModel | Several modes | Charged thiophene non-aromatic in MDL but aromatic in OpenEye |
 
-**Fix:** Always re-canonicalize via the toolkit doing analysis. Never trust a SMILES produced by toolkit A as input to toolkit B without `SetAromaticity(rdkit.Chem.AromaticityModel)`.
+**Fix:** Always re-canonicalize via the toolkit doing analysis. If aromaticity must be reassigned explicitly in RDKit, use a concrete model, for example `Chem.SetAromaticity(mol, Chem.AromaticityModel.AROMATICITY_RDKIT)`, after the molecule is in an appropriate sanitized or kekulized state.
 
 ## Stereochemistry Layers
 
 Stereo loss is the second most common silent error. Each format encodes stereo differently:
 
 - SMILES: `@/@@` for tetrahedral, `/` and `\` for cis/trans double bonds
-- InChI: separate `/t` (tetrahedral), `/s` (stereo flag), `/m` (mirror) layers
+- InChI: `/b` for double-bond stereo, `/t` for tetrahedral stereo, and `/m` plus `/s` for inversion/overall stereo type
 - SDF: wedge/hash bond + parity 0/1/2; cis/trans encoded via bond direction
-- MOL2: explicit stereo flag
+- MOL2: common Tripos records provide 3D coordinates but no portable wedge or explicit stereo field; verify toolkit perception by round trip
 
-**Round-trip tests:** If `Chem.MolToSmiles(Chem.MolFromSmiles(smi))` does not preserve `@` and `/\`, the molecule was sanitized without `Chem.RemoveStereochemistry()`. If `MolFromMolFile` returns a molecule missing wedge bonds, the SDF used parity-only encoding (legacy).
+**Round-trip tests:** If `Chem.MolToSmiles(Chem.MolFromSmiles(smi), isomericSmiles=True)` does not preserve the represented stereochemistry, inspect whether the source contained stereo markers and whether any step called `Chem.RemoveStereochemistry()` or discarded stereochemical coordinates/bond directions. Sanitization alone does not intentionally remove valid stereochemistry. If `MolFromMolFile` returns a molecule missing wedge bonds, inspect the source's coordinates, bond directions, and parity encoding.
 
 ## Reading SMILES with Stereo Preservation
 
@@ -127,7 +127,7 @@ subprocess.run(['obabel', 'docked.pdbqt', '-O', 'docked.sdf'], check=True)
 
 ## InChI for Canonical Identity
 
-InChI is the only canonical 2D representation guaranteed across toolkits. Standard InChI ignores tautomers and metal stereo; non-standard variants preserve them with flags.
+InChI is a standardized, canonical structure identifier designed for cross-database and cross-toolkit interoperability (Heller et al. 2015; O'Boyle 2012). Standard InChI normalizes many mobile-hydrogen tautomers and has limitations for some metal stereochemistry; non-standard options such as `/FixedH` can distinguish additional representations. InChIKey is a fixed-length hash, so use full InChI or standardized structures when a suspected collision must be resolved (InChI Trust technical FAQ).
 
 ```python
 from rdkit.Chem.inchi import MolToInchi, MolToInchiKey, InchiToInchiKey
@@ -136,7 +136,7 @@ mol = Chem.MolFromSmiles('c1ccc2c(c1)cccc2')
 inchi = MolToInchi(mol)
 key = MolToInchiKey(mol)
 
-inchi_fixedH, retcode, msg, _, _ = Chem.MolToInchiAndAuxInfo(mol, options='/FixedH')
+inchi_fixedH, aux_info = Chem.MolToInchiAndAuxInfo(mol, options='/FixedH')
 ```
 
 **Caveat:** Two molecules with identical std InChI may be different tautomers. Use `/FixedH` for tautomer-distinguishing InChI when needed.
@@ -161,7 +161,14 @@ inchi_fixedH, retcode, msg, _, _ = Chem.MolToInchiAndAuxInfo(mol, options='/Fixe
 
 **Symptom:** Truncated atom block; parse failure with cryptic error.
 
-**Fix:** Switch to V3000: `Chem.SDWriter('out.sdf', forceV3000=True)`. RDKit auto-detects V3000 on read; explicitly request on write.
+**Fix:** Switch to V3000. RDKit auto-detects V3000 on read; explicitly request it on the writer:
+
+```python
+writer = Chem.SDWriter('out.sdf')
+writer.SetForceV3000(True)
+writer.write(mol)
+writer.close()
+```
 
 ### SDF -- wedge bond orientation lost
 
@@ -207,11 +214,11 @@ inchi_fixedH, retcode, msg, _, _ = Chem.MolToInchiAndAuxInfo(mol, options='/Fixe
 
 | Source | Charges in file | Use for |
 |--------|-----------------|---------|
-| Parsed SMILES | Net formal charges only | Storage, similarity, ML training |
+| Parsed SMILES | Atom-local formal charges; no partial-charge model | Storage, similarity, ML training |
 | Parsed PDB | Atomic charges typically absent | Always re-assign for downstream |
-| `obabel --partialcharge gasteiger` | Gasteiger Marsili (empirical) | AutoDock Vina, fast |
+| `obabel --partialcharge gasteiger` | Gasteiger-Marsili partial charges (empirical) | Workflows that explicitly require Gasteiger charges; Vina/Vinardo scoring itself does not require assigned atom charges |
 | AM1-BCC (AmberTools antechamber) | Semi-empirical | MD, FEP setup |
-| RESP (psi4, Gaussian) | Quantum ESP-fitted | High-accuracy MD, FEP |
+| RESP (psi4, Gaussian) | Restrained fit to a quantum-mechanical ESP; protocol-specific | Force-field workflows parameterized for that RESP protocol |
 
 The charge model **must** match the downstream method. Mixing AM1-BCC ligand charges with TIP3P water + AMBER protein is valid; Gasteiger charges are unsuitable for MD.
 
@@ -239,17 +246,19 @@ def draw_grid(mols, fname, mols_per_row=5, sub_img_size=(250, 200)):
 | `Chem.MolFromSmiles` returns None | Invalid SMILES, bad parentheses, ring not closed | Try `sanitize=False`, inspect with `Chem.MolFromSmiles(smi, sanitize=False)` |
 | Round-trip SMILES changes | Aromaticity perception drift | Always canonicalize within analysis toolkit |
 | All bonds single in PDB ligand | PDB has no bond orders | `AllChem.AssignBondOrdersFromTemplate(template, mol)` |
-| Stereo lost on SDF write | `Chem.RemoveStereochemistry` called | Use `MolToMolBlock(mol, kekulize=True)` |
+| Stereo lost on SDF write | Stereo was absent, removed, or not represented by coordinates/bond directions | Verify assigned chiral tags and bond stereo before writing; preserve suitable 2D/3D coordinates and inspect the round trip |
 | MOL2 parse returns None | RDKit MOL2 parser incomplete for vendor dialects | Convert via Open Babel intermediate |
 | InChI differs for "same" molecule | Different tautomers, charges, or stereo | Use `/FixedH` to retain tautomer; compare without standardization |
 | Fingerprints differ across toolkits | Aromaticity model difference | Use InChIKey for identity; re-canonicalize for similarity |
 
 ## References
 
-- Heller et al., *J. Cheminformatics* 7:23 (2015) -- InChI v1.05 specification.
-- O'Boyle, *J. Cheminformatics* 4:22 (2012) -- canonical SMILES algorithms across toolkits.
-- Bento et al., *J. Cheminformatics* 12:51 (2020) -- ChEMBL structure pipeline.
-- Riniker & Landrum, *J. Chem. Inf. Model.* 55:2562-2574 (2015) -- ETKDG conformer embedding (RDKit knowledge-distance-geometry).
+- Heller et al., *J. Cheminformatics* 7:23 (2015) -- InChI design, layout, and algorithms; software version 1.04. https://doi.org/10.1186/s13321-015-0068-4
+- O'Boyle, *J. Cheminformatics* 4:22 (2012) -- Universal SMILES representation based on InChI. https://doi.org/10.1186/1758-2946-4-22
+- InChI Trust, "Technical FAQ" -- InChIKey layout and collision estimates. https://www.inchi-trust.org/technical-faq/
+- Daylight Chemical Information Systems, SMILES theory -- atom-local formal-charge and stereochemical syntax. https://www.daylight.com/dayhtml/doc/theory/theory.smiles.html
+- RDKit Book, "Aromaticity" -- RDKit and MDL aromaticity-model rules. https://www.rdkit.org/docs/RDKit_Book.html#aromaticity
+- RCSB PDB (2024), "Removal of MMTF files from RCSB PDB." https://www.rcsb.org/news/6661c73362451e4e35915f7b
 
 ## Related Skills
 

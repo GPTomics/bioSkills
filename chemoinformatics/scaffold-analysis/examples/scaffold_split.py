@@ -25,17 +25,22 @@ def get_generic_framework(smi):
 
 
 def scaffold_clusters(df, smiles_col='smiles'):
-    '''Group compound indices by Bemis-Murcko scaffold.'''
+    '''Group zero-based row positions by Bemis-Murcko scaffold.'''
     clusters = defaultdict(list)
-    for i, row in df.iterrows():
-        scaff = get_bemis_murcko_scaffold(row[smiles_col])
-        if scaff is not None:
-            clusters[scaff].append(i)
+    invalid_positions = []
+    for pos, smi in enumerate(df[smiles_col].tolist()):
+        scaff = get_bemis_murcko_scaffold(smi)
+        if scaff is None:
+            invalid_positions.append(pos)
+        else:
+            clusters[scaff].append(pos)
+    if invalid_positions:
+        raise ValueError(f'Invalid SMILES at row positions: {invalid_positions}')
     return dict(clusters)
 
 
 def scaffold_split(df, smiles_col='smiles', train_frac=0.8, seed=42):
-    '''Assign whole scaffolds to train or test to prevent leakage in QSAR.'''
+    '''Assign whole scaffolds; 0.8 is a starting split to match to deployment.'''
     clusters = scaffold_clusters(df, smiles_col)
     # Sort by cluster size desc so large clusters go to train first
     scaffold_sets = sorted(clusters.values(), key=lambda x: len(x), reverse=True)
@@ -43,13 +48,24 @@ def scaffold_split(df, smiles_col='smiles', train_frac=0.8, seed=42):
     n_train = int(n_total * train_frac)
 
     rng = random.Random(seed)
-    rng.shuffle(scaffold_sets[1:])  # keep biggest in train; shuffle rest
+    # Keep the largest cluster first, but reproducibly shuffle the actual tail.
+    tail = scaffold_sets[1:]
+    rng.shuffle(tail)
+    scaffold_sets[1:] = tail
 
-    train_idx = []
+    if len(scaffold_sets) < 2:
+        raise ValueError('A scaffold split requires at least two distinct scaffolds')
+
+    train_idx = list(scaffold_sets[0])
     test_idx = []
-    for scaff_set in scaffold_sets:
-        # Prefer adding to train if it fits; else test
-        if len(train_idx) + len(scaff_set) <= n_train:
+    for i, scaff_set in enumerate(scaffold_sets[1:], start=1):
+        remaining_groups = len(scaffold_sets) - i - 1
+        if not test_idx and remaining_groups == 0:
+            test_idx.extend(scaff_set)
+            continue
+        add_to_train_error = abs((len(train_idx) + len(scaff_set)) - n_train)
+        keep_train_error = abs(len(train_idx) - n_train)
+        if add_to_train_error < keep_train_error:
             train_idx.extend(scaff_set)
         else:
             test_idx.extend(scaff_set)
@@ -57,7 +73,7 @@ def scaffold_split(df, smiles_col='smiles', train_frac=0.8, seed=42):
 
 
 def detect_analog_series(df, smiles_col='smiles', min_size=3):
-    '''Identify analog series (scaffold clusters of >= min_size).'''
+    '''Identify series; three members is a repository starting definition.'''
     clusters = scaffold_clusters(df, smiles_col)
     series = {scaff: cmpds for scaff, cmpds in clusters.items()
               if len(cmpds) >= min_size}
@@ -77,6 +93,8 @@ if __name__ == '__main__':
         'CCC(=O)N1CCN(c2ccc(Cl)cc2)CC1',
     ]
     df = pd.DataFrame({'smiles': sample_smiles, 'pIC50': [6.5, 6.2, 6.0, 7.1, 7.0]})
+    # Small-demo values expose both partitions reproducibly; production ratios
+    # and minimum series size must follow deployment and dataset size.
     train, test = scaffold_split(df, train_frac=0.6, seed=42)
     print(f'Train: {len(train)}, Test: {len(test)}')
     series, summary = detect_analog_series(df, min_size=2)

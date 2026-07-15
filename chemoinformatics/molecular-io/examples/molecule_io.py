@@ -3,7 +3,7 @@
 Molecular I/O operations with RDKit.
 Reading, writing, and standardizing molecular structures.
 '''
-# Reference: rdkit 2024.03+ | Verify API if version differs
+# Reference: rdkit 2024.09+ | Verify API if version differs
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -28,9 +28,10 @@ def read_smiles_file(filepath, delimiter='\t', smiles_col=0, name_col=1):
     molecules = []
     with open(filepath) as f:
         for line in f:
-            parts = line.strip().split(delimiter)
-            if not parts:
+            stripped = line.strip()
+            if not stripped:
                 continue
+            parts = stripped.split(delimiter)
             smiles = parts[smiles_col]
             mol = Chem.MolFromSmiles(smiles)
             if mol:
@@ -44,6 +45,8 @@ def read_smiles_file(filepath, delimiter='\t', smiles_col=0, name_col=1):
 def write_sdf(molecules, filepath, properties=None):
     '''Write molecules to SDF file.'''
     writer = Chem.SDWriter(str(filepath))
+    if properties is not None:
+        writer.SetProps(list(properties))
     for mol in molecules:
         if mol is not None:
             writer.write(mol)

@@ -1,5 +1,5 @@
 # Reference: RDKit 2024.09+ | Verify API if version differs
-# Build and apply 3D pharmacophore from active compound set
+# Coarse feature-family prefilter for pharmacophore workflow
 
 import os
 from rdkit import Chem
@@ -21,8 +21,8 @@ def molecule_features(mol, factory):
             for f in feats]
 
 
-def common_features(active_mols, factory, n_conf=20):
-    '''Find pharmacophore features common across active set.'''
+def shared_feature_types_prefilter(active_mols, factory, n_conf=20):
+    '''Find shared feature labels; this does not derive a 3D pharmacophore.'''
     # Generate 3D conformers
     embedded = []
     for mol in active_mols:
@@ -35,6 +35,8 @@ def common_features(active_mols, factory, n_conf=20):
 
     # Extract features per molecule
     all_features = [molecule_features(m, factory) for m in embedded]
+    if not all_features:
+        return set()
 
     # Cross-reference: find features appearing in all active compounds
     common_types = set([(f[0], f[1]) for f in all_features[0]])
@@ -44,8 +46,8 @@ def common_features(active_mols, factory, n_conf=20):
     return common_types
 
 
-def match_pharmacophore(query_features, target_mol, factory, tolerance=1.5):
-    '''Check if a target mol has features matching query within tolerance.'''
+def has_feature_types(query_features, target_mol, factory):
+    '''Check feature-family presence only; this is not a 3D distance match.'''
     target = Chem.AddHs(target_mol)
     AllChem.EmbedMolecule(target, AllChem.ETKDGv3())
     AllChem.MMFFOptimizeMolecule(target)
@@ -58,13 +60,13 @@ def match_pharmacophore(query_features, target_mol, factory, tolerance=1.5):
     return query_types.issubset(target_types)
 
 
-def pharmacophore_screen(query_mol_list, library_smiles, tolerance=1.5):
-    '''Build common pharmacophore from queries; screen library for matches.'''
+def feature_family_prefilter(query_mol_list, library_smiles):
+    '''Prefilter by feature families before a distance-constrained 3D search.'''
     factory = get_feature_factory()
     active_mols = [Chem.MolFromSmiles(s) if isinstance(s, str) else s
                    for s in query_mol_list]
 
-    common = common_features(active_mols, factory)
+    common = shared_feature_types_prefilter(active_mols, factory)
     if not common:
         return []
 
@@ -73,7 +75,7 @@ def pharmacophore_screen(query_mol_list, library_smiles, tolerance=1.5):
         mol = Chem.MolFromSmiles(smi)
         if mol is None:
             continue
-        if match_pharmacophore(list(common), mol, factory, tolerance):
+        if has_feature_types(list(common), mol, factory):
             hits.append(smi)
     return hits
 
@@ -84,5 +86,5 @@ if __name__ == '__main__':
     library = ['CCC(=O)Nc1ccc(C(=O)c2ccc(Cl)cc2)cc1',
                'CCCCCC',
                'c1ccncc1']
-    hits = pharmacophore_screen(queries, library)
-    print(f'Pharmacophore matches: {hits}')
+    hits = feature_family_prefilter(queries, library)
+    print(f'Feature-family prefilter matches: {hits}')

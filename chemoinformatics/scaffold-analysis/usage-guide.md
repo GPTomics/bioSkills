@@ -28,7 +28,7 @@ Tell the AI agent what to do:
 > "Apply Bemis-Murcko scaffold split (80% train, 20% test) to qsar_data.csv. Ensure no scaffold appears in both train and test. Output train.csv and test.csv."
 
 ### MMPA mining
-> "Run mmpdb on hERG_data.csv (smiles + pIC50 columns). Report top 10 transformations with N >= 10 pairs and |delta(pIC50)| >= 0.5. Format as table."
+> "Run mmpdb on hERG_data.csv. Report pair counts, contexts, effect estimates, and uncertainty without applying universal reliability thresholds."
 
 ### R-group decomposition
 > "Given scaffold 'c1ccc(-[*:1])cc1-[*:2]' and 50 analogs, decompose into R-group table. Output CSV with columns R1, R2, activity for downstream Free-Wilson analysis."
@@ -46,9 +46,9 @@ Tell the AI agent what to do:
 
 - Bemis-Murcko gives **empty scaffold** for linear molecules; supplement with linear features.
 - Generic framework loses heteroatom info; use only for topology comparison.
-- mmpdb needs >= 1000 compounds for reliable transformation statistics.
-- Always use scaffold split for QSAR; random splits inflate metrics.
-- R-decomposition fails if compounds match multiple scaffold templates; use FMCS first.
+- MMPA evidence depends on matched-pair count, independence, context diversity, and validation, not a universal dataset-size cutoff.
+- Choose scaffold, time, random, or other splits to match deployment; always audit overlap and label balance.
+- Preserve original row identifiers and unmatched indices during R-group decomposition.
 
 ## Related Skills
 
@@ -56,5 +56,5 @@ Tell the AI agent what to do:
 - chemoinformatics/molecular-standardization - Standardize before scaffold extraction
 - chemoinformatics/reaction-enumeration - Free-Wilson on R-decomp output
 - chemoinformatics/similarity-searching - 2D scaffold-hopping
-- chemoinformatics/qsar-modeling - Mandatory scaffold split for QSAR
+- chemoinformatics/qsar-modeling - Scaffold-aware splitting for QSAR
 - chemoinformatics/generative-design - Scaffold-decoration generation

@@ -1,13 +1,13 @@
 ---
 name: bio-molecular-standardization
-description: Standardizes molecular structures using ChEMBL chembl_structure_pipeline and RDKit rdMolStandardize covering sanitization, salt/solvent stripping, neutralization, tautomer canonicalization, stereochemistry standardization, mixture handling, and isotope normalization. Explicitly compares ChEMBL pipeline, canSARchem, and PubChem standardization choices. Use when preparing libraries for QSAR training, joining datasets across sources, deduplicating compound collections, or building canonical compound registries.
+description: Standardizes molecular structures using the ChEMBL structure pipeline for normalization and parent selection plus RDKit rdMolStandardize for explicit custom steps such as tautomer canonicalization, salt/solvent stripping, charge handling, stereochemistry handling, mixture selection, and isotope normalization. Explicitly compares ChEMBL, canSARchem, RDKit, and PubChem standardization choices. Use when preparing libraries for QSAR training, joining datasets across sources, deduplicating compound collections, or building canonical compound registries.
 tool_type: python
 primary_tool: RDKit
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: RDKit 2024.09+, chembl_structure_pipeline 1.2+, MolVS 0.1.1 (legacy reference only -- rdMolStandardize is current).
+Reference examples tested with: RDKit 2024.09+ and chembl_structure_pipeline 1.2+. MolVS 0.1.1 is a legacy package; use RDKit's maintained `rdMolStandardize` module for custom pipelines.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Molecular Standardization
 
-Convert raw molecular structures into a single canonical form for ML training data, deduplication, registry, and cross-database joining. Standardization is the single most underrated upstream step: skipping it causes silent ML data leakage (training and test compounds with different tautomers count as separate), bogus QSAR predictions, and database join misses. The ChEMBL pipeline (Bento 2020) and canSARchem (Ravi 2022) are the two industry references; canSARchem extends ChEMBL with canonical-tautomer-before-parent extraction. RDKit's `rdMolStandardize` implements ChEMBL-equivalent logic in C++ (the older `MolVS` Python implementation was deprecated Q1 2024).
+Convert raw molecular structures into a consistent form for ML training data, deduplication, registry, and cross-database joining. Skipping standardization can create data leakage when alternate representations of one compound enter different splits, distort QSAR inputs, and cause database join misses. The ChEMBL structure pipeline (Bento et al. 2020) is built on RDKit and applies ChEMBL-specific normalization and parent-selection rules. canSARchem (Dolciami et al. 2022) adds canonical-tautomer selection before parent extraction. RDKit's maintained `rdMolStandardize` module provides primitives for building an explicit custom pipeline.
 
 For format-level I/O and aromaticity perception, see `chemoinformatics/molecular-io`. For descriptor calculation after standardization, see `chemoinformatics/molecular-descriptors`.
 
@@ -31,23 +31,23 @@ For format-level I/O and aromaticity perception, see `chemoinformatics/molecular
 | 4. Charge neutralization | `Uncharger` | Neutralize while preserving net charge | Permanent charges preserved (quaternary N+) |
 | 5. Tautomer canonicalization | `TautomerEnumerator.Canonicalize` | Pick canonical tautomer | Keto/enol; amide/imidate |
 | 6. Stereo standardization | `Chem.AssignStereochemistry` | Consistent stereo descriptors | Lost wedges, ambiguous R/S |
-| 7. Isotope normalization | manual or `MolToSmiles(isomericSmiles=False)` | Remove 13C, 2H labels | Tracer studies |
+| 7. Isotope normalization | Explicitly set selected atom isotope labels to 0 | Remove 13C, 2H labels | Tracer studies; preserve labels when scientifically meaningful |
 | 8. Output canonicalization | `Chem.MolToSmiles(canonical=True)` | Canonical SMILES + InChIKey | Round-trip stability |
 
 ## Pipeline Reconciliation
 
 | Pipeline | Origin | Tautomer canonicalization | Salt definition | Use case |
 |----------|--------|---------------------------|-----------------|----------|
-| ChEMBL pipeline | EBI ChEMBL | Pre-rdMolStandardize legacy; now uses rdMolStandardize | ChEMBL salt list (extensive) | Drug-like compounds, FDA approvals |
+| ChEMBL pipeline | EBI ChEMBL | Not performed by `standardize_mol` or `get_parent_mol` | ChEMBL salt list (extensive) | ChEMBL-compatible registration |
 | canSARchem | ICR Cancer Research UK | Canonical tautomer BEFORE parent extraction | Extended salt list | Cancer drug discovery |
 | PubChem (OpenEye) | NIH NCBI | OpenEye QUACPAC tautomer | PubChem salt list | Bioassay data, large-scale |
 | RDKit rdMolStandardize default | Greg Landrum | RDKit TautomerEnumerator | RDKit default | General purpose, open source |
 
 **Key difference (canSARchem vs ChEMBL):**
-- ChEMBL: parent first, then canonical tautomer of parent
-- canSARchem: canonical tautomer first, then parent
+- ChEMBL standardizes the representation and extracts a parent, but does not canonicalize tautomers.
+- canSARchem canonicalizes the tautomer before parent extraction.
 
-For 95% of drug-like molecules these produce identical results. For tautomer-ambiguous molecules (amide/imidate, ketoenol, lactam/lactim), the order matters; canSARchem produces more stable canonical forms.
+This difference matters when alternate tautomeric inputs must be registered as one parent. Do not describe ChEMBL output as tautomer-canonical unless an explicit tautomer step is added and documented.
 
 ## ChEMBL Structure Pipeline (Reference Implementation)
 
@@ -55,7 +55,7 @@ ChEMBL's standardization is the most widely-used reference. The Python package `
 
 **Goal:** Apply the industry-reference ChEMBL standardization pipeline to a SMILES.
 
-**Approach:** Parse SMILES with RDKit, run `standardize_mol` (sanitize + uncharge + normalize + canonical tautomer), then `get_parent_mol` (strip salts/counter-ions), and emit canonical SMILES.
+**Approach:** Parse SMILES with RDKit, run `standardize_mol` (sanitize, normalize, and standardize charges), then `get_parent_mol` (strip salts/counter-ions), and emit canonical SMILES. Add `rdMolStandardize.TautomerEnumerator` separately only when the project requires tautomer canonicalization.
 
 ```python
 from chembl_structure_pipeline import standardize_mol, get_parent_mol
@@ -65,16 +65,18 @@ def chembl_pipeline(smi):
     mol = Chem.MolFromSmiles(smi)
     if mol is None:
         return None, 'parse_failure'
-    standardized, _ = standardize_mol(mol)
-    parent, _ = get_parent_mol(standardized)
+    standardized = standardize_mol(mol)
+    parent, exclude = get_parent_mol(standardized)
+    if exclude:
+        return None, 'excluded_by_chembl'
     return Chem.MolToSmiles(parent), 'ok'
 ```
 
-**`standardize_mol`:** sanitize + uncharge + normalize functional groups + canonicalize tautomers.
+**`standardize_mol`:** sanitize, normalize functional groups, and standardize charges; returns one RDKit molecule.
 
-**`get_parent_mol`:** strip salts/counter-ions; choose largest fragment.
+**`get_parent_mol`:** strip salts/counter-ions and choose the parent; returns `(parent_mol, exclude_flag)`.
 
-Output: canonical SMILES of the parent (free acid/free base, neutral form).
+Output: canonical SMILES of the selected parent after the ChEMBL transformations, or an explicit `excluded_by_chembl` status when the parent carries ChEMBL's exclusion flag. Neutralizable acid/base sites may be normalized, but permanent or otherwise non-removable charges can remain; do not assume every emitted parent is neutral.
 
 ## Full Standardization with rdMolStandardize
 
@@ -101,7 +103,7 @@ def full_standardize(smi, keep_isotopes=False):
     normalizer = rdMolStandardize.Normalizer()
     mol = normalizer.normalize(mol)
 
-    uncharger = rdMolStandardize.Uncharger(canonicalOrdering=True)
+    uncharger = rdMolStandardize.Uncharger(canonicalOrder=True)
     mol = uncharger.uncharge(mol)
 
     enumerator = rdMolStandardize.TautomerEnumerator()
@@ -115,7 +117,7 @@ def full_standardize(smi, keep_isotopes=False):
     return Chem.MolToSmiles(mol)
 ```
 
-**`canonicalOrdering=True`** ensures the uncharger produces the same result regardless of atom ordering in input -- critical for stable canonical output.
+**`canonicalOrder=True`** makes the uncharger choose neutralization sites in canonical order when more than one equivalent site is available. It does not itself decide whether a permanent charge is retained; inspect charge-sensitive structures and keep `force=False` unless a documented policy requires otherwise.
 
 ## Salt Stripping Edge Cases
 
@@ -135,19 +137,21 @@ def full_standardize(smi, keep_isotopes=False):
 
 Tautomer canonicalization is the most controversial standardization step. There is no universally-correct canonical tautomer for many drug-like molecules.
 
-| Tautomer pair | Default canonical | Issue |
-|---------------|-------------------|-------|
-| Keto/enol | Keto preferred | Most kinase ATP-mimetic enols destabilize on canonicalization |
-| Lactam/lactim | Lactam preferred | Some natural products (rifampin) are inherently lactim |
-| Amidine/iminol | Amidine preferred | Some bioactive amidines convert |
-| Phenol/keto (e.g., naphthol/naphthalenone) | Phenol preferred | Some quinone-form pharmaceuticals reverted |
-| 2H-pyrazole / 1H-pyrazole | 1H-pyrazole | Both equally stable in vivo |
+| Tautomer pair | Why the policy matters |
+|---------------|------------------------|
+| Keto/enol | Canonicalization can select a representation different from the experimentally relevant bound or solution form |
+| Lactam/lactim | Heterocycle scoring rules and toolkit versions may choose different representatives |
+| Amidine/iminol | Proton placement changes donor/acceptor annotations and downstream matching |
+| Phenol/keto (e.g., naphthol/naphthalenone) | Aromaticity and functional-group perception can change with the selected representation |
+| 2H-pyrazole / 1H-pyrazole | Nitrogen identity and donor/acceptor assignments depend on proton placement |
+
+Treat the enumerator's canonical result as a reproducible representation chosen by its configured scoring rules, not as a prediction of the dominant tautomer in vivo. Record the RDKit version and any custom transforms or scoring changes.
 
 **Practical rules:**
 - Always apply consistent canonicalization across train + test for ML
 - For prospective prediction, predict for both tautomers if disagreement could matter
 - For library deduplication, canonical tautomer is the standard answer
-- For docking, use ionization-aware preparation (`epik` from Schrödinger or `Open Babel pkBABEL`)
+- For docking, use an ionization-aware preparation workflow. For Open Babel, the documented CLI is `obabel input.sdf -O output.sdf -p 7.4`; validate generated states because its rule-based protonation is not a substitute for project-specific pKa analysis.
 
 ```python
 from rdkit.Chem.MolStandardize import rdMolStandardize
@@ -177,7 +181,7 @@ def standardize_stereo(mol, remove_undefined=False):
 - Ambiguous stereo (no markers) -> left as-is, marked as undefined
 - Racemic (explicit "rac") -> keep as racemate
 
-For ML, often drop stereo entirely (`Chem.RemoveStereochemistry(mol)`) since most QSAR endpoints are not stereo-specific. For docking and FEP, preserve stereo always.
+For ML, remove stereochemistry only when the endpoint, data curation, and model representation justify treating stereoisomers as equivalent; record that policy and test its effect. For docking and FEP, preserve the intended stereoisomer and reject unintended stereo changes.
 
 ## Standardization for ML Training (avoiding data leakage)
 
@@ -196,8 +200,10 @@ def prepare_qsar_data(df, smiles_col='smiles', activity_col='pIC50'):
         if mol is None:
             continue
         try:
-            mol, _ = standardize_mol(mol)
-            mol, _ = get_parent_mol(mol)
+            mol = standardize_mol(mol)
+            mol, exclude = get_parent_mol(mol)
+            if exclude:
+                continue
             standardized.append({
                 'smiles': Chem.MolToSmiles(mol),
                 'inchikey': Chem.MolToInchiKey(mol),
@@ -207,6 +213,8 @@ def prepare_qsar_data(df, smiles_col='smiles', activity_col='pIC50'):
             continue
 
     df_std = pd.DataFrame(standardized)
+    if df_std.empty:
+        return pd.DataFrame(columns=['inchikey', 'smiles', 'activity', 'n_replicates'])
     df_std = df_std.groupby('inchikey').agg(
         smiles=('smiles', 'first'),
         activity=('activity', 'mean'),
@@ -215,7 +223,7 @@ def prepare_qsar_data(df, smiles_col='smiles', activity_col='pIC50'):
     return df_std
 ```
 
-Deduplication by InChIKey collapses tautomer-equivalent compounds. Replicate count signals measurement reliability.
+Standard InChIKey may collapse some mobile-hydrogen tautomer representations, but this is not a substitute for an explicitly chosen tautomer policy. Replicate count signals measurement reliability.
 
 ## Per-Tool Failure Modes
 
@@ -229,15 +237,15 @@ Deduplication by InChIKey collapses tautomer-equivalent compounds. Replicate cou
 
 **Fix:** Pre-filter to compounds with ≥1 carbon atom.
 
-### Uncharger -- removes critical charge
+### Uncharger -- charge-state policy mismatch
 
-**Trigger:** Quaternary ammonium (permanent positive) or sulfonate at physiological pH.
+**Trigger:** A molecule combines a non-removable charge, such as quaternary ammonium, with other neutralizable sites, or the desired physiological ionization state differs from a structure-normalization rule.
 
-**Mechanism:** Default uncharger attempts to neutralize without distinguishing permanent vs pH-dependent charges.
+**Mechanism:** `Uncharger` adds or removes hydrogens from neutralizable acids and bases. It cannot remove a permanent charge that has no corresponding hydrogen edit; by default it may preserve an opposite neutralizable charge when a non-removable charge is present so that the total charge remains balanced. `force=True` instead neutralizes all sites that can be neutralized even if the remaining permanent charge leaves a nonzero total charge.
 
-**Symptom:** Permanently charged ligands neutralized; structure incorrect for downstream docking.
+**Symptom:** The permanent charge remains, but other sites or the total charge differ from the protonation state intended for docking or modeling.
 
-**Fix:** Use `Uncharger(canonicalOrdering=True, force=False)`; manually inspect borderline cases.
+**Fix:** Choose `force` according to the documented total-charge policy, keep `force=False` when balanced countercharges should be preserved, and inspect/prepare physiological protonation states separately.
 
 ### Tautomer enumerator -- combinatorial explosion
 
@@ -247,46 +255,47 @@ Deduplication by InChIKey collapses tautomer-equivalent compounds. Replicate cou
 
 **Symptom:** OOM or hour-long compute on single molecule.
 
-**Fix:** Use `Canonicalize` (returns single canonical) instead of `Enumerate`; for `Enumerate`, cap `maxTransforms` parameter.
+**Fix:** Use `Canonicalize` when only the configured canonical representation is needed. Before `Enumerate`, call `enumerator.SetMaxTransforms(limit)` (and, when appropriate, `SetMaxTautomers(limit)`) to cap the search.
 
-### MolVS deprecated -- ImportError on Python 3.12+
+### Legacy MolVS -- import or compatibility failure
 
 **Trigger:** Code still using legacy `from molvs import Standardizer`.
 
-**Mechanism:** RDKit MolStandardize Python implementation removed Q1 2024.
+**Mechanism:** The standalone MolVS package is legacy and may not support current Python/RDKit versions. RDKit's maintained `rdMolStandardize` module remains available.
 
 **Symptom:** ImportError or AttributeError on newer RDKit.
 
-**Fix:** Migrate to `from rdkit.Chem.MolStandardize import rdMolStandardize`; methods renamed (e.g., `standardize` -> `Cleanup`).
+**Fix:** Migrate deliberately to `from rdkit.Chem.MolStandardize import rdMolStandardize`; compare outputs because RDKit functions are not drop-in aliases for every MolVS workflow.
 
 ### Round-trip InChIKey mismatch
 
-**Trigger:** Compound canonicalized to different tautomer per run.
+**Trigger:** Records were processed with different standardization settings or entered in different salt, charge, isotope, stereo, or tautomer forms.
 
-**Mechanism:** RDKit tautomer canonicalization depends on atom ordering for very symmetric molecules.
+**Mechanism:** The pipelines did not apply the same explicitly versioned transformations before identity generation.
 
-**Symptom:** Re-running standardization yields different InChIKey.
+**Symptom:** Apparently equivalent records produce different InChIKeys, or an expected database join fails.
 
-**Fix:** Set `canonicalOrdering=True` in Uncharger; sort atoms via canonical SMILES first.
+**Fix:** Record and apply the same toolkit version, standardization stages, tautomer policy, and InChI options to both datasets; compare full standardized structures when results still differ.
 
 ## Common Errors
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| ImportError on `MolStandardize` | Python MolStandardize deprecated | Use `from rdkit.Chem.MolStandardize import rdMolStandardize` |
-| `standardize_mol` returns None | Sanitize failure on input | Try `Chem.MolFromSmiles(smi, sanitize=False)` first |
+| ImportError from standalone `molvs` | Legacy package incompatible with current environment | Use maintained `rdkit.Chem.MolStandardize.rdMolStandardize` APIs and validate output |
+| `standardize_mol` raises or input parsing returns `None` | Invalid or unsanitizable input | Capture the exception/input index and inspect sanitization deliberately; do not silently accept a partially sanitized structure |
 | Stripped wrong fragment | LargestFragmentChooser ambiguity | Manually inspect; consider custom logic |
-| Tautomer differs between runs | Atom-order-dependent | Set `canonicalOrdering=True`; sort atoms |
-| Charge lost on quaternary N | Aggressive neutralization | Use `force=False` |
-| InChIKey collisions across "different" mols | Same canonical InChI but different stereo / tautomer | Use longer InChIKey (or full InChI) |
-| Pipeline slow on large library | Per-mol Python overhead | Use `chembl_structure_pipeline` (vectorized) or process in chunks |
+| Tautomer differs between datasets | Different tautomer rules or toolkit versions | Pin and record the same `TautomerEnumerator` settings and version |
+| Unexpected charge distribution with permanent ions | `Uncharger` total-charge policy does not match the intended protonation workflow | Review non-removable and neutralizable sites; choose `force` deliberately and prepare physiological states separately |
+| Same InChIKey for apparently different records | Standard-InChI normalization or a rare hash collision | Compare full InChI and standardized structures; InChIKey has no longer form |
+| Pipeline slow on large library | Per-molecule Python overhead | Process independent molecules in validated chunks or worker processes; `chembl_structure_pipeline` itself is a per-molecule API |
 
 ## References
 
-- Bento et al., *J. Cheminformatics* 12:51 (2020) -- ChEMBL structure pipeline.
-- Ravi et al., *J. Cheminformatics* 14:36 (2022) -- canSARchem registration pipeline.
-- Hähnke et al., *J. Cheminformatics* 10:36 (2018) -- PubChem standardization.
-- Landrum, RDKit Blog (2020) -- new tautomer canonicalization code.
+- Bento et al., *J. Cheminformatics* 12:51 (2020) -- ChEMBL structure pipeline. https://doi.org/10.1186/s13321-020-00456-1
+- Dolciami et al., *J. Cheminformatics* 14:28 (2022) -- canSARchem registration pipeline. https://doi.org/10.1186/s13321-022-00606-7
+- Hähnke et al., *J. Cheminformatics* 10:36 (2018) -- PubChem standardization. https://doi.org/10.1186/s13321-018-0293-8
+- RDKit, `rdkit.Chem.MolStandardize.rdMolStandardize` API documentation. https://www.rdkit.org/docs/source/rdkit.Chem.MolStandardize.rdMolStandardize.html
+- Open Babel, official `obabel` documentation -- pH-dependent hydrogen-addition CLI. https://openbabel.org/docs/Command-line_tools/babel.html
 
 ## Related Skills
 

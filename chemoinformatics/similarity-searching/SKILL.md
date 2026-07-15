@@ -1,13 +1,13 @@
 ---
 name: bio-similarity-searching
-description: Performs molecular similarity searching using Tanimoto, Tversky, Dice, and cosine coefficients on bit/count fingerprints with explicit choice rules for symmetric vs asymmetric measures, scaffold-hopping vs lead-optimization regimes, activity-cliff diagnosis, and large-library nearest-neighbor methods (BulkTanimoto, Annoy MHFP6, USRCAT). Use when ranking compounds by structural resemblance to a query, clustering libraries, finding analogs, or diagnosing activity cliffs.
+description: Performs molecular similarity searching using Tanimoto, Tversky, Dice, and cosine coefficients on bit/count fingerprints with explicit choice rules for symmetric vs asymmetric measures, scaffold-hopping vs lead-optimization regimes, activity-cliff diagnosis, and large-library nearest-neighbor methods (BulkTanimoto, MHFP6 LSH forest, USRCAT). Use when ranking compounds by structural resemblance to a query, clustering libraries, finding analogs, or diagnosing activity cliffs.
 tool_type: python
 primary_tool: RDKit
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: RDKit 2024.09+, scikit-learn 1.4+, annoy 1.17+, mhfp 1.9+.
+Reference examples tested with: RDKit 2024.09+, scikit-learn 1.4+, mhfp 1.9+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -26,10 +26,10 @@ For fingerprint choice, see `chemoinformatics/molecular-descriptors`. For 3D sha
 | Coefficient | Formula | Range | Symmetric | Use case | Fails when |
 |-------------|---------|-------|-----------|----------|------------|
 | Tanimoto | c / (a + b - c) | 0-1 | Yes | Default for ECFP4 similarity, ranking analogs | Saturates at low similarity (drug vs natural product) |
-| Dice | 2c / (a + b) | 0-1 | Yes | More sensitive than Tanimoto in 0.3-0.5 range | Bit-vector only; analog choice subjective |
+| Dice | 2c / (a + b) | 0-1 | Yes | Bit or nonnegative sparse-count vectors when Dice semantics are intended | Thresholds depend on vector type; analog choice subjective |
 | Cosine (Ochiai) | c / sqrt(a*b) | 0-1 | Yes | Count vectors, weighted similarity | Not standard for bit vectors |
 | Tversky alpha,beta | c / (alpha*(a-c) + beta*(b-c) + c) | 0-1 | No when alpha != beta | Asymmetric "is A a substructure of B" queries | Parameter choice subjective; alpha=1,beta=0 = substructure-like |
-| Hamming | (a + b - 2c) / nBits | 0-1 | Yes | Count vectors, when bit-wise distance matters | Bit-vector only loses scale |
+| Hamming | (a + b - 2c) / nBits | 0-1 | Yes | Binary bit vectors when bit-wise disagreement matters | Does not preserve count magnitude |
 | Russell-Rao | c / nBits | 0-1 | Yes | Sparse fingerprints | Biased by fingerprint density |
 | Kulczynski | (c/a + c/b) / 2 | 0-1 | Yes | When fingerprints have very different bit-density | Less standard |
 
@@ -39,7 +39,7 @@ Where a = set bits in fp1, b = set bits in fp2, c = bits in common.
 
 | Scenario | Coefficient | Why |
 |----------|-------------|-----|
-| Standard analog search (drug-like, ECFP4) | Tanimoto, threshold 0.7 | Industry default; calibrated against medchem judgment |
+| Standard analog search (drug-like, ECFP4) | Tanimoto, start near 0.7 | Repository starting heuristic; calibrate against project actives and analog judgments |
 | Sensitive search at lower similarity | Dice, threshold 0.45 | Dice is roughly 2*Tanimoto/(1+Tanimoto); more sensitive in middle range |
 | Substructure-like ranking | Tversky alpha=1, beta=0 | Asymmetric: rewards compounds containing query features |
 | Count fingerprints (neural, atom-environment) | Cosine | Bit-vector Tanimoto loses information |
@@ -48,7 +48,7 @@ Where a = set bits in fp1, b = set bits in fp2, c = bits in common.
 | Metabolomics / natural products | MHFP6 Jaccard | ECFP4 saturates near 0.2 across diverse classes |
 | 3D shape | Tanimoto on shape volume overlap | See shape-similarity skill |
 
-## Tanimoto Thresholds (calibrated against medchem judgment)
+## Tanimoto Thresholds (Repository Starting Heuristics)
 
 | Threshold | Interpretation | Caveat |
 |-----------|----------------|--------|
@@ -58,7 +58,7 @@ Where a = set bits in fp1, b = set bits in fp2, c = bits in common.
 | 0.35-0.55 | Distant analog, possible scaffold hop | Many false positives |
 | <0.35 | Mostly noise; use 3D shape or pharmacophore instead | ECFP4 not informative |
 
-Maggiora's similarity principle states "similar molecules tend to have similar activity" -- but **activity cliffs** (Stumpfe & Bajorath 2012) violate this. Roughly 10-20% of activity-cliff pairs have ECFP4 Tanimoto >=0.7 with delta(pIC50) >=2.
+These bands are working defaults for ECFP4-like fingerprints, not transferable calibration. Inspect the target dataset's similarity distribution and known series before setting a cutoff. Maggiora's similarity principle states "similar molecules tend to have similar activity" -- but **activity cliffs** (Stumpfe & Bajorath 2012) violate this. Treat high ECFP4 similarity as a prioritization signal, not evidence that activity will be preserved.
 
 ## Decision Tree by Scenario
 
@@ -68,7 +68,7 @@ Maggiora's similarity principle states "similar molecules tend to have similar a
 | Find scaffold hops | FCFP4 OR AtomPair Tanimoto >=0.5 + filter MCS | RDKit + rdFMCS |
 | Cluster library by chemotype | Butina clustering at Tanimoto 0.6 cutoff | RDKit `Butina.ClusterData` |
 | Diversity sampling | MaxMin selection on Tanimoto | RDKit `rdSimDivPickers.MaxMinPicker` |
-| Nearest neighbors in >1M library | LSH (MinHash) with MHFP6 | mhfp + Annoy |
+| Nearest neighbors in >1M library | LSH forest with MHFP6 | `mhfp.lsh_forest.LSHForestHelper` |
 | Activity cliff diagnosis | Tanimoto + pIC50 delta scatter | Custom analysis |
 | 3D similarity (shape) | USRCAT / Open3DAlign / ROCS | shape-similarity skill |
 
@@ -80,23 +80,30 @@ Maggiora's similarity principle states "similar molecules tend to have similar a
 
 ```python
 from rdkit import Chem, DataStructs
-from rdkit.Chem import AllChem
+from rdkit.Chem import rdFingerprintGenerator
 
 def precompute_fps(smiles_list, radius=2, nBits=2048):
+    generator = rdFingerprintGenerator.GetMorganGenerator(
+        radius=radius, fpSize=nBits)
     fps = []
     for smi in smiles_list:
         mol = Chem.MolFromSmiles(smi)
         if mol is None:
             fps.append(None)
         else:
-            fps.append(AllChem.GetMorganFingerprintAsBitVect(mol, radius, nBits=nBits))
+            fps.append(generator.GetFingerprint(mol))
     return fps
 
 def search(query_smi, library_fps, threshold=0.7):
     qmol = Chem.MolFromSmiles(query_smi)
-    qfp = AllChem.GetMorganFingerprintAsBitVect(qmol, 2, nBits=2048)
-    sims = DataStructs.BulkTanimotoSimilarity(qfp, [f for f in library_fps if f])
-    return [(i, s) for i, s in enumerate(sims) if s >= threshold]
+    if qmol is None:
+        raise ValueError('invalid query SMILES')
+    generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+    qfp = generator.GetFingerprint(qmol)
+    valid = [(i, fp) for i, fp in enumerate(library_fps) if fp is not None]
+    sims = DataStructs.BulkTanimotoSimilarity(qfp, [fp for _, fp in valid])
+    return [(source_i, sim) for (source_i, _), sim in zip(valid, sims)
+            if sim >= threshold]
 ```
 
 ## Tversky for Asymmetric Substructure-Like Search
@@ -116,7 +123,7 @@ Use case: identifying analogs that extend a pharmacophore vs. exact-similarity r
 
 ## Butina Clustering
 
-**Goal:** Group a library into clusters where intra-cluster Tanimoto >= 1 - cutoff.
+**Goal:** Group a library around Taylor-Butina centroids whose assigned neighbors are within the selected distance cutoff.
 
 **Approach:** Compute upper-triangle distance matrix, apply Taylor-Butina with chosen distance cutoff.
 
@@ -124,7 +131,8 @@ Use case: identifying analogs that extend a pharmacophore vs. exact-similarity r
 from rdkit.ML.Cluster import Butina
 
 def cluster(mols, cutoff=0.4):
-    fps = [AllChem.GetMorganFingerprintAsBitVect(m, 2, nBits=2048) for m in mols]
+    generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+    fps = [generator.GetFingerprint(m) for m in mols]
     n = len(fps)
     dists = []
     for i in range(1, n):
@@ -133,9 +141,9 @@ def cluster(mols, cutoff=0.4):
     return Butina.ClusterData(dists, n, cutoff, isDistData=True)
 ```
 
-`cutoff=0.4` means clusters share Tanimoto >= 0.6. The first molecule in each returned cluster is the cluster centroid.
+`cutoff=0.4` means each assigned member was a neighbor of its selected centroid at Tanimoto >= 0.6. It does **not** guarantee that every pair of non-centroid members has Tanimoto >= 0.6. The first molecule in each returned cluster is the cluster centroid.
 
-**Trade-off:** Butina is O(N^2) and scales to ~100k molecules. For 1M+ libraries, use approximate nearest-neighbor (Annoy with MHFP6).
+**Trade-off:** Butina materializes O(N^2) pairwise distances. Benchmark memory and runtime on the actual library; for much larger collections, use an approximate method such as an MHFP6 LSH forest.
 
 ## Diversity Selection (MaxMin)
 
@@ -165,7 +173,8 @@ def mcs_smarts(mols, timeout=60, ring_match='strict', atom_match='elements'):
     params = rdFMCS.MCSParameters()
     params.Timeout = timeout
     if ring_match == 'strict':
-        params.BondCompareParameters.MatchRingFusion = True
+        params.BondCompareParameters.MatchFusedRings = True
+        params.BondCompareParameters.MatchFusedRingsStrict = True
         params.BondCompareParameters.RingMatchesRingOnly = True
     if atom_match == 'elements':
         params.AtomCompareParameters.MatchValences = False
@@ -175,7 +184,7 @@ def mcs_smarts(mols, timeout=60, ring_match='strict', atom_match='elements'):
 
 Use cases: identify scaffold across a series, build scaffold hopping queries, generate consensus pharmacophore.
 
-**Limit:** MCS scales exponentially with molecule overlap. For >50 molecules or molecules >30 atoms, raise `timeout` and accept partial results.
+**Limit:** MCS search can become combinatorial as input count, size, and structural divergence grow. Set a finite timeout, inspect `result.canceled`, and consider pre-clustering or reducing the comparison set; no molecule-count or atom-count boundary guarantees tractability.
 
 ## Activity Cliff Diagnosis
 
@@ -185,8 +194,11 @@ Use cases: identify scaffold across a series, build scaffold hopping queries, ge
 
 ```python
 def activity_cliffs(df, sim_threshold=0.85, activity_gap=2.0, activity_col='pIC50'):
-    fps = [AllChem.GetMorganFingerprintAsBitVect(Chem.MolFromSmiles(s), 2, nBits=2048)
-           for s in df['smiles']]
+    generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+    mols = [Chem.MolFromSmiles(s) for s in df['smiles']]
+    if any(mol is None for mol in mols):
+        raise ValueError('activity-cliff input contains invalid SMILES')
+    fps = [generator.GetFingerprint(mol) for mol in mols]
     cliffs = []
     for i in range(len(fps)):
         sims = DataStructs.BulkTanimotoSimilarity(fps[i], fps[i+1:])
@@ -201,31 +213,32 @@ def activity_cliffs(df, sim_threshold=0.85, activity_gap=2.0, activity_col='pIC5
 
 Activity cliffs flag (a) measurement noise, (b) cryptic SAR (e.g. ring-flip changing dihedral), (c) protein conformational selection, or (d) actually informative SAR. Cliffs are an opportunity for medchem investigation, not necessarily an error.
 
-## Large-Library Nearest Neighbor (MHFP6 + Annoy)
+## Large-Library Nearest Neighbor (MHFP6 + LSH Forest)
 
-For libraries >1M compounds, direct pairwise Tanimoto is impractical. MHFP6 (MinHashed fingerprint) + Annoy (LSH) gives approximate top-k in seconds.
+For large libraries, direct all-pairs comparison becomes expensive. The `mhfp` package provides an LSH-forest helper for approximate nearest-neighbor retrieval over MHFP6 fingerprints. Measure recall and latency against an exact subset for the project dataset.
 
 ```python
 from mhfp.encoder import MHFPEncoder
-from annoy import AnnoyIndex
+from mhfp.lsh_forest import LSHForestHelper
 
 encoder = MHFPEncoder(2048)
 
-def build_index(mols, fname):
-    idx = AnnoyIndex(2048, 'hamming')
-    for i, mol in enumerate(mols):
-        fp = encoder.encode(mol, radius=3)
-        idx.add_item(i, fp)
-    idx.build(50)
-    idx.save(fname)
-    return idx
+def build_index(smiles_list):
+    forest = LSHForestHelper()
+    fingerprints = []
+    for i, smiles in enumerate(smiles_list):
+        fp = encoder.encode(smiles, radius=3)
+        fingerprints.append(fp)
+        forest.add(i, fp)
+    forest.index()
+    return forest, fingerprints
 
-def query_index(idx, qmol, k=10):
-    qfp = encoder.encode(qmol, radius=3)
-    return idx.get_nns_by_vector(qfp, k, include_distances=True)
+def query_index(forest, qmol, fingerprints, k=10):
+    qfp = encoder.encode_mol(qmol, radius=3)
+    return forest.query(qfp, k=k, data=fingerprints)
 ```
 
-Annoy distance: Hamming on MinHash, related to Jaccard. Trade-off: ~95% recall on top-10 nearest neighbors vs full-Tanimoto search.
+The returned neighbors are approximate in MHFP6 space. Benchmark them against an exact MHFP-distance search on a representative subset before choosing LSH parameters.
 
 ## Per-Tool Failure Modes
 
@@ -233,11 +246,11 @@ Annoy distance: Hamming on MinHash, related to Jaccard. Trade-off: ~95% recall o
 
 **Trigger:** Library spans drug-like + natural products + peptides + metabolites.
 
-**Mechanism:** ECFP4 bits sparsely cover macrocycles, peptides, glycans; most pairwise Tanimoto reports 0.1-0.3.
+**Mechanism:** A local circular fingerprint may not preserve the distinctions needed for a particular mixed-modality retrieval task.
 
-**Symptom:** Pairwise Tanimoto distribution narrow; ranking is dominated by noise. Quantitative diagnostic: if mean pairwise Tanimoto on a random sample of N>=1000 from the library is < 0.20, ECFP4 is saturated.
+**Symptom:** Known relevant neighbors are not enriched above background, or retrieval metrics and neighborhood stability are poor on target-relevant controls. A low mean pairwise similarity alone is not a universal saturation test.
 
-**Fix:** Use MHFP6 (MinHash) or MAP4 (atom-pair MinHash); calibrated for chemical diversity. Re-check mean Tanimoto > 0.30 with new fingerprint.
+**Fix:** Benchmark ECFP4 against alternatives such as MHFP6 or MAP4 using held-out analog recovery, scaffold-aware retrieval, or another task-aligned metric. Do not transfer raw-score thresholds between fingerprint families.
 
 ### Butina clustering -- O(N^2) memory blowup
 
@@ -263,7 +276,7 @@ Annoy distance: Hamming on MinHash, related to Jaccard. Trade-off: ~95% recall o
 
 **Trigger:** Comparing fingerprints between two molecules that hash to the same bits.
 
-**Mechanism:** Hashed Morgan with nBits=2048 has bit-collision rate ~1-5% for drug-like molecules.
+**Mechanism:** A folded hashed fingerprint can map distinct atom environments to the same bits; collision frequency depends on molecule size, radius, and fingerprint length.
 
 **Symptom:** Two structurally different molecules report Tanimoto 1.0.
 
@@ -277,19 +290,19 @@ Annoy distance: Hamming on MinHash, related to Jaccard. Trade-off: ~95% recall o
 
 **Symptom:** "Similar" set is much larger or smaller than expected.
 
-**Fix:** Re-tune threshold per fingerprint. AtomPair similar threshold ~0.55; MACCS ~0.85; ECFP4 ~0.7; FCFP4 ~0.6.
+**Fix:** Re-tune the threshold per fingerprint and dataset. AtomPair ~0.55, MACCS ~0.85, ECFP4 ~0.7, and FCFP4 ~0.6 are repository starting heuristics, not universal equivalents.
 
 ## Reconciliation: Cliffs Across Methods
 
-If a pair flags as an activity cliff in ECFP4 but not in MCS-based, the local environment differs at a single key atom (e.g., -F to -OH). If it flags in MCS but not ECFP4, a remote substituent affects activity (e.g., para vs meta). Use both views to localize the SAR.
+If a pair flags as an activity cliff under one representation but not another, treat that as representation sensitivity. Inspect atom mappings, fingerprint environments, assay uncertainty, and the exact structural change; disagreement alone does not establish which substituent caused the activity difference.
 
 ## Common Errors
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `BulkTanimotoSimilarity` returns ints | Bit-vector with single bit per atom | Already correct; ints are bit counts |
-| Tanimoto > 1 | Wrong coefficient (Tversky alpha+beta != 1, count vector) | Use bit vector + Tanimoto |
-| Cluster centroids change between runs | Order-dependent Butina | Sort molecules first or use stable random seed for tie-breaking |
+| `BulkTanimotoSimilarity` output is treated as bit counts | The API returns similarity values, normally floats | Keep the returned values as similarities; inspect input vector types if the output is unexpected |
+| Reported similarity > 1 | Custom formula, malformed data, negative features, or an incorrectly normalized external implementation | Verify the coefficient definition and inputs; standard nonnegative RDKit Tanimoto and Tversky similarities are bounded by 1 |
+| Cluster centroids change when input order changes | Taylor-Butina tie handling and assignment are order-sensitive | Standardize and sort inputs by a stable identifier before clustering; record `reordering` and the input order |
 | MaxMinPicker returns first N inputs | All-zero initial similarity matrix | Seed picker explicitly: `picker.LazyBitVectorPick(fps, n_lib, n_pick, seed=42)` |
 | Activity cliff "false positives" | Bit-collisions inflate similarity | Use sparse Morgan or compare canonical SMILES for exact ID |
 | Diverse subset has duplicates | Standardization not applied | Canonicalize via `chemoinformatics/molecular-standardization` first |
@@ -297,13 +310,14 @@ If a pair flags as an activity cliff in ECFP4 but not in MCS-based, the local en
 
 ## References
 
-- Bajorath, *Nat. Rev. Drug Discov.* 1:882 (2002) -- molecular similarity principle review.
-- Maggiora et al., *J. Med. Chem.* 57:3186 (2014) -- molecular similarity in drug discovery.
-- Stumpfe & Bajorath, *J. Med. Chem.* 55:2932 (2012) -- activity cliffs.
-- Tversky, *Psychol. Rev.* 84:327 (1977) -- features of similarity (Tversky coefficient).
-- Probst & Reymond, *J. Cheminformatics* 10:66 (2018) -- MHFP6 MinHash fingerprint.
-- O'Boyle et al., *J. Cheminformatics* 8:36 (2016) -- comparing fingerprints for similarity.
-- Butina, *J. Chem. Inf. Comput. Sci.* 39:747 (1999) -- Taylor-Butina clustering.
+- Bajorath, *Nat. Rev. Drug Discov.* 1:882-894 (2002) -- integration of virtual and high-throughput screening. https://doi.org/10.1038/nrd941
+- Maggiora et al., *J. Med. Chem.* 57:3186-3204 (2014) -- molecular similarity in drug discovery. https://doi.org/10.1021/jm401411z
+- Stumpfe & Bajorath, *J. Med. Chem.* 55:2932-2942 (2012) -- activity cliffs. https://doi.org/10.1021/jm201706b
+- Tversky, *Psychol. Rev.* 84:327-352 (1977) -- features of similarity (Tversky coefficient). https://doi.org/10.1037/0033-295X.84.4.327
+- Probst & Reymond, *J. Cheminformatics* 10:66 (2018) -- MHFP6 MinHash fingerprint. https://doi.org/10.1186/s13321-018-0321-8
+- O'Boyle & Sayle, *J. Cheminformatics* 8:36 (2016) -- fingerprint similarity benchmark. https://doi.org/10.1186/s13321-016-0148-0
+- Butina, *J. Chem. Inf. Comput. Sci.* 39:747-750 (1999) -- Taylor-Butina clustering. https://doi.org/10.1021/ci9803381
+- RDKit, `rdFMCS` API documentation -- MCS ring-comparison parameter names and semantics. https://www.rdkit.org/docs/source/rdkit.Chem.rdFMCS.html
 
 ## Related Skills
 

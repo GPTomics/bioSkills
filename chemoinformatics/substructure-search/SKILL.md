@@ -1,6 +1,6 @@
 ---
 name: bio-substructure-search
-description: Searches molecular libraries for substructure matches using SMARTS patterns with explicit handling of recursive SMARTS, ring membership, aromaticity dialect, vector binding, atom map indices, and reactive/PAINS/REOS/Brenk/Aldridge filter catalogs. Use when filtering compounds by pharmacophore features, functional groups, scaffold matches, or screening for assay-interference / structural alerts.
+description: Searches molecular libraries for substructure matches using SMARTS patterns with explicit handling of recursive SMARTS, ring membership, aromaticity dialect, vector binding, atom map indices, and reactive/PAINS/REOS/Brenk filter catalogs. Use when filtering compounds by pharmacophore features, functional groups, scaffold matches, or screening for assay-interference / structural alerts.
 tool_type: python
 primary_tool: RDKit
 ---
@@ -35,12 +35,12 @@ For SMARTS-based reactions (transforming matched substructures), see `chemoinfor
 | `[#6;r6]` | Atom in 6-membered ring | `[#6;r6]` six-ring carbon |
 | `[a]` | Any aromatic atom | `[a]` |
 | `[!#1]` | Anything except H | `[!#1]` heavy atom |
-| `[N;H2]` | N with exactly 2 H | `[NH2]` primary amine |
+| `[N;H2]` | N with exactly 2 H; neighboring chemistry unconstrained | `[NH2]` also matches non-amine `NH2` environments unless context is added |
 | `[N+]` | Positively charged N | `[N+](=O)[O-]` nitro |
 | `[$(...)]` | Recursive SMARTS | `[$(c1ccccc1)]` aromatic 6-ring atom |
 | `[c]([F,Cl,Br,I])` | OR within brackets | aryl halide |
 | `~` | Any bond type | `c~c` any aromatic-aromatic bond |
-| `@` | Aromatic bond | `c@c` |
+| `@` | Ring bond | `c@c` requires the matched bond to be in a ring |
 | `-` | Single bond explicit | `C-C` |
 | `=` | Double bond | `C=O` |
 | `:` | Aromatic bond explicit | |
@@ -56,20 +56,20 @@ For SMARTS-based reactions (transforming matched substructures), see `chemoinfor
 | Carboxylate | `[CX3](=O)[O-]` | C(=O)O- (deprotonated) |
 | Ester | `[CX3](=O)[OX2][!H]` | C(=O)O-R |
 | Amide | `[CX3](=[OX1])[NX3]` | C(=O)N-R |
-| Primary amine | `[NX3;H2]` | -NH2 |
-| Secondary amine | `[NX3;H1]` | -NH-R |
-| Tertiary amine | `[NX3;H0;!$(NC=O)]` | -NR2 (not amide N) |
+| Primary amine attached to carbon (excluding common amide-like N) | `[NX3;H2;$(N-[#6]);!$(N-[C,S,P]=[O,S,N])]` | Carbon-substituted -NH2; extend the exclusions for a project-specific amine definition |
+| Secondary amine attached to two carbons | `[NX3;H1;$(N(-[#6])-[#6]);!$(N-[C,S,P]=[O,S,N])]` | Carbon-substituted -NH- excluding common amide-like N |
+| Neutral tertiary amine attached to three carbons | `[NX3;H0;+0;$(N(-[#6])(-[#6])-[#6]);!$(N-[C,S,P]=[O,S,N])]` | Carbon-substituted -NR2 excluding common amide-like N |
 | Quaternary amine | `[NX4+]` | -NR4+ |
 | Nitro | `[N+](=O)[O-]` | -NO2 |
 | Nitrile | `[CX2]#[NX1]` | -C#N |
 | Sulfonamide | `[SX4](=[OX1])(=[OX1])[NX3]` | -S(=O)(=O)N |
 | Aryl halide | `[c][F,Cl,Br,I]` | halogen on aromatic |
 | Aliphatic halide | `[CX4][F,Cl,Br,I]` | halogen on sp3 C |
-| Hydrogen bond donor | `[#7,#8;!H0]` | N or O with at least 1 H |
-| Hydrogen bond acceptor | `[#7,#8;!$([NX3]([O-])=O);!$([N+]=O)]` | N/O excluding nitro |
+| Hydrogen bond donor | Use a named feature definition such as RDKit `BaseFeatures.fdef` or `Lipinski.NumHDonors` | `[#7,#8;!H0]` is only a simplified N/O-H query and is not a universal HBD model |
+| Hydrogen bond acceptor | Use a named feature definition such as RDKit `BaseFeatures.fdef` or `Lipinski.NumHAcceptors` | No short universal SMARTS correctly captures every accepted HBA chemistry model |
 | Michael acceptor | `[CX3]=[CX3][CX3]=O` | enone, acrylamide warhead |
 | Aldehyde | `[CX3H1](=O)` | -CHO |
-| Ketone | `[CX3](=O)[#6]` | -C(=O)R, both R = C |
+| Ketone | `[CX3;H0](=[OX1])([#6])[#6]` | Carbonyl carbon has two carbon substituents and no hydrogen |
 
 ## Basic Substructure Match
 
@@ -91,7 +91,7 @@ if mol.HasSubstructMatch(pattern):
 
 `HasSubstructMatch` returns bool, `GetSubstructMatches` returns tuple of tuples of atom indices.
 
-## Recursive SMARTS (key for postdoc-grade patterns)
+## Recursive SMARTS for Context-Aware Patterns
 
 `[$(pattern)]` matches an atom that *also* matches the entire pattern starting from itself. Critical for context-aware matching.
 
@@ -102,29 +102,32 @@ pat = Chem.MolFromSmarts('[$(c[C](=O))]')
 # Aniline-type N (aromatic carbon-N-H)
 pat = Chem.MolFromSmarts('[$([NX3;H2][c])]')
 
-# Hindered amine (N with 2 sp3 neighbors)
+# Neutral tertiary amine with three sp3-carbon neighbors
 pat = Chem.MolFromSmarts('[$([NX3]([CX4])([CX4])[CX4])]')
 
 # H-bond donor (per Lipinski, exclude quaternary)
 hbd = Chem.MolFromSmarts('[#7,#8;!H0;!$([NX3+])]')
 
-# H-bond acceptor (per Lipinski, exclude nitro / aniline)
-hba = Chem.MolFromSmarts('[$([#7,#8;!H0]);!$([NX3+]=O);!$(N(=O)~O)]')
+# For H-bond acceptors, use RDKit's maintained Lipinski/feature definitions
+# instead of an ad hoc universal SMARTS.
+from rdkit.Chem import Lipinski
+n_acceptors = Lipinski.NumHAcceptors(mol)
 ```
 
 ## Structural-Alert Filter Catalogs
 
 | Filter | Origin | Patterns | Use case | Failure mode |
 |--------|--------|----------|----------|--------------|
-| PAINS_A | Baell & Holloway 2010 (low-quality assay hits) | 480 | Flag known pan-assay interferers | Many false positives in primary screens; legitimate medicines flagged |
-| PAINS_B | Baell & Holloway 2010 | 280 | More aggressive PAINS | Similar |
-| PAINS_C | Baell & Holloway 2010 | 240 | Most aggressive PAINS | Most permissive |
+| PAINS_A | Baell & Holloway 2010 | 16 | Most populated source-data patterns (>=150 analogues per pattern) | Many false positives in primary screens; legitimate medicines flagged |
+| PAINS_B | Baell & Holloway 2010 | 55 | Intermediate source-data population (15-149 analogues per pattern) | Similar |
+| PAINS_C | Baell & Holloway 2010 | 409 | Least populated source-data patterns (1-14 analogues per pattern) | Most permissive |
 | BRENK | Brenk 2008 (DDS unsuitable) | 105 | Reactive / toxicity / undesirable | Useful for fragment / virtual library |
-| NIH | NIH MLSMR | ~250 | Reactive groups, unstable | Legacy filter |
-| ZINC | ZINC clean-leads | ~90 | Drug-like cleanup | Used for library standardization |
-| Aldridge | Aldridge medchem rules | ~50 | medchem ugly substructures | Hand-curated |
+| NIH | NIH MLSMR | 180 in RDKit 2024.09 | Reactive groups, unstable | Legacy filter; verify count after toolkit upgrades |
+| ZINC | ZINC clean-leads | 50 in RDKit 2024.09 | Drug-like cleanup | Verify definitions after toolkit upgrades |
 | Glaxo / Eli Lilly | Vendor lists | varies | Internal "ugly" filters | Often unpublished |
 | REOS | Walters & Murcko 2002 | property + structural | Drug-likeness combined filter | Hand-curated thresholds |
+
+The PAINS A/B/C families encode pattern population in the original screening dataset, not increasing or decreasing external evidence strength.
 
 ## When to Apply Each Filter
 
@@ -137,7 +140,7 @@ hba = Chem.MolFromSmarts('[$([#7,#8;!H0]);!$([NX3+]=O);!$(N(=O)~O)]')
 | Natural product analog | None | Filters trained on synthetic chemistry |
 | Covalent inhibitor design | Skip warhead filter | Warheads ARE the design |
 
-**Critical:** Capuzzi et al. (2017) showed that 8% of FDA-approved drugs match a PAINS pattern. PAINS is a *flag for assay validation*, not a *killing filter*.
+**Critical:** Capuzzi et al. (2017) found PAINS alerts in 87 FDA-approved small-molecule drugs. PAINS is a *flag for assay validation*, not a *killing filter*.
 
 ## PAINS Filter
 
@@ -195,7 +198,7 @@ REACTIVE_SMARTS = {
 
 def reactive_filter(mol, exclude_warheads=True):
     if not exclude_warheads:
-        return False
+        return False, None
     for name, smarts in REACTIVE_SMARTS.items():
         if mol.HasSubstructMatch(Chem.MolFromSmarts(smarts)):
             return True, name
@@ -278,15 +281,15 @@ amide_C, amide_N, aryl_C = match
 
 **Fix:** `mol.GetSubstructMatches(pattern, useChirality=True)` to require chirality match.
 
-### Ring closure / fused ring miss
+### Ring closure / fused-ring specificity
 
-**Trigger:** Pattern uses `c1ccccc1` but target ring is fused (naphthalene, indole).
+**Trigger:** A query must distinguish an isolated benzene ring from a six-membered aromatic ring embedded in a fused system.
 
-**Mechanism:** `c1ccccc1` requires exactly 6 atoms in ring; not the fused-ring case.
+**Mechanism:** `c1ccccc1` matches six-membered aromatic cycles and therefore does match benzene cycles within naphthalene. Extra ring-membership or fusion constraints are required to exclude fused systems.
 
-**Symptom:** Naphthalene not matching benzene pattern.
+**Symptom:** A nominal "benzene" query returns fused polyaromatics that the project intended to exclude.
 
-**Fix:** Use ring-flexible pattern: `[c]:[c]:[c]:[c]:[c]:[c]` matches any aromatic 6-ring including fused. Or `[c]1[c][c][c][c][c]1`.
+**Fix:** Keep `c1ccccc1` when any aromatic six-cycle is desired. When an isolated ring is required, add explicit ring-degree/fusion constraints and test the query against benzene, naphthalene, indole, and representative substituted controls.
 
 ### Recursive SMARTS performance
 
@@ -303,7 +306,7 @@ amide_C, amide_N, aryl_C = match
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `Chem.MolFromSmarts` returns None | Invalid SMARTS grammar | Validate with `Chem.MolFromSmarts(smi, mergeHs=False)`; check parens, brackets |
-| `[OH]` matches nothing | Aromatic O treated differently | Use `[OX2H]` or `[O;H1]` |
+| `[OH]` gives unexpected hydroxyl matches | Query does not state the intended valence/connectivity model | Use `[OX2H]` for neutral alcohol/phenol oxygen or a more specific context-aware pattern |
 | Pattern matches but library is "empty" | Mol failed sanitize | Try `Chem.SDMolSupplier(sanitize=False)` then catch errors |
 | Multiple matches per molecule | Single-match query expected | `GetSubstructMatch` returns first; `GetSubstructMatches` returns all |
 | Match indices but no fragment | Match returns atom indices in pattern order | Map to original mol via `mol.GetAtomWithIdx(i)` |
@@ -312,12 +315,12 @@ amide_C, amide_N, aryl_C = match
 
 ## References
 
-- Baell & Holloway, *J. Med. Chem.* 53:2719 (2010) -- original PAINS filter.
-- Capuzzi et al., *J. Chem. Inf. Model.* 57:417 (2017) -- PAINS reality check (FDA drug overlap).
-- Brenk et al., *ChemMedChem* 3:435 (2008) -- structural alerts (BRENK filter).
-- Walters & Murcko, *Adv. Drug Deliv. Rev.* 54:255 (2002) -- REOS filter framework.
-- Bruns & Watson, *J. Med. Chem.* 55:9763 (2012) -- Eli Lilly medchem rules.
-- Daylight SMARTS theory documentation -- complete grammar reference.
+- Baell & Holloway, *J. Med. Chem.* 53:2719-2740 (2010) -- original PAINS filter and tier evidence. https://doi.org/10.1021/jm901137j
+- Capuzzi et al., *J. Chem. Inf. Model.* 57:417-427 (2017) -- PAINS reality check (FDA drug overlap). https://doi.org/10.1021/acs.jcim.6b00465
+- Brenk et al., *ChemMedChem* 3:435-444 (2008) -- structural alerts (BRENK filter). https://doi.org/10.1002/cmdc.200700139
+- Walters & Murcko, *Adv. Drug Deliv. Rev.* 54:255-271 (2002) -- drug-likeness filtering, including REOS. https://doi.org/10.1016/S0169-409X(02)00003-0
+- Bruns & Watson, *J. Med. Chem.* 55:9763-9772 (2012) -- Eli Lilly medchem rules. https://doi.org/10.1021/jm301008n
+- Daylight Chemical Information Systems, SMARTS theory documentation -- complete grammar reference. https://www.daylight.com/dayhtml/doc/theory/theory.smarts.html
 
 ## Related Skills
 

@@ -12,8 +12,10 @@ def chembl_standardize(smi):
     if mol is None:
         return None, 'parse_failure'
     try:
-        std_mol, _ = standardize_mol(mol)
-        parent_mol, _ = get_parent_mol(std_mol)
+        std_mol = standardize_mol(mol)
+        parent_mol, exclude = get_parent_mol(std_mol)
+        if exclude:
+            return None, 'excluded_by_chembl'
         return Chem.MolToSmiles(parent_mol), 'ok'
     except Exception as e:
         return None, f'standardize_error: {e}'
@@ -32,8 +34,8 @@ def rdkit_standardize(smi, keep_isotopes=False):
     normalizer = rdMolStandardize.Normalizer()
     mol = normalizer.normalize(mol)
 
-    # canonicalOrdering=True ensures stable output regardless of input atom ordering
-    uncharger = rdMolStandardize.Uncharger(canonicalOrdering=True)
+    # canonicalOrder=True selects neutralization sites in canonical order.
+    uncharger = rdMolStandardize.Uncharger(canonicalOrder=True)
     mol = uncharger.uncharge(mol)
 
     enumerator = rdMolStandardize.TautomerEnumerator()
@@ -70,6 +72,11 @@ def prepare_qsar_data(df, smiles_col='smiles', activity_col='pIC50', pipeline='c
             'original_smiles': smi,
         })
     df_std = pd.DataFrame(rows)
+    if df_std.empty:
+        return pd.DataFrame(columns=[
+            'inchikey', 'smiles', 'activity', 'activity_std',
+            'n_replicates', 'original_smiles',
+        ])
 
     # Deduplicate by InChIKey; mean-aggregate activity
     df_dedup = df_std.groupby('inchikey').agg(

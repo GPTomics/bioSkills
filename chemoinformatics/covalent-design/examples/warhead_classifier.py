@@ -5,11 +5,11 @@ from rdkit import Chem
 
 
 WARHEAD_SMARTS = {
-    'acrylamide': '[CX3](=O)[NH][CX3]=[CX3]',
-    'alpha_substituted_acrylamide': '[CX3](=O)[NH][CX3]([!H])=[CX3]',  # GSH-stable variant
-    'methacrylamide': '[CX3](=O)[NH][CX3](C)=[CX3]',
-    'chloroacetamide': '[CX3](=O)[CH2][Cl]',
-    'bromoacetamide': '[CX3](=O)[CH2][Br]',
+    'acrylamide': '[CX3](=[OX1])([NX3])[CX3]=[CX3]',
+    'alpha_substituted_acrylamide': '[CX3](=[OX1])([NX3])[CX3]([!#1])=[CX3]',
+    'methacrylamide': '[CX3](=[OX1])([NX3])[CX3]([#6])=[CX3]',
+    'chloroacetamide': '[CX3](=[OX1])([NX3])[CH2][Cl]',
+    'bromoacetamide': '[CX3](=[OX1])([NX3])[CH2][Br]',
     'vinyl_sulfone': '[SX4](=O)(=O)[CX3]=[CX3]',
     'sulfonyl_fluoride': '[SX4](=O)(=O)[F]',
     'fluorosulfate_sufex': '[O][SX4](=O)(=O)[F]',
@@ -23,7 +23,7 @@ WARHEAD_SMARTS = {
     'isocyanate': '[NX2]=C=[OX1]',
 }
 
-# Reactivity tiers (descending; clinical drugs use 'moderate' or 'low'; ABPP uses 'high')
+# Nominal warhead classes are qualitative annotations, not compound-level rate predictions.
 REACTIVITY_TIER = {
     'chloroacetamide': 'high',
     'bromoacetamide': 'high',
@@ -33,7 +33,7 @@ REACTIVITY_TIER = {
     'epoxide': 'high',
     'aziridine': 'high',
     'acrylamide': 'moderate',
-    'alpha_substituted_acrylamide': 'low_moderate',  # GSH-stable; drug-like
+    'alpha_substituted_acrylamide': 'context_dependent',
     'methacrylamide': 'low',
     'vinyl_sulfone': 'moderate',
     'sulfonyl_fluoride': 'moderate',
@@ -84,25 +84,22 @@ def classify_warheads(smi):
     return matches
 
 
-def filter_for_drug_like_covalent(smi):
-    '''Filter to GSH-stable warheads suitable for drug development.'''
+def has_recognized_warhead(smi):
+    '''Return whether any catalogued substructure is present; not a suitability filter.'''
     matches = classify_warheads(smi)
     if matches is None:
         return False
-    drug_like_warheads = {'alpha_substituted_acrylamide', 'methacrylamide',
-                          'acrylamide', 'vinyl_sulfone', 'fluorosulfate_sufex',
-                          'nitrile', 'sulfonyl_fluoride'}
-    return any(w in matches for w in drug_like_warheads)
+    return bool(matches)
 
 
 if __name__ == '__main__':
-    # Sotorasib / KRAS G12C-like acrylamide
-    sotorasib_warhead = 'O=C(C=C)N1CCC(c2c...)cc1'
-    print(classify_warheads(sotorasib_warhead))
+    # Valid generic N-substituted acrylamide example
+    acrylamide_example = 'C=CC(=O)N1CCCCC1'
+    print(classify_warheads(acrylamide_example))
 
     # Chloroacetamide ABPP probe
     abpp = 'O=C(CCl)NCc1ccccc1'
     print(classify_warheads(abpp))
 
-    print(filter_for_drug_like_covalent(sotorasib_warhead))
-    print(filter_for_drug_like_covalent(abpp))
+    print(has_recognized_warhead(acrylamide_example))
+    print(has_recognized_warhead(abpp))

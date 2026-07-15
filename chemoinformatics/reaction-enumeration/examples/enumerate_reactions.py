@@ -29,7 +29,8 @@ def enumerate_reaction(rxn_smarts, reactant_lists, deduplicate=True):
     '''
     rxn = AllChem.ReactionFromSmarts(rxn_smarts)
 
-    if rxn.Validate()[0] != 0:
+    num_warnings, num_errors = rxn.Validate()
+    if num_errors:
         raise ValueError('Invalid reaction SMARTS')
 
     products = []
@@ -111,23 +112,53 @@ def multi_step_synthesis(building_blocks, reaction_sequence):
 
 def apply_rgroup_decoration(core_smiles, r_groups):
     '''
-    Apply R-group decoration to a core scaffold.
+    Connect a core and R group through one explicit [*] on each input.
 
     Args:
-        core_smiles: Core with * attachment point
-        r_groups: List of R-group SMILES
+        core_smiles: Core with exactly one [*] attachment point
+        r_groups: List of R-group SMILES, each with exactly one [*]
     '''
+    core = Chem.MolFromSmiles(core_smiles)
+    if core is None:
+        raise ValueError('Core is not valid SMILES')
+    core_dummies = [a.GetIdx() for a in core.GetAtoms() if a.GetAtomicNum() == 0]
+    if len(core_dummies) != 1:
+        raise ValueError('Core must contain exactly one [*] attachment point')
+
     products = []
 
     for rg in r_groups:
-        product_smiles = core_smiles.replace('*', f'({rg})', 1)
-        mol = Chem.MolFromSmiles(product_smiles)
-        if mol:
-            try:
-                Chem.SanitizeMol(mol)
-                products.append(Chem.MolToSmiles(mol))
-            except Exception:
-                continue
+        rgroup = Chem.MolFromSmiles(rg)
+        if rgroup is None:
+            raise ValueError(f'R group is not valid SMILES: {rg}')
+        rg_dummies = [
+            a.GetIdx() for a in rgroup.GetAtoms() if a.GetAtomicNum() == 0
+        ]
+        if len(rg_dummies) != 1:
+            raise ValueError(f'R group must contain exactly one [*]: {rg}')
+
+        core_dummy = core.GetAtomWithIdx(core_dummies[0])
+        rg_dummy = rgroup.GetAtomWithIdx(rg_dummies[0])
+        if core_dummy.GetDegree() != 1 or rg_dummy.GetDegree() != 1:
+            raise ValueError('Each attachment dummy must have exactly one neighbor')
+
+        core_neighbor = core_dummy.GetNeighbors()[0].GetIdx()
+        rg_neighbor = rg_dummy.GetNeighbors()[0].GetIdx()
+        core_bond = core.GetBondBetweenAtoms(core_dummies[0], core_neighbor)
+        rg_bond = rgroup.GetBondBetweenAtoms(rg_dummies[0], rg_neighbor)
+        if (
+            core_bond.GetBondType() != Chem.BondType.SINGLE
+            or rg_bond.GetBondType() != Chem.BondType.SINGLE
+        ):
+            raise ValueError('Attachment dummy bonds must be single bonds')
+        offset = core.GetNumAtoms()
+        combined = Chem.RWMol(Chem.CombineMols(core, rgroup))
+        combined.AddBond(core_neighbor, offset + rg_neighbor, Chem.BondType.SINGLE)
+        for idx in sorted((core_dummies[0], offset + rg_dummies[0]), reverse=True):
+            combined.RemoveAtom(idx)
+        product_mol = combined.GetMol()
+        Chem.SanitizeMol(product_mol)
+        products.append(Chem.MolToSmiles(product_mol, canonical=True))
 
     return products
 
@@ -152,7 +183,7 @@ if __name__ == '__main__':
 
     print('\nR-group decoration:')
     core = '*c1ccccc1'
-    r_groups = ['C', 'CC', 'C(=O)O', 'N']
+    r_groups = ['[*]C', '[*]CC', '[*]C(=O)O', '[*]N']
     decorated = apply_rgroup_decoration(core, r_groups)
     for d in decorated:
         print(f'  {d}')

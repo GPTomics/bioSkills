@@ -26,7 +26,7 @@ Tell your AI agent what you want to do:
 ### Drug-Likeness
 > "Calculate Lipinski violations and QED scores for my compounds."
 
-> "Filter for compounds passing both Lipinski and Veber rules."
+> "Annotate Lipinski and Veber results, then rank using thresholds justified for this project."
 
 ### Safety Filtering
 > "Check my hits for PAINS and other structural alerts."
@@ -35,18 +35,19 @@ Tell your AI agent what you want to do:
 
 ## What the Agent Will Do
 1. Calculate drug-likeness properties (Lipinski, QED)
-2. Call ADMETlab 3.0 API for predictions
-3. Filter for PAINS and structural alerts
-4. Rank compounds by safety profile
+2. Use the current official ADMETlab 3.0 API workflow or web service for predictions
+3. Flag PAINS and structural alerts for review
+4. Rank compounds only after calibrating model outputs and project decision rules
 5. Generate summary report
 
 ## Tips
-- ADMETlab 3.0 provides 119 endpoints (use this, not ADMETlab 2.0)
-- SwissADME has NO API - it is web-only, do not try programmatic access
+- ADMETlab 3.0 reports 119 platform features: 77 prediction models, 34 computed properties, and 8 rules
+- SwissADME has no public API and its terms restrict automated data retrieval; use its documented manual batches
+- Chemprop ensembles require explicit prediction-time uncertainty estimation and separate calibration when calibrated outputs are needed
 - DeepChem supports both PyTorch and TensorFlow (TF not deprecated)
-- QED > 0.5 is generally drug-like
-- hERG IC50 > 10 μM is typically considered safe
-- PAINS filter removes promiscuous compounds that cause assay interference
+- QED is a ranking descriptor, not a universal pass/fail definition of drug-likeness
+- Interpret hERG potency relative to exposure, assay conditions, and safety margin; no single IC50 cutoff establishes safety
+- PAINS matches flag possible assay interference for orthogonal testing; they are not categorical exclusions
 
 ## Related Skills
 - molecular-descriptors - Calculate descriptors for ML

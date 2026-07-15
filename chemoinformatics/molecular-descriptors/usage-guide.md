@@ -26,7 +26,7 @@ Tell your AI agent what you want to do:
 ### Drug-Likeness
 > "Check which compounds pass Lipinski's rule of 5."
 
-> "Calculate QED scores and filter for drug-like compounds (QED > 0.5)."
+> "Calculate QED scores and apply QED > 0.5 as a documented project triage heuristic; show the unfiltered distribution too."
 
 ### Full Descriptor Set
 > "Calculate all available RDKit descriptors for my molecules."
@@ -41,10 +41,10 @@ Tell your AI agent what you want to do:
 5. Export results in requested format
 
 ## Tips
-- ECFP4 = radius 2, ECFP6 = radius 3 (diameter = 2 * radius + 2)
+- ECFP4 = radius 2 and ECFP6 = radius 3 (the ECFP number denotes diameter, `2 * radius`)
 - Include `useChirality=True` for stereo-sensitive fingerprints
-- QED > 0.5 is generally considered drug-like
-- ETKDGv3 is now the default conformer generator in RDKit
+- QED > 0.5 can be used as a repository/project triage heuristic, but calibrate it for the library and do not treat it as a universal drug-likeness boundary
+- RDKit defaults to ETKDG; select `AllChem.ETKDGv3()` explicitly when the v3 small-ring and macrocycle improvements are intended
 - Lipinski thresholds: MW <= 500, LogP <= 5, HBD <= 5, HBA <= 10
 - 3D descriptors require conformer generation first
 

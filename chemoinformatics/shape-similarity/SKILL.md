@@ -7,7 +7,7 @@ primary_tool: RDKit
 
 ## Version Compatibility
 
-Reference examples tested with: RDKit 2024.09+ (Open3DAlign), USRCAT 1.2+, ShaEP 1.7+, ROCS (OpenEye, commercial).
+Reference examples tested with: RDKit 2024.09+ (Open3DAlign and USRCAT); official ShaEP syntax checked against ShaEP 1.4.2; ROCS/FastROCS/ROCS X are commercial OpenEye products.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -25,22 +25,22 @@ For 2D fingerprint similarity, see `chemoinformatics/similarity-searching`. For 
 
 | Tool | Speed | Approach | Open-source | Fails when |
 |------|-------|----------|-------------|------------|
-| ROCS (OpenEye) | 1k mols/sec on GPU (FastROCS) | Gaussian shape + color | No | License cost |
-| ROCS X (Sept 2025) | Multi-billion library, GPU | ML-enhanced shape | No | Limited release |
-| USRCAT | 100k mols/sec | Ultrafast moment-based + atom types | Yes | Coarse approximation |
-| Open3DAlign (RDKit) | 100 mols/sec | Iterative volume overlap | Yes | Optimization slow |
-| ShaEP | 10 mols/sec | Field-based (shape + ESP) | Yes | Less standard |
-| ESPSim | similar to ShaEP | Electrostatic + shape | Yes | Limited public benchmarks |
+| ROCS / FastROCS (OpenEye) | Hardware/database/conformer-dependent; vendor reports millions of conformers/s for FastROCS | Gaussian shape + color | No | License and prepared database |
+| ROCS X | Trillion-scale reaction/synthon space on Orion | FastROCS plus Bayesian-bandit sampling | No | Commercial cloud workflow |
+| USRCAT | Very fast alignment-free descriptor comparison | Moment-based + atom types | Yes | Coarse approximation |
+| Open3DAlign (RDKit) | Medium | MMFF atom-type/charge-weighted alignment | Yes | Requires compatible typed 3D structures |
+| ShaEP | Benchmark on actual conformers/hardware | Field-based (shape + ESP) | Free binary; inspect license | Requires valid 3D structures and charges for ESP |
+| ESPSim | Benchmark on actual workload | Electrostatic + shape | Yes | Limited public benchmarks |
 | Phase-Shape (Schrödinger) | commercial | Shape + pharmacophore | No | Commercial |
-| USR (original) | 100k mols/sec | Moment-based only | Yes | No atom type info |
+| USR (original) | Very fast alignment-free comparison | Moment-based only | Yes | No atom-type information |
 
-**Decision:** For commercial pipelines, **ROCS** is the gold standard. For open-source, **Open3DAlign** is the most accurate; **USRCAT** is the fastest for ultralarge libraries.
+**Decision:** Select a shape method by matched retrieval/enrichment performance, conformer preparation, throughput, licensing, and score semantics. USRCAT is useful as a fast prefilter; Open3DAlign provides an open alignment method; ROCS/FastROCS provide commercial shape/color workflows.
 
 ## Decision Tree by Scenario
 
 | Scenario | Method | Notes |
 |----------|--------|-------|
-| Lead-like library, search top 100k | USRCAT pre-filter + Open3DAlign rescore | Hybrid speed/accuracy |
+| Large prepared library | USRCAT pre-filter + Open3DAlign rescore | Choose rescore budget from measured retrieval saturation |
 | Production VS for scaffold hop | ROCS + color (commercial) | Industry standard |
 | Scaffold hopping prospective | Open3DAlign with conformer ensemble | Shape + flexibility |
 | Bioisostere replacement | ROCS color with neutral scoring | Pharmacophore-equivalent matches |
@@ -51,20 +51,12 @@ For 2D fingerprint similarity, see `chemoinformatics/similarity-searching`. For 
 
 ## Tanimoto-Combo Scoring (ROCS Standard)
 
-Tanimoto-Combo = (Tanimoto_shape + Tanimoto_color) / 2
+TanimotoCombo = Tanimoto_shape + Tanimoto_color
 
 - Tanimoto_shape: volume overlap normalized
 - Tanimoto_color: pharmacophore feature overlap
 
-| Range | Interpretation |
-|-------|----------------|
-| > 1.0 | Very similar shape + color (rare; top hits) |
-| 0.7-1.0 | Strong hit; likely binding mode similarity |
-| 0.5-0.7 | Moderate; further validation needed |
-| 0.3-0.5 | Weak; many false positives |
-| < 0.3 | Background |
-
-In ROCS production, hits with TanimotoCombo > 0.7 are typically followed up.
+Each component is normalized from 0 to 1, so TanimotoCombo ranges from 0 to 2. It is a sum, not an average. Select follow-up thresholds from a relevant benchmark or enrichment study; a single cutoff is not portable across query preparation, color-force-field settings, and library composition.
 
 ## USRCAT (Ultra-Fast Shape Recognition + Atom Types)
 
@@ -72,37 +64,36 @@ USRCAT (Schreyer & Blundell 2012) extends Ultrafast Shape Recognition (USR) with
 
 **Goal:** Encode a molecule into the 60-D USRCAT moment vector and score similarity against another molecule for alignment-free shape search.
 
-**Approach:** Parse the SMILES, add hydrogens, generate one 3D conformer with ETKDGv3, compute USRCAT descriptors, and apply the inverse-mean-absolute-difference similarity to a second descriptor vector.
+**Approach:** Parse the SMILES, add hydrogens, generate one 3D conformer with ETKDGv3, compute RDKit USRCAT descriptors, and compare descriptor vectors with RDKit's USR score.
 
 ```python
-from usrcat import compute_usrcat_descriptors, compute_similarity
+from rdkit.Chem import rdMolDescriptors
 
 mol = Chem.MolFromSmiles('CCO')
 mol = Chem.AddHs(mol)
 AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
 
-descriptors = compute_usrcat_descriptors(mol)
+descriptors = rdMolDescriptors.GetUSRCAT(mol)
 # Returns numpy array of 60 floats: 12 USR moments x 5 atom types
-# (hydrophobic, aromatic, acceptor, donor, anion/cation)
-# Similarity between two descriptor vectors: 1 / (1 + mean_abs_difference)
+# (all atoms, hydrophobic, aromatic, acceptor, donor)
 
-similarity = compute_similarity(desc1, desc2)  # 0-1, higher = more similar
+similarity = rdMolDescriptors.GetUSRScore(desc1, desc2)
 ```
 
-**Speed:** O(N) descriptor calculation (no alignment); O(1) similarity comparison. Suitable for >10M compound libraries.
+**Speed:** Descriptor calculation is linear in atoms and comparison is fixed-length, without pairwise alignment. Benchmark end-to-end throughput on the prepared conformer library before choosing a scale cutoff.
 
 **Limit:** USRCAT is a coarse approximation. Predictive for analog identification; less precise for scaffold hopping.
 
 ## Open3DAlign (RDKit)
 
-Open3DAlign performs iterative alignment to maximize volume overlap:
+Open3DAlign uses MMFF atom types and partial charges to find an atom-based 3D alignment:
 
 **Goal:** Align a target molecule onto a query in 3D and score volume overlap with Open3DAlign.
 
-**Approach:** Build 3D structures for query and target (parse SMILES, add hydrogens, ETKDG embed), run `GetO3A` to find the best alignment, then call `Align()` for the in-place RMSD and `Score()` for the overlap score.
+**Approach:** Build 3D structures for query and target, run `GetO3A`, and call `Align()` to transform the probe in place. `Score()` is the unnormalized O3A objective, not a shape Tanimoto or ROCS TanimotoCombo. If a normalized shape similarity is required, compute `1 - rdShapeHelpers.ShapeTanimotoDist(...)` after alignment.
 
 ```python
-from rdkit.Chem import rdMolAlign
+from rdkit.Chem import rdMolAlign, rdShapeHelpers
 
 query = Chem.MolFromSmiles('CCC(=O)Nc1ccccc1')
 query = Chem.AddHs(query)
@@ -114,10 +105,11 @@ AllChem.EmbedMolecule(target, AllChem.ETKDGv3())
 
 O3A = rdMolAlign.GetO3A(target, query)
 rmsd = O3A.Align()  # aligns target to query in place
-score = O3A.Score()
+o3a_score = O3A.Score()
+shape_tanimoto = 1.0 - rdShapeHelpers.ShapeTanimotoDist(target, query)
 ```
 
-`GetO3A` finds best alignment between conformers; `Align()` aligns and returns RMSD; `Score()` returns Open3DAlign score (similar to TanimotoCombo).
+`GetO3A` finds an alignment between conformers; `Align()` applies it and returns RMSD. Keep `o3a_score` and normalized `shape_tanimoto` distinct in outputs.
 
 **Open3DAlign vs ROCS:** Open3DAlign is open-source and competitive on small benchmarks; slower than ROCS at scale.
 
@@ -134,39 +126,50 @@ def shape_search_ensemble(query_mol, library_mols, n_conf=20):
     hits = []
     for target in library_mols:
         target = Chem.AddHs(target)
-        AllChem.EmbedMultipleConfs(target, numConfs=n_conf,
-                                    params=AllChem.ETKDGv3())
-        AllChem.MMFFOptimizeMoleculeConfs(target)
+        ids = list(AllChem.EmbedMultipleConfs(target, numConfs=n_conf,
+                                               params=AllChem.ETKDGv3()))
+        if not ids:
+            continue
+        if not AllChem.MMFFHasAllMoleculeParams(target):
+            continue
+        optimization = AllChem.MMFFOptimizeMoleculeConfs(target)
+        if any(status != 0 for status, _ in optimization):
+            continue
 
         scores = []
         for c in range(target.GetNumConformers()):
             O3A = rdMolAlign.GetO3A(target, query_mol, prbCid=c)
-            scores.append(O3A.Score())
-        hits.append((target, max(scores)))
+            O3A.Align()
+            scores.append(1.0 - rdShapeHelpers.ShapeTanimotoDist(
+                target, query_mol, confId1=c,
+            ))
+        if scores:
+            hits.append((target, max(scores)))
     return sorted(hits, key=lambda x: x[1], reverse=True)
 ```
 
-**Critical:** Single-conformer shape search misses ~30% of true hits because the wrong conformer is sampled. Always use ensemble.
+**Critical:** Results depend on conformer coverage. Use an ensemble sized and validated for the library and query rather than assuming one conformer is representative.
 
 ## ESP Similarity (Electrostatic)
 
 ShaEP and ESPSim extend shape with electrostatic surface potential overlap. For ESP-relevant pharmacophores (binding pockets with strong electrostatics):
 
 ```bash
-shaep --query query.mol2 --target target.mol2 --output match.sdf \
-      --esp-weight 0.5
+shaep -q query.mol2 target.mol2 -s aligned_hits.sdf similarity.txt
 ```
 
 ESP scoring catches electrostatic-equivalent bioisosteres that pure shape misses (carboxylate vs tetrazole same charge).
 
 ## Shape vs ECFP4 Complementarity
 
-| Shape Tanimoto | ECFP4 Tanimoto | Interpretation |
-|----------------|----------------|----------------|
-| > 0.7 | > 0.7 | Same chemotype, same shape (close analog) |
-| > 0.7 | < 0.5 | Scaffold-hop! Different chemotype, similar shape |
-| < 0.5 | > 0.7 | Same chemotype, different shape (flexible) |
-| < 0.5 | < 0.5 | Unrelated |
+| Shape result | ECFP4 result | Interpretation |
+|--------------|--------------|----------------|
+| High | High | Close analog candidate |
+| High | Low | Scaffold-hop candidate |
+| Low | High | Similar 2D chemotype in a different sampled shape |
+| Low | Low | Unrelated by these representations |
+
+Calibrate “high” and “low” on a task-relevant reference set; do not treat the illustrative function defaults below as universal scientific cutoffs.
 
 The shape >> ECFP4 quadrant is the scaffold-hopping gold:
 
@@ -175,6 +178,8 @@ The shape >> ECFP4 quadrant is the scaffold-hopping gold:
 **Approach:** Run the conformer-ensemble shape search, keep hits above a shape Tanimoto cutoff, then retain only those whose ECFP4 Tanimoto to the query is below an ECFP4 dissimilarity cutoff.
 
 ```python
+# These thresholds are repository starting defaults only; calibrate both on a
+# task-relevant active/decoy or retrieval benchmark before making decisions.
 def scaffold_hop_candidates(query_mol, library, shape_threshold=0.7,
                             ecfp_threshold=0.5):
     shape_hits = shape_search_ensemble(query_mol, library)
@@ -197,7 +202,7 @@ def scaffold_hop_candidates(query_mol, library, shape_threshold=0.7,
 
 **Symptom:** Many fragment hits; not pharmacophore-relevant.
 
-**Fix:** Filter by MW (>= 200); use Open3DAlign for rescoring.
+**Fix:** Calibrate size/property filters on the retrieval task and rescore selected hits with an alignment or feature-aware method.
 
 ### Open3DAlign -- slow on large library
 
@@ -207,13 +212,13 @@ def scaffold_hop_candidates(query_mol, library, shape_threshold=0.7,
 
 **Symptom:** Hours of compute.
 
-**Fix:** Pre-filter with USRCAT (fast), Open3DAlign on top 10k.
+**Fix:** Pre-filter with USRCAT and choose the rescore budget from measured throughput and retrieval saturation.
 
 ### Shape only -- wrong stereochemistry match
 
 **Trigger:** Mirror-image of correct binder.
 
-**Mechanism:** Pure shape Tanimoto symmetric under chirality inversion.
+**Mechanism:** Shape-only scoring may insufficiently penalize stereochemical alternatives even though a rigid rotational overlay is not generally invariant to mirror reflection.
 
 **Symptom:** Enantiomer of inactive scores as hit.
 
@@ -227,7 +232,7 @@ def scaffold_hop_candidates(query_mol, library, shape_threshold=0.7,
 
 **Symptom:** Known bioisostere doesn't score high.
 
-**Fix:** Use color-only scoring without size penalty; or pharmacophore-feature-equivalence.
+**Fix:** Validate the color-force-field treatment for the bioisostere and compare shape, color, and pharmacophore evidence separately.
 
 ### Conformer not bioactive
 
@@ -245,7 +250,7 @@ def scaffold_hop_candidates(query_mol, library, shape_threshold=0.7,
 
 **Mechanism:** Field-based methods compute Gaussian fields per molecule.
 
-**Symptom:** 10-100x slower than ROCS shape-only.
+**Symptom:** Field calculation or alignment dominates runtime on the prepared library.
 
 **Fix:** Use as second-stage rescore; not primary screen.
 
@@ -256,19 +261,19 @@ def scaffold_hop_candidates(query_mol, library, shape_threshold=0.7,
 | Representation | Volume distribution | Discrete features in space |
 | Captures | Overall bulk | Interaction-relevant features |
 | Speed | Fast (USRCAT) to medium (Open3DAlign) | Fast |
-| Specificity | Lower | Higher |
-| False positive rate | Medium | Lower |
+| Specificity | Task- and query-dependent | Task- and feature-definition-dependent |
+| False positive rate | Measure on a matched benchmark | Measure on a matched benchmark |
 | Best for | Scaffold hopping initial | Scaffold hopping refinement |
 
-Use shape for *broad search* (high recall, moderate precision); use pharmacophore for *refinement* (lower recall, high precision).
+Shape and pharmacophore searches make different approximations. Compare them alone and in sequence on a matched active/decoy or retrieval benchmark before assigning recall/precision roles.
 
 ## Common Errors
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Open3DAlign returns 0 | No reasonable alignment found | Use random starting rotation; increase attempts |
+| Open3DAlign RMSD is near 0 | Near-exact O3A alignment | Treat as a successful alignment; evaluate the O3A and shape scores separately |
 | USRCAT vector all zeros | Mol has no 3D coords | Generate conformer first |
-| Shape Tanimoto > 1 | Implementation bug or unnormalized | Check formula; ROCS reports unnormalized possible |
+| Shape Tanimoto > 1 | Raw O3A or TanimotoCombo mislabeled as shape Tanimoto | Shape Tanimoto is 0-1; O3A is unnormalized and ROCS TanimotoCombo is 0-2 |
 | ROCS very slow | Sequential processing | Use parallel batching |
 | Shape match but no docking pose | Wrong binding pose | Use docking on top shape hits, not shape alone |
 | Missing co-crystal template | Apo or AlphaFold-only structure | Use ligand-based pharmacophore + shape |
@@ -276,11 +281,14 @@ Use shape for *broad search* (high recall, moderate precision); use pharmacophor
 
 ## References
 
-- Hawkins et al., *J. Med. Chem.* 50:74 (2007) -- ROCS algorithm.
-- Schreyer & Blundell, *J. Cheminformatics* 4:27 (2012) -- USRCAT.
-- Vainio & Johnson, *J. Chem. Inf. Model.* 47:2462 (2007) -- ShaEP.
-- Liu et al., *J. Chem. Inf. Model.* (2024) -- Open3DAlign improvements.
-- Roy et al., *J. Med. Chem.* 65:11875 (2022) -- shape-based VS modern review.
+- Hawkins et al., *J. Med. Chem.* 50:74-82 (2007), DOI 10.1021/jm0603365 -- ROCS virtual-screening comparison.
+- Schreyer AM, Blundell T. *J. Cheminformatics* 4:27 (2012) -- USRCAT (DOI 10.1186/1758-2946-4-27).
+- Vainio, Puranen & Johnson, *J. Chem. Inf. Model.* 49:492-502 (2009), DOI 10.1021/ci800315d -- ShaEP.
+- Tosco, Balle & Shiri, *J. Comput. Aided Mol. Des.* 25:777-783 (2011), DOI 10.1007/s10822-011-9462-9 -- Open3DALIGN.
+- RDKit O3A API: https://www.rdkit.org/docs/source/rdkit.Chem.rdMolAlign.html
+- RDKit shape API: https://www.rdkit.org/docs/source/rdkit.Chem.rdShapeHelpers.html
+- ShaEP official documentation/examples: https://cheminformatics.fi/
+- OpenEye ROCS X product documentation: https://www.eyesopen.com/rocsx
 
 ## Related Skills
 

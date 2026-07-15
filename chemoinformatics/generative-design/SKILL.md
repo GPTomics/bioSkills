@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Generative Molecular Design
 
-Generate novel molecules biased toward desired properties using deep generative models. REINVENT 4 (Loeffler 2024, AstraZeneca) is the open-source production-grade framework, supporting 4 generation modes (de novo, scaffold decoration, linker design, molecular optimization) and 3 learning algorithms (transfer learning, reinforcement learning, curriculum learning). For specific niches: MolMIM (NVIDIA BioNeMo) for property optimization, DiffSMol / DiGress for diffusion-based generation, JT-VAE for latent-space optimization. The art of generative design is in the **scoring function**: poorly-designed scoring rewards uninteresting molecules, while well-designed scoring captures both activity and developability.
+Generate novel molecules biased toward desired properties using deep generative models. REINVENT 4 (Loeffler et al. 2024, AstraZeneca) provides four generator families: Reinvent (de novo), Libinvent (scaffold decoration and library design), Linkinvent (linker design), and Mol2Mol (similarity-constrained molecular optimization). These support design tasks including R-group replacement and scaffold hopping and can be used with transfer learning, reinforcement learning, and curriculum learning. For specific niches: MolMIM (NVIDIA BioNeMo) for latent-space property optimization, DiffSMol / DiGress for diffusion-based generation, and JT-VAE for latent-space optimization. The art of generative design is in the **scoring function**: poorly-designed scoring rewards uninteresting molecules, while well-designed scoring captures both activity and developability.
 
 For QSAR/scoring models that feed generative design, see `chemoinformatics/qsar-modeling`. For synthetic feasibility, see `chemoinformatics/retrosynthesis`. For library enumeration as alternative, see `chemoinformatics/reaction-enumeration`.
 
@@ -44,9 +44,9 @@ For QSAR/scoring models that feed generative design, see `chemoinformatics/qsar-
 
 | Scenario | Generator | Algorithm | Scoring |
 |----------|-----------|-----------|---------|
-| New target, no SAR | De novo | RL on docking score | Glide / Vina + QED |
+| New target, no SAR | De novo | Benchmark RL against simpler search | Validated target evidence + developability objectives |
 | Series expansion | Scaffold decoration | TL on series + RL | QSAR ensemble + QED |
-| PROTAC linker | Linker design | RL on ternary complex | DC50 surrogate |
+| PROTAC linker | Linker design | Project-specific constrained workflow | Validated geometry/ternary-complex evidence; no generic DC50 surrogate |
 | Lead optimization MPO | Molecular optimization | CL with staged constraints | Multi-task: activity + ADMET |
 | Diverse hit set | De novo with diversity bonus | RL + Tanimoto distance to known | Activity + diversity |
 | Patent space carve-out | Constrained de novo | RL + structural constraints | Activity + novelty |
@@ -59,10 +59,12 @@ REINVENT 4 uses a TOML configuration file specifying generator, algorithm, prior
 
 **Goal:** Configure a reinforcement-learning REINVENT 4 run with a prior, agent, sampling parameters, and a QED scoring component.
 
-**Approach:** Build a REINVENT 4 TOML config with `[parameters]` for the prior/agent checkpoints, a `[stage]` block describing the run mode, and one or more `[[stage.scoring.component]]` blocks weighted toward target properties. The TOML schema below is illustrative — verify the exact section names against the installed REINVENT 4 release (the schema evolves between minor versions).
+**Approach:** Build a release-matched REINVENT 4 staged-learning TOML config with `[parameters]` for the prior/agent checkpoints, `[[stage]]` blocks, and one or more `[[stage.scoring.component]]` blocks. Validate the config with the installed release because component parameters evolve between versions.
 
 ```toml
-# config.toml -- conceptual REINVENT 4 staged-RL skeleton
+run_type = "staged_learning"
+device = "cuda:0"
+
 [parameters]
 prior_file = "priors/reinvent.prior"
 agent_file = "priors/reinvent.prior"
@@ -70,13 +72,19 @@ batch_size = 64
 unique_sequences = true
 
 [[stage]]
-type = "reinforcement_learning"
-sigma = 128.0
-n_steps = 500
+termination = "simple"
+min_steps = 25
+max_steps = 500
+
+[stage.scoring]
+type = "geometric_mean"
 
 [[stage.scoring.component]]
-type = "qed_score"
-weight = 1.0
+[stage.scoring.component.QED]
+
+[[stage.scoring.component.QED.endpoint]]
+name = "QED"
+weight = 1
 ```
 
 ```bash
@@ -84,7 +92,7 @@ weight = 1.0
 reinvent -l logfile.log config.toml
 ```
 
-Output: `agent_<step>.ckpt` model checkpoints; `<step>.smi` generated molecules at each RL iteration.
+Output: a live stage CSV using `summary_csv_prefix`, plus the configured `chkpt_file` at stage termination or graceful interruption. Post-process the CSV to select molecules; REINVENT does not emit a checkpoint and SMILES file at every iteration by default.
 
 ## Scoring Function Design (Most Important Part)
 
@@ -97,42 +105,13 @@ A good scoring function:
 
 **Approach:** Combine a QSAR sigmoid on pIC50, QED, SA-score reverse-sigmoid, and Tanimoto-similarity reverse-sigmoid via geometric mean so any zero component zeroes the total.
 
-```toml
-[scoring_function]
-type = "geometric_mean"
-
-[[scoring_function.components]]
-type = "qsar_model"
-model_path = "kinase_pIC50.pkl"
-weight = 0.4
-transformation_type = "sigmoid"
-high = 8.0
-low = 5.0
-
-[[scoring_function.components]]
-type = "qed_score"
-weight = 0.2
-
-[[scoring_function.components]]
-type = "sa_score"
-weight = 0.2
-high = 4.0
-low = 1.0
-
-[[scoring_function.components]]
-type = "tanimoto_similarity"
-weight = 0.2
-reference_smiles = ["c1ccccc1"]  # avoid being too close to known
-transformation_type = "reverse_sigmoid"
-high = 0.5
-low = 0.3
-```
+In REINVENT 4, define these under the active stage's `[stage.scoring]` section, with each component using the exact component and endpoint tables from the installed release's configuration examples. Do not reuse REINVENT 3 `[scoring_function]` or `[[scoring_function.components]]` syntax in a REINVENT 4 config. The accompanying example is deliberately limited to built-in, documented component structure; add predictive-property endpoints only after validating their release-specific model-container parameters.
 
 `geometric_mean` ensures all components must be reasonably high (one zero -> zero total). `arithmetic_mean` allows compensation.
 
 ## Multi-Parameter Optimization (MPO)
 
-Real lead optimization is always MPO: balance activity, selectivity, ADMET, drug-likeness. Common MPO scoring:
+Lead optimization commonly involves multiple objectives. The following component types illustrate a project-specific scoring design; weights and transforms must be fit to the actual assays and decision context.
 
 | Component | Weight | Transformation |
 |-----------|--------|----------------|
@@ -144,7 +123,7 @@ Real lead optimization is always MPO: balance activity, selectivity, ADMET, drug
 | AMES predicted prob | 0.1 | reverse sigmoid 0.3-0.7 |
 | Tanimoto novelty vs known | 0.1 | reverse sigmoid 0.4-0.6 |
 
-Sum to 1.0; use geometric mean to enforce all components.
+The weights and transformation bounds above are repository starting examples only. Normalize weights as required by the selected aggregation and tune every bound against project assay distributions and prospective behavior.
 
 ## Reward Hacking (Production Pitfall)
 
@@ -155,7 +134,7 @@ RL agents will find ways to maximize reward without learning the intended behavi
 - Trivial SMILES (e.g., "CCC...C") that match generic scoring
 
 **Mitigations:**
-- Always include synthetic accessibility (SA score)
+- Include one or more synthesis-aware signals when they have been validated for the project; SA score alone does not establish route feasibility
 - Use ensemble QSAR with uncertainty (penalize high-uncertainty predictions)
 - Include diversity bonus (Tanimoto to reference)
 - Add fingerprint similarity penalty within batch (prevent mode collapse)
@@ -166,7 +145,7 @@ RL agents will find ways to maximize reward without learning the intended behavi
 `sa_score` (Ertl 2009) measures synthetic accessibility: 1 (easy) to 10 (very hard).
 
 ```python
-import sascorer
+from rdkit.Contrib.SA_Score import sascorer
 from rdkit import Chem
 
 def sa_score(smi):
@@ -176,54 +155,49 @@ def sa_score(smi):
     return sascorer.calculateScore(mol)
 ```
 
-(`sascorer` is shipped with RDKit Contrib; install via `pip install sascorer` or check `rdkit.Contrib.SA_Score`.)
+`sascorer` is shipped in RDKit Contrib in current RDKit distributions. Use the namespaced import above; do not install an unrelated top-level package.
 
-**SA score interpretation:**
-- 1-3: trivial to synthesize
-- 3-4: standard medchem
-- 4-6: feasible but expensive
-- 6-10: novel routes required; likely impractical
-
-Use as reward component; never absolute filter (some valid molecules have SA 5).
+The score is a 1-to-10 heuristic derived from fragment contributions and molecular complexity, with lower values intended to indicate easier synthesis. It is not a route planner, cost estimate, or calibrated feasibility probability. Use it as one audited reward component or annotation, never as an absolute filter.
 
 ## Diffusion-Based Generation (Modern Alternatives)
 
 | Tool | Approach | Strength | Status |
 |------|----------|----------|--------|
 | DiGress (Vignac 2023) | Discrete diffusion on graphs | Conditional generation | Public |
-| DiffSMol (Liu 2024) | Equivariant diffusion | 3D molecule generation | Public |
-| MolDiff (Peng 2024) | Joint 2D-3D diffusion | Multi-modal | Public |
-| Boltz-design (related to Boltz-2) | Foundation model conditioning | Production SOTA emerging | Limited |
-| Targetdiff (Guan 2024) | Pocket-conditioned diffusion | Structure-based design | Public |
+| DiffSMol (Chen 2025) | Equivariant diffusion | 3D molecule generation | Public |
+| MolDiff (Peng 2023) | Full-atom diffusion | Joint atom/bond generation | Public |
+| TargetDiff (Guan 2023) | Pocket-conditioned equivariant diffusion | Structure-based design | Public |
 
-Diffusion generates molecules in one shot vs autoregressive (REINVENT) which builds SMILES character-by-character. Diffusion produces higher diversity; REINVENT produces more drug-like outputs in practice.
+Diffusion models iteratively denoise molecular representations, whereas REINVENT generators autoregressively construct SMILES. Diversity, validity, and drug-likeness depend on the model, training data, conditioning, and evaluation protocol; compare them on a matched benchmark for the intended task.
 
 ## Constrained / Goal-Directed Generation
 
 **Goal:** Enforce hard structural requirements (e.g., must contain hydroxyl) and exclude PAINS without letting constraint satisfaction game the reward.
 
-**Approach:** Stage transfer learning then RL, use `matching_substructure` for required features and `custom_alerts` with `filter_only=true` so failing molecules are discarded rather than rewarded.
+**Approach:** Stage transfer learning then RL. In REINVENT 4, `CustomAlerts` is a global structural-alert filter: a match produces zero and it is applied before score aggregation. `MatchingSubstructure` is a scoring component (1 for a match and 0.5 otherwise), so it is a soft penalty rather than a hard inclusion constraint. Apply a separate post-generation SMARTS validation step when presence of a feature is mandatory.
 
 ```toml
-[run]
-type = "transfer_learning_and_reinforcement_learning"
+[[stage.scoring.component]]
+[stage.scoring.component.CustomAlerts]
 
-[[scoring_function.components]]
-type = "matching_substructure"
-smarts = "[OX2H]"
-weight = 0.1  # require hydroxyl
+[[stage.scoring.component.CustomAlerts.endpoint]]
+name = "Unwanted SMARTS"
+params.smarts = ["PAINS_SMARTS_1", "BRENK_SMARTS_1"]
 
-[[scoring_function.components]]
-type = "custom_alerts"  # PAINS, BRENK
-weight = 0.0  # filter, not reward
-filter_only = true
+[[stage.scoring.component]]
+[stage.scoring.component.MatchingSubstructure]
+
+[[stage.scoring.component.MatchingSubstructure.endpoint]]
+name = "Hydroxyl preference"
+weight = 0.1
+params.smarts = ["[OX2H]"]
 ```
 
-`filter_only=true` discards molecules failing the constraint but doesn't influence reward (avoids reward hacking via constraint satisfaction).
+There is no REINVENT 4 `filter_only` option for these components. Treat structural alerts as triage flags where appropriate, and separately verify any true hard inclusion or exclusion rule on the generated structures.
 
 ## MolMIM (NVIDIA BioNeMo)
 
-MolMIM uses latent-space optimization: encode SMILES to latent -> optimize in latent -> decode. Faster than RL for property optimization.
+MolMIM encodes SMILES into a learned latent space, uses gradient-free CMA-ES to optimize a user-defined property objective, and decodes candidate molecules.
 
 ```python
 # Pseudo-code; requires NVIDIA NIM access
@@ -232,23 +206,23 @@ MolMIM uses latent-space optimization: encode SMILES to latent -> optimize in la
 # optimized = optimizer.optimize(seed_smiles, target_property="logp", target_value=2.0)
 ```
 
-Tradeoff vs REINVENT: faster generation, less customization in scoring.
+Tradeoffs against REINVENT depend on the oracle budget, objective, and implementation; benchmark both under matched constraints when selecting a generator.
 
 ## Per-Tool Failure Modes
 
 ### REINVENT RL -- mode collapse
 
-**Trigger:** Sigma too high or scoring favors narrow chemotype.
+**Trigger:** The reward, learning strategy, or diversity control favors a narrow chemotype.
 
 **Mechanism:** Agent finds a high-scoring local maximum and stops exploring.
 
-**Symptom:** Generated molecules at step 500 all share a small scaffold; Tanimoto > 0.8.
+**Symptom:** Diversity and scaffold coverage collapse relative to a project-defined baseline while reward continues to rise.
 
 **Fix:** Add diversity bonus to scoring; reduce sigma; reset agent if collapsed.
 
 ### REINVENT TL -- overfitting
 
-**Trigger:** Transfer learning on small dataset (<100 actives).
+**Trigger:** Transfer learning data are too small or homogeneous for the intended generalization task.
 
 **Mechanism:** Generator memorizes training set; no generalization.
 
@@ -260,11 +234,11 @@ Tradeoff vs REINVENT: faster generation, less customization in scoring.
 
 **Trigger:** SA score missing from reward.
 
-**Mechanism:** Model finds high-scoring molecules with impossible synthesis.
+**Mechanism:** The reward omits synthesis evidence, allowing candidates with no plausible validated route to score well.
 
 **Symptom:** AiZynthFinder cannot solve route; medchem rejects.
 
-**Fix:** Include SA score in reward; validate with retrosynthesis on top-N.
+**Fix:** Combine audited synthesis-aware annotations with reaction- or route-based validation for selected candidates.
 
 ### PAINS in generation
 
@@ -274,7 +248,7 @@ Tradeoff vs REINVENT: faster generation, less customization in scoring.
 
 **Symptom:** Generated molecules match PAINS_A.
 
-**Fix:** Apply PAINS_A filter; consider PAINS as bonus if avoiding HTS validation.
+**Fix:** Flag relevant structural alerts for orthogonal assay review or apply a project-justified penalty; never reward a PAINS match.
 
 ### Diffusion model OOD
 
@@ -300,35 +274,39 @@ Tradeoff vs REINVENT: faster generation, less customization in scoring.
 
 | Aspect | REINVENT 4 | Diffusion |
 |--------|------------|-----------|
-| Speed | Fast (seconds/molecule) | Faster (one-shot batch) |
-| Output diversity | Moderate (autoregressive bias) | Higher |
-| Drug-likeness of output | Higher (trained on drug-like) | Variable |
+| Speed | Implementation-, hardware-, and oracle-dependent | Implementation-, hardware-, and sampling-step-dependent |
+| Output diversity | Model/training/reward-dependent | Model/training/conditioning-dependent |
+| Drug-likeness of output | Training- and reward-dependent | Training- and conditioning-dependent |
 | Scoring flexibility | Excellent (TOML config) | Method-specific |
 | Production maturity | High | Emerging |
-| When to use | Default for lead opt | Diversity / 3D generation |
+| When to use | When its priors and scoring system validate well for the task | When a matched benchmark supports the selected diffusion model |
 
 ## Common Errors
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| REINVENT generates invalid SMILES | Random sampling rate too high | Decrease sigma; ensure prior is well-trained |
+| REINVENT generates invalid SMILES | Prior/tokenization/model mismatch or sampling issue | Inspect invalid-token logs, prior compatibility, and release-matched sampling settings; sigma is not a token sampling rate |
 | QSAR score all 0.0 | Out-of-domain molecules | Ensemble + uncertainty; reject high-uncertainty |
 | All generations duplicates | `unique_sequences=False` | Set `unique_sequences=true` |
-| Generated SMILES too long | Token limit not enforced | Set `max_length` parameter; truncate |
+| Generated SMILES too long | Prior/model sequence behavior | Use a release-documented sampling constraint or post-generation project rule; do not invent a staged-learning `max_length` field |
 | Reward stuck at 0.5 | Constraints conflict | Inspect scoring components; reduce constraint count |
-| Diffusion model crashes | Pocket too large for model | Crop pocket to <20 A radius |
+| Diffusion model crashes | Input violates model-specific pocket/size contract | Follow that model release's documented preprocessing and limits |
 | MolMIM cold-start slow | Latent search exhaustiveness | Reduce search budget |
 | Optimization converges trivially | Reward gradient dominated by one term | Use geometric_mean; rebalance weights |
 
 ## References
 
-- Loeffler et al., *J. Cheminformatics* 16:20 (2024) -- REINVENT 4 framework.
-- Olivecrona et al., *J. Cheminformatics* 9:48 (2017) -- REINVENT original.
+- Loeffler et al., *J. Cheminformatics* 16:20 (2024) -- REINVENT 4 framework and four generator families (DOI 10.1186/s13321-024-00812-5).
+- Olivecrona M et al., *J. Cheminformatics* 9:48 (2017) -- REINVENT original (DOI 10.1186/s13321-017-0235-x).
 - Vignac et al., *ICLR* (2023) -- DiGress discrete diffusion.
-- Peng et al., *NeurIPS* (2024) -- MolDiff joint 2D-3D.
-- Guan et al., *J. Chem. Inf. Model.* 64:1234 (2024) -- TargetDiff pocket-conditioned.
-- Jin et al., *ICML* (2018) -- JT-VAE junction-tree.
-- Ertl & Schuffenhauer, *J. Cheminformatics* 1:8 (2009) -- SA score.
+- Chen H et al., *Nat. Mach. Intell.* 7:758-770 (2025) -- DiffSMol structure-based 3D molecular generation (DOI 10.1038/s42256-025-01030-w).
+- Peng X, Guan J, Liu Q, Ma J. *Proc. ICML*, PMLR 202:27611-27629 (2023) -- MolDiff full-atom molecular diffusion.
+- Guan J et al., *ICLR* (2023) -- TargetDiff pocket-conditioned 3D equivariant diffusion (OpenReview: kJqXEPXMsE0).
+- Reidenbach D, Livne M, Ilango RK, Gill M, Israeli J. *MLDD Workshop at ICLR* (2023) -- MolMIM and CMA-ES latent-space optimization (OpenReview: iOJlwUTUyrN).
+- Jin W, Barzilay R, Jaakkola T. *Proc. ICML*, PMLR 80:2323-2332 (2018) -- JT-VAE junction-tree.
+- Ertl P, Schuffenhauer A. *J. Cheminformatics* 1:8 (2009) -- SA score (DOI 10.1186/1758-2946-1-8).
+- REINVENT 4 official repository and release-matched configs: https://github.com/MolecularAI/REINVENT4
+- RDKit SA-score implementation: https://github.com/rdkit/rdkit/tree/master/Contrib/SA_Score
 
 ## Related Skills
 

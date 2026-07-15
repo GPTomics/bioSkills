@@ -19,18 +19,18 @@ Tell the AI agent what to do:
 - "Suggest warheads for cysteine-selective covalent inhibitor"
 - "Score acrylamide-containing analogs for reactivity"
 - "Plan reactive group SAR for KRAS G12C inhibitor"
-- "Filter library for GSH-stable warheads (acrylamide alpha-substituted)"
+- "Classify candidate warheads, then identify which compounds require experimental GSH-reactivity testing"
 
 ## Example Prompts
 
 ### Cysteine targeting
-> "Identify acrylamide and chloroacetamide candidates in library.smi. Filter by GSH stability surrogate (alpha-substituents on warhead). Output sorted by reactivity tier."
+> "Identify acrylamide and chloroacetamide candidates in library.smi. Report alpha substitution as a structural feature and flag compounds for matched GSH-reactivity measurements."
 
 ### Reactivity SAR
-> "For 30 acrylamide compounds in series.csv, compute LUMO surrogate (alpha-C substituent count). Correlate with measured kinact/Ki."
+> "For 30 acrylamide compounds in series.csv, compute alpha-C substituent count and compare it with measured GSH rates and kinact/Ki without treating it as a LUMO calculation."
 
 ### Covalent docking
-> "Dock 50 acrylamide candidates against EGFR C797. Use HCovDock; require covalent geometry to Cys797 within 4 A. Rank by pose score + reactivity."
+> "Dock acrylamide candidates against EGFR C797 with a reaction-appropriate protocol. Inspect Cys797 Sγ-to-electrophile distance and approach geometry, then integrate measured reactivity."
 
 ### Bivalent / PROTAC
 > "Combine cysteine-warhead inhibitor with E3 ligand via 12-atom linker. Predict ternary complex stability."
@@ -38,19 +38,19 @@ Tell the AI agent what to do:
 ## What the Agent Will Do
 
 1. Identify warheads in input (acrylamide, chloroacetamide, vinyl sulfone, etc.).
-2. Score reactivity (LUMO surrogate, alpha-substituents).
+2. Compute structural features and integrate measured or validated reactivity data.
 3. Run covalent docking if requested (DOCKovalent / HCovDock / GOLD).
-4. Validate geometry: ligand warhead within reach of target Cys/Lys/Tyr.
-5. Filter by GSH stability surrogate (off-target risk).
+4. Validate reaction-atom geometry: for cysteine, use Sγ and the ligand electrophilic atom, not Cβ.
+5. Review experimental GSH reactivity and off-target evidence.
 6. Output ranked candidates with covalent pose + reactivity tier.
 
 ## Tips
 
-- Cysteine targets cover ~98% of covalent drugs.
-- Acrylamide is the drug-development standard; chloroacetamide is too reactive for clinical.
-- GSH t1/2 > 4 hours is the modern target for drug-like covalent.
-- Always validate geometric fit: warhead must be within 4 A of nucleophilic residue.
-- Use kinact/Ki not IC50 for ranking; covalent kinetics matter.
+- Cysteine is a common covalent target, but prevalence depends on the drug set and counting method.
+- Acrylamide and haloacetamide behavior depends on the complete compound and target context; do not assign suitability from warhead class alone.
+- Report GSH assay conditions and measured kinetics rather than applying a universal half-life cutoff.
+- Calibrate geometric criteria for the reaction and docking protocol; no universal distance cutoff replaces reaction-specific angles and atom identities.
+- Use `kinact/Ki` for irreversible two-step systems that fit that model; use mechanism-appropriate reversible-covalent measurements otherwise.
 
 ## Related Skills
 

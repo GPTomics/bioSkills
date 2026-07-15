@@ -2,14 +2,16 @@
 
 ## Overview
 
-Perform alchemical free-energy calculations: RBFE (relative binding) and ABFE (absolute binding) using OpenFE (open-source) or FEP+ (commercial). Compute thermodynamic-cycle-validated affinity differences with 1-2 kcal/mol RMSE.
+Perform alchemical free-energy calculations using OpenFE or a commercial workflow. Accuracy is system- and protocol-dependent, so validate mappings, sampling, network consistency, and prospective performance rather than promising a universal RMSE.
 
 ## Prerequisites
 
 ```bash
-conda install -c conda-forge openff-toolkit openmm gromacs
-pip install openfe alchemlyb pymbar
+mamba create -n openfe -c conda-forge openfe=1.7 alchemlyb pymbar
+conda activate openfe
 ```
+
+Install OpenFE from conda-forge as documented by the project. The unrelated package named `openfe` on PyPI is not the Open Free Energy toolkit.
 
 ## Quick Start
 
@@ -23,7 +25,7 @@ Tell the AI agent what to do:
 ## Example Prompts
 
 ### Lead optimization RBFE
-> "Run OpenFE RBFE on a 6-ligand series for kinase X. Use 12 lambda windows, 5 ns/window. Report delta-delta-G with cycle closure error. Output Forcefield: SAGE 2.1.0."
+> "Run OpenFE RBFE on a congeneric series for kinase X. Start from versioned protocol defaults, inspect mappings, and extend sampling from overlap, replicate, and closure-residual diagnostics."
 
 ### Quick MM/GBSA screen
 > "Run MM/GBSA on the top 100 Vina-docked poses for receptor.pdb. Rank by delta-G_binding. Output to results.csv with sd."
@@ -32,26 +34,26 @@ Tell the AI agent what to do:
 > "Boltz-2 affinity prediction on 1000 SMILES against receptor.pdb. Rank by predicted affinity. Output top 20 for FEP follow-up."
 
 ### ABFE for single ligand
-> "Compute OpenFE ABFE for ligand.sdf bound to receptor.pdb. Use Boresch-style restraints on rigid scaffold atoms; 5 ns charging, 12 ns vdW, 7 ns restraint windows."
+> "Compute OpenFE ABFE for ligand.sdf bound to receptor.pdb using the documented restraint workflow. Record all settings and extend each leg from convergence diagnostics."
 
 ## What the Agent Will Do
 
 1. Set up perturbation: ligand1 -> ligand2 (RBFE) or ligand -> uncoupled (ABFE).
-2. Build hybrid topology with atom mapping (LOMAP for RBFE).
-3. Generate lambda window schedule (12-20 windows typical).
-4. Equilibrate each window, then production MD (5-20 ns/window).
+2. Generate and inspect atom mappings (Kartograf is the OpenFE 1.7 CLI default; LOMAP is supported).
+3. Start from the release-matched lambda schedule and modify it only from overlap and protocol diagnostics.
+4. Equilibrate and run production sampling, extending from replicate and time-series convergence evidence.
 5. Analyze with MBAR/BAR via alchemlyb.
 6. Compute cycle closure error; report delta-delta-G ± SD.
-7. Validate convergence: replicates should agree within 0.5 kcal/mol.
+7. Validate convergence using replicate agreement, overlap, exchange, and signed closure residuals with propagated uncertainty.
 
 ## Tips
 
-- OpenFE is open-source equivalent to FEP+; SAGE 2.1.0 default forcefield.
-- Always run REST2 enhanced sampling for buried pockets.
-- Cycle closure > 1 kcal/mol RMS indicates insufficient sampling.
-- ABFE is ~3x cost of RBFE; use selectively.
-- MM/GBSA is fast first-pass (3-5 kcal/mol RMSE), not lead-optimization standard.
-- Boltz-2 affinity approaches FEP accuracy (Pearson 0.66) at 1000x speed.
+- OpenFE 1.7's versioned documentation shows OpenFF 2.1.1 for ligands; inspect and record the actual installed protocol settings.
+- OpenFE's default RBFE Hamiltonian replica exchange is not REST2. Use enhanced sampling only when the selected engine and protocol document it.
+- Interpret signed cycle-closure residuals with edge uncertainties, shared-edge correlations, and replicate diagnostics; RMS requires multiple specified cycles.
+- Estimate ABFE/RBFE cost from the explicit protocol rather than a fixed multiplier.
+- Use MM/GBSA only where a matched benchmark supports the intended ranking decision.
+- The Boltz-2 preprint reports Pearson 0.66 on its FEP benchmark subset and at least 1000-fold lower computational cost; treat this as benchmark-specific and confirm top candidates with FEP.
 
 ## Related Skills
 

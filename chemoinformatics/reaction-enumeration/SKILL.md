@@ -1,13 +1,13 @@
 ---
 name: bio-reaction-enumeration
-description: Enumerates virtual chemical libraries via reaction SMARTS transformations using RDKit and Reaction templates, with explicit handling of atom mapping, template extraction (RDKit reaction mining), product validation, RECAP/BRICS fragmentation, R-group decomposition, matched molecular pair analysis (MMPA), and Free-Wilson analysis. Use when generating combinatorial libraries from building blocks, enumerating analog series, deriving structure-activity rules, or extracting transformations from reaction data.
+description: Enumerates virtual chemical libraries via reaction SMARTS transformations using RDKit and reaction templates, with explicit handling of atom mapping, RDChiral template extraction, product validation, RECAP/BRICS fragmentation, R-group decomposition, matched molecular pair analysis (MMPA), and Free-Wilson analysis. Use when generating combinatorial libraries from building blocks, enumerating analog series, deriving structure-activity rules, or extracting transformations from reaction data.
 tool_type: python
 primary_tool: RDKit
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: RDKit 2024.09+, mmpdb 3.1+, scikit-learn 1.4+, numpy 1.26+.
+Reference examples tested with: RDKit 2024.09+, RDChiral 1.1+, mmpdb 3.1+, scikit-learn 1.4+, numpy 1.26+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,7 +17,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Reaction Enumeration
 
-Generate virtual libraries by applying reaction SMARTS to building blocks, enumerate analog series via matched molecular pairs, decompose into R-groups for SAR modeling, or extract transformations from reaction data. Reaction enumeration sits at the intersection of medicinal chemistry, lead optimization, and de novo design. The two key operations: **transform** (apply known rxn to make new compounds) and **mine** (extract rules from observed analog series). RDKit's reaction SMARTS handles the former; mmpdb / Free-Wilson handle the latter.
+Generate virtual libraries by applying reaction SMARTS to building blocks, enumerate analog series via matched molecular pairs, decompose into R-groups for SAR modeling, or extract transformations from reaction data. Reaction enumeration sits at the intersection of medicinal chemistry, lead optimization, and de novo design; DOGS is one published example of reaction-driven de novo design (Hartenfeller et al. 2012). The two key operations are **transform** (apply known reactions to make new compounds) and **mine** (extract rules from observed analog series). RDKit's reaction SMARTS handles the former; mmpdb / Free-Wilson handle analog-series analysis, while mapped-reaction template extraction requires separate tooling such as RDChiral.
 
 For retrosynthetic planning (target-to-starting-material decomposition), see `chemoinformatics/retrosynthesis`. For ML-driven design, see `chemoinformatics/generative-design`. For scaffold-based design, see `chemoinformatics/scaffold-analysis`.
 
@@ -27,11 +27,11 @@ For retrosynthetic planning (target-to-starting-material decomposition), see `ch
 |-----------|------|------|------------|
 | Forward enumeration | Apply reaction to building blocks -> products | RDKit `ReactionFromSmarts` + `RunReactants` | Wrong atom mapping; missing connectivity |
 | Reverse enumeration (retrosynthesis) | Product -> starting materials | AiZynthFinder, Chemformer | See retrosynthesis skill |
-| Template mining | Reaction database -> reaction SMARTS templates | RDKit reaction mining; rxnmapper | Atom mapping ambiguous; mechanism unclear |
+| Template mining | Reaction database -> reaction SMARTS templates | RXNMapper + RDChiral | Atom mapping ambiguous; mechanism unclear |
 | RECAP fragmentation | Molecule -> retro-synthetic fragments | RDKit `Chem.Recap` | Inflexible bond rules |
 | BRICS fragmentation | Molecule -> retro-synthetic fragments | RDKit `BRICS` module | Many false fragments |
 | R-group decomposition | Set of mols + scaffold -> R-group table | RDKit `Chem.rdRGroupDecomposition` | Multiple scaffolds; ambiguous attachment |
-| Matched Molecular Pairs (MMPA) | Set of mols -> transformation rules | mmpdb | Need ≥1k compound dataset |
+| Matched Molecular Pairs (MMPA) | Set of mols -> transformation rules | mmpdb | Sparse or context-confounded matched pairs |
 | Free-Wilson | Compounds + activities -> additive R-group contributions | scikit-learn linear regression | Strict additivity assumption |
 
 ## Reaction SMARTS Basics
@@ -39,7 +39,8 @@ For retrosynthetic planning (target-to-starting-material decomposition), see `ch
 A reaction SMARTS is `reactants >> products` with atom maps `[atom:idx]` tracking atoms through the transformation:
 
 ```python
-from rdkit.Chem import AllChem, Chem
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 amide = AllChem.ReactionFromSmarts(
     '[C:1](=[O:2])O.[N:3]>>[C:1](=[O:2])[N:3]'
@@ -52,10 +53,11 @@ print(errors)
 **Atom mapping rules:**
 - Atoms with the same map index `[C:1]` in both reactant and product are tracked
 - Maps must be unique within each reactant/product
-- Unmapped atoms are added to or removed from the product
+- Atoms present in a reactant template but absent from the product template are removed; atoms present only in the product template are created
+- Atoms outside the matched reaction-center template are generally carried through with their reactant molecule
 - Bond orders may change; map index preserves identity
 
-**Common error:** Leaving an atom unmapped causes RDKit to either lose or duplicate it.
+**Common error:** Missing or inconsistent maps for atoms intended to survive within the reaction center can delete atoms, create duplicates, or obscure which reactant atom a product atom represents. Mapping alone does not define the transformation; the reactant and product templates do.
 
 ## Common Reaction Templates
 
@@ -74,7 +76,7 @@ REACTIONS = {
 }
 ```
 
-These are templates; real reactions need stereo, protecting-group, and chemoselectivity considerations. For production library enumeration, use validated templates from `rxnmapper` or vendor catalogs.
+These are illustrative templates; real reactions need stereo, protecting-group, and chemoselectivity considerations. For production library enumeration, use a separately curated and validated template collection, such as a vendor catalog. RXNMapper maps atoms in reaction records; it does not by itself supply or validate reaction templates.
 
 ## Combinatorial Library Enumeration
 
@@ -85,11 +87,12 @@ These are templates; real reactions need stereo, protecting-group, and chemosele
 ```python
 from itertools import product
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, Descriptors
 
 def enumerate_library(rxn_smarts, reactant_lists, mw_max=600):
     rxn = AllChem.ReactionFromSmarts(rxn_smarts)
-    if rxn.Validate()[0] != 0:
+    num_warnings, num_errors = rxn.Validate()
+    if num_errors:
         raise ValueError(f'Invalid reaction: {rxn_smarts}')
 
     seen = set()
@@ -106,7 +109,7 @@ def enumerate_library(rxn_smarts, reactant_lists, mw_max=600):
                     smi = Chem.MolToSmiles(prod)
                     if smi in seen:
                         continue
-                    if Chem.Descriptors.MolWt(prod) > mw_max:
+                    if Descriptors.MolWt(prod) > mw_max:
                         continue
                     seen.add(smi)
                     products.append(smi)
@@ -129,23 +132,24 @@ hier = Recap.RecapDecompose(mol)
 fragments = list(hier.GetLeaves().keys())
 ```
 
-RECAP bond types: amide, ester, ether, amine, urea, olefin, quaternary nitrogen, sulfonamide. Use cases: building-block library generation, scaffold-decoration enumeration.
+RDKit's current `Recap.reactionDefs` contains 12 cleavage definitions. Inspect the installed definitions when exact coverage matters instead of relying on a shortened functional-group list. Use cases include building-block library generation and scaffold-decoration enumeration.
 
 ## BRICS Fragmentation
 
 BRICS (Degen 2008) is an extension of RECAP with more bond types. Better fragment coverage; more fragments per molecule.
 
 ```python
+from itertools import islice
 from rdkit.Chem import BRICS
 
 mol = Chem.MolFromSmiles('CCN(CC)c1ccc(C(=O)NC2CCCC2)cc1')
 fragments = BRICS.BRICSDecompose(mol)
 
 builder = BRICS.BRICSBuild([Chem.MolFromSmiles(f) for f in fragments])
-new_mols = [next(builder) for _ in range(10)]
+new_mols = list(islice(builder, 10))
 ```
 
-`BRICSDecompose` produces SMILES with `[<dummy>]` attachment points; `BRICSBuild` recombines fragments at these dummies.
+`BRICSDecompose` produces SMILES with isotope/environment-labeled dummy atoms such as `[1*]`, `[5*]`, and `[16*]`; `BRICSBuild` uses those labels when recombining compatible fragments.
 
 ## R-Group Decomposition
 
@@ -168,7 +172,25 @@ mols = [Chem.MolFromSmiles(smi) for smi in [
 decomp, _ = rgd.RGroupDecompose([scaffold], mols, asSmiles=True)
 ```
 
-`decomp` is a list of dicts `{'Core': scaffold_smi, 'R1': r1_smi, 'R2': r2_smi}`. Combined with activity column, enables Free-Wilson.
+`decomp` is a list of dicts such as `{'Core': scaffold_smi, 'R1': r1_smi, 'R2': r2_smi}`. It does not contain assay values. Preserve compound identifiers and explicitly join the decomposition to the activity table before Free-Wilson analysis:
+
+```python
+import pandas as pd
+
+compound_ids = ['cmpd-1', 'cmpd-2', 'cmpd-3']
+activities = pd.DataFrame({
+    'compound_id': compound_ids,
+    'pIC50': [6.2, 6.8, 7.1],  # example measurements
+})
+decomp, unmatched = rgd.RGroupDecompose([scaffold], mols, asSmiles=True)
+unmatched = set(unmatched)
+matched_ids = [cid for i, cid in enumerate(compound_ids) if i not in unmatched]
+decomp_df = pd.DataFrame(decomp)
+decomp_df.insert(0, 'compound_id', matched_ids)
+sar_table = decomp_df.merge(
+    activities, on='compound_id', how='inner', validate='one_to_one'
+)
+```
 
 ## Matched Molecular Pairs Analysis (MMPA)
 
@@ -180,7 +202,7 @@ mmpdb index data.fragments -o data.mmpdb
 mmpdb transform --smiles 'COc1ccccc1' data.mmpdb
 ```
 
-`mmpdb` produces a database of transformations + statistics on activity changes.
+`mmpdb` produces a database of transformations + statistics on activity changes. The values below are synthetic examples showing the output schema; they are not observations from a cited dataset.
 
 | Transformation | Avg delta(pIC50) | N pairs | Confidence |
 |----------------|-------------------|---------|------------|
@@ -190,7 +212,7 @@ mmpdb transform --smiles 'COc1ccccc1' data.mmpdb
 
 **Use case:** Lead optimization. Given a hit, ask "what transformations have improved similar series?" Apply top-ranked transformations to generate analog suggestions.
 
-**Context-based MMPA** (Awale 2024): condition rules on local chemical context (e.g., "Me->F adjacent to amide"). Outperforms classical MMPA on CYP1A2 inhibition reduction.
+**Context-based MMPA** conditions transformation statistics on local chemical context (for example, "Me -> F adjacent to an amide"). Raut and Dixit (2025) applied this approach to identify transformations associated with reduced CYP1A2 inhibition; that endpoint-specific result should not be generalized as universal superiority over classical MMPA.
 
 ## Free-Wilson Analysis
 
@@ -218,7 +240,7 @@ def free_wilson(decomp_results, activity_col='pIC50'):
 
 **Goal:** Given an atom-mapped reaction SMILES, extract a generalizable SMARTS template.
 
-**Approach:** Use `rxnmapper` (Schwaller 2021) for atom mapping, then RDKit reaction template extraction.
+**Approach:** Use `rxnmapper` (Schwaller et al. 2021) for atom mapping, then a template extractor such as RDChiral (Coley et al. 2019).
 
 ```python
 from rxnmapper import RXNMapper
@@ -229,19 +251,19 @@ results = mapper.get_attention_guided_atom_maps(rxns)
 mapped_smiles = results[0]['mapped_rxn']
 ```
 
-After atom-mapping, RDKit can extract a template via `ChemicalReaction.GetReactionTemplateFromMappedReaction` (custom implementation; see Coley 2019).
+RDKit does not provide a `ChemicalReaction.GetReactionTemplateFromMappedReaction` method. Pass the mapped reaction to RDChiral's published template-extraction workflow, checking the installed package's interface and expected reaction-record schema, or use a separately implemented and validated extractor.
 
 ## Per-Tool Failure Modes
 
 ### Reaction SMARTS -- atom mapping mismatch
 
-**Trigger:** Map index appears on reactant but not product.
+**Trigger:** An atom intended to survive the reaction center is absent from, or inconsistently mapped in, the product template.
 
-**Mechanism:** RDKit treats unmapped atoms as deleted from product; an atom that was meant to be preserved disappears if its map index is missing.
+**Mechanism:** RDKit constructs products from the reaction templates. Reactant-template atoms omitted from the product template are deleted, product-only atoms are created, and inconsistent maps can prevent intended atom identity from being carried across the transformation.
 
 **Symptom:** Products missing expected atoms; valences wrong; sanitize fails.
 
-**Fix:** Validate with `rxn.Validate()`; manually inspect mapping; use Reaction Atom Mapping Number column 2.
+**Fix:** Validate with `rxn.Validate()`, inspect warnings separately from errors, and manually verify that every reaction-center atom intended to survive has one consistent map number on both sides.
 
 ### RECAP/BRICS -- over-fragmentation
 
@@ -255,13 +277,13 @@ After atom-mapping, RDKit can extract a template via `ChemicalReaction.GetReacti
 
 ### MMPA -- insufficient pair count
 
-**Trigger:** mmpdb on small dataset (<500 compounds, <50 actives).
+**Trigger:** The dataset yields few matched pairs for a transformation in the relevant chemical context.
 
-**Mechanism:** MMPA needs ≥10 pairs per transformation to yield a statistically meaningful delta(activity).
+**Mechanism:** Sparse or heterogeneous pairs give imprecise, context-confounded estimates. There is no universal minimum dataset size or pair count that guarantees a meaningful effect.
 
 **Symptom:** Transformations report with N=1-3 pairs; effect sizes erratic.
 
-**Fix:** Filter to transformations with N>=10; supplement with literature SAR knowledge.
+**Fix:** Report pair counts and uncertainty, examine local contexts, use a project-justified precision threshold, and supplement with experimental or literature SAR knowledge.
 
 ### Free-Wilson -- non-additive interactions
 
@@ -277,11 +299,11 @@ After atom-mapping, RDKit can extract a template via `ChemicalReaction.GetReacti
 
 **Trigger:** Compound matches multiple scaffold templates.
 
-**Mechanism:** `RGroupDecompose` returns the first matching scaffold; ambiguous SAR series.
+**Mechanism:** RDKit accepts cores ordered from most to least specific and exposes parameters for multi-core matching and alignment. Ambiguous or inconsistently specified cores can change the resulting labels and SAR table.
 
 **Symptom:** Same compound's R-groups differ between runs.
 
-**Fix:** Specify scaffold unambiguously; use only compounds matching one scaffold.
+**Fix:** Order cores from most to least specific, label attachment points explicitly, inspect unmatched compounds, and keep a compound only when its selected core assignment matches the intended SAR series.
 
 ### Reaction enumeration -- combinatorial explosion
 
@@ -305,24 +327,28 @@ If they agree on direction (Me->F improves activity), high confidence. If they d
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `rxn.Validate()` returns errors | Bad atom mapping or invalid SMARTS | Re-check map indices; valences |
+| `rxn.Validate()` reports a nonzero error count | Bad atom mapping or invalid SMARTS | Unpack `(num_warnings, num_errors)` and reject on `num_errors`; inspect warnings separately |
 | Products contain unexpected fragments | Reactants matched in unintended way | Use more specific SMARTS; constrain with explicit ring members |
 | Sanitize fails on products | Reaction breaks valence | Filter via `Chem.SanitizeMol(prod, catchErrors=True)` |
 | Duplicate products | Same product from different reactant orientations | Deduplicate by canonical SMILES |
 | RECAP produces single fragment | Molecule has no retrosynthetic bonds | Try BRICS for more aggressive fragmentation |
-| mmpdb empty output | Insufficient dataset size or no matched pairs | Need >=1000 compounds |
+| mmpdb empty output | No pairs satisfy the fragmentation, property, and context criteria | Inspect input parsing and fragmentation output; relax justified filters or obtain relevant analogues |
 | R-group decomposition wrong R | Scaffold dummy not aligned | Re-check `[*:1]` / `[*:2]` placement |
 
 ## References
 
-- Hartenfeller et al., *J. Cheminformatics* 4:38 (2012) -- DOGS rule-based library design.
-- Lewell et al., *J. Chem. Inf. Comput. Sci.* 38:511 (1998) -- RECAP.
-- Degen et al., *ChemMedChem* 3:1503 (2008) -- BRICS fragmentation.
-- Hussain & Rea, *J. Chem. Inf. Model.* 50:339 (2010) -- MMPA.
-- Dossetter et al., *Drug Discov. Today* 18:724 (2013) -- Practical MMPA in lead optimization.
-- Free & Wilson, *J. Med. Chem.* 7:395 (1964) -- Original Free-Wilson.
-- Schwaller et al., *Sci. Adv.* 7:eabe4166 (2021) -- rxnmapper.
-- Coley et al., *Chem. Sci.* 10:370 (2019) -- Reaction template extraction.
+- Hartenfeller M et al. "DOGS: Reaction-Driven de novo Design of Bioactive Compounds." *PLoS Comput. Biol.* 8:e1002380 (2012). DOI: 10.1371/journal.pcbi.1002380.
+- Lewell XQ, Judd DB, Watson SP, Hann MM. "RECAP—Retrosynthetic Combinatorial Analysis Procedure." *J. Chem. Inf. Comput. Sci.* 38:511–522 (1998). DOI: 10.1021/ci970429i.
+- Degen J, Wegscheid-Gerlach C, Zaliani A, Rarey M. "On the Art of Compiling and Using 'Drug-Like' Chemical Fragment Spaces." *ChemMedChem* 3:1503–1507 (2008). DOI: 10.1002/cmdc.200800178.
+- Hussain J, Rea C. "Computationally Efficient Algorithm to Identify Matched Molecular Pairs (MMPs) in Large Data Sets." *J. Chem. Inf. Model.* 50:339–348 (2010). DOI: 10.1021/ci900450m.
+- Dossetter AG, Griffen EJ, Leach AG. "Matched molecular pair analysis in drug discovery." *Drug Discov. Today* 18:724–731 (2013). DOI: 10.1016/j.drudis.2013.03.003.
+- Free SM, Wilson JW. "A Mathematical Contribution to Structure-Activity Studies." *J. Med. Chem.* 7:395–399 (1964). DOI: 10.1021/jm00334a001.
+- Schwaller P et al. "Unsupervised attention-guided atom-mapping." *Sci. Adv.* 7:eabe4166 (2021). DOI: 10.1126/sciadv.abe4166.
+- Raut JA, Dixit VA. "A context-based matched molecular pair analysis identifies structural transformations that reduce CYP1A2 inhibition." *RSC Med. Chem.* 16:3281–3290 (2025). DOI: 10.1039/D4MD01012D.
+- Coley CW, Green WH, Jensen KF. "RDChiral: An RDKit Wrapper for Handling Stereochemistry in Retrosynthetic Template Extraction and Application." *J. Chem. Inf. Model.* 59:2529–2537 (2019). DOI: 10.1021/acs.jcim.9b00286.
+- Dalke A, Hert J, Kramer C. "mmpdb: An Open-Source Matched Molecular Pair Platform for Large Multiproperty Data Sets." *J. Chem. Inf. Model.* 58:902–910 (2018). DOI: 10.1021/acs.jcim.8b00173.
+- RDKit Book, reaction SMARTS and reaction handling: https://www.rdkit.org/docs/RDKit_Book.html.
+- RDKit R-group decomposition API: https://www.rdkit.org/docs/source/rdkit.Chem.rdRGroupDecomposition.html.
 
 ## Related Skills
 

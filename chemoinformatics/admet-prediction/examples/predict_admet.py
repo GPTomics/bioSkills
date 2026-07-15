@@ -4,7 +4,6 @@ ADMET prediction and drug-likeness filtering.
 '''
 # Reference: rdkit 2024.03+, pandas 2.2+ | Verify API if version differs
 
-import requests
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import Descriptors, Lipinski
@@ -12,17 +11,12 @@ from rdkit.Chem.QED import qed
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
 
-def predict_admetlab(smiles_list, api_url='https://admetlab3.scbdd.com/api/predict'):
-    '''
-    Predict ADMET using ADMETlab 3.0 API.
-    ADMETlab 3.0 provides 119 endpoints with uncertainty.
-
-    Note: SwissADME has NO API (web-only).
-    '''
-    payload = {'smiles': smiles_list}
-    response = requests.post(api_url, json=payload, timeout=60)
-    response.raise_for_status()
-    return pd.DataFrame(response.json())
+def load_admetlab_results(csv_path):
+    '''Load CSV output produced by the current official ADMETlab 3.0 API workflow.'''
+    results = pd.read_csv(csv_path)
+    if results.empty:
+        raise ValueError('ADMETlab result file contains no predictions')
+    return results
 
 
 def calculate_druglikeness(mol):
@@ -52,10 +46,10 @@ def calculate_druglikeness(mol):
     }
 
 
-def filter_pains(molecules):
+def flag_pains(molecules):
     '''
-    Filter out PAINS (pan-assay interference compounds).
-    Returns (clean_molecules, flagged_with_descriptions)
+    Flag PAINS patterns without treating them as categorical exclusions.
+    Returns (unflagged_molecules, flagged_with_descriptions).
     '''
     params = FilterCatalogParams()
     params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS)
@@ -76,8 +70,8 @@ def filter_pains(molecules):
     return clean, flagged
 
 
-def filter_structural_alerts(molecules, catalogs=None):
-    '''Filter for structural alerts using multiple catalogs.'''
+def flag_structural_alerts(molecules, catalogs=None):
+    '''Flag structural alerts using multiple catalogs without discarding molecules.'''
     if catalogs is None:
         catalogs = [
             FilterCatalogParams.FilterCatalogs.PAINS,
@@ -105,8 +99,8 @@ def filter_structural_alerts(molecules, catalogs=None):
     return clean, alerts
 
 
-def prioritize_compounds(molecules, max_lipinski_violations=1, min_qed=0.5):
-    '''Multi-stage filtering pipeline.'''
+def annotate_compounds(molecules):
+    '''Annotate compounds; project-specific ranking decisions belong downstream.'''
     results = []
 
     for mol in molecules:
@@ -115,15 +109,6 @@ def prioritize_compounds(molecules, max_lipinski_violations=1, min_qed=0.5):
 
         props = calculate_druglikeness(mol)
         if props is None:
-            continue
-
-        if props['LipinskiViolations'] > max_lipinski_violations:
-            continue
-
-        if not props['VeberCompliant']:
-            continue
-
-        if props['QED'] < min_qed:
             continue
 
         results.append((mol, props))
@@ -151,9 +136,9 @@ if __name__ == '__main__':
     print(df[['SMILES', 'MW', 'LogP', 'QED', 'LipinskiViolations']].to_string())
 
     print('\nPAINS filtering:')
-    clean, flagged = filter_pains(molecules)
-    print(f'Clean: {len(clean)}, Flagged: {len(flagged)}')
+    unflagged, flagged = flag_pains(molecules)
+    print(f'Unflagged: {len(unflagged)}, Flagged: {len(flagged)}')
 
-    print('\nPrioritized compounds:')
-    prioritized = prioritize_compounds(molecules)
-    print(f'{len(prioritized)} compounds passed all filters')
+    print('\nAnnotated compounds:')
+    annotated = annotate_compounds(molecules)
+    print(f'{len(annotated)} compounds annotated for project-specific review')

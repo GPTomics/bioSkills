@@ -1,6 +1,6 @@
 ---
 name: bio-free-energy-calculations
-description: Performs alchemical free-energy calculations including relative binding free energy (RBFE / FEP+) and absolute binding free energy (ABFE) via OpenFE, FEP+, GROMACS, AMBER pmemd, and OpenMM with explicit lambda window scheduling, soft-core potentials, REST2 enhanced sampling, MBAR/BAR analysis, and cycle closure validation. Compares ML alternatives (Boltz-2 affinity, DeepDock). Use when ranking analogs by binding affinity beyond docking accuracy, performing prospective lead optimization, or validating SAR predictions.
+description: Performs alchemical free-energy calculations including relative binding free energy (RBFE / FEP+) and absolute binding free energy (ABFE) via OpenFE, FEP+, GROMACS, AMBER pmemd, and OpenMM with explicit lambda scheduling, soft-core potentials, MBAR/BAR analysis, cycle-closure validation, and protocol-appropriate enhanced sampling. Compares ML alternatives (Boltz-2 affinity, DeepDock). Use when ranking analogs by binding affinity beyond docking accuracy, performing prospective lead optimization, or validating SAR predictions.
 tool_type: mixed
 primary_tool: OpenFE
 ---
@@ -18,7 +18,7 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Free Energy Calculations
 
-Predict binding affinity differences (RBFE) or absolute binding affinities (ABFE) using alchemical free-energy methods. FEP+ (Schrödinger) is the commercial industry standard; OpenFE (Open Free Energy) is the open-source reference. Modern best practice achieves 1-2 kcal/mol RMSE vs experimental for well-set-up RBFE on rigid receptors. Boltz-2 affinity module (Wohlwend 2025) approaches FEP accuracy at 1000x speed on benchmarks, but FEP remains gold standard for production lead optimization.
+Predict binding free-energy differences (RBFE) or standard binding free energies (ABFE) using alchemical methods. FEP+ is a commercial workflow and OpenFE is an open-source framework. Accuracy and cost vary substantially with system, perturbation, force field, setup, sampling, and evaluation design; report the protocol and benchmark relevant to the intended decision. The Boltz-2 report includes benchmark-specific comparisons with FEP methods but does not replace prospective validation on the project chemistry.
 
 For docking input poses, see `chemoinformatics/virtual-screening`. For pose validation before FEP, see `chemoinformatics/pose-validation`. For ML alternatives, see `chemoinformatics/ml-docking-rescoring`.
 
@@ -26,19 +26,17 @@ For docking input poses, see `chemoinformatics/virtual-screening`. For pose vali
 
 | Method | Cost / pair | Accuracy | Use case | Fails when |
 |--------|-------------|----------|----------|------------|
-| FEP+ (Schrödinger) | hours-days GPU | 1-2 kcal/mol RMSE | Commercial lead opt | License cost |
-| OpenFE RBFE | hours-days GPU | comparable to FEP+ | Open-source RBFE | Setup automation less mature |
-| OpenFE ABFE | days GPU | 2-3 kcal/mol RMSE | Absolute affinity | Slower; more setup care |
-| GROMACS RBFE | hours-days GPU | 1-2 kcal/mol | Power users, custom setup | Manual setup is error-prone |
-| AMBER pmemd RBFE | hours-days GPU | 1-2 kcal/mol | Tradition; force-field maturity | Manual setup |
-| FEP-SPell-ABFE | days GPU | 2-3 kcal/mol | Automated ABFE | Limited adoption |
-| QligFEP v2.1 | minutes-hours | 1.5-3 kcal/mol | Q-based ligand FEP | Less standard |
-| MM/PBSA | minutes | 3-5 kcal/mol RMSE | Endpoint, fast | Limited accuracy; entropy missing |
-| MM/GBSA | minutes | 3-5 kcal/mol RMSE | Endpoint, faster than PBSA | Same caveats |
-| Boltz-2 affinity | seconds GPU | 0.66 Pearson on FEP subset | ML alternative; 1000x faster | Novel chemotypes |
-| ALEPB / EE-AMBER | days | 1-2 kcal/mol | Specialized | Limited tools |
+| FEP+ (Schrödinger) | System- and protocol-dependent GPU cost | Published commercial RBFE workflow | Commercial lead optimization | License and reproducibility constraints |
+| OpenFE RBFE | System- and protocol-dependent GPU cost | Open-source RBFE with documented protocols | Open-source campaigns | Mapping/setup/sampling require review |
+| OpenFE ABFE | Generally more setup and sampling than one RBFE edge | Standard binding free energy | No congeneric reference ligand required | Restraints and end-state corrections |
+| GROMACS / AMBER RBFE | Implementation-dependent | Custom alchemical workflows | Expert-controlled setup | Manual validation burden |
+| FEP-SPell-ABFE | Protocol/system-dependent | Automated ABFE workflow | Evaluate published and project benchmarks | Limited adoption |
+| QligFEP v2.1 | Protocol/system-dependent | Q-based ligand FEP | Evaluate published and project benchmarks | Different approximations/tooling |
+| MM/PBSA / MM/GBSA | Lower-cost endpoint analysis | Approximate endpoint score | Exploratory within-series comparison | Entropy, sampling, and model dependence |
+| Boltz-2 affinity | seconds GPU | 0.66 Pearson on reported FEP benchmark subset | ML alternative; reported >=1000x lower cost | Novel chemotypes |
+| ALEPB / EE-AMBER | Protocol/system-dependent | Specialized methods | Evaluate matched evidence | Limited tooling |
 
-**Decision:** For lead-optimization SAR validation, **OpenFE RBFE** (open) or **FEP+** (commercial) is the standard. For prospective discovery, MM/GBSA is a fast first-pass (3-5 kcal/mol RMSE); use FEP for top 10-50 candidates.
+**Decision:** For congeneric lead-optimization questions, evaluate a validated RBFE protocol and perturbation network. Use endpoint methods only for decisions supported by a project-specific benchmark. Candidate counts and escalation gates should follow compute budget, uncertainty, and prospective validation rather than a universal top-N rule.
 
 ## Decision Tree by Scenario
 
@@ -46,10 +44,10 @@ For docking input poses, see `chemoinformatics/virtual-screening`. For pose vali
 |----------|---------------------|
 | Rank close analogs (R-group SAR) | RBFE via OpenFE (cycle: lig1↔lig2↔lig3) |
 | Cross-scaffold ranking | ABFE per ligand; or coordinated RBFE with star network |
-| Lead optimization 10-50 compounds | RBFE; perturbation-graph design |
+| Congeneric lead-optimization set | RBFE with a connected, redundancy-aware perturbation graph |
 | Single ligand affinity | ABFE (no reference needed) |
-| Quick first-pass on top 1k | MM/GBSA after docking |
-| Novel scaffold prospective | Boltz-2 affinity + FEP confirmation on top |
+| Lower-cost exploratory ranking | A project-validated endpoint or ML method, followed by orthogonal confirmation |
+| Novel scaffold prospective | Treat ML affinity as triage; validate selected decisions prospectively |
 | Selectivity (target vs off-target) | RBFE on both proteins; report delta-delta-G |
 | Allosteric vs orthosteric | ABFE comparable; check pose stability with MD |
 | Ions / metal centers | Specialized force field (ZAFF, MCPB.py); not standard FEP |
@@ -79,7 +77,7 @@ protocol = RelativeHybridTopologyProtocol(
 )
 ```
 
-OpenFE's `setup` automates: mapping atoms between ligands (LOMAP), building hybrid topology, generating lambda windows, equilibration, production MD.
+The protocol object does not itself choose an atom mapping or define a simulation. Create or inspect a mapping (Kartograf is the OpenFE 1.7 CLI default; LOMAP is also supported), construct bound and solvent `Transformation` objects, create their protocol DAGs, and run them through `openfe quickrun` or the documented Python execution interface. Always inspect the selected mapping before running.
 
 ## Lambda Window Scheduling
 
@@ -89,79 +87,74 @@ OpenFE's `setup` automates: mapping atoms between ligands (LOMAP), building hybr
 | Charging (Coulomb) | 0.0, 0.25, 0.5, 0.75, 1.0 | Turn off ligand partial charges |
 | Restraint (ABFE only) | 0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0 | Boresch-style restraints |
 
-Modern best practice uses 12-20 lambda windows per leg. Sampling at each window: 5-20 ns. Total simulation time per pair: 1-5 GPU-days.
+The 12-20 windows and 5-20 ns per-window ranges are repository starting ranges, not universal prescriptions. Select and extend them from overlap, exchange, and replicate-convergence diagnostics for the system; total cost therefore varies substantially.
 
-## REST2 Enhanced Sampling
+## Enhanced Sampling
 
-REST2 (Replica Exchange with Solute Tempering) is the de facto standard for FEP enhanced sampling. Scales solute-solute and solute-solvent interactions; allows ligand to overcome local minima.
+REST2 (Replica Exchange with Solute Tempering) is one enhanced-sampling approach used in some FEP workflows. It scales selected interactions to improve barrier crossing, but suitability and implementation are engine- and protocol-specific.
 
 In FEP+, REST2 region typically includes:
 - The entire ligand
 - Flexible binding-site loops
 - Catalytic / ionic residues with high pKa shift potential
 
-In OpenFE, REST2 is automatically applied to the alchemical region.
+FEP+ can use a configured REST2 region. OpenFE's `RelativeHybridTopologyProtocol` uses Hamiltonian replica exchange across its lambda states by default; that is not the same as REST2, and OpenFE does not automatically apply REST2. Use only enhanced-sampling modes supported and documented by the selected protocol and version.
 
 ## MBAR/BAR Analysis
 
 After production simulation, extract delta-G via MBAR (Multistate Bennett Acceptance Ratio) or BAR (Bennett Acceptance Ratio). MBAR uses data from all windows simultaneously; BAR uses adjacent windows.
 
 ```python
+from alchemlyb import concat
 from alchemlyb.parsing import gmx
 from alchemlyb.estimators import MBAR
-import pandas as pd
+from alchemlyb.postprocessors.units import to_kcalmol
 
 u_nks = []
 for window in range(12):
     df = gmx.extract_u_nk(f'window_{window}.xvg', T=300)
     u_nks.append(df)
 
-u_nk = pd.concat(u_nks)
+u_nk = concat(u_nks)
 mbar = MBAR().fit(u_nk)
-print(f'delta-G: {mbar.delta_f_.iloc[0, -1]:.2f} +/- {mbar.d_delta_f_.iloc[0, -1]:.2f} kcal/mol')
+delta_g = to_kcalmol(mbar.delta_f_).iloc[0, -1]
+d_delta_g = to_kcalmol(mbar.d_delta_f_).iloc[0, -1]
+print(f'delta-G: {delta_g:.2f} +/- {d_delta_g:.2f} kcal/mol')
 ```
 
-`alchemlyb` is the standard analysis package for FEP results from GROMACS, AMBER, OpenMM.
+`MBAR.delta_f_` and `d_delta_f_` are dimensionless (in kT) until explicitly converted. The parser shown above reads GROMACS XVG files. For other engines, use the engine-specific parser supported by the installed alchemlyb version.
 
 ## Cycle Closure Analysis
 
-Thermodynamic cycles must close (sum of edges = 0). Cycle closure error = root-mean-square error across closed cycles.
+For a single directed thermodynamic cycle, the signed closure residual is the sum of its edges and should be consistent with zero within uncertainty. An RMS closure statistic requires residuals from multiple cycles and a stated aggregation convention.
 
 ```python
-def cycle_closure(rbfe_results, cycle):
+def cycle_closure_residual(cycle):
     # cycle is list of edges, each (lig_i, lig_j, delta_g, sd)
     total = sum(d_g for _, _, d_g, _ in cycle)
     total_var = sum(sd**2 for _, _, _, sd in cycle)
     return total, total_var ** 0.5
 ```
 
-Acceptable cycle closure: < 0.5 kcal/mol RMS. Higher indicates insufficient sampling or force-field issues.
+Interpret each closure residual relative to propagated edge uncertainties, replicate behavior, shared-edge correlations, network topology, and the decision supported. If reporting RMS across cycles, state which cycles were included and avoid treating correlated cycles as independent observations.
 
 ## Absolute Binding Free Energy (ABFE)
 
 ABFE computes delta-G of binding for a single ligand (no reference compound).
 
-**Goal:** Compute Kd or Ki for a single ligand prospectively.
+**Goal:** Estimate the standard binding free energy of a single ligand prospectively. Conversion to an equilibrium dissociation constant requires an explicit standard-state convention; ABFE does not generically predict an assay `Ki`.
 
 **Approach:** Decouple ligand from solvated state and from pocket-bound state separately; correction terms for analytical end states.
 
-```bash
-openfe absolute-free-energy run \
-  --protein receptor.pdb \
-  --ligand ligand.sdf \
-  --output abfe_results/ \
-  --n-lambda-charge 5 \
-  --n-lambda-vdw 12 \
-  --n-lambda-restraint 7
-```
+Use OpenFE's documented `AbsoluteBindingProtocol` workflow: construct the ligand and complex chemical systems, select and inspect the restraint setup, create the corresponding `Transformation` objects, serialize them with `Transformation.to_json()`, and execute each transformation with `openfe quickrun`. Do not substitute an ad hoc `absolute-free-energy` CLI; OpenFE does not provide that command.
 
 ABFE is harder than RBFE: requires Boresch-style restraints to keep ligand near pocket during decoupling. Restraint contribution must be analytically corrected.
 
-ABFE cost: ~3x RBFE cost per ligand.
+ABFE cost relative to RBFE depends on the protocols, number of legs/windows/repeats, and convergence requirements; estimate it from the explicit campaign plan.
 
 ## MM/PBSA, MM/GBSA Endpoint Methods
 
-Fast (<1 hour) alternative; lower accuracy (3-5 kcal/mol RMSE):
+Lower-cost endpoint alternatives whose usefulness must be established on a matched benchmark:
 
 ```bash
 # MM/GBSA via AMBER MMPBSA.py
@@ -173,39 +166,42 @@ Sample input:
 ```
 &general
   startframe = 100, endframe = 1000, interval = 10
+/
 &gb
   igb = 5
+/
 &pb
   istrng = 0.150
+/
 ```
 
-**Use case:** Rank order top 100 docking poses; MM/GBSA correlates ~0.5-0.7 with experimental binding; better than docking score (0.3-0.5) but worse than FEP (0.7-0.9).
+**Use case:** Exploratory ranking when a matched retrospective benchmark shows the endpoint method supports the intended decision. Do not transfer generic correlation ranges across targets or protocols.
 
 ## Force Field Selection
 
 | Force field | Use for | Notes |
 |-------------|---------|-------|
 | OPLS4 (Schrödinger) | FEP+ default | Commercial; well-tested |
-| OpenFF SAGE 2.x | OpenFE default | Open-source modern |
+| OpenFF 2.1.1 (Sage) | OpenFE 1.7 documented default | Inspect serialized settings; newer OpenFE releases use different defaults |
 | GAFF2 | AMBER FEP | Use for ligand only; protein FF14SB |
 | GAFF | Legacy | Replaced by GAFF2 |
 | CGenFF | CHARMM-style FEP | CHARMM force-field family |
 | ANI-2x | Mixed QM/MM | Experimental for FEP |
 | MACE-OFF | Modern ML force field | Promising for FEP, limited tooling |
 
-For OpenFE: defaults are SAGE 2.1.0 for ligand, FF14SB for protein, TIP3P for water. Override only if benchmarking.
+For OpenFE 1.7, the versioned documentation shows OpenFF 2.1.1 for the ligand and Amber-family protein/water XMLs including ff14SB and TIP3P. Inspect and serialize the actual protocol settings because defaults change between releases.
 
 ## Per-Tool Failure Modes
 
 ### Insufficient sampling
 
-**Trigger:** Lambda windows simulated < 5 ns each; ligand has slow rotamer change.
+**Trigger:** Production length is insufficient for a slow ligand or protein degree of freedom.
 
-**Mechanism:** REST2 helps but isn't a panacea; some conformational changes take 100s of ns.
+**Mechanism:** Replica exchange improves state mixing but is not a panacea; some conformational changes remain slow.
 
-**Symptom:** Replicates disagree by > 1 kcal/mol; cycle closure > 1 kcal/mol RMS.
+**Symptom:** Replicates, time-sliced estimates, overlap/exchange diagnostics, or closure residuals are inconsistent with the reported uncertainty.
 
-**Fix:** Increase per-window sampling to 10-20 ns; add REST2 to additional residues; check if pose is genuinely stable.
+**Fix:** Increase sampling, inspect exchange and state overlap, run independent repeats, and investigate slow protein/ligand degrees of freedom. Use only protocol-supported enhanced sampling; check whether the pose is genuinely stable.
 
 ### Force-field artifacts
 
@@ -213,7 +209,7 @@ For OpenFE: defaults are SAGE 2.1.0 for ligand, FF14SB for protein, TIP3P for wa
 
 **Mechanism:** GAFF2/SAGE may misparameterize unusual functional groups (perfluoro, charged sulfonate near Asp/Glu).
 
-**Symptom:** Large RBFE error (>2 kcal/mol) for a specific transformation.
+**Symptom:** A transformation is an outlier relative to experiment, replicates, or network consistency.
 
 **Fix:** Visual inspection; check ligand topology with rdkit; consider non-bonded fix or fragment-specific parameters.
 
@@ -233,7 +229,7 @@ For OpenFE: defaults are SAGE 2.1.0 for ligand, FF14SB for protein, TIP3P for wa
 
 **Mechanism:** Analytical restraint correction assumes harmonic potential at well-defined minimum.
 
-**Symptom:** ABFE differs by >3 kcal/mol from experiment systematically.
+**Symptom:** ABFE shows a systematic offset or strong sensitivity to restraint choices.
 
 **Fix:** Choose Boresch restraint atoms from rigid ligand core; not flexible side chains.
 
@@ -251,47 +247,49 @@ For OpenFE: defaults are SAGE 2.1.0 for ligand, FF14SB for protein, TIP3P for wa
 
 **Trigger:** Novel chemotype outside training distribution.
 
-**Mechanism:** Boltz-2 is trained on PDBbind + ChEMBL; novel scaffolds extrapolate.
+**Mechanism:** Boltz-2 affinity training uses standardized public biochemical-assay data, including PubChem and ChEMBL sources, alongside its structural training. Novel targets, chemotypes, and assay contexts can still extrapolate.
 
 **Symptom:** Boltz-2 affinity and FEP affinity disagree.
 
-**Fix:** Use Boltz-2 as a screen; validate top candidates with FEP. Treat Boltz-2 confidence band carefully.
+**Fix:** Use Boltz-2 as a benchmarked triage model and validate selected candidates with orthogonal computation and experiment. Do not interpret structure-confidence outputs as calibrated affinity intervals.
 
 ## Reconciliation: FEP+ vs OpenFE
 
 | Aspect | FEP+ | OpenFE |
 |--------|------|--------|
-| Force field | OPLS4 (proprietary) | SAGE 2.1.0 (open) |
+| Force field | OPLS4 (proprietary) | OpenFF 2.1.1 in versioned OpenFE 1.7 defaults; inspect serialized settings |
 | Workflow | Schrödinger GUI | Python CLI/API |
-| Atom mapping | Automated LOMAP-style | LOMAP via openmm-tools |
-| Reported accuracy | 1-2 kcal/mol RMSE | Comparable; emerging benchmarks |
+| Atom mapping | Product workflow | Kartograf CLI default in OpenFE 1.7; LOMAP also supported |
+| Reported accuracy | Benchmark-dependent | Benchmark-dependent; compare matched protocols and systems |
 | Cost | Schrödinger license | Free + compute time |
 | Decision | Commercial team default | Open-source / academic / cost-sensitive |
 
-For new groups, OpenFE 1.7+ is the recommended starting point; FEP+ is the gold standard for established pharma pipelines.
+Choose OpenFE or a commercial workflow according to validated performance, auditability, available expertise, licensing, and integration requirements.
 
 ## Common Errors
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Lambda window simulation diverges | Bad initial pose | Re-relax pose with MM minimization first |
-| Cycle closure > 1 kcal/mol | Insufficient sampling | Increase per-window time; check replicate convergence |
+| Closure residual is inconsistent with propagated uncertainty or independent repeats | Sampling, mapping, force-field, or correlated-edge issue | Inspect signed residuals, overlap, mapping, and independent repeats before extending sampling |
 | MBAR returns NaN | Insufficient overlap between windows | Add intermediate lambda windows |
 | Restraint contribution wrong | Boresch atoms on flexible region | Choose 3 atoms on rigid ligand core |
-| GROMACS REST2 setup wrong | Hot region not specified | `-rest2-hot 'protein and resi 100-110'` style selection |
-| ABFE under-estimates by ~3 kcal/mol | Forgetting analytical correction | Apply `delta-G_restraint_correction` term |
+| Slow binding-site rearrangement | Standard sampling does not cross the barrier | Increase sampling/repeats and use only engine- and protocol-documented enhanced sampling |
+| ABFE systematic offset | Restraint, standard-state, sampling, or force-field issue | Inspect the protocol's documented restraint/free-energy terms and signs; do not invent an ad hoc correction variable |
 | MM/GBSA rmsd doesn't match docking | Different trajectory frames | Compute MM/GBSA on MD-relaxed pose |
 
 ## References
 
-- Mey et al., *Living J. Comput. Mol. Sci.* 2:18378 (2020) -- alchemical free energy best practices.
-- Wang et al., *J. Am. Chem. Soc.* 137:2695 (2015) -- FEP+ method.
-- Open Free Energy (OpenFE) consortium 2023+ -- OpenFE framework. Cite the current release via the OpenFE Zenodo DOI (https://github.com/OpenFreeEnergy/openfe); the earlier "Henderson 2023 Comput Phys Commun" attribution could not be verified.
-- Cournia et al., *J. Chem. Inf. Model.* 60:4153 (2020) -- RBFE for lead optimization.
-- Aldeghi M et al -- ABFE protocols (consult current literature; the earlier "Aldeghi 2018 J Cheminform 10:43" citation could not be verified — Aldeghi's 2018 ABFE work appeared as a *Methods in Molecular Biology* book chapter).
-- Wohlwend et al. (2025) -- Boltz-2 affinity prediction.
-- Shirts & Chodera, *J. Chem. Phys.* 129:124105 (2008) -- MBAR.
-- Bennett, *J. Comput. Phys.* 22:245 (1976) -- BAR.
+- Mey ASJS et al., *Living J. Comput. Mol. Sci.* 2:18378 (2020) -- alchemical free-energy best practices (DOI 10.33011/livecoms.2.1.18378).
+- Wang L et al., *J. Am. Chem. Soc.* 137:2695-2703 (2015) -- FEP+ method (DOI 10.1021/ja512751q).
+- Open Free Energy developers. *OpenFE* software, Zenodo (2023-present) -- open-source alchemical free-energy framework (DOI 10.5281/zenodo.8344247).
+- Cournia Z et al., *J. Chem. Inf. Model.* 60:4153-4169 (2020) -- rigorous ABFE as a final stage in virtual screening (DOI 10.1021/acs.jcim.0c00116).
+- Aldeghi M, Bluck JP, Biggin PC. *Methods Mol. Biol.* 1762:199-232 (2018) -- beginner's guide to absolute alchemical ligand-binding free energies (DOI 10.1007/978-1-4939-7756-7_11).
+- Passaro S et al. *bioRxiv* (2025) -- Boltz-2 affinity prediction preprint (DOI 10.1101/2025.06.14.659707).
+- Shirts MR, Chodera JD. *J. Chem. Phys.* 129:124105 (2008) -- MBAR (DOI 10.1063/1.2978177).
+- Bennett CH. *J. Comput. Phys.* 22:245-268 (1976) -- BAR (DOI 10.1016/0021-9991(76)90078-4).
+- OpenFE 1.7 documentation: https://docs.openfree.energy/en/v1.7.0/
+- alchemlyb documentation: https://alchemlyb.readthedocs.io/
 
 ## Related Skills
 

@@ -16,13 +16,16 @@ def run_posebusters(pred_sdf, receptor_pdb, ref_sdf=None):
         results = bust.bust(mol_pred=pred_sdf, mol_cond=receptor_pdb)
 
     # Collect boolean check columns (PoseBusters returns metadata + bool checks)
-    bool_cols = results.select_dtypes(include='bool').columns
+    bool_cols = [
+        col for col in results.select_dtypes(include='bool').columns
+        if not col.lower().startswith('rmsd')
+    ]
     results['pb_valid'] = results[bool_cols].all(axis=1)
     return results
 
 
 def ligand_strain_mmff(docked_sdf, n_ref_conf=20):
-    '''Compute MMFF94 strain per docked pose vs lowest-energy unconstrained conformer.'''
+    '''Compute relative MMFF94 strain versus the lowest sampled conformer.'''
     suppl = Chem.SDMolSupplier(docked_sdf, removeHs=False, sanitize=True)
     rows = []
     for i, docked in enumerate(suppl):
@@ -33,28 +36,52 @@ def ligand_strain_mmff(docked_sdf, n_ref_conf=20):
         # Generate reference unconstrained ensemble for the same chemistry
         smi = Chem.MolToSmiles(docked)
         ref_mol = Chem.MolFromSmiles(smi)
+        if ref_mol is None:
+            rows.append({'pose_idx': i, 'strain_kcal': None, 'note': 'reference_parse_fail'})
+            continue
         ref_mol = Chem.AddHs(ref_mol)
-        AllChem.EmbedMultipleConfs(ref_mol, numConfs=n_ref_conf,
-                                    params=AllChem.ETKDGv3())
-        AllChem.MMFFOptimizeMoleculeConfs(ref_mol)
 
         mmff_props_ref = AllChem.MMFFGetMoleculeProperties(ref_mol)
         if mmff_props_ref is None:
             rows.append({'pose_idx': i, 'strain_kcal': None, 'note': 'no_mmff_params'})
             continue
+        conf_ids = list(AllChem.EmbedMultipleConfs(
+            ref_mol, numConfs=n_ref_conf, params=AllChem.ETKDGv3()
+        ))
+        if not conf_ids:
+            rows.append({'pose_idx': i, 'strain_kcal': None, 'note': 'embedding_failed'})
+            continue
+        AllChem.MMFFOptimizeMoleculeConfs(ref_mol)
 
         ref_energies = []
-        for c in range(ref_mol.GetNumConformers()):
+        for c in conf_ids:
             ff = AllChem.MMFFGetMoleculeForceField(ref_mol, mmff_props_ref, confId=c)
-            ref_energies.append(ff.CalcEnergy())
+            if ff is not None:
+                ref_energies.append(ff.CalcEnergy())
+        if not ref_energies:
+            rows.append({'pose_idx': i, 'strain_kcal': None, 'note': 'reference_force_field_failed'})
+            continue
         min_ref = min(ref_energies)
 
-        # MMFF94 energy of docked pose
-        mmff_props_dock = AllChem.MMFFGetMoleculeProperties(docked)
+        # MMFF energies are comparable only for the same explicit atom system.
+        # Add any missing H coordinates and relax H atoms while preserving the
+        # docked heavy-atom pose.
+        docked_h = Chem.AddHs(Chem.Mol(docked), addCoords=True)
+        if docked_h.GetNumAtoms() != ref_mol.GetNumAtoms():
+            rows.append({'pose_idx': i, 'strain_kcal': None, 'note': 'atom_system_mismatch'})
+            continue
+        mmff_props_dock = AllChem.MMFFGetMoleculeProperties(docked_h)
         if mmff_props_dock is None:
             rows.append({'pose_idx': i, 'strain_kcal': None, 'note': 'no_dock_mmff_params'})
             continue
-        ff_dock = AllChem.MMFFGetMoleculeForceField(docked, mmff_props_dock)
+        ff_dock = AllChem.MMFFGetMoleculeForceField(docked_h, mmff_props_dock)
+        if ff_dock is None:
+            rows.append({'pose_idx': i, 'strain_kcal': None, 'note': 'dock_force_field_failed'})
+            continue
+        for atom in docked_h.GetAtoms():
+            if atom.GetAtomicNum() != 1:
+                ff_dock.AddFixedPoint(atom.GetIdx())
+        ff_dock.Minimize(maxIts=200)
         docked_e = ff_dock.CalcEnergy()
 
         rows.append({
@@ -65,22 +92,24 @@ def ligand_strain_mmff(docked_sdf, n_ref_conf=20):
     return pd.DataFrame(rows)
 
 
-def pose_qc_pipeline(docked_sdf, receptor_pdb, strain_cutoff=5.0, ref_sdf=None):
-    '''Full pose QC: PoseBusters + strain; flag PB-valid AND strain < cutoff.'''
+def pose_qc_pipeline(docked_sdf, receptor_pdb, strain_cutoff=None, ref_sdf=None):
+    '''Run PoseBusters and report relative strain with an optional user cutoff.'''
     pb_df = run_posebusters(docked_sdf, receptor_pdb, ref_sdf=ref_sdf)
     pb_df['pose_idx'] = range(len(pb_df))
 
     strain_df = ligand_strain_mmff(docked_sdf)
 
     combined = pb_df.merge(strain_df, on='pose_idx', how='left')
-    # Strain cutoff: 5 kcal/mol is realistic upper bound for bioactive conformers (Boström 1998)
-    combined['strain_ok'] = combined['strain_kcal'].fillna(999) <= strain_cutoff
-    combined['fep_ready'] = combined['pb_valid'] & combined['strain_ok']
+    if strain_cutoff is not None:
+        combined['passes_user_strain_cutoff'] = (
+            combined['strain_kcal'].notna()
+            & (combined['strain_kcal'] <= strain_cutoff)
+        )
     return combined
 
 
 if __name__ == '__main__':
     # Example usage (requires real SDF + PDB)
     # results = pose_qc_pipeline('docked.sdf', 'receptor.pdb')
-    # print(results[['pose_idx', 'pb_valid', 'strain_kcal', 'fep_ready']])
+    # print(results[['pose_idx', 'pb_valid', 'strain_kcal']])
     print('Example: provide docked.sdf and receptor.pdb to run')
