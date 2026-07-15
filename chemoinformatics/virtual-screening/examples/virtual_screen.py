@@ -2,47 +2,46 @@
 '''
 Virtual screening with AutoDock Vina.
 '''
-# Reference: autodock vina 1.2+, rdkit 2024.03+, pandas 2.2+ | Verify API if version differs
+# Reference: autodock vina 1.2+, rdkit 2024.09+, pandas 2.2+ | Verify API if version differs
 
 import subprocess
 from pathlib import Path
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from meeko import MoleculePreparation, PDBQTWriterLegacy
 
 
 def prepare_ligand(smiles, output_pdbqt):
-    '''Prepare ligand for docking.'''
+    '''Prepare a supplied, project-approved protomer for docking.'''
     mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        raise ValueError(f'invalid SMILES: {smiles}')
     mol = Chem.AddHs(mol)
-    AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
-    AllChem.MMFFOptimizeMolecule(mol)
+    embed_status = AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
+    if embed_status != 0:
+        raise RuntimeError('ETKDGv3 failed to generate a ligand conformer')
+    if not AllChem.MMFFHasAllMoleculeParams(mol):
+        raise ValueError('MMFF94 parameters are unavailable for this ligand')
+    optimization_status = AllChem.MMFFOptimizeMolecule(mol)
+    if optimization_status != 0:
+        raise RuntimeError('MMFF94 ligand optimization did not converge')
 
-    mol_file = output_pdbqt.replace('.pdbqt', '.mol')
-    Chem.MolToMolFile(mol, mol_file)
-
-    subprocess.run([
-        'obabel', mol_file, '-O', output_pdbqt, '--partialcharge', 'gasteiger'
-    ], check=True)
+    setups = MoleculePreparation().prepare(mol)
+    pdbqt_text, is_ok, err = PDBQTWriterLegacy.write_string(setups[0])
+    if not is_ok:
+        raise RuntimeError(f'Meeko PDBQT export failed: {err}')
+    Path(output_pdbqt).write_text(pdbqt_text)
 
     return output_pdbqt
 
 
-def prepare_receptor(pdb_file, output_pdbqt, remove_waters=True):
-    '''Prepare receptor for docking.'''
-    with open(pdb_file) as f:
-        lines = f.readlines()
-
-    if remove_waters:
-        lines = [l for l in lines if 'HOH' not in l or not l.startswith(('HETATM', 'ATOM'))]
-
-    clean_pdb = pdb_file.replace('.pdb', '_clean.pdb')
-    with open(clean_pdb, 'w') as f:
-        f.writelines(lines)
-
+def prepare_receptor(protonated_pdb, output_pdbqt):
+    '''Convert an already reviewed/repaired/protonated receptor with Meeko.'''
+    output_basename = str(Path(output_pdbqt).with_suffix(''))
     subprocess.run([
-        'obabel', clean_pdb, '-O', output_pdbqt, '-p', '7.4', '--partialcharge', 'gasteiger'
+        'mk_prepare_receptor.py', '--read_pdb', protonated_pdb,
+        '-o', output_basename, '-p'
     ], check=True)
-
     return output_pdbqt
 
 
@@ -92,9 +91,10 @@ def virtual_screen(receptor_pdbqt, ligand_dict, center, box_size, output_dir, ex
             v.dock(exhaustiveness=exhaustiveness, n_poses=5)
 
             energies = v.energies()
-            best_affinity = energies[0][0] if energies else None
+            has_poses = len(energies) > 0
+            best_affinity = energies[0][0] if has_poses else None
 
-            if energies:
+            if has_poses:
                 v.write_poses(f'{output_dir}/{name}_poses.pdbqt', n_poses=5)
 
             results.append({
@@ -141,4 +141,4 @@ if __name__ == '__main__':
     print('2. Define binding site: find_binding_site(receptor, ligand)')
     print('3. Screen library: virtual_screen(receptor, compounds, center, box)')
     print()
-    print('Requirements: pip install vina rdkit openbabel-wheel')
+    print('Requirements: pip install vina rdkit meeko')

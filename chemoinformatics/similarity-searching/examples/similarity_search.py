@@ -2,19 +2,31 @@
 '''
 Molecular similarity searching and clustering with RDKit.
 '''
-# Reference: rdkit 2024.03+ | Verify API if version differs
+# Reference: rdkit 2024.09+ | Verify API if version differs
 
 from rdkit import Chem, DataStructs
-from rdkit.Chem import AllChem, MACCSkeys
+from rdkit.Chem import MACCSkeys, rdFingerprintGenerator
 from rdkit.ML.Cluster import Butina
 from rdkit.Chem import rdFMCS
 
 
+SUPPORTED_FP_TYPES = {'ecfp4', 'maccs'}
+ECFP4_GENERATOR = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+
+def validate_fp_type(fp_type):
+    '''Reject fingerprint names that this example does not implement.'''
+    if fp_type not in SUPPORTED_FP_TYPES:
+        supported = ', '.join(sorted(SUPPORTED_FP_TYPES))
+        raise ValueError(f'Unsupported fingerprint type: {fp_type}. Choose from: {supported}')
+
+
 def tanimoto_similarity(mol1, mol2, fp_type='ecfp4'):
     '''Calculate Tanimoto similarity between two molecules.'''
+    validate_fp_type(fp_type)
     if fp_type == 'ecfp4':
-        fp1 = AllChem.GetMorganFingerprintAsBitVect(mol1, 2, nBits=2048)
-        fp2 = AllChem.GetMorganFingerprintAsBitVect(mol2, 2, nBits=2048)
+        fp1 = ECFP4_GENERATOR.GetFingerprint(mol1)
+        fp2 = ECFP4_GENERATOR.GetFingerprint(mol2)
     elif fp_type == 'maccs':
         fp1 = MACCSkeys.GenMACCSKeys(mol1)
         fp2 = MACCSkeys.GenMACCSKeys(mol2)
@@ -27,12 +39,13 @@ def find_similar(query_smiles, library_smiles, threshold=0.7, fp_type='ecfp4'):
 
     Returns list of (smiles, similarity) sorted by similarity.
     '''
+    validate_fp_type(fp_type)
     query = Chem.MolFromSmiles(query_smiles)
     if query is None:
         raise ValueError('Invalid query SMILES')
 
     if fp_type == 'ecfp4':
-        query_fp = AllChem.GetMorganFingerprintAsBitVect(query, 2, nBits=2048)
+        query_fp = ECFP4_GENERATOR.GetFingerprint(query)
     elif fp_type == 'maccs':
         query_fp = MACCSkeys.GenMACCSKeys(query)
 
@@ -42,7 +55,7 @@ def find_similar(query_smiles, library_smiles, threshold=0.7, fp_type='ecfp4'):
         if mol is None:
             continue
         if fp_type == 'ecfp4':
-            lib_fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048)
+            lib_fp = ECFP4_GENERATOR.GetFingerprint(mol)
         elif fp_type == 'maccs':
             lib_fp = MACCSkeys.GenMACCSKeys(mol)
 
@@ -63,12 +76,15 @@ def bulk_similarity_search(query_fp, library_fps, threshold=0.7):
 def cluster_molecules(molecules, cutoff=0.4):
     '''
     Cluster molecules by Tanimoto similarity using Butina algorithm.
-    cutoff = 1 - similarity_threshold (0.4 = 60% similarity threshold)
+    cutoff = 1 - centroid-neighbor similarity threshold.
+    Returned indices refer to the original input sequence.
     '''
     fps = []
-    for mol in molecules:
+    original_indices = []
+    for original_idx, mol in enumerate(molecules):
         if mol is not None:
-            fps.append(AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048))
+            fps.append(ECFP4_GENERATOR.GetFingerprint(mol))
+            original_indices.append(original_idx)
 
     n = len(fps)
     dists = []
@@ -77,7 +93,10 @@ def cluster_molecules(molecules, cutoff=0.4):
         dists.extend([1 - s for s in sims])
 
     clusters = Butina.ClusterData(dists, n, cutoff, isDistData=True)
-    return clusters
+    return tuple(
+        tuple(original_indices[filtered_idx] for filtered_idx in cluster)
+        for cluster in clusters
+    )
 
 
 def find_mcs(molecules, timeout=60):
@@ -94,10 +113,11 @@ def similarity_matrix(molecules, fp_type='ecfp4'):
     '''Calculate pairwise similarity matrix.'''
     import numpy as np
 
+    validate_fp_type(fp_type)
     fps = []
     for mol in molecules:
         if fp_type == 'ecfp4':
-            fps.append(AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048))
+            fps.append(ECFP4_GENERATOR.GetFingerprint(mol))
         elif fp_type == 'maccs':
             fps.append(MACCSkeys.GenMACCSKeys(mol))
 

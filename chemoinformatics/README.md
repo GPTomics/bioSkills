@@ -9,7 +9,7 @@ Computational chemistry for drug discovery covering molecular representations, s
 | Skill | Description |
 |-------|-------------|
 | molecular-io | Read, write, convert molecular formats (SMILES, InChI, SDF, MOL2, PDB) with aromaticity / stereo / charge handling |
-| molecular-standardization | ChEMBL pipeline standardization: salt strip, neutralize, tautomer canonicalize, stereo standardize |
+| molecular-standardization | ChEMBL pipeline standardization and parent handling; optional separately configured tautomer canonicalization |
 | conformer-generation | ETKDGv3 + MMFF94 / CREST + GFN2-xTB 3D conformer ensembles |
 | molecular-descriptors | ECFP4/6, MACCS, MAP4, MHFP6, RDKit FP, AtomPair, TopTorsion, physchem descriptors |
 | similarity-searching | Tanimoto / Tversky / Dice / cosine; Butina clustering; activity cliffs; MCS |
@@ -18,10 +18,10 @@ Computational chemistry for drug discovery covering molecular representations, s
 | shape-similarity | 3D shape similarity (USRCAT, Open3DAlign, ROCS, ShaEP) |
 | pharmacophore-modeling | RDKit Pharm3D ligand-based + apo2ph4 receptor-based pharmacophore |
 | reaction-enumeration | Reaction SMARTS enumeration; RECAP / BRICS; R-group decomposition |
-| retrosynthesis | AiZynthFinder 4.0 MCTS + Chemformer template-free; route scoring |
-| qsar-modeling | chemprop 2.0 D-MPNN + RDKit 2D; OECD 5 principles; applicability domain |
-| generative-design | REINVENT 4 (de novo, scaffold decoration, linker, optimization); MPO scoring |
-| admet-prediction | ADMETlab 3.0 (119 endpoints), hERG SOTA chemprop, PAINS filters |
+| retrosynthesis | AiZynthFinder 4.4+ planning and route scoring; maintained or pinned template-free comparisons (Chemformer is archived) |
+| qsar-modeling | chemprop 2.2.x D-MPNN + RDKit 2D; OECD 5 principles; applicability domain |
+| generative-design | REINVENT 4 generator types (Reinvent, Libinvent, Linkinvent, Mol2Mol); MPO scoring |
+| admet-prediction | ADMETlab 3.0 (119 platform features, including 77 prediction models), ensemble hERG prediction, PAINS filters |
 | virtual-screening | AutoDock Vina, SMINA, GNINA with CNN scoring; ZINC22 / Enamine REAL ultralarge |
 | pose-validation | PoseBusters physical-validity, strain energy, geometric checks |
 | ml-docking-rescoring | DiffDock-L + GNINA hybrid; Boltz-1/Boltz-2; Chai-1; AlphaFold3 ligand |
@@ -43,11 +43,15 @@ Computational chemistry for drug discovery covering molecular representations, s
 
 ## Requirements
 ```bash
-pip install rdkit chembl_structure_pipeline deepchem chemprop reinvent aizynthfinder posebusters openfe
+pip install rdkit chembl_structure_pipeline deepchem chemprop aizynthfinder posebusters
+# OpenFE is distributed through conda-forge; the PyPI package named openfe is unrelated:
+conda install -c conda-forge openfe=1.7
+# REINVENT 4: follow the official environment and installation instructions:
+# https://github.com/MolecularAI/REINVENT4
 # For semi-empirical (CREST + GFN2-xTB):
 conda install -c conda-forge xtb crest
 # For GNINA:
-# https://github.com/dkoes/gnina
+# https://github.com/gnina/gnina
 # For OpenMM / FEP:
 conda install -c conda-forge openmm openff-toolkit gromacs
 ```
@@ -55,5 +59,4 @@ conda install -c conda-forge openmm openff-toolkit gromacs
 ## Related Skills
 - **structural-biology** - Protein structure prep for docking; AlphaFold3 / Boltz-1 for receptor prediction
 - **machine-learning** - Adjacent ML approaches (biomarker discovery, model validation)
-- **virtual-screening workflows** - End-to-end screening pipelines
 - **clinical-databases** - Drug bioactivity / pharmacogenomics overlay

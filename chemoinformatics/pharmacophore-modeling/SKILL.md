@@ -1,13 +1,13 @@
 ---
 name: bio-pharmacophore-modeling
-description: Builds and applies 3D pharmacophore models using RDKit Pharm3D, the apo2ph4 receptor-based workflow (Heider et al 2022/2023 J Chem Inf Model 63:147-158), Pharmer / Pharmit (search), and PharmacoForge (diffusion-based generation, Flynn et al 2025 Front Bioinform), covering ligand-based pharmacophore (from active set alignment) and receptor-based pharmacophore (from binding pocket geometry). Explicit handling of feature types, geometric tolerances, partial matching, and pharmacophore-based virtual screening. Use when identifying scaffold-hopping candidates, building shape-and-feature search queries, or transferring SAR across chemotypes.
+description: Builds and applies 3D pharmacophore models using RDKit Pharm3D, the apo2ph4 receptor-based workflow (Heider et al. 2023), Pharmer / Pharmit for search, and PharmacoForge for protein-pocket-conditioned pharmacophore generation (Flynn et al. 2025), covering ligand-based pharmacophores from active-set alignment and receptor-based pharmacophores from binding-pocket geometry. Explicitly handles feature types, geometric tolerances, partial matching, and pharmacophore-based virtual screening. Use when identifying scaffold-hopping candidates, building shape-and-feature search queries, or transferring SAR across chemotypes.
 tool_type: python
 primary_tool: RDKit
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: RDKit 2024.09+, pharmer / pharmit (web service), PharmIT 1.1+, plip 2.4+ (interaction analysis).
+Reference examples tested with: RDKit 2024.09+, Pharmit web service, and PLIP 2.4+ (interaction analysis). Verify the deployed Pharmit/Pharmer interface and query format before automation.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show rdkit` then `help(rdkit.Chem.Pharm3D)` to check signatures
@@ -17,13 +17,13 @@ package and adapt the example to match the actual API rather than retrying.
 
 # Pharmacophore Modeling
 
-Build 3D pharmacophore queries that capture the essential interaction features of a ligand-target binding event. A pharmacophore is the *spatial arrangement of pharmacophore features* (donor, acceptor, hydrophobe, aromatic, charged) sufficient for activity, abstracted from any specific chemotype. Used for scaffold-hopping (find compounds with different scaffold but matching pharmacophore), virtual screening (faster than docking), and cross-target SAR transfer. Modern best practice: derive pharmacophore from co-crystal structure if available (receptor-based; apo2ph4 workflow of Heider et al 2022/2023 *J Chem Inf Model* 63:147-158) or align actives if no crystal (ligand-based). Diffusion-based generation (PharmacoForge, Flynn et al 2025 *Front Bioinform*) lets pharmacophore drive de novo design.
+Build 3D pharmacophore queries that capture the essential interaction features of a ligand-target binding event. A pharmacophore is the *spatial arrangement of pharmacophore features* (donor, acceptor, hydrophobe, aromatic, charged) sufficient for activity, abstracted from any specific chemotype. Use pharmacophores for scaffold hopping, virtual-screening prefilters, and cross-target SAR transfer. Derive interaction features directly from a co-crystal when available, use apo2ph4 to derive models from an apo pocket (Heider et al. 2023), or align known actives for a ligand-based model. PharmacoForge generates candidate 3D pharmacophores conditioned on a protein pocket; those pharmacophores can then retrieve matching molecules from a library (Flynn et al. 2025).
 
 For 2D scaffold-based searches, see `chemoinformatics/scaffold-analysis`. For 3D shape similarity, see `chemoinformatics/shape-similarity`. For protein-ligand interaction analysis, see `chemoinformatics/virtual-screening`.
 
 ## Pharmacophore Feature Types
 
-| Feature | RDKit code | Definition | Geometric tolerance |
+| Feature | Common shorthand | Definition | Geometric tolerance |
 |---------|------------|------------|----------------------|
 | H-bond donor | D | -OH, -NH | 1.0-1.5 Å |
 | H-bond acceptor | A | sp2 O / N (lone pair) | 1.0-1.5 Å |
@@ -36,83 +36,79 @@ For 2D scaffold-based searches, see `chemoinformatics/scaffold-analysis`. For 3D
 
 Tolerances are pharmacophore-feature distance windows in the search. Tighter tolerances = fewer hits but more specific.
 
+The ranges in this table are repository starting heuristics, not universal feature tolerances. Set final bounds from aligned-feature variability, coordinate uncertainty, and retrospective validation for the selected search engine.
+
+The one-letter labels above are human-readable shorthand, not RDKit API codes. RDKit's shipped `BaseFeatures.fdef` uses family names such as `Donor`, `Acceptor`, `Hydrophobe`, `Aromatic`, `PosIonizable`, and `NegIonizable`. Its default feature definitions do not provide every halogen-bond or metal-coordination model; add and validate project-specific feature definitions when those interactions matter.
+
 ## Method Taxonomy
 
 | Method | Origin | Use case | Fails when |
 |--------|--------|----------|------------|
 | Ligand-based (LBP) | Catalyst, MOE, RDKit Pharm3D | Multiple actives, no crystal | <3 actives; flexible actives |
-| Receptor-based (RBP) | apo2ph4, LigandScout | Co-crystal available | Apo structure (use AlphaFold3 or Boltz) |
-| Common pharmacophore | Pharm3D `EmbedPharmacophore` | Consensus from active set | Diverse actives confound alignment |
-| Diffusion-based (PharmacoForge) | Flynn et al 2025 Front Bioinform | De novo generation with pharmacophore prior | Pretrained model required |
+| Receptor-based (RBP) | apo2ph4, LigandScout, PLIP | Co-crystal or a defined apo pocket | Uncertain pocket conformation |
+| Common pharmacophore | Validated alignment/feature-consensus workflow; RDKit can represent and query the resulting model | Consensus from active set | Diverse actives or uncertain bioactive conformers confound alignment |
+| Pocket-conditioned generation (PharmacoForge) | Flynn et al. 2025 | Generate candidate pharmacophores from a protein pocket | Does not directly generate molecules; pretrained model required |
 | Active learning pharmacophore | Catalyst variant | Iterative refinement | Custom; not standard |
 
 ## Decision Tree by Scenario
 
 | Scenario | Method | Tools |
 |----------|--------|-------|
-| Co-crystal structure available | Receptor-based | apo2ph4 + Pharmer/Pharmit |
-| Multiple active compounds, no crystal | Ligand-based common pharmacophore | RDKit Pharm3D `EmbedPharmacophore` |
+| Co-crystal structure available | Interaction-derived receptor model | PLIP or LigandScout + Pharmit |
+| Apo structure with a defined pocket | Apo receptor model | apo2ph4; export LigandScout PML |
+| Multiple active compounds, no crystal | Ligand-based common pharmacophore | Alignment plus consensus-feature derivation in validated custom or external tooling; RDKit Pharm3D can apply the resulting model |
 | Single active compound | Single-conformer pharmacophore | RDKit Pharm3D from bioactive conformer |
-| Scaffold hopping prospective | Receptor-based + shape filter | apo2ph4 + ROCS |
+| Scaffold hopping prospective | Receptor-based + shape filter | apo2ph4 or interaction-derived model + shape search |
 | Cross-target SAR transfer | Common pharmacophore across targets | Manual + LigandScout |
-| De novo design with pharmacophore | PharmacoForge | Diffusion-based generation |
+| Generate pocket-conditioned pharmacophores | PharmacoForge | Diffusion model followed by library retrieval |
 | Library pre-filtering | Pharmacophore screen | Pharmit search |
 
 ## Ligand-Based Pharmacophore (RDKit Pharm3D)
 
-**Goal:** Extract a common pharmacophore from a set of bioactive compounds.
+**Goal:** Derive a common pharmacophore from aligned bioactive conformers, then apply that established model to candidate molecules.
 
-**Approach:** Align actives by maximum-common-substructure or shape; extract conserved features; derive a pharmacophore signature.
+**Approach:** Consensus derivation is a separate modeling step: select or generate plausible bioactive conformers, align them using a documented method, identify conserved feature correspondences, and estimate distance bounds or tolerances. RDKit does not provide a single `EmbedPharmacophore` call that performs those steps. `EmbedPharmacophore` instead generates conformations of a molecule that satisfy an already defined pharmacophore.
 
 ```python
-from rdkit import Chem
-from rdkit.Chem import AllChem, ChemicalFeatures
-from rdkit.Chem.Pharm3D import Pharmacophore
+from rdkit import Chem, Geometry
+from rdkit.Chem import ChemicalFeatures
+from rdkit.Chem.Pharm3D import EmbedLib, Pharmacophore
 from rdkit.RDPaths import RDDataDir
 import os
 
 fdef_file = os.path.join(RDDataDir, 'BaseFeatures.fdef')
 factory = ChemicalFeatures.BuildFeatureFactory(fdef_file)
 
-active_smiles = ['CC(C)c1ccc(C(=O)NCc2ccccn2)cc1', 'CCC(C)c1ccc(C(=O)NCc2ccccn2)cc1']
-active_mols = [Chem.AddHs(Chem.MolFromSmiles(s)) for s in active_smiles]
-for m in active_mols:
-    AllChem.EmbedMolecule(m, AllChem.ETKDGv3())
-    AllChem.MMFFOptimizeMolecule(m)
-
-# Extract pharmacophore features (family/type/atom-ids/3D-pos) per molecule
-feature_lists = [factory.GetFeaturesForMol(m) for m in active_mols]
-
-# Build a target pharmacophore from one active's features; the bounds matrix
-# encodes per-feature-pair distance ranges across all conformer/active variability.
-# Below uses 2 features (Aromatic + Donor) with 2.5-3.5 A and 5.0-6.0 A bands.
-feature_types = ['Aromatic', 'Donor']
-# bounds is symmetric 2x2 distance-range matrix; off-diagonal = (lo, hi)
-import numpy as np
-bounds_matrix = np.array([[0.0, 5.0], [3.5, 0.0]])  # upper / lower bounds
-pharmacophore = Pharmacophore.Pharmacophore(feature_types)
+# This is an already defined model. Coordinates and bounds must come from a
+# validated consensus-derivation workflow or another justified source. RDKit
+# requires FreeChemicalFeature objects, not feature-family strings.
+query_features = [
+    ChemicalFeatures.FreeChemicalFeature(
+        'Aromatic', Geometry.Point3D(0.0, 0.0, 0.0)),
+    ChemicalFeatures.FreeChemicalFeature(
+        'Donor', Geometry.Point3D(4.0, 0.0, 0.0)),
+]
+pharmacophore = Pharmacophore.Pharmacophore(query_features)
 pharmacophore.setLowerBound(0, 1, 3.5)
 pharmacophore.setUpperBound(0, 1, 5.0)
 
-# To search a target molecule for matches, use Pharm3D.EmbedLib.EmbedPharmacophore
-# (see chemoinformatics/conformer-generation for 3D embedding fundamentals)
+target = Chem.AddHs(Chem.MolFromSmiles('c1ccc(cc1)CCN'))
+can_match, feature_matches = EmbedLib.MatchPharmacophoreToMol(
+    target, factory, pharmacophore)
+if can_match:
+    atom_match = tuple(tuple(matches[0].GetAtomIds())
+                       for matches in feature_matches)
+    _, embeddings, n_failed = EmbedLib.EmbedPharmacophore(
+        target, atom_match, pharmacophore, randomSeed=23, silent=True)
 ```
 
-`BaseFeatures.fdef` (RDKit-shipped) defines feature SMARTS. For drug-like pharmacophores, this is the standard starting point.
+`BaseFeatures.fdef` (RDKit-shipped) defines feature SMARTS and is a useful starting feature taxonomy. The code above demonstrates applying an existing two-feature model; it does not infer a consensus model from active compounds.
 
 ## Receptor-Based Pharmacophore (apo2ph4 workflow)
 
 **Goal:** Derive a pharmacophore from a protein binding-pocket structure without requiring a bound ligand.
 
-**Approach:** Identify hot-spots (donor / acceptor / hydrophobe regions) from protein geometry; assemble into a pharmacophore. The apo2ph4 workflow of Heider J, Kilian J, Garifulina A, Hering S, Langer T, Seidel T (2022/2023 *J Chem Inf Model* 63:147-158) describes the conceptual pipeline; the example below is illustrative — verify the exact CLI invocation against the published code/release before running.
-
-```bash
-# Conceptual apo2ph4-style workflow; flags shown are illustrative.
-apo2ph4 -pdb receptor.pdb -site_residues 'A:100,A:101,A:104,A:108' \
-        -output pharmacophore.ph4
-```
-
-apo2ph4 outputs a `.ph4`-style pharmacophore compatible with Phase, MOE, and Pharmer.
+**Approach:** Identify donor, acceptor, and hydrophobic hot spots from apo-pocket geometry, cluster them, and assemble candidate pharmacophores. Heider et al. describe apo2ph4 in *J. Chem. Inf. Model.* 63:101-110 (2023). Use the source release's documented scripts and environment rather than assuming a packaged `apo2ph4` command: the published workflow writes LigandScout PML output, not a generic `.ph4` file. Treat conversion to Pharmit, Pharmer, MOE, or Phase as a separate, explicitly validated step because pharmacophore formats are not interchangeable.
 
 When a co-crystal ligand is available, **derive pharmacophore directly from the ligand binding pose**: each ligand feature in contact with a complementary protein residue is part of the pharmacophore.
 
@@ -126,65 +122,57 @@ mol_complex.analyze()
 
 for site in mol_complex.interaction_sets.values():
     for interaction in site.all_itypes:
-        # H-bond donor / acceptor / pi-stacking / hydrophobic / salt-bridge
-        feature_type = interaction.type
-        feature_atom_coords = interaction.ligatom.coords
+        # Objects are interaction-class-specific. Inspect the documented fields
+        # for HydrophobicContact, HydrogenBond, PiStacking, SaltBridge, etc.;
+        # there is no universal `.type` or `.ligatom.coords` interface.
+        interaction_class = type(interaction).__name__
+        print(interaction_class, interaction)
 ```
 
-PLIP outputs interaction types per ligand atom; each interaction maps to a pharmacophore feature.
+PLIP exposes typed interaction records with class-specific ligand/protein atoms and coordinates. Map those records to pharmacophore features explicitly and retain the interaction class and source atom identifiers.
 
 ## Pharmacophore Search (Pharmit / Pharmer)
 
-For library screening, Pharmer/Pharmit are the standard tools.
-
-```bash
-# Pharmer command line (offline alternative)
-pharmer search -q pharmacophore.ph4 -dbdir zinc_db -out hits.sdf
-```
-
-Or use Pharmit web service (https://pharmit.csb.pitt.edu) for browser-based or REST search.
-
-```python
-import requests
-
-url = 'https://pharmit.csb.pitt.edu/...'  # specific endpoint
-response = requests.post(url, json={'pharmacophore': pharmacophore_dict})
-hits = response.json()
-```
-
-Pharmacophore screen is orders of magnitude faster than docking; typical 100M-compound search in minutes.
+For library screening, configure feature types, centers, radii, and optional shape constraints in Pharmit, or use a Pharmer database and query produced in the format required by the installed release. Do not pass LigandScout PML or a vendor `.ph4` file directly unless the selected interface documents that import path. Pharmit reported searching millions of conformers in seconds to minutes; actual runtime depends on query selectivity, database size, and deployment (Sunseri & Koes 2016).
 
 ## Pharmacophore Quality Validation
 
 Evaluate a pharmacophore by:
 
-1. **Retrospective enrichment**: AUC-like metric on actives vs decoys (DUD-E, COCONUT)
+1. **Retrospective enrichment**: a stated metric on target-relevant actives and inactives/decoys. DUD-E can provide a benchmark with known decoy-construction biases; COCONUT is a natural-products collection, not a target-specific active/decoy benchmark.
 2. **Geometric tightness**: feature distance variance across actives
 3. **Selectivity**: false positives in inactive set should be low
 4. **Specific consistency**: pharmacophore matches each active's bioactive conformer
 
 ```python
-def pharmacophore_enrichment(query_pharmacophore, actives, inactives):
-    n_active_match = sum(matches_pharmacophore(a, query_pharmacophore) for a in actives)
-    n_inactive_match = sum(matches_pharmacophore(d, query_pharmacophore) for d in inactives)
-    enrichment = (n_active_match / len(actives)) / (n_inactive_match / len(inactives))
-    return enrichment
+def pharmacophore_enrichment(query_pharmacophore, actives, inactives,
+                             matches_pharmacophore):
+    """Return active/inactive match-rate enrichment for a supplied matcher."""
+    if not actives or not inactives:
+        raise ValueError('actives and inactives must both be non-empty')
+    n_active_match = sum(
+        bool(matches_pharmacophore(mol, query_pharmacophore))
+        for mol in actives)
+    n_inactive_match = sum(
+        bool(matches_pharmacophore(mol, query_pharmacophore))
+        for mol in inactives)
+    active_rate = n_active_match / len(actives)
+    inactive_rate = n_inactive_match / len(inactives)
+    return float('inf') if inactive_rate == 0 else active_rate / inactive_rate
 ```
 
-A good pharmacophore: enrichment >= 5x relative to random.
+For this repository, enrichment >=5x may be used as a starting triage heuristic only after the active/decoy construction and matching policy are documented. Report the full metric and uncertainty, and calibrate the acceptance threshold on the project dataset.
 
-## Diffusion-Based Pharmacophore Design (PharmacoForge)
+## Pocket-Conditioned Pharmacophore Generation (PharmacoForge)
 
-PharmacoForge (Flynn, Shah, Dunn et al 2025 *Front Bioinform*) generates molecules conditioned on a pharmacophore query using a diffusion model:
+PharmacoForge (Flynn et al. 2025) applies a diffusion model to a protein pocket and generates candidate 3D pharmacophores. It does **not** directly generate molecular structures from an input pharmacophore. The validated workflow is:
 
-```python
-# Pseudo-code; depends on PharmacoForge installation
-# from pharmacoforge import PharmacophoreDiffusionGenerator
-# gen = PharmacophoreDiffusionGenerator()
-# generated = gen.generate(pharmacophore_query, n_molecules=100)
-```
+1. Prepare the protein pocket in the representation required by the published PharmacoForge release.
+2. Sample and rank pocket-conditioned pharmacophores.
+3. Convert a selected pharmacophore into the query representation used by the search engine.
+4. Retrieve matching, purchasable compounds and evaluate them with docking, strain, and physical-validity checks.
 
-Trade-off: PharmacoForge produces de novo molecules that satisfy pharmacophore; lower drug-likeness than REINVENT but better novelty.
+The paper compares pharmacophore and downstream retrieval performance with other pocket-based approaches; it does not support a drug-likeness or novelty comparison with REINVENT.
 
 ## Pharmacophore vs Shape vs 2D Fingerprint
 
@@ -250,48 +238,49 @@ Pharmacophore is more *interpretable* than shape: a hit explains why it matched 
 
 **Fix:** Use ChemAxon-style bioisosteric feature equivalence; or pharmacophore feature class expansion (acid generic vs -COOH specific).
 
-### PLIP -- water-mediated interaction missed
+### PLIP -- water bridge absent from output
 
 **Trigger:** Bridging water between ligand donor and protein acceptor.
 
-**Mechanism:** PLIP doesn't include explicit water.
+**Mechanism:** PLIP can report water bridges, but the required crystallographic water must be present in the input and satisfy its geometric criteria.
 
 **Symptom:** Pharmacophore missing critical H-bond feature.
 
-**Fix:** Add water-mediated interaction manually based on crystal water positions; or use PoseView for full interaction view.
+**Fix:** Retain relevant crystallographic waters, inspect PLIP water-bridge output, and review borderline geometry manually.
 
 ## Reconciliation: Ligand-Based vs Receptor-Based
 
 | Aspect | Ligand-based | Receptor-based |
 |--------|--------------|----------------|
-| Data needed | Multiple actives | Co-crystal or predicted holo |
-| Bias | Toward known chemotype | None |
-| Hit set | Similar to known actives | More diverse |
-| Discovery potential | Limited | Higher |
-| Pharmacophore confidence | Higher (validated against multiple actives) | Lower (single ligand) |
+| Data needed | Multiple actives with defensible conformers/alignment | A defined pocket, optionally with a co-crystal ligand |
+| Main bias | Known active chemotypes, conformer choice, and alignment | Pocket structure, protonation, retained waters, and interaction-detection/modeling rules |
+| Hit-set behavior | Depends on feature abstraction and tolerances | Depends on selected pocket interactions, excluded volumes, and tolerances |
+| Confidence evidence | Retrospective recovery across held-out actives/inactives | Recovery of known interaction geometry and retrospective or prospective validation |
 
-For prospective scaffold-hopping, receptor-based is preferred. For ranking analogs, ligand-based is sufficient.
+Choose between ligand- and receptor-based models using the available structural/activity evidence and target-relevant validation. Neither approach is universally more reliable, diverse, or suitable for scaffold hopping.
 
 ## Common Errors
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `Pharm3D.EmbedPharmacophore` fails | Bounds matrix infeasible | Loosen tolerances; increase max_attempts |
+| `Pharm3D.EmbedPharmacophore` fails | Bounds matrix infeasible | Review/loosen justified bounds and, when more attempts are warranted, increase the documented `count` argument; inspect `n_failed` |
 | Pharmacophore matches everything | Too few features | Add features; tighten tolerances |
 | Pharmacophore matches nothing | Too many features or tight bounds | Reduce feature count; loosen tolerances |
 | BaseFeatures.fdef not found | RDKit installation issue | Check `from rdkit.RDPaths import RDDataDir` |
 | Pharmacophore-conformer mismatch | Wrong conformer used | Use bioactive conformer from crystal |
 | Pharmit search timeout | Library too large | Pre-filter by 2D fingerprint Tanimoto |
-| apo2ph4 produces empty | No druggable hot-spots | Lower thresholds; use shape-only filter |
+| apo2ph4 PML has no useful model | No robust pocket hot spots at selected settings | Recheck pocket definition and documented thresholds; inspect alternative models |
 
 ## References
 
-- Wolber & Langer, *J. Chem. Inf. Model.* 45:160 (2005) -- LigandScout pharmacophore.
-- Heider J, Kilian J, Garifulina A, Hering S, Langer T, Seidel T 2022/2023 *J Chem Inf Model* 63(1):147-158 -- apo2ph4 receptor-based pharmacophore workflow (DOI 10.1021/acs.jcim.2c00814).
-- Flynn JR, Shah RH, Dunn SD et al 2025 *Front Bioinform* -- PharmacoForge diffusion pharmacophore.
-- RDKit `Chem.Pharm3D` framework -- documentation at rdkit.org (the unconfirmed "Stiefl 2021" citation has been removed pending verification).
-- Adasme et al., *Nucleic Acids Res.* 49:W530 (2021) -- PLIP interaction profiler.
-- Koes et al., *Nucleic Acids Res.* 44:W436 (2016) -- Pharmit interactive search.
+- Wolber & Langer, *J. Chem. Inf. Model.* 45:160-169 (2005) -- LigandScout pharmacophores. https://doi.org/10.1021/ci049885e
+- Heider et al., *J. Chem. Inf. Model.* 63:101-110 (2023; published online 2022) -- apo2ph4. https://doi.org/10.1021/acs.jcim.2c00814
+- Flynn EL, Shah R, Dunn I, Aggarwal R, Koes DR, *Front. Bioinform.* 5:1628800 (2025) -- PharmacoForge. https://doi.org/10.3389/fbinf.2025.1628800
+- RDKit, `Chem.Pharm3D` API documentation. https://www.rdkit.org/docs/source/rdkit.Chem.Pharm3D.html
+- RDKit, `EmbedPharmacophore` API documentation -- embedding molecules against an existing pharmacophore. https://www.rdkit.org/docs/source/rdkit.Chem.Pharm3D.EmbedLib.html#rdkit.Chem.Pharm3D.EmbedLib.EmbedPharmacophore
+- COCONUT, official resource -- open natural-products collection. https://coconut.naturalproducts.net/
+- Adasme et al., *Nucleic Acids Res.* 49:W530-W534 (2021) -- PLIP interaction profiler. https://doi.org/10.1093/nar/gkab294
+- Sunseri & Koes, *Nucleic Acids Res.* 44:W442-W448 (2016) -- Pharmit interactive search. https://doi.org/10.1093/nar/gkw287
 
 ## Related Skills
 
@@ -300,5 +289,5 @@ For prospective scaffold-hopping, receptor-based is preferred. For ranking analo
 - chemoinformatics/shape-similarity - 3D shape adjacent to pharmacophore
 - chemoinformatics/virtual-screening - Pharmacophore as docking pre-filter
 - chemoinformatics/scaffold-analysis - 2D scaffold-hopping context
-- chemoinformatics/generative-design - PharmacoForge for de novo
+- chemoinformatics/generative-design - Generate or optimize molecules after pharmacophore-based retrieval
 - structural-biology/structure-io - PDB handling

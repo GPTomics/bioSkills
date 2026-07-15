@@ -41,12 +41,13 @@ Tell your AI agent what you want to do:
 6. Export enumerated library
 
 ## Tips
-- Reaction SMARTS use atom mapping: [C:1] maps between reactants and products
-- Always validate reaction with rxn.Validate() before running
+- Reaction SMARTS use atom mapping: `[C:1]` tracks the same reaction-center atom between reactant and product templates; the templates, not mapping alone, define atom creation and deletion
+- Validate with `num_warnings, num_errors = rxn.Validate()` before running; reject nonzero errors and inspect warnings separately
 - Products may need sanitization (SanitizeMol) after reaction
 - Deduplicate products by canonical SMILES
 - Common reactions: amide coupling, Suzuki, reductive amination, ester formation
 - Filter products for drug-likeness after enumeration
+- The R-group decoration example accepts only degree-one dummy attachment points connected by single bonds; use a reaction template or a separately validated bond-order rule for other attachment chemistry
 
 ## Related Skills
 - molecular-io - Save enumerated libraries

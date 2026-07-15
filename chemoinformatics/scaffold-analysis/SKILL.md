@@ -27,9 +27,8 @@ For reaction-based enumeration and Free-Wilson, see `chemoinformatics/reaction-e
 |----------------|--------|------------|----------|------------|
 | Bemis-Murcko scaffold | Bemis & Murcko 1996 | Ring systems + linkers, R-groups stripped | Default chemotype identifier | Linear molecules (no rings) -> empty scaffold |
 | Generic framework | Bemis & Murcko 1996 | Bemis-Murcko with all atoms set to C, all bonds single | Topology comparison | Loses heteroatom info |
-| Cyclic skeleton (CSK) | RDKit | Ring atoms only, all C, all single | Pure ring-topology view | Loses linker info |
-| Murcko atom set | RDKit `GetScaffoldForMol(returnMol=False)` | Atom indices | Programmatic operations | Not a SMILES |
-| Sphynx fingerprints | Maggiora 2020 | Scaffold + connection signature | Cross-target scaffold hopping | Specialty use |
+| Cyclic skeleton (CSK) | Custom RDKit transformation | Ring atoms only, all C, all single | Pure ring-topology view | Loses linker info; not a built-in Murcko option |
+| Murcko atom indices | Derived by matching the scaffold to the parent | Parent-molecule atom indices | Programmatic operations | Symmetry can yield multiple equivalent matches |
 
 ```python
 from rdkit import Chem
@@ -49,7 +48,7 @@ def all_scaffold_views(smi):
     }
 ```
 
-Example: `Cc1ccc(C(=O)NCC2CCCC2)cc1` -> Bemis-Murcko `c1ccc(C(=O)NCC2CCCC2)cc1`; generic `C1CCC(C(C)NCC2CCCC2)CC1`.
+Example: `Cc1ccc(C(=O)NCC2CCCC2)cc1` -> Bemis-Murcko `c1ccc(C(=O)NCC2CCCC2)cc1`; generic `C1CCC(C(C)CCC2CCCC2)CC1` in current RDKit.
 
 ## Library Chemotype Clustering
 
@@ -83,24 +82,35 @@ from rdkit.Chem.Scaffolds import MurckoScaffold
 
 def scaffold_split(df, smiles_col='smiles', train_frac=0.8, seed=42):
     import random
-    random.seed(seed)
+    rng = random.Random(seed)
 
     scaffolds = defaultdict(list)
-    for i, row in df.iterrows():
-        mol = Chem.MolFromSmiles(row[smiles_col])
+    invalid_positions = []
+    for pos, smi in enumerate(df[smiles_col].tolist()):
+        mol = Chem.MolFromSmiles(smi)
         if mol is None:
+            invalid_positions.append(pos)
             continue
         scaff = Chem.MolToSmiles(MurckoScaffold.GetScaffoldForMol(mol))
-        scaffolds[scaff].append(i)
+        scaffolds[scaff].append(pos)
 
-    scaffold_sets = sorted(scaffolds.values(), key=lambda x: len(x), reverse=True)
+    if invalid_positions:
+        raise ValueError(f'Invalid SMILES at row positions: {invalid_positions}')
+
+    scaffold_sets = list(scaffolds.values())
+    rng.shuffle(scaffold_sets)
+    scaffold_sets.sort(key=lambda x: len(x), reverse=True)
 
     n_total = sum(len(s) for s in scaffold_sets)
     n_train = int(n_total * train_frac)
-    train_idx = []
+    if len(scaffold_sets) < 2:
+        raise ValueError('A scaffold split requires at least two scaffolds')
+    train_idx = list(scaffold_sets[0])
     test_idx = []
-    for scaff_set in scaffold_sets:
-        if len(train_idx) + len(scaff_set) <= n_train:
+    for i, scaff_set in enumerate(scaffold_sets[1:], start=1):
+        if not test_idx and i == len(scaffold_sets) - 1:
+            test_idx.extend(scaff_set)
+        elif abs(len(train_idx) + len(scaff_set) - n_train) < abs(len(train_idx) - n_train):
             train_idx.extend(scaff_set)
         else:
             test_idx.extend(scaff_set)
@@ -108,11 +118,11 @@ def scaffold_split(df, smiles_col='smiles', train_frac=0.8, seed=42):
     return df.iloc[train_idx], df.iloc[test_idx]
 ```
 
-**Effect on benchmark metrics:** Random split AUC 0.95; Bemis-Murcko split AUC 0.75-0.85 typical. The gap measures **true generalization** vs memorization.
+**Effect on benchmark metrics:** A scaffold split often produces different performance from a random split because it tests transfer across scaffold groups. The size and meaning of the gap are dataset- and deployment-dependent; it is not a direct universal measure of memorization.
 
 **Caveat:** Bemis-Murcko split is *one* scaffold-split; for production ML, consider time split (newer compounds in test) or activity-cliff-balanced split.
 
-**Class-imbalanced datasets:** For binary outcomes (e.g. hERG blocker, AMES mutagen) with class imbalance, scaffold-only assignment can yield test sets with skewed class distribution and unreliable metrics. Use **stratified scaffold split**: cluster scaffolds, then assign clusters preserving class balance in train + test. Available as `chemprop --split scaffold_balanced` (does class-aware scaffold partitioning); for custom workflows, combine `sklearn.model_selection.StratifiedKFold` with scaffold-grouped folds (`GroupKFold` then `StratifiedShuffleSplit` on residual).
+**Class-imbalanced datasets:** Scaffold-only assignment can yield skewed class distributions. Chemprop's `scaffold_balanced` split balances scaffold-group sizes; it is not label-stratified. If both group isolation and label balance are required, use a validated group-aware stratification procedure such as `StratifiedGroupKFold` where its assumptions fit, then audit every fold for scaffold overlap and endpoint balance.
 
 ## R-Group Decomposition
 
@@ -123,9 +133,17 @@ from rdkit.Chem import rdRGroupDecomposition as rgd
 
 def decompose_series(compounds, scaffold_smiles_with_R):
     scaffold = Chem.MolFromSmiles(scaffold_smiles_with_R)
-    mols = [Chem.MolFromSmiles(s) for s in compounds]
-    decomp, _ = rgd.RGroupDecompose([scaffold], mols, asSmiles=True)
-    return decomp
+    if scaffold is None:
+        raise ValueError('Invalid scaffold SMARTS/SMILES')
+    parsed = [(i, Chem.MolFromSmiles(s)) for i, s in enumerate(compounds)]
+    invalid = [i for i, mol in parsed if mol is None]
+    if invalid:
+        raise ValueError(f'Invalid compound SMILES at positions: {invalid}')
+    mols = [mol for _, mol in parsed]
+    decomp, unmatched = rgd.RGroupDecompose([scaffold], mols, asSmiles=True)
+    unmatched_set = set(unmatched)
+    matched_positions = [i for i in range(len(mols)) if i not in unmatched_set]
+    return decomp, matched_positions, list(unmatched)
 
 scaffold = 'c1ccc(C(=O)N[*:1])cc1-[*:2]'
 compounds = ['c1ccc(C(=O)NCC)cc1F', 'c1ccc(C(=O)NCCC)cc1Cl']
@@ -148,17 +166,14 @@ mmpdb transform --smiles 'COc1ccccc1' --property pIC50 data.mmpdb
 
 Output: ranked transformations with delta(pIC50), N pairs, confidence.
 
-**Confidence interpretation:**
-- N >= 50, |delta| > 0.5 -> reliable rule
-- N = 10-50, |delta| > 1.0 -> suggestive
-- N < 10 -> anecdotal
+Interpret transformation effects from pair count, chemical-context diversity, dependence among pairs, uncertainty intervals, and prospective validation. Do not convert a universal pair-count/effect-size table into reliability labels.
 
 ## Context-Based MMPA
 
 Classical MMPA: "Me -> F always +0.5 log units."
 Context-based MMPA: "Me -> F adjacent to amide is +0.5; Me -> F adjacent to ester is -0.1."
 
-Awale et al. 2024 showed context-conditioned transformations have 60% higher predictive accuracy. mmpdb supports context via `--context` flag for pre-defined contexts; for arbitrary contexts, custom analysis.
+Matched-pair effects can depend strongly on the local chemical environment, so report the transformation together with its attachment-point context rather than treating a global mean as universal (Raut & Dixit 2025). Use mmpdb's stored environments or a custom stratified analysis to compare context-specific effects.
 
 ## Scaffold Hopping
 
@@ -170,7 +185,7 @@ Awale et al. 2024 showed context-conditioned transformations have 60% higher pre
 | 3D shape (ROCS) | Tanimoto on shape + color volumes | shape-similarity skill |
 | Pharmacophore | Common pharmacophore features | pharmacophore-modeling skill |
 | Maximum Common Substructure (MCS) | Largest shared substructure | similarity-searching skill (rdFMCS) |
-| Deep scaffold hopping | Multi-modal transformer NN | DeepScaffoldHop (Devereux 2024) |
+| Deep scaffold hopping | Conditional molecular generation | DeepHop (Zheng et al. 2021) |
 
 For systematic scaffold-hop discovery, combine:
 1. Find target's bioactive series
@@ -190,7 +205,7 @@ def detect_series(smiles_list, min_size=3):
     return series
 ```
 
-For a 10k-compound library, expect 100-500 series of size >= 3. Series are units for SAR modeling.
+Series counts depend on library provenance, standardization, scaffold definition, and minimum size. Report the observed distribution and use series as one possible unit for SAR analysis.
 
 ## Per-Tool Failure Modes
 
@@ -242,25 +257,25 @@ For a 10k-compound library, expect 100-500 series of size >= 3. Series are units
 
 **Symptom:** Transformation reports N=2 with very large delta.
 
-**Fix:** Filter N >= 10; supplement with vendor catalogs (Enamine + ChEMBL).
+**Fix:** Report uncertainty and context diversity, avoid overinterpreting sparse transformations, and seek additional matched evidence where appropriate.
 
 ### R-group decomposition -- ambiguous match
 
 **Trigger:** Multiple positions in scaffold could match same R-group.
 
-**Mechanism:** RGroupDecompose returns first match; not necessarily the "intended" one.
+**Mechanism:** Multiple core embeddings, symmetry, and unlabeled attachment choices can yield assignments that differ from the medicinal-chemistry convention.
 
 **Symptom:** R1/R2 columns mixed up.
 
-**Fix:** Specify scaffold with explicit `[*:1]` and `[*:2]` placeholders at desired positions.
+**Fix:** Specify labeled attachment points, inspect the returned rows and unmatched indices, and use `RGroupDecompositionParameters` for the intended matching/alignment behavior.
 
 ## Reconciliation: Scaffold Definition Disagreements
 
 | Concept | Definition A | Definition B | Pick which |
 |---------|--------------|--------------|------------|
 | Bemis-Murcko scaffold | Atoms in rings + linkers | Same | RDKit default |
-| Generic framework | All C, all single bonds | All C, original bonds | RDKit `makeAtomsGeneric=False` for variant |
-| Cyclic skeleton | Only ring atoms | Only ring atoms, generic | RDKit specific |
+| Generic framework | All C, all single bonds | All C, original bonds | `MakeScaffoldGeneric` implements the first; preserve bond orders with an explicit custom transformation |
+| Cyclic skeleton | Only ring atoms | Only ring atoms, generic | Implement explicitly; it is not an RDKit Murcko flag |
 | "Series" | Same Bemis-Murcko | Tanimoto > 0.8 + same MW | Bemis-Murcko for SAR; Tanimoto for screening |
 
 For ML splits: Bemis-Murcko. For library diversity: Bemis-Murcko + cluster size. For series detection: Bemis-Murcko + R-group decomposition.
@@ -269,7 +284,7 @@ For ML splits: Bemis-Murcko. For library diversity: Bemis-Murcko + cluster size.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `GetScaffoldForMol` returns mol with extra atoms | Linker definition includes 2-bond span | Use `BMScaffoldNetwork` to control linker depth |
+| Murcko scaffold includes unexpected linker atoms | Bemis-Murcko linkers connect ring systems by definition | Inspect the definition; for hierarchical networks use `rdScaffoldNetwork.ScaffoldNetworkParams` with `CreateScaffoldNetwork` |
 | Singleton scaffolds dominate library | Aggressive standardization | Check for tautomer-induced scaffold variation; canonicalize first |
 | R-group decomposition empty | Mol doesn't match scaffold | Use FMCS to find actual shared core |
 | mmpdb missing transformations | Cores too restrictive | Try smaller core requirement |
@@ -279,12 +294,14 @@ For ML splits: Bemis-Murcko. For library diversity: Bemis-Murcko + cluster size.
 
 ## References
 
-- Bemis & Murcko, *J. Med. Chem.* 39:2887 (1996) -- original scaffold framework.
-- Hu et al., *J. Chem. Inf. Model.* 57:171 (2017) -- modern scaffold hopping review.
-- Hussain & Rea, *J. Chem. Inf. Model.* 50:339 (2010) -- MMPA core method.
-- Awale et al., *J. Cheminformatics* 17:23 (2024) -- context-based MMPA on CYP1A2.
-- Devereux et al., *J. Cheminformatics* 16:18 (2024) -- deep scaffold hopping with transformers.
-- Yang et al., *J. Chem. Inf. Model.* 59:3370 (2019) -- chemprop scaffold split for QSAR.
+- Bemis GW, Murcko MA. *J. Med. Chem.* 39:2887-2893 (1996) -- original scaffold framework (DOI 10.1021/jm9602928).
+- Hu, Stumpfe & Bajorath, *J. Med. Chem.* 60:1238-1246 (2017), DOI 10.1021/acs.jmedchem.6b01437 -- modern scaffold hopping review.
+- Hussain J, Rea C. *J. Chem. Inf. Model.* 50:339-348 (2010) -- MMPA core method (DOI 10.1021/ci900450m).
+- Raut & Dixit, *RSC Med. Chem.* 16:3281-3290 (2025), DOI 10.1039/D4MD01012D -- local-environment effects in matched molecular pairs.
+- Zheng et al., *J. Cheminformatics* 13:87 (2021), DOI 10.1186/s13321-021-00565-5 -- DeepHop conditional scaffold hopping.
+- Yang K et al., *J. Chem. Inf. Model.* 59:3370-3388 (2019) -- Chemprop molecular-property prediction (DOI 10.1021/acs.jcim.9b00237).
+- RDKit R-group decomposition API: https://www.rdkit.org/docs/source/rdkit.Chem.rdRGroupDecomposition.html
+- Chemprop splitting documentation: https://chemprop.readthedocs.io/en/main/tutorial/python/data/splitting.html
 
 ## Related Skills
 
@@ -293,5 +310,5 @@ For ML splits: Bemis-Murcko. For library diversity: Bemis-Murcko + cluster size.
 - chemoinformatics/reaction-enumeration - Free-Wilson analysis on R-decomposition
 - chemoinformatics/similarity-searching - 2D scaffold-hopping (FCFP4, AtomPair)
 - chemoinformatics/shape-similarity - 3D scaffold-hopping
-- chemoinformatics/qsar-modeling - Mandatory scaffold split for QSAR
+- chemoinformatics/qsar-modeling - Scaffold-aware splitting for QSAR
 - chemoinformatics/generative-design - Scaffold-decoration generative tasks

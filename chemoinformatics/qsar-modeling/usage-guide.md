@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build target-specific QSAR / QSPR models from in-house assay data using chemprop D-MPNN (modern default), RandomForest + ECFP4 (small data baseline), or transformer-based MolFormer / Uni-Mol / ChemBERTa for large datasets. Apply OECD 5 principles with scaffold-balanced splits, ensemble uncertainty, applicability domain, and conformal prediction.
+Build target-specific QSAR / QSPR models from in-house assay data by comparing chemprop D-MPNN, RandomForest + ECFP4, and, when justified, transformer-based MolFormer / Uni-Mol / ChemBERTa under the same validation design. Apply OECD 5 principles with deployment-relevant splits, ensemble uncertainty, applicability-domain assessment, and conformal prediction where its assumptions and interface are satisfied.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ Build target-specific QSAR / QSPR models from in-house assay data using chemprop
 pip install chemprop rdkit scikit-learn mapie shap
 ```
 
-chemprop 2.0+ (note major API change from 1.x).
+These examples target chemprop 2.2.x (note the major API change from 1.x).
 
 ## Quick Start
 
@@ -27,10 +27,10 @@ Tell the AI agent what to do:
 > "Build RF + ECFP4 binary classifier on 150-compound dataset (hERG_blocker column). 5-fold scaffold-split cross-validation. Report AUC, sensitivity, specificity, applicability domain by kNN Tanimoto."
 
 ### chemprop classifier
-> "Train chemprop 2.0 D-MPNN ensemble on hERG_data.csv. Use scaffold_balanced split, 5 folds x 5 ensemble. Include rdkit_2d_normalized features. Report test AUC + calibration."
+> "Train chemprop 2.x D-MPNN ensembles on hERG_data.csv. Use a scaffold-balanced split, five replicates, and five ensemble members per replicate. Include current `rdkit_2d` features. Report test AUC and calibration, keeping replicate and ensemble aggregation explicit."
 
 ### Conformal prediction
-> "Wrap my trained chemprop model in MAPIE conformal predictor. Use 90% coverage. For each new SMILES, report prediction + 90% interval."
+> "Use MAPIE with my sklearn QSAR baseline to target 90% marginal coverage, or implement and test an sklearn-compatible wrapper before applying it to chemprop. State the exchangeability assumptions."
 
 ### Multi-task CYP inhibition
 > "Train chemprop multitask classifier on CYP1A2, CYP2C9, CYP2C19, CYP2D6, CYP3A4. Scaffold split. Compare to per-target single-task models."
@@ -38,21 +38,20 @@ Tell the AI agent what to do:
 ## What the Agent Will Do
 
 1. Standardize input data (recommend `chemoinformatics/molecular-standardization`).
-2. Apply scaffold split (Bemis-Murcko) for train / val / test.
+2. Choose and document a split that represents deployment (for example scaffold, time, external-series, or prospective).
 3. Featurize with ECFP4 + RDKit 2D descriptors (for chemprop hybrid).
-4. Train ensemble (5 folds × 5 seeds for chemprop; bootstrap for RF).
+4. Train replicated ensembles for chemprop or bootstrap models for RF, keeping validation partitions independent of model selection.
 5. Compute test metrics + calibration plots.
 6. Build applicability domain assessment (kNN Tanimoto distance or conformal prediction).
 7. Optionally compute SHAP feature importance.
 
 ## Tips
 
-- Always scaffold-split; never random split.
-- For < 200 compounds, RF + ECFP4 is competitive and more interpretable.
-- For > 10k compounds, transformer-based methods may outperform chemprop.
-- Calibration is critical: deep learning probabilities rarely calibrated; Platt-correct.
-- Conformal prediction gives distribution-free 90% coverage interval.
-- Use ensemble variance as applicability domain measure.
+- Use scaffold splitting when transfer to unseen scaffold groups is the question; use time, external, or prospective splits when they better match deployment. Label random splits as interpolation-focused.
+- Always benchmark a fingerprint baseline and a graph model on the same deployment-relevant split; add pretrained transformers when their representation and compute cost are justified.
+- Check calibration on held-out data; apply Platt or isotonic calibration only with a proper calibration split.
+- Conformal prediction targets marginal coverage under exchangeability; verify empirical coverage on relevant held-out data.
+- Use ensemble variance as one uncertainty diagnostic, not as a complete applicability-domain definition.
 
 ## Related Skills
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Standardize molecular structures into a single canonical form for ML training, deduplication, and database joining. Skipping standardization causes silent ML data leakage and database join misses; this skill applies industry-validated pipelines (ChEMBL `chembl_structure_pipeline`, RDKit `rdMolStandardize`, canSARchem) covering sanitization, salt stripping, neutralization, tautomer canonicalization, and stereo standardization.
+Standardize molecular structures consistently for ML training, deduplication, and database joining. The skill distinguishes ChEMBL representation/parent standardization from optional RDKit tautomer canonicalization and the canSARchem workflow, which canonicalizes tautomers before parent extraction.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ Standardize molecular structures into a single canonical form for ML training, d
 pip install rdkit chembl_structure_pipeline pandas
 ```
 
-RDKit version 2024.09+ is required (uses `rdMolStandardize` C++ implementation; older Python `MolStandardize` deprecated Q1 2024).
+Examples target RDKit 2024.09+ and the maintained `rdkit.Chem.MolStandardize.rdMolStandardize` API. The standalone MolVS package is a legacy dependency, not a prerequisite.
 
 ## Quick Start
 
@@ -33,7 +33,7 @@ Tell the AI agent what to do:
 > "Standardize hERG.csv (column smiles, label hERG_blocker). Deduplicate on InChIKey, average activity, remove inorganics, output train.csv with 1 row per unique compound."
 
 ### Tautomer-aware canonicalization
-> "For these 100 SMILES, enumerate tautomers and pick the lowest-energy canonical form for each. Use TautomerEnumerator with default scoring rules and report the canonical tautomer per input."
+> "For these 100 SMILES, use `TautomerEnumerator` with its documented scoring rules and report the selected canonical tautomer per input; do not describe it as a physical lowest-energy calculation."
 
 ### Database join cleanup
 > "Two datasets, chembl_data.csv and zinc_data.csv, should be joined on standardized SMILES. Standardize both with the ChEMBL pipeline; compare InChIKey overlap; report duplicates."
@@ -42,17 +42,17 @@ Tell the AI agent what to do:
 
 1. Read the input file (CSV / SDF / SMI) and parse SMILES with `Chem.MolFromSmiles`.
 2. Apply the chosen standardization pipeline (ChEMBL default unless specified).
-3. For each compound: sanitize, strip salts, neutralize charges, canonicalize tautomers.
+3. Apply the stages defined by that pipeline; ChEMBL does not canonicalize tautomers, while the custom RDKit and canSARchem-style workflows shown here can.
 4. Generate canonical SMILES and InChIKey for each standardized compound.
 5. Deduplicate by InChIKey; aggregate activity if multiple records.
 6. Output standardized CSV with `smiles`, `inchikey`, `activity`, `n_replicates` columns.
-7. Report parse failures, fragments stripped, and tautomer changes.
+7. Report parse failures, ChEMBL exclusion flags, fragments stripped, and any tautomer changes when a tautomer step was requested. Do not silently admit `exclude_flag=True` structures into registration or QSAR output.
 
 ## Tips
 
 - Always standardize before fingerprinting, similarity searching, or ML training.
 - Use InChIKey for cross-database identity (more robust than canonical SMILES).
-- Quaternary ammoniums require `Uncharger(canonicalOrdering=True)` to preserve charge.
+- Preserve permanent charges with the selected uncharging policy (normally `force=False`) and inspect charge-sensitive structures; `canonicalOrder=True` controls site ordering, not whether a charge is chemically permanent.
 - Tautomer canonicalization is the most contentious step; document choice and apply consistently across train + test.
 - For natural products / peptides, default tautomer rules may not apply; manual review.
 - Standardize entire library before deduplication; tautomer differences cause duplicate misses.

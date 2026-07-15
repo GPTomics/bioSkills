@@ -1,7 +1,7 @@
 # Molecular I/O - Usage Guide
 
 ## Overview
-Read, write, and convert molecular file formats including SMILES, SDF, MOL2, and PDB. Includes structure standardization pipeline for consistent molecular representations.
+Read, write, and convert molecular file formats including SMILES, SDF, MOL2, and PDB. Inspect representation-sensitive details such as salts, charges, and stereochemistry during conversion, then use the molecular-standardization skill when a registration policy is required.
 
 ## Prerequisites
 ```bash
@@ -13,7 +13,7 @@ pip install openbabel-wheel  # For additional format support
 Tell your AI agent what you want to do:
 - "Load my compound library from this SDF file"
 - "Convert these SMILES to an SDF file with 3D coordinates"
-- "Standardize the structures in my molecule database"
+- "Inspect my molecule database for salts, mixtures, charge states, and missing stereochemistry before conversion"
 - "Read MOL2 files and convert to SMILES"
 
 ## Example Prompts
@@ -28,23 +28,23 @@ Tell your AI agent what you want to do:
 
 > "Export canonical SMILES for my molecule list."
 
-### Standardization
-> "Standardize these molecules by removing salts, neutralizing charges, and canonicalizing tautomers."
+### Checks Before Standardization
+> "Parse these molecules and report salts, mixtures, charge states, and stereochemistry issues that need a documented standardization policy."
 
-> "Clean up my compound library for consistent representations."
+> "Convert this compound library without silently changing charge, stereochemistry, or tautomer state, then identify records that need the molecular-standardization workflow."
 
 ## What the Agent Will Do
 1. Parse molecular files using RDKit or Open Babel
 2. Handle parsing errors gracefully
-3. Apply standardization pipeline if requested
+3. Preserve representation-sensitive details during conversion and route registration-grade standardization to the dedicated skill
 4. Convert between formats as needed
 5. Preserve molecular properties during conversion
 
 ## Tips
-- Use rdMolStandardize module (Python MolStandardize was removed in Q1 2024)
+- Use the maintained `rdkit.Chem.MolStandardize.rdMolStandardize` module for custom standardization; standalone MolVS is a legacy package
 - For Open Babel 3.x, use `from openbabel import pybel` not `import pybel`
-- Standardization order: Sanitize, Normalize, Neutralize, Canonicalize tautomer, Strip salts
-- Use rdMolDraw2D for molecular drawing (legacy Draw.MolToImage is deprecated)
+- Standardization order is policy-specific; use the molecular-standardization skill and document whether tautomer canonicalization occurs before or after parent selection
+- Use rdMolDraw2D when direct control over molecular drawing is needed; `Draw.MolToImage` remains a supported convenience API
 - Always check for None when loading molecules (invalid structures return None)
 
 ## Related Skills

@@ -40,10 +40,10 @@ Tell your AI agent what you want to do:
 5. Generate visualizations with highlighting
 
 ## Tips
-- SMARTS uses square brackets for atom properties: [OH], [NH2], [CX3]
+- SMARTS uses square brackets for atom properties: `[OX2H]`, `[NH2]`, `[CX3]`; atom-only queries such as `[NH2]` do not define the neighboring functional-group context
 - Aromatic atoms are lowercase: c for aromatic carbon, C for aliphatic
 - Use recursive SMARTS for complex patterns: $(...) notation
-- Common patterns: [OH] hydroxyl, [NH2] primary amine, c1ccccc1 benzene
+- Common patterns: `[OX2H]` neutral hydroxyl, `[NX3;H2;$(N-[#6]);!$(N-[C,S,P]=[O,S,N])]` carbon-substituted primary amine excluding common amide-like N, and `c1ccccc1` an aromatic six-cycle (including cycles embedded in fused systems)
 - HasSubstructMatch is faster than GetSubstructMatches for presence check
 
 ## Related Skills

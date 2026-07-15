@@ -1,55 +1,40 @@
-# Reference: REINVENT 4.0+ | Verify API if version differs
-# Multi-parameter optimization (MPO) RL configuration for de novo design
-# Components: activity QSAR, QED, SA score, diversity
+# Reference: REINVENT 4 staged-learning schema; validate with installed release
+# Minimal built-in scoring example. Add model-backed endpoints only by copying
+# the matching release's documented component parameters.
+# Batch size, DAP settings, learning rate, and stage limits below are repository
+# starting defaults; tune them from learning curves, diversity, and oracle cost.
 
-[run]
-type = "reinforcement_learning"
+run_type = "staged_learning"
 device = "cuda:0"
-logging_path = "logs/rl.log"
 
 [parameters]
 prior_file = "priors/reinvent.prior"
 agent_file = "priors/reinvent.prior"
 batch_size = 64
 unique_sequences = true
-sigma = 128.0
-n_steps = 500
-randomize_smiles = false
+randomize_smiles = true
+summary_csv_prefix = "outputs/reinvent"
+use_checkpoint = false
+purge_memories = false
 
-[diversity_filter]
-type = "IdenticalMurckoScaffold"
-nbmax = 25
-minscore = 0.4
-minsimilarity = 0.4
+[learning_strategy]
+type = "dap"
+sigma = 128
+rate = 0.0001
 
-[scoring_function]
-name = "multi-component"
-parallel = false
+[[stage]]
+chkpt_file = "checkpoints/stage1.chkpt"
+termination = "simple"
+max_score = 1.0
+min_steps = 25
+max_steps = 500
 
-# Predicted activity (sigmoid 5-8 pIC50)
-[[scoring_function.components]]
-type = "predictive_property"
-name = "kinase_pIC50"
-weight = 0.4
-specific_parameters = { container_type = "scikit_learn_container", model_path = "kinase_qsar.pkl", scikit_learn_model_type = "regression", transformation = { transformation_type = "sigmoid", low = 5.0, high = 8.0, k = 0.5 } }
+[stage.scoring]
+type = "geometric_mean"
 
-# Drug-likeness QED
-[[scoring_function.components]]
-type = "qed_score"
-name = "qed"
-weight = 0.2
-specific_parameters = {}
+[[stage.scoring.component]]
+[stage.scoring.component.QED]
 
-# Synthetic accessibility (reverse sigmoid 4-2; lower is better)
-[[scoring_function.components]]
-type = "sa_score"
-name = "sa"
-weight = 0.2
-specific_parameters = { transformation = { transformation_type = "reverse_sigmoid", low = 2.0, high = 4.0, k = 0.5 } }
-
-# Tanimoto novelty (reverse sigmoid 0.4-0.6; lower similarity is better)
-[[scoring_function.components]]
-type = "tanimoto_similarity"
-name = "novelty"
-weight = 0.2
-specific_parameters = { smiles = ["c1ccccc1"], transformation = { transformation_type = "reverse_sigmoid", low = 0.4, high = 0.6, k = 0.5 } }
+[[stage.scoring.component.QED.endpoint]]
+name = "QED"
+weight = 1

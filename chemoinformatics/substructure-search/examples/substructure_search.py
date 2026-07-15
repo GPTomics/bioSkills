@@ -2,16 +2,16 @@
 '''
 Substructure searching with SMARTS patterns.
 '''
-# Reference: rdkit 2024.03+ | Verify API if version differs
+# Reference: rdkit 2024.09+ | Verify API if version differs
 
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 
 
 COMMON_SMARTS = {
-    'hydroxyl': '[OH]',
-    'primary_amine': '[NH2]',
-    'secondary_amine': '[NH1]',
+    'hydroxyl': '[OX2H]',
+    'primary_amine': '[NX3;H2;$(N-[#6]);!$(N-[C,S,P]=[O,S,N])]',
+    'secondary_amine': '[NX3;H1;$(N(-[#6])-[#6]);!$(N-[C,S,P]=[O,S,N])]',
     'carboxylic_acid': '[CX3](=O)[OX2H1]',
     'amide': '[CX3](=O)[NX3]',
     'ester': '[CX3](=O)[OX2][C]',
@@ -20,7 +20,7 @@ COMMON_SMARTS = {
     'halogen': '[F,Cl,Br,I]',
     'nitro': '[N+]([O-])=O',
     'sulfonamide': '[S](=O)(=O)[NX3]',
-    'ketone': '[CX3](=O)[C]',
+    'ketone': '[CX3;H0](=[OX1])([#6])[#6]',
     'aldehyde': '[CX3H1](=O)',
 }
 
@@ -127,12 +127,12 @@ if __name__ == '__main__':
     for name, count in groups.items():
         print(f'  {name}: {count}')
 
-    print(f'\nHas hydroxyl: {has_substructure(mol, "[OH]")}')
-    print(f'Has primary amine: {has_substructure(mol, "[NH2]")}')
+    print(f'\nHas hydroxyl: {has_substructure(mol, "[OX2H]")}')
+    print(f'Has primary amine: {has_substructure(mol, COMMON_SMARTS["primary_amine"])}')
 
-    matches = get_matches(mol, '[OH]')
+    matches = get_matches(mol, '[OX2H]')
     print(f'\nHydroxyl positions: {matches}')
 
     library = [Chem.MolFromSmiles(s) for s in ['CCO', 'CCN', 'CCC', 'c1ccccc1O', 'c1ccccc1N']]
-    alcohols = filter_by_substructure(library, '[OH]')
+    alcohols = filter_by_substructure(library, '[OX2H]')
     print(f'\nAlcohols in library: {len(alcohols)}')

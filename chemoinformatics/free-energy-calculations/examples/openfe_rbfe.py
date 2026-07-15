@@ -3,10 +3,6 @@
 # Note: OpenFE setup is complex; this is a sketch of the API call pattern.
 # Full reproduction requires GPU + multi-hour run.
 
-import pandas as pd
-from rdkit import Chem
-
-
 def estimate_rbfe_pair(
     receptor_pdb,
     lig1_sdf,
@@ -15,16 +11,19 @@ def estimate_rbfe_pair(
     sim_time_ns=5,
 ):
     '''
-    Sketch of OpenFE RBFE setup. In production, use openfe.setup + openfe.execute.
+    Build version-checked OpenFE RBFE transformations.
 
-    Returns delta-delta-G with statistical uncertainty estimate.
+    Execute the returned transformations with their protocol DAGs or serialize
+    them and use ``openfe quickrun``. This setup function does not run MD.
     '''
     from openfe import (
         SmallMoleculeComponent,
         ProteinComponent,
         SolventComponent,
         ChemicalSystem,
+        Transformation,
     )
+    from openfe.setup import LomapAtomMapper
     from openfe.protocols.openmm_rfe import RelativeHybridTopologyProtocol
 
     protein = ProteinComponent.from_pdb_file(receptor_pdb)
@@ -37,35 +36,65 @@ def estimate_rbfe_pair(
     system_solv_1 = ChemicalSystem({'ligand': lig1, 'solvent': solvent})
     system_solv_2 = ChemicalSystem({'ligand': lig2, 'solvent': solvent})
 
-    settings = RelativeHybridTopologyProtocol.default_settings()
-    settings.alchemical_settings.lambda_steps = n_lambdas
-    settings.simulation_settings.production_length = f'{sim_time_ns} * nanosecond'
+    # Twelve replicas and 5 ns are repository setup defaults only; adjust both
+    # from state-overlap, exchange, and replicate-convergence diagnostics.
+    solvent_settings = RelativeHybridTopologyProtocol.default_settings()
+    solvent_settings.lambda_settings.lambda_windows = n_lambdas
+    solvent_settings.simulation_settings.n_replicas = n_lambdas
+    solvent_settings.simulation_settings.production_length = f'{sim_time_ns} ns'
+    solvent_protocol = RelativeHybridTopologyProtocol(solvent_settings)
 
-    protocol = RelativeHybridTopologyProtocol(settings)
+    complex_settings = RelativeHybridTopologyProtocol.default_settings()
+    complex_settings.lambda_settings.lambda_windows = n_lambdas
+    complex_settings.simulation_settings.n_replicas = n_lambdas
+    complex_settings.simulation_settings.production_length = f'{sim_time_ns} ns'
+    # OpenFE 1.7 recommends reducing complex-leg padding from its solvent default.
+    complex_settings.solvation_settings.solvent_padding = '1 nm'
+    complex_protocol = RelativeHybridTopologyProtocol(complex_settings)
+    # LOMAP is an explicitly selected supported mapper. OpenFE 1.7's CLI
+    # default is Kartograf. Inspect the proposed mapping before execution.
+    mapping = next(LomapAtomMapper().suggest_mappings(lig1, lig2))
+    bound_transformation = Transformation(
+        stateA=system_bound_1,
+        stateB=system_bound_2,
+        mapping=mapping,
+        protocol=complex_protocol,
+        name='lig1_to_lig2_bound',
+    )
+    solvent_transformation = Transformation(
+        stateA=system_solv_1,
+        stateB=system_solv_2,
+        mapping=mapping,
+        protocol=solvent_protocol,
+        name='lig1_to_lig2_solvent',
+    )
     return {
-        'note': 'sketch_only; run full OpenFE setup script + cluster execution',
-        'protocol': protocol,
+        'note': 'setup_only; inspect mappings, then execute both transformations',
+        'bound_transformation': bound_transformation,
+        'solvent_transformation': solvent_transformation,
         'n_lambdas': n_lambdas,
         'sim_time_ns': sim_time_ns,
     }
 
 
 def analyze_mbar(u_nk_files, T=300.0):
-    '''Analyze GROMACS / OpenMM xvg files with alchemlyb + pymbar.'''
+    '''Analyze GROMACS XVG files; pass the simulation temperature (300 K is a starting default).'''
     from alchemlyb.parsing import gmx
+    from alchemlyb import concat
     from alchemlyb.estimators import MBAR
+    from alchemlyb.postprocessors.units import to_kcalmol
 
     u_nks = []
     for f in u_nk_files:
         u_nks.append(gmx.extract_u_nk(f, T=T))
-    u_nk = pd.concat(u_nks)
+    u_nk = concat(u_nks)
     mbar = MBAR().fit(u_nk)
-    delta_g = mbar.delta_f_.iloc[0, -1]
-    d_delta_g = mbar.d_delta_f_.iloc[0, -1]
+    delta_g = to_kcalmol(mbar.delta_f_).iloc[0, -1]
+    d_delta_g = to_kcalmol(mbar.d_delta_f_).iloc[0, -1]
     return delta_g, d_delta_g
 
 
-def cycle_closure(edges):
+def cycle_closure_residual(edges):
     '''
     Compute cycle closure error for a closed cycle of RBFE edges.
 

@@ -51,6 +51,7 @@ __pycache__
 
 # Claude Code support
 CLAUDE.md
+AGENTS.md
 instructions.md
 planning.md
 AUDIT.md

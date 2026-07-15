@@ -2,10 +2,10 @@
 '''
 Molecular descriptor and fingerprint calculation with RDKit.
 '''
-# Reference: rdkit 2024.03+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
+# Reference: rdkit 2024.09+, numpy 1.26+, pandas 2.2+ | Verify API if version differs
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors, Lipinski
+from rdkit.Chem import AllChem, Descriptors, Lipinski, rdFingerprintGenerator
 from rdkit.Chem.QED import qed
 from rdkit.Chem import MACCSkeys
 from rdkit.ML.Descriptors import MoleculeDescriptors
@@ -18,7 +18,9 @@ def get_morgan_fingerprint(mol, radius=2, n_bits=2048, use_chirality=False):
     Generate Morgan fingerprint (ECFP).
     ECFP4 = radius 2, ECFP6 = radius 3
     '''
-    fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius, nBits=n_bits, useChirality=use_chirality)
+    generator = rdFingerprintGenerator.GetMorganGenerator(
+        radius=radius, fpSize=n_bits, includeChirality=use_chirality)
+    fp = generator.GetFingerprint(mol)
     return np.array(fp)
 
 
@@ -70,8 +72,14 @@ def calculate_3d_descriptors(mol):
     from rdkit.Chem import Descriptors3D
 
     mol = Chem.AddHs(mol)
-    AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
-    AllChem.MMFFOptimizeMolecule(mol)
+    embed_status = AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
+    if embed_status != 0:
+        raise RuntimeError('ETKDGv3 failed to generate a conformer')
+    if not AllChem.MMFFHasAllMoleculeParams(mol):
+        raise ValueError('MMFF94 parameters are unavailable for this molecule')
+    optimization_status = AllChem.MMFFOptimizeMolecule(mol)
+    if optimization_status != 0:
+        raise RuntimeError('MMFF94 optimization did not converge')
 
     return {
         'Asphericity': Descriptors3D.Asphericity(mol),
@@ -112,10 +120,13 @@ def batch_calculate_descriptors(molecules, descriptor_list=None):
 
 def batch_fingerprints(molecules, fp_type='ecfp4', n_bits=2048):
     '''Generate fingerprints for multiple molecules.'''
+    if fp_type not in {'ecfp4', 'ecfp6', 'maccs'}:
+        raise ValueError(f'Unsupported fingerprint type: {fp_type}')
+    fp_length = 167 if fp_type == 'maccs' else n_bits
     fps = []
     for mol in molecules:
         if mol is None:
-            fps.append(np.zeros(n_bits))
+            fps.append(np.zeros(fp_length, dtype=np.uint8))
             continue
         if fp_type == 'ecfp4':
             fps.append(get_morgan_fingerprint(mol, radius=2, n_bits=n_bits))
