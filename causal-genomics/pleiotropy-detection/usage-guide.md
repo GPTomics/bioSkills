@@ -129,7 +129,7 @@ Tell your AI agent what you want to do:
 - **MR-PRESSO majority assumption** - Above 50% pleiotropic, PRESSO removes valid instruments; weighted-mode (plurality-valid) is more robust in that regime.
 - **MR-RAPS install** - CRAN-archived 2025-03-01; install from GitHub `qingyuanzhao/mr.raps` and call via `TwoSampleMR::mr_raps()` (thin wrapper) or `mr.raps::mr.raps()` directly. The `MendelianRandomization` package does NOT export `mr_raps()`.
 - **MR-Clust biology** - Cluster output is most informative when SNPs in each cluster annotate to distinct pathways; pure statistical clustering without biological story is weak evidence.
-- **LHC-MR runtime** - Hours on full sumstats; restrict to LDSC-overlap SNPs and use `n_cores >= 4`.
+- **LHC-MR runtime** - Hours on full sumstats; restrict to LDSC-overlap SNPs and use `nCores >= 4`.
 - **LCV vs MR** - LCV uses genome-wide SNPs not just significant instruments; complements MR but does not replace it; gcp = 0 means rg only, no causation.
 - **STROBE-MR** - 20 items + 30 subitems (Skrivankova 2021 JAMA 326:1614; explanation BMJ 375:n2233); reviewer-required at major journals since 2022.
 - **Reproducibility** - Pin TwoSampleMR, MRPRESSO, CAUSE versions in the methods section; record harmonization choices.

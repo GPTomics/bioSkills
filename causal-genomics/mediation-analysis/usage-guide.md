@@ -8,9 +8,10 @@ Decomposes the total effect of an exposure (genotype, treatment, environmental f
 
 ```r
 # CRAN
-install.packages(c('mediation','HIMA','bama','causalweight','EValue'))
+install.packages(c('mediation','bama','causalweight','EValue'))
 
-# GitHub (NOT on CRAN)
+# GitHub (NOT on CRAN; HIMA archived from CRAN 2026-07 -- needs archived scalreg)
+remotes::install_github('YinanZheng/HIMA')
 remotes::install_github('BS1125/CMAverse')
 remotes::install_github('WSpiller/MVMR')
 
@@ -89,7 +90,7 @@ Tell the AI agent what kind of mediation question is being asked:
 ## Tips
 
 - Sequential ignorability is untestable; ALWAYS include sensitivity (Imai rho or E-value). Reviewers reject mediation papers without it.
-- HIMA1 (`hima_classic`) screens by beta only and reverses the screening regime relative to HIMA2; HIMA2 (`hima`) screens by alpha-beta -- HIMA2 is more powerful for mediators with strong exposure-effect (alpha) but weak outcome-effect (beta). Pin `HIMA >= 2.3.0` for the formula interface used in this skill's examples; 2.2.x users must use `hima_classic()` style with positional arguments and lose the auto-detected outcome family.
+- HIMA1 (`hima_classic`) screens by beta only and reverses the screening regime relative to HIMA2; HIMA2 (`hima`) screens by alpha-beta -- HIMA2 is more powerful for mediators with strong exposure-effect (alpha) but weak outcome-effect (beta). Pin `HIMA >= 2.3.0` for the formula interface used in this skill's examples; on 2.2.x the classic engine is the positional `hima(X, Y, M, ...)` call (there is no `hima_classic()` until 2.3+) and the formula interface is unavailable.
 - HIMA outcome family is limited to gaussian and binomial in the default `hima()`; survival needs `hima_cox`, count needs `hima_pois`.
 - Bootstrap iterations: 1000 is the floor; 5000 for publication. Doubling sims halves Monte-Carlo CI noise.
 - BCa CI caveats: pass `boot.ci.type='bca'` (lowercase) NOT `'BCa'`; BCa requires more sims than percentile (recommend >= 5000) and can fail to converge when the acceleration estimate is unstable near boundary cases. Fall back to percentile CIs in that case and document.
@@ -102,7 +103,7 @@ Tell the AI agent what kind of mediation question is being asked:
 - `medsens()` requires linear or probit outcome models -- refit with `family=binomial(link='probit')` for sensitivity on binary outcomes.
 - Cell composition is the canonical confounder in EWAS mediation; include estimated cell proportions (Houseman / RPC) in `COV.XM` and `COV.MY`.
 - BAMA when-to-prefer: choose BAMA over HIMA2 when (1) strong prior information on mediator effects is available, (2) the candidate panel is moderately-sized (~5k mediators), and (3) compute budget allows 1-6 h MCMC; otherwise HIMA2 is faster with comparable FDR control.
-- Measurement-error correction: when the mediator is measured with error (reliability r < 0.9), the indirect effect is attenuated; apply regression calibration (Carroll 2006 Measurement Error in Nonlinear Models) by replacing the observed mediator with its conditional expectation given the exposure and covariates, OR run a sensitivity analysis at fixed reliability r = 0.7 (Valeri & VanderWeele 2014 Biometrics 70:268).
+- Measurement-error correction: when the mediator is measured with error (reliability r < 0.9), the indirect effect is attenuated; apply regression calibration (Carroll 2006 Measurement Error in Nonlinear Models) by replacing the observed mediator with its conditional expectation given the exposure and covariates, OR run a sensitivity analysis at fixed reliability r = 0.7 (Valeri L, Lin X & VanderWeele TJ 2014 Stat Med 33:4875).
 - Mediational E-value formula details: convert ACME to a risk-ratio bound (`acme_rr = exp(ACME)` on the log scale for continuous, or via VanderWeele's marginal RR for binary), then E = RR + sqrt(RR * (RR - 1)); the corresponding lower-bound RR gives the E-value for the CI. `EValue::evalues.OLS()` automates this for linear outcomes.
 
 ## Cohort Considerations

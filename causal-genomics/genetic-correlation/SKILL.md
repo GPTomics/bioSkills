@@ -1,13 +1,13 @@
 ---
 name: bio-causal-genomics-genetic-correlation
-description: Estimate bivariate genetic correlation (rg) between traits from GWAS summary statistics or individual-level genotypes using cross-trait LDSC, HDL, LAVA, rho-HESS, GREML-bivariate, Popcorn, and HDL-L. Use when quantifying shared genetic architecture between two traits, screening MR validity before causal inference, distinguishing global from locus-level rg, estimating trans-ancestry rg, separating partial from full causation via LCV gcp, or producing a STROBE-MR-compliant cross-trait sensitivity battery. Cross-trait LDSC intercept absorbs sample overlap and is NOT a bias; HDL is biased under sample overlap above ~5%. High rg between exposure and outcome motivates CHP-aware MR sensitivity (CAUSE, LHC-MR).
+description: Estimates bivariate genetic correlation (rg) between traits from GWAS summary statistics or individual-level genotypes using cross-trait LDSC, HDL, LAVA, rho-HESS, GREML-bivariate, Popcorn, and HDL-L. Use when quantifying shared genetic architecture between two traits, screening MR validity before causal inference, distinguishing global from locus-level rg, estimating trans-ancestry rg, separating partial from full causation via LCV gcp, or producing a STROBE-MR-compliant cross-trait sensitivity battery. Cross-trait LDSC intercept absorbs sample overlap and is NOT a bias; HDL is biased under sample overlap above ~5%. High rg between exposure and outcome motivates CHP-aware MR sensitivity (CAUSE, LHC-MR).
 tool_type: mixed
 primary_tool: ldsc
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: LDSC v1.0.1+ (Python 3; prefer `abdenlab/ldsc-python3` v2.0.0 -- `belowlab/ldsc` v3.0.1 README states the `--h2 / --rg / --h2-cts` CLI is broken; use Docker `jtb114/ldsc:latest` for the belowlab fallback; original `bulik/ldsc` is Python 2.7 unmaintained since 2019), HDL 1.4.0+ (R; GitHub `zhenin/HDL`), LAVA 0.1.0+ (R; GitHub `josefin-werme/LAVA`), HESS 0.5.4+ (Python; huwenboshi/hess), Popcorn 1.0+ / Popcorn-2 (Python; brielin/Popcorn), GCTA 1.94+ (GREML-bivariate), baselineLD_v2.2 / eur_w_ld_chr LD-score panels from alkesgroup.broadinstitute.org/LDSCORE, UKB-array SVD eigen reference for HDL.
+Reference examples tested with: LDSC v1.0.1+ (Python 3; prefer `abdenlab/ldsc-python3` v2.0.0 -- `belowlab/ldsc` v3.0.1 README states the `--h2 / --rg / --h2-cts` CLI is broken; use Docker `jtb114/ldsc:latest` for the belowlab fallback; original `bulik/ldsc` is Python 2.7 unmaintained since 2019), HDL 1.4.0+ (R; GitHub `zhenin/HDL`), LAVA 0.1.0+ (R; GitHub `josefin-werme/LAVA`), HESS 0.5.4+ (Python; huwenboshi/hess), Popcorn 1.0+ (Python; brielin/Popcorn), GCTA 1.94+ (GREML-bivariate), baselineLD_v2.2 / eur_w_ld_chr LD-score panels from alkesgroup.broadinstitute.org/LDSCORE, UKB-array SVD eigen reference for HDL.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `python -c 'import <module>; help(<module>)'`
@@ -18,12 +18,12 @@ If code throws an LD-score "category not found" error, an HDL reference-panel mi
 
 # Genetic Correlation
 
-**"Estimate the genetic correlation between two traits from GWAS summary statistics"** -> Decompose the bivariate genetic architecture into a single global rg (cross-trait LDSC, HDL), per-locus local rg (LAVA, rho-HESS, HDL-L), or cross-population rg (Popcorn / Popcorn-2). Genetic correlation is the central cross-trait statistic in causal genomics: it quantifies shared etiology, motivates CHP-aware MR sensitivity when high, gates LCV's gcp partial-causation parameter, and feeds into multi-trait analysis frameworks (MTAG, GenomicSEM). Tool choice is a decision about the **regime** (sumstats vs individual-level; global vs local; same-ancestry vs trans-ancestry) and the **sample-overlap structure** between input GWAS.
+**"Estimate the genetic correlation between two traits from GWAS summary statistics"** -> Decompose the bivariate genetic architecture into a single global rg (cross-trait LDSC, HDL), per-locus local rg (LAVA, rho-HESS, HDL-L), or cross-population rg (Popcorn). Genetic correlation is the central cross-trait statistic in causal genomics: it quantifies shared etiology, motivates CHP-aware MR sensitivity when high, gates LCV's gcp partial-causation parameter, and feeds into multi-trait analysis frameworks (MTAG, GenomicSEM). Tool choice is a decision about the **regime** (sumstats vs individual-level; global vs local; same-ancestry vs trans-ancestry) and the **sample-overlap structure** between input GWAS.
 
 - CLI (LDSC, robust to overlap): `ldsc.py --rg trait1.sumstats.gz,trait2.sumstats.gz --ref-ld-chr eur_w_ld_chr/ --w-ld-chr eur_w_ld_chr/ --out rg`
-- R (HDL, lower variance, requires independent samples): `HDL.rg(gwas1.df, gwas2.df, LD.path = 'UKB_array_SVD_eigen99_extraction', N0 = 0)`
+- R (HDL, lower variance, requires independent samples): `HDL.rg(gwas1.df, gwas2.df, LD.path = 'UKB_array_SVD_eigen90_extraction', N0 = 0)`
 - R (LAVA, local rg per locus): `process.input() -> run.univ() -> run.bivar(input, locus_id)` over ~2495 LDetect-derived loci
-- CLI (rho-HESS, locus-level): `hess.py --local-rhog t1.sumstats.gz,t2.sumstats.gz --bfile <ref> --partition-file <part>.bed --chrom <chr>`
+- CLI (rho-HESS, locus-level): `hess.py --local-rhog t1.sumstats.gz t2.sumstats.gz --bfile <ref> --partition <part>.bed --chrom <chr>`
 - CLI (Popcorn, trans-ancestry): `popcorn fit -v 1 --cfile cross_pop_scores.txt --sfile1 pop1.txt --sfile2 pop2.txt out`
 
 ## Algorithmic Taxonomy
@@ -34,15 +34,15 @@ If code throws an LD-score "category not found" error, an HDL reference-panel mi
 | HDL (Ning 2020 Nat Genet 52:859) | High-Definition Likelihood; eigen-decomposition of full LD with closed-form variance | Sumstats + UKB-array SVD eigen reference (EUR N=336k) | rg, SE | ~60% lower variance than LDSC; equivalent to ~2.5x sample size; preferred when both GWAS truly independent | Sample overlap > 5% biases likelihood; only public reference panel is EUR UKB-array |
 | LAVA (Werme 2022 Nat Genet 54:274) | Semi-parametric local genetic correlation per locus; PC-projected SNP effects under a local null | Sumstats + LDetect partitioning (~2495 loci) | Per-locus univariate h2 + bivariate rg + p-value | Detects heterogeneous rg masked by global cancellation; conditional + partial rg supported | Locus has too few SNPs (< 50) or low local h2 (univariate p > 0.05 in either trait); LD reference mismatch |
 | rho-HESS (Shi 2017 AJHG 101:737) | Quadratic form on LD-projected effect estimates per locus | Sumstats + LDetect partition + LD reference | Per-locus rho_g + bivariate local rg | Earliest locus-level rg method; complements LAVA | Locus < 1000 SNPs; LD ref must match in-sample structure |
-| HDL-L (Ning 2022 ext.) | HDL likelihood applied to local windows | Sumstats + windowed LD reference | Per-window local rg | Lower variance than rho-HESS at locus level | Same sample-overlap caveat as HDL; reference-panel coverage limited |
+| HDL-L (Li Y et al 2025 Nat Genet) | HDL likelihood applied to local windows | Sumstats + windowed LD reference | Per-window local rg | Lower variance than rho-HESS at locus level | Same sample-overlap caveat as HDL; reference-panel coverage limited |
 | GREML-bivariate (Lee 2012 Bioinformatics 28:2540) | Joint REML on bivariate GRM | Individual-level genotypes + both phenotypes | rg + SE | Gold standard at individual level; better precision than sumstats methods | Needs individual-level data on overlapping individuals OR carefully matched two-cohort; population stratification leaks |
 | Popcorn (Brown 2016 AJHG 99:76) | Cross-population genetic effect (rho_ge) and impact (rho_gi) correlation under MAF-LD model | Sumstats per population + cross-population LD scores | Trans-ancestry rg + per-pop h2 | Quantifies shared causal architecture across ancestries | Effective N per population < 5000; cross-population LD score reference mismatched to GWAS ancestry |
-| Popcorn-2 (Galinsky 2019 ext.) | Improved Popcorn with admixture-aware LD scores | Same as Popcorn + admixture LD scores | Same outputs, lower SE | More precise on admixed cohorts; better handling of LD mismatch | Same data-volume limit as Popcorn |
-| GenomicSEM `LDSC()` (Grotzinger 2019 Nat Hum Behav 3:513) | LDSC wrapper feeding into SEM | Multiple sumstats | Genetic covariance matrix + multivariable SEM | Multi-trait extension of LDSC; common-factor and bifactor models | Same per-pair limits as LDSC; SEM identification problems |
-| SUPERGNOVA (Zhang 2021 Nat Commun 12:7234) | Annotation-aware LD-block local rg with eigen-decomposed kernel | Sumstats + annotation-aware LD partition | Per-locus rg + p; orthogonal philosophy from LAVA | Different LD partitioning than LDetect; useful as triangulation against LAVA | Same chi-square floor as LDSC; non-EUR coverage limited |
-| KGGSEE local rg (Zhang 2022 Bioinformatics) | Heritability-based per-region rg | Sumstats + region partition | Per-region rg | Java pipeline integrates h2 partition + local rg | Less adopted than LAVA; partition file curation overhead |
+| Cross-pop causal-effect rg (Galinsky KJ et al 2019 Genet Epidemiol 43:180) | Cross-population genetic correlation of causal effect sizes | Sumstats per population + cross-population reference | Trans-ancestry causal-effect rg + SE | Estimates cross-population correlation of causal effects; complements Popcorn | Same data-volume limit as Popcorn |
+| GenomicSEM `ldsc()` (Grotzinger 2019 Nat Hum Behav 3:513) | LDSC wrapper feeding into SEM | Multiple sumstats | Genetic covariance matrix + multivariable SEM | Multi-trait extension of LDSC; common-factor and bifactor models | Same per-pair limits as LDSC; SEM identification problems |
+| SUPERGNOVA (Zhang Y et al 2021 Genome Biol 22:262) | LD-block local rg via eigen-decomposition of the LD matrix | Sumstats + LD-block partition | Per-locus rg + p; orthogonal philosophy from LAVA | Different LD partitioning than LDetect; useful as triangulation against LAVA | Same chi-square floor as LDSC; non-EUR coverage limited |
+| KGGSEE gene-based conditional heritability (Miao L et al 2023 AJHG) | Gene-based conditional heritability via effective heritability estimation (EHE) | Sumstats + gene annotation | Per-gene conditional h2 | Java pipeline; gene-level conditional heritability | NOT a local-rg method -- answers a different question than LAVA |
 
-Methodology evolves; benchmark consensus shifts. Verify against the alkesgroup LDSC tutorial (current as of release), Werme 2022 LAVA paper + GitHub, and Speed 2020 *Nat Methods* model-comparison work before locking a primary method. When a claim depends on the model assumption (e.g. enrichment in shared loci), report at least two methods (e.g. LDSC global + LAVA local).
+Methodology evolves; benchmark consensus shifts. Verify against the alkesgroup LDSC tutorial (current as of release), Werme 2022 LAVA paper + GitHub, and Speed 2020 *Nat Genet* model-comparison work before locking a primary method. When a claim depends on the model assumption (e.g. enrichment in shared loci), report at least two methods (e.g. LDSC global + LAVA local).
 
 ## Cross-Trait LDSC Intercept: Sample Overlap is Absorbed, Not a Bias
 
@@ -85,10 +85,10 @@ LCV's `gcp` parameter (O'Connor & Price 2018 Nat Genet 50:1728) attempts to dist
 | Truly independent EUR samples, want maximum precision | HDL | ~60% lower variance than LDSC; equivalent to 2.5x sample size |
 | Suspect heterogeneous rg across genome (e.g. neuropsychiatric pair with weak global rg) | LAVA local rg | Detects loci of shared etiology hidden by global cancellation |
 | Locus-level rg with explicit LD partitioning | rho-HESS (or LAVA) | LAVA is newer and better-supported; rho-HESS remains the original framework |
-| Cross-population (trans-ancestry) rg | Popcorn or Popcorn-2 | Within-population LDSC fails cross-pop; Popcorn models ancestry-specific causal architecture |
+| Cross-population (trans-ancestry) rg | Popcorn | Within-population LDSC fails cross-pop; Popcorn models ancestry-specific causal architecture |
 | Individual-level genotypes available | GREML-bivariate (GCTA) | Better precision than sumstats; gold standard at individual level |
 | MR validity check before running MR | LDSC rg + LCV gcp | If |rg| > 0.3 add CHP-aware MR sensitivity (CAUSE / LHC-MR) |
-| Multi-trait modeling (many traits jointly) | GenomicSEM `LDSC()` | SEM extension of LDSC; common-factor, bifactor, and network models |
+| Multi-trait modeling (many traits jointly) | GenomicSEM `ldsc()` | SEM extension of LDSC; common-factor, bifactor, and network models |
 | Sumstats with mean chi-square < 1.02 | Defer; meta-analyze to ~50k effective N first | LDSC variance explodes below this; nothing else fixes underpower |
 | Confirmatory after a single LAVA hit | LDSC global + bidirectional MR + colocalization | Triangulate; LAVA flags shared etiology but does not establish causation |
 
@@ -122,7 +122,7 @@ LCV's `gcp` parameter (O'Connor & Price 2018 Nat Genet 50:1728) attempts to dist
 
 **Symptom:** LDSC ratio is unusually high (>0.2); per-chromosome estimates wildly heterogeneous; total h2 mismatches independent estimates from the same cohort.
 
-**Fix:** Use ancestry-matched LD scores from alkesgroup (eas_w_ld_chr, afr_w_ld_chr) or compute custom LD scores from in-sample LD reference. For trans-ancestry rg, switch to Popcorn / Popcorn-2.
+**Fix:** Use ancestry-matched LD scores from alkesgroup (eas_w_ld_chr, afr_w_ld_chr) or compute custom LD scores from in-sample LD reference. For trans-ancestry rg, switch to Popcorn.
 
 ### Global rg masks local rg variation
 
@@ -142,7 +142,7 @@ LCV's `gcp` parameter (O'Connor & Price 2018 Nat Genet 50:1728) attempts to dist
 
 **Symptom:** Trans-ancestry rg point estimate around 0.6-0.9 with CI excluding 1 for a trait expected to be "the same disease".
 
-**Fix:** Use Popcorn or Popcorn-2 (within-pop LDSC is invalid for cross-pop rg); interpret rg(cross-pop) < 1 as quantifying population-specific architecture rather than as bias; report rho_ge (effect correlation) and rho_gi (impact correlation) separately.
+**Fix:** Use Popcorn (within-pop LDSC is invalid for cross-pop rg); interpret rg(cross-pop) < 1 as quantifying population-specific architecture rather than as bias; report rho_ge (effect correlation) and rho_gi (impact correlation) separately.
 
 ### Same-Trait Cross-Cohort rg as Consistency Check
 
@@ -253,8 +253,8 @@ gwas2 <- data.frame(
 res <- HDL.rg(
     gwas1.df = gwas1,
     gwas2.df = gwas2,
-    LD.path = 'UKB_array_SVD_eigen99_extraction',
-    N0 = 0,  # 0 if truly independent samples; >0 biases the estimate
+    LD.path = 'UKB_array_SVD_eigen90_extraction',
+    N0 = 0,  # number of overlapping individuals; 0 for independent cohorts. HDL corrects for overlap via N0 and is robust to its misspecification
     output.file = 'hdl_rg.txt'
 )
 
@@ -263,7 +263,7 @@ print(res$rg.se)
 print(res$P)
 ```
 
-Pre-download the UKB-array SVD reference (`HDL_documentation.html` -> "How to obtain LD reference panel" link); the eigen99 panel retains 99% of eigenvalues, eigen90 is faster but less precise. Do NOT run HDL when sample overlap is unknown or non-trivial; the wrapper does not warn.
+Pre-download the UKB SVD reference (`HDL_documentation.html` -> "How to obtain LD reference panel" link); `eigen90` is the UKB-array (genotyped-SNP) panel used here, while `eigen99` exists only for the imputed-variant panel -- match the panel to the SNP coverage of the input GWAS, not to a speed/precision setting. Do NOT run HDL when sample overlap is unknown or non-trivial; the wrapper does not warn.
 
 ## LAVA: Local Genetic Correlation Per Locus
 
@@ -282,7 +282,7 @@ input <- process.input(
     phenos = c('trait1', 'trait2')
 )
 
-loci <- read.loci('blocks_s2500_m25_f1_w200.GRCh38.locfile')
+loci <- read.loci('blocks_s2500_m25_f1_w200.GRCh37_hg19.locfile')
 
 univ_results <- list()
 biv_results <- list()
@@ -313,22 +313,31 @@ The standard LDetect partitioning files (~2495 EUR loci, ~1700 EAS, ~2700 AFR) a
 **Approach:** Estimate local h2 per trait first; then bivariate cross-trait estimator using LD-projected effect estimates per locus.
 
 ```bash
-# Local h2 step (per chromosome)
-hess.py \
-    --local-hsqg trait1.sumstats.gz \
-    --chrom 22 \
-    --bfile 1kg_EUR_chr22 \
-    --partition-file fourier_ls-chr22.bed \
-    --out hess_t1_chr22
+# Step 1: eigenvalues + projections for both traits (per chromosome; two sumstats SPACE-separated).
+# --local-rhog auto-writes per-trait files (step1_trait1_*, step1_trait2_*) AND the covariance
+# intermediates (step1_chrN.eig.gz, step1_chrN.prjprod.gz) under the shared --out prefix.
+for chr in {1..22}; do
+    hess.py \
+        --local-rhog trait1.sumstats.gz trait2.sumstats.gz \
+        --chrom $chr \
+        --bfile 1kg_EUR_chr${chr} \
+        --partition fourier_ls-chr${chr}.bed \
+        --out step1
+done
 
-# Bivariate local rg (per chromosome, after h2 per trait)
+# Step 2: per-trait local h2 from the Step-1 outputs (MUST run before Step 3)
+hess.py --prefix step1_trait1 --out step2_trait1
+hess.py --prefix step1_trait2 --out step2_trait2
+
+# Step 3: local genetic covariance / rg. --local-hsqg-est passes the Step-2 per-trait local h2,
+# --num-shared is the overlap count, --pheno-cor the phenotypic correlation (any value when
+# --num-shared 0). Auto-aggregates across all chromosomes; no per-chromosome loop here.
 hess.py \
-    --local-rhog trait1.sumstats.gz,trait2.sumstats.gz \
-    --chrom 22 \
-    --bfile 1kg_EUR_chr22 \
-    --partition-file fourier_ls-chr22.bed \
+    --prefix step1 \
+    --local-hsqg-est step2_trait1.txt step2_trait2.txt \
     --num-shared 0 \
-    --out hess_rhog_chr22
+    --pheno-cor 0 \
+    --out step3
 ```
 
 `--num-shared` is the number of overlapping individuals; set 0 only if truly independent. HESS partition files use the Berisa & Pickrell 2016 LD-block boundaries (`fourier_ls-*.bed`). LAVA has largely superseded HESS for new analyses, but rho-HESS remains in active use for replication / triangulation.
@@ -344,18 +353,20 @@ hess.py \
 popcorn compute -v 1 \
     --bfile1 1kg_EUR \
     --bfile2 1kg_EAS \
-    --SNPs_to_store hapmap3_snps.txt \
+    --SNPs_to_store 20000 \
+    --gen_effect \
     eur_eas_scores.txt
 
 # Step 2: fit cross-population rg
 popcorn fit -v 1 \
     --cfile eur_eas_scores.txt \
+    --gen_effect \
     --sfile1 t2d_eur.sumstats.txt \
     --sfile2 t2d_eas.sumstats.txt \
     t2d_eur_eas_rg.txt
 ```
 
-Popcorn reports `rho_ge` (correlation of causal effect sizes) and `rho_gi` (correlation of variant-level impacts, MAF-weighted). When MAFs differ markedly across populations, `rho_ge` and `rho_gi` diverge; both are biologically meaningful and report-worthy. Effective N per population must be > ~5000 for stable estimates.
+`--gen_effect` (which must be passed at BOTH `compute` and `fit`) selects the genetic-effect model and reports `rho_ge` (correlation of causal effect sizes); omitting it at both steps yields `rho_gi` (correlation of variant-level impacts, MAF-weighted). A single run reports one or the other, so run both modes to report both. When MAFs differ markedly across populations, `rho_ge` and `rho_gi` diverge; both are biologically meaningful and report-worthy. Effective N per population must be > ~5000 for stable estimates.
 
 ## Reconciliation Across Methods
 
@@ -383,7 +394,7 @@ Popcorn reports `rho_ge` (correlation of causal effect sizes) and `rho_gi` (corr
 | LAVA bivariate rg = +/- 1 at boundary | Univariate filter not applied; locus is unidentified | Apply `univ$p < 0.05/N_loci` filter to BOTH traits before `run.bivar()` |
 | Popcorn complains about MAF format | sumstats EAF column missing or NA | Provide EAF; do not impute from external reference (creates miscalibration) |
 | HESS `--num-shared` defaulting to wrong value | Forgot to set explicitly; default 0 is independent | Always set explicitly; if unknown, use LDSC intercept to infer overlap |
-| GenomicSEM `LDSC()` returns negative-definite covariance | Numerical instability with many traits | Inspect per-pair LDSC results; drop low-h2 traits; regularize |
+| GenomicSEM `ldsc()` returns negative-definite covariance | Numerical instability with many traits | Inspect per-pair LDSC results; drop low-h2 traits; regularize |
 | rg point estimate > 1 with CI overlapping 1 | Sampling variance; same-trait pair near identity | Report as "rg not distinguishable from 1"; constrained likelihood at the rg=1 boundary gives different SE -- LRT against H0: rg=1 is more precise than Wald CI |
 | Binary-vs-continuous trait pair scale concern | Reviewer asks about liability-vs-observed scale propagation | LDSC rg is scale-invariant -- case-control h2 liability vs observed scale propagates equivalently into rg; no correction needed |
 
@@ -406,7 +417,7 @@ Popcorn reports `rho_ge` (correlation of causal effect sizes) and `rho_gi` (corr
 | "Sample overlap?" | LDSC: gcov_int reported; non-zero under known overlap is expected, NOT bias. HDL: only valid if independent (<5% overlap) |
 | "Why LDSC not HDL?" | HDL gives lower variance but is biased > 5% overlap; LDSC is the conservative default |
 | "Local vs global rg?" | If global rg modest but biology suggests sharing, LAVA (Werme 2022) reported as supplementary |
-| "Cross-ancestry?" | Popcorn / Popcorn-2 for trans-ancestry; rg < 1 in trans is real biology, not noise |
+| "Cross-ancestry?" | Popcorn for trans-ancestry; rg < 1 in trans is real biology, not noise |
 | "Does rg motivate CHP-MR?" | If `|rg| > 0.3`, CAUSE / LHC-MR sensitivity reported (cross-ref pleiotropy-detection) |
 | "rg = 1 boundary?" | If CI includes 1, reported as "not distinguishable from rg=1"; constrained LRT alternative provided |
 
@@ -418,14 +429,14 @@ Popcorn reports `rho_ge` (correlation of causal effect sizes) and `rho_gi` (corr
 # abdenlab/ldsc-python3 (v2.0.0) retains the working CLI. Docker
 # `jtb114/ldsc:latest` is the recommended belowlab fallback.
 git clone https://github.com/abdenlab/ldsc-python3.git
-conda env create -f ldsc-python3/environment.yml -n ldsc
+cd ldsc-python3 && pip install .   # Poetry project (pyproject.toml); no environment.yml
 # pre-computed EUR / EAS / AFR LD scores at alkesgroup.broadinstitute.org/LDSCORE
 
 # HESS
 git clone https://github.com/huwenboshi/hess.git
 # Berisa-Pickrell LDetect partition files bundled in repo
 
-# Popcorn / Popcorn-2
+# Popcorn
 git clone https://github.com/brielin/Popcorn.git
 cd Popcorn && python setup.py install
 ```
@@ -437,7 +448,7 @@ remotes::install_github('zhenin/HDL/HDL')
 
 # LAVA
 remotes::install_github('josefin-werme/LAVA')
-# Pre-computed LDetect partitioning at LAVA GitHub (s2500_m25_f1_w200 for GRCh38, others for GRCh37)
+# Pre-computed LDetect partitioning at LAVA GitHub (s2500_m25_f1_w200 is GRCh37/hg19; lift over for GRCh38)
 
 # GenomicSEM
 remotes::install_github('GenomicSEM/GenomicSEM')
@@ -453,13 +464,13 @@ remotes::install_github('GenomicSEM/GenomicSEM')
 - Shi H et al 2016 AJHG 99:139 (HESS univariate; companion)
 - Lee SH et al 2012 Bioinformatics 28:2540 (GREML-bivariate)
 - Brown BC et al 2016 AJHG 99:76 (Popcorn; trans-ancestry rg)
-- Galinsky KJ et al 2019 PLoS Genet (Popcorn-2 / admixture-aware LD scores)
+- Galinsky KJ et al 2019 Genet Epidemiol 43:180 (cross-population genetic correlation of causal effect sizes)
 - Grotzinger AD et al 2019 Nat Hum Behav 3:513 (GenomicSEM)
 - O'Connor LJ & Price AL 2018 Nat Genet 50:1728 (LCV; gcp parameter)
 - Morrison J et al 2020 Nat Genet 52:740 (CAUSE; CHP-aware MR motivated by high rg)
 - Berisa T & Pickrell JK 2016 Bioinformatics 32:283 (LDetect LD blocks underpinning LAVA / HESS)
-- Speed D et al 2020 Nat Methods 17:1023 (model comparison of heritability frameworks)
-- Bulik-Sullivan B 2015 bioRxiv 018283 (LDSC software documentation and intercept interpretation)
+- Speed D, Holmes J & Balding DJ 2020 Nat Genet 52:458 (model comparison of heritability frameworks)
+- Bulik-Sullivan B 2015 bioRxiv 018283 (relationship between LD Score regression and Haseman-Elston regression)
 - Skrivankova VW et al 2021 JAMA 326:1614 (STROBE-MR; rg reporting in MR context)
 
 ## Related Skills

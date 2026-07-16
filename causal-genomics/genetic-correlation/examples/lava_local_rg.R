@@ -16,7 +16,7 @@ args <- commandArgs(trailingOnly = TRUE)
 info_file <- if (length(args) >= 1) args[1] else 'input.info.txt'
 overlap_file <- if (length(args) >= 2) args[2] else 'sample.overlap.txt'
 ref_prefix <- if (length(args) >= 3) args[3] else '1kg_EUR_chr'
-loci_file <- if (length(args) >= 4) args[4] else 'blocks_s2500_m25_f1_w200.GRCh38.locfile'
+loci_file <- if (length(args) >= 4) args[4] else 'blocks_s2500_m25_f1_w200.GRCh37_hg19.locfile'
 phenos <- if (length(args) >= 5) strsplit(args[5], ',')[[1]] else c('trait1', 'trait2')
 out_prefix <- if (length(args) >= 6) args[6] else 'lava_local_rg'
 

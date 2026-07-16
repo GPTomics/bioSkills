@@ -54,13 +54,13 @@ Horizontal pleiotropy comes in two regimes, and most "standard" MR sensitivity m
 | MR-Egger intercept + slope | IVW + free intercept | Directional UHP | No | >=10 for power | NOME violated (I^2_GX < 0.9); <10 SNPs; CHP | Bowden 2015 IJE 44:512 |
 | Weighted median | Median of Wald ratios | Up to 50% invalid | No | >=10 | >50% invalid; CHP | Bowden 2016 Genet Epidemiol 40:304 |
 | Weighted mode (MBE) | Mode of estimate density | Plurality valid | Partial | >=10 | Multimodal estimates from CHP clusters | Hartwig 2017 IJE 46:1985 |
-| Cochran Q | Heterogeneity across Wald ratios | Total heterogeneity flag, not direction-specific | No | 3 | Cannot distinguish UHP from heterogeneity from CHP | Greco 2015 Stat Med 34:2926 |
+| Cochran Q | Heterogeneity across Wald ratios | Total heterogeneity flag, not direction-specific | No | 3 | Cannot distinguish UHP from heterogeneity from CHP | Del Greco M F 2015 Stat Med 34:2926 |
 | MR-PRESSO | Detect + remove UHP outliers via RSS-out | Yes (assumes majority valid) | No | >=4 | >50% pleiotropic; any CHP; small n | Verbanck 2018 Nat Genet 50:693 |
 | GSMR + HEIDI-outlier | Outlier removal via single-instrument estimate heterogeneity | Yes | No | >=10 | CHP (HEIDI-outlier is heterogeneity-driven) | Zhu 2018 Nat Commun 9:224 |
 | MR-RAPS | Profile likelihood with overdispersion + Huber/Tukey loss | Yes; weak-IV robust | Partial via overdispersion | >=10 | Strong CHP | Zhao 2020 Ann Stat 48:1742 |
 | MR-Mix | Mixture-of-distributions over valid + invalid | Yes | Partial | >=20 | Few SNPs; very heterogeneous CHP | Qi & Chatterjee 2019 Nat Commun 10:1941 |
 | Contamination mixture | Profile likelihood over contamination fraction | Yes | Partial | >=20 | Few SNPs | Burgess 2020 Nat Commun 11:376 |
-| MR-Clust | k-means over Wald estimates with NULL cluster | Yes | Diagnostic for CHP via clusters | >=20 | Single-mechanism exposure (no clustering signal) | Foley 2020 Bioinformatics 37:531 |
+| MR-Clust | k-means over Wald estimates with NULL cluster | Yes | Diagnostic for CHP via clusters | >=20 | Single-mechanism exposure (no clustering signal) | Foley 2021 Bioinformatics 37:531 |
 | CAUSE | Bayesian mixture: shared causal + shared-factor (CHP) components | Yes | Yes (explicit) | >=100 sig SNPs at p<5e-8 | <100 sig SNPs; non-overlapping GWAS samples | Morrison 2020 Nat Genet 52:740 |
 | LHC-MR | Latent heritable confounder + bidirectional + heritability | Yes | Yes | Genome-wide GWAS sumstats | Heritability mis-estimated; severe sample overlap | Darrous 2021 Nat Commun 12:7274 |
 | LCV (latent causal variable) | gcp parameter on genome-wide rg | N/A (not an MR method) | Diagnostic | Genome-wide GWAS sumstats | Heritability low; non-Gaussian effect distribution | O'Connor & Price 2018 Nat Genet 50:1728 |
@@ -122,7 +122,7 @@ Methodology evolves; verify against the Burgess & Thompson textbook (2nd ed 2021
 
 **Fix:** Report intercept point estimate and CI rather than a binary "pleiotropy present / absent" verdict; do not use Egger as the only sensitivity method when SNP count is low; weight evidence toward weighted-median, weighted-mode, and CAUSE / LHC-MR.
 
-### Steiger filter inverted by exposure measurement error (Hemani & Tilling 2022 IJE)
+### Steiger filter inverted by exposure measurement error (Hemani 2017)
 
 **Trigger:** Exposure is imprecisely measured (lower heritability ascertained in the exposure GWAS) and outcome is well-measured.
 
@@ -161,7 +161,7 @@ Methodology evolves; verify against the Burgess & Thompson textbook (2nd ed 2021
 | I^2_GX (NOME) intermediate | 0.6-0.9 SIMEX-corrected Egger | Bowden 2016 IJE |
 | I^2_GX (NOME) severe | `<0.6` drop Egger; use MR-RAPS or CAUSE | Bowden 2016 IJE; SIMEX unreliable below 0.6 |
 | Egger min SNP count for adequate power | `>=10` | Bowden 2015 IJE 44:512 |
-| Cochran Q significance | p < 0.05 indicates heterogeneity | Greco 2015 Stat Med 34:2926 |
+| Cochran Q significance | p < 0.05 indicates heterogeneity | Del Greco M F 2015 Stat Med 34:2926 |
 | MR-PRESSO NbDistribution | 1000 exploratory; `>=5000` publication; `>=10000` stringent | Verbanck 2018 Nat Genet 50:693 (Methods) |
 | MR-PRESSO global test p | < 0.05 -> heterogeneity / outliers present | Verbanck 2018 Nat Genet |
 | MR-PRESSO distortion test p | < 0.05 -> outliers materially shifted estimate; if `>= 0.05` report uncorrected IVW | Verbanck 2018 Nat Genet |
@@ -272,9 +272,9 @@ Clusters with cluster_class = 'null' are pleiotropy-only instruments. Per-cluste
 
 ```r
 library(lhcMR)
-ld <- list(ld_score_path='ldsc/eur_w_ld_chr/', hapmap_snp_path='ldsc/w_hm3.snplist')
-sp_list <- sp_estimate(trait.df=list(X=df_x, Y=df_y), ld=ld)
-res_lhc <- lhc_mr(sp_list, sample_overlap=overlap_matrix, n_cores=4)
+merged <- merge_sumstats(list(df_x, df_y), c('X', 'Y'), LD.filepath='ldsc/LDscores.txt', rho.filepath='ldsc/LDrho.txt')
+sp_list <- calculate_SP(merged, trait.names=c('X', 'Y'), run_ldsc=TRUE, run_MR=TRUE, hm3='ldsc/w_hm3.snplist', ld='ldsc/eur_w_ld_chr/', nStep=2, SP_single=3, SP_pair=50)
+res_lhc <- lhc_mr(sp_list, trait.names=c('X', 'Y'), paral_method='lapply', nBlock=200, nCores=4)
 ```
 
 LHC-MR is computationally heavy (hours on full sumstats) but among the most rigorous CHP-aware estimators when both GWAS are well-powered. Output includes axx, ayy, hxy (confounder effect on each trait), and bidirectional alpha_xy, alpha_yx.
@@ -402,7 +402,7 @@ Sub-items (30 total) detail per-method reporting. The full statement (JAMA 326:1
 | MR-RAPS `package not found` after CRAN install | CRAN-archived 2025-03-01 | `remotes::install_github('qingyuanzhao/mr.raps')`; call via `TwoSampleMR::mr_raps()` wrapper (MendelianRandomization does NOT export `mr_raps`) |
 | CAUSE delta_ELPD CI spans zero; Pareto-k > 0.7 | <100 sig SNPs OR severe sample overlap | Use LHC-MR; or report CAUSE with the explicit caveat |
 | Steiger labels most instruments reverse-causal | Exposure GWAS imprecise OR sample size mismatch | Treat as one signal; cross-check with bidirectional MR |
-| LHC-MR runtime > 24h | Default n_cores=1 on full sumstats | Use n_cores >= 4; restrict to LDSC-overlapping SNPs first |
+| LHC-MR runtime > 24h | Default nCores=1 on full sumstats | Use nCores >= 4; restrict to LDSC-overlapping SNPs first |
 | MR-PRESSO outliers all on same chromosome | Genome-wide LD not properly pruned; clumping window too narrow | Re-clump at r^2 < 0.001 in 10 Mb window |
 | MR-Mix returns NA | Few SNPs OR no variation in mixture support | Need >=20 SNPs; default mixture grid may need tuning |
 
@@ -414,11 +414,10 @@ Sub-items (30 total) detail per-method reporting. The full statement (JAMA 326:1
 - Burgess S 2020 Nat Commun 11:376 (contamination mixture)
 - Burgess S & Thompson SG 2021 (Mendelian Randomization 2nd ed)
 - Darrous L et al 2021 Nat Commun 12:7274 (LHC-MR)
-- Foley CN et al 2020 Bioinformatics 37:531 (MR-Clust)
+- Foley CN et al 2021 Bioinformatics 37:531 (MR-Clust)
 - Hartwig FP et al 2017 Int J Epidemiol 46:1985 (weighted mode)
 - Hemani G et al 2017 PLoS Genet 13:e1007081 (Steiger orientation)
 - Hemani G et al 2018 eLife 7:e34408 (TwoSampleMR framework)
-- Hemani G & Tilling K 2022 Int J Epidemiol (Steiger limitations under measurement error)
 - Morrison J et al 2020 Nat Genet 52:740 (CAUSE; CHP)
 - O'Connor LJ & Price AL 2018 Nat Genet 50:1728 (LCV)
 - Sanderson E et al 2022 Nat Rev Methods Primers 2:6 (MR Primer)

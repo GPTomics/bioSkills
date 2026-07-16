@@ -20,8 +20,8 @@ remotes::install_github('GenomicSEM/GenomicSEM')   # GenomicSEM is GitHub-only (
 ```
 
 ```bash
-git clone https://github.com/bulik/ldsc.git
-conda env create -n ldsc -f ldsc/environment.yml
+git clone https://github.com/abdenlab/ldsc-python3.git   # Python 3 fork, working CLI (bulik/ldsc is Python 2.7, unmaintained)
+cd ldsc-python3 && pip install . && cd ..                # Poetry project (pyproject.toml); no environment.yml
 git clone https://github.com/hakyimlab/MetaXcan.git
 pip install pyfocus
 # MAGMA ships as a zip, not a git repo. Grab the current program zip from the official CNCR page

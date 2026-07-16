@@ -51,8 +51,9 @@ done
 
 # ---- Step 2: S-MultiXcan joint multi-tissue ----
 # Joint test combines per-tissue Z-scores via PCA-regularised regression on the inter-tissue
-# correlation matrix. Regularisation 0.1 (default) is conservative; raise to 0.5 if tissues
-# are near-collinear (e.g. multiple brain sub-regions).
+# correlation matrix. --regularization is off unless passed explicitly; 0.1 is a conservative
+# ridge, raise to 0.5 if tissues are near-collinear (e.g. multiple brain sub-regions). The
+# canonical MetaXcan alternative conditions via --cutoff_condition_number 30.
 python SMulTiXcan.py \
     --models_folder "${MODELS_DIR}" \
     --models_name_pattern 'mashr_(.*)\.db' \

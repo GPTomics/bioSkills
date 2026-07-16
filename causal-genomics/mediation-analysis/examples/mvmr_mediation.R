@@ -5,7 +5,7 @@
 ## (MVMR with E and M as joint exposures) to derive the indirect effect
 ## of E on Y through mediator M.
 ##
-## Sanderson 2021 IJE 50:1651 (MVMR-mediation tutorial)
+## Carter AR & Sanderson E 2021 Eur J Epidemiol 36:465 (MVMR-mediation)
 ## Sanderson 2019 IJE 48:713 (conditional F-statistic; > 10 per exposure required)
 ##
 ## Install:

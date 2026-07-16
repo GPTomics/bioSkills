@@ -62,8 +62,10 @@ eqtl_data <- list(
 susie_gwas <- runsusie(gwas_data, L = 10)
 susie_eqtl <- runsusie(eqtl_data, L = 10)
 
-cat('GWAS credible sets found:', length(summary(susie_gwas)$cs), '\n')
-cat('eQTL credible sets found:', length(summary(susie_eqtl)$cs), '\n')
+n_gwas_cs <- if (is.null(summary(susie_gwas)$cs)) 0 else nrow(summary(susie_gwas)$cs)
+n_eqtl_cs <- if (is.null(summary(susie_eqtl)$cs)) 0 else nrow(summary(susie_eqtl)$cs)
+cat('GWAS credible sets found:', n_gwas_cs, '\n')
+cat('eQTL credible sets found:', n_eqtl_cs, '\n')
 
 # --- Run SuSiE-coloc ---
 result <- coloc.susie(susie_gwas, susie_eqtl)

@@ -12,7 +12,7 @@ This skill operationalises the Schmidt 2020 cis-MR framework (Nat Commun 11:3255
 install.packages(c('remotes', 'MendelianRandomization', 'coloc', 'susieR', 'dplyr'))
 remotes::install_github('MRCIEU/TwoSampleMR')
 remotes::install_github('MRCIEU/ieugwasr')
-remotes::install_github('MRCIEU/genetics.binaRies')   # bundles plink2 binary
+remotes::install_github('MRCIEU/genetics.binaRies')   # bundles plink (1.90) binary
 remotes::install_github('rondolab/MR-PRESSO')
 ```
 
@@ -94,15 +94,15 @@ Tell the AI agent what to do:
 
 - The exclusion-restriction in cis-MR is relaxed (the protein product directly mediates) but NOT eliminated; neighbour-gene mediation is the dominant residual concern
 - Always VEP-annotate cis-pQTLs and run a PAV-excluded sensitivity panel; PAVs can produce apparent platform-specific pQTLs without changing actual protein abundance
-- Olink (antibody PEA) and SomaScan (aptamer SOMAmer) disagree on ~15-30% of proteins; replicate every clinically-actionable claim on both
+- Olink (antibody PEA) and SomaScan (aptamer SOMAmer) show only modest cross-platform correlation, with roughly half of cis-pQTL signals not shared across platforms; replicate every clinically-actionable claim on both
 - Cross-platform direction disagreement is a strong flag for measurement artifact; do not advance such targets to nomination
 - Sample-overlap: treating UKB-PPP exposure + UKB outcome as two-sample is a common methodological error; bias is one-sample-equivalent, toward observational
 - Cis-MR clumping uses r2 < 0.1 within window (not r2 < 0.001 polygenic-MR convention); the window itself is the LD-pruning mechanism
 - Egger needs >=10 cis-pQTLs to be powered; most cis-windows have fewer, so cis-MR-Egger is usually exploratory only
 - Phenome-wide cis-MR is the canonical use case for discovering on-target adverse effects (PCSK9 -> T2D is the textbook example)
-- For correlated cis-pQTLs (r2 0.1-0.7), use `MendelianRandomization::mr_ivw(correl = TRUE, correl.x = ld_matrix)`; supply the matrix from local plink against an ancestry-matched reference
+- For correlated cis-pQTLs (r2 0.1-0.7), build the input with `MendelianRandomization::mr_input(..., correlation = ld_matrix)` then call `mr_ivw(mr_obj, model = 'default', correl = TRUE)`; supply the matrix from local plink against an ancestry-matched reference
 - coloc PP.H4 >= 0.7 is the Open Targets clinical bar; PP.H4 >= 0.5 alone is exploratory; require PP.H3 to be substantially less than PP.H4 for confidence
-- The Steiger filter has a known caveat under unmeasured confounding (Hemani Tilling 2022); cross-validate direction with bidirectional cis-MR
+- The Steiger filter has a known caveat under unmeasured confounding (Lutz 2022); cross-validate direction with bidirectional cis-MR
 - L2G score (Mountjoy 2021) plus cis-MR plus coloc plus existing-drug evidence is the modern Open Targets target-prioritization stack
 - Trans-pQTLs (outside +/-500 kb) cannot serve as primary instruments; their inclusion violates exclusion-restriction by definition
 - Some proteins (e.g. complement factors, immunoglobulins) have many PAVs in cis; the PAV-excluded sensitivity may discard most instruments and the cis-MR claim cannot be made

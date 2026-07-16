@@ -17,7 +17,7 @@ If code throws an error referencing a function that has moved (e.g. `ieugwasr::l
 
 # Mendelian Randomization
 
-**"Test whether trait X causally affects trait Y from GWAS summary statistics"** -> Use genetic variants as instrumental variables (IVs) that satisfy three assumptions (relevance, independence, exclusion restriction) to estimate `beta_causal = beta_outcome / beta_exposure` under the IV framework (Davey Smith & Ebrahim 2003 IJE 32:1; Burgess Thompson 2017 SAGE textbook). Tool choice is a decision about the **regime** (one-sample vs two-sample, sparse vs polygenic, drug-target vs polygenic exposure) and the **pleiotropy model** (balanced, directional InSIDE, correlated horizontal). Wrong tool inflates Type-I error or attenuates true effects in a direction predictable from the bias structure.
+**"Test whether trait X causally affects trait Y from GWAS summary statistics"** -> Use genetic variants as instrumental variables (IVs) that satisfy three assumptions (relevance, independence, exclusion restriction) to estimate `beta_causal = beta_outcome / beta_exposure` under the IV framework (Davey Smith & Ebrahim 2003 IJE 32:1; Burgess & Thompson 2021 Chapman & Hall/CRC, 2nd ed.). Tool choice is a decision about the **regime** (one-sample vs two-sample, sparse vs polygenic, drug-target vs polygenic exposure) and the **pleiotropy model** (balanced, directional InSIDE, correlated horizontal). Wrong tool inflates Type-I error or attenuates true effects in a direction predictable from the bias structure.
 
 - R: `TwoSampleMR::mr()` orchestrates IVW + Egger + weighted median + weighted mode in one call
 - R: `MendelianRandomization::mr_ivw / mr_egger / mr_median / mr_mbe / mr_conmix` per-method API (S4 objects; MR-RAPS is NOT in this package -- use `TwoSampleMR::mr_raps()` which wraps the GitHub `mr.raps`)
@@ -39,7 +39,7 @@ If code throws an error referencing a function that has moved (e.g. `ieugwasr::l
 | GSMR + HEIDI-outlier | Outlier removal under InSIDE | 10+ | Alternative outlier detection; integrates with LD reference (Zhu 2018 Nat Commun 9:224) | Requires individual-level LD; HEIDI conservative |
 | MR-PRESSO | Outlier-driven horizontal pleiotropy | 4+ | Global / outlier / distortion three-step (Verbanck 2018 Nat Genet 50:693) | Blind to CHP; computationally heavy at large NbDistribution |
 | MVMR (IVW) | Conditional independence after measured pleiotropy | 1+ per exposure | Accounts for measured horizontal pleiotropy via multivariable regression (Sanderson 2019 IJE 48:713) | Conditional F < 10 on any exposure |
-| MR-Clust | Heterogeneous causal effects (multiple mechanisms) | 30+ | Clusters SNPs by their causal-effect estimate (Foley 2020 Bioinformatics 37:531) | Single causal mechanism; small instrument sets |
+| MR-Clust | Heterogeneous causal effects (multiple mechanisms) | 30+ | Clusters SNPs by their causal-effect estimate (Foley 2021 Bioinformatics 37:531) | Single causal mechanism; small instrument sets |
 | Contamination mixture | Mixture of valid + invalid IVs | 10+ | Profile-likelihood mixture (Burgess 2020 Nat Commun 11:376) | Sparse signal |
 | LCV | Genome-wide; distinguishes causation vs genetic correlation | All SNPs | Tests `gcp` parameter using LDSC-style block jackknife (O'Connor & Price 2018 Nat Genet 50:1728) | Two-trait covariance dominated by a third confounder |
 | LHC-MR | Bidirectional + heritable confounder | All SNPs | Joint likelihood over genome-wide markers; estimates both directions + confounder (Darrous 2021 Nat Commun 12:7274) | Computationally heavy; rare-variant trait |
@@ -53,14 +53,14 @@ Methodology evolves; benchmark consensus shifts every 2-3 years. Verify against 
 | Scenario | Primary method | Sensitivity battery | Why |
 |----------|----------------|----------------------|-----|
 | Standard two-sample, independent cohorts, polygenic exposure | IVW (random) | Egger + weighted median + MR-PRESSO + MR-RAPS + Steiger | Default; covers balanced, directional, outlier, weak-IV regimes |
-| One-sample (e.g. UK Biobank both ends) | IVW with weak-IV-aware (MR-RAPS) | Egger + LCV + jackknife SE | One-sample bias formulas: Bowden 2019 IJE 48:728; F-stat floor shifts to F >= 20; jackknife SE preferred over analytic at one-sample scale; do NOT run exposure GWAS and outcome GWAS on the same individuals then claim two-sample (Hartwig 2021 collider bias); within-stratum MR (e.g. "MR among smokers") risks collider bias from the stratification variable |
+| One-sample (e.g. UK Biobank both ends) | IVW with weak-IV-aware (MR-RAPS) | Egger + LCV + jackknife SE | One-sample F-stat floor shifts to F >= 20; jackknife SE preferred over analytic at one-sample scale; do NOT run exposure GWAS and outcome GWAS on the same individuals then claim two-sample (Barry 2021 PLoS Genet 17:e1009703 collider bias); within-stratum MR (e.g. "MR among smokers") risks collider bias from the stratification variable |
 | Partial sample overlap (UKB exposure + UKB outcome) | MR-RAPS with overlap correction | Sample-overlap-adjusted IVW (Burgess 2016 Genet Epidemiol 40:597) | Bias is intermediate, proportional to z-score correlation |
 | Drug-target / cis-MR (cis-pQTL, cis-eQTL) | IVW restricted to cis window | Colocalization PP.H4 + LD-prune within window | Exclusion restriction relaxed because the protein/transcript directly mediates effect (Schmidt 2020 Nat Commun 11:3255) |
 | MVMR for measured pleiotropy (e.g. LDL adjusted for HDL/TG) | `MVMR::ivw_mvmr` | Conditional F + Q_A heterogeneity | Required when exposures correlate via shared SNPs |
 | Mediation MR (X -> M -> Y) | MVMR difference of total vs direct | Two-step MR + product-of-coefficients (Carter 2021 Eur J Epidemiol 36:465) | Network MR; quantifies indirect effect |
 | Polygenic exposure with potential CHP (e.g. BMI -> CHD) | CAUSE (primary) + IVW (secondary) | Egger + MR-PRESSO + LCV | CAUSE explicitly models CHP via shared-factor; needs >=100 sig SNPs |
 | Binary outcome (e.g. T2D) on linear scale | IVW on log-OR with log-additive coding | All sensitivity on log-OR; report exp(beta) | Linearity of MR estimating equation holds on log-OR not OR |
-| Time-to-event (Cox) outcome | IVW on log-HR | Burgess & Labrecque 2018 Eur J Epidemiol 33:947 framework | Non-collapsibility caveats apply |
+| Time-to-event (Cox) outcome | IVW on log-HR | Non-collapsibility-aware log-HR reporting | Non-collapsibility caveats apply |
 | Non-linear MR (e.g. alcohol J-curve) | DRMR (Tian 2023) + residual stratification side-by-side | Negative-control outcomes (genotype-vs-sex within strata); Hamilton 2023 limitation cited | Both methods produce stratum-specific bias from age/sex effects (Hamilton 2023 medRxiv 23293658); pre-specify the non-linear hypothesis, do not data-snoop the J-curve, report negative-control sanity checks |
 | Single-patient rare disease | Not MR -- use FRASER/DROP outlier framework | See alternative-splicing/outlier-splicing-detection | MR requires summary stats; n=1 is wrong regime |
 
@@ -90,8 +90,8 @@ fit <- MRlap(
 )
 fit$MRcorrection$corrected_effect       # overlap + winner's curse + weak-IV corrected
 fit$MRcorrection$corrected_effect_se
-fit$LDSC$h2_LDSC                         # heritability sanity check
-fit$LDSC$lambda                          # sample-overlap-induced lambda; ~0 means no overlap
+fit$LDSC$h2_exp                          # exposure heritability sanity check
+fit$LDSC$int_crosstrait                  # cross-trait LDSC intercept; ~0 means no sample overlap
 ```
 
 **Decision rule -- prefer MRlap when:** (a) any sample overlap is suspected, (b) only sumstats are available (no individual-level data for re-running GWAS on disjoint samples), (c) exposure discovery and outcome were both run inside the same biobank (UKB-on-UKB, FinnGen-on-FinnGen). MRlap returns NA / unstable estimates when h^2 < 0.05; in that regime, fall back to Burgess 2016 overlap-corrected IVW plus MR-RAPS for the weak-IV component.
@@ -104,9 +104,9 @@ Full drug-target cis-MR workflow including UKB-PPP / deCODE / Fenland pQTL panel
 
 ### Binary outcomes and non-collapsibility
 
-MR with logistic-GWAS sumstats returns per-allele log-OR on the **population-averaged** (marginal) scale, NOT the conditional log-OR (Burgess & Labrecque 2018 Eur J Epidemiol 33:947; Burgess 2017 Stat Methods Med Res 26:2333). For rare disease (prevalence < 10%), OR ~= RR ~= HR and the distinction is harmless. For common disease, OR diverges from RR/HR and the MR estimate cannot be back-converted to a conditional effect without strong assumptions; report as "per 1-SD increase in genetically-predicted X, OR for Y = ..." rather than implying an individual-level intervention effect.
+MR with logistic-GWAS sumstats returns per-allele log-OR on the **population-averaged** (marginal) scale, NOT the conditional log-OR (Burgess 2017 Stat Methods Med Res 26:2333). For rare disease (prevalence < 10%), OR ~= RR ~= HR and the distinction is harmless. For common disease, OR diverges from RR/HR and the MR estimate cannot be back-converted to a conditional effect without strong assumptions; report as "per 1-SD increase in genetically-predicted X, OR for Y = ..." rather than implying an individual-level intervention effect.
 
-Collider bias in case-only or disease-progression cohorts (Hu 2022 IJE 51:1289): conditioning the outcome on disease status (e.g. studying progression among diabetics) opens a collider path between any cause of disease and any cause of progression. MR within affected subsets without explicit adjustment for selection probability is fragile; weight by inverse probability of selection or restrict claims to the unconditioned population.
+Collider bias when conditioning on a collider variable (Coscia 2022 Eur J Epidemiol 37:671 formalizes this for stratified MR): case-only or disease-progression designs condition the sample on disease status, opening a collider path between any cause of disease and any cause of progression. MR within affected subsets without explicit adjustment for selection probability is fragile; weight by inverse probability of selection or restrict claims to the unconditioned population.
 
 ## Per-Method Failure Modes
 
@@ -118,7 +118,7 @@ Collider bias in case-only or disease-progression cohorts (Hu 2022 IJE 51:1289):
 
 **Symptom:** Egger intercept p < 0.05 with non-zero estimate; IVW differs from weighted median; MR-PRESSO global test p < 0.05.
 
-**Fix:** Use Egger (if `I^2_GX >= 0.9` -- otherwise SIMEX-correct via the `simex` package applied to the Egger fit, treating `se.exposure` as measurement error in `beta.exposure`); cross-check with weighted median, MR-PRESSO, and CAUSE; report IVW only as one of a panel, never alone. The `MendelianRandomization::mr_egger()` function accepts `distribution='normal'` and reports NOME-corrected estimates internally but does NOT expose a SIMEX wrapper.
+**Fix:** Use Egger (if `I^2_GX >= 0.9` -- otherwise SIMEX-correct via the `simex` package applied to the Egger fit, treating `se.exposure` as measurement error in `beta.exposure`); cross-check with weighted median, MR-PRESSO, and CAUSE; report IVW only as one of a panel, never alone. The `MendelianRandomization::mr_egger()` function accepts `distribution='normal'` and reports the `I.sq` (I^2_GX) NOME diagnostic but applies no NOME/SIMEX correction to the estimate itself and does NOT expose a SIMEX wrapper.
 
 ### Weak-instrument bias direction
 
@@ -138,7 +138,7 @@ Collider bias in case-only or disease-progression cohorts (Hu 2022 IJE 51:1289):
 
 **Symptom:** MR effect shrinks substantially when using effect sizes from an independent replication GWAS.
 
-**Fix:** (1) Three-sample design (discovery / replication-for-instrument-effect / outcome) where feasible. (2) When sumstats-only: MRlap (Mounier 2023), MR-SimSS (sample-splitting from sumstats), or RIVW (Ma 2023 JASA -- rerandomized IVW) jointly correct winner's curse + weak IVs + overlap. (3) Sadreev 2024 IJE 52:1209 empirical magnitude: 5-15% bias inflation at p < 5e-8; larger at relaxed thresholds.
+**Fix:** (1) Three-sample design (discovery / replication-for-instrument-effect / outcome) where feasible. (2) When sumstats-only: MRlap (Mounier 2023), MR-SimSS (sample-splitting from sumstats), or RIVW (Ma 2023 Ann Statist 51:211 -- rerandomized IVW) jointly correct winner's curse + weak IVs + overlap. (3) Jiang 2023 IJE 52:1209 empirical magnitude: variant-level inflation ~50-400% near the genome-wide-significance threshold, dropping to <25% when the minimum P <= 1e-13.
 
 ### NOME violation invalidating Egger
 
@@ -148,13 +148,13 @@ Collider bias in case-only or disease-progression cohorts (Hu 2022 IJE 51:1289):
 
 **Symptom:** `mr_pleiotropy_test()` Egger estimate disagrees with weighted median in magnitude but agrees in direction; `Isq()` function returns <0.9.
 
-**Fix:** Compute `Isq(beta_X, se_X)` (Bowden 2016 IJE 45:1961); if <0.9, apply SIMEX correction via `simex` package or report Egger as exploratory only. The MendelianRandomization package's `mr_egger()` returns a NOME-aware corrected estimate.
+**Fix:** Compute `Isq(beta_X, se_X)` (Bowden 2016 IJE 45:1961); if <0.9, apply SIMEX correction via `simex` package or report Egger as exploratory only. The MendelianRandomization package's `mr_egger()` reports the `I.sq` (I^2_GX) NOME diagnostic but does not itself apply a NOME/SIMEX correction; SIMEX must be run separately.
 
 ### Steiger filter false flag under unmeasured confounding
 
 **Trigger:** Applying `steiger_filtering()` on traits with unmeasured shared confounders (e.g. SES).
 
-**Mechanism:** Steiger compares variance explained in exposure vs outcome per SNP; an unmeasured confounder upstream of both produces SNPs that explain more variance in the outcome than the exposure, falsely flagging "reverse causation" (Hemani Tilling 2022 Wellcome Open Res 7:14).
+**Mechanism:** Steiger compares variance explained in exposure vs outcome per SNP; an unmeasured confounder upstream of both produces SNPs that explain more variance in the outcome than the exposure, falsely flagging "reverse causation" (Lutz 2022 Genet Epidemiol 46:139).
 
 **Symptom:** Many SNPs flagged as wrong-direction yet biology and prior MR support forward causation.
 
@@ -181,7 +181,7 @@ Collider bias in case-only or disease-progression cohorts (Hu 2022 IJE 51:1289):
 | Egger >= 10 instruments | Bowden 2015 IJE 44:512 | Power for slope test in weighted regression |
 | Sample-overlap z-score correlation | Burgess 2016 Genet Epidemiol 40:597 | Use LDSC bivariate intercept as proxy; correct IVW SE accordingly |
 | Clumping r2 < 0.001, 10 Mb window | TwoSampleMR default; matches GWAS LD norms | Polygenic MR; cis-MR uses r2 < 0.1 within window |
-| Steiger p < 0.05 | Hemani 2017 PLoS Genet 13:e1007081 | Heuristic; subject to confounder caveat (Hemani Tilling 2022) |
+| Steiger p < 0.05 | Hemani 2017 PLoS Genet 13:e1007081 | Heuristic; subject to confounder caveat (Lutz 2022) |
 | MR-PRESSO NbDistribution | 1000 exploratory; >= 5000 publication; >= 10000 stringent | Verbanck 2018 Nat Genet 50:693; precision of global p-value scales with NbDistribution |
 | STROBE-MR all 20 items | Skrivankova 2021 JAMA 326:1614; BMJ 375:n2233 | Required since 2022 by most epidemiology journals |
 | Bonferroni for pheWAS-MR | Standard | Many outcomes; FDR if exploratory |
@@ -282,7 +282,7 @@ condF <- strength_mvmr(r_input = mvmr_dat, gencov = 0)  # per-exposure condition
 # condF must be > 10 for EACH exposure (Sanderson 2019); total F is misleading
 
 mv_ivw <- ivw_mvmr(r_input = mvmr_dat)
-mv_qa <- qhet_mvmr(r_input = mvmr_dat, pcor = 0)  # Q_A heterogeneity
+mv_qa <- pleiotropy_mvmr(r_input = mvmr_dat, gencov = 0)  # Q_A heterogeneity test
 ```
 
 `gencov = 0` is valid ONLY if the exposure GWAS samples don't overlap; for overlapping exposures use the bivariate LDSC intercept matrix as `gencov`. If any conditional F < 10, the IVW point estimate is weak-IV-biased; switch to the Q-minimization estimator: `qhet_mvmr(r_input, pcor, CI = TRUE, iterations = 1000)` (Sanderson 2021 Stat Med 40:5434), which minimizes Q-statistic heterogeneity rather than weighting by inverse variance and is robust to weak conditional instruments.
@@ -375,7 +375,7 @@ STROBE-MR (Skrivankova 2021 JAMA 326:1614; BMJ 375:n2233): 20-item checklist req
 ## References
 
 - Davey Smith G & Ebrahim S 2003 IJE 32:1 (foundational framework)
-- Burgess S & Thompson SG 2017 SAGE textbook (MR canonical reference)
+- Burgess S & Thompson SG, Mendelian Randomization: Methods for Causal Inference Using Genetic Variants, Chapman & Hall/CRC (1st ed. 2015 / 2nd ed. 2021) (MR canonical reference)
 - Bowden J et al 2015 IJE 44:512 (MR-Egger)
 - Bowden J et al 2016 Genet Epidemiol 40:304 (weighted median)
 - Hartwig FP et al 2017 IJE 46:1985 (weighted mode)
@@ -384,23 +384,21 @@ STROBE-MR (Skrivankova 2021 JAMA 326:1614; BMJ 375:n2233): 20-item checklist req
 - Zhu Z et al 2018 Nat Commun 9:224 (GSMR + HEIDI)
 - Verbanck M et al 2018 Nat Genet 50:693 (MR-PRESSO)
 - Sanderson E et al 2019 IJE 48:713 (MVMR conditional F)
-- Foley CN et al 2020 Bioinformatics 37:531 (MR-Clust)
+- Foley CN et al 2021 Bioinformatics 37:531 (MR-Clust)
 - Burgess S et al 2020 Nat Commun 11:376 (contamination mixture)
 - O'Connor LJ & Price AL 2018 Nat Genet 50:1728 (LCV)
 - Darrous L et al 2021 Nat Commun 12:7274 (LHC-MR)
 - Tian H et al 2023 PLoS Genet 19:e1010823 (DRMR)
 - Burgess S et al 2016 Genet Epidemiol 40:597 (sample-overlap correction)
 - Schmidt AF et al 2020 Nat Commun 11:3255 (drug-target / cis-MR framework)
-- Hemani G & Tilling K 2022 Wellcome Open Res 7:14 (Steiger filter caveat)
+- Lutz SM et al 2022 Genet Epidemiol 46:139 (Steiger filter caveat)
 - Skrivankova VW et al 2021 JAMA 326:1614 (STROBE-MR statement)
 - Mounier N & Kutalik Z 2023 Genet Epidemiol 47:314 (MRlap joint correction)
 - Sanderson E et al 2021 Stat Med 40:5434 (qhet_mvmr Q-minimization estimator)
-- Burgess S & Labrecque JA 2018 Eur J Epidemiol 33:947 (binary outcomes non-collapsibility)
-- Hu Y et al 2022 IJE 51:1289 (collider bias in case-only / progression cohorts)
-- Bowden J et al 2019 IJE 48:728 (one-sample MR bias formulas)
+- Coscia C et al 2022 Eur J Epidemiol 37:671 (collider bias in case-only / progression cohorts)
 - Hamilton FW et al 2023 medRxiv 23293658 (NLMR stratum-specific bias critique)
-- Sadreev II et al 2024 IJE 52:1209 (winner's curse empirical magnitude)
-- Ma S et al 2023 JASA (RIVW rerandomized IVW)
+- Jiang T et al 2023 IJE 52:1209 (winner's curse empirical magnitude)
+- Ma X et al 2023 Ann Statist 51:211 (RIVW rerandomized IVW)
 
 ## Related Skills
 

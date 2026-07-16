@@ -88,12 +88,14 @@ if (p_one_sided < 0.05) {
 
 cat('\n=== Causal estimate (CAUSE causal model) ===\n')
 # summary_tab$quants is a list with one entry per fitted model (sharing, causal).
-# Each entry is a matrix of quantiles (rows = parameter, columns = lower/median/upper).
+# Each entry is a matrix; columns are the parameters (gamma/eta/q) and rows are the
+# posterior quantiles in the order [median, lower, upper] (CAUSE builds them from
+# c(0.5, (1-ci)/2, 1-(1-ci)/2)), so index [1]=median, [2]=lower 95%, [3]=upper 95%.
 causal_quants <- summary_tab$quants[[2]]
 gamma_est <- causal_quants[, 'gamma']
 cat('gamma (causal effect) posterior:\n')
-cat('  Lower 95%:', round(gamma_est[1], 4), '\n')
-cat('  Median  :', round(gamma_est[2], 4), '\n')
+cat('  Median  :', round(gamma_est[1], 4), '\n')
+cat('  Lower 95%:', round(gamma_est[2], 4), '\n')
 cat('  Upper 95%:', round(gamma_est[3], 4), '\n')
 cat('  True    :', true_gamma, '\n')
 
@@ -101,12 +103,12 @@ cat('\n=== Sharing parameters (q = CHP fraction; eta = shared-factor strength) =
 q_est <- causal_quants[, 'q']
 eta_est <- causal_quants[, 'eta']
 cat('q (CHP fraction):\n')
-cat('  Lower 95%:', round(q_est[1], 4), '\n')
-cat('  Median  :', round(q_est[2], 4), '\n')
+cat('  Median  :', round(q_est[1], 4), '\n')
+cat('  Lower 95%:', round(q_est[2], 4), '\n')
 cat('  Upper 95%:', round(q_est[3], 4), '\n')
 cat('eta (shared-factor effect):\n')
-cat('  Lower 95%:', round(eta_est[1], 4), '\n')
-cat('  Median  :', round(eta_est[2], 4), '\n')
+cat('  Median  :', round(eta_est[1], 4), '\n')
+cat('  Lower 95%:', round(eta_est[2], 4), '\n')
 cat('  Upper 95%:', round(eta_est[3], 4), '\n')
 cat('  True    :', true_eta, '\n')
 
@@ -127,9 +129,9 @@ cat('\n=== Reporting (STROBE-MR Item 17: CHP-aware sensitivity) ===\n')
 cat('Method: CAUSE (Morrison 2020 Nat Genet 52:740)\n')
 cat('Signature SNPs:', length(pruned_snps), '\n')
 cat('rho (sample overlap):', round(params$rho, 4), '\n')
-cat('gamma (causal effect): ', round(gamma_est[2], 4),
-    ' (95% CI ', round(gamma_est[1], 4), ', ', round(gamma_est[3], 4), ')\n', sep = '')
-cat('q (CHP fraction): ', round(q_est[2], 4),
-    ' (95% CI ', round(q_est[1], 4), ', ', round(q_est[3], 4), ')\n', sep = '')
+cat('gamma (causal effect): ', round(gamma_est[1], 4),
+    ' (95% CI ', round(gamma_est[2], 4), ', ', round(gamma_est[3], 4), ')\n', sep = '')
+cat('q (CHP fraction): ', round(q_est[1], 4),
+    ' (95% CI ', round(q_est[2], 4), ', ', round(q_est[3], 4), ')\n', sep = '')
 cat('delta_ELPD (sharing - causal): ', round(delta_elpd, 3), ' (one-sided p ',
     format.pval(p_one_sided), ')\n', sep = '')

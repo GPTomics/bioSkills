@@ -103,7 +103,7 @@ Triangulated causal-evidence summary across methods
 
 ```bash
 ldsc.py --h2 trait.sumstats.gz --ref-ld-chr eur_w_ld_chr/ --w-ld-chr eur_w_ld_chr/ --out trait.h2
-ldsc.py --h2 trait.sumstats.gz --ref-ld-chr baselineLD.,cts_v8. --w-ld-chr weights. --ref-ld-chr-cts Multi_tissue_gene_expr.ldcts --out trait.cts
+ldsc.py --h2-cts trait.sumstats.gz --ref-ld-chr baselineLD. --ref-ld-chr-cts Multi_tissue_gene_expr.ldcts --w-ld-chr weights. --out trait.cts
 ldsc.py --rg trait1.sumstats.gz,trait2.sumstats.gz --ref-ld-chr eur_w_ld_chr/ --w-ld-chr eur_w_ld_chr/ --out rg
 ```
 
@@ -223,7 +223,7 @@ python MetaXcan/SPrediXcan.py --model_db_path mashr_Whole_Blood.db \
     --snp_column SNP --effect_allele_column A1 --non_effect_allele_column A2 \
     --beta_column BETA --se_column SE --pvalue_column P \
     --output_file twas.csv
-focus finemap gwas.sumstats.gz 1000G.EUR.QC.1 mashr.db --chr 1 --locations 37:EUR --out twas.focus
+focus finemap gwas.sumstats.gz 1000G.EUR.QC.1 mashr.db --chr 1 --p-threshold 5e-8 --out twas.focus
 ```
 
 **Goal:** Nominate gene-level causal hits and prune LD-induced TWAS false positives.

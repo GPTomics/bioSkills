@@ -12,10 +12,10 @@ Estimate SNP heritability (`h2_SNP`) and decompose it across functional categori
 # working CLI use abdenlab/ldsc-python3 (v2.0.0) or run belowlab via Docker
 # (`docker pull jtb114/ldsc:latest`).
 git clone https://github.com/abdenlab/ldsc-python3.git
-cd ldsc-python3 && conda env create -f environment.yml && conda activate ldsc
+cd ldsc-python3 && pip install .   # Poetry project (pyproject.toml); no environment.yml
 
-# LDAK 6+
-wget http://dougspeed.com/wp-content/uploads/ldak6.linux_.zip
+# LDAK 6+ (bare executable distributed via GitHub; no zip)
+wget https://raw.githubusercontent.com/dougspeed/LDAK/main/ldak6.3.linux && chmod +x ldak6.3.linux
 
 # Pre-computed reference resources (EUR; ~3-5 GB total one-time)
 # All from https://alkesgroup.broadinstitute.org/LDSCORE/
@@ -59,7 +59,7 @@ Tell your AI agent what you want to do:
 > "Prioritize trait-relevant tissues using the Multi_tissue_chromatin_1000Gv3 ldcts file with `ldsc.py --h2-cts`. Apply Bonferroni at `0.05 / N_tissue` (~ 2.5e-4 for 200 tissues). Cross-reference top tissues against the disease's known biology."
 
 ### LDSC vs LDAK Reconciliation
-> "Functional enrichment claim depends on the per-SNP heritability model. Run BOTH LDSC baseline-LD AND LDAK SumHer with LDAK-Thin tagging. If they disagree by > 2x, cite Hou 2019 Nat Genet 51:1244 and report enrichment as model-dependent. Prefer LDAK for conserved regions per Speed 2019."
+> "Functional enrichment claim depends on the per-SNP heritability model. Run BOTH LDSC baseline-LD AND LDAK SumHer with LDAK-Thin tagging. If they disagree by > 2x, report enrichment as model-dependent (the unresolved S-LDSC vs LDAK enrichment debate: Gazal 2019 Nat Genet 51:1202 favours baseline-LD S-LDSC; the LDAK developers defend SumHer, Speed 2020 Nat Genet 52:458). Prefer LDAK for conserved regions per Speed 2019."
 
 ### Cross-Trait Genetic Correlation
 > "Estimate rg between trait1 and trait2 from sumstats. If sample overlap > 5%, use cross-trait LDSC (`ldsc.py --rg`) because HDL is biased under overlap. If non-overlapping, use HDL for ~60% lower variance. Report rg, SE, p, and cross-trait intercept."
@@ -74,7 +74,7 @@ Tell your AI agent what you want to do:
 > "EAS GWAS for type 2 diabetes. Use ancestry-matched LD scores from the EAS folder on alkesgroup.broadinstitute.org/LDSCORE, NOT the default EUR scores. Mismatched LD biases h2 downward and inflates the intercept."
 
 ### Trans-Ancestry rg
-> "Cross-population genetic correlation between EUR and EAS GWAS for the same trait. Use Popcorn-2 with per-population LD scores. Require effective N > 5000 per population for stable estimation."
+> "Cross-population genetic correlation between EUR and EAS GWAS for the same trait. Use Popcorn with per-population LD scores. Require effective N > 5000 per population for stable estimation."
 
 ### Single-Cell ATAC Annotation
 > "Build cell-type-specific .ldcts from per-cluster ATAC peaks (cross-reference atac-seq/single-cell-atac). Compute per-cluster LD scores via `ldsc.py --l2`. Then run `--h2-cts` to identify which cluster's open-chromatin landscape is most heritability-enriched for the trait."
@@ -102,7 +102,7 @@ Tell your AI agent what you want to do:
 | Sumstats (EUR) | >= 50k each | rg, non-overlap | HDL |
 | Sumstats (EUR) | >= 50k each | rg, overlap unknown | Cross-trait LDSC |
 | Sumstats (non-EUR) | >= 50k | Total h2 | LDSC with ancestry-matched LD |
-| Sumstats (multi-pop) | >= 5k per pop | Trans-ancestry rg | Popcorn / Popcorn-2 |
+| Sumstats (multi-pop) | >= 5k per pop | Trans-ancestry rg | Popcorn |
 | Sumstats (EUR) | varies | Local h2 | HESS with LDetect partition |
 | Individual genotypes | 5k - 50k | h2 | GCTA-GREML |
 | Individual genotypes | > 100k | h2 multi-component | BOLT-REML |
@@ -126,7 +126,7 @@ For novel cell types (e.g. per-cluster scATAC), build a custom .ldcts by computi
 | Claim | Use | Confirm with |
 |-------|-----|--------------|
 | Total h2 (no enrichment) | LDSC | LDAK only if intercept anomalous |
-| Functional enrichment (primary claim) | LDSC + LDAK SumHer | Report both; cite Hou 2019 if discordant |
+| Functional enrichment (primary claim) | LDSC + LDAK SumHer | Report both; flag model-dependence if discordant (Gazal 2019) |
 | Cell-type prioritization | LDSC `--h2-cts` (Finucane 2018) | Optional: LDAK conditional on annotation |
 | Conserved-region enrichment | LDAK SumHer (Speed 2019 recommends) | LDSC as comparison |
 | Total rg, non-overlap | HDL primary | Cross-trait LDSC confirmatory |
@@ -159,7 +159,7 @@ graphREML on biobank-scale (N > 200k) typically beats S-LDSC per-trait runtime w
 ## Tips
 
 - LDSC intercept > 1 is NOT automatic evidence of confounding; report the ratio statistic jointly with mean chi-square.
-- LDAK SumHer and LDSC use different per-SNP heritability priors; report both when enrichment is the primary claim (Hou 2019 Nat Genet 51:1244).
+- LDAK SumHer and LDSC use different per-SNP heritability priors; report both when enrichment is the primary claim (S-LDSC vs LDAK enrichment debate; Gazal 2019 Nat Genet 51:1202).
 - HDL is biased when sample overlap > 5%; use cross-trait LDSC instead under any suspected overlap.
 - Apply ancestry-matched LD scores for non-EUR GWAS; EUR scores on EAS / AFR sumstats yield biased h2 and inflated intercept.
 - Always supply `--samp-prev` and `--pop-prev` for case-control GWAS; observed-scale h2 is not comparable across studies.

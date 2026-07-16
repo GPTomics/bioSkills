@@ -36,6 +36,8 @@ mkdir -p "${OUT_DIR}"
 # --pval_col). Each reference panel: PLINK bim/bed/fam triplet covering the locus.
 # --ld_file is required even when --ref_file is provided; LD matrices can be pre-built
 # with `plink --r square` per population, or use SuSiEx's bundled `getLD` helper.
+# Populations are assigned by the ORDER of the comma-separated --sst_file/--n_gwas/
+# --ref_file/--ld_file lists (there is no --pop flag); keep all four in the same order.
 
 SuSiEx \
     --sst_file="${EUR_SST},${EAS_SST},${AFR_SST}" \
@@ -52,7 +54,6 @@ SuSiEx \
     --eff_col=6,6,6 \
     --se_col=7,7,7 \
     --pval_col=8,8,8 \
-    --pop=EUR,EAS,AFR \
     --out_dir="${OUT_DIR}" \
     --out_name="${LOCUS_NAME}" \
     --level=0.95 \

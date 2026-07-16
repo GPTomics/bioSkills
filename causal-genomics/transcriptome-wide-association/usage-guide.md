@@ -17,7 +17,8 @@ TWAS is the natural cousin of Mendelian randomization and colocalization in the 
 Install Python tools:
 
 ```bash
-pip install metaxcan pyfocus
+pip install pyfocus
+git clone https://github.com/hakyimlab/MetaXcan   # S-PrediXcan / S-MultiXcan (not on PyPI)
 ```
 
 Install R / FUSION:
@@ -48,7 +49,7 @@ Tell the AI agent what to do:
 > "Run S-PrediXcan across all 49 GTEx v8 MASHR tissues for my schizophrenia GWAS. Combine the per-tissue outputs with S-MultiXcan for a joint multi-tissue test. Compare the joint-significant gene set against the per-tissue Bonferroni-significant lists, and flag any genes where the joint test gains power over the best per-tissue test."
 
 ### TWAS fine-mapping at a gene-dense locus
-> "At the chr19:11p15.5 locus my TWAS reports 7 genes passing significance. Run FOCUS using the GTEx v8 whole blood DB and 1000G EUR LD reference to compute per-gene PIPs and report the credible gene set. Genes with PIP >= 0.8 are causal candidates; co-significant genes with PIP < 0.5 are LD-tagged."
+> "At the chr11p15.5 locus my TWAS reports 7 genes passing significance. Run FOCUS using the GTEx v8 whole blood DB and 1000G EUR LD reference to compute per-gene PIPs and report the credible gene set. Genes with PIP >= 0.8 are causal candidates; co-significant genes with PIP < 0.5 are LD-tagged."
 
 ### Multi-ancestry TWAS
 > "Run MA-FOCUS on my T2D GWAS combining EUR (BBJ + UKB), EAS (BBJ), and AFR (AAGILE) sumstats using ancestry-matched 1000 Genomes LD references. Use the MA-FOCUS DBs for each ancestry's PredictDB v8 MASHR adipose tissue. Report joint PIPs and per-ancestry contribution."
@@ -60,7 +61,7 @@ Tell the AI agent what to do:
 > "Run TWAS using GTEx splicing models (sQTL-based PredictDB) instead of expression for my major depressive disorder GWAS in brain frontal cortex. Identify splice-mediated gene hits and contrast with the expression-TWAS hit list at the same loci."
 
 ### FUSION conditional analysis
-> "Run FUSION on my CAD GWAS with GTEx artery coronary weights for all 22 autosomes. Then run FUSION.post_process.R --joint at every significant locus to identify conditionally independent genes; report the joint-Z table per locus."
+> "Run FUSION on my CAD GWAS with GTEx artery coronary weights for all 22 autosomes. Then run FUSION.post_process.R at every significant locus (conditional/joint analysis run by default, no --joint flag) to identify conditionally independent genes; report the joint-Z table per locus."
 
 ## What the Agent Will Do
 
@@ -73,15 +74,15 @@ Tell the AI agent what to do:
 
 ## Ancestry-Matched Prediction Panels
 
-Use the panel matching the GWAS ancestry; document any mismatch and apply MA-FOCUS for cross-ancestry credible sets. Patel 2022 Genome Med 14:31 quantifies the ancestry-transfer power loss.
+Use the panel matching the GWAS ancestry; document any mismatch and apply MA-FOCUS for cross-ancestry credible sets. Patel 2022 AJHG 109:1286 quantifies the ancestry-transfer power loss.
 
 | Panel | N donors | Tissues / cells | Ancestry | Use case |
 |-------|----------|-----------------|----------|----------|
 | GTEx v8 (full) | 838 | 49 tissues | EUR (~85%) | Default standard for general TWAS |
 | GTEx v8 MASHR-EUR | -- | 49 tissues | EUR | Primary; sparser SNP set per gene |
 | eQTLGen | 31,684 | Whole blood | EUR (>95%) | Highest blood power; cis + trans available |
-| MESA Whole Blood (Mogil 2018) | 1,163 | Blood | Multi-ancestry | AFR / HIS-relevant analyses |
-| MESA Monocytes-AFA | 183 | Monocytes | AFR | AFR-specific immune traits |
+| MESA Monocytes (Mogil 2018) | 1,163 | Monocytes | Multi-ancestry | AFR / HIS-relevant analyses |
+| MESA Monocytes-AFA | 233 | Monocytes | AFR | AFR-specific immune traits |
 | AFGR | ~2,000 | Whole blood | AFR | AFR (emerging; release-dependent) |
 | OneK1K (Yazar 2022) | 982 | PBMC, 14 cell types | EUR | sc-TWAS in immune cell types |
 | PsychENCODE (Wang 2018) | ~1,300 | Prefrontal cortex | EUR | Neuropsychiatric traits |
@@ -113,7 +114,7 @@ For brain analyses requiring sub-region resolution at low N, substitute PsychENC
 - **Triangulation rule:** A "strong candidate causal gene" requires 3-of-4 concordance across {TWAS, FOCUS PIP >= 0.8, coloc PP.H4 >= 0.7, cis-eQTL MR p < threshold}. 2-of-4 is suggestive; 1-of-4 is associational only.
 - **Drug-target framing:** For drug-target prioritisation, cis-MR with a colocalised eQTL is the canonical evidence; TWAS adds the gene-by-tissue power but should not replace MR + coloc.
 - **Splice-TWAS is underutilised:** sQTL-based PredictDB models exist for GTEx v8 and recover splicing-mediated GWAS hits missed by expression-only TWAS, especially in neuropsychiatric and immune traits.
-- **Conditional analysis:** FUSION's `--joint` is a lighter-weight alternative to FOCUS when a full DB build is unavailable; it does not return PIPs but identifies conditionally independent gene signals.
+- **Conditional analysis:** FUSION's `FUSION.post_process.R` conditional/joint analysis (run by default, no `--joint` flag) is a lighter-weight alternative to FOCUS when a full DB build is unavailable; it does not return PIPs but identifies conditionally independent gene signals.
 - **Document version pinning:** PredictDB model versions and FUSION weight panel dates matter; cite the exact version (e.g. "GTEx v8 MASHR-EUR, PredictDB release 2022-01") in methods.
 
 ## Related Skills
