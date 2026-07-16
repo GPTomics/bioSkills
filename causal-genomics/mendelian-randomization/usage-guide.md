@@ -75,7 +75,7 @@ Tell the AI agent what to do:
 
 ### Binary Outcomes
 
-> "Run MR of LDL on T2D and explicitly handle the non-collapsibility of the logistic OR; report the per-SD genetically-predicted exposure effect on the marginal log-OR scale (Burgess & Labrecque 2018)."
+> "Run MR of LDL on T2D and explicitly handle the non-collapsibility of the logistic OR; report the per-SD genetically-predicted exposure effect on the marginal log-OR scale."
 
 ## What the Agent Will Do
 
@@ -88,7 +88,7 @@ Tell the AI agent what to do:
 7. Run MR-PRESSO with NbDistribution >= 10000 for global, outlier, and distortion tests
 8. Run CAUSE if exposure is polygenic and >= 100 sig SNPs; report ELPD difference
 9. For multivariable designs, run MVMR with `strength_mvmr()` per-exposure conditional F
-10. Steiger directionality test (with the Hemani Tilling 2022 confounder caveat noted)
+10. Steiger directionality test (with the Lutz 2022 confounder caveat noted)
 11. Generate scatter, forest, leave-one-out, and funnel plots
 12. Produce STROBE-MR-compliant report with all 20 items and explicit causal-claim language
 
@@ -105,11 +105,11 @@ Tell the AI agent what to do:
 - CAUSE explicitly models correlated horizontal pleiotropy; use it when prior on CHP is high (BMI / lipids / smoking on cardiometabolic outcomes)
 - Bonferroni-correct when running pheWAS-MR across many outcomes; FDR only for explicitly exploratory screens
 - Report all 20 STROBE-MR items (Skrivankova 2021); missing items trigger first-pass desk rejection at most epi/genetics journals since 2022
-- The Steiger filter has a known failure mode under unmeasured confounding (Hemani Tilling 2022 Wellcome Open Res 7:14); cross-validate direction with bidirectional MR or LHC-MR, not Steiger alone
+- The Steiger filter has a known failure mode under unmeasured confounding (Lutz 2022 Genet Epidemiol 46:139); cross-validate direction with bidirectional MR or LHC-MR, not Steiger alone
 - MRlap (Mounier 2023) jointly corrects sample overlap, winner's curse, and weak-IV bias from sumstats; prefer when (a) any sample overlap suspected, (b) only sumstats available, (c) UKB-on-UKB or FinnGen-on-FinnGen designs
 - For non-linear MR (J-curves, U-shapes): Hamilton 2023 medRxiv 23293658 shows BOTH doubly-ranked and residual stratification produce stratum-specific bias from age/sex effects; pre-specify the non-linear hypothesis, run both methods side-by-side, report negative-control outcomes (genotype vs sex within strata)
-- One-sample F-statistic floor: F >= 20 (not 10) per Bowden 2019 IJE 48:728; jackknife SE preferred over analytic; never run exposure and outcome GWAS on the same individuals and claim two-sample (Hartwig 2021 collider bias)
-- Binary outcomes: MR returns the population-averaged log-OR, NOT the conditional log-OR; for common diseases OR diverges from RR/HR (Burgess & Labrecque 2018); phrase as "per 1-SD increase in genetically-predicted X, OR for Y = ..."
+- One-sample F-statistic floor: F >= 20 (not 10); jackknife SE preferred over analytic; never run exposure and outcome GWAS on the same individuals and claim two-sample (Barry 2021 PLoS Genet 17:e1009703 collider bias)
+- Binary outcomes: MR returns the population-averaged log-OR, NOT the conditional log-OR; for common diseases OR diverges from RR/HR (Burgess 2017 Stat Methods Med Res 26:2333); phrase as "per 1-SD increase in genetically-predicted X, OR for Y = ..."
 - MVMR with conditional F < 10: switch from `ivw_mvmr()` to `qhet_mvmr(r_input, pcor, CI = TRUE, iterations = 1000)` (Sanderson 2021 Stat Med 40:5434) which Q-minimizes rather than weighting by inverse variance
 
 ## Related Skills

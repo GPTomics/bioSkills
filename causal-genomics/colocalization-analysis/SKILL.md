@@ -37,8 +37,8 @@ If code throws AttributeError, NULL list elements, or `Error in coloc.abf: datas
 | PWCoCo (Robinson 2022) | Pairwise conditional via GCTA-COJO conditioning | Summary stats + individual-level LD bfile | Per-conditional-signal coloc.abf results | Cleanly handles AH at top GWAS hit + secondary signals | Needs individual-level reference; sensitive to COJO collinearity threshold |
 | moloc (Giambartolomei 2018) | Multi-trait extension of coloc.abf (3-5 traits) | Per-trait summary stats | 15 (3-trait) / 31 (4-trait) / 63 (5-trait) hypothesis PPs | First principled multi-omic coloc | Hypothesis count = 2^k - 1 explodes; >= 6 traits computationally infeasible; minimally updated since 2019 |
 | HyPrColoc (Foley 2021) | Many-trait cluster-based; iterative branch-and-bound under single-causal | Beta + SE matrices SNPs x traits | Trait clusters sharing a causal variant | Scales to 50+ traits; identifies cluster substructure | Inherits single-causal assumption from coloc.abf; clusters can fragment under AH |
-| SharePro_coloc (Wang 2024) | Variational effect-group joint model | Beta + SE; LD per ancestry | Effect-group level PP | Handles multi-causal + multi-ancestry jointly; faster than coloc.susie at scale | Newer (2024); benchmarks evolving; trickier installation |
-| Wallace 2020 / 2025 variant-specific priors | Function-aware p12 (e.g. up-weight coding/promoter SNPs) | Same as coloc.abf + per-SNP prior weights | PP.H0-H4 with non-uniform prior | Improves discovery when functional annotation is informative | Annotation choice is a methodological lever; report sensitivity |
+| SharePro_coloc (Zhang 2024) | Variational effect-group joint model | Beta + SE; LD per ancestry | Effect-group level PP | Handles multiple causal signals jointly; faster than coloc.susie at scale | Newer (2024); benchmarks evolving; trickier installation |
+| Pullin & Wallace 2025 variant-specific priors | Function-aware p12 (e.g. up-weight coding/promoter SNPs) | Same as coloc.abf + per-SNP prior weights | PP.H0-H4 with non-uniform prior | Improves discovery when functional annotation is informative | Annotation choice is a methodological lever; report sensitivity |
 
 Methodology evolves; verify the current Open Targets Genetics, eQTL Catalogue, and FinnGen colocalization pipelines before locking parameters. Open Targets uses coloc.abf at PP.H4 >= 0.75 with p12 = 1e-5; FinnGen uses coloc.susie at PP.H4 >= 0.8 with in-sample LD.
 
@@ -53,9 +53,9 @@ Methodology evolves; verify the current Open Targets Genetics, eQTL Catalogue, a
 | Many GWAS traits at one locus (pleiotropic hub) | HyPrColoc | Designed for many-trait clustering; coloc.abf pairwise scales as k^2 |
 | Top SNP has only modest GWAS p; is it the same causal as eQTL? | SMR + HEIDI | SMR tests pleiotropy/causality; HEIDI rejects shared-causal -> linkage |
 | Want per-SNP credibility under allelic heterogeneity | eCAVIAR (CLPP) | Per-SNP CLPP integrates fine-mapping with coloc |
-| MHC / HLA region (chr6:25-35 Mb) | HLA-coloc (Lagou 2024) OR exclude MHC | Long-range LD breaks single-causal assumption; standard PP.H4 not interpretable |
+| MHC / HLA region (chr6:25-35 Mb) | HLA-coloc (Butler-Laporte 2024) OR exclude MHC | Long-range LD breaks single-causal assumption; standard PP.H4 not interpretable |
 | Trans-eQTL / GWAS pair | coloc.abf with p12 lowered to 5e-6 or 1e-6 | Shared causality is biologically rare; default p12=1e-5 over-favours H4 |
-| Ancestry-mismatched GWAS vs eQTL | SharePro_coloc OR ancestry-matched coloc.susie | LD differs across ancestries; using EUR LD on AFR z-scores produces spurious credible sets |
+| Ancestry-mismatched GWAS vs eQTL | ancestry-matched coloc.susie OR coloc_SuSiEx | LD differs across ancestries; using EUR LD on AFR z-scores produces spurious credible sets |
 | Very small eQTL (N < 200) | None reliably; flag locus underpowered | All methods report H0/H1/H2 dominance; report PP transparently and gather larger reference (eQTLGen N~31k, GTEx v8) |
 
 ## Per-Method Failure Modes
@@ -98,7 +98,7 @@ Methodology evolves; verify the current Open Targets Genetics, eQTL Catalogue, a
 
 **Symptom:** coloc.abf almost always returns PP.H3 or fragmented PP across H1/H2/H3/H4 even when the underlying biology is well-established (e.g. HLA-DRB1 in autoimmune GWAS).
 
-**Fix (MHC):** Use HLA-imputed classical alleles via SNP2HLA / HIBAG / HLA-TAPAS, then HLA-coloc (Lagou 2024 medRxiv) -- NOT coloc on SNPs in MHC. OR exclude MHC from genome-wide coloc and report HLA association at the haplotype/allele level. **Fix (chr 8 inversion):** Exclude chr8:8.1-11.9 Mb or pre-condition on inversion genotype before coloc. Never report a single coloc PP.H4 in either region without this caveat.
+**Fix (MHC):** Use HLA-imputed classical alleles via SNP2HLA / HIBAG / HLA-TAPAS, then HLA-coloc (Butler-Laporte 2024 medRxiv) -- NOT coloc on SNPs in MHC. OR exclude MHC from genome-wide coloc and report HLA association at the haplotype/allele level. **Fix (chr 8 inversion):** Exclude chr8:8.1-11.9 Mb or pre-condition on inversion genotype before coloc. Never report a single coloc PP.H4 in either region without this caveat.
 
 ### Lead-SNP swap and window bias
 
@@ -155,7 +155,7 @@ GTEx v8 (838 donors, 49 tissues, 2020) is the current PredictDB-supported standa
 | p2 | 1e-4 | Prob a random SNP is associated with trait 2 | Rarely changed |
 | p12 | 1e-5 | Prob a random SNP is associated with both traits | Lower (5e-6 or 1e-6) for trans-eQTL or unrelated trait pairs; raise (5e-5) only with strong prior, e.g. molecular QTL in the same tissue as causal cell type |
 
-The p12/p1 ratio (= 0.1 under defaults) is the prior odds of colocalization given a trait-1 association. Wallace 2020 (PLoS Genet 16:e1008720) showed default p12 = 1e-5 is too liberal for many real-world settings and recommended sensitivity analysis as standard practice. Wallace 2025 (PLoS Genet 21:e1011697) extended this with variant-specific priors weighted by functional annotation.
+The p12/p1 ratio (= 0.1 under defaults) is the prior odds of colocalization given a trait-1 association. Wallace 2020 (PLoS Genet 16:e1008720) showed default p12 = 1e-5 is too liberal for many real-world settings and recommended sensitivity analysis as standard practice. Pullin & Wallace 2025 (PLoS Genet 21:e1011697) extended this with variant-specific priors weighted by functional annotation.
 
 ### p12 Sensitivity Grid
 
@@ -178,7 +178,6 @@ CLPP (Colocalization Posterior Probability) is the per-SNP product of the two pe
 - 2024 GTEx / Open Targets pipelines use CLPP >= 0.05.
 - High-confidence claims require CLPP >= 0.1.
 - Report both sum-CLPP across the credible set AND max-CLPP at any single SNP -- the two answer different questions (locus-level vs lead-SNP-level confidence).
-- LaPierre 2021 Bioinformatics (CAVIARBF) extends CLPP to conditional analysis.
 
 ```bash
 eCAVIAR -l ld_gwas.ld -l ld_eqtl.ld \
@@ -201,7 +200,7 @@ eCAVIAR -l ld_gwas.ld -l ld_eqtl.ld \
 # plink2 phased r (signed Pearson); square matrix output
 plink2 --pfile 1KG_EUR \
     --extract snps.txt --chr 6 --from-bp X --to-bp Y \
-    --r-phased square spaces --out locus_ld
+    --r-phased square --out locus_ld
 ```
 
 ```r
@@ -233,7 +232,7 @@ For k traits, moloc tests `2^k - 1` hypotheses. 3 traits -> 15 hypotheses (H_a, 
 ```r
 # moloc 3-trait example; install via remotes::install_github('clagiamba/moloc')
 library(moloc)
-# Input: list of k dataframes with PVAL/N/F (frequency) per SNP and shared SNP IDs
+# Input: list of k dataframes with BETA, SE, N, MAF per SNP and shared SNP IDs
 result_moloc <- moloc_test(listData=list(gwas=gwas_df, eqtl=eqtl_df, sqtl=sqtl_df),
                             prior_var=c(0.01, 0.1, 0.5), priors=c(1e-4, 1e-6, 1e-7))
 # PPA: posterior over all 15 hypotheses (3-trait case)
@@ -379,8 +378,8 @@ Worked harmonisation code and build-mismatch pitfalls: see usage-guide.md.
 | "Why not coloc.susie? Multi-causal possible?" | coloc.abf single-causal assumption stated; if PP.H3 dominant or GCTA-COJO identifies >= 2 independent signals, coloc.susie / SuSiE-based run; reported |
 | "LD reference matched?" | In-sample preferred; if reference panel used, `estimate_s_rss(z, R, N)` lambda < 0.05; `kriging_rss` diagnostic clean |
 | "PP.H4 = 0.6 is colocalization?" | No -- bands stated: 0.5-0.7 suggestive; >= 0.7 triangulation tier; >= 0.8 standard publication; >= 0.95 industry/clinical |
-| "MHC region included?" | chr6:25-35 Mb excluded; HLA-coloc (Lagou 2024) for classical-allele-level coloc |
-| "Ancestry mismatch?" | LD reference ancestry-matched to GWAS; for cross-ancestry use SharePro_coloc or coloc.susiex |
+| "MHC region included?" | chr6:25-35 Mb excluded; HLA-coloc (Butler-Laporte 2024) for classical-allele-level coloc |
+| "Ancestry mismatch?" | LD reference ancestry-matched to GWAS; for cross-ancestry use coloc_SuSiEx |
 | "Sentinel SNP swap?" | Re-centered window on each trait's lead, joint top, eQTL top; PP.H4 stable within 0.1 |
 
 ## Common Errors
@@ -406,7 +405,7 @@ Worked harmonisation code and build-mismatch pitfalls: see usage-guide.md.
 - **SMR**: Pre-compiled binary from cnsgenomics.com/software/smr. Linux/Mac/Windows binaries; no R package.
 - **eCAVIAR**: Compile from GitHub fhormoz/caviar; C++ source. CLI `eCAVIAR`. PAINTOR is the related multi-trait fine-mapping toolkit.
 - **PWCoCo**: GitHub jwr-git/pwcoco. Compiled C++ CLI; can also be invoked from R via wrapper scripts.
-- **SharePro_coloc**: Python `pip install sharepro-coloc` or GitHub zhwm/SharePro_coloc.
+- **SharePro_coloc**: GitHub only (no PyPI release). `git clone https://github.com/zhwm/SharePro_coloc` then `pip install -r requirements.txt`.
 - **moloc**: GitHub clagiamba/moloc. R package; minimally updated since 2019, no CRAN release. R >= 3.5.
 
 ## Reviewer-Grade Reporting Template
@@ -427,16 +426,16 @@ For each colocalization claim, the report should include:
 ## References
 
 - Giambartolomei C et al 2014 PLoS Genet 10:e1004383 (coloc.abf)
-- Wallace C 2020 PLoS Genet 16:e1008720 (default-prior sensitivity; variant-specific priors)
-- Wallace C 2025 PLoS Genet 21:e1011697 (further p12 prior refinements)
+- Wallace C 2020 PLoS Genet 16:e1008720 (prior elicitation; relaxing the single-causal-variant assumption; default-prior sensitivity)
+- Pullin JM & Wallace C 2025 PLoS Genet 21:e1011697 (variant-specific priors)
 - Wallace C 2021 PLoS Genet 17:e1009440 (coloc.susie; multiple causal variants)
 - Zhu Z et al 2016 Nat Genet 48:481 (SMR + HEIDI)
 - Hormozdiari F et al 2016 AJHG 99:1245 (eCAVIAR / CLPP)
 - Giambartolomei C et al 2018 Bioinformatics 34:2538 (moloc)
 - Foley CN et al 2021 Nat Commun 12:764 (HyPrColoc)
 - Robinson JW et al 2022 bioRxiv 2022.08.08.503158 (PWCoCo)
-- Wang W et al 2024 Bioinformatics 40:btae295 (SharePro_coloc)
-- Lagou V et al 2024 medRxiv (HLA-coloc)
+- Zhang W et al 2024 Bioinformatics 40:btae295 (SharePro_coloc)
+- Butler-Laporte G et al 2024 medRxiv 2024.11.05.24316783 (hlacoloc)
 - Mountjoy E et al 2021 Nat Genet 53:1527 (Open Targets Genetics colocalization pipeline)
 - Vosa U et al 2021 Nat Genet 53:1300 (eQTLGen, N ~ 31,684 whole blood)
 - GTEx Consortium 2020 Science 369:1318 (GTEx v8 multi-tissue eQTL)

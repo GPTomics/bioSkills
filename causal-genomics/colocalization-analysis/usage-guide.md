@@ -20,7 +20,7 @@ remotes::install_github('clagiamba/moloc')           # 3-5 traits
 # SMR: download binary from https://yanglab.westlake.edu.cn/software/smr/
 # eCAVIAR: compile from https://github.com/fhormoz/caviar
 # PWCoCo: compile from https://github.com/jwr-git/pwcoco
-# SharePro_coloc: pip install sharepro-coloc
+# SharePro_coloc: git clone https://github.com/zhwm/SharePro_coloc then pip install -r requirements.txt
 
 # LD reference panel (e.g. 1000 Genomes phase 3) via plink2
 # plink2 --pfile 1KG_EUR_chr6 --chr 6 --from-bp 30000000 --to-bp 31000000 --r-phased square --out ld
@@ -70,7 +70,7 @@ Tell the AI agent what is needed:
 
 ### MHC / HLA
 
-> "This locus is in the MHC. Flag the long-range-LD problem and recommend HLA-coloc or exclude-and-report-HLA-association strategy."
+> "This locus is in the MHC. Flag the long-range-LD problem and recommend HLA-coloc (Butler-Laporte 2024) or exclude-and-report-HLA-association strategy."
 
 ### Ancestry-Mismatched
 
@@ -143,7 +143,7 @@ gcta64 --bfile 1KG_EUR --chr 6 --extract locus.snplist \
 # Step 2: PWCoCo runs pairwise conditional coloc.abf per signal pair
 pwcoco --bfile 1KG_EUR --sum_stats1 gwas.txt --sum_stats2 eqtl.txt \
        --p_cutoff1 5e-8 --p_cutoff2 5e-5 \
-       --chr 6 --top_snp rs12345 \
+       --chr 6 \
        --out pwcoco_result
 ```
 

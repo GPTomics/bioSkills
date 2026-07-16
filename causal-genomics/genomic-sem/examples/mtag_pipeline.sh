@@ -26,14 +26,15 @@ python "${MTAG_BIN}" \
     --sumstats "${TRAIT1},${TRAIT2},${TRAIT3}" \
     --out "${OUTPUT_DIR}/mtag" \
     --n_min 0 \
-    --use_beta_se \
     --stream_stdout \
     --force
+# --use_beta_se is intentionally omitted: it was disabled upstream (raises a RuntimeError
+# since Dec 2021), so MTAG uses the signed Z column by default.
 
 # Step 2: Check MaxFDR per trait (Turley 2018 threshold = 5%)
 echo ''
 echo '=== MaxFDR per trait ==='
-grep -E '^.*maxFDR' "${OUTPUT_DIR}/mtag.log" || echo 'maxFDR not present; check MTAG version (>= 1.0.7 required)'
+grep -iE 'max ?fdr' "${OUTPUT_DIR}/mtag.log" || echo 'maxFDR not present; check MTAG version (>= 1.0.7 required)'
 
 # Step 3: Extract genome-wide significant hits per trait
 # MTAG writes per-trait sumstats as <out>_trait_<i>.txt; the mtag P column header is

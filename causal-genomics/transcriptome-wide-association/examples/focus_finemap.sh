@@ -16,15 +16,11 @@ TISSUE='Whole_Blood'                                     # Tissue label inside t
 # 5e-8 is standard GWAS genome-wide significance; loci below this threshold trigger FOCUS.
 P_THRESHOLD='5e-8'
 
-# Locus window: FOCUS extracts SNPs within +/- this distance of each genome-wide
-# significant lead. 1 Mb captures essentially all cis-eQTL signal and downstream LD.
-LOCUS_WINDOW='1000000'
-
 OUT_PREFIX='gwas_focus_whole_blood'
 
 # ---- Step 1: build FOCUS database from FUSION weights if not pre-built ----
 # Skip this if using a pre-built FOCUS DB. Custom panels need this step.
-# focus import-fusion gtex_whole_blood.pos --output focus_gtex_v8_whole_blood.db
+# focus import gtex_whole_blood.pos fusion --tissue Whole_Blood --output focus_gtex_v8_whole_blood
 
 # ---- Step 2: run FOCUS fine-mapping ----
 # FOCUS takes the underlying GWAS sumstats (not the TWAS Z output) and internally:
@@ -37,10 +33,10 @@ focus finemap \
     "${FOCUS_DB}" \
     --p-threshold "${P_THRESHOLD}" \
     --tissue "${TISSUE}" \
-    --locus-window "${LOCUS_WINDOW}" \
     --out "${OUT_PREFIX}"
-# Single-ancestry mode does not take --locations; that flag is MA-FOCUS-only
-# (signaled by colon-separated per-ancestry inputs + --locations 38:EUR-EAS-AFR).
+# Single-ancestry bogdanlab/focus (pip pyfocus) omits --locations (uses default LD blocks)
+# or takes a --locations FILE. The 38:EUR build:pop form and multi-ancestry 38:EUR-EAS-AFR
+# (with colon-separated per-ancestry sumstats/LD/weight DBs) are MA-FOCUS (mancusolab/ma-focus) syntax.
 
 # ---- Step 3: filter credible-set genes ----
 # FOCUS reports per-gene PIP. PIP >= 0.8 = causal candidate; 0.5 <= PIP < 0.8 = suggestive;

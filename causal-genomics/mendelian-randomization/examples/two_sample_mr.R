@@ -83,7 +83,7 @@ cat('\n--- Egger intercept ---\n')
 cat('intercept:', signif(pleio$egger_intercept, 3),
     '| se:', signif(pleio$se, 3), '| p:', signif(pleio$pval, 3), '\n')
 
-# NOME / I^2_GX check; below 0.9 invalidates Egger without SIMEX correction (Bowden 2016 Stat Med 35:1880)
+# NOME / I^2_GX check; below 0.9 invalidates Egger without SIMEX correction (Bowden 2016 IJE 45:1961)
 mr_obj <- mr_input(bx = dat$beta.exposure, bxse = dat$se.exposure,
                    by = dat$beta.outcome, byse = dat$se.outcome)
 isq <- TwoSampleMR::Isq(dat$beta.exposure, dat$se.exposure)
@@ -111,7 +111,7 @@ if (!is.null(presso$`MR-PRESSO results`$`Distortion Test`)) {
     cat('Distortion p:', signif(presso$`MR-PRESSO results`$`Distortion Test`$Pvalue, 3), '\n')
 }
 
-# Steiger directionality with Hemani Tilling 2022 confounder caveat: heuristic only, not definitive
+# Steiger directionality with Lutz 2022 confounder caveat: heuristic only, not definitive
 steiger <- directionality_test(dat)
 cat('\n--- Steiger ---\n')
 cat('correct direction:', steiger$correct_causal_direction,

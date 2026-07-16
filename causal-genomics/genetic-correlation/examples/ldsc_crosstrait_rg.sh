@@ -42,7 +42,8 @@ munge_sumstats.py \
 echo '== Step 3: pre-check mean chi-square (each trait) =='
 for tag in t1 t2; do
     munged="${OUT_PREFIX}.${tag}.sumstats.gz"
-    mean_chisq=$(zcat "${munged}" | awk 'NR>1 {sum += $5*$5; n++} END {if (n>0) print sum/n; else print 0}')
+    # munged .sumstats columns are SNP A1 A2 Z N, so chi-square = Z^2 = $4*$4 (NOT $5, which is N)
+    mean_chisq=$(zcat "${munged}" | awk 'NR>1 {sum += $4*$4; n++} END {if (n>0) print sum/n; else print 0}')
     echo "trait ${tag} mean chi-square: ${mean_chisq}"
     pass=$(awk -v m="${mean_chisq}" -v thr="${MIN_MEAN_CHISQ}" 'BEGIN {print (m > thr) ? 1 : 0}')
     if [[ "${pass}" == "0" ]]; then

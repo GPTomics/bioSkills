@@ -36,7 +36,7 @@ GenomicSEM is GitHub-only (never on CRAN). If `ldsc()` or `usermodel()` throws a
 | Common-factor GWAS (`commonfactorGWAS`) | SNP -> F -> trait1..k | 3 | Wald on F + Q_SNP heterogeneity | Discovers SNPs acting via the common factor; flags Q_SNP outliers | Q_SNP-significant SNPs not interpretable as factor SNPs |
 | User GWAS (`userGWAS`) | Arbitrary SNP-path lavaan | 3 | Wald per path + Q_SNP | Tests SNP on any specified path | Highly parameterized models lose power |
 | Multivariate Wald test | Joint test across SNP -> trait paths | 2+ | Joint chi-square | Boost power when SNP affects multiple traits | Heterogeneous SNP effects collapse joint test |
-| Stratified GenomicSEM (Grotzinger 2022 Behav Genet 52:180) | Factor model with sLDSC-partitioned annotations | 3 | Per-annotation factor tau | Localizes heritability of the factor to functional categories | Same sLDSC failure modes (small annotation, collinearity) |
+| Stratified GenomicSEM (Grotzinger AD et al 2022 Nat Genet 54:548) | Factor model with sLDSC-partitioned annotations | 3 | Per-annotation factor tau | Localizes heritability of the factor to functional categories | Same sLDSC failure modes (small annotation, collinearity) |
 | MTAG (Turley 2018 Nat Genet 50:229) | Empirical-Bayes shrinkage across correlated traits | 2 | Per-trait shrunk z-score | Boosts marginal power for any input trait | MaxFDR > 5% indicates heterogeneity violates MTAG assumption |
 
 Methodology evolves; verify the current Grotzinger 2023+ tutorials at `github.com/GenomicSEM/GenomicSEM/wiki` before locking a method. ESEM rotation choice (geomin vs target rotation) is an active area; report sensitivity to rotation.
@@ -271,7 +271,7 @@ model_pfactor <- '
 '
 ```
 
-Bifactor alternative: `p =~` all traits directly, with `INT`/`EXT`/`THT` as orthogonal residual factors. Bifactor typically gives tighter CFI/RMSEA but the substantive interpretation of the residual factors is harder; bifactor is also prone to over-fitting at modest trait counts (Bonifay 2017 Struct Equ Model 24:378). Cite Grotzinger 2022 Nat Genet 54:548 and Mallard 2022 Am J Psychiatry 179:528 for the canonical psychiatric implementations.
+Bifactor alternative: `p =~` all traits directly, with `INT`/`EXT`/`THT` as orthogonal residual factors. Bifactor typically gives tighter CFI/RMSEA but the substantive interpretation of the residual factors is harder; bifactor is also prone to over-fitting at modest trait counts (Bonifay W & Cai L 2017 Multivariate Behav Res 52:465). Cite Grotzinger 2022 Nat Genet 54:548 and Karlsson Linner R, Mallard TT et al 2021 Nat Neurosci 24:1367 for the canonical psychiatric implementations.
 
 ## Common-Factor GWAS with Q_SNP
 
@@ -329,12 +329,13 @@ The "factor-only" subset (factor-significant AND Q_SNP non-significant) is the p
 python mtag.py \
     --sumstats trait1.txt,trait2.txt,trait3.txt \
     --n_min 0 \
-    --use_beta_se \
     --out mtag_results
+# MTAG uses the signed Z by default; --use_beta_se was disabled upstream (raises a
+# RuntimeError since Dec 2021 due to beta-se bugs), so supply a Z column and omit it.
 
 # Check MaxFDR per trait
-grep -i maxfdr mtag_results.log
-# Each per-trait MTAG file: mtag_results_trait<k>.txt
+grep -iE 'max ?fdr' mtag_results.log   # matches both the section header and the 'Max FDR of Trait' value lines
+# Each per-trait MTAG file: mtag_results_trait_<k>.txt
 ```
 
 If MaxFDR > 0.05 for any trait, MTAG results for that trait are unreliable; GenomicSEM with Q_SNP filtering is the more defensible report.
@@ -360,7 +361,7 @@ s_results <- s_ldsc(
 #   fix='regressions': hold regression paths fixed at the genome-wide estimate during stratified fit
 #   std.lv=FALSE: do not standardize the latent variance
 #   rm_flank=TRUE: drop flanking-window contributions (default)
-#   tau=FALSE: do not return per-annotation tau coefficients
+#   tau=FALSE: use the baseline-annotation S/V matrices (TRUE switches to the V_Tau/S_Tau tau parametrization)
 #   base=TRUE: include baseline annotation contributions in the partition
 #   toler=NULL: matrix-inversion tolerance (let GenomicSEM choose; supply a small value when S is near-singular)
 strat_factor <- enrich(s_covstruc = s_results,
@@ -374,7 +375,7 @@ strat_factor <- enrich(s_covstruc = s_results,
                        toler = NULL)
 ```
 
-The output gives per-annotation enrichment of the factor h2 -- the analog of cell-type S-LDSC for the latent factor (Grotzinger 2022 Behav Genet 52:180).
+The output gives per-annotation enrichment of the factor h2 -- the analog of cell-type S-LDSC for the latent factor (Grotzinger AD et al 2022 Nat Genet 54:548).
 
 ## Computational Footprint
 
@@ -451,7 +452,7 @@ For Python tools:
 # --h2/--rg/--h2-cts CLI per its README; use abdenlab/ldsc-python3 (v2.0.0)
 # for a working CLI. Docker jtb114/ldsc:latest is the belowlab fallback.
 git clone https://github.com/abdenlab/ldsc-python3.git
-cd ldsc-python3 && pip install -r requirements.txt
+cd ldsc-python3 && pip install .   # Poetry project (pyproject.toml); no requirements.txt
 
 # MTAG
 git clone https://github.com/JonJala/mtag.git
@@ -463,7 +464,7 @@ Pre-downloaded reference files: `eur_w_ld_chr/`, `baselineLD_v2.2.*`, `w_hm3.snp
 ## References
 
 - Grotzinger AD et al 2019 Nat Hum Behav 3:513 (GenomicSEM, common-factor GWAS, Q_SNP)
-- Grotzinger AD et al 2022 Behav Genet 52:180 (Stratified GenomicSEM)
+- Grotzinger AD et al 2022 Nat Genet 54:548 (Stratified GenomicSEM)
 - Turley P et al 2018 Nat Genet 50:229 (MTAG; MaxFDR)
 - Bulik-Sullivan B et al 2015 Nat Genet 47:291 (LDSC for genetic covariance)
 - Bulik-Sullivan B et al 2015 Nat Genet 47:1236 (bivariate LDSC, sample overlap)
@@ -472,8 +473,8 @@ Pre-downloaded reference files: `eur_w_ld_chr/`, `baselineLD_v2.2.*`, `w_hm3.snp
 - Asparouhov T & Muthen B 2009 Struct Equ Model 16:397 (ESEM framework)
 - Finucane HK et al 2015 Nat Genet 47:1228 (S-LDSC, foundation for stratified GenomicSEM)
 - Gazal S et al 2017 Nat Genet 49:1421 (baseline-LD annotations)
-- Demange PA et al 2021 Nat Genet 53:35 (GenomicSEM applied to cognitive traits; Q_SNP in practice)
-- Mallard TT et al 2022 Am J Psychiatry 179:528 (multivariate GWAS of externalizing via GenomicSEM)
+- Demange PA et al 2021 Nat Genet 53:35 (GenomicSEM GWAS-by-subtraction for noncognitive skills; Q_SNP in practice)
+- Karlsson Linner R, Mallard TT et al 2021 Nat Neurosci 24:1367 (multivariate externalizing GWAS via GenomicSEM)
 - de la Fuente J et al 2021 Nat Hum Behav 5:49 (GenomicSEM for cognitive g factor)
 - Skrivankova VW et al 2021 JAMA 326:1614 (STROBE-MR; relevant when downstream MR uses factor GWAS)
 

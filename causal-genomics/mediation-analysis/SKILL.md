@@ -7,12 +7,12 @@ primary_tool: mediation
 
 ## Version Compatibility
 
-Reference examples tested with: R 4.3+, mediation 4.5.0+, CMAverse 0.1.0+ (GitHub `BS1125/CMAverse`), HIMA >= 2.3.0 (CRAN), bama 1.3+, causalweight 1.0.5+ (medDML), MVMR 0.4+, TwoSampleMR 0.6+, EValue 4.1+, gesttools 1.3+, ipw 1.0.11+.
+Reference examples tested with: R 4.3+, mediation 4.5.0+, CMAverse 0.1.0+ (GitHub `BS1125/CMAverse`), HIMA >= 2.3.0 (GitHub `YinanZheng/HIMA`; archived from CRAN 2026-07), bama 1.3+, causalweight 1.0.5+ (medDML), MVMR 0.4+, TwoSampleMR 0.6+, EValue 4.1+, gesttools 1.3+, ipw 1.0.11+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - R: `packageVersion('<pkg>')` then `?function_name` to verify parameters
-- HIMA must be pinned at `>= 2.3.0` for the code patterns below; the formula interface `hima(formula, data.pheno, data.M, mediator.type, penalty, ...)` was introduced in 2.3.0. Users on HIMA 2.2.x must instead call `hima_classic()` with positional arguments (`X=`, `Y=`, `M=`, `COV.XM=`, `Y.family=`) and lose the formula interface; HIMA 2.2.x is NOT API-compatible with the examples here.
-- `hima_classic()` is still available in 2.3+ for the original Zhang 2016 SIS+MCP pipeline; use it only to reproduce 2016-2021 papers.
+- HIMA must be pinned at `>= 2.3.0` for the code patterns below; the formula interface `hima(formula, data.pheno, data.M, mediator.type, penalty, ...)` was introduced in 2.3.0. On HIMA 2.2.x the classic engine is the top-level `hima(X, Y, M, COV.XM=, COV.MY=, Y.family=, penalty=)` (positional order X, Y, M) with no formula interface; HIMA 2.2.x is NOT API-compatible with the examples here.
+- In 2.3+ the classic engine is `hima_classic(X, M, Y, COV.XM=, COV.MY=, Y.type=)` (positional order X, M, Y; outcome type via `Y.type`, not `Y.family`); use it only to reproduce the original 2016-2021 SIS+penalty pipelines.
 
 If code throws an error, introspect the installed package (`?hima`, `args(cmest)`) and adapt the example to match the actual API rather than retrying.
 
@@ -37,10 +37,10 @@ Sequential ignorability (no unmeasured confounder of treatment-mediator, mediato
 | VanderWeele 4-way (VanderWeele 2014 Epidemiology 25:749; 2015 OUP) | CDE + PIE + INTref + INTmed decomposition | Native | No | ~300 | Without interaction term reduces to standard mediation; binary outcome needs rare-disease assumption |
 | CMAverse (Shi 2021 Epidemiology 32:e20) | 6 estimators: regression (`rb`), weighting (`wb`), IORW (`iorw`), natural effect models (`ne`), MSM (`msm`), g-formula (`gformula`) | Yes | No (single M, or M-vector) | ~300 | Estimator-specific; `wb` fails with rare exposure; `msm` needs censoring weights for survival |
 | HIMA1 / hima_classic (Zhang 2016 Bioinformatics 32:3150) | SIS screen by beta (M->Y) + MCP penalty | No | Yes (up to ~10k) | ~150 + p>>n | Misses mediators with strong alpha and weak beta; screening-step false-negatives |
-| HIMA2 / hima (Perera 2022 BMC Bioinformatics 23:296) | SIS screen by alpha*beta (indirect effect) + MCP | No (linear by default) | Yes | ~150 | Outcome family limited (gaussian/binomial); HIMA-Cox for survival; HIMA-Pois for count |
-| HILAMA (Zhang 2025) | High-D mediation with latent confounders | No | Yes (>= 100k) | ~500 | Newer; benchmarks evolving; requires latent-factor specification |
-| BAMA (Song 2020 Biostatistics) | Bayesian high-D continuous shrinkage | No | Yes (~5k) | ~200 | Slow MCMC; prior sensitivity for very weak mediators |
-| Two-step MR / network MR (Burgess 2017 Eur J Epidemiol 32:377) | IV-based at each step with INDEPENDENT instruments | Implicit (no interaction modeling) | One mediator at a time | Large summary-stat samples | Same SNP used for E and M (violates exclusion); horizontal pleiotropy; Steiger reversal of M->E direction |
+| HIMA2 / hima (Perera 2022 BMC Bioinformatics 23:296) | SIS screen by alpha*beta (indirect effect) + de-biased Lasso (DBlasso) | No (linear by default) | Yes | ~150 | Outcome family limited (gaussian/binomial); HIMA-Cox for survival; HIMA-Pois for count |
+| HILAMA (Wang et al 2025) | High-D mediation with latent confounders | No | Yes (>= 100k) | ~500 | Newer; benchmarks evolving; requires latent-factor specification |
+| BAMA (Song 2020 Biometrics) | Bayesian high-D continuous shrinkage | No | Yes (~5k) | ~200 | Slow MCMC; prior sensitivity for very weak mediators |
+| Two-step MR / network MR (Burgess 2015 IJE 44:484) | IV-based at each step with INDEPENDENT instruments | Implicit (no interaction modeling) | One mediator at a time | Large summary-stat samples | Same SNP used for E and M (violates exclusion); horizontal pleiotropy; Steiger reversal of M->E direction |
 | MVMR-mediation (Carter & Sanderson 2021 Eur J Epidemiol 36:465-478) | Total minus direct via MVMR | Implicit | Single mediator | Large GWAS samples for both E and M | Conditional F < 10 for either exposure; correlated instruments |
 | medDML (Farbmacher 2022 Econometrics J 25:277) | Double-debiased ML, doubly-robust | Limited (depends on learner) | Moderate (sparsity-friendly) | ~500 | Severe overlap violations; cross-fitting variance with small n |
 
@@ -115,9 +115,9 @@ For high-stakes claims (clinical, drug-target, regulatory submissions) report BO
 
 **Symptom:** Sensitivity to confounder set; ACME flips sign when L is added vs removed.
 
-**Operational identification:** From the DAG, L is a covariate of M and Y that is also affected by E. Vansteelandt 2009 (Stat Sci 24:471) gives the criterion: if L is adjusted, part of the indirect E -> L -> M -> Y pathway is blocked; if L is not adjusted, L confounds the M-Y leg. Both are wrong under natural-effects; the natural indirect effect is simply not identified.
+**Operational identification:** From the DAG, L is a covariate of M and Y that is also affected by E. VanderWeele TJ, Vansteelandt S & Robins JM 2014 (Epidemiology 25:300) give the criterion: if L is adjusted, part of the indirect E -> L -> M -> Y pathway is blocked; if L is not adjusted, L confounds the M-Y leg. Both are wrong under natural-effects; the natural indirect effect is simply not identified.
 
-**Fix:** Switch to **interventional indirect effects** (Vansteelandt & Daniel 2017 Epidemiology 28:258), NOT natural indirect effects. Use `CMAverse::cmest(estimation='msm')` with stabilized inverse-probability weights (yields the randomized-interventional analogue), `gfoRmula` (parametric g-formula), or randomized indirect effects (Lin 2017 Biometrics 73:1109). The interventional indirect is identified under weaker assumptions than the natural indirect.
+**Fix:** Switch to **interventional indirect effects** (Vansteelandt & Daniel 2017 Epidemiology 28:258), NOT natural indirect effects. Use `CMAverse::cmest(estimation='msm')` with stabilized inverse-probability weights (yields the randomized-interventional analogue), `gfoRmula` (parametric g-formula), or randomized/interventional indirect effects (Lin SH & VanderWeele TJ 2017 J Causal Inference 5:20150027). The interventional indirect is identified under weaker assumptions than the natural indirect.
 
 ### HIMA covariate or data.pheno error
 
@@ -189,7 +189,7 @@ result <- hima(outcome ~ exposure + age + sex + batch + pc1 + pc2,
 | Sample size + missing-data handling | Yes |
 | Mediator / exposure scale | Standardized? log? raw? |
 
-Reference: AGReMA-Mediation guideline (Lee 2021 BMJ 372:n122) and MacKinnon 2008 Introduction to Statistical Mediation Analysis.
+Reference: AGReMA guideline (Lee H et al 2021 JAMA 326:1045) and MacKinnon 2008 Introduction to Statistical Mediation Analysis.
 
 ## Reconciliation: Observational vs MR Mediation
 
@@ -327,7 +327,7 @@ Choose based on the experimental structure:
 ### MR-Mediation: Two-Step vs MVMR-Mediation
 
 Decision tree:
-- Independent instrument sets available for E and M -> two-step MR (Burgess 2017 Eur J Epidemiol 32:377)
+- Independent instrument sets available for E and M -> two-step MR (Burgess 2015 IJE 44:484)
 - E and M share instruments (common in cis-eQTL / cis-pQTL mediator cases) -> MVMR-mediation (Carter & Sanderson 2021 Eur J Epidemiol 36:465)
 - Both feasible -> report both (triangulation)
 
@@ -359,13 +359,13 @@ Indirect effect = beta_EM * beta_MY (product of coefficients). CI via delta meth
 ```r
 library(TwoSampleMR); library(MVMR)
 
-total <- mr_ivw(harmonised_data_E_Y)
+total <- mr_ivw(beta_E, beta_Y, se_E, se_Y)
 mvmr_dat <- format_mvmr(BXGs=cbind(beta_E, beta_M),
                         BYG=beta_Y, seBXGs=cbind(se_E, se_M), seBYG=se_Y, RSID=snps)
 fstat <- strength_mvmr(mvmr_dat, gencov=0)
 mvmr_fit <- ivw_mvmr(mvmr_dat)
-direct <- mvmr_fit$coef[1, 'Estimate']
-direct_se <- mvmr_fit$coef[1, 'Std. Error']
+direct <- mvmr_fit[1, 'Estimate']
+direct_se <- mvmr_fit[1, 'Std. Error']
 
 indirect <- total$b - direct
 indirect_se <- sqrt(total$se^2 + direct_se^2)
@@ -414,7 +414,7 @@ For binary outcomes, convert ACME on probability scale to RR; for continuous, us
 |---------|--------|-------|
 | mediation | CRAN | `install.packages('mediation')`; actively maintained (Imai group) |
 | CMAverse | GitHub | `remotes::install_github('BS1125/CMAverse')`; NOT on CRAN; 6 estimators in one interface |
-| HIMA | CRAN | `install.packages('HIMA')`; v2.x renamed `hima()` to HIMA2 -- verify with `?hima` |
+| HIMA | GitHub | `remotes::install_github('YinanZheng/HIMA')`; archived from CRAN 2026-07 (needs archived `scalreg`); v2.x renamed `hima()` to HIMA2 -- verify with `?hima` |
 | bama | CRAN | `install.packages('bama')`; Bayesian; slow MCMC |
 | causalweight | CRAN | `install.packages('causalweight')`; medDML for double-ML mediation |
 | EValue | CRAN | `install.packages('EValue')`; for mediational E-values |
@@ -447,10 +447,10 @@ For binary outcomes, convert ACME on probability scale to RR; for continuous, us
 - Shi B et al 2021 Epidemiology 32:e20 (CMAverse package; 6 estimators)
 - Zhang H et al 2016 Bioinformatics 32:3150 (HIMA original)
 - Perera C et al 2022 BMC Bioinformatics 23:296 (HIMA2 alpha-beta screening)
-- Song Y et al 2020 Biostatistics 21:806 (BAMA Bayesian high-D mediation)
-- Burgess S et al 2017 Eur J Epidemiol 32:377 (two-step / network MR)
+- Song Y et al 2020 Biometrics 76:700 (BAMA Bayesian high-D mediation)
+- Burgess S et al 2015 IJE 44:484 (network / two-step MR)
 - Sanderson E et al 2019 IJE 48:713 (MVMR conditional F-statistic)
-- Sanderson E et al 2021 IJE 50:1651 (MVMR-mediation tutorial)
+- Carter AR & Sanderson E 2021 Eur J Epidemiol 36:465 (MVMR-mediation)
 - Farbmacher H et al 2022 Econometrics J 25:277 (medDML / double-ML mediation)
 - Smith LH, VanderWeele TJ 2019 Epidemiology 30:835 (mediational E-value)
 

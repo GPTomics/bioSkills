@@ -40,9 +40,9 @@ Infer causal relationships from genetic association data using Mendelian randomi
 ```bash
 # R packages from CRAN
 install.packages(c('remotes', 'mediation', 'coloc', 'susieR', 'MendelianRandomization',
-                   'lavaan', 'HIMA', 'EValue', 'causalweight'))
+                   'lavaan', 'EValue', 'causalweight'))
 
-# GitHub-only R packages
+# GitHub-only R packages (HIMA archived from CRAN 2026-07; install from GitHub)
 remotes::install_github(c('MRCIEU/TwoSampleMR',
                           'rondolab/MR-PRESSO',
                           'jean997/cause',
@@ -50,23 +50,26 @@ remotes::install_github(c('MRCIEU/TwoSampleMR',
                           'cnfoley/mrclust',
                           'qingyuanzhao/mr.raps',
                           'jrs95/hyprcoloc',
-                          'jwr-git/pwcoco',
+                          'YinanZheng/HIMA',
                           'BS1125/CMAverse',
                           'GenomicSEM/GenomicSEM',
                           'zhenin/HDL',
                           'josefin-werme/LAVA',
                           'HDTian/DRMR'))
 
-# Python tooling
-pip install metaxcan pyfocus mtag opentargets-genetics
-# LDSC python3 fork
-pip install git+https://github.com/belowlab/ldsc
+# Python tooling (MetaXcan and MTAG are git-clone only, not on PyPI)
+pip install pyfocus gentropy   # otargenpy is an alternative Open Targets GraphQL wrapper
+git clone https://github.com/hakyimlab/MetaXcan   # S-PrediXcan / S-MultiXcan
+git clone https://github.com/JonJala/mtag          # MTAG (Python 2.7)
+# LDSC python3 (abdenlab/ldsc-python3 = working CLI; belowlab v3.0.1 broke the --h2/--rg/--h2-cts CLI)
+git clone https://github.com/abdenlab/ldsc-python3 && cd ldsc-python3 && pip install .
 
 # CLI binaries (download from upstream)
 # - LDAK 6+ (dougspeed.com)
+# - PWCoCo (github.com/jwr-git/pwcoco; C++ CLI, build with cmake)
 # - FINEMAP 1.4+ (christianbenner.com)
 # - SMR (cnsgenomics.com/software/smr)
-# - MAGMA (ctglab.nl/software/magma)
+# - MAGMA (cncr.nl/research/magma)
 # - SuSiEx (github.com/getian107/SuSiEx)
 # - FUSION (gusevlab.org/projects/fusion)
 # - BOLT-LMM / BOLT-REML (alkesgroup.broadinstitute.org/BOLT-LMM)

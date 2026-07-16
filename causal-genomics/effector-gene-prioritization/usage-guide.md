@@ -29,16 +29,17 @@ unzip magma_v*.zip
 git clone https://github.com/FinucaneLab/pops
 pip install -r pops/requirements.txt
 
-# Open Targets Genetics (community wrapper)
-pip install opentargets-genetics
+# Open Targets Genetics access
+pip install gentropy      # official Open Targets
+# OR: pip install otargenpy   # community GraphQL wrapper
 # OR query GraphQL directly via requests
 ```
 
 Pre-computed scores:
 
 ```bash
-# cS2G
-wget https://alkesgroup.broadinstitute.org/cS2G/cS2G_UKBB/cS2G.tsv.gz
+# cS2G (Gazal 2022; hosted on Zenodo record 7754032)
+wget https://zenodo.org/records/7754032/files/cS2G_UKBB.zip
 
 # PoPS pre-built features
 # See FinucaneLab/pops releases for PoPS_features_full.txt
@@ -90,14 +91,14 @@ Tell the AI agent what to do:
 > "I am writing up an effector-gene nomination for ANGPTL4 at a triglycerides GWAS lead. Triangulate (a) fine-mapping (SuSiE PIP), (b) coloc PP.H4 with GTEx subcutaneous adipose eQTL, (c) Open Targets L2G score, (d) PoPS score, (e) ABC enhancer-gene linking in adipocytes (Engreitz portal), (f) distance to TSS. Report concordance per locus and flag whether ANGPTL4 meets the >= 3 of 6 high-confidence threshold."
 
 ### Multi-effector locus
-> "At my chr11p15.5 lipid GWAS locus, three genes (CLU, NCAM1, MTHFD1L) all show modest L2G scores. Run conditional analysis (FUSION --joint or GCTA-COJO) to test independence, then per-gene coloc.susie at each independent signal, and report whether the locus is multi-effector or LD-tied."
+> "At my chr11p15.5 lipid GWAS locus, three genes (CLU, NCAM1, MTHFD1L) all show modest L2G scores. Run conditional analysis (FUSION.post_process.R conditional/joint analysis, run by default, or GCTA-COJO) to test independence, then per-gene coloc.susie at each independent signal, and report whether the locus is multi-effector or LD-tied."
 
 ## What the Agent Will Do
 
 1. **Gather upstream evidence**: Fetch fine-mapping credible sets (causal-genomics/fine-mapping), coloc PP.H4 (causal-genomics/colocalization-analysis), and TWAS hits (causal-genomics/transcriptome-wide-association) for each GWAS lead.
 2. **Run MAGMA**: Gene-based annotation with FUMA-default window (35kb upstream + 10kb downstream); gene-set enrichment against MSigDB or curated gene sets.
-3. **Query L2G**: Open Targets GraphQL for studyLocusL2G; record per-gene `yProbaModel` and per-component sub-scores.
-4. **Run PoPS**: LASSO on MAGMA gene Z with curated gene-feature matrix; record per-gene polygenic priority score and top-decile flags.
+3. **Query L2G**: Open Targets GraphQL `credibleSet.l2GPredictions`; record per-gene `score` and per-feature `shapValue`.
+4. **Run PoPS**: ridge (L2) regression on MAGMA gene Z with curated gene-feature matrix; record per-gene polygenic priority score and top-decile flags.
 5. **Cross-check cS2G**: Lookup pre-computed cS2G per-SNP gene allocations for credible-set variants.
 6. **Layer enhancer-gene** (if matched epigenome): ABC and ENCODE-rE2G predictions for fine-mapped credible variants (cross-reference atac-seq/enhancer-gene-linking).
 7. **Score concordance**: Per (locus, gene) candidate, count passing evidence streams from {fine-mapping, coloc, distance, PoPS, L2G, ABC/rE2G}. Tier as high-confidence (>= 3), strong (>= 4), or near-certain (>= 5).
@@ -112,7 +113,7 @@ Tell the AI agent what to do:
 - **Tissue prioritisation precedes effector-gene assignment**: Identify the causal tissue with LDSC-SEG / CELLEX / EWCE before locking on a single eQTL panel. Wrong-tissue eQTL coloc produces spurious "causal genes" that are LD-tagged in unrelated tissues.
 - **MAGMA window choice is a methodological lever**: 35kb upstream + 10kb downstream is FUMA default; 0kb+0kb is conservative; 50kb+50kb is liberal. Run sensitivity over windows for high-stakes reports.
 - **HLA is a no-fly zone**: chr6:25-35 Mb (hg38) breaks every gene-by-gene method. Exclude from genome-wide effector-gene summaries; analyse HLA classical alleles separately.
-- **Multi-effector loci are real**: 5-10% of GWAS loci have multiple causal genes. Allow multi-gene reporting; test independence with conditional analysis (FUSION --joint, GCTA-COJO).
+- **Multi-effector loci are real**: 5-10% of GWAS loci have multiple causal genes. Allow multi-gene reporting; test independence with conditional analysis (FUSION.post_process.R conditional/joint analysis run by default, GCTA-COJO).
 - **cS2G is a per-SNP heritability-calibrated aggregator**: useful as a cross-check on L2G but not a replacement; cS2G calibrates against heritability enrichment, L2G calibrates against curated gold-standard genes.
 - **Functional validation is the gold standard**: CRISPRi-FlowFISH (Fulco 2019) is the experimental ground truth. For drug-target nominations, computational concordance is necessary but not sufficient.
 - **Document panel versions**: Open Targets release, PredictDB version, ABC release, ENCODE-rE2G model cell type. Effector-gene calls change across releases; cite the exact versions.

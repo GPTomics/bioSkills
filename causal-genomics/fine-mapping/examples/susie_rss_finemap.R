@@ -82,7 +82,7 @@ cat(sprintf('kriging_rss flagged %d SNPs with |z_obs - z_exp| > 3\n', length(fla
 # Skip this section if no PolyFun output exists; uniform priors are the default.
 use_polyfun <- FALSE
 if (use_polyfun) {
-    priors <- read.table('polyfun_priors.6.snpvar.gz', header = TRUE)
+    priors <- read.table('polyfun_h2.6.snpvar_ridge_constrained.gz', header = TRUE)
     priors <- priors[match(gwas_df$SNP, priors$SNP), ]
     prior_w <- priors$SNPVAR / sum(priors$SNPVAR, na.rm = TRUE)
     # NOTE: per-SNP causal probability goes to prior_weights, NOT prior_variance.

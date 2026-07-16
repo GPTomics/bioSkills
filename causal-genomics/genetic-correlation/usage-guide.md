@@ -10,7 +10,7 @@ This skill covers global rg, local rg per locus, trans-ancestry rg, and the oper
 
 - GWAS summary statistics with `SNP`, `A1`, `A2`, `N`, `BETA` (or `Z`), `SE`, `P`, ideally `EAF`
 - Ancestry-matched LD-score reference (EUR: `eur_w_ld_chr/` from alkesgroup; non-EUR: matched references at the same site)
-- For HDL: UKB-array SVD eigen99 reference; for LAVA: 1KG-based LD reference + LDetect partition file
+- For HDL: UKB-array SVD eigen90 reference (the array/genotyped-SNP panel; eigen99 exists only for the imputed-variant panel); for LAVA: 1KG-based LD reference + LDetect partition file
 - For Popcorn: cross-population LD scores (one-time per ancestry pair)
 - Effective N per trait of at least ~50k (LDSC mean chi-square > 1.02)
 - For LAVA / HESS: GRCh37 vs GRCh38 build must match between sumstats, LD reference, and partition file
@@ -99,7 +99,7 @@ Tell the AI agent what to estimate:
 | HDL.rg | ~10-30 sec | laptop |
 | LAVA bivariate (full ~2495 loci) | ~hours | server (parallelizable by chromosome) |
 | SUPERGNOVA | ~hours | server |
-| Popcorn / Popcorn-2 | ~minutes | laptop |
+| Popcorn | ~minutes | laptop |
 | GenomicSEM ldsc() (multi-trait) | minutes to ~hour | depends on trait count |
 | rho-HESS | ~30-60 min per chromosome | server |
 | GREML-bivariate (GCTA) | hours to days | server with large RAM |
