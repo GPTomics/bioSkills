@@ -37,7 +37,7 @@ Tell the agent what to do:
 > "Call H3K27me3 broad peaks with `--broad --broad-cutoff 0.1` for three replicates and combine via naive overlap with ≥40% reciprocal overlap."
 
 ### Narrow histone marks
-> "Call H3K4me3 peaks. Use narrow mode in MACS3 and `-style histone` in HOMER (not `-style factor` despite the sharp signal; Omnipeak 2025 benchmark)."
+> "Call H3K4me3 peaks. Use narrow mode in MACS3 and `-style histone` in HOMER (not `-style factor` despite the sharp signal; Omnipeak benchmark, Shpynov & Artyomov 2026)."
 
 ### Subset data
 > "Call peaks from chr21-only ChIP-seq data with ~400k reads. Use numeric genome size, skip MACS model building, and use a narrow `--extsize 147` for the H3K4me3 mark."
@@ -164,7 +164,7 @@ Convert narrowPeak to BED: `cut -f1-5 peaks.narrowPeak > peaks.bed`. For browser
 
 - ENCODE pattern uses `--keep-dup all` because deduplication happens upstream during BAM filtering. If skipping the ENCODE filter, set `--keep-dup auto` and accept MACS's binomial p-value estimate.
 - `-p 1e-2` is intentionally loose for ENCODE; IDR (TF) or naive overlap (histone) tightens downstream. Single-replicate workflows should use `-q 0.05` or `-q 0.01` instead.
-- For HOMER, ALWAYS use `-style histone` for histone marks (including narrow H3K4me3, H3K27ac per Omnipeak 2025 benchmark). Reserve `-style factor` for TFs.
+- For HOMER, ALWAYS use `-style histone` for histone marks (including narrow H3K4me3, H3K27ac per the Omnipeak benchmark, Shpynov & Artyomov 2026). Reserve `-style factor` for TFs.
 - Effective genome size matters: use deepTools `effectiveGenomeSize` table read-length-matched value, not `hs`/`mm` shorthand.
 - For paired-end ChIP, `-f BAMPE` uses actual fragment spans (good for histones); `-f BAM --shift 0 --extsize {fraglen}` is the ENCODE TF pattern.
 - TFs and most histone marks need 20-25M unique mapped reads per replicate (ENCODE 2012 standard); H3K27me3/H3K9me3 need 40-60M for adequate broad-domain detection.

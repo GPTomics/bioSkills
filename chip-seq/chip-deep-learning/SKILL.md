@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-chip-deep-learning
-description: Trains and applies base-resolution deep learning models on ChIP-seq / ChIP-nexus / CUT&RUN data. Uses BPNet (Avsec 2021 Nat Genet 53:354; soft motif syntax from ChIP-nexus), chromBPNet (Pampari A et al 2025 Nat Genet; bias-factorized base-resolution profiles), EnFormer (Avsec 2021 Nat Methods 18:1196; 196 kb input, ~100 kb effective receptive field), DeepSEA (Zhou 2015; multi-task CNN), and JASPAR 2026 deep-learning collection (1259 BPNet ChIP models). Performs in silico mutagenesis for variant-effect prediction, DeepLIFT/Grad attribution, and TF-MoDISco motif discovery from attribution scores. Use when predicting variant effects on TF binding, discovering soft motif syntax / cooperativity, integrating ChIP-seq with sequence-only predictions, or applying precomputed JASPAR Deep Learning models to new variants.
+description: Trains and applies base-resolution deep learning models on ChIP-seq / ChIP-nexus / CUT&RUN data. Uses BPNet (Avsec 2021 Nat Genet 53:354; soft motif syntax from ChIP-nexus), chromBPNet (Pampari A et al 2024 bioRxiv; bias-factorized base-resolution profiles), EnFormer (Avsec 2021 Nat Methods 18:1196; 196 kb input, ~100 kb effective receptive field), DeepSEA (Zhou 2015; multi-task CNN), and JASPAR 2026 deep-learning collection (1259 BPNet ChIP models). Performs in silico mutagenesis for variant-effect prediction, DeepLIFT/Grad attribution, and TF-MoDISco motif discovery from attribution scores. Use when predicting variant effects on TF binding, discovering soft motif syntax / cooperativity, integrating ChIP-seq with sequence-only predictions, or applying precomputed JASPAR Deep Learning models to new variants.
 tool_type: python
 primary_tool: chrombpnet
 ---
@@ -26,7 +26,7 @@ Deep-learning ChIP-seq models predict signal from sequence; their power is in co
 | Model | Year | Architecture | Receptive field | Best for |
 |-------|------|--------------|------------------|----------|
 | **BPNet** (Avsec 2021 Nat Genet 53:354) | 2021 | CNN with dilated convolutions | ~1 kb | TF ChIP-nexus / ChIP-exo; base-resolution profile prediction; soft motif syntax |
-| **chromBPNet** (Pampari A et al 2025 Nat Genet) | 2025 | Bias-factorized CNN | ~1-2 kb | ATAC/DNase + ChIP base-resolution; bias-corrected variant effects |
+| **chromBPNet** (Pampari A et al 2024 bioRxiv) | 2024 | Bias-factorized CNN | ~1-2 kb | ATAC/DNase + ChIP base-resolution; bias-corrected variant effects |
 | **EnFormer** (Avsec 2021 Nat Methods 18:1196) | 2021 | Transformer | ~100 kb effective receptive field (input window 196 kb) | Long-range regulatory predictions; cross-tissue; variant effects spanning enhancer-gene |
 | **DeepSEA** (Zhou 2015) | 2015 | CNN multi-task | 1 kb | Predicts presence/absence across many chromatin features simultaneously |
 | **DeepBind** (Alipanahi 2015) | 2015 | CNN binary classifier | ~50-200 bp | TF binding presence (older, less precise than BPNet) |
@@ -92,21 +92,22 @@ Standard PWM-based motif discovery misses:
 TF-MoDISco extracts motifs from deep-learning attribution scores:
 
 ```python
-import tfmodisco
+import numpy as np
 import shap
 
 # Compute DeepLIFT / DeepSHAP attribution scores
 explainer = shap.DeepExplainer(model, background_seqs)
 attribution_scores = explainer.shap_values(test_seqs)
 
-# Run TF-MoDISco
-modisco_results = tfmodisco.workflow.TfModiscoWorkflow(
-    sliding_window_size=21,
-    flank_size=10,
-    target_seqlet_fdr=0.05,
-    seqlets_to_patterns_factory=...
-)(task_names=['task1'], contrib_scores={'task1': attribution_scores}, ...)
+# Save one-hot sequences + attributions for tfmodisco-lite
+np.savez('ohe.npz', test_seqs)
+np.savez('shap.npz', attribution_scores)
+```
 
+```bash
+# tfmodisco-lite runs via its `modisco` CLI: -n max seqlets/metacluster, -w window (default 400)
+modisco motifs -s ohe.npz -a shap.npz -n 2000 -w 400 -o modisco_results.h5
+modisco report -i modisco_results.h5 -o report/ -m motifs.meme
 # Output: motif patterns discovered from attribution (not from PWM matching)
 # Often more interpretable than PWM motifs for cooperative TF binding
 ```
@@ -117,19 +118,23 @@ modisco_results = tfmodisco.workflow.TfModiscoWorkflow(
 # Install
 pip install chrombpnet
 
-# Train bias model (control regions without TF binding)
+# Train bias model (control regions without TF binding).
+# In the bias pipeline, -b is the bias_threshold_factor (float; ~0.5 ATAC, ~0.8 DNase)
+# and -o is the required output directory.
 chrombpnet bias pipeline \
-    -ibam input.bam -d ATAC \
+    -ibam input.bam -d DNASE \
     -g hg38.fa -c chrom.sizes -p peaks.bed \
     -n nonpeaks.bed -fl fold_0.json \
-    -b bias_model_h5
+    -b 0.8 -o bias_model_dir/
 
-# Train main chromBPNet model
+# Train main chromBPNet model. chromBPNet assay types are ATAC or DNASE only
+# (there is no -d ChIP); use the DNASE bias model for point-source ChIP.
+# In the main pipeline, -b is the path to the trained bias model .h5.
 chrombpnet pipeline \
-    -ibam chip.bam -d ChIP \
+    -ibam chip.bam -d DNASE \
     -g hg38.fa -c chrom.sizes -p peaks.bed -n nonpeaks.bed \
     -fl fold_0.json \
-    -b bias_model_h5 \
+    -b bias_model_dir/models/bias.h5 \
     -o output_dir/
 
 # Output: trained model + per-locus base-resolution predictions
@@ -140,9 +145,9 @@ Training cost: 1-3 GPU days for a single chromBPNet model; multiple GPUs for EnF
 ## EnFormer Application
 
 ```python
-from enformer_pytorch import Enformer
+from enformer_pytorch import from_pretrained
 
-model = Enformer.from_hparams(dim_factor=32).from_pretrained('EleutherAI/enformer-official-rough')
+model = from_pretrained('EleutherAI/enformer-official-rough')
 
 # 196 kb input window
 seq = torch.tensor(one_hot_encode(reference_seq))[None, ...]
@@ -167,12 +172,12 @@ from pyjaspar import jaspardb
 
 jdb = jaspardb(release='JASPAR2026')
 
-# Get the BPNet model for a specific TF
-bpnet_model_info = jdb.fetch_matrix_by_collection('BPNET')
-# Each entry has a downloadable model URL and training metadata
+# pyjaspar returns PWM/motif objects (Bio.motifs.jaspar.Motif), e.g. CORE PWMs:
+core_pwms = jdb.fetch_motifs(collection=['CORE'])
 
-# Use a model for in silico mutagenesis on new variants
-# (Models are typically Keras H5 or PyTorch state dicts)
+# The JASPAR 2026 BPNet deep-learning models (per-TF, ENCODE ChIP) are distributed
+# as model files on the JASPAR website, NOT via pyjaspar; download them there and
+# load (Keras H5 / PyTorch) for in silico mutagenesis on new variants.
 ```
 
 This is the lowest-effort path for variant-effect prediction on canonical TFs (no training required).
@@ -257,16 +262,16 @@ This is the lowest-effort path for variant-effect prediction on canonical TFs (n
 ## References
 
 - Avsec Ž et al 2021 Nat Genet 53:354 (BPNet; ChIP-nexus base-resolution model)
-- Pampari A et al 2025 Nat Genet (chromBPNet; bias-factorized base-resolution for ATAC and ChIP; consult current publication for exact volume/pages)
+- Pampari A et al 2024 bioRxiv 2024.12.25.630221 (chromBPNet; bias-factorized base-resolution models of chromatin accessibility)
 - Avsec Ž et al 2021 Nat Methods 18:1196-1203 (EnFormer; ~100 kb effective receptive field, 196 kb input window)
 - Zhou J & Troyanskaya OG 2015 Nat Methods 12:931 (DeepSEA)
 - Alipanahi B et al 2015 Nat Biotechnol 33:831 (DeepBind)
 - Kelley DR et al 2016 Genome Res 26:990 (Basset)
-- Shrikumar A et al 2020 bioRxiv (TF-MoDISco)
+- Shrikumar A et al 2018 (rev. 2020) arXiv:1811.00416 (TF-MoDISco)
 - Shrikumar A et al 2017 ICML (DeepLIFT)
 - Lundberg SM & Lee SI 2017 NeurIPS (SHAP)
 - JASPAR Project 2026 (deep-learning collection)
-- Karbalayghareh A et al 2022 bioRxiv (deep-learning generalization across cell types)
+- Karbalayghareh A et al 2022 Genome Res 32:930 (GraphReg; chromatin-interaction-aware regulatory modeling, cross-cell-type generalization)
 
 ## Related Skills
 

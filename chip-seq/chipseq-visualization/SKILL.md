@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-visualization
-description: Visualizes ChIP-seq data using deepTools (computeMatrix, plotHeatmap, plotProfile, bamCoverage, bamCompare), pyGenomeTracks (modern INI-driven track plots), Gviz (R browser-style), EnrichedHeatmap (ComplexHeatmap-based), ChIPseeker tag heatmaps, and IGV batch screenshots. Handles bigWig normalization choices (CPM, BPM, RPGC, spike-in scaled), bamCompare operations (log2 ratio, subtract, SES), k-means clustering of heatmaps for biological subgrouping, and spike-in-scaled tracks for global-shift experiments. Use when generating publication-quality ChIP-seq signal heatmaps, profile plots, genome-browser tracks, or comparing samples visually.
+description: Visualizes ChIP-seq data using deepTools (computeMatrix, plotHeatmap, plotProfile, bamCoverage, bamCompare), pyGenomeTracks (modern INI-driven track plots), Gviz (R browser-style), EnrichedHeatmap (ComplexHeatmap-based), ChIPseeker tag heatmaps, and IGV batch screenshots. Handles bigWig normalization choices (CPM, BPM, RPGC, spike-in scaled), bamCompare operations (log2 ratio, subtract) with SES scaling, k-means clustering of heatmaps for biological subgrouping, and spike-in-scaled tracks for global-shift experiments. Use when generating publication-quality ChIP-seq signal heatmaps, profile plots, genome-browser tracks, or comparing samples visually.
 tool_type: mixed
 primary_tool: deepTools
 goal_approach_exempt: true
@@ -31,7 +31,7 @@ The single most consequential choice is **bigWig normalization** — it determin
 | Cross-condition with global signal change | `--scaleFactor <spike_in_derived>` (skip `--normalizeUsing`) | HDACi / BETi / EZH2i; see chip-seq/spike-in-normalization |
 | ChIP vs input ratio | `bamCompare --operation log2` | Visualize enrichment over input |
 | ChIP vs input control-subtracted | `bamCompare --operation subtract` | Absolute signal above background |
-| ChIP vs input SES-corrected | `bamCompare --operation SES` | More robust to library size; uses signal-extraction-scaling |
+| ChIP vs input SES-corrected | `bamCompare --scaleFactorsMethod SES --operation log2` | More robust to library size; uses signal-extraction-scaling |
 
 **ENCODE convention:** RPGC with read-length-matched effective genome size. For visual comparison of treatment vs control on a fold-change biology, log2 bamCompare against shared input.
 
@@ -41,7 +41,7 @@ The single most consequential choice is **bigWig normalization** — it determin
 # Compute scale factor from spike-in reads (ChIP-Rx Drosophila or CUT&RUN E. coli)
 SCALE=$(echo "scale=6; 1.0 / $SPIKE_IN_READS_M" | bc)  # 1 per million spike reads
 bamCoverage -b chip.bam -o chip.bw --scaleFactor $SCALE --binSize 10
-# DO NOT also pass --normalizeUsing; mutually exclusive
+# DO NOT also pass --normalizeUsing; deepTools multiplies the two factors, reintroducing depth normalization
 ```
 
 ## deepTools Workflow
@@ -214,7 +214,9 @@ promoter <- getPromoters(TxDb = TxDb.Hsapiens.UCSC.hg38.knownGene,
 tagMatrix <- getTagMatrix(peaks, windows = promoter)
 
 # Tag heatmap and average profile
-tagHeatmap(tagMatrix, xlim = c(-3000, 3000), color = 'red')
+# tagHeatmap in ChIPseeker >= 1.36 takes palette (RColorBrewer name), not xlim/color;
+# xlim is read from the tagMatrix window. plotAvgProf still uses xlim/conf.
+tagHeatmap(tagMatrix, palette = 'Reds')
 plotAvgProf(tagMatrix, xlim = c(-3000, 3000), conf = 0.95,
              xlab = 'Distance from TSS (bp)', ylab = 'Peak density')
 ```
@@ -245,7 +247,7 @@ igv.sh -b igv.batch
 
 **Trigger:** Passing both `--normalizeUsing CPM` and `--scaleFactor X`.
 
-**Mechanism:** deepTools applies scaleFactor first, then normalizes; the normalization undoes the scale.
+**Mechanism:** deepTools multiplies the `--scaleFactor` value by the factor computed from `--normalizeUsing`, so passing both compounds them and reintroduces library-depth normalization on top of the spike-in factor.
 
 **Symptom:** Spike-in scaling appears to have no effect; tracks look like CPM.
 
@@ -327,7 +329,7 @@ igv.sh -b igv.batch
 - Ramírez F et al 2016 Nucleic Acids Res 44:W160 (deepTools)
 - Lopez-Delisle L et al 2021 Bioinformatics 37:422 (pyGenomeTracks)
 - Hahne F & Ivanek R 2016 Methods Mol Biol 1418:335 (Gviz)
-- Gu Z et al 2018 Bioinformatics 34:2879 (EnrichedHeatmap)
+- Gu Z et al 2018 BMC Genomics 19:234 (EnrichedHeatmap)
 - Yu G et al 2015 Bioinformatics 31:2382 (ChIPseeker)
 - Thorvaldsdóttir H et al 2013 Brief Bioinform 14:178 (IGV)
 - ENCODE 2012 quality metrics (NSC/RSC; for cross-correlation context)

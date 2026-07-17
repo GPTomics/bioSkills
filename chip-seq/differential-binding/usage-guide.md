@@ -75,7 +75,7 @@ Tell the agent what to do:
 - **Spike-in is the gold standard for global shifts.** Apply via `sizeFactors()` (read-level), never multiply peak counts.
 - **For broad marks, use full peak width (summits=FALSE) or csaw with 1-2 kb windows.** Narrow recentering loses domain-level biology.
 - **PCA before differential**: samples should cluster by condition, not batch. If batch dominates, add batch term to design.
-- **Document spike-in scaling factors in methods.** Hammond Norris 2024: ~25% of published spike-in papers have flawed normalization detectable from methods.
+- **Document spike-in scaling factors in methods.** Patel et al 2024 found improper spike-in normalization is common; only about half of surveyed datasets had adequate matched input controls.
 
 ## Troubleshooting
 

@@ -56,8 +56,7 @@ findMotifsGenome.pl ${OUTDIR}/peaks_summit_centered.bed $GENOME ${OUTDIR}/homer 
 meme-chip \
     -oc ${OUTDIR}/meme_chip \
     -db $JASPAR_MEME \
-    -meme-nmotifs 5 -meme-minw 6 -meme-maxw 20 \
-    -streme-nmotifs 10 -streme-minw 4 -streme-maxw 15 \
+    -meme-nmotifs 5 -streme-nmotifs 10 -minw 6 -maxw 20 \
     -centrimo-score 5.0 -centrimo-ethresh 10.0 \
     ${OUTDIR}/peaks_summit_centered.fa
 

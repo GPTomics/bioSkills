@@ -7,9 +7,11 @@ Identify super-enhancers (SE) from H3K27ac, MED1, or BRD4 ChIP-seq using ROSE / 
 ## Prerequisites
 
 ```bash
-# ROSE2 (Python 3 port; ROSE Python 2 unmaintained)
-git clone https://github.com/linlabbcm/rose2.git
-pip install ./rose2
+# ROSE (Python 3). For hg38 data use the stjude/ROSE fork (its genomeDict includes HG38);
+# run ROSE_main.py from the cloned repo dir so it finds its annotation/ files.
+git clone https://github.com/stjude/ROSE.git
+# rose2 is pip-installable but its released genomeDict has no HG38 (hg18/hg19/mm*/rn* only):
+# pip install rose2
 
 # HOMER alternative
 conda install -c bioconda homer
@@ -76,7 +78,7 @@ Tell the agent what to do:
 - **Pre-filter hyper-ChIPable regions.** Otherwise SE list can be dominated by housekeeping / ribosomal gene clusters.
 - **Cross-condition comparison without spike-in is unreliable.** Global signal shifts (HDACi, BETi, EZH2i) confound threshold-based SE counting.
 - **Build a union SE set for differential analysis, then quantify with DiffBind.** Calling SE per condition and intersecting BEDs is the wrong approach.
-- **Most SE constituents are not functional.** Hnisz 2017 / Dukler 2017 CRISPR-tiling shows 1-3 essential constituents per SE.
+- **SE constituents contribute unequally.** Genetic dissection (Hay 2016; Moorthy 2017) shows many individual constituents are dispensable/redundant.
 - **CRC algorithm requires SE + TF motif annotations + gene-SE mapping.** Output is the network graph; biology comes from interpreting connected components.
 - **ENCODE dELS atlas cross-reference is a sanity check.** Most SE constituents should overlap dELS for high-quality data.
 - **Hockey-stick inflection is sensitive to peak count.** ≥ 5000 enhancer peaks recommended.

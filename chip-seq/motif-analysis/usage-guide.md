@@ -16,7 +16,7 @@ conda install -c bioconda meme
 
 # Motif databases
 wget https://jaspar.genereg.net/download/data/2024/CORE/JASPAR2024_CORE_vertebrates_non-redundant_pfms_meme.txt
-wget https://hocomoco12.autosome.org/final_bundle/hocomoco12/H12CORE/H12CORE_meme_format.meme
+wget https://hocomoco12.autosome.org/final_bundle/hocomoco12/H12CORE/formatted_motifs/H12CORE_meme_format.meme
 ```
 
 ```r

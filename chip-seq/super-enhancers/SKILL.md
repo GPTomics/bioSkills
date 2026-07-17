@@ -9,18 +9,18 @@ primary_tool: ROSE
 
 Reference examples tested with: ROSE (stjude/ROSE, 2018+), ROSE2 (linlabbcm/rose2, 2021+), LILY (BoevaLab/LILY, 2020+), HOMER 4.11+, samtools 1.19+, bedtools 2.31+, GenomicRanges 1.54+.
 
-ROSE is unmaintained Python 2; ROSE2 is the Python 3 port with the same algorithm. LILY (Boeva 2017) is a refactored implementation with input-control background subtraction for low-quality H3K27ac data.
+The original Young-lab ROSE is Python 2; ROSE2 (linlabbcm/rose2) and the stjude/ROSE fork are the Python-3 implementations with the same algorithm. For hg38 data use stjude/ROSE (`python ROSE_main.py`, whose genomeDict includes HG38); rose2's released genomeDict covers only HG18/HG19/MM8/MM9/MM10/RN4/RN6, so `rose2 -g HG38` fails. LILY (Boeva 2017) is a refactored implementation with input-control background subtraction for low-quality H3K27ac data.
 
 # Super-Enhancer Calling
 
 **"Identify super-enhancers driving cell identity / cancer biology"** -> Stitch nearby active enhancer peaks (H3K27ac, MED1, or BRD4) within a stitching window, exclude proximal-promoter signal, rank by total signal, find the hockey-stick inflection point where signal sharply increases, and classify all stitched regions above the inflection as super-enhancers.
 
-- CLI (ROSE / ROSE2): `python ROSE_main.py -g HG38 -i peaks.gff -r h3k27ac.bam -c input.bam -s 12500 -t 2500`
+- CLI (stjude/ROSE, Python 3): `python ROSE_main.py -g HG38 -i peaks.gff -r h3k27ac.bam -c input.bam -s 12500 -t 2500 -o rose_out/`
 - CLI (HOMER): `findPeaks tag_dir/ -style super -i input_tag_dir/`
 - CLI (LILY): variant with input-control background subtraction
 - R (custom hockey-stick): rank enhancers by signal, find tangent-line inflection
 
-The SE concept (Whyte 2013) is a thresholding heuristic on a continuous signal distribution (Pott & Lieb 2015 *Nat Genet*), not a categorical biological category. Functional CRISPR-tiling at SE loci (Hnisz 2017; Dukler 2017) shows only 1-3 constituent elements per SE are essential; the "SE" label is a useful operational definition for BET-inhibitor responsiveness and cell-identity gene regulation, not an absolute biological property.
+The SE concept (Whyte 2013) is a thresholding heuristic on a continuous signal distribution (Pott & Lieb 2015 *Nat Genet*), not a categorical biological category. Genetic dissection of super-enhancers (Hay 2016; Moorthy 2017) shows constituent elements contribute unequally and many are individually dispensable/redundant; the "SE" label is a useful operational definition for BET-inhibitor responsiveness and cell-identity gene regulation, not an absolute biological property.
 
 ## Marker Choice: H3K27ac vs MED1 vs BRD4
 
@@ -38,8 +38,8 @@ The SE concept (Whyte 2013) is a thresholding heuristic on a continuous signal d
 
 | Tool | Method | Strength | Fails when |
 |------|--------|----------|------------|
-| **ROSE** (Whyte 2013) | Stitch within 12.5 kb, exclude ±2.5 kb of TSS, rank by signal, hockey-stick inflection | Original; widely cited; canonical reference | Python 2 only; unmaintained; ROSE_main.py crashes on Python 3 |
-| **ROSE2** (Lin 2016; linlabbcm) | Same algorithm, Python 3 port | Maintained; identical output to ROSE | None vs ROSE |
+| **ROSE** (Whyte 2013) | Stitch within 12.5 kb, exclude ±2.5 kb of TSS, rank by signal, hockey-stick inflection | Original; widely cited; canonical reference | Original Young-lab code is Python 2; run the stjude/ROSE Py3 fork instead |
+| **ROSE2** (linlabbcm/rose2) | Same algorithm, Python 3 port | Maintained; pip-installable `rose2` console command | Released genomeDict has no HG38 (HG18/HG19/MM8/MM9/MM10/RN4/RN6 only) -> use stjude/ROSE for hg38 |
 | **LILY** (Boeva 2017) | ROSE-like with input-control background subtraction | Works on lower-quality H3K27ac data; subtracts input | Adds complexity; less validated; specific to neuroblastoma/glioma in original paper |
 | **HOMER `-style super`** | Native ROSE-like in HOMER framework; stitching without TSS exclusion | Integrated with HOMER workflow | Different stitching defaults; not directly comparable to ROSE counts |
 | **Custom hockey-stick (R)** | Generic rank-by-signal + tangent inflection | Flexible; works on any signal definition | Reinvents algorithm; verify against ROSE on known dataset |
@@ -77,15 +77,15 @@ awk 'BEGIN{OFS="\t"} {print $1,"peaks","enhancer",$2,$3,".",$6,".","ID="NR}' \
 # ROSE handles this via -t flag; preferable to pre-filter for clarity
 bedtools intersect -a peaks.narrowPeak -b promoters_2kb.bed -v > enhancer_peaks.bed
 
-# Run ROSE2 with input control
-rose2 -g HG38 -i peaks.gff \
+# Run stjude/ROSE with input control (Python-3 fork; genomeDict includes HG38)
+python ROSE_main.py -g HG38 -i peaks.gff \
     -r h3k27ac.bam -c input.bam \
     -o rose_output/ \
     -s 12500 \
     -t 2500
 ```
 
-ROSE2 outputs:
+ROSE outputs:
 - `*_AllEnhancers.table.txt` — all stitched enhancer regions ranked by signal
 - `*_SuperEnhancers.table.txt` — SE only (above hockey-stick inflection)
 - `*_Enhancers_withSuper.bed` — BED with SE / TE classification
@@ -122,11 +122,11 @@ The CRC algorithm identifies master TF networks from SE annotations:
 4. Identify highly-interconnected sub-networks (CRC)
 
 ```bash
-# Install CRC pipeline (linlabbcm CRC)
-git clone https://github.com/linlabbcm/CRC2.git
+# Install CRC pipeline (console command is `crc`; -g is the genome BUILD, not a GTF)
+pip install git+https://github.com/linlabcode/CRC.git
 
-# Requires: SE BED, TF motif annotations, gene-SE mapping
-python CRC2/crc.py -e SE_table.txt -g genes.gtf -b h3k27ac.bam
+# Requires: SE enhancer table, subpeak BED, chromosome-FASTA dir
+crc -e SE_table.txt -g HG38 -s subpeaks.bed -c chroms/ -o crc_out/ -n SAMPLE
 ```
 
 CRC outputs the connected components of the regulatory network. Master TFs typically appear in the largest component with high out-degree.
@@ -140,9 +140,8 @@ ENCODE distal Enhancer-Like Signatures (dELS) are the cell-type-agnostic regulat
 - Provides chromatin-state context (DNase + H3K27ac signatures)
 
 ```bash
-wget https://api.wenglab.org/screen_v13/screen_human_ccres_simple.bed.gz
-gunzip screen_human_ccres_simple.bed.gz
-awk -F'\t' '$NF == "dELS"' screen_human_ccres_simple.bed > dels.bed
+wget https://downloads.wenglab.org/Registry-V4/GRCh38-cCREs.bed
+awk -F'\t' '$NF == "dELS"' GRCh38-cCREs.bed > dels.bed
 
 # Fraction of SE constituents overlapping dELS
 bedtools intersect -a SuperEnhancers.bed -b dels.bed -u | wc -l
@@ -153,13 +152,13 @@ bedtools intersect -a SuperEnhancers.bed -b dels.bed -wa -wb > se_with_dels.tsv
 
 ### ROSE -- Python 2 dependency
 
-**Trigger:** Running `ROSE_main.py` on a modern system (Python 3 only).
+**Trigger:** Running the original Young-lab `ROSE_main.py` (Python 2 code) on a modern system.
 
-**Mechanism:** ROSE is Python 2 code; `print` statements without parens, `dict.iteritems()`, etc.
+**Mechanism:** The original ROSE is Python 2 code; `print` statements without parens, `dict.iteritems()`, etc.
 
 **Symptom:** SyntaxError on first import.
 
-**Fix:** Use ROSE2 (linlabbcm Python 3 port); identical algorithm and output format.
+**Fix:** Use the stjude/ROSE fork (`python ROSE_main.py`, Python 3, genomeDict includes HG38) or ROSE2 (`rose2`, Python 3, but its released genomeDict has no HG38 -- HG18/HG19/MM8/MM9/MM10/RN4/RN6 only); identical algorithm and output format.
 
 ### ROSE / ROSE2 -- Stitching distance default not appropriate for all biology
 
@@ -244,11 +243,12 @@ bedtools intersect -a SuperEnhancers.bed -b dels.bed -wa -wb > se_with_dels.tsv
 - Lovén J et al 2013 Cell 153:320 (SE characterization, BET sensitivity)
 - Hnisz D et al 2013 Cell 155:934 (SE in cell identity)
 - Pott S & Lieb JD 2015 Nat Genet 47:8 (SE as continuum critique)
-- Lin CY et al 2016 Nature 530:57-62 (MYC enhancers; ROSE2-era analyses)
+- Lin CY et al 2016 Nature 530:57-62 (medulloblastoma super-enhancers)
 - Saint-André V et al 2016 Genome Res 26:385 (core regulatory circuitry)
-- Boeva V et al 2017 Cell Rep 21:1357 (LILY; neuroblastoma SE)
-- Hnisz D et al 2017 Cell 169:13 (CRISPR-tiling SE function)
-- Dukler N et al 2017 Genome Res 27:1869 (SE constituent function)
+- Boeva V et al 2017 Nat Genet 49:1408 (LILY; neuroblastoma SE)
+- Hnisz D et al 2017 Cell 169:13 (phase-separation model of transcriptional control)
+- Hay D et al 2016 Nat Genet 48:895 (genetic dissection of the alpha-globin super-enhancer)
+- Moorthy S et al 2017 Genome Res 27:246 (SE constituents have equivalent/redundant regulatory roles in ESCs)
 - Sengupta S & George RE 2017 Trends Cancer 3:269 (SE function review)
 
 ## Related Skills

@@ -36,7 +36,7 @@ Before any peak calling, three things must be true or the output is unreliable:
 | MACS3/MACS2 callpeak | Dynamic local Poisson (max of genome-wide, 1kb, 5kb, 10kb lambda) + BH-FDR | Single-end shifts; PE fragments via BAMPE | Mature, fast, ENCODE-default, narrow + broad modes, integrated signal tracks | Confounds NFR with broad accessible domains; default narrow mode segments broad enrichment; assumes most genome NOT enriched (breaks for genome-wide marks) |
 | SPP (Kharchenko 2008) | Strand cross-correlation peak detection + Poisson fold-enrichment | Single-end with cross-corr-derived shift | ENCODE TF caller; integrated NSC/RSC QC; robust for sharp TF peaks | Underperforms for broad marks; older R codebase; phantompeakqualtools wrapper has R-version compatibility issues |
 | HOMER `-style factor` | Fixed-width peaks + three sequential filters (control / local / clonal) | Tag positions; auto-estimated width | Fast on tag directories; clonal filter `-C` removes PCR-artifact peaks | Less calibrated p-values; fixed width clips variable-width factor binding |
-| HOMER `-style histone` | Variable-width region stitching (500 bp blocks, 1000 bp gap merging); L=0 (no local enrichment) | Tag positions | Captures variable-width histone enrichment; Omnipeak 2025 benchmark: outperforms `-style factor` for ALL histone marks including H3K4me3 | Less sensitive than MACS for very sharp TF binding |
+| HOMER `-style histone` | Variable-width region stitching (500 bp blocks, 1000 bp gap merging); L=0 (no local enrichment) | Tag positions | Captures variable-width histone enrichment; Omnipeak benchmark (Shpynov & Artyomov 2026): outperforms `-style factor` for histone marks including H3K4me3 | Less sensitive than MACS for very sharp TF binding |
 | Genrich `-y` (ChIP mode) | q-value on log-transformed p-value, joint replicate model | Whole fragments (PE intervals) | Joint replicate analysis; chrM exclusion via `-e chrM`; auto blacklist via `-E` | Less peer-reviewed than MACS/SPP; thin literature; control handling less mature |
 | MACS3 hmmratac | 3-state HMM on fragment-size signal | Fragment-size classes | Best for ATAC, not ChIP | Wrong tool for ChIP; ChIP fragment-size distribution doesn't drive useful HMM states |
 | SEACR (Meers 2019) | Empirical threshold on signal block totals | Bedgraph signal blocks | Designed for sparse CUT&RUN/CUT&Tag data; "stringent" mode with IgG strongly preferred | Not for traditional ChIP-seq (assumes near-zero background); see cut-and-run-tag |
@@ -58,7 +58,7 @@ Driven by target biology, not preference. Calling broad mode does not make a sha
 | H4K20me3 (constitutive het) | Broad | Heterochromatin domains |
 | Pol II (RNAPII) | Narrow at promoter + broad option for elongation profile | Two separate analyses if doing elongation biology |
 
-For HOMER: use `-style histone` for ALL histone marks (Omnipeak 2025 benchmark, btaf375); `-style factor` ONLY for transcription factors.
+For HOMER: use `-style histone` for ALL histone marks (Omnipeak benchmark, Shpynov & Artyomov 2026 NAR 54:gkaf1454); `-style factor` ONLY for transcription factors.
 
 ## Decision: Model vs --nomodel
 
@@ -80,12 +80,12 @@ When `--nomodel` is required, choose `--extsize` in priority order: (1) cross-co
 
 | Genome | Read length | Effective size |
 |--------|-------------|----------------|
-| hg38 | 50 bp | 2.913e9 |
-| hg38 | 75 bp | 2.747e9 |
-| hg38 | 100 bp | 2.701e9 |
-| hg38 | 150 bp | 2.620e9 |
-| mm10 | 50 bp | 2.652e9 |
-| mm10 | 100 bp | 2.407e9 |
+| hg38 | 50 bp | 2.701e9 |
+| hg38 | 75 bp | 2.748e9 |
+| hg38 | 100 bp | 2.806e9 |
+| hg38 | 150 bp | 2.862e9 |
+| mm10 | 50 bp | 2.308e9 |
+| mm10 | 100 bp | 2.467e9 |
 
 Wrong size shifts every q-value but rarely peak ranks. For subset data (single chromosome, targeted), provide numeric `-g <bp>`; the shorthand inflates lambda_BG by 60× and produces false positives at low-signal regions.
 
@@ -157,7 +157,7 @@ idr --samples rep1.sorted rep2.sorted \
 | TF peak ranker | SPP | SPP (unchanged) |
 | Histone caller | MACS2 | MACS2 (MACS3 not yet adopted) |
 | Aligner | bwa-mem | bwa-mem (chromap evaluated; not yet swapped) |
-| Blacklist | v1 (Hoffman 2013) | v2 (Amemiya 2019) |
+| Blacklist | v1 (ENCODE DAC, unpublished resource) | v2 (Amemiya 2019) |
 | TF significance | `-p 1e-2` + IDR @ 0.05 | Same |
 | Histone significance | `-p 1e-2` + naive overlap | Same |
 | Effective genome size | `hs`/`mm` shorthand | deepTools read-length-tabulated |
@@ -205,7 +205,7 @@ ENCODE 4 outputs are NOT numerically comparable to ENCODE 3 on the same BAM (bla
 
 **Symptom:** Far fewer peaks than expected for H3K4me3/H3K27ac/H3K27me3; missed enrichment at known regions.
 
-**Fix:** Use `-style histone` for ALL histone marks (Omnipeak 2025); reserve `-style factor` for TFs only.
+**Fix:** Use `-style histone` for ALL histone marks (Omnipeak benchmark, Shpynov & Artyomov 2026); reserve `-style factor` for TFs only.
 
 ### SPP / phantompeakqualtools -- R version incompatibility
 
@@ -262,7 +262,7 @@ ENCODE 4 outputs are NOT numerically comparable to ENCODE 3 on the same BAM (bla
 - Park D et al 2013 PLoS One 8:e83506 (independent hyper-ChIPable confirmation)
 - Amemiya HM et al 2019 Sci Rep 9:9354 (ENCODE blacklist v2)
 - ENCODE ChIP-seq pipeline v2.1.6 (github.com/ENCODE-DCC/chip-seq-pipeline)
-- Omnipeak benchmark 2025 Nucleic Acids Res (HOMER -style histone vs factor mode for histone marks; cited via publisher's bioinformatics aggregation)
+- Shpynov O & Artyomov MN 2026 Nucleic Acids Res 54:gkaf1454 (Omnipeak; benchmarks HOMER -style histone vs factor for histone marks)
 
 ## Related Skills
 

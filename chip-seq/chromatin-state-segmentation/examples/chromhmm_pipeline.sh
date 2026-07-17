@@ -33,7 +33,6 @@ EOF
 mkdir -p binarized_${CELL_TYPE}
 java -mx16G -jar $CHROMHMM_JAR BinarizeBam \
     -b 200 \
-    -peaks \
     $CHROMSIZES \
     $BAM_DIR \
     cellMarkFileTable.txt \
@@ -80,8 +79,8 @@ java -mx16G -jar $CHROMHMM_JAR NeighborhoodEnrichment \
 
 # === 6. Apply Roadmap precomputed 25-state model (optional) ===
 # Use for cross-cell-type compatibility with Roadmap Epigenomics annotations.
-# Note: mark panel must match Roadmap's exactly (5 core marks).
-# wget http://compbio.mit.edu/ChromHMM/model_25_imputed12marks.txt
+# Note: the 25-state model is the imputed 12-mark model; provide those 12 marks.
+# wget https://egg2.wustl.edu/roadmap/data/byFileType/chromhmmSegmentations/ChmmModels/imputed12marks/jointModel/final/model_25_imputed12marks.txt
 # java -mx16G -jar $CHROMHMM_JAR MakeSegmentation \
 #     model_25_imputed12marks.txt \
 #     binarized_${CELL_TYPE}/ \

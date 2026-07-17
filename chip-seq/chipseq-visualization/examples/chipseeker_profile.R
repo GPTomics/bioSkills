@@ -11,7 +11,7 @@ promoter <- getPromoters(TxDb = txdb, upstream = 3000, downstream = 3000)
 
 tagMatrix <- getTagMatrix(peaks, windows = promoter)
 
-tagHeatmap(tagMatrix, xlim = c(-3000, 3000), color = 'red')
+tagHeatmap(tagMatrix, palette = 'Reds')
 
 plotAvgProf(tagMatrix, xlim = c(-3000, 3000), xlab = 'Distance from TSS (bp)',
             ylab = 'Peak Count Frequency', conf = 0.95)

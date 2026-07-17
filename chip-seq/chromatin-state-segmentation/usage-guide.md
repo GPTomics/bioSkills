@@ -32,7 +32,7 @@ Tell the agent what to do:
 ## Example Prompts
 
 ### Standard 15-state ChromHMM
-> "Build cellMarkFileTable for GM12878 with 5 core marks (H3K4me3, H3K27ac, H3K4me1, H3K36me3, H3K27me3) and matching input controls. Binarize with `BinarizeBam`, learn a 15-state model, generate emission heatmap and segmented BED."
+> "Build cellMarkFileTable for GM12878 with the 5 core Roadmap marks (H3K4me3, H3K4me1, H3K36me3, H3K27me3, H3K9me3) and matching input controls. Binarize with `BinarizeBam`, learn a 15-state model, generate emission heatmap and segmented BED."
 
 ### Multi-cell-type joint segmentation
 > "I have 5 marks in 3 cell types (GM12878, K562, HepG2). Build a joint cellMarkFileTable and learn a 25-state model so states are comparable across cell types. Map state labels to Roadmap conventions where possible."
@@ -54,7 +54,7 @@ Tell the agent what to do:
 
 ## What the Agent Will Do
 
-1. **Verify mark panel**: need ≥ 4-5 marks for meaningful states; 5 core (H3K4me3, H3K27ac, H3K4me1, H3K36me3, H3K27me3) for canonical Roadmap-compatible models
+1. **Verify mark panel**: need ≥ 4-5 marks for meaningful states; 5 core (H3K4me3, H3K4me1, H3K36me3, H3K27me3, H3K9me3) for canonical Roadmap-compatible 15-state models (add H3K27ac for the 18-state model)
 2. **Build `cellMarkFileTable.txt`**: tab-separated: cell_type, mark, BAM, control_BAM
 3. **Binarize BAMs**: `ChromHMM BinarizeBam` produces per-chromosome 200 bp bin matrices
 4. **Train model** at multiple N; compare 15, 18, 25 states; choose by emission-matrix interpretability
@@ -69,7 +69,7 @@ Tell the agent what to do:
 ## Tips
 
 - **Need ≥ 5 marks for a canonical 15-state model.** Fewer marks = simpler peak-based annotation (peak-annotation) is more appropriate.
-- **5 core marks (Roadmap):** H3K4me3 (active TSS), H3K27ac (active regulatory), H3K4me1 (enhancers), H3K36me3 (transcribed), H3K27me3 (Polycomb). Add H3K9me3 for heterochromatin.
+- **5 core marks (Roadmap 15-state):** H3K4me3 (active TSS), H3K4me1 (enhancers), H3K36me3 (transcribed), H3K27me3 (Polycomb), H3K9me3 (heterochromatin). The 18-state model adds H3K27ac for fine active-enhancer subtypes.
 - **Train at multiple N (15, 18, 25).** Compare emission matrices; choose smallest N where states are biologically distinct.
 - **Default 200 bp bin works for most uses.** Reduce to 100 or 50 only for sharp boundary studies.
 - **Use sonicated input control for binarization.** IgG is not appropriate for histone mark ChromHMM.
@@ -122,7 +122,7 @@ Mark panel must match the model exactly (same marks in same order as binarized d
 
 - chip-seq/peak-calling - Per-mark peak calling
 - chip-seq/chipseq-qc - Per-mark QC before integration
-- chip-seq/peak-annotation - ENCODE cCRE classification (PLS / pELS / dELS / CTCF-only / DNase-H3K4me3)
+- chip-seq/peak-annotation - ENCODE cCRE classification (PLS / pELS / dELS / CA-CTCF / CA-H3K4me3)
 - chip-seq/spike-in-normalization - Spike-in for cross-condition state comparison
 - atac-seq/single-cell-atac - Multi-modal integration with chromatin states
 - machine-learning/model-validation - State-count selection

@@ -31,7 +31,7 @@ windows <- windowCounts(bam_files, width = 150, ext = 200, param = param,
                          spacing = 50)
 
 # Filter low-abundance windows (csaw default: abundance >= 1)
-filter_stat <- filterWindowsGlobal(windows, background = NULL)
+filter_stat <- filterWindowsGlobal(windows)
 keep <- filter_stat$filter > log2(3)  # 3-fold over background
 windows <- windows[keep, ]
 
@@ -47,7 +47,7 @@ windows <- normFactors(bg_bins, se.out = windows)
 # increases low-signal windows), loess removes it. Only apply when:
 # - Library prep efficiency variation across abundance is suspected, OR
 # - Same trend appears in IgG-only / no-IP control samples
-# windows <- normOffsets(windows, type = 'loess', se.out = TRUE)
+# windows <- normOffsets(windows, se.out = TRUE)
 
 # edgeR quasi-likelihood F-test (better type-I control than Wald for small n)
 y <- asDGEList(windows)

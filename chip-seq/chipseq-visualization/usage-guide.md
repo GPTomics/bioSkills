@@ -2,7 +2,7 @@
 
 ## Overview
 
-Generate ChIP-seq heatmaps, profile plots, genome-browser tracks, and sample-correlation visualizations. Covers deepTools (production), pyGenomeTracks (modern config-driven tracks), Gviz / EnrichedHeatmap / ChIPseeker (R), and IGV batch scripts. Embeds bigWig normalization decisions (CPM, BPM, RPGC, spike-in scaled), bamCompare operation choice (log2/subtract/SES), and k-means clustering of heatmaps for biological subgrouping. The most consequential choice is bigWig normalization; it determines whether visual comparison reflects biology.
+Generate ChIP-seq heatmaps, profile plots, genome-browser tracks, and sample-correlation visualizations. Covers deepTools (production), pyGenomeTracks (modern config-driven tracks), Gviz / EnrichedHeatmap / ChIPseeker (R), and IGV batch scripts. Embeds bigWig normalization decisions (CPM, BPM, RPGC, spike-in scaled), bamCompare operation choice (log2/subtract) with SES scaling, and k-means clustering of heatmaps for biological subgrouping. The most consequential choice is bigWig normalization; it determines whether visual comparison reflects biology.
 
 ## Prerequisites
 
@@ -62,8 +62,8 @@ Tell the agent what to do:
 1. **Choose normalization** based on biology:
    - Within-sample: CPM (standard) or BPM (length-aware)
    - Cross-sample comparable: RPGC with read-length-matched effective genome size
-   - Cross-condition with global shifts: spike-in scaled (mutually exclusive with `--normalizeUsing`)
-   - ChIP vs input: bamCompare log2 (most common) / subtract / SES
+   - Cross-condition with global shifts: spike-in scaled (`--scaleFactor` alone; do not combine with `--normalizeUsing`)
+   - ChIP vs input: bamCompare log2 (most common) / subtract; SES via --scaleFactorsMethod
 2. **Generate bigWigs**: `bamCoverage` or `bamCompare`; extend single-end reads to fragment length; bin size 10-50 bp
 3. **Compute signal matrix**: reference-point (TSS / peak summit) with `-b 3000 -a 3000`, or scale-regions for gene bodies
 4. **Generate plots:**
@@ -78,7 +78,7 @@ Tell the agent what to do:
 ## Tips
 
 - **Normalization choice is the single biggest decision.** Get it right before generating any heatmap.
-- **`--normalizeUsing` and `--scaleFactor` are mutually exclusive in bamCoverage.** Use one OR the other.
+- **Pass `--scaleFactor` alone in bamCoverage for spike-in.** deepTools multiplies it by any `--normalizeUsing` factor, so combining them reintroduces depth normalization.
 - **For log2 bamCompare, always add `--pseudocount 1 --skipZeroOverZero`** to avoid -Inf in plots.
 - **Set `--zMin/--zMax` explicitly.** Default ranges are outlier-driven and produce uninformative heatmaps.
 - **k-means clusters by signal in the FIRST `-S` sample only.** Order samples so the most-discriminating one is first.
@@ -99,7 +99,7 @@ Tell the agent what to do:
 
 ### Spike-in scaled tracks identical to CPM tracks
 
-`--normalizeUsing` and `--scaleFactor` both passed; deepTools applies scale first then normalizes (undoes the scale). Use one only.
+`--normalizeUsing` and `--scaleFactor` both passed; deepTools multiplies the two, reintroducing depth normalization. Use `--scaleFactor` alone for spike-in.
 
 ### Profile plot shows identical curves for treatment and control
 

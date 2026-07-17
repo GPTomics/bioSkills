@@ -100,7 +100,7 @@ def fragment_size_diagnostic(bam_file, max_size=1000):
 
 def hyper_chipable_check(peak_file, input_bigwig_summary_tsv, top_pct=1.0):
     '''Flag peaks falling into top-N% input signal regions (custom hyper-ChIPable
-    blacklist). Teytelman 2013 / Park 2013: rRNA, tRNA, histone clusters, mtDNA,
+    blacklist). Teytelman 2013: rRNA, tRNA, histone clusters, mtDNA,
     abundant housekeeping genes appear "bound" even by untagged GFP. ENCODE
     blacklist v2 misses these; cell-type-specific input-based blacklist catches them.
     `input_bigwig_summary_tsv` is multiBigwigSummary --outRawCounts output.'''

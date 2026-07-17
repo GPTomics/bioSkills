@@ -2,7 +2,7 @@
 
 ## Overview
 
-Normalize ChIP-seq data using exogenous spike-in chromatin: Drosophila chromatin (ChIP-Rx; Orlando 2014 / Egan 2016) for human/mouse ChIP, or E. coli carryover from bacterial pA-MNase/pA-Tn5 for CUT&RUN/CUT&Tag. Required when global signal shifts are expected (HDACi, BETi, EZH2i, target knockdown, dosage). Covers RRPM vs Rx-Input scaling formulas, integration with DiffBind/DESeq2/edgeR/csaw, ChIPseqSpikeInFree for post-hoc detection without spike-in, and the Hammond Norris 2024 review's failure-mode framework. Emphasizes the internal-control sanity check (blacklist regions should NOT shift post-scaling).
+Normalize ChIP-seq data using exogenous spike-in chromatin: Drosophila chromatin (ChIP-Rx; Orlando 2014 / Egan 2016) for human/mouse ChIP, or E. coli carryover from bacterial pA-MNase/pA-Tn5 for CUT&RUN/CUT&Tag. Required when global signal shifts are expected (HDACi, BETi, EZH2i, target knockdown, dosage). Covers RRPM vs Rx-Input scaling formulas, integration with DiffBind/DESeq2/edgeR/csaw, ChIPseqSpikeInFree for post-hoc detection without spike-in, and the Patel et al 2024 review's failure-mode framework. Emphasizes the internal-control sanity check (blacklist regions should NOT shift post-scaling).
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ BiocManager::install(c('DiffBind', 'DESeq2', 'edgeR', 'csaw', 'ChIPseqSpikeInFre
 
 ```bash
 # SpikeFlow (Snakemake wrapper, optional)
-# https://github.com/sebastian-gregoricchio/SpikeFlow
+# https://github.com/DavideBrex/SpikeFlow
 ```
 
 ## Quick Start
@@ -25,7 +25,7 @@ Tell the agent what to do:
 - "I have H3K27ac ChIP-seq from DMSO vs JQ1 (BET inhibitor). Compute Drosophila spike-in scaling factors and apply via DiffBind."
 - "Align reads to combined hg38 + dm6 genome and count Drosophila reads per sample"
 - "Apply spike-in scaling at the read level via DESeq2 sizeFactors (inverse convention)"
-- "Generate spike-in-scaled bigWigs without `--normalizeUsing` (mutually exclusive with `--scaleFactor`)"
+- "Generate spike-in-scaled bigWigs with `--scaleFactor` alone (not combined with `--normalizeUsing`)"
 - "Verify internal-control sanity: blacklist regions should show no signal change post-scaling"
 - "I didn't add spike-in. Run ChIPseqSpikeInFree for post-hoc detection of global shifts (diagnostic only)."
 - "Compute Rx-Input scaling factor incorporating spike-in fractions in BOTH ChIP and input"
@@ -66,17 +66,17 @@ Tell the agent what to do:
    - DiffBind: `dba.normalize(obj, spikein = TRUE)`
    - DESeq2: `sizeFactors(dds) <- 1 / scale_factors` (inverse convention)
    - edgeR: `normFactors` via DGEList
-   - csaw: pass to `windowCounts` library factors
+   - csaw: apply spike-in factors on the windowCounts SummarizedExperiment (`normFactors`/`normOffsets`), not inside `windowCounts` itself
 8. **Internal-control sanity check**: verify blacklist + housekeeping signal stability post-scaling
 9. **Differential testing**: run DESeq2 / edgeR / csaw with spike-in-based size factors
-10. **Document**: spike-in organism + cell count + protocol, alignment %, mapq filter, scaling formula, internal-control validation
+10. **Document**: spike-in organism + amount (cells or chromatin mass) + protocol, alignment %, mapq filter, scaling formula, internal-control validation
 
 ## Tips
 
 - **Spike-in is required for global-shift biology.** HDACi, BETi, EZH2i, dosage, target knockdown all confound reads-in-peaks normalization.
-- **Apply at the read level, never to peak counts.** Hammond Norris 2024: ~25% of published papers violate this.
+- **Apply at the read level, never to peak counts.** A common implementation error in published spike-in ChIP.
 - **DESeq2 / edgeR `sizeFactors` use inverse convention.** `sizeFactors(dds) <- 1 / scale_factors`, not direct.
-- **`--normalizeUsing` and `--scaleFactor` are mutually exclusive in bamCoverage.** Use one only.
+- **Pass `--scaleFactor` alone in bamCoverage for spike-in.** deepTools multiplies `--scaleFactor` by any `--normalizeUsing` factor, so combining them reintroduces depth normalization.
 - **Verify titration linearity.** Spike-in counts should be 0.5-5% of total reads; outside this range, saturation or noise makes scaling unreliable.
 - **Filter spike reads to mapq ≥ 30 before counting.** Low-mapq reads at low-complexity regions inflate counts spuriously.
 - **Deduplicate spike reads before counting.** PCR duplicates of spike-in don't reflect chromatin amount.
@@ -89,7 +89,7 @@ Tell the agent what to do:
 
 ### Scaling factors all near 1.0
 
-Spike-in not added at fixed amount, OR samples not properly randomized. Re-check Egan 2016 protocol (50k Drosophila nuclei per 5M target cells).
+Spike-in not added at fixed amount, OR samples not properly randomized. Re-check Egan 2016 protocol (fixed Drosophila chromatin mass, ~27:1 human:Drosophila genome-copy ratio).
 
 ### Spike-in fraction <0.1%
 

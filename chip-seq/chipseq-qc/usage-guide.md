@@ -8,7 +8,7 @@ Compute the ENCODE-compliant ChIP-seq QC battery (FRiP, NSC/RSC, library complex
 
 ```bash
 # CLI tools
-conda install -c bioconda samtools bedtools phantompeakqualtools idr deeptools featurecounts
+conda install -c bioconda samtools bedtools phantompeakqualtools idr deeptools subread
 
 # Python utilities for custom metrics
 pip install pysam pybedtools pandas
