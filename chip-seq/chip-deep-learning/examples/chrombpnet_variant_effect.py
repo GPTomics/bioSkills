@@ -4,7 +4,7 @@
 # encode reference and alternate-allele sequences (2114 bp window), predict
 # base-resolution profiles + counts, compute log2_fc for each variant.
 # |log2_fc| > 1 indicates strong effect; agreement with EnFormer increases
-# confidence (Pampari Avsec 2024/2025).
+# confidence (Pampari et al 2024 bioRxiv).
 
 import argparse
 import numpy as np

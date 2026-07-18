@@ -296,9 +296,9 @@ Most QC thresholds are stable across ENCODE versions; blacklist update is the ma
 - Amemiya HM et al 2019 Sci Rep 9:9354 (ENCODE blacklist v2)
 - Ramírez F et al 2016 Nucleic Acids Res 44:W160 (deepTools)
 - Carroll TS et al 2014 Front Genet 5:75 (ChIPQC framework)
-- Diaz A et al 2012 Stat Appl Genet Mol Biol 11:Article 9 (CHANCE; fingerprint-style QC)
+- Diaz A et al 2012 Stat Appl Genet Mol Biol 11:Article 9 (SES normalization / fingerprint-style QC)
 - Park PJ 2009 Nat Rev Genet 10:669 (foundational review)
-- Rothbart SB et al 2015 Sci Rep 5:8489 (peptide-array antibody specificity)
+- Rothbart SB et al 2015 Mol Cell 59:502 (histone antibody specificity database)
 
 ## Related Skills
 

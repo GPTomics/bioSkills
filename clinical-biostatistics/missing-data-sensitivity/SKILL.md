@@ -25,7 +25,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 Key recommendations:
 
-- **Rec 10/11:** explicitly REJECT LOCF and BOCF as default; they are biased even under MCAR
+- **Rec 10:** explicitly REJECT LOCF and BOCF as default; they are biased even under MCAR
 - **Rec 13:** endorses WGEE (weighted GEE) for marginal estimands
 - **Rec 15:** "examining sensitivity to assumptions about the missing-data mechanism should be a mandatory component of reporting"
 
@@ -75,7 +75,7 @@ Key recommendations:
 - Permutt T 2016 *Stat Med* 35:2876 (analyst as adversary; tipping point)
 - Diggle PJ, Kenward MG 1994 *JRSS-C* 43:49 (selection model + canonical critique)
 - Molenberghs G, Michiels B, Kenward MG, Diggle PJ 1998 *Stat Neerl* 52:153 (pattern-mixture identifying restrictions; ACMV = MAR under monotone)
-- Olarte Parra C, Bartlett JW, Daniel RM 2022 *Stat Biopharm Res* (MMRM-MAR IS a hypothetical estimator)
+- Olarte Parra C, Daniel RM, Bartlett JW 2022 *Stat Biopharm Res* (MMRM-MAR IS a hypothetical estimator)
 
 ## Decision Tree by Scenario
 
@@ -87,9 +87,9 @@ Key recommendations:
 | Continuous endpoint, MNAR sensitivity required | J2R via `rbmi` with both Rubin's variance AND frequentist (CMI+jackknife) | Cro vs Bartlett debate; report both for safety |
 | Continuous endpoint, tipping-point analysis | Permutt 2016 delta-adjustment in active arm only | Direct regulatory question; pre-specify delta range |
 | Binary endpoint with missing primary | MI with logistic imputation; modified Poisson for marginal RR | Per FDA 2023 covariate adjustment |
-| Time-to-event with informative censoring | IPCW (Robins) or sensitivity under composite | Censoring-as-event composite; cite Lewis 2023 |
+| Time-to-event with informative censoring | IPCW (Robins) or sensitivity under composite | Censoring-as-event composite; pre-specify per ICH E9(R1) |
 | Very high missingness (>40%) | Report as hypothesis-generating; multiple sensitivity analyses | NRC 2010 caveat |
-| Aducanumab-style differential dropout pattern | MAR primary is questionable; treatment-policy with reference-based MI primary | Lessons from FDA 6-1 AdCom decision (2021) |
+| Aducanumab-style differential dropout pattern | MAR primary is questionable; treatment-policy with reference-based MI primary | Lessons from the aducanumab review (Nov 2020 AdCom voted against; approved 2021) |
 | Pediatric trial with hard-to-retain population | Retrieved-dropout MI + Bayesian extrapolation from adult data | FDA 2025 obesity pediatric extension guidance |
 
 ## MMRM Under MAR -- The FDA-Preferred Continuous Analysis
@@ -283,13 +283,13 @@ pooled_se = np.sqrt(total_var)
 
 ### Aducanumab (Biogen BLA 761178, 2021)
 
-EMERGE and ENGAGE both stopped early for futility; EMERGE high-dose positive, ENGAGE negative. MMRM-MAR primary. FDA Office of Biostatistics (Tristan Massie review) argued futility-stop-induced missingness was NOT MAR (differential ARIA-driven unblinding). 6-1 AdCom against approval; subsequent approval over-ruled OB. Textbook case showing MAR-based primary in trial with high differential missingness is regulator-divisive.
+EMERGE and ENGAGE both stopped early for futility; EMERGE high-dose positive, ENGAGE negative. MMRM-MAR primary. FDA Office of Biostatistics (Tristan Massie review) argued futility-stop-induced missingness was NOT MAR (differential ARIA-driven unblinding). The November 2020 advisory committee voted overwhelmingly against approval; FDA nonetheless approved in June 2021, over-ruling OB. Textbook case showing MAR-based primary in trial with high differential missingness is regulator-divisive.
 
 **Lesson:** when differential dropout patterns differ by arm in clinically meaningful ways, MAR is questionable; primary should be treatment-policy with reference-based MI.
 
 ### Aprocitentan (Idorsia PRECISION, FDA 2024)
 
-Mathur 2025 *Pharm Stat* (PMC12753554) documents the negotiation. FDA pushed back on MMRM-MAR primary; accepted compromise: stratified imputation — J2R for treatment-discontinuation ICEs, MAR-MMRM for other missingness.
+Sassi-Sayadi et al 2025 *Ther Innov Regul Sci* (PMC12753554) documents the negotiation. FDA pushed back on MMRM-MAR primary; accepted compromise: stratified imputation — J2R for treatment-discontinuation ICEs, MAR-MMRM for other missingness.
 
 **Lesson:** this hybrid is now the de facto FDA standard for treatment-policy estimands. Pre-specify in SAP.
 
@@ -333,7 +333,7 @@ Retrieved-dropout MI as primary for treatment-policy estimand. Missing body weig
 
 - **Trigger:** SAP specifies LOCF as primary analysis or as "conservative" sensitivity.
 - **Mechanism:** LOCF is biased even under MCAR (Mallinckrodt 2008); discards uncertainty.
-- **Symptom:** Reviewer cites NRC 2010 Rec 11 against LOCF.
+- **Symptom:** Reviewer cites NRC 2010 Rec 10 against LOCF.
 - **Fix:** MMRM under MAR as primary; reference-based MI for MNAR sensitivity; LOCF only as historical comparison if at all.
 
 ### Imputation model uncongenial with analysis model
@@ -356,7 +356,7 @@ Retrieved-dropout MI as primary for treatment-policy estimand. Missing body weig
 |---------|--------------|--------|
 | MMRM-MAR CI overlaps null; J2R MI CI excludes null | Reference-based MI borrows information from reference arm, reducing active-arm marginal variance below what MAR analysis with same missingness would give (Cro 2019) | Both valid under their assumptions; choose by clinical plausibility (MAR vs MNAR after differential dropout); report both; cite estimand strategy |
 | Bayesian MI + Rubin's variance Type-I ~1%; CMI+jackknife Type-I ~5% under J2R | Rubin's information-anchored, over-conservative (Cro 2019); jackknife frequentist nominal (Wolbers 2022); active methodological debate | Report both; flag as Cro vs Bartlett debate; FDA increasingly accepts jackknife as supportive |
-| LOCF "conservative" sensitivity gives smaller effect than MMRM-MAR | LOCF assumes flat post-ICE trajectory; biased even under MCAR (Mallinckrodt 2008) | Replace LOCF with reference-based MI; cite NRC 2010 Rec 11; reframe sensitivity as "MNAR robustness" not "conservative" |
+| LOCF "conservative" sensitivity gives smaller effect than MMRM-MAR | LOCF assumes flat post-ICE trajectory; biased even under MCAR (Mallinckrodt 2008) | Replace LOCF with reference-based MI; cite NRC 2010 Rec 10; reframe sensitivity as "MNAR robustness" not "conservative" |
 | Tipping delta is small relative to MCID | MAR plausibility weak; primary result fragile to mild MNAR | Report tipping delta in residual SD AND relative to MCID; reconsider primary estimand toward treatment-policy with reference-based MI |
 | Pattern-mixture with CCMV vs J2R conclusions differ | CCMV assumes missing pattern mirrors completers; J2R assumes mirror reference arm; different MNAR mechanisms | Choose based on which clinical scenario is more plausible (Carpenter-Roger 2013); report both as sensitivity range |
 | Selection model (Diggle-Kenward) rejects MAR; pattern-mixture (reference-based MI) accepts MAR | Selection model MNAR conclusion driven by joint normality assumption (not data); pattern-mixture clinically articulable | Report pattern-mixture as primary sensitivity; selection model as supportive only; FDA prefers clinical articulation |
@@ -366,12 +366,12 @@ Retrieved-dropout MI as primary for treatment-policy estimand. Missing body weig
 
 | Threshold | Source | Rationale |
 |-----------|--------|-----------|
-| m >= 100 * FMI imputations | von Hippel 2020 *Sociol Methods Res* 49:699 | Stable pooled SE; with 40% missingness and FMI~0.3, m=30 needed |
+| m >= 100 * FMI imputations (linear rule of thumb) | von Hippel 2020 *Sociol Methods Res* 49:699 (two-stage quadratic refinement) | Stable pooled SE; with 40% missingness and FMI~0.3, m=30 needed |
 | Missing > 40% on key variable | NRC 2010 | MI under MAR unreliable; treat as hypothesis-generating |
 | Kenward-Roger DF correction for MMRM with UN | Kenward-Roger 1997 | Without it MMRM-REML under-covers; Type-I inflates 1-2 pp |
 | Tipping delta in residual SD units | FDA Division of Biometrics preference | Cross-trial comparison |
 | Rubin's vs frequentist for reference-based MI | Cro 2019 vs Wolbers 2022 | Report both for regulatory safety |
-| Pre-specify ICE strategy in SAP | ICH E9(R1) | Estimand-before-method; cite Kahan 2023 |
+| Pre-specify ICE strategy in SAP | ICH E9(R1) | Estimand-before-method |
 | Examine DS domain for differential dropout | NRC 2010 implicit | If dropout differs by arm, MAR is suspect |
 
 ## Common Errors
@@ -394,7 +394,7 @@ Retrieved-dropout MI as primary for treatment-policy estimand. Missing body weig
 | Pushback | Response |
 |----------|----------|
 | "Why MAR not MNAR primary?" | Examined DS domain; dropout rates and reasons symmetric across arms; cite Mallinckrodt 2008 MMRM-MAR convention |
-| "Why not LOCF as sensitivity?" | LOCF biased even under MCAR; cite NRC 2010 Rec 11; J2R and tipping-point are clinically articulable alternatives |
+| "Why not LOCF as sensitivity?" | LOCF biased even under MCAR; cite NRC 2010 Rec 10; J2R and tipping-point are clinically articulable alternatives |
 | "Rubin's variance for J2R?" | Cite Cro 2019 information-anchored argument as rationale; report frequentist (CMI+jackknife) as supportive per Wolbers 2022 |
 | "Tipping delta plausibility?" | Tipping delta = X.X in residual SD units; X.X exceeds MCID of Y.Y; deemed clinically implausible |
 | "Selection model sensitivity?" | Provided as supportive; cite Diggle-Kenward 1994 critique that conclusions are driven by joint normality assumption; pattern-mixture is the primary sensitivity |
@@ -417,14 +417,14 @@ Retrieved-dropout MI as primary for treatment-policy estimand. Missing body weig
 - Little RJA. 1993. Pattern-mixture models for multivariate incomplete data. *JASA* 88:125-134.
 - Little RJA, D'Agostino R, Cohen ML et al. 2012. The prevention and treatment of missing data in clinical trials. *NEJM* 367:1355-1360.
 - Mallinckrodt CH, Lane PW, Schnell D, Peng Y, Mancuso JP. 2008. Recommendations for the primary analysis of continuous endpoints in longitudinal clinical trials. *Drug Information Journal* 42:303-319.
-- Mathur AR et al 2025. Regulatory experiences with multiple imputation. *Pharm Stat*.
+- Sassi-Sayadi M, Verweij P, Cornelisse P. 2025. Regulatory experiences with the use of multiple imputation for missing data in a phase 3 confirmatory trial. *Ther Innov Regul Sci*.
 - Meng XL. 1994. Multiple-imputation inferences with uncongenial sources of input. *Stat Sci* 9:538-558.
 - Molenberghs G, Michiels B, Kenward MG, Diggle PJ. 1998. Monotone missing data and pattern-mixture models. *Stat Neerl* 52:153-161.
 - NRC. 2010. *The Prevention and Treatment of Missing Data in Clinical Trials*. National Academies Press.
-- Olarte Parra C, Bartlett JW, Daniel RM. 2022. Hypothetical estimands: a unification of causal inference and missing data methods. *Stat Biopharm Res*.
+- Olarte Parra C, Daniel RM, Bartlett JW. 2022. Hypothetical estimands in clinical trials: a unification of causal inference and missing data methods. *Stat Biopharm Res* 15(2):421-432.
 - Permutt T. 2016. Sensitivity analysis for missing data in regulatory submissions. *Stat Med* 35:2876-2879.
 - von Hippel PT. 2020. How many imputations are needed (a two-stage calculation using a quadratic rule). *Sociol Methods Res* 49:699-718.
-- Wolbers M, Noci A, Delmar P, Gower-Page C, Yiu S, Bartlett JW. 2022. Standard and reference-based conditional mean imputation. *Pharm Stat* 21:1262-1281.
+- Wolbers M, Noci A, Delmar P, Gower-Page C, Yiu S, Bartlett JW. 2022. Standard and reference-based conditional mean imputation. *Pharm Stat* 21(6):1246-1257.
 
 ## Related Skills
 

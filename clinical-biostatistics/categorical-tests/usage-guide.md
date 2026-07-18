@@ -73,7 +73,7 @@ Tell your AI agent what you want to do:
 - **Fisher's exact is conservative because it double-conditions** on the margins (Mehta-Senchaudhuri 2003). Boschloo's exact uses Fisher's p-value as test statistic but conditions on only one margin -- uniformly more powerful at the same Type-I.
 - **Yates' continuity correction is now discouraged** (D'Agostino 1988): inflates Type-II by ~10%. Correct fix for sparse 2x2 is Boschloo, not Yates'.
 - **Cochran 1954 strict rule:** no expected cell < 1 AND no more than 20% of cells with expected < 5. Textbook "all >=5" is the conservative simplification.
-- **Stratified randomisation factors MUST appear in analysis** (Kahan-Morris 2012 *Stat Med* 31:328). Ignoring inflates Type-I error up to 30%.
+- **Stratified randomisation factors MUST appear in analysis** (Kahan-Morris 2012 *Stat Med* 31:328). Ignoring is over-conservative -- SE biased upward, CIs too wide, power loss.
 - **CMH pooled OR can mask Simpson's paradox** when stratum-specific ORs reverse direction. Always supplement with a forest plot of stratum ORs.
 - **Breslow-Day with k=3 strata has ~40% power** for moderate heterogeneity. Non-significance does NOT prove homogeneity.
 - **Fagerland-Lydersen-Laake 2013** showed exact conditional McNemar is over-conservative. Asymptotic without continuity correction (b+c >= 25) or mid-p are preferred.

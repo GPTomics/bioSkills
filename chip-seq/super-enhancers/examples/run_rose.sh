@@ -1,6 +1,7 @@
 #!/bin/bash
-# Reference: GenomicRanges 1.54+, bedtools 2.31+, ggplot2 3.5+, samtools 1.19+ | Verify API if version differs
-# Super-enhancer calling with ROSE
+# Reference: stjude/ROSE (Python 3), samtools 1.19+ | Verify API if version differs
+# Super-enhancer calling with the stjude/ROSE Python-3 fork (genomeDict includes HG38;
+# run from the ROSE repo dir so ROSE_main.py finds its annotation/ files)
 
 set -euo pipefail
 
@@ -23,7 +24,7 @@ else
     PEAKS_GFF=$PEAKS
 fi
 
-# Run ROSE
+# Run stjude/ROSE (Python-3 fork; ROSE_main.py supports -g HG38)
 python ROSE_main.py \
     -g $GENOME \
     -i $PEAKS_GFF \

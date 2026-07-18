@@ -44,7 +44,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 |----------|---------------------|-----|
 | RCT, binary primary endpoint, no covariate adjustment in SAP | Unadjusted logistic with marginal OR; chi-square supportive | Simple regulatory case; consider whether covariate adjustment would gain power (Senn 2013) |
 | RCT, binary primary, covariates pre-specified, FDA 2023 compliant | **Logistic adjusted + g-computation for marginal RD**; conditional OR supportive | FDA 2023 final: marginal estimand for primary; mention HC3 sandwich SE |
-| RCT, stratified randomisation (sex/region/severity) | Include strata as covariates in logistic; the analytic decision is non-optional | Kahan-Morris 2012: ignoring strata inflates Type-I error up to 30% |
+| RCT, stratified randomisation (sex/region/severity) | Include strata as covariates in logistic; the analytic decision is non-optional | Kahan-Morris 2012: ignoring strata is over-conservative -- SE biased upward, CIs too wide, power loss |
 | Common outcome (prevalence >10%) where RR is the policy quantity | Modified Poisson + HC1/HC3 OR log-binomial regression | Avoid OR misinterpretation; Zou 2004; cite EMA 2015 on covariate adjustment |
 | Rare event (<5% prevalence) or separation observed | Firth penalty + penalised LR test for p-value | Heinze-Schemper 2002; Wald p from Firth is liberal |
 | Ordinal outcome, PO assumption supportable | Proportional odds; verify with Brant test (R `brant::brant`) | Most efficient when PO holds; common in toxicity grading and PROs |
@@ -225,7 +225,7 @@ Firth's method was originally designed for finite-sample bias reduction, not sep
 | Proportional-odds (cumulative logit) and multinomial give different inferences | PO assumption violated for one or more predictors (Brant test rejects) | Localise via Brant test; if 1-2 predictors violate, partial-PO model in VGAM; if widely, multinomial |
 | Adjusted vs unadjusted treatment effect differ substantially | Confounding (in observational) OR non-collapsibility (in RCT) | In RCT, non-collapsibility expected (Permutt 2020); in observational, investigate confounding via DAG |
 | Large OR with non-significant Wald p-value | Hauck-Donner effect: Wald non-monotone near boundary (Yee 2022) | Use profile-likelihood CI (R `MASS::confint.glm`); detect via `VGAM::hdeff()` |
-| Stratified analysis significant; unstratified not | Achieved SE smaller in stratified analysis | Include stratification factors in primary model (Kahan-Morris 2012); ignoring inflates Type-I |
+| Stratified analysis significant; unstratified not | Achieved SE smaller in stratified analysis | Include stratification factors in primary model (Kahan-Morris 2012); ignoring biases the SE upward and loses power (over-conservative) |
 | Significant treatment effect on conditional model vanishes when mediator included | Adjusting for post-treatment variable on causal pathway | Never adjust for mediators in primary; use causal DAG to distinguish confounder vs mediator |
 
 ## Per-Method Failure Modes
@@ -269,7 +269,7 @@ Firth's method was originally designed for finite-sample bias reduction, not sep
 
 - **Trigger:** Stratification by site/region/severity at randomisation; analysis ignores strata.
 - **Mechanism:** Achieved SE smaller than calculated SE because randomisation removed between-stratum variability.
-- **Symptom:** Anti-conservative Type-I error; Kahan-Morris 2012 documents up to 30% inflation in published trials.
+- **Symptom:** Over-conservative inference -- SE biased upward, CIs too wide, Type-I error below nominal, and power loss (Kahan-Morris 2012).
 - **Fix:** Include stratification factors as covariates in the logistic; this is non-optional per ICH E9, FDA 2023, EMA 2015.
 
 ## Model Diagnostics
@@ -311,7 +311,7 @@ def hosmer_lemeshow(y_true, y_pred, n_groups=10):
 | Brant test for PO assumption | Brant 1990 *Biometrics* 46:1171 | Omnibus LR test misses per-coefficient violations |
 | Firth penalty with penalised LR test, not Wald | Heinze-Schemper 2002 *Stat Med* 21:2409 | Wald is liberal under Firth penalty |
 | HC3 sandwich SE for n <=250 | Long-Ervin 2000 *Am Stat* 54:217 | HC1 (Stata default) anti-conservative in small samples |
-| Stratification factors in analysis when used in randomisation | Kahan-Morris 2012 *Stat Med* 31:328 | Ignoring inflates Type-I error up to 30% |
+| Stratification factors in analysis when used in randomisation | Kahan-Morris 2012 *Stat Med* 31:328 | Ignoring biases SE upward -- CIs too wide, power loss (over-conservative) |
 
 ## Common Errors
 
@@ -358,7 +358,7 @@ def hosmer_lemeshow(y_true, y_pred, n_groups=10):
 - Senn S. 2013. Seven myths of randomisation in clinical trials. *Stat Med* 32:1439-1450.
 - Steyerberg EW. 2019. *Clinical Prediction Models* (2nd ed). Springer.
 - Tsiatis AA, Davidian M, Zhang M, Lu X. 2008. Covariate adjustment for two-sample treatment comparisons in randomized clinical trials. *Stat Med* 27:4658-4677.
-- Wang B, Susukida R, Mojtabai R, Amin-Esmaeili M, Rosenblum M. 2021. Model-robust inference for clinical trials that improve precision by stratified randomization and covariate adjustment. *JASA* 116:1856-1870.
+- Wang B, Susukida R, Mojtabai R, Amin-Esmaeili M, Rosenblum M. 2023. Model-robust inference for clinical trials that improve precision by stratified randomization and covariate adjustment. *JASA* 118:1152-1163.
 - Yee TW. 2022. On the Hauck-Donner effect in Wald tests. *JASA* 117:1763-1774.
 - Zou G. 2004. A modified Poisson regression approach to prospective studies with binary data. *AJE* 159:702-706.
 

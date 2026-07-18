@@ -128,18 +128,20 @@ meme-chip \
 ```r
 library(monaLisa)
 library(JASPAR2024)
+library(TFBSTools)
 library(Biostrings)
+library(BSgenome.Hsapiens.UCSC.hg38)
 
 # Load peaks and split into bins (e.g., quintiles of log2FC)
 peaks <- rtracklayer::import('peaks.bed')
 peaks$log2FC <- ...  # from differential analysis
-bins <- bin(peaks$log2FC, binmode = 'equalN', nElement = 200)
+bins <- bin(peaks$log2FC, binmode = 'equalN', nElements = 200)
 
 # Get sequences around peak centers
 seqs <- getSeq(BSgenome.Hsapiens.UCSC.hg38, resize(peaks, width = 500, fix = 'center'))
 
 # Load JASPAR PWMs
-pwms <- getMatrixSet(JASPAR2024, list(species = 9606, collection = 'CORE'))
+pwms <- getMatrixSet(RSQLite::dbConnect(RSQLite::SQLite(), db(JASPAR2024())), list(species = 9606, collection = 'CORE'))
 
 # Compute binned motif enrichment with GC control
 res <- calcBinnedMotifEnrR(seqs = seqs, bins = bins, pwmL = pwms, BPPARAM = MulticoreParam(8))
@@ -251,10 +253,10 @@ plotMotifHeatmaps(x = res, which.plots = c('log2enr', 'negLog10P'),
 - Grant CE et al 2011 Bioinformatics 27:1017 (FIMO)
 - Bailey TL & Machanick P 2012 Nucleic Acids Res 40:e128 (CentriMo)
 - McLeay RC & Bailey TL 2010 BMC Bioinformatics 11:165 (AME)
-- Machlab D et al 2022 Nucleic Acids Res 50:e49 (monaLisa)
+- Machlab D et al 2022 Bioinformatics 38:2624 (monaLisa)
 - Castro-Mondragon JA et al 2022 Nucleic Acids Res 50:D165 (JASPAR 2022; CORE collection)
 - Avsec Ž et al 2021 Nat Genet 53:354 (BPNet; soft motif syntax)
-- Shrikumar A et al 2020 bioRxiv (TF-MoDISco)
+- Shrikumar A et al 2018 (rev. 2020) arXiv:1811.00416 (TF-MoDISco)
 
 ## Related Skills
 

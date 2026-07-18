@@ -14,7 +14,7 @@ Reference examples tested with: WASP 0.3.4+, RASQUAL 1.1+, BaalChIP 1.30+ (Bioco
 **"Identify variants that affect transcription factor or histone modification binding in cis"** -> Compare ChIP-seq read counts at the reference and alternate alleles of heterozygous variants in a single sample. Differential read counts (ALT vs REF at hetSNPs in peaks) reveal allele-specific binding.
 
 - CLI (mandatory bias filter): WASP `mapping pipeline` to remove reference-allele mapping bias
-- CLI (joint association): RASQUAL with `--n-permutations` for cis-QTL + ASB
+- CLI (joint association): RASQUAL for cis-QTL + ASB (genotype VCF piped in via tabix)
 - R (Bayesian beta-binomial): BaalChIP with copy-number-aware overdispersion
 - CLI (personalized genome): AlleleSeq with phased diploid genome
 - Statistical test: beta-binomial likelihood ratio or chi-squared on count tables
@@ -103,7 +103,7 @@ res <- BaalChIP(samplesheet = samples, hets = hetSNPs)
 
 # Run filters and Bayesian test
 res <- alleleCounts(res, min_base_quality = 10, min_mapq = 15)
-res <- QCfilter(res, RegionsToFilter = c('blacklist_v2.bed'))
+res <- QCfilter(res, RegionsToFilter = list(blacklist = rtracklayer::import('blacklist_v2.bed')))
 res <- mergePerGroup(res)
 res <- filter1allele(res)
 res <- getASB(res, Iter = 5000, conf_level = 0.95)
@@ -115,7 +115,7 @@ asb_table <- BaalChIP.report(res)
 head(asb_table)
 ```
 
-BaalChIP outputs per-hetSNP: allelic ratio, posterior, Bayes factor, ASB call.
+BaalChIP outputs per-hetSNP: allelic ratio (AR), bias-corrected ratio (Corrected.AR), a Bayesian credible interval (Bayes_lower/Bayes_upper), and the ASB call (isASB).
 
 ## Workflow: RASQUAL (Joint cis-QTL + ASB)
 
@@ -125,17 +125,14 @@ BaalChIP outputs per-hetSNP: allelic ratio, posterior, Bayes factor, ASB call.
 # - Genotype VCF (phased)
 # - Peak BED
 
-# Run RASQUAL
-rasqual \
-    --y peak_counts.txt \
-    --x covariates.txt \
-    --k offsets.txt \
-    --n N_samples \
-    --p N_peaks \
-    --j 0 -i 0 \
-    --vcf genotypes.vcf \
-    --window 250000 \
-    --t 8 \
+# Run RASQUAL. The genotype VCF is piped in from tabix (there is NO --vcf flag);
+# options are single-dash. Inputs -y/-k/-x are BINARY files built by RASQUAL's
+# txt2bin utilities (not .txt). One run per feature: -j selects the feature row,
+# -l = number of test (cis) SNPs, -m = number of feature SNPs in the window.
+tabix genotypes.vcf.gz chr:start-end | \
+  rasqual -y Y.bin -k K.bin -x X.bin \
+    -n N_samples -j FEATURE_INDEX -l N_TEST_SNPS -m N_FEATURE_SNPS \
+    -s EXON_STARTS -e EXON_ENDS -f PEAK_ID \
     > rasqual_results.txt
 
 # Output columns: chrom, peak_id, n_RSNPs, n_FSNPs, n_imputed, summarized_phi,
@@ -148,7 +145,7 @@ RASQUAL's `phi` parameter is the per-feature bias estimate; `pi` is the allelic 
 
 ```bash
 # Build personalized diploid genome from phased VCF
-vcf2diploid -id SAMPLE -chr hg38.fa -vcf SAMPLE.phased.vcf -outDir personalized/
+java -jar vcf2diploid.jar -id SAMPLE -chr hg38.fa -vcf SAMPLE.phased.vcf   # per-haplotype FASTAs written to CWD (no -outDir option)
 
 # Align reads to both maternal and paternal copies
 bowtie2-build personalized/maternal.fa maternal_index
@@ -156,8 +153,8 @@ bowtie2-build personalized/paternal.fa paternal_index
 bowtie2 -x maternal_index -1 R1.fq -2 R2.fq -S maternal.sam
 bowtie2 -x paternal_index -1 R1.fq -2 R2.fq -S paternal.sam
 
-# AlleleSeq pipeline
-AlleleSeq2.pl SAMPLE maternal.sam paternal.sam genotype.vcf
+# AlleleSeq2 pipeline (Makefile-based; there is no AlleleSeq2.pl entry point)
+make -f PIPELINE.mk PGENOME_DIR=personalized/ REFGENOME_VERSION=GRCh38 ALIGNMENT_MODE=ASB NTHR=8
 
 # Output: per-hetSNP allelic counts and binomial test
 ```
@@ -172,7 +169,9 @@ Imprinted loci (H19, IGF2, MEG3, MEG8, KCNQ1OT1, etc.) show extreme allele bias 
 
 ```bash
 # Filter imprinted loci before ASB analysis
-wget https://imprintingdiseases.org/data/imprinted_loci_hg38.bed
+# Imprinted-gene coordinates are derived from a catalog (geneimprint.com or the
+# Otago Imprinted Gene Catalogue, igc.otago.ac.nz) mapped to hg38; there is no
+# canonical hosted hg38 BED. Given imprinted_loci_hg38.bed:
 bedtools intersect -v -a hetSNPs.bed -b imprinted_loci_hg38.bed > hetSNPs.non_imprinted.bed
 ```
 
@@ -221,7 +220,7 @@ In cancer cells, copy-number gain of one allele alters effective allele dose; ra
 
 **Mechanism:** EM convergence requires enough hetSNPs per feature; sparse data underspecifies the model.
 
-**Fix:** Increase `--imputation-r2-cutoff` to require well-imputed SNPs; combine replicates; or switch to BaalChIP for sparse-data robustness.
+**Fix:** Require well-imputed SNPs (`--imputation-quality-fsnp`); combine replicates; or switch to BaalChIP for sparse-data robustness.
 
 ### BaalChIP -- CN file mismatch
 
@@ -282,9 +281,9 @@ In cancer cells, copy-number gain of one allele alters effective allele dose; ra
 
 | Error / symptom | Cause | Solution |
 |-----------------|-------|----------|
-| WASP `find_intersecting_snps.py` fails | h5 SNP table format wrong | Convert from VCF via WASP's `extract_vcf.py` |
+| WASP `find_intersecting_snps.py` fails | h5 SNP table format wrong | Build SNP tables from VCF via `snp2h5` (HDF5) or `extract_vcf_snps.sh` (text SNP dir) |
 | BaalChIP "no overlap with peaks" | hetSNP and peak chrom naming mismatch | Standardize chrom prefixes |
-| RASQUAL OOM | Window too large; too many features | Reduce `--window`; chunk feature list |
+| RASQUAL OOM | cis-window too large; too many features | Narrow the cis-window (tabix region and `-l`/`-m`); chunk feature list |
 | AlleleSeq "diploid genome too large" | Many SVs in genome | Use small-variant only VCF; exclude SV-rich regions |
 | ASB calls cluster at REF allele | WASP not applied OR insufficient | Re-run WASP with sample-specific SNP file |
 | Many ASB at chrX in female | X-inactivation | Filter chrX |

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reference: bowtie2 2.5+, samtools 1.19+, bedtools 2.31+, SEACR 1.4+, MACS2 2.2.9+, cutadapt 4.6+ | Verify API if version differs
+# Reference: bowtie2 2.5+, samtools 1.19+, bedtools 2.31+, SEACR 1.3+, MACS2 2.2.9+, cutadapt 4.6+ | Verify API if version differs
 # CUT&RUN / CUT&Tag end-to-end pipeline: adapter trim, bowtie2 align to combined
 # host + E. coli genome, fragment bedgraph generation, SEACR + MACS2 consensus
 # peak calling, spike-in scaling factor calculation.
@@ -87,10 +87,10 @@ bedtools genomecov -bg -i $OUT/fragments.bed -g $HG38_SIZES > $OUT/aln.bedgraph
 # norm = scale target to IgG distribution; stringent = top-half of signal blocks.
 # "non" requires upstream spike-in scaling; default to "norm" otherwise.
 if [ -n "$IGG_BG" ] && [ -f "$IGG_BG" ]; then
-    bash SEACR_1.4.sh $OUT/aln.bedgraph $IGG_BG norm stringent $OUT/${SAMPLE}_SEACR
+    bash SEACR_1.3.sh $OUT/aln.bedgraph $IGG_BG norm stringent $OUT/${SAMPLE}_SEACR
     echo "SEACR with IgG control: $OUT/${SAMPLE}_SEACR.stringent.bed"
 else
-    bash SEACR_1.4.sh $OUT/aln.bedgraph 0.01 non stringent $OUT/${SAMPLE}_SEACR_top
+    bash SEACR_1.3.sh $OUT/aln.bedgraph 0.01 non stringent $OUT/${SAMPLE}_SEACR_top
     echo "SEACR top-1% (no IgG): $OUT/${SAMPLE}_SEACR_top.stringent.bed"
 fi
 
@@ -111,7 +111,7 @@ macs2 callpeak \
 
 
 # === 8. Consensus: intersection of SEACR and MACS2 ===
-# Per btaf375 2025 benchmark, MACS2 + SEACR consensus is recommended for publication.
+# A conservative MACS2 + SEACR consensus (two-caller intersection) gives a high-confidence peak set.
 if [ -f $OUT/${SAMPLE}_SEACR.stringent.bed ]; then
     SEACR_BED=$OUT/${SAMPLE}_SEACR.stringent.bed
 else

@@ -11,7 +11,7 @@ Analyze CUT&RUN (Skene & Henikoff 2017) and CUT&Tag (Kaya-Okur et al 2019) chrom
 conda install -c bioconda bowtie2 samtools bedtools
 
 # Peak callers
-git clone https://github.com/FredHutch/SEACR.git    # SEACR_1.4+
+git clone https://github.com/FredHutch/SEACR.git    # default branch ships SEACR_1.3.sh
 conda install -c bioconda macs2 macs3
 
 # Optional alternatives
@@ -69,7 +69,7 @@ Tell the agent what to do:
 3. **Peak calling decision:**
    - Sharp marks (H3K4me3, TFs): MACS2 with `-f BAMPE --keep-dup all`
    - Broad marks (H3K27me3): SEACR with `norm stringent` + IgG
-   - Publication-grade: MACS2 + SEACR consensus (per btaf375 2025)
+   - Publication-grade: multi-caller consensus (conservative two-caller intersection)
 4. **Generate bedgraph for SEACR** from paired-end fragments (NOT bigWig)
 5. **Run SEACR** with appropriate mode:
    - `norm stringent` + IgG (recommended default)
@@ -122,7 +122,7 @@ Indicates poor Tn5 activity or over-tagmentation. Re-do with titrated Tn5; verif
 ### MACS2 peak calling produces few peaks
 
 1. `-f BAM` instead of `-f BAMPE` -> switch
-2. `--keep-dup auto` removed CUT&Tag biology -> use `--keep-dup all`
+2. `--keep-dup 1` (MACS default) removed CUT&Tag biology -> use `--keep-dup all`
 3. `-q 0.05` too lenient for very-low-background CUT&Tag -> tighten to `-q 0.01`
 4. Library too shallow -> 3-5M reads minimum
 

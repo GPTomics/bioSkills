@@ -2,7 +2,7 @@
 
 ## Overview
 
-Apply base-resolution deep learning models to ChIP-seq, ChIP-nexus, and CUT&RUN data for variant-effect prediction, motif syntax discovery, and sequence-only signal prediction. Covers BPNet (Avsec 2021), chromBPNet (Pampari Avsec 2024/2025), EnFormer (Avsec 2021), DeepSEA, and the JASPAR 2026 Deep Learning collection (1259 precomputed BPNet ChIP models). Embeds in silico mutagenesis (counterfactual variant prediction), TF-MoDISco motif discovery from attribution scores, and model-ensemble uncertainty estimation.
+Apply base-resolution deep learning models to ChIP-seq, ChIP-nexus, and CUT&RUN data for variant-effect prediction, motif syntax discovery, and sequence-only signal prediction. Covers BPNet (Avsec 2021), chromBPNet (Pampari et al 2024 bioRxiv), EnFormer (Avsec 2021), DeepSEA, and the JASPAR 2026 Deep Learning collection (1259 precomputed BPNet ChIP models). Embeds in silico mutagenesis (counterfactual variant prediction), TF-MoDISco motif discovery from attribution scores, and model-ensemble uncertainty estimation.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ Tell the agent what to do:
 - "Predict the effect of a SNP on TF binding using in silico mutagenesis with chromBPNet"
 - "Run TF-MoDISco on attribution scores from a trained BPNet model to discover motif syntax"
 - "Use a precomputed JASPAR 2026 BPNet model to score a list of GWAS variants for TF binding effects"
-- "Apply EnFormer for variant effect prediction with 200 kb receptive field (captures distal regulatory effects)"
+- "Apply EnFormer for variant effect prediction (196 kb input window, ~100 kb effective receptive field; captures distal regulatory effects)"
 - "Compare chromBPNet and EnFormer variant predictions for a list of fine-mapped SNPs"
 
 ## Example Prompts
@@ -57,7 +57,7 @@ Tell the agent what to do:
 > "Predict the same variant effect with chromBPNet and EnFormer. If they agree (both |log2_fc| > 1 in same direction), high-confidence functional variant. If they disagree, low-confidence."
 
 ### Long-range prediction
-> "Use EnFormer's 200 kb receptive field to predict whether a distal enhancer SNP affects target gene expression. Native EnFormer outputs include CAGE-seq signal at TSS."
+> "Use EnFormer's long-range model (196 kb input window, ~100 kb effective receptive field) to predict whether a distal enhancer SNP affects target gene expression. Native EnFormer outputs include CAGE-seq signal at TSS."
 
 ### Ensemble uncertainty
 > "Train 5 chromBPNet replicate models with different seeds. Report ensemble mean + std for each variant. High std indicates model extrapolation; low std with consistent prediction is high-confidence."

@@ -74,13 +74,13 @@ Tell your AI agent what you want to do:
 ## Tips
 
 - **The estimand comes FIRST.** Kahan 2023 *Am J Epidemiol* 192:987: 98% of published trials don't articulate the estimand. Define 5 ICH E9(R1) attributes BEFORE choosing the method.
-- **Aducanumab (2021)** is the textbook case where MAR-primary in trial with high differential missingness was regulator-divisive (6-1 AdCom against). Switch to treatment-policy + reference-based MI when differential dropout suggests informative missingness.
+- **Aducanumab (2021)** is the textbook case where MAR-primary in trial with high differential missingness was regulator-divisive (the Nov 2020 AdCom voted overwhelmingly against; FDA approved in June 2021 anyway). Switch to treatment-policy + reference-based MI when differential dropout suggests informative missingness.
 - **Aprocitentan (2024) precedent** is now the de facto FDA standard: hybrid imputation -- J2R for treatment-discontinuation ICEs, MMRM-MAR for other missingness.
 - **Wegovy/Ozempic STEP precedent:** retrieved-dropout MI for treatment-policy when post-ICE data collected (FDA 2025 obesity guidance endorses).
 - **MMRM with Kenward-Roger** is the FDA-favoured continuous-endpoint analysis. `mmrm` package `method = "Kenward-Roger-Linear"` matches SAS PROC MIXED bit-for-bit. Pre-specify the convergence fallback hierarchy in the SAP.
 - **Reference-based MI variance debate (Cro vs Bartlett) is unsettled.** Report both Rubin's (information-anchored per Cro 2019) AND frequentist (CMI+jackknife per Wolbers 2022) for safety.
 - **Permutt tipping-point delta should be in residual SD units** (FDA preference) for cross-trial comparison.
-- **LOCF is biased even under MCAR** (Mallinckrodt 2008). NRC 2010 Rec 11 rejects LOCF. Don't use as "conservative" sensitivity.
+- **LOCF is biased even under MCAR** (Mallinckrodt 2008). NRC 2010 Rec 10 rejects LOCF. Don't use as "conservative" sensitivity.
 - **Selection models (Diggle-Kenward) should be sensitivity only.** FDA prefers pattern-mixture (reference-based MI) because it is clinically articulable.
 - **`sklearn.IterativeImputer` caveats:** `sample_posterior=True` only works with BayesianRidge (silently ignored otherwise). For confirmatory work, use R `rbmi` or `mice`.
 - **Imputation model must be congenial** with analysis model (Meng 1994). If analysis includes interactions, imputation must too.
@@ -98,7 +98,7 @@ Tell your AI agent what you want to do:
 - clinical-biostatistics/missing-data-sensitivity - MMRM/rbmi/tipping-point in depth
 - clinical-biostatistics/multiplicity-graphical - Bretz-Maurer graphs for co-primary
 - clinical-biostatistics/survival-analysis - Time-to-event estimand framing
-- clinical-biostatistics/power-and-sample-size - Sample size justification per CONSORT 2025 item 7
+- clinical-biostatistics/power-and-sample-size - Sample size justification per CONSORT 2025 item 16a
 - clinical-biostatistics/adaptive-designs - Adaptive trial reporting
 - clinical-biostatistics/bayesian-trials - Bayesian inference reporting
 - reporting/rmarkdown-reports - Formatted statistical report generation

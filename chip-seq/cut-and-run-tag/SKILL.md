@@ -7,7 +7,7 @@ primary_tool: SEACR
 
 ## Version Compatibility
 
-Reference examples tested with: SEACR 1.4+, MACS2 2.2.9+, MACS3 3.0.4+, samtools 1.19+, bowtie2 2.5+, bedtools 2.31+, deepTools 3.5+, GoPeaks 1.0+, LanceOtron (pip).
+Reference examples tested with: SEACR 1.3+, MACS2 2.2.9+, MACS3 3.0.4+, samtools 1.19+, bowtie2 2.5+, bedtools 2.31+, deepTools 3.5+, GoPeaks 1.0+, LanceOtron (pip).
 
 # CUT&RUN / CUT&Tag
 
@@ -40,13 +40,12 @@ CUT&RUN/CUT&Tag has different QC thresholds, different peak calling defaults, di
 | **MACS2 `-f BAMPE --keep-dup all`** | Local Poisson | Familiar; integrates well with downstream tools (DiffBind) | Default `-q 0.05` may be too lenient for low-background CUT&Tag; consider `-q 0.01` |
 | **GoPeaks** (Yashar 2022) | Sliding-window thresholding | Broad-mark-oriented; faster than SEACR on broad data | Newer; smaller user base |
 | **LanceOtron** (Hentges 2022) | CNN trained on ENCODE peaks | Parameter-free; handles both narrow and broad | Less validated for CUT&RUN/Tag specifically; web-only or pip |
-| **MACS2 + SEACR consensus** | Intersection | Highest confidence; per 2025 btaf375 benchmark, best for cross-paper reproducibility | Most conservative; may miss true peaks at marginal regions |
+| **MACS2 + SEACR consensus** | Intersection | Highest confidence; conservative two-caller intersection | Most conservative; may miss true peaks at marginal regions |
 
-**2025 benchmark (Bioinformatics btaf375):**
+**2025 benchmark (Bioinformatics 41:btaf375, Nooranikhojasteh et al):** benchmarked MACS2, SEACR, GoPeaks and LanceOtron on CUT&RUN.
 - MACS2 better for sharp peaks (H3K4me3, TFs)
-- SEACR better for broad signal (H3K27me3)
-- MACS2 + SEACR consensus best for publication-grade peak sets
-- "norm stringent" + IgG is the recommended SEACR default
+- SEACR gave the highest signal-to-noise across marks
+- No single caller is universally optimal; the study favors careful parameter tuning or ensemble/consensus approaches over any single tool
 
 ## SEACR Workflow (Canonical CUT&RUN/Tag Caller)
 
@@ -76,11 +75,11 @@ bedtools genomecov -bg -i aln.fragments.bed -g hg38.chrom.sizes > aln.bedgraph
 
 # 5. SEACR with stringent + norm + IgG control (recommended default).
 # Final argument is the OUTPUT PREFIX; SEACR appends ".stringent.bed" / ".relaxed.bed".
-bash SEACR_1.4.sh aln.bedgraph igg.bedgraph norm stringent target_peaks
+bash SEACR_1.3.sh aln.bedgraph igg.bedgraph norm stringent target_peaks
 # Output file: target_peaks.stringent.bed
 
 # Alternative: no IgG control, use top 1% of peaks
-# bash SEACR_1.4.sh aln.bedgraph 0.01 non stringent target_peaks
+# bash SEACR_1.3.sh aln.bedgraph 0.01 non stringent target_peaks
 ```
 
 **SEACR mode selection:**
@@ -88,8 +87,8 @@ bash SEACR_1.4.sh aln.bedgraph igg.bedgraph norm stringent target_peaks
 - `non`: use ONLY if upstream spike-in normalization was applied; otherwise use `norm`
 - `stringent`: top-half of signal blocks (recommended default)
 - `relaxed`: full distribution (use only for very sparse signal)
-- IgG control: `bash SEACR_1.4.sh target.bg igg.bg norm stringent out_prefix` -> writes `out_prefix.stringent.bed`
-- Top-X% without IgG: `bash SEACR_1.4.sh target.bg 0.01 non stringent out_prefix` -> writes `out_prefix.stringent.bed`
+- IgG control: `bash SEACR_1.3.sh target.bg igg.bg norm stringent out_prefix` -> writes `out_prefix.stringent.bed`
+- Top-X% without IgG: `bash SEACR_1.3.sh target.bg 0.01 non stringent out_prefix` -> writes `out_prefix.stringent.bed`
 
 ## E. coli Spike-In Carryover (Automatic Spike-In)
 
@@ -128,7 +127,7 @@ The carryover is variable between batches of bacterial production; single-experi
 | Spike-in alignment | Deliberate (Drosophila); 0.5-5% | Automatic E. coli; 0.5-5% |
 | Cell input | 1-10M | 5,000-100,000 |
 
-**Critical: `--keep-dup all` in MACS for CUT&Tag.** PCR cycles are 12-15 (vs 5-8 for ChIP); duplicates at high-coverage TF binding sites contain biology. Standard ChIP convention `--keep-dup auto` will over-deduplicate CUT&Tag data.
+**Critical: `--keep-dup all` in MACS for CUT&Tag.** PCR cycles are 12-15 (vs 5-8 for ChIP); duplicates at high-coverage TF binding sites contain biology. The MACS default `--keep-dup 1` (keeps one read per position) will over-deduplicate CUT&Tag data.
 
 ## Fragment Size as Diagnostic (Critical for CUT&Tag)
 
@@ -158,7 +157,7 @@ Expected for CUT&RUN:
 
 **Fix:** Default to `norm stringent` with IgG control. Use `non` only when upstream spike-in scaling has been applied.
 
-### CUT&Tag MACS2 -- Default `--keep-dup auto` removes biology
+### CUT&Tag MACS2 -- Default `--keep-dup 1` removes biology
 
 **Trigger:** Using MACS2 default dedup settings on CUT&Tag.
 
@@ -241,12 +240,12 @@ Expected for CUT&RUN:
 - Kaya-Okur HS et al 2019 Nat Commun 10:1930 (CUT&Tag)
 - Kaya-Okur HS et al 2020 Nat Protoc 15:3264 (CUT&Tag protocol)
 - Meers MP et al 2019 Epigenetics Chromatin 12:42 (SEACR)
-- 2025 Bioinformatics btaf375 (CUT&RUN peak caller benchmark: MACS2 + SEACR consensus)
-- Yashar A et al 2022 Bioinformatics Adv 2:vbac085 (GoPeaks)
+- Nooranikhojasteh A et al 2025 Bioinformatics 41:btaf375 (CUT&RUN peak-caller benchmark)
+- Yashar WM et al 2022 Genome Biol 23:144 (GoPeaks)
 - Hentges LD et al 2022 Bioinformatics 38:4255 (LanceOtron)
 - Bartosovic M Kabbe M & Castelo-Branco G 2021 Nat Biotechnol 39:825 (scCUT&Tag)
-- Henikoff S et al 2021 STAR Protocols 2:100822 (AutoCut&Tag)
-- 2024 Nat Methods (scNanoSeq-CUT&Tag long-read scCUT&Tag)
+- Janssens DH et al 2021 Nat Genet 53:1586 (AutoCUT&Tag)
+- Li Q et al 2024 Nat Methods 21:2044 (scNanoSeq-CUT&Tag, long-read single-cell CUT&Tag)
 
 ## Related Skills
 

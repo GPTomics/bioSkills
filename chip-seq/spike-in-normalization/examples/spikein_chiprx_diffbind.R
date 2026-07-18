@@ -5,9 +5,10 @@
 # validation. Required for HDAC/BET/EZH2 inhibitor experiments and any setting
 # where reads-in-peaks normalization would force median log2FC to zero.
 #
-# Hammond Norris 2024 review: ~25% of published spike-in ChIP papers have
-# errors detectable from methods (peak-count vs read-level application, missing
-# deduplication, wrong inverse convention). This script implements the validated
+# Patel et al 2024 (Nat Biotechnol) survey: improper spike-in normalization is
+# common (only ~half of surveyed datasets had adequate matched inputs). Typical
+# errors detectable from methods: peak-count vs read-level application, missing
+# deduplication, wrong inverse convention. This script implements the validated
 # pipeline.
 
 suppressPackageStartupMessages({
@@ -20,8 +21,8 @@ suppressPackageStartupMessages({
 
 # === 1. Spike-in read counts per sample ===
 # These must come from POST-dedup, POST-mapq-30 alignments to the spike genome.
-# Recommended cell counts: 50,000 Drosophila S2 nuclei per 5M target cells
-# (Egan 2016 protocol). Add BEFORE IP, not after.
+# Egan 2016 spikes a fixed MASS of Drosophila S2 chromatin, matched to target
+# chromatin by the ~27:1 human:Drosophila genome-copy ratio. Add BEFORE IP, not after.
 spike_counts <- data.frame(
     SampleID = c('DMSO_1', 'DMSO_2', 'DMSO_3', 'JQ1_1', 'JQ1_2', 'JQ1_3'),
     Condition = c('DMSO', 'DMSO', 'DMSO', 'JQ1', 'JQ1', 'JQ1'),
@@ -36,7 +37,7 @@ stopifnot(all(spike_counts$spike_frac > 0.001 & spike_counts$spike_frac < 0.1))
 
 # === 2. Compute scaling factors (RRPM convention) ===
 # RRPM: scale_factor_i = min(spike_reads) / spike_reads_i
-# Sample with fewest spike reads gets scale_factor = 1; others get > 1.
+# Sample with fewest spike reads gets scale_factor = 1 (the max); others get < 1.
 spike_counts$scale_factor <- min(spike_counts$Drosophila_reads) / spike_counts$Drosophila_reads
 cat('Scaling factors:\n')
 print(spike_counts[, c('SampleID', 'Drosophila_reads', 'scale_factor')])
@@ -61,9 +62,10 @@ write.csv(samples_df, 'samples.csv', row.names = FALSE)
 dba_obj <- dba(sampleSheet = 'samples.csv')
 dba_obj <- dba.count(dba_obj, summits = 250, minOverlap = 2, bParallel = TRUE)
 
-# Spike-in normalization; verify what was applied
+# Spike-in normalization; verify what was applied.
+# Under spikein = TRUE, DiffBind forces library = DBA_LIBSIZE_BACKGROUND, so an
+# explicit `library` is overridden; leave it out to avoid implying otherwise.
 dba_obj <- dba.normalize(dba_obj, spikein = TRUE,
-                          library = DBA_LIBSIZE_FULL,
                           normalize = DBA_NORM_LIB)
 applied <- dba.normalize(dba_obj, bRetrieve = TRUE)
 print(applied)
@@ -78,15 +80,16 @@ cat('Significant differential peaks (FDR <0.05):', length(db_sig), '\n')
 
 
 # === 4. Alternative: DESeq2 direct with inverse convention ===
-# DESeq2 sizeFactors are MULTIPLIED to normalized counts; spike-in scaling
-# factors should DIVIDE. So apply INVERSE.
+# DESeq2 DIVIDES counts by sizeFactors (normalized = counts / sizeFactor). To apply a
+# read-level scale_factor as a multiplier, set sizeFactor = 1 / scale_factor (INVERSE).
 counts <- as.matrix(read.delim('peak_counts.tsv', row.names = 1, check.names = FALSE))
 coldata <- data.frame(condition = factor(spike_counts$Condition),
                        row.names = spike_counts$SampleID)
 dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata,
                                design = ~ condition)
 
-# Inverse convention; sample with smallest scale_factor (= 1) gets largest sizeFactor
+# Inverse convention; sample with the largest scale_factor (= 1) gets the smallest
+# sizeFactor, and samples with smaller scale_factors get larger sizeFactors
 sizeFactors(dds) <- 1 / spike_counts$scale_factor
 dds$condition <- relevel(dds$condition, ref = 'DMSO')
 dds <- DESeq(dds, fitType = 'parametric')

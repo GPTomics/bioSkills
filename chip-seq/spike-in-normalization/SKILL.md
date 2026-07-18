@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-spike-in-normalization
-description: Normalizes ChIP-seq data using exogenous spike-in (ChIP-Rx with Drosophila chromatin per Orlando 2014 / Egan 2016; E. coli carryover for CUT&RUN/CUT&Tag). Distinguishes RRPM from Rx-Input scaling, integrates with DiffBind / DESeq2 / edgeR / csaw via sizeFactors and DiffBind library-size vectors, and applies the Patel et al 2024 *Nat Biotechnol* review's failure-mode framework to validate that normalization is correctly applied at the read level (not peak counts). Use when global signal shifts are expected (HDACi, BETi, EZH2i, dosage, target knockdown), when ChIPseqSpikeInFree detects post-hoc shifts, or when validating internal-control regions before publication.
+description: Normalizes ChIP-seq data using exogenous spike-in (ChIP-Rx with Drosophila chromatin per Orlando 2014 / Egan 2016; E. coli carryover for CUT&RUN/CUT&Tag). Distinguishes RRPM from Rx-Input scaling, integrates with DiffBind / DESeq2 / edgeR / csaw via sizeFactors and DiffBind library-size vectors, applies the Patel et al 2024 *Nat Biotechnol* failure-mode framework, and validates that normalization is applied at the read level (not peak counts). Use when global signal shifts are expected (HDACi, BETi, EZH2i, dosage, target knockdown), when ChIPseqSpikeInFree detects post-hoc shifts, or when validating internal-control regions before publication.
 tool_type: mixed
 primary_tool: DiffBind
 ---
@@ -16,11 +16,11 @@ Reference examples tested with: DiffBind 3.20+, DESeq2 1.42+, edgeR 4.0+, csaw 1
 - CLI: align reads to combined target + spike genome; count spike reads via `samtools view -c`
 - R (DiffBind integration): `dba.normalize(obj, spikein = TRUE)`
 - R (DESeq2 / edgeR): `sizeFactors(dds) <- 1 / scale_factors` (note inverse)
-- CLI (deepTools tracks): `bamCoverage --scaleFactor <derived>` (mutually exclusive with `--normalizeUsing`)
+- CLI (deepTools tracks): `bamCoverage --scaleFactor <derived>` (use alone; `--normalizeUsing` compounds with it)
 - Wrapper: SpikeFlow (Snakemake; 2024) automates end-to-end
 - Post-hoc detection: ChIPseqSpikeInFree (when no spike-in was added)
 
-The fundamental rule: spike-in scaling is applied at the READ level (via size factors or `--scaleFactor`), never multiplied into peak counts. ~25% of published spike-in ChIP papers violate this (Patel L et al 2024 *Nat Biotechnol* 42:1343).
+The fundamental rule: spike-in scaling is applied at the READ level (via size factors or `--scaleFactor`), never multiplied into peak counts. This is a common implementation error in published spike-in ChIP.
 
 ## When Spike-In Is Required
 
@@ -44,10 +44,10 @@ The fundamental rule: spike-in scaling is applied at the READ level (via size fa
 
 | Protocol | Spike organism | Added when | Notes |
 |----------|----------------|------------|-------|
-| **ChIP-Rx** (Orlando 2014) | Drosophila S2 nuclei | After lysis, before IP | 50k Drosophila nuclei per 5M target cells (Egan 2016) |
+| **ChIP-Rx** (Orlando 2014) | Drosophila S2 nuclei | After lysis, before IP | fixed Drosophila chromatin mass, ~27:1 human:Drosophila genome-copy ratio (Egan 2016) |
 | **ChIP-Rx variant** (Bonhoure 2014) | Drosophila chromatin | After fragmentation, before IP | Different normalization layer |
 | **CUT&RUN/Tag E. coli** | E. coli (carryover) | Automatic from bacterial pA-MNase/Tn5 | Free; variable across enzyme batches |
-| **Heterologous spike-in** (Hu 2015) | Defined yeast / E. coli chromatin | Added at lysis | Less common; defined concentration |
+| **Heterologous spike-in** | Defined yeast / E. coli chromatin | Added at lysis | Less common; defined concentration |
 | **xenoChIP** | Species swap (mouse cells + human chromatin spike) | Before IP | Niche; specific cancer xenograft contexts |
 
 **The dominant standard for human/mouse ChIP is Drosophila (ChIP-Rx).** Drosophila is genetically distinct enough that mapping is unambiguous, and the genome size (~140 Mb) gives adequate read depth at small chromatin input.
@@ -60,7 +60,7 @@ The fundamental rule: spike-in scaling is applied at the READ level (via size fa
 scale_factor_i = min(N_spike) / N_spike_i
 ```
 
-Apply at the read level. The sample with the fewest spike reads gets scale_factor = 1; others get > 1 (compensating for less observed spike chromatin).
+Apply at the read level. The sample with the fewest spike reads gets scale_factor = 1 (the maximum); others get < 1 (scaled down because they recovered more spike chromatin).
 
 **Rx-Input (Fursova 2019):** additionally scales by input spike-in to correct IP efficiency variation.
 
@@ -129,7 +129,7 @@ awk 'BEGIN{min=1e10} NR>1{if($2<min) min=$2} END{print "min:", min}' droso_count
 SCALE=$(echo "scale=6; $MIN_DROSO / $SAMPLE_DROSO" | bc)
 bamCoverage -b sample.bam -o sample.scaled.bw \
     --scaleFactor $SCALE --binSize 10 --extendReads 200
-# DO NOT also pass --normalizeUsing; mutually exclusive
+# DO NOT also pass --normalizeUsing; deepTools multiplies the two factors together, reintroducing depth normalization
 ```
 
 **Layer 2: DiffBind**
@@ -139,9 +139,8 @@ library(DiffBind)
 dba_obj <- dba(sampleSheet = 'samples.csv')   # spike-in BAM in sample sheet
 dba_obj <- dba.count(dba_obj, summits = 250, bParallel = TRUE)
 
-# Spike-in normalization
+# Spike-in normalization (spikein = TRUE forces library = DBA_LIBSIZE_BACKGROUND internally)
 dba_obj <- dba.normalize(dba_obj, spikein = TRUE,
-                          library = DBA_LIBSIZE_FULL,
                           normalize = DBA_NORM_LIB)
 
 # Verify what was applied
@@ -225,7 +224,7 @@ bedtools multicov -bams ctrl_1.bam ctrl_2.bam treat_1.bam treat_2.bam \
 # Apply scaling factors to per-sample counts; verify no shift across conditions
 ```
 
-If internal controls shift after scaling, the normalization is broken. Common causes (Patel L et al 2024 *Nat Biotechnol* 42:1343):
+If internal controls shift after scaling, the normalization is broken. Common causes:
 1. Scaling applied to peak counts instead of read counts
 2. Spike-in reads not deduplicated before scaling
 3. Spike-in genome not mapq-filtered (low-quality alignments inflated counts)
@@ -265,7 +264,7 @@ If internal controls shift after scaling, the normalization is broken. Common ca
 
 **Trigger:** Passing `scale_factors` directly to `sizeFactors(dds)` without inversion.
 
-**Mechanism:** DESeq2 / edgeR `sizeFactors` are MULTIPLIED to normalized counts; spike-in scaling factors should DIVIDE. Convention difference.
+**Mechanism:** DESeq2 / edgeR DIVIDE counts by `sizeFactors` (normalized = counts / sizeFactor); a read-level spike-in scale factor multiplies reads, so it must be applied as its inverse. Convention difference.
 
 **Symptom:** Effect sizes inverted (treatment shifted in wrong direction).
 
@@ -275,7 +274,7 @@ If internal controls shift after scaling, the normalization is broken. Common ca
 
 **Trigger:** Passing both for spike-in scaled bigWig.
 
-**Mechanism:** deepTools applies scaleFactor first, then normalizes; normalization undoes the scale.
+**Mechanism:** deepTools multiplies the `--scaleFactor` value by the factor computed from `--normalizeUsing`; adding `--normalizeUsing` therefore reintroduces library-depth normalization on top of the spike-in factor. The default `--normalizeUsing None` leaves `--scaleFactor` acting alone.
 
 **Fix:** Use ONE: `--scaleFactor` alone for spike-in; `--normalizeUsing` alone otherwise. Verify via `bamCoverage --help`.
 
@@ -321,17 +320,16 @@ If internal controls shift after scaling, the normalization is broken. Common ca
 |-----------------|-------|----------|
 | Spike-in BAM column missing in DiffBind sample sheet | `bamSpikeIn` (DiffBind 3.x) vs older `spikein` field | Use `spikein = TRUE` in `dba.normalize()` with appropriate column |
 | Drosophila reads on chromosome X include host chrX | Combined genome chromosome naming collision | Prefix Drosophila chroms with `dm_` before combining |
-| Scaling factors all close to 1 | Spike-in not added at fixed amount | Verify Egan 2016 protocol; titrate per cell count |
+| Scaling factors all close to 1 | Spike-in not added at fixed amount | Verify Egan 2016 protocol; titrate the spike-in chromatin mass |
 | Cross-condition results sign-flipped after scaling | Inverse convention bug | `sizeFactors(dds) <- 1 / scale_factors` |
-| Blacklist signal shifts post-scaling | Normalization broken | Investigate per Patel L 2024 *Nat Biotechnol* 42:1343 failure modes |
+| Blacklist signal shifts post-scaling | Normalization broken | Investigate spike-in scaling failure modes (peak-count vs read-level, dedup, mapq) |
 
 ## References
 
 - Orlando DA et al 2014 Cell Rep 9:1163 (ChIP-Rx framework)
-- Egan B et al 2016 PLoS One 11:e0166438 (ChIP-Rx protocol with cell counts)
+- Egan B et al 2016 PLoS One 11:e0166438 (ChIP-Rx protocol; fixed Drosophila chromatin mass)
 - Bonhoure N et al 2014 Genome Res 24:1157 (alternative Drosophila spike-in)
 - Fursova NA et al 2019 Mol Cell 74:1020 (Rx-Input scaling)
-- Hu B et al 2015 PLoS One 10:e0145007 (heterologous spike-in)
 - Jin H et al 2020 Bioinformatics 36:1270 (ChIPseqSpikeInFree)
 - Blanco E et al 2021 NAR Genom Bioinform 3:lqab064 (SpikChIP)
 - 2024 NAR Genom Bioinform 6:lqae118 (SpikeFlow)

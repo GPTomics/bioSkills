@@ -59,7 +59,7 @@ Confirmatory clinical trials use FWER essentially universally.
 - Hommel G 1988 *Biometrika* 75:383 (closed Simes; dominates Hochberg)
 - Sarkar SK 1998/2008 *Ann Stat* (PRDS for Hochberg validity)
 - Bretz F, Maurer W, Brannath W, Posch M 2009 *Stat Med* 28:586 (graphical procedures — foundational paper)
-- Bretz F, Posch K, Glimm E, Klinglmueller F, Maurer W, Rohmeyer K 2011 *Biom J* 53:894 (Simes/parametric extensions)
+- Bretz F, Posch M, Glimm E, Klinglmueller F, Maurer W, Rohmeyer K 2011 *Biom J* 53:894 (Simes/parametric extensions)
 - Maurer W, Bretz F 2013 *Stat Med* 32:1739 (entangled graphs / memory)
 - Dmitrienko A, Offen WW, Westfall PH 2003 *Stat Med* 22:2387 (parallel gatekeeping)
 - Dmitrienko A, Tamhane AC, Wiens B 2008 *Biom J* (mixed/multistage gatekeeping)
@@ -77,7 +77,7 @@ Confirmatory clinical trials use FWER essentially universally.
 | Primary endpoint + tipping-point sensitivity | No multiplicity adjustment needed for sensitivity | Sensitivity is "what if" not "another claim" |
 | Many exploratory biomarker subgroups | Benjamini-Hochberg FDR | Exploratory; not for label claims |
 | Win-ratio composite (cardiology) | Single test; no multiplicity | Composite captures multiple events in single hierarchy |
-| Subgroup analysis (pre-specified) | Graphical alpha allocation; small budget (≤20%) per Dane 2019 | Confirmatory subgroup discovery requires explicit allocation |
+| Subgroup analysis (pre-specified) | Graphical alpha allocation; small budget (≤20% by convention); see Dane 2019 for subgroup discipline | Confirmatory subgroup discovery requires explicit allocation |
 | Adaptive trial with treatment arm dropping | Combination tests (Bauer-Köhne 1994) + closed testing | See clinical-biostatistics/adaptive-designs |
 | Group-sequential with multiple endpoints | gsDesign or rpact with multivariate alpha spending | Hierarchical alpha across both time and endpoints |
 
@@ -174,7 +174,7 @@ Secondary family is tested only if *at least one* primary rejects. Bonferroni-ba
 
 Permits using any closed-testing local procedure (e.g., Holm in family 1, Hommel in family 2) and combining via closure principle. R `gMCP::generalMixGatekeeping` or `Mediana`/`MultXpert` packages.
 
-**Postdoc tradeoff:** parallel gatekeeping power loss vs collapsing endpoints into a composite (which avoids multiplicity but dilutes effect if components move in opposite directions); whether tree gatekeeping (Dmitrienko 2008 *Stat Med* 27:2114) over-engineers vs equivalent graphical procedure.
+**Postdoc tradeoff:** parallel gatekeeping power loss vs collapsing endpoints into a composite (which avoids multiplicity but dilutes effect if components move in opposite directions); whether tree gatekeeping (Dmitrienko et al 2008 *Stat Med* 27:3446) over-engineers vs equivalent graphical procedure.
 
 ## Hochberg vs Hommel vs Holm
 
@@ -221,7 +221,7 @@ for method in ['holm', 'hochberg', 'hommel', 'bonferroni']:
 
 ## The "Almighty Primary Endpoint" Critique
 
-**Dmitrienko-D'Agostino 2017 *Stat Med* 36:4341 editorial** + 2024 *Pharm Stat* discussion: the dogma of a single primary endpoint causes systematic Type-II error inflation in trials with broad multi-domain benefit (heart failure drugs with effects on mortality, hospitalisation, symptoms, biomarkers).
+**Dmitrienko-D'Agostino 2017 *Stat Med* 36:4423 editorial** surveys progress in trial-multiplicity methodology. A recurring theme motivating that work: insisting on a single primary endpoint can lose power when a therapy has broad multi-domain benefit (heart failure drugs with effects on mortality, hospitalisation, symptoms, biomarkers) -- motivating composite endpoints, the win ratio, or multiple primary endpoints with explicit alpha allocation.
 
 **Win-ratio (Pocock-Ariti-Collier-Wang 2012)** and **hierarchical composite (DOOR/RADAR, Evans 2015)** are responses — they preserve a single inferential test while letting multiple endpoints contribute.
 
@@ -285,7 +285,7 @@ for method in ['holm', 'hochberg', 'hommel', 'bonferroni']:
 | FWER for confirmatory; FDR for exploratory | ICH E9; FDA 2022 Multiple Endpoints | Regulatory standard universally |
 | Bonferroni: ~10 tests -> 30-50% power loss | Sarkar 1998 PRDS | Conservative under positive dependence |
 | PRDS required for Hochberg validity | Sarkar 2008 *Ann Stat* | Otherwise Type-I inflated; fall back to Holm |
-| Subgroup α budget <=20% of total | Dane 2019 EFSPI white paper | Discipline against subgroup fishing |
+| Subgroup α budget <=20% of total (convention) | Dane 2019 EFSPI white paper (subgroup discipline) | Discipline against subgroup fishing |
 | Key secondary requires hierarchy in SAP | FDA 2022 Final | Labeling claims need Type-I-controlled test |
 | Composite avoids multiplicity but dilutes effect | Pocock 2012 *Eur Heart J* | Win-ratio captures heterogeneity in single test |
 
@@ -312,7 +312,7 @@ for method in ['holm', 'hochberg', 'hommel', 'bonferroni']:
 | "Why Hommel not Holm?" | PRDS holds (positive correlation among endpoints); Hommel dominates Holm by 1-3% with no Type-I cost |
 | "Why graph weights X, Y, Z?" | Clinical priority: primary > key secondary > exploratory; weights reflect labelling claim hierarchy |
 | "Are these endpoints positively correlated?" | Sensitivity analyses provided: Bonferroni, Holm, Hochberg, Hommel results all in CSR appendix; concordant |
-| "Where is alpha for the subgroup analysis?" | Pre-specified 20% of primary alpha allocated; cite Dane 2019 |
+| "Where is alpha for the subgroup analysis?" | Pre-specified 20% of primary alpha allocated (a common convention); cite Dane 2019 for subgroup discipline |
 | "Why not just composite endpoint?" | Composite would dilute differential effect on mortality vs hospitalisation; key-secondary hierarchy preserves component-level claims |
 | "PRDS check for Hochberg?" | Endpoints positively correlated via simulation under null; PRDS holds; Hochberg/Hommel valid |
 | "Sensitivity in the hierarchy?" | No — sensitivity is "what if" and does not require alpha. Listed as supportive not key secondary. |
@@ -320,7 +320,7 @@ for method in ['holm', 'hochberg', 'hommel', 'bonferroni']:
 ## References
 
 - Bretz F, Maurer W, Brannath W, Posch M. 2009. A graphical approach to sequentially rejective multiple test procedures. *Stat Med* 28:586-604.
-- Bretz F, Posch K, Glimm E, Klinglmueller F, Maurer W, Rohmeyer K. 2011. Graphical approaches for multiple comparison procedures using weighted Bonferroni, Simes, or parametric tests. *Biom J* 53:894-913.
+- Bretz F, Posch M, Glimm E, Klinglmueller F, Maurer W, Rohmeyer K. 2011. Graphical approaches for multiple comparison procedures using weighted Bonferroni, Simes, or parametric tests. *Biom J* 53:894-913.
 - Burman CF, Sonesson C, Guilbaud O. 2009. A recycling framework for the construction of Bonferroni-based multiple tests. *Stat Med* 28:739-761.
 - Dmitrienko A, Offen WW, Westfall PH. 2003. Gatekeeping strategies for clinical trials that do not require all primary effects to be significant. *Stat Med* 22:2387-2400.
 - Dmitrienko A, Tamhane AC, Wiens BL. 2008. General multistage gatekeeping procedures. *Biom J* 50:667-677.
@@ -331,7 +331,7 @@ for method in ['holm', 'hochberg', 'hommel', 'bonferroni']:
 - Holm S. 1979. A simple sequentially rejective multiple test procedure. *Scand J Stat* 6:65-70.
 - Hommel G. 1988. A stagewise rejective multiple test procedure based on a modified Bonferroni test. *Biometrika* 75:383-386.
 - Marcus R, Peritz E, Gabriel KR. 1976. On closed testing procedures with special reference to ordered analysis of variance. *Biometrika* 63:655-660.
-- Maurer W, Bretz F. 2013. A graphical approach to multiple testing in clinical trials with simultaneous testing of multiple hypotheses. *Stat Med* 32:1739-1753.
+- Maurer W, Bretz F. 2013. Memory and other properties of multiple test procedures generated by entangled graphs. *Stat Med* 32:1739-1753.
 - Pocock SJ, Ariti CA, Collier TJ, Wang D. 2012. The win ratio: a new approach to the analysis of composite endpoints in clinical trials. *Eur Heart J* 33:176-182.
 - Sarkar SK. 2008. Generalizing Simes' test and Hochberg's stepup procedure. *Ann Stat* 36:337-363.
 

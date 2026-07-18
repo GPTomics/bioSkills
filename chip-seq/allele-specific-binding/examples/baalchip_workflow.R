@@ -50,11 +50,11 @@ write.table(hetSNPs, 'HCC1395_hetSNPs_filtered.tsv', sep = '\t',
              quote = FALSE, row.names = FALSE)
 
 
-# === 3. CNV file for copy-number-aware overdispersion ===
-# REQUIRED for cancer samples. ASCAT / Sequenza / FACETS output BED of
-# CN-altered regions with total + minor allele counts.
+# === 3. Copy-number calls for RAF-based correction ===
+# For cancer samples, ASCAT / Sequenza / FACETS CN calls inform the per-SNP
+# relative allele frequency (RAF) that BaalChIP's RAFcorrection uses to model
+# CN-driven allelic imbalance (applied in getASB below via RAFcorrection=TRUE).
 # Format: chr, start, end, total_CN, minor_CN
-# Without this, BaalChIP cannot model CN-altered allele dose.
 cnvs <- 'HCC1395_ASCAT_cnvs.bed'
 
 
@@ -71,11 +71,11 @@ res <- alleleCounts(res, min_base_quality = 10, min_mapq = 15)
 
 
 # === 6. QC filters ===
-# Remove SNPs in blacklist regions; require minimum read depth
-res <- QCfilter(res,
-                 RegionsToFilter = list(blacklist = 'hg38-blacklist.v2.bed'),
-                 RegionsToKeep = list(peaks_only = unique(samples$Peaks)),
-                 MinNumberOfReads = 12)   # min 12 reads/SNP for stable ratio
+# Remove SNPs in blacklist regions; restrict to peak regions
+# RegionsToFilter takes a named list of GRanges (import the BED, not a file path).
+# BaalChIP already restricts testing to the samplesheet Peaks, so no RegionsToKeep is needed.
+blacklist_gr <- import('hg38-blacklist.v2.bed')
+res <- QCfilter(res, RegionsToFilter = list(blacklist = blacklist_gr))
 
 
 # === 7. Merge per-group counts and filter low-frequency alleles ===
@@ -86,22 +86,23 @@ res <- filter1allele(res)   # remove SNPs where one allele is rare (<5%)
 # === 8. Bayesian beta-binomial ASB test ===
 # Iter 5000 (default; increase for tighter posteriors)
 # conf_level 0.95 (95% credible interval)
-# CN-aware: BaalChIP reads CN from cnvs file and models overdispersion
-#   accordingly. Without CN file, falls back to fixed overdispersion.
-res <- getASB(res, Iter = 5000, conf_level = 0.95, cnvFile = cnvs)
+# Bias correction: RMcorrection removes reference-mapping bias; RAFcorrection
+#   models the relative allele frequency (captures copy-number allelic imbalance).
+res <- getASB(res, Iter = 5000, conf_level = 0.95,
+              RMcorrection = TRUE, RAFcorrection = TRUE)
 
 
 # === 9. Report ===
 asb_table <- BaalChIP.report(res)
 cat('Total hetSNPs tested:', nrow(asb_table), '\n')
 
-# Significant ASB calls
-asb_sig <- asb_table[asb_table$isASB == TRUE & abs(asb_table$Bayes_lower_estimate - 0.5) > 0.1, ]
-cat('Significant ASB (95% CI excludes 0.5; |ratio - 0.5| > 0.1):', nrow(asb_sig), '\n')
+# Significant ASB calls (isASB flags SNPs whose credible interval excludes 0.5)
+asb_sig <- asb_table[asb_table$isASB == TRUE & abs(asb_table$Corrected.AR - 0.5) > 0.1, ]
+cat('Significant ASB (isASB; |corrected ratio - 0.5| > 0.1):', nrow(asb_sig), '\n')
 
-# Top ASB sites by Bayes factor
-top_asb <- asb_sig[order(-asb_sig$Bayes_score), ]
-head(top_asb[, c('CHROM', 'POS', 'REF', 'ALT', 'AR', 'isASB', 'Bayes_score')])
+# Top ASB sites by allelic-imbalance effect size
+top_asb <- asb_sig[order(abs(asb_sig$Corrected.AR - 0.5), decreasing = TRUE), ]
+head(top_asb[, c('CHROM', 'POS', 'REF', 'ALT', 'AR', 'Corrected.AR', 'isASB')])
 
 # Export
 write.table(asb_table, 'HCC1395_FOXA1_ASB_full.tsv',

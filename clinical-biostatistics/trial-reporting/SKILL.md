@@ -23,7 +23,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 **Kahan, Cro, Li, Harhay 2023 *Am J Epidemiol* 192:987 ("Eliminating Ambiguous Treatment Effects Using Estimands"):** 98% of published trial reports do not describe what the reported treatment effect represents. 54% of trials: impossible to deduce the estimand from reported methods. In 74% of trials submitted for regulatory approval 1996-2017, "what-if" hypothetical effects were used but only 2 trials explained this.
 
-**The framework:** ICH E9(R1) Addendum (November 2019, EMA effective Feb 2020, FDA May 2021) defines an estimand as the precise specification of what is being estimated, via five attributes:
+**The framework:** ICH E9(R1) Addendum (November 2019, EMA effective 30 July 2020, FDA May 2021) defines an estimand as the precise specification of what is being estimated, via five attributes:
 
 1. **Treatment condition** -- what is being compared
 2. **Population** -- which patients
@@ -46,8 +46,8 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 **Postdoc reading list:**
 
 - Bornkamp, Rufibach, Lin, Liu, Mehrotra, Roychoudhury, Schmidli, Shentu, Wolbers 2021 *Pharm Stat* 20:737 — principal stratum critique
-- Olarte Parra, Bartlett, Daniel 2022 *Stat Biopharm Res* — proves MMRM-MAR IS a hypothetical estimator under specific causal assumptions
-- Permutt 2016 *Stat Med* 35:2865; 2020 *Stat Biopharm Res* 12:45 — FDA Missing Data Working Group taxonomy; "do covariates change the estimand?"
+- Olarte Parra, Daniel, Bartlett 2022 *Stat Biopharm Res* — proves MMRM-MAR IS a hypothetical estimator under specific causal assumptions
+- Permutt 2016 *Stat Med* 35:2876; 2020 *Stat Biopharm Res* 12:45 — FDA Missing Data Working Group taxonomy; "do covariates change the estimand?"
 - Fleming, Carroll, Wittes et al 2025 *Stat Med* — argue treatment policy is the only strategy preserving randomisation; critique hypothetical
 - Morris 2026 *Stat Med* — causal-perspective comment on Fleming
 - Lipkovich, Ratitch, Mallinckrodt 2020 *Stat Biopharm Res* — Rubin causal model connection
@@ -61,10 +61,10 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | Continuous endpoint, treatment-policy primary with ICE-related missingness | Hybrid: J2R for discontinuation ICEs, MMRM-MAR for other missingness | Aprocitentan precedent; de facto FDA standard 2024-2025 |
 | Binary endpoint, RCT, FDA 2023-compliant | Marginal RD via g-computation; conditional OR supportive | See clinical-biostatistics/logistic-regression for g-computation |
 | Oncology OS with crossover | Treatment policy as primary; hypothetical (RPSFT/IPCW) as sensitivity | Sotorasib CodeBreaK 200 precedent |
-| Oncology PFS | Treatment policy with composite for subsequent therapy ICE | Lewis 2023 framework; Fleming 2025 |
+| Oncology PFS | Treatment policy for subsequent-therapy ICE (composite may incorporate death) | Sun 2021 framework; Fleming 2025 |
 | Weight management / chronic disease | Retrieved-dropout MI (Wegovy STEP precedent); J2R supportive | FDA 2025 obesity draft guidance explicitly endorses |
 | Long-term safety endpoint | While-on-treatment for rate; treatment policy for cumulative incidence | Standard ICH E2A practice |
-| AlloSCT in hematologic oncology | Composite "event-free survival" treating alloSCT as event | Rufibach 2020; "no alloSCT" hypothetical is clinically meaningless |
+| AlloSCT in hematologic oncology | Composite "event-free survival" treating alloSCT as event | Sun 2021 (alloSCT as intercurrent event); "no alloSCT" hypothetical is clinically meaningless |
 | Symptomatic palliative endpoint with high dropout | Composite with worst-rank for dropouts (Permutt trimmed means) | Permutt 2017 *Pharm Stat* 16:20 |
 
 ## MMRM -- The FDA-Favoured MAR Analysis
@@ -100,7 +100,7 @@ Each step down imposes more structure and the structure can be wrong — biasing
 
 ### MMRM = hypothetical estimator (Olarte Parra unification)
 
-**Olarte Parra, Bartlett, Daniel 2022 *Stat Biopharm Res*:** under specific identifying assumptions, MMRM under MAR IS a causal hypothetical estimand via g-formula equivalence. The "issue" is articulation, not statistical machinery — MMRM-MAR implicitly answers a hypothetical estimand whose hypothetical scenario must be made explicit in the SAP (e.g., "what would the mean response at week 24 be had all patients continued randomised treatment and remained observable?").
+**Olarte Parra, Daniel, Bartlett 2022 *Stat Biopharm Res*:** under specific identifying assumptions, MMRM under MAR IS a causal hypothetical estimand via g-formula equivalence. The "issue" is articulation, not statistical machinery — MMRM-MAR implicitly answers a hypothetical estimand whose hypothetical scenario must be made explicit in the SAP (e.g., "what would the mean response at week 24 be had all patients continued randomised treatment and remained observable?").
 
 ## Reference-Based Multiple Imputation -- The rbmi Framework
 
@@ -165,9 +165,9 @@ The regulator then judges whether the tipping delta is clinically plausible — 
 
 ## Decisive Regulatory Cases -- The 2020-2025 Casebook
 
-**Aducanumab (Biogen BLA 761178, 2021):** EMERGE and ENGAGE studies both stopped early for futility; EMERGE high-dose positive, ENGAGE negative. MMRM-MAR primary. FDA Office of Biostatistics (Tristan Massie review) argued futility-stop-induced missingness was not MAR (differential ARIA-driven unblinding); 6-1 AdCom against approval. Textbook case showing MAR-based primary in trial with high differential missingness is regulator-divisive.
+**Aducanumab (Biogen BLA 761178, 2021):** EMERGE and ENGAGE studies both stopped early for futility; EMERGE high-dose positive, ENGAGE negative. MMRM-MAR primary. FDA Office of Biostatistics (Tristan Massie review) argued futility-stop-induced missingness was not MAR (differential ARIA-driven unblinding); the Nov 2020 AdCom voted overwhelmingly against approval. Textbook case showing MAR-based primary in trial with high differential missingness is regulator-divisive.
 
-**Aprocitentan (Idorsia PRECISION trial, FDA approval 2024):** documented in Mathur 2025 *Pharm Stat* (PMC12753554). FDA pushed back on sponsor's MMRM-MAR primary; MAR was not credible for treatment-discontinuers. Accepted compromise: stratified imputation — J2R for treatment-discontinuation ICEs, MAR-MMRM for other missingness. This hybrid is now de facto FDA standard for treatment-policy estimand.
+**Aprocitentan (Idorsia PRECISION trial, FDA approval 2024):** documented in Sassi-Sayadi et al 2025 *Ther Innov Regul Sci* (PMC12753554). FDA pushed back on sponsor's MMRM-MAR primary; MAR was not credible for treatment-discontinuers. Accepted compromise: stratified imputation — J2R for treatment-discontinuation ICEs, MAR-MMRM for other missingness. This hybrid is now de facto FDA standard for treatment-policy estimand.
 
 **Wegovy/Ozempic STEP trials (Wilding 2021 *NEJM*; NDA 215256):** retrieved-dropout MI as primary for treatment-policy. Missing body weight at week 68 imputed by sampling from observed week-68 measurements among "retrieved dropouts" (patients who discontinued semaglutide but remained in follow-up). J2R-MI as supportive. RD-MI now standard for chronic weight management. FDA 2025 obesity guidance explicitly endorses MI as primary.
 
@@ -310,7 +310,7 @@ See clinical-biostatistics/multiplicity-graphical for the full Bretz-Maurer-Homm
 | ITT primary p < 0.05; PP secondary p > 0.05 | Per-protocol excludes non-completers (often differentially); PP-only effect inflated when significant; non-significance in PP is signal of fragility | ITT remains primary (ICH E9); PP as sensitivity flag; investigate completer pattern |
 | Statistical significance achieved but effect estimate below MCID | Powered for δ << MCID; or δ = MCID with no precision margin | Pre-specify δ >= 1.5 × MCID in SAP (postdoc rule); report against pre-specified MCID, not 0 |
 | Estimand strategies (hypothetical vs treatment-policy) give different effect sizes | Different ICE-handling strategies target different parameters | Report all pre-specified estimands; pick PRIMARY for the regulatory question (not the "winner"); cite Kahan 2023 |
-| Subgroup effect estimate >2x main effect | Winner's curse (Sun 2010 documented median 2.4x inflation) | Apply Bayesian shrinkage (Dixon-Simon, RBesT) for corrected estimate; cite as discovery, not confirmatory |
+| Subgroup effect estimate >2x main effect | Winner's curse -- discovery-data subgroup estimates are inflated | Apply Bayesian shrinkage (Dixon-Simon, RBesT) for corrected estimate; cite as discovery, not confirmatory |
 
 ## CONSORT 2025 (April 2025) -- What Changed
 
@@ -395,7 +395,7 @@ CONSORT 2025 templates on consort-spirit.org now explicitly accommodate non-1:1 
 
 | Threshold | Source | Rationale |
 |-----------|--------|-----------|
-| m >= 100 * FMI imputations | von Hippel 2020 *J Roy Stat Soc A* | Adequate for stable pooled SE; with 40% missingness and FMI ~0.3, m=30 needed |
+| m >= 100 * FMI imputations (linear rule of thumb) | von Hippel 2020 *Sociol Methods Res* (two-stage quadratic refinement) | Adequate for stable pooled SE; with 40% missingness and FMI ~0.3, m=30 needed |
 | SMD > 0.1 = meaningful imbalance | Austin 2009 *Stat Med* 28:3083 | Beyond what randomisation would normally produce |
 | Missing data > 40% on key variable | NRC 2010 | Above this, MI under MAR is unreliable; treat as hypothesis-generating |
 | Kenward-Roger DF correction for MMRM with UN | Kenward-Roger 1997 | Without it, MMRM-REML under-covers in small/moderate trials; Type-I inflates 1-2 pp |
@@ -429,8 +429,8 @@ CONSORT 2025 templates on consort-spirit.org now explicitly accommodate non-1:1 
 | "FAS vs ITT?" | Pre-specified in protocol; FAS excludes [explicit criteria]; both populations analysed; reconciliation table provided. |
 | "Has the SAP been registered?" | Yes — clinicaltrials.gov NCTxxxxx with full SAP appended; EU CTR EUCTxxxx; SPIRIT 2025 compliant. |
 | "How is subsequent therapy handled?" | Pre-specified per ICH E9(R1); composite strategy (e.g., subsequent therapy = treatment failure) or treatment-policy (include all data). |
-| "Where is the multiplicity adjustment for co-primary / key secondary?" | Bretz-Maurer graphical procedure via gMCP pre-specified in SAP; alpha allocation diagram in CSR appendix; cite CONSORT 2025 item 20 + FDA Multiple Endpoints Final Oct 2022; see clinical-biostatistics/multiplicity-graphical. |
-| "How are missing baseline covariates handled in ANCOVA?" | Complete-case ANCOVA is unbiased under MCAR baseline missingness (Kahan-Morris 2012); proportion with complete baseline reported in flow diagram; if >5% missing, multiple imputation of baseline as sensitivity analysis. |
+| "Where is the multiplicity adjustment for co-primary / key secondary?" | Bretz-Maurer graphical procedure via gMCP pre-specified in SAP; alpha allocation diagram in CSR appendix; cite CONSORT 2025 item 30 (limitations, multiplicity of analyses) + FDA Multiple Endpoints Final Oct 2022; see clinical-biostatistics/multiplicity-graphical. |
+| "How are missing baseline covariates handled in ANCOVA?" | Complete-case ANCOVA is unbiased under MCAR baseline missingness (White & Thompson 2005 *Stat Med* 24:993); proportion with complete baseline reported in flow diagram; if >5% missing, multiple imputation of baseline as sensitivity analysis. |
 
 ## References
 
@@ -438,19 +438,20 @@ CONSORT 2025 templates on consort-spirit.org now explicitly accommodate non-1:1 
 - Carpenter JR, Roger JH, Kenward MG. 2013. Analysis of longitudinal trials with protocol deviation: a framework for relevant, accessible assumptions, and inference via multiple imputation. *J Biopharm Stat* 23:1352-1371.
 - Cro S, Carpenter JR, Kenward MG. 2019. Information-anchored sensitivity analysis: theory and application. *JRSS-A* 182:623-645.
 - EMA. 2010. Guideline on Missing Data in Confirmatory Clinical Trials. EMA/CPMP/EWP/1776/99 Rev.1.
-- Fleming TR, Carroll KJ, Wittes JT, Emerson SS, Rothmann M, Collins R, Levin G. 2025. Perspectives on appropriate implementation of the ICH E9(R1) estimand framework. *Stat Med* e70104.
+- Fleming TR, Carroll KJ, Wittes JT, Emerson SS, Rothmann M, Collins S, Levin G. 2025. A perspective on the appropriate implementation of ICH E9(R1) addendum strategies for handling intercurrent events. *Stat Med* 44:e70104.
 - Hopewell S, Chan AW, Collins GS, et al. 2025. CONSORT 2025 statement. *Lancet* 405:1633-1640.
 - ICH. 2019. E9(R1) Addendum on Estimands and Sensitivity Analysis in Clinical Trials. Step 4.
 - Kahan BC, Cro S, Li F, Harhay MO. 2023. Eliminating ambiguous treatment effects using estimands. *Am J Epidemiol* 192:987-994.
 - Kenward MG, Roger JH. 1997. Small sample inference for fixed effects from restricted maximum likelihood. *Biometrics* 53:983-997.
 - Lipkovich I, Ratitch B, Mallinckrodt CH. 2020. Causal inference and estimands in clinical trials. *Stat Biopharm Res* 12:54-67.
 - Mallinckrodt CH, Lane PW, Schnell D, Peng Y, Mancuso JP. 2008. Recommendations for the primary analysis of continuous endpoints in longitudinal clinical trials. *Drug Information Journal* 42:303-319.
-- Mathur AR et al. 2025. Regulatory experiences with the use of multiple imputation for missing data in a phase 3 confirmatory trial. *Pharm Stat*.
+- Sassi-Sayadi M, Verweij P, Cornelisse P. 2025. Regulatory experiences with the use of multiple imputation for missing data in a phase 3 confirmatory trial. *Ther Innov Regul Sci*.
 - Morris TP. 2026. Comment on Fleming et al. *Stat Med* e70455.
 - NRC. 2010. The Prevention and Treatment of Missing Data in Clinical Trials. National Academies Press.
-- Olarte Parra C, Bartlett JW, Daniel RM. 2022. Hypothetical estimands: a unification of causal inference and missing data methods. *Stat Biopharm Res*.
+- Olarte Parra C, Daniel RM, Bartlett JW. 2022. Hypothetical estimands in clinical trials: a unification of causal inference and missing data methods. *Stat Biopharm Res* 15(2):421-432.
 - Permutt T. 2016. Sensitivity analysis for missing data in regulatory submissions. *Stat Med* 35:2876-2879.
 - Permutt T. 2020. Do covariates change the estimand? *Stat Biopharm Res* 12:45-53.
+- Sun S, Weber HJ, Butler E, Rufibach K, Roychoudhury S. 2021. Estimands in hematologic oncology trials. *Pharm Stat* 20(4):793-805.
 - von Hippel PT. 2020. How many imputations are needed (a two-stage calculation using a quadratic rule). *Sociol Methods Res* 49:699-718.
 - Wolbers M, Noci A, Delmar P, Gower-Page C, Yiu S, Bartlett JW. 2022. Standard and reference-based conditional mean imputation. *Pharm Stat* 21(6):1246-1257.
 
@@ -462,7 +463,7 @@ CONSORT 2025 templates on consort-spirit.org now explicitly accommodate non-1:1 
 - clinical-biostatistics/subgroup-analysis - Pre-specified subgroup analyses for the CSR
 - clinical-biostatistics/missing-data-sensitivity - MMRM, reference-based MI, tipping point (in depth)
 - clinical-biostatistics/multiplicity-graphical - Bretz-Maurer graphs for co-primary and key secondary
-- clinical-biostatistics/survival-analysis - Time-to-event estimand framing per Lewis 2023
-- clinical-biostatistics/power-and-sample-size - Sample size justification per CONSORT 2025 item 7
+- clinical-biostatistics/survival-analysis - Time-to-event estimand framing under ICH E9(R1)
+- clinical-biostatistics/power-and-sample-size - Sample size justification per CONSORT 2025 item 16a
 - reporting/rmarkdown-reports - Formatted statistical report generation
 - experimental-design/multiple-testing - General multiplicity correction

@@ -9,8 +9,8 @@ OUTPUT_DIR="peaks"
 mkdir -p $OUTPUT_DIR
 
 # Effective genome size for hg38, 100bp reads (deepTools tabulated value);
-# use 2.913e9 for 50bp, 2.747e9 for 75bp, 2.620e9 for 150bp.
-GSIZE=2.701e9
+# use 2.701e9 for 50bp, 2.748e9 for 75bp, 2.862e9 for 150bp.
+GSIZE=2.806e9
 
 
 # === ENCODE TF pipeline ===
@@ -108,8 +108,9 @@ bedtools intersect -a $OUTPUT_DIR/overlap_12.bed \
 # === Subset / low-depth fallback (no IDR, single sample) ===
 
 # Single chromosome or pilot data: use tighter -q 0.05 + numeric -g.
-# 46.7M is the mappable portion of human chr21 (deepTools approximation).
-# --extsize 147 = nucleosome core particle (Buenrostro 2013); biologically
+# 46.7M approximates chr21 sequence length (GRCh38 chr21 = ~46.7 Mb); a reasonable
+# effective-genome-size for chr21-only data.
+# --extsize 147 = nucleosome core particle DNA length (~147 bp); biologically
 # grounded for nucleosome-proximal marks (H3K4me3, H3K27ac). For TFs use
 # the cross-correlation-derived fragment length.
 macs3 callpeak \
@@ -124,7 +125,7 @@ macs3 callpeak \
 
 # === HOMER alternative (use -style histone for ALL histone marks) ===
 
-# Omnipeak 2025 benchmark: -style histone outperforms -style factor for
+# Omnipeak benchmark (Shpynov & Artyomov 2026): -style histone outperforms -style factor for
 # H3K4me3 / H3K27ac because variable-width stitching captures nucleosome-
 # adjacent enrichment better than fixed-width factor mode.
 makeTagDirectory chip_tags/ chip.bam

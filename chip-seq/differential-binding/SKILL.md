@@ -7,7 +7,7 @@ primary_tool: DiffBind
 
 ## Version Compatibility
 
-Reference examples tested with: DiffBind 3.20+, DESeq2 1.42+, edgeR 4.0+, csaw 1.36+, PyDESeq2 0.4+, NormR 1.28+, MAnorm2 1.2+, ChIPseqSpikeInFree 1.6+.
+Reference examples tested with: DiffBind 3.20+, DESeq2 1.42+, edgeR 4.0+, csaw 1.36+, PyDESeq2 0.5+, NormR 1.28+, MAnorm2 1.2+, ChIPseqSpikeInFree 1.6+.
 
 DiffBind 3.0+ changed defaults: `summits=200` (was FALSE), `dba.normalize()` now required, blacklist filtering on by default, full library size normalization replaces reads-in-peaks. Always run `packageVersion('DiffBind')` and inspect `dba.normalize(obj, bRetrieve=TRUE)` to confirm what was applied.
 
@@ -28,7 +28,7 @@ Choice of normalization matters more than choice of test statistic (RLE vs TMM v
 | Problem | Symptom on MA plot | Cause | Fix |
 |---------|--------------------|-------|-----|
 | **Composition bias** | Loess shifts off y=0 systematically | Few high-signal peaks dominate read counts; small fold changes look large or inverted | TMM on background 10 kb bins (csaw / DiffBind `background=TRUE`); NOT reads-in-peaks |
-| **Trended bias (intensity-dependent)** | Loess curve sweeps from + to - across abundance | Library-prep efficiency varies with fragment abundance | Non-linear loess offsets (csaw `normalizeOffsets`); use cautiously — can over-normalize biology |
+| **Trended bias (intensity-dependent)** | Loess curve sweeps from + to - across abundance | Library-prep efficiency varies with fragment abundance | Non-linear loess offsets (csaw `normOffsets`); use cautiously — can over-normalize biology |
 | **Global shift (treatment changes most peaks)** | Loess entirely shifted off y=0; mean log2FC ≠ 0 | Drug/perturbation changes the genome-wide level of binding (HDACi, BETi, EZH2i, target KD) | Spike-in scaling (ChIP-Rx); no algorithmic fix works |
 
 **Why this matters:** Most published ChIP-seq differential analyses default to RLE/TMM on reads-in-peaks, which assumes "most peaks are unchanged." For HDAC inhibitors, BET inhibitors, EZH2 inhibitors, or any large dosage / target-knockdown experiment, this assumption is violated. The algorithm forces the median log2FC to zero, hides the real effect, and amplifies noise around the new "zero." The result can have the wrong sign.
@@ -39,14 +39,14 @@ Choice of normalization matters more than choice of test statistic (RLE vs TMM v
 
 | Tool | Treats | Statistical model | Strength | Fails when |
 |------|--------|-------------------|----------|------------|
-| **DiffBind 3.20+** | Consensus peaks summit ± 250 bp (default) | DESeq2 or edgeR backend | Mature; integrated counting/normalization; spike-in support; blacklist filter on | Default `summits=200` recenters peaks (wrong for broad marks); `DBA_NORM_LIB` is conservative but misses global shifts unless `background=TRUE` |
+| **DiffBind 3.20+** | Consensus peaks summit ± 200 bp (default) | DESeq2 or edgeR backend | Mature; integrated counting/normalization; spike-in support; blacklist filter on | Default `summits=200` recenters peaks (wrong for broad marks); `DBA_NORM_LIB` is conservative but misses global shifts unless `background=TRUE` |
 | **DESeq2 (direct)** | Predefined peaks | NB GLM | Familiar; transparent | RLE on reads-in-peaks fails for global shifts |
 | **edgeR (direct)** | Predefined peaks | NB GLM with TMM; quasi-likelihood F-test | Cleaner small-sample inference; QL-F controls type-I error | TMM on peak counts unstable if peaks globally shifting |
 | **csaw** (Lun & Smyth 2016) | Sliding windows (typically 150 bp width, 50 bp shift) | edgeR QL-F | Gold-standard for global shifts; bin-TMM composition bias; loess for trended biases | Slower; requires BAMs not count matrix; window-merge step adds complexity |
 | **NormR** (Helmuth 2016) | Genomic bins | Binomial mixture (background + enriched) | Control-aware; identifies enrichment/depletion/background simultaneously | Bin-level not peak-level; older codebase; less integration with downstream tools |
 | **MAnorm2** (Tu 2021) | Peaks | Hierarchical model with mean-variance trend | Designed for cross-condition with replicates | Less widely adopted; sparse maintenance |
 | **SpikChIP** (Blanco 2021) | Peaks | Spike-in-aware | Multi-sample spike-in comparison | Niche; specific spike-in protocol assumed |
-| **SpikeFlow** (2024) | End-to-end | Snakemake wrapper around DiffBind + spike-in | Automated; multiple normalization options | Wrapper; inherits experimental-design errors upstream |
+| **SpikeFlow** (2024) | End-to-end | Snakemake pipeline: MACS2/EPIC2/EDD peaks + DESeq2 with spike-in size factors | Automated; multiple normalization options (RPM/RRPM/Rx-Input/downsampling) | Inherits experimental-design errors upstream |
 | **ChIPComp** (Chen 2015) | Peaks | Joint Poisson with input | Control-aware | Older; less maintained |
 | **ChIPseqSpikeInFree** (Jin 2020) | Peaks (post-hoc) | Distribution-shape inference | Detects global shift WITHOUT spike-in | Post-hoc heuristic only; not definitive; sanity check |
 
@@ -61,13 +61,13 @@ Choice of normalization matters more than choice of test statistic (RLE vs TMM v
 | ChIP target knockdown / degron | Spike-in or matched-input control subtraction | Spike-in preferred; bamCompare log2 ratio next |
 | CUT&RUN/CUT&Tag standard | E. coli spike-in (carryover) | DiffBind custom scaling; see cut-and-run-tag |
 | No spike-in available; suspect global shift | ChIPseqSpikeInFree | Post-hoc distribution-shape inference |
-| Suspected trended (abundance-dependent) bias | Non-linear loess | csaw `normalizeOffsets` |
+| Suspected trended (abundance-dependent) bias | Non-linear loess | csaw `normOffsets` |
 | Genome-wide enrichment/depletion analysis | NormR | Binomial mixture |
 | Many conditions, large peak set | edgeR QL-F or DiffBind+edgeR | Better type-I control than DESeq2 Wald |
 
 ## Spike-In Scaling Factor Calculation
 
-ChIP-Rx (Orlando 2014) uses Drosophila chromatin spike-in added at fixed concentration BEFORE IP. Egan 2016 protocol: 50,000 Drosophila S2 nuclei per 5M target cells.
+ChIP-Rx (Orlando 2014) uses Drosophila chromatin spike-in added at fixed concentration BEFORE IP. Egan 2016 adds a fixed MASS of Drosophila S2 chromatin (matched to target chromatin by the ~27:1 human:fly genome-size ratio), not a fixed cell count.
 
 **RRPM (reference-adjusted reads per million):**
 
@@ -86,21 +86,20 @@ names(scale_factors) <- sample_names
 # DESeq2 with spike-in size factors
 sizeFactors(dds) <- 1 / scale_factors  # DESeq2 expects inverse convention
 
-# Or directly via DiffBind 3.x
+# Or directly via DiffBind 3.x (spikein = TRUE forces library = DBA_LIBSIZE_BACKGROUND internally)
 dba_obj <- dba.normalize(dba_obj, spikein = TRUE,
-                          library = DBA_LIBSIZE_FULL,
                           normalize = DBA_NORM_LIB)
 ```
 
 **Rx-Input variant** (Fursova 2019): additionally scale by input spike-in to correct IP efficiency variation.
 
-**Internal-control sanity check (Patel L, Cao Y, Mendenhall EM, Benner C, Goren A 2024 *Nat Biotechnol* 42:1343):** After spike-in normalization, blacklist regions and constitutive housekeeping sites (U6 promoter, rRNA processing factors that are stable) should show no signal change. If they do, the normalization is broken — common causes:
+**Internal-control sanity check:** After spike-in normalization, blacklist regions and constitutive housekeeping sites (U6 promoter, rRNA processing factors that are stable) should show no signal change. If they do, the normalization is broken — common causes:
 - Spike-in scaling applied to peak counts instead of read counts
 - Spike-in reads not deduplicated before scaling
 - Spike-in genome not filtered for high-mapq before scaling
 - Spike-in saturated (always 100k+ reads); check titration linearity
 
-Per the Patel et al 2024 *Nat Biotechnol* review, ~25% of published spike-in ChIP papers have one of these errors.
+Per the Patel et al 2024 *Nat Biotechnol* survey, improper spike-in normalization is common: of 53 datasets examined, only 27 (~51%) had adequate matched input controls across conditions.
 
 ## DiffBind Workflow (BAMs + Peaks)
 
@@ -166,7 +165,7 @@ bg_bins <- windowCounts(bam_files, bin = TRUE, width = 10000, param = param)
 windows <- normFactors(bg_bins, se.out = windows)
 
 # Optional: trended bias via non-linear loess (use cautiously)
-# windows <- normOffsets(windows, type = 'loess')
+# windows <- normOffsets(windows, se.out = TRUE)
 
 # edgeR QL-F test
 y <- asDGEList(windows)
@@ -243,7 +242,7 @@ For spike-in normalization, set `sizeFactors(dds)` from scaling factors before `
 
 ### csaw -- Trended bias loess over-normalizes biology
 
-**Trigger:** Applying `normOffsets(type='loess')` when the abundance-dependent shift IS the biology.
+**Trigger:** Applying `normOffsets()` (loess) when the abundance-dependent shift IS the biology.
 
 **Mechanism:** Loess fits a smooth curve to the MA-plot trend; if treatment uniformly increases binding at low-signal peaks (which is biology), loess interprets it as a technical trend and removes it.
 
@@ -302,14 +301,14 @@ For spike-in normalization, set `sizeFactors(dds)` from scaling factors before `
 - Love MI et al 2014 Genome Biol 15:550 (DESeq2)
 - Robinson MD et al 2010 Bioinformatics 26:139 (edgeR; TMM)
 - Helmuth J et al 2016 bioRxiv (NormR)
-- Tu S et al 2021 Front Genet 12:646533 (MAnorm2)
+- Tu S et al 2021 Genome Res 31:131 (MAnorm2)
 - Orlando DA et al 2014 Cell Rep 9:1163 (ChIP-Rx framework)
 - Egan B et al 2016 PLoS One 11:e0166438 (ChIP-Rx protocol)
 - Fursova NA et al 2019 Mol Cell 74:1020 (Rx-Input scaling)
 - Jin H et al 2020 Bioinformatics 36:1270 (ChIPseqSpikeInFree)
 - Blanco E et al 2021 NAR Genom Bioinform 3:lqab064 (SpikChIP)
 - Patel L, Cao Y, Mendenhall EM, Benner C, Goren A 2024 Nat Biotechnol 42:1343 (review of spike-in normalization failure modes; PMC12266361)
-- Gregoricchio S et al 2024 NAR Genom Bioinform 6:lqae118 (SpikeFlow Snakemake pipeline)
+- Bressan D et al 2024 NAR Genom Bioinform 6:lqae118 (SpikeFlow Snakemake pipeline)
 
 ## Related Skills
 

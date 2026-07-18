@@ -23,7 +23,7 @@ Tell your AI agent what you want to do:
 - "Apply Holm step-down to my 5 endpoint p-values"
 - "Choose between Hochberg and Holm given my endpoint correlation structure"
 - "Set up serial gatekeeping (hierarchical) for co-primary then 3 secondary tiers"
-- "Allocate 20% of alpha to a discovery subgroup analysis per Dane 2019"
+- "Allocate a small alpha budget (~20% convention) to a discovery subgroup analysis, pre-specified per Dane 2019"
 
 ## Example Prompts
 
@@ -51,7 +51,7 @@ Tell your AI agent what you want to do:
 
 ### Subgroup alpha allocation
 
-> "Allocate alpha across primary endpoint (60%), key secondary (30%), and pre-specified discovery subgroup (10%) per Dane 2019 EFSPI white paper. Design the graph."
+> "Allocate alpha across primary endpoint (60%), key secondary (30%), and pre-specified discovery subgroup (10%); design the graph with disciplined subgroup pre-specification per Dane 2019 EFSPI white paper."
 
 ## What the Agent Will Do
 
@@ -72,7 +72,7 @@ Tell your AI agent what you want to do:
 - **Co-primary vs multiple primary distinction matters**: co-primary doesn't split alpha (inflate n for joint power); multiple primary must split alpha.
 - **Sensitivity analyses do NOT require multiplicity alpha** -- they're "what if" not "another claim."
 - **Pre-specify the graph in SAP**, not at analysis time. Post-hoc weight tuning inflates Type-I.
-- **Subgroup alpha budget ≤20%** per Dane 2019 EFSPI white paper; never allocate primary alpha to data-driven subgroups.
+- **Subgroup alpha budget ≤20%** (a common SAP convention, not a fixed rule); see Dane 2019 EFSPI white paper for disciplined subgroup pre-specification; never allocate primary alpha to data-driven subgroups.
 - **Win-ratio composite** (Pocock 2012) preserves a single test for multi-component endpoints; requires pre-specified component hierarchy.
 - **`statsmodels.stats.multitest.multipletests` default is `method='hs'` (Holm-Sidak)** -- always specify `method='holm'`, `'hommel'`, or `'bonferroni'` explicitly.
 

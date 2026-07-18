@@ -10,7 +10,7 @@ Postdoc/regulatory-grade statistical analysis methods for clinical trial data, s
 
 | Skill | Description |
 |-------|-------------|
-| cdisc-data-handling | Read CDISC SDTM/ADaM (ADSL/BDS/OCCDS/ADTTE) with traceability, Pinnacle 21 validation, Define-XML 2.1, Dataset-JSON (Dec 2025), and the ADaMIG v3.0 roadmap |
+| cdisc-data-handling | Read CDISC SDTM/ADaM (ADSL/BDS/OCCDS/ADTTE) with traceability, Pinnacle 21 validation, Define-XML 2.1, Dataset-JSON (Dec 2024), and the ADaMIG v3.0 roadmap |
 | logistic-regression | Binary/ordinal/multinomial models with FDA 2023 marginal-vs-conditional estimand, g-computation, Brant test, Firth penalty, Hauck-Donner detection, modified Poisson for RR |
 | categorical-tests | Chi-square, Boschloo's exact (uniformly more powerful than Fisher), CMH, mid-p McNemar (Fagerland 2013), Wilson/Newcombe/Miettinen-Nurminen CIs |
 | effect-measures | OR/RR/RD/HR/NNT with calibrated CIs (Newcombe-MN-MOVER-profile-likelihood), Bender NNT convention, marginal vs conditional non-collapsibility, FDA 2023 g-computation |
@@ -70,7 +70,7 @@ install.packages(c(
 
 - **CONSORT 2025** (Lancet, April 2025) -- 30-item checklist for trial reporting
 - **SPIRIT 2025** (Lancet, April 2025) -- 34-item protocol guideline
-- **ICH E9(R1) Addendum on Estimands** (final November 2019; EMA effective Feb 2020; FDA May 2021)
+- **ICH E9(R1) Addendum on Estimands** (final November 2019; EMA effective 30 July 2020; FDA May 2021)
 - **ICH E20 Adaptive Clinical Trials** -- Step 2b/3 draft June 2025 (NOT final as of May 2026)
 - **FDA Adjusting for Covariates in RCTs** (Final May 2023)
 - **FDA Multiple Endpoints in Clinical Trials** (Final October 2022)

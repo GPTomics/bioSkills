@@ -1,6 +1,6 @@
 ---
 name: bio-chipseq-peak-annotation
-description: Annotates ChIP-seq peaks to genomic features, nearest genes, ENCODE candidate cis-regulatory elements (cCREs), and regulatory domains. Uses ChIPseeker (R), HOMER annotatePeaks.pl (CLI), pyranges (Python), GREAT/rGREAT (regulatory domain gene-set enrichment), ChIP-Enrich (locus-length-adjusted), ENCODE SCREEN cCRE classification (PLS/pELS/dELS/CTCF-only/DNase-H3K4me3), and ENCODE-rE2G for cell-type-specific enhancer-gene linking. Handles nearest-TSS vs host-gene ambiguity, promoter window definition, and feature priority. Use when assigning genomic context to peaks, linking enhancer peaks to target genes, classifying peaks against ENCODE cCRE registry, or running gene-set enrichment on peak-associated genes.
+description: Annotates ChIP-seq peaks to genomic features, nearest genes, ENCODE candidate cis-regulatory elements (cCREs), and regulatory domains. Uses ChIPseeker (R), HOMER annotatePeaks.pl (CLI), pyranges (Python), GREAT/rGREAT (regulatory domain gene-set enrichment), ChIP-Enrich (locus-length-adjusted), ENCODE SCREEN cCRE classification (PLS/pELS/dELS/CA-CTCF/CA-H3K4me3), and ENCODE-rE2G for cell-type-specific enhancer-gene linking. Handles nearest-TSS vs host-gene ambiguity, promoter window definition, and feature priority. Use when assigning genomic context to peaks, linking enhancer peaks to target genes, classifying peaks against ENCODE cCRE registry, or running gene-set enrichment on peak-associated genes.
 tool_type: mixed
 primary_tool: ChIPseeker
 ---
@@ -9,11 +9,11 @@ primary_tool: ChIPseeker
 
 Reference examples tested with: ChIPseeker 1.38+, GenomicFeatures 1.54+, rtracklayer 1.62+, HOMER 4.11+, rGREAT 2.4+, chipenrich 2.26+, pyranges 0.0.129+, pandas 2.2+.
 
-ENCODE cCRE registry expanded to 2.35M human and 927k mouse elements (Nature 2025; Vu Ernst expansion). SCREEN web app at screen.encodeproject.org provides browser access; ENCODE provides bed files for batch annotation.
+ENCODE cCRE registry expanded to 2.37M human and 967k mouse elements (Moore JE et al 2026 Nature). SCREEN web app at screen.encodeproject.org provides browser access; ENCODE provides bed files for batch annotation.
 
 # Peak Annotation
 
-**"What genes and regulatory elements do my peaks correspond to?"** -> Assign each peak to a genomic feature (promoter, exon, intron, intergenic), its target gene (via nearest-TSS or host-gene), and where applicable an ENCODE cCRE class (PLS/pELS/dELS/CTCF-only/DNase-H3K4me3).
+**"What genes and regulatory elements do my peaks correspond to?"** -> Assign each peak to a genomic feature (promoter, exon, intron, intergenic), its target gene (via nearest-TSS or host-gene), and where applicable an ENCODE cCRE class (PLS/pELS/dELS/CA-CTCF/CA-H3K4me3).
 
 - R (gene-feature): `ChIPseeker::annotatePeak(peaks, TxDb=txdb)`
 - CLI (gene-feature): `annotatePeaks.pl peaks.bed hg38 -gtf annotation.gtf`
@@ -151,29 +151,31 @@ HOMER's 19-column output: columns 8 (Annotation), 10 (Distance to TSS), 16 (Gene
 
 ## ENCODE cCRE Classification
 
-The ENCODE Registry of candidate cis-Regulatory Elements (cCREs) provides 2.35M human + 927k mouse elements classified into 5 categories:
+The ENCODE Registry of candidate cis-Regulatory Elements (cCREs) provides 2.37M human + 967k mouse elements. Registry V4 uses an 8-class scheme (the older V3 "CTCF-only" and "DNase-H3K4me3" were renamed CA-CTCF and CA-H3K4me3):
 
 | Class | Definition | Marker pattern |
 |-------|------------|-----------------|
 | **PLS** (Promoter-Like Signature) | ≤ 200 bp of annotated TSS; high DNase + high H3K4me3 | DNase + H3K4me3 |
 | **pELS** (Proximal Enhancer-Like Signature) | ≤ 2 kb of TSS; enhancer-like (DNase + H3K27ac, low H3K4me3) | DNase + H3K27ac |
 | **dELS** (Distal Enhancer-Like Signature) | > 2 kb of TSS; enhancer-like | DNase + H3K27ac |
-| **DNase-H3K4me3** | Promoter signature without annotated TSS | DNase + H3K4me3 (no TSS) |
-| **CTCF-only** | Potential boundary; DNase + CTCF | DNase + CTCF |
+| **CA-H3K4me3** | Chromatin-accessible + H3K4me3, not TSS-proximal | DNase + H3K4me3 |
+| **CA-CTCF** | Chromatin-accessible + CTCF (potential boundary) | DNase + CTCF |
+| **CA-TF** | Chromatin-accessible + TF binding | DNase + TF |
+| **CA** | Chromatin-accessible only | DNase |
+| **TF** | TF-bound, not highly accessible | TF |
 
 ```bash
-# Download ENCODE cCRE BED from SCREEN (hg38)
-wget https://api.wenglab.org/screen_v13/screen_human_ccres_simple.bed.gz
-gunzip screen_human_ccres_simple.bed.gz
+# Download ENCODE cCRE BED from SCREEN (GRCh38, expanded Registry-V4, uncompressed)
+wget https://downloads.wenglab.org/Registry-V4/GRCh38-cCREs.bed
 
 # Intersect peaks with cCRE; -wa preserves peak coords, -wb adds cCRE class
-bedtools intersect -a peaks.narrowPeak -b screen_human_ccres_simple.bed -wa -wb \
+bedtools intersect -a peaks.narrowPeak -b GRCh38-cCREs.bed -wa -wb \
     > peaks_ccre.tsv
 ```
 
 Cross-referencing peaks against cCREs:
 - Indicates whether peaks overlap canonical regulatory elements
-- Provides the cCRE class (PLS / pELS / dELS / CTCF-only / DNase-H3K4me3)
+- Provides the cCRE class (PLS / pELS / dELS / CA-CTCF / CA-H3K4me3)
 - Cell-type-specific activity profiles available via SCREEN web app
 
 ## GREAT / rGREAT (Regulatory Domain Gene-Set Enrichment)
@@ -198,9 +200,9 @@ res <- great(gr = peaks, gene_sets = 'GO:BP', tss_source = 'TxDb.Hsapiens.UCSC.h
 table_results <- getEnrichmentTable(res)
 head(table_results)
 
-# Visualization
+# Visualization (local great() returns a GreatObject -> plotRegionGeneAssociations)
 plotVolcano(res)
-plotRegionGeneAssociationGraphs(res)
+plotRegionGeneAssociations(res)
 ```
 
 GREAT is most appropriate for distal regulatory elements (enhancer ChIP, ATAC). For promoter-focused marks (H3K4me3), ChIP-Enrich is more standard.
@@ -215,11 +217,11 @@ library(chipenrich)
 res <- chipenrich(peaks = 'peaks.bed', genome = 'hg38',
                    genesets = 'GOBP', locusdef = 'nearest_tss',
                    out_name = 'chipenrich_out', n_cores = 4)
-# Locus definitions: nearest_tss, nearest_gene, 1kb, 5kb, 10kb, gene_body, exon
-# Methods: chipenrich (default), polyenrich (for high peak counts), broadenrich (broad marks)
+# Locus definitions: nearest_tss, nearest_gene, exon, intron, 1kb, 5kb, 10kb
+# method= accepts chipenrich (default) or fet; broadenrich() and polyenrich() are separate functions
 ```
 
-For broad marks (H3K27me3, H3K9me3): use `method = 'broadenrich'` which accounts for region width.
+For broad marks (H3K27me3, H3K9me3): use the separate `broadenrich(peaks = 'peaks.bed', genome = 'hg38', genesets = 'GOBP', locusdef = 'nearest_tss')` function, which accounts for region width.
 
 ## ENCODE-rE2G (Modern Enhancer-Gene Linking)
 
@@ -325,7 +327,7 @@ awk -F'\t' 'NR>1 { dist = ($10 < 0) ? -$10 : $10; \
 - Welch RP et al 2014 Nucleic Acids Res 42:e105 (ChIP-Enrich)
 - Cavalcante RG, Lee C, Welch RP, ... Sartor MA 2014 Bioinformatics 30:i393-i400 (Broad-Enrich)
 - ENCODE Project Consortium 2020 Nature 583:699 (cCRE registry v1)
-- ENCODE Project Consortium 2025 Nature (expanded cCRE registry, 2.35M elements)
+- Moore JE et al 2026 Nature (expanded cCRE registry, 2.37M human + 967k mouse elements)
 - Fulco CP et al 2019 Nat Genet 51:1664 (ABC model precursor to ENCODE-rE2G)
 - Kundaje lab / ENCODE 2024 (ENCODE-rE2G)
 - SCREEN: screen.encodeproject.org

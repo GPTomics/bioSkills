@@ -2,7 +2,7 @@
 
 ## Overview
 
-Annotate ChIP-seq peaks to genomic features (promoter, exon, intron, intergenic), nearest or host genes, ENCODE candidate cis-regulatory elements (cCREs: PLS, pELS, dELS, CTCF-only, DNase-H3K4me3), regulatory domains via GREAT, and cell-type-specific enhancer-gene targets via ENCODE-rE2G. Supports ChIPseeker (R), HOMER annotatePeaks.pl (CLI), pyranges (Python), rGREAT, chipenrich, Broad-Enrich, and direct cCRE BED intersection.
+Annotate ChIP-seq peaks to genomic features (promoter, exon, intron, intergenic), nearest or host genes, ENCODE candidate cis-regulatory elements (cCREs: PLS, pELS, dELS, CA-CTCF, CA-H3K4me3), regulatory domains via GREAT, and cell-type-specific enhancer-gene targets via ENCODE-rE2G. Supports ChIPseeker (R), HOMER annotatePeaks.pl (CLI), pyranges (Python), rGREAT, chipenrich, Broad-Enrich, and direct cCRE BED intersection.
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ pip install pandas pyranges
 Tell the agent what to do:
 - "Annotate my peaks to nearest genes with the provided GTF, host-gene convention"
 - "Classify each peak as promoter / exon / intron / intergenic with 2 kb promoter window"
-- "Intersect peaks with ENCODE cCREs and tell me what fraction are PLS / pELS / dELS / CTCF-only"
+- "Intersect peaks with ENCODE cCREs and tell me what fraction are PLS / pELS / dELS / CA-CTCF"
 - "Run GREAT regulatory-domain gene-set enrichment for distal H3K27ac peaks"
 - "Run ChIP-Enrich with locus-length adjustment for GO enrichment on TF peaks"
 - "Annotate broad H3K27me3 domains using broadenrich method"
@@ -37,7 +37,7 @@ Tell the agent what to do:
 > "Annotate peaks using a GENCODE v44 GTF I'm providing. Build TxDb from the GTF, map gene symbols from the GTF directly (annoDb doesn't work for custom TxDb), strip Ensembl version suffixes when joining."
 
 ### ENCODE cCRE classification
-> "Download the ENCODE cCRE BED from SCREEN and intersect my peaks to classify them as PLS, pELS, dELS, CTCF-only, or DNase-H3K4me3. Report counts per class."
+> "Download the ENCODE cCRE BED from SCREEN and intersect my peaks to classify them as PLS, pELS, dELS, CA-CTCF, or CA-H3K4me3. Report counts per class."
 
 ### GREAT regulatory-domain enrichment
 > "I have ~5000 distal H3K27ac peaks. Run rGREAT with default basal+extension regulatory domain rules for GO:BP enrichment. Filter out hyper-ChIPable peaks first."
@@ -80,7 +80,7 @@ Tell the agent what to do:
 - **For enhancer-gene linking, use ENCODE-rE2G or ABC, not nearest-TSS.** Enhancers regulate non-nearest genes in 30-50% of cases.
 - **Filter hyper-ChIPable peaks before gene-set enrichment.** rRNA / mtDNA / housekeeping artifacts inflate "ribosomal" and "translation" GO terms.
 - **GREAT for distal regulatory; ChIP-Enrich for promoter-focused; broadenrich for broad histone marks.** Different statistical models address different bias structures.
-- **Cross-reference against ENCODE cCRE atlas.** Useful sanity check: a TF that should bind enhancers should have peaks dominated by dELS / pELS, not PLS or CTCF-only.
+- **Cross-reference against ENCODE cCRE atlas.** Useful sanity check: a TF that should bind enhancers should have peaks dominated by dELS / pELS, not PLS or CA-CTCF.
 
 ## Troubleshooting
 

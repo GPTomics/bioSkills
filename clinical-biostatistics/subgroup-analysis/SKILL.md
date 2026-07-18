@@ -51,23 +51,23 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 - Wang et al 2007 *NEJM* 357:2189 ("Reporting of subgroup analyses in clinical trials") — the canonical NEJM-mandated practice
 - Sun et al 2010/2012 *BMJ* 340:c117 and 344:e1553 — 11 credibility criteria
 - Dane, Spencer, Rosenkranz, Lipkovich, Parke 2019 *Pharm Stat* 18:126 with Hemmings-Koch commentary at 18:140 — EFSPI white paper + critique
-- EMA 2019 Guideline on subgroups (CHMP/EWP/117211/2010 effective Aug 2019) — distinguishes "assessment subgroups" (regulatory, pre-specified) from "discovery subgroups" (exploratory)
+- EMA 2019 Guideline on subgroups (EMA/CHMP/539146/2013, effective Aug 2019) — distinguishes "assessment subgroups" (regulatory, pre-specified) from "discovery subgroups" (exploratory)
 - Athey & Wager 2019 *Observational Studies* 5:37; Athey, Tibshirani, Wager 2019 *Ann Stat* 47:1148 — causal forests
-- Rehill 2025 *Int Stat Rev* — applied causal forest audit; ~70% of papers misreport tuning and skip honest-splitting validation
+- Rehill 2025 *Int Stat Rev* — applied causal forest audit; many papers misreport tuning and omit honest-splitting/calibration diagnostics
 
 ## Decision Tree by Scenario
 
 | Scenario | Recommended approach | Why |
 |----------|----------------------|-----|
 | Pre-specified subgroup in confirmatory trial | Interaction term in single model + graphical-procedure multiplicity (gMCP) | EMA 2019 "assessment subgroup"; interaction test + Bonferroni-graph alpha control |
-| Stratified randomisation by site/region | CMH or logistic with strata as covariates; stratum-specific OR reported in forest plot | Kahan-Morris 2012; ignoring strata inflates Type-I; strata-specific ORs for transparency |
+| Stratified randomisation by site/region | CMH or logistic with strata as covariates; stratum-specific OR reported in forest plot | Kahan-Morris 2012; ignoring strata is over-conservative (SE biased upward, power loss); strata-specific ORs for transparency |
 | 5-15 pre-specified subgroups, regulatory submission | Forest plot + interaction tests + Holm/graphical FWER correction | Default regulatory presentation; multiplicity adjustment expected |
 | Continuous biomarker subgroup (e.g., HbA1c, biomarker score) | STEPP (sliding-window plot + permutation supremum test) | Avoids arbitrary dichotomisation; cite Bonetti-Gelber 2004 |
 | Suspected qualitative interaction (treatment helps some, harms others) | Gail-Simon 1985 LR test with Pan-Wolfe 1997 exact critical values | Distinguishes quantitative from qualitative; critical for label restriction |
 | Data-discovery of HTE subgroup | SIDES/SIDEScreen with permutation FWER + replication mandate | Lipkovich 2011; signal-discovery not signal-confirmation |
 | Continuous CATE estimation with many covariates | Causal forest (R `grf::causal_forest`) + RATE test (Yadlowsky 2025) | Modern HTE; honest splitting; influence-function CIs; RATE tests whether ranking is predictive vs prognostic |
 | Basket trial across rare-disease strata | EXNEX or robust MAP with `RBesT` | Borrows across strata while permitting one to detach if truly different |
-| Subgroup signal needing replication planning | Bayesian shrinkage for adjusted estimates; Sun 2010 winner's curse | Selected subgroups have inflated effect by selection bias |
+| Subgroup signal needing replication planning | Bayesian shrinkage for adjusted estimates; Sun 2012 winner's curse | Selected subgroups have inflated effect by selection bias |
 | Pediatric extrapolation borrowing from adult data | Power prior (gamma in 0.3-0.6) per FDA Bayesian draft Jan 2026 | Partial borrowing with discount; standard regulatory approach |
 
 ## Mantel-Haenszel and Stratified Analysis
@@ -153,7 +153,7 @@ reri = or_11 - or_10 - or_01 + 1
 # plot(step_obj); test_pattern(step_obj, nperm=1000)
 ```
 
-Bonetti-Gelber 2000/2004; window-size choice (sliding vs tail-oriented) affects results. **Naive simultaneous CIs are wrong** — estimates are correlated across windows; use permutation-based supremum tests of pattern flatness (Yip et al 2016 *Stat Med* 35:5437 documents 30% disagreement between sliding and tail-oriented variants).
+Bonetti-Gelber 2000/2004; window-size choice (sliding vs tail-oriented) affects results. **Naive simultaneous CIs are wrong** — estimates are correlated across windows; use permutation-based supremum tests of pattern flatness (Yip et al 2016 *Clin Trials* 13(4):382; tail-oriented STEPP is more stable than the sliding-window variant).
 
 ### SIDES / SIDEScreen
 
@@ -176,7 +176,7 @@ Lipkovich-Dmitrienko-Denne-Enas 2011 *Stat Med* 30:2601; SIDEScreen (Lipkovich-D
 
 **Honest splitting** (one sub-sample for splits, another for leaf estimates) yields asymptotic Gaussianity and pointwise CIs (Athey-Tibshirani-Wager 2019 *Ann Stat* 47:1148). Doubly-robust variants use AIPW pseudo-outcomes.
 
-**Diagnostic discipline (Rehill 2025 audit):** ~70% of applied causal-forest papers misreport tuning, skip honest-splitting validation, or omit the `test_calibration` check. Required diagnostic steps:
+**Diagnostic discipline (Rehill 2025 audit):** applied causal-forest papers frequently misreport tuning, skip honest-splitting validation, or omit the `test_calibration` check. Required diagnostic steps:
 
 1. Honest splitting enabled (`honesty=TRUE`)
 2. `test_calibration(cf)` — regresses actual treatment effects on out-of-bag CATE predictions; significant positive slope = CATE has signal
@@ -205,7 +205,7 @@ cate = xl.effect(X)
 
 **Dixon-Simon 1991 *Biometrics* 47:871:** exchangeable mean-zero prior on treatment-by-subgroup interaction coefficients; subgroup posteriors shrink to overall trial effect, proportional to evidence of heterogeneity. Honest about prior expectation that no qualitative interaction will hold.
 
-**Berry, Broglio, Groshen, Berry 2013 *Clin Trials* 10:720 (NOT JCO — common citation error):** hierarchical pooling across baskets calibrated by between-basket variance tau-squared. Inflated false-positives when tau-squared mis-specified (Freidlin-Korn 2013 *JNCI* 105:1532 critique).
+**Berry, Broglio, Groshen, Berry 2013 *Clin Trials* 10:720 (NOT JCO — common citation error):** hierarchical pooling across baskets calibrated by between-basket variance tau-squared. Inflated false-positives when tau-squared mis-specified (Freidlin-Korn 2013 *Clin Cancer Res* 19:1326 critique).
 
 **EXNEX (Neuenschwander, Wandel, Roychoudhury, Bailey 2016 *Pharm Stat* 15:123):** mixture of exchangeable (shared mean+variance) + non-exchangeable (per-basket independent) components, typically weighted 0.5/0.5. Avoids HM catastrophic borrowing when one basket truly different. Now near-standard in oncology basket trials.
 
@@ -245,7 +245,7 @@ cate = xl.effect(X)
 | Multiplicity adjustment | Required per SAP (graphical or Holm) | Required + heavy skepticism |
 | Number expected | Few (5-15); pre-justified | Unlimited but unblindable |
 
-**EMA 2019 Guideline on Investigation of Subgroups in Confirmatory Trials (CHMP/EWP/117211/2010, effective Aug 2019)** position: interaction tests alone are "neither necessary nor sufficient"; consistency is a holistic judgment; subgroup-specific licensing requires pre-specified evidence of differential effect PLUS biological rationale.
+**EMA 2019 Guideline on Investigation of Subgroups in Confirmatory Trials (EMA/CHMP/539146/2013, effective Aug 2019)** position: interaction tests alone are "neither necessary nor sufficient"; consistency is a holistic judgment; subgroup-specific licensing requires pre-specified evidence of differential effect PLUS biological rationale.
 
 **Sun BMJ 2012 11 credibility criteria** (the canonical academic framework):
 
@@ -265,13 +265,13 @@ cate = xl.effect(X)
 
 **Gail-Simon 1985 *Biometrics* 41:361:** LR test against the "all-same-direction" null. Distinguishes quantitative (magnitude varies, direction preserved) from qualitative (sign reverses) — only the latter carries decision-changing weight clinically.
 
-**Pan-Wolfe 1997 *Biometrics* 53:1564, Li-Chan 2006 *Stat Med* 25:2099:** exact critical values for Gail-Simon; original normal-approximation is liberal at small n.
+**Pan-Wolfe 1997 *Stat Med* 16(14):1645, Li-Chan 2006 *J Biopharm Stat* 16(6):831:** tests for qualitative interaction of clinical significance; the original Gail-Simon normal-approximation LR is liberal at small n.
 
 **Why qualitative interaction matters for regulators:** may warrant restricting indication to the benefiting subgroup (label carve-out).
 
 ## The Winner's Curse and Sun et al 2012
 
-Sun et al 2012 *BMJ* systematic review documented that the median observed effect size in *significant* subgroups across 64 trials was approximately 2.4x larger than the trial-overall effect — textbook winner's curse signature.
+Sun et al 2012 *BMJ* systematic review found that of 207 trials reporting subgroup analyses, 64 claimed a primary-outcome subgroup effect, yet most claims failed the credibility criteria — the textbook winner's-curse signature, where effects in selected *significant* subgroups are inflated by chance and regression to the mean.
 
 **Mechanism:** selecting a subgroup conditional on its interaction p being small selects for upward sampling fluctuations; the posterior MLE conditional on selection is biased upward by ~SE × inverse Mills ratio at the selection threshold.
 
@@ -286,12 +286,12 @@ Sun et al 2012 *BMJ* systematic review documented that the median observed effec
 | Pattern | Likely cause | Action |
 |---------|--------------|--------|
 | Causal forest CATE shows HTE; interaction test in logistic non-significant | Causal forest detects nonlinear/multivariate HTE; interaction test only linear bivariate | Causal forest with Yadlowsky RATE 2025 omnibus test is more sensitive; cite as discovery, not confirmatory; replicate in independent sample |
-| STEPP pattern significant at one window choice; flat at another | Window-size choice (sliding vs tail-oriented) affects results (Yip 2016 documents 30% disagreement) | Pre-specify window choice in SAP; report sensitivity over choices; use permutation supremum test |
+| STEPP pattern significant at one window choice; flat at another | Window-size choice (sliding vs tail-oriented) affects results (Yip 2016; tail-oriented more stable than sliding) | Pre-specify window choice in SAP; report sensitivity over choices; use permutation supremum test |
 | Bayesian shrinkage (Dixon-Simon) yields null subgroup effect; frequentist sees signal | Shrinkage pulls subgroup posteriors toward overall trial effect | Bayesian shrinkage appropriate for replication PLANNING (Hemmings-Koch 2019), not signal generation; report frequentist as primary in discovery |
 | MH stratified analysis gives different pooled OR than logistic with strata as covariates | MH conditions on stratum; logistic does not (assumes additivity of strata effects) | Both are valid under different assumptions; logistic preferred when stratum-treatment interaction tested formally |
 | EXNEX basket trial gives different per-basket estimate under default 0.5/0.5 vs 0.3/0.7 mixture | Mixture weight controls borrowing strength (Neuenschwander 2016) | Sensitivity over weights 0.1-0.9; primary at 0.5/0.5; cite range |
 | Gail-Simon qualitative interaction test rejects; LR interaction test does not | Qualitative test detects sign reversal; LR test detects magnitude | Both tests are answering different questions; qualitative interaction is regulatorily significant (label restriction) |
-| Subgroup signal from data-adaptive HTE method (SIDES, causal forest) without replication | Winner's curse (Sun 2010); ~2.4x effect inflation in selected subgroups | Apply Bayesian shrinkage OR honest cross-validation; report as discovery only; require Phase 3 replication |
+| Subgroup signal from data-adaptive HTE method (SIDES, causal forest) without replication | Winner's curse (Sun 2012); effects in selected subgroups are inflated | Apply Bayesian shrinkage OR honest cross-validation; report as discovery only; require Phase 3 replication |
 | Causal forest test_calibration passes; RATE/AUTOC fails | test_calibration measures any signal (prognostic OR predictive); RATE measures predictive value | RATE 2025 is the modern omnibus; should replace test_calibration as primary HTE check |
 
 ## Per-Method Failure Modes
@@ -342,7 +342,7 @@ Sun et al 2012 *BMJ* systematic review documented that the median observed effec
 
 - **Trigger:** Site-stratified randomisation; subgroup analysis without site adjustment.
 - **Mechanism:** Achieved SE smaller than calculated SE.
-- **Symptom:** Anti-conservative subgroup interaction tests.
+- **Symptom:** Over-conservative subgroup interaction tests (SE biased upward, Type-I below nominal, power loss).
 - **Fix:** Include stratification factors as model covariates (Kahan-Morris 2012).
 
 ## Quantitative Thresholds
@@ -353,7 +353,7 @@ Sun et al 2012 *BMJ* systematic review documented that the median observed effec
 | 0.5σ standardised effect = "noteworthy heterogeneity" | Dane et al 2019 EFSPI white paper *Pharm Stat* 18:126 | Discipline for declaring subgroup signals worth pursuing |
 | Pre-specified subgroups for label claim | EMA 2019 subgroup guideline | Discovery subgroups cannot support indication restriction |
 | Bonferroni: ~10 subgroups -> 30-50% power loss vs Hommel | Sarkar 1998 | Subgroup tests positively correlated; Bonferroni over-conservative |
-| Honest splitting required for causal forest | Athey-Tibshirani-Wager 2019; Rehill 2025 | Without it, CIs are invalid; ~70% of papers omit |
+| Honest splitting required for causal forest | Athey-Tibshirani-Wager 2019; Rehill 2025 | Without it, CIs are invalid; Rehill 2025 finds many applied papers omit it |
 | 11 credibility criteria | Sun BMJ 2012 344:e1553 | Canonical academic checklist; EMA 2019 implicitly references |
 | RATE/AUTOC test (Yadlowsky 2025) | *JASA* 120(549):38-51 | Single-p omnibus for HTE-ranking predictive value |
 
@@ -389,25 +389,25 @@ Sun et al 2012 *BMJ* systematic review documented that the median observed effec
 
 - Athey S, Tibshirani J, Wager S. 2019. Generalized random forests. *Ann Stat* 47:1148-1178.
 - Berry SM, Broglio KR, Groshen S, Berry DA. 2013. Bayesian hierarchical modeling of patient subpopulations: efficient designs of Phase II oncology clinical trials. *Clin Trials* 10:720-734.
-- Bonetti M, Gelber RD. 2000. A graphical method to assess treatment-covariate interactions using the Cox model on subsets. *Biostatistics* 1:227-240.
+- Bonetti M, Gelber RD. 2000. A graphical method to assess treatment-covariate interactions using the Cox model on subsets of the data. *Stat Med* 19(19):2595-2609.
 - Bonetti M, Gelber RD. 2004. Patterns of treatment effects in subsets of patients in clinical trials. *Biostatistics* 5:465-481.
 - Bretz F, Maurer W, Brannath W, Posch M. 2009. A graphical approach to sequentially rejective multiple test procedures. *Stat Med* 28:586-604.
-- Brookes ST, Whitely E, Egger M, Davey Smith G, Mulheran PA, Peters TJ. 2004. Subgroup analyses in randomised controlled trials: quantifying the risks of false-positives and false-negatives. *J Clin Epidemiol* 57:229-236. (Author surname is "Whitely", not "Whitley".)
+- Brookes ST, Whitely E, Egger M, Davey Smith G, Mulheran PA, Peters TJ. 2004. Subgroup analyses in randomized trials: risks of subgroup-specific analyses; power and sample size for the interaction test. *J Clin Epidemiol* 57:229-236. (Author surname is "Whitely", not "Whitley".)
 - Dane A, Spencer A, Rosenkranz G, Lipkovich I, Parke T. 2019. Subgroup analysis and interpretation for phase 3 confirmatory trials: white paper of the EFSPI/PSI working group. *Pharm Stat* 18:126-139.
 - Dixon DO, Simon R. 1991. Bayesian subset analysis. *Biometrics* 47:871-881.
 - Dusseldorp E, Van Mechelen I. 2014. Qualitative interaction trees: a tool to identify qualitative treatment-subgroup interactions. *Stat Med* 33:219-237.
-- EMA. 2019. Guideline on the investigation of subgroups in confirmatory clinical trials. CHMP/EWP/117211/2010.
+- EMA. 2019. Guideline on the investigation of subgroups in confirmatory clinical trials. EMA/CHMP/539146/2013.
 - Foster JC, Taylor JMG, Ruberg SJ. 2011. Subgroup identification from randomized clinical trial data. *Stat Med* 30:2867-2880.
 - Gail M, Simon R. 1985. Testing for qualitative interactions between treatment effects and patient subsets. *Biometrics* 41:361-372.
 - Goeman JJ, Hemerik J, Solari A. 2021. Only closed testing procedures are admissible for controlling false discovery proportions. *Ann Stat* 49:1218-1238.
-- Hemmings R, Koch A. 2019. Commentary on Dane et al. *Pharm Stat* 18:140-141.
+- Hemmings R, Koch A. 2019. Commentary on Dane et al. *Pharm Stat* 18:140-144.
 - Kahan BC, Morris TP. 2012. Improper analysis of trials randomised using stratified blocks or minimisation. *Stat Med* 31:328-340.
 - Künzel SR, Sekhon JS, Bickel PJ, Yu B. 2019. Metalearners for estimating heterogeneous treatment effects using machine learning. *PNAS* 116:4156-4165.
 - Lipkovich I, Dmitrienko A, Denne J, Enas G. 2011. Subgroup identification based on differential effect search: SIDES. *Stat Med* 30:2601-2621.
 - Neuenschwander B, Wandel S, Roychoudhury S, Bailey S. 2016. Robust exchangeability designs for early phase clinical trials with multiple strata. *Pharm Stat* 15:123-134.
 - Nie X, Wager S. 2021. Quasi-oracle estimation of heterogeneous treatment effects. *Biometrika* 108:299-319.
-- Pan G, Wolfe DA. 1997. Test for qualitative interaction of clinical significance. *Biometrics* 53:1564-1570.
-- Rehill A. 2025. A reliability review of applications of generalized random forests. *Int Stat Rev*.
+- Pan G, Wolfe DA. 1997. Test for qualitative interaction of clinical significance. *Stat Med* 16(14):1645-1652.
+- Rehill P. 2025. How do applied researchers use the causal forest? A methodological review. *Int Stat Rev*.
 - Schmidli H, Gsteiger S, Roychoudhury S, O'Hagan A, Spiegelhalter D, Neuenschwander B. 2014. Robust meta-analytic-predictive priors in clinical trials with historical control information. *Biometrics* 70:1023-1032.
 - Senn S. 2018. Statistical pitfalls of personalised medicine. *Nature* 563:619-621.
 - Sun X, Briel M, Walter SD, Guyatt GH. 2010. Is a subgroup effect believable? Updating criteria to evaluate the credibility of subgroup analyses. *BMJ* 340:c117.

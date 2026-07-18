@@ -14,7 +14,7 @@ Reference examples tested with: ChromHMM 1.27+, Segway 3.0+, EpiSegMix 1.0+, Epi
 **"Integrate multiple histone modification ChIP-seq tracks into chromatin states"** -> Learn a small set of recurring combinatorial patterns of histone marks (active promoter, active enhancer, poised enhancer, polycomb-repressed, heterochromatic, transcribed, etc.) and segment the genome by which state each region belongs to. Output: per-state genomic intervals, state-by-mark emission matrix, and state-state transition matrix.
 
 - CLI (canonical): ChromHMM `BinarizeBam` -> `LearnModel` -> `OverlapEnrichment` / `NeighborhoodEnrichment`
-- CLI (continuous signal): Segway `train` -> `posterior` -> `identify`
+- CLI (continuous signal): Segway `train` -> `posterior` -> `annotate`
 - CLI (flexible distributions): EpiSegMix (2024)
 - Visualization across biosamples: EpiLogos (Meuleman lab)
 - Cell-type-aware joint: IDEAS
@@ -32,7 +32,7 @@ Chromatin state segmentation requires a panel of histone marks; minimum 4-5 mark
 | **IDEAS** (Zhang 2016) | Cell-type-aware joint inference | Across-cell-type segmentation respecting cell-type identity | Slower; complex parameter tuning |
 | **EpiCSeg** (Mammana 2015) | Negative binomial mixture | Read-count-based; doesn't need binarization | Less standardized output |
 | **GenoSTAN** | HMM with various emission distributions | Flexible | Less actively developed |
-| **Roadmap 25-state model** (Kundaje 2015) | ChromHMM 25-state precomputed model | Reference for cross-cell-type interpretation | Tied to Roadmap mark panel (5 core marks) |
+| **Roadmap 25-state model** (Kundaje 2015) | ChromHMM 25-state precomputed model | Reference for cross-cell-type interpretation | Requires the Roadmap imputed 12-mark panel |
 | **Full-stack ChromHMM** (Vu Ernst 2022) | 100-state segmentation across 1032 datasets / 127 reference epigenomes | Comprehensive cross-tissue annotation | Computationally intensive to retrain |
 
 ## ChromHMM Workflow
@@ -105,19 +105,20 @@ java -mx16G -jar ChromHMM.jar LearnModel \
 ### Step 4: Functional enrichment of states
 
 ```bash
-# OverlapEnrichment: enrichment of each state for external feature sets
+# OverlapEnrichment: enrichment of each state for external feature sets.
+# Options (e.g. -labels) MUST precede the three positional args.
 java -mx16G -jar ChromHMM.jar OverlapEnrichment \
+    -labels \
     model_15state/GM12878_15_segments.bed \
     /path/to/anchor_files/ \
-    enrichment_output/GM12878 \
-    -labels
+    enrichment_output/GM12878
 
 # NeighborhoodEnrichment: enrichment relative to anchor positions (e.g., TSS)
 java -mx16G -jar ChromHMM.jar NeighborhoodEnrichment \
+    -labels \
     model_15state/GM12878_15_segments.bed \
     /path/to/tss_anchors.txt \
-    enrichment_output/GM12878_TSS \
-    -labels
+    enrichment_output/GM12878_TSS
 ```
 
 Anchor files: BED files of features (CGIs, repeats, conserved elements, etc.) for OverlapEnrichment; position files for NeighborhoodEnrichment.
@@ -127,9 +128,9 @@ Anchor files: BED files of features (CGIs, repeats, conserved elements, etc.) fo
 | States | Use case | Mark panel size |
 |--------|----------|-----------------|
 | 8-10 | Initial exploration; small mark panel (3-4 marks) | 3-5 marks |
-| 15 | Roadmap Epigenomics canonical | 5 core (H3K4me3, H3K27ac, H3K4me1, H3K36me3, H3K27me3) |
-| 18 | Roadmap extended (adds bivalent states, fine enhancer subtypes) | 5-7 marks |
-| 25 | Roadmap Epigenomics extended; cross-cell-type compatibility | 6+ marks |
+| 15 | Roadmap Epigenomics canonical | 5 core (H3K4me3, H3K4me1, H3K36me3, H3K27me3, H3K9me3) |
+| 18 | Roadmap extended (adds H3K27ac -> fine enhancer subtypes) | 6 marks (core 5 + H3K27ac) |
+| 25 | Roadmap Epigenomics extended; cross-cell-type compatibility | 12 imputed marks |
 | 50+ | Full-stack model (Vu Ernst 2022) | Many marks across many cell types |
 
 **Practical workflow:** Train at N=15, 18, 25; compare emission matrices; choose the smallest N where biology is interpretable. Higher N risks over-segmentation (state splitting random variation).
@@ -137,24 +138,32 @@ Anchor files: BED files of features (CGIs, repeats, conserved elements, etc.) fo
 ## Segway Workflow
 
 ```bash
-# Train Segway model (10 states by default; supports more)
+# Segway reads only the Genomedata format, so first pack the signal tracks
+# (one track per bigWig) plus the genome sequence into an archive.
+genomedata-load \
+    -s hg38.fa \
+    -t h3k4me3=h3k4me3.bw \
+    -t h3k27ac=h3k27ac.bw \
+    -t h3k4me1=h3k4me1.bw \
+    -t h3k36me3=h3k36me3.bw \
+    -t h3k27me3=h3k27me3.bw \
+    signal.genomedata
+
+# Train Segway model; GENOMEDATA and TRAINDIR are positional
 segway train \
-    --num-labels 25 \
-    --num-instances 3 \
-    --resolution 100 \
-    chromsizes_hg38.bed \
-    h3k4me3.bw h3k27ac.bw h3k4me1.bw h3k36me3.bw h3k27me3.bw \
-    --traindir traindir/
+    --num-labels=25 \
+    --num-instances=3 \
+    --resolution=100 \
+    signal.genomedata traindir/
 
-# Posterior inference + segmentation
-segway posterior --traindir traindir/ --identifydir identifydir/ \
-    chromsizes_hg38.bed \
-    h3k4me3.bw h3k27ac.bw h3k4me1.bw h3k36me3.bw h3k27me3.bw
+# Posterior probabilities + hard-call annotation (GENOMEDATA TRAINDIR OUTDIR, positional)
+segway posterior signal.genomedata traindir/ posteriordir/
+segway annotate signal.genomedata traindir/ identifydir/
 
-# Output: identifydir/segway.bed (state assignments)
+# Output: identifydir/segway.bed.gz (state assignments)
 ```
 
-Segway uses bigWig (continuous signal) vs ChromHMM binarized binary. Trade-off: more information per region (continuous) but more complex training.
+Segway uses continuous signal (from the genomedata archive) vs ChromHMM's binarized bins. Trade-off: more information per region (continuous) but more complex training.
 
 ## EpiLogos Visualization
 
@@ -263,11 +272,11 @@ Useful for: applying a comprehensive cross-tissue annotation to a new sample; co
 - Ernst J & Kellis M 2017 Nat Protoc 12:2478 (ChromHMM protocol)
 - Hoffman MM et al 2012 Nat Methods 9:473 (Segway)
 - Schmitz JE, Aggarwal N, Laufer L, Walter J, Salhab A, Rahmann S 2024 Bioinformatics 40:btae178 (EpiSegMix)
-- Meuleman W et al 2020 Nature 583:744 (EpiLogos / DHS index)
+- Meuleman W et al 2020 Nature 584:244 (EpiLogos / DHS index)
 - Zhang Y & Hardison 2016 Nucleic Acids Res 44:6721 (IDEAS)
 - Mammana A & Chung HR 2015 Genome Biol 16:151 (EpiCSeg)
 - Roadmap Epigenomics Consortium 2015 Nature 518:317 (Roadmap 25-state model)
-- Vu H & Ernst J 2022 Nat Commun 13:2783 (full-stack ChromHMM)
+- Vu H & Ernst J 2022 Genome Biol 23:9 (full-stack ChromHMM)
 - Kundaje A et al 2015 Nature 518:317 (Roadmap integrative analysis)
 
 ## Related Skills

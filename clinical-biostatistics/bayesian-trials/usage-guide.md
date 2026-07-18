@@ -76,8 +76,8 @@ Tell your AI agent what you want to do:
 - **Hemmings-Koch 2019 critique of Bayesian shrinkage:** appropriate for *replication planning*, NOT for *signal generation*. Bayesian shrinkage pre-emptively damps the heterogeneity you're searching for.
 - **Power priors with gamma in 0.3-0.6** is the FDA Jan 2026 draft default for pediatric extrapolation. gamma = 1 (full pooling) ignores between-study heterogeneity.
 - **Posterior probability stopping does not control frequentist Type-I automatically.** Calibrate threshold via simulation under null to demonstrate frequentist properties (ICH E20 expectation).
-- **I-SPY 2 graduation criterion PP >= 0.85** is the canonical Bayesian platform standard (Barker 2009).
-- **Spiegelhalter 1986 skeptical/enthusiastic prior framework** is still cited in modern Bayesian trial protocols for regulatory sensitivity.
+- **I-SPY 2 graduation criterion PP >= 0.85** is the canonical Bayesian platform standard (I-SPY 2 operational reports, Rugo/Park 2016).
+- **Spiegelhalter, Freedman & Parmar 1994 skeptical/enthusiastic prior framework** is still cited in modern Bayesian trial protocols for regulatory sensitivity.
 - **Reproducibility for FDA submissions:** Docker container + renv-pinned R + Stan version; seeds + R-hat <1.01 + ESS >1000-2000 per parameter.
 - **Project Optimus + FDA Bayesian Jan 2026 draft together signal that model-assisted Bayesian designs are the default for early oncology** as of 2026.
 

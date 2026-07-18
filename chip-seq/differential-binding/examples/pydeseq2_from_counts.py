@@ -1,4 +1,4 @@
-# Reference: PyDESeq2 0.4+ | Verify API if version differs
+# Reference: PyDESeq2 0.5+ (formula-based design=) | Verify API if version differs
 import pandas as pd
 from pydeseq2.dds import DeseqDataSet
 from pydeseq2.ds import DeseqStats

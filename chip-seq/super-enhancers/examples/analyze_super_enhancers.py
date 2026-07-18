@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 '''Analyze ROSE super-enhancer output'''
-# Reference: matplotlib 3.8+, pandas 2.2+ | Verify API if version differs
+# Reference: matplotlib 3.9+, pandas 2.2+ | Verify API if version differs
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 
 def parse_rose_output(se_file):
-    '''Parse ROSE super-enhancer table'''
+    '''Parse ROSE super-enhancer table. ROSE writes a header after 5 comment lines;
+    the signal column name is sample-specific and an enhancerRank column sits before
+    isSuper, so use the real header and normalize the signal column to SIGNAL rather
+    than hard-coding names (which breaks when a control-signal column is present).'''
     df = pd.read_csv(se_file, sep='\t', skiprows=5)
-    df.columns = ['REGION_ID', 'CHROM', 'START', 'STOP', 'NUM_LOCI', 'CONSTITUENT_SIZE', 'SIGNAL', 'isSuper']
+    df = df.rename(columns={df.columns[6]: 'SIGNAL'})
     return df
 
 def analyze_super_enhancers(se_file, output_prefix='se_analysis'):
@@ -45,7 +48,7 @@ def analyze_super_enhancers(se_file, output_prefix='se_analysis'):
     axes[0].legend()
     axes[0].set_title('Enhancer Size Distribution')
 
-    axes[1].boxplot([te['SIGNAL'], se['SIGNAL']], labels=['Typical', 'Super'])
+    axes[1].boxplot([te['SIGNAL'], se['SIGNAL']], tick_labels=['Typical', 'Super'])
     axes[1].set_ylabel('Signal')
     axes[1].set_title('Signal Comparison')
 
