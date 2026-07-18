@@ -1,6 +1,6 @@
 ---
 name: bio-clinical-biostatistics-power-sample-size
-description: Computes sample size and power for clinical trials including continuous, binary, and time-to-event endpoints; superiority, non-inferiority, and equivalence designs; FDA 2016 non-inferiority margin selection with M1/M2 framework; Schoenfeld 1981 and Lakatos 1988 for survival; Schuirmann TOST and 80-125% bioequivalence; minimum clinically important difference (MCID) vs δ distinction. Use when justifying trial size in protocol or SAP per CONSORT 2025 item 7.
+description: Computes sample size and power for clinical trials including continuous, binary, and time-to-event endpoints; superiority, non-inferiority, and equivalence designs; FDA 2016 non-inferiority margin selection with M1/M2 framework; Schoenfeld 1981 and Lakatos 1988 for survival; Schuirmann TOST and 80-125% bioequivalence; minimum clinically important difference (MCID) vs δ distinction. Use when justifying trial size in protocol or SAP per CONSORT 2025 item 16a.
 tool_type: mixed
 primary_tool: statsmodels
 goal_approach_exempt: true
@@ -125,7 +125,7 @@ n_corrected = math.ceil(n * correction)
 print(f'n per arm (continuity corrected) = {n_corrected}')
 ```
 
-**The continuity correction debate** (D'Agostino, Casagrande, Pike 1988 *Stat Med* 7:347):
+**The continuity correction debate** (D'Agostino, Chase & Belanger 1988 *Am Stat* 42:198):
 
 - Pro (Fleiss, Yates): better matches the exact distribution under H0
 - Con: overly conservative, wastes ~10% sample size; modern computing makes exact (Fisher-Irwin, Boschloo) tests feasible
@@ -303,14 +303,14 @@ n_be <- sampleN.TOST(
 print(n_be)
 ```
 
-**Highly variable drugs (CV > 30%):** standard 80-125% fails with feasible n. Use **scaled average bioequivalence (SABE)** per FDA 2010:
+**Highly variable drugs (CV > 30%):** standard 80-125% fails with feasible n. Use **scaled average bioequivalence (SABE)**; the expanding-limits (ABEL) approach below is the EMA method (the FDA's reference-scaled RSABE uses a different criterion and `PowerTOST::sampleN.RSABE()`):
 - Reference-scaled limits: theta = exp(0.760 * sigma_WR) when sigma_WR > 0.294
 - Widens BE bounds proportional to within-subject variability of reference
 - `PowerTOST::sampleN.scABEL()` for sample size
 
 ### Carryover assessment (Grizzle 1965)
 
-**Grizzle test** for carryover: compares baseline-adjusted period 1 vs period 2 effects. **Now controversial:** Senn 2002 *Statistics in Medicine* showed Grizzle test has poor power; significant carryover should drive design choice (washout extension), not analysis switch.
+**Grizzle test** for carryover: compares baseline-adjusted period 1 vs period 2 effects. **Now controversial:** the two-stage Grizzle carryover pretest is misleading -- it inflates the Type-I error of the treatment comparison (Freeman 1989 *Stat Med* 8:1421); significant "carryover" should drive design choice (washout extension), not an analysis switch (Senn 2002, *Cross-over Trials in Clinical Research*, 2nd ed.).
 
 **Modern operational rule:** pre-specify adequate washout (>=5 half-lives); do NOT routinely test for carryover in primary analysis. If carryover is biologically plausible, use parallel design or extend washout.
 
@@ -408,8 +408,8 @@ For co-primary endpoints, power-adjust per FDA Multiple Endpoints Guidance (Octo
 ### Promising-zone "stealth alpha inflation"
 
 - **Trigger:** Mehta-Pocock SSR applied without sufficient simulation
-- **Mechanism:** Jennison-Turnbull 2015 critique: increase rule + statistical test combination may inflate alpha beyond ~0.001
-- **Symptom:** Independent reanalysis finds Type-I 5.3% vs nominal 5%
+- **Mechanism:** a naive unblinded increase analysed with the conventional (unweighted) statistic inflates Type-I error (Cui-Hung-Wang 1999); the pre-specified weighted CHW statistic preserves alpha
+- **Symptom:** Type-I inflation when the CHW weighting is dropped; separately, Jennison-Turnbull 2015 show the promising zone is inefficient -- the largest power gains per added patient lie outside it
 - **Fix:** Pre-specify increase rule transparently; report simulation operating characteristics
 
 ### Unblinded SSR -- DMC firewall failure
@@ -427,7 +427,7 @@ For co-primary endpoints, power-adjust per FDA Multiple Endpoints Guidance (Octo
 | M2 <= 0.5 × historical M1 (FDA double discount) | FDA NI 2016 guidance | Conservative retention against biocreep |
 | M2 <= 0.5 × MCID for NI | Standard regulatory expectation | Acceptable loss < clinically meaningful difference |
 | Schoenfeld under non-PH under-estimates by 20-50% | Lin 2020 NPH WG | Switch to Lakatos or simulation |
-| Continuity correction wastes ~10% sample size | D'Agostino 1988 *Stat Med* 7:347 | Modern computing makes exact tests cheap |
+| Continuity correction wastes ~10% sample size | D'Agostino, Chase & Belanger 1988 *Am Stat* 42:198 | Modern computing makes exact tests cheap |
 | 90% CI within (0.80, 1.25) for BE | FDA 1992 BE guidance | Geometric mean ratio of Cmax/AUC |
 | Unblinded SSR Type-I requires CHW weights | Cui-Hung-Wang 1999 | Naive increase inflates Type-I |
 | Promising-zone CP range ~30-80% | Mehta-Pocock 2011 *Stat Med* 30:3267 | Mathematical calibration for Type-I preservation |
@@ -478,7 +478,8 @@ For co-primary endpoints, power-adjust per FDA Multiple Endpoints Guidance (Octo
 - Schuirmann DJ. 1987. A comparison of the two one-sided tests procedure and the power approach for assessing the equivalence of average bioavailability. *J Pharmacokinet Biopharm* 15:657-680.
 - Senn S. 2013. Seven myths of randomisation in clinical trials. *Stat Med* 32:1439-1450.
 - Snapinn SM. 2000. Noninferiority trials. *Curr Control Trials Cardiovasc Med* 1:19-21.
-- Temple R, Ellenberg SS. 2000. Placebo-controlled trials and active-control trials in the evaluation of new treatments. *Ann Intern Med* 133:455-470.
+- Temple R, Ellenberg SS. 2000. Placebo-controlled trials and active-control trials in the evaluation of new treatments, part 1: ethical and scientific issues. *Ann Intern Med* 133:455-463.
+- Ellenberg SS, Temple R. 2000. Placebo-controlled trials and active-control trials in the evaluation of new treatments, part 2: practical issues and specific cases. *Ann Intern Med* 133:464-470.
 - Wyrwich KW, Tierney WM, Wolinsky FD. 1999. Further evidence supporting an SEM-based criterion for the identification of meaningful intra-individual changes in health-related quality of life. *J Clin Epidemiol* 52:861-873.
 
 ## Related Skills
@@ -489,6 +490,6 @@ For co-primary endpoints, power-adjust per FDA Multiple Endpoints Guidance (Octo
 - clinical-biostatistics/multiplicity-graphical - Power adjustment for co-primary endpoints
 - clinical-biostatistics/adaptive-designs - SSR, promising zone, group-sequential
 - clinical-biostatistics/bayesian-trials - Bayesian SS via predictive probability of success
-- clinical-biostatistics/trial-reporting - CONSORT 2025 item 7 (sample size justification)
+- clinical-biostatistics/trial-reporting - CONSORT 2025 item 16a (sample size justification)
 - experimental-design/sample-size - General sample-size methods
 - experimental-design/power-analysis - General power methods

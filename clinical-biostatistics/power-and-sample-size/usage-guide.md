@@ -83,7 +83,7 @@ Tell your AI agent what you want to do:
 - **TOST is closed under intersection-union** -- no multiplicity adjustment despite two tests.
 - **MCID has two derivation traditions:** anchor-based (Jaeschke 1989) and distribution-based (0.5 SD heuristic, Norman 2003). Report both when available.
 - **Unblinded SSR scares FDA** because of DMC firewall risk. Blinded SSR (Friede-Kieser 2006) is uncontroversial; unblinded with CHW weights (Cui-Hung-Wang 1999) is conditionally acceptable.
-- **Mehta-Pocock promising zone has been called "stealth alpha inflation"** by Jennison-Turnbull 2015. Pre-specify carefully and report operating characteristics.
+- **Jennison-Turnbull 2015 critique the Mehta-Pocock promising zone as inefficient** -- the largest power gains per added patient lie outside the promising zone (the design itself controls Type-I error). Pre-specify carefully and report operating characteristics.
 - **Cluster-randomised trials need design-effect adjustment**: multiply individual-level n by 1 + (m-1)ICC. ICC misspecification is the single largest source of underpowering.
 
 ## Related Skills

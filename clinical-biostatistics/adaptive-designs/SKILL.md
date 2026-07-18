@@ -26,7 +26,7 @@ If code throws an error, introspect the installed package and adapt the example 
 
 **FDA 2022 Final Master Protocols Guidance** (March 2022, NOT 2018 — common citation error): basket (one drug, many diseases), umbrella (multiple drugs, one disease), platform (perpetual, drugs enter/exit).
 
-**ICH E20 Adaptive Clinical Trials**: **Step 2b draft June 25 2025; Step 3 public consultation (EU deadline Nov 30 2025; FDA Federal Register Sept 30 2025); Step 4 final targeted late 2026.** As of May 2026, ICH E20 is NOT final. The EFPIA/PhRMA position paper preceded the formal ICH work; Berry Consultants public comment letter is one of the more important submissions.
+**ICH E20 Adaptive Clinical Trials**: **Step 2b draft June 25 2025; Step 3 public consultation (EU deadline Nov 30 2025; FDA Federal Register Sept 30 2025); Step 4 final expected in 2026.** As of May 2026, ICH E20 is NOT final. The EFPIA/PhRMA position paper preceded the formal ICH work; Berry Consultants public comment letter is one of the more important submissions.
 
 **FDA CDER Bayesian Methodology Draft (Jan 2026)** (FDA-2025-D-3217): first-ever drug-side Bayesian guidance; permits Bayesian primary inference in pivotals with simulation-based Type-I error calibration.
 
@@ -224,7 +224,7 @@ n_increased <- getSampleSizeMeans(
 
 **The mathematical sleight:** promising zone is constructed so unconditional Type-I error inflation is negligible (~0.001) even WITHOUT CHW weighting. **Jennison-Turnbull 2015 critique:** stealth alpha inflation in unpublished simulation assumptions; inefficient relative to CHW-weighted GSD. Mehta defends on operational grounds.
 
-**Hsiao et al 2020 *Trials* 21:1003** is the systematic review.
+**Edwards et al 2020 *Trials* 21:1000** is the systematic review.
 
 ## Combination Tests and CRP Principle
 
@@ -273,8 +273,8 @@ Drop sub-populations failing futility; re-power on responders. **Closed-test sta
 **Counter-arguments:**
 
 - **Berry DA 2015 commentary** *Clin Trials* 12:107: RAR enables learn-and-confirm, multi-arm platforms (I-SPY 2 model) where the patient-welfare argument IS the point and equal allocation would be unethical given accumulating evidence.
-- **Saville & Berry 2016 *Clin Trials* 13:358:** RAR's operating characteristics are competitive in multi-arm; bias and inflation problems disappear with stratification, time-trend covariates, and proper analysis weights.
-- **Buyse 2015 *Clin Trials* 12:108:** Hey-Kimmelman correct for 2-arm but wrong for multi-arm.
+- **Saville & Berry 2016 *Clin Trials* 13:358:** RAR's operating characteristics are competitive in multi-arm platforms. Drift bias and Type-I inflation are controlled by adjusting for temporal trends (time-trend covariates) alongside stratification and proper analysis weights -- the "Bayesian time machine" approach developed in later work.
+- **Buyse 2015 *Clin Trials* 12:119:** Hey-Kimmelman correct for 2-arm but wrong for multi-arm.
 
 **Consensus position (2020s; ICH E20):** RAR appropriate when (a) multi-arm (>=3 arms), (b) rare disease / limited pool, (c) strong PoC of differential biomarker response, (d) robust drift-bias adjustment and pre-specified analysis weights. **Inappropriate for confirmatory 2-arm trials.**
 
@@ -300,10 +300,10 @@ Drop sub-populations failing futility; re-power on responders. **Closed-test sta
 | CRM | O'Quigley-Pepe-Fisher 1990 | Single-parameter logistic/power model; updates posterior MTD probability after each cohort | Statistically efficient; skeleton calibration needed |
 | EWOC | Babb-Rogatko-Zacks 1998 | CRM-like with explicit overdose-control constraint (P(dose > MTD) <= 0.25) | Safer than CRM in small trials |
 | mTPI | Ji et al 2010 *Clin Trials* 7:653 | Beta-binomial; UPM decision rule on under/proper/over-dosing intervals | Pre-tabulated decisions; documented over-shoot bias |
-| mTPI-2 / Keyboard | Guo-Wang-Chen-Ji 2017 | Fixes mTPI Ockham bias by equal-width intervals | Default mTPI replacement |
+| mTPI-2 / Keyboard | Guo-Wang-Yang-Lynn-Ji 2017 | Fixes mTPI Ockham bias by equal-width intervals | Default mTPI replacement |
 | BOIN | Liu-Yuan 2015 *J R Stat Soc C* 64:507 | Pre-tabulated escalation interval bounds optimised to minimise incorrect-decision probability | **FDA Fit-for-Purpose qualified Dec 2021**; near-CRM with no bedside software |
 
-**Why FDA prefers BOIN operationally:** qualified as Fit-for-Purpose under FDA Drug Development Tools program (review document FDA-2020-X-XXXX, posted 2021). Investigator uses pre-printed escalation table — no real-time Bayesian software at the bedside.
+**Why FDA prefers BOIN operationally:** qualified as Fit-for-Purpose under FDA's Drug Development Tools program (FDA Determination Letter, December 10, 2021). Investigator uses pre-printed escalation table — no real-time Bayesian software at the bedside.
 
 R packages: `BOIN`, `dfcrm` (Cheung — author of CRM textbook), `trialr` (Brock — includes EffTox), `escalation` (Brock — unified framework).
 
@@ -314,7 +314,7 @@ R packages: `BOIN`, `dfcrm` (Cheung — author of CRM textbook), `trialr` (Brock
 | Blinded SSR n vs unblinded SSR n differ substantially | Unblinded SSR uses interim effect estimate; blinded uses nuisance parameter only | Blinded is Type-I-clean; unblinded requires CHW weighting; pre-specify the approach in SAP |
 | Group-sequential rejects at interim; Cui-Hung-Wang weighted final test does not | Naive interim rejection used original test statistic; CHW weights downweight late data | Pre-specify boundary and weights; do NOT switch tests mid-stream |
 | Mehta-Pocock promising-zone vs CHW-weighted GSD give different n increases | Promising zone calibrated for Type-I (~0.001 inflation); CHW more efficient under known effect | Jennison-Turnbull 2015 critique: promising zone "stealth alpha"; pre-specify with simulation OCs |
-| Adaptive enrichment selects subgroup at interim; replication shows smaller effect | Selection bias on enriched population (Sun 2010 winner's curse) | Bias-correction via conditional MLE or hierarchical Bayesian; cite Robertson 2023 |
+| Adaptive enrichment selects subgroup at interim; replication shows smaller effect | Selection bias on enriched population (winner's curse) | Bias-correction via conditional MLE or hierarchical Bayesian; cite Robertson 2023 |
 | RAR posterior allocation favours active in 2-arm trial; randomisation drift bias suspected | Time trends confounded with allocation changes | Pre-specify time-trend covariates in analysis; use proper analysis weights; cite Robertson 2023 RAR consensus (RAR INAPPROPRIATE for 2-arm confirmatory) |
 | BOIN vs CRM choose different MTD on same data | CRM uses model; BOIN uses tabulated boundaries; differ when skeleton mis-calibrated | BOIN Fit-for-Purpose qualified (Dec 2021); CRM more efficient under correct skeleton; report OCs over both |
 | I-SPY 2 graduation criterion met but Phase 3 replication fails | Selection bias on graduated arm; PP threshold not bias-corrected | Apply conditional MLE; cite Robertson 2023; report both raw and bias-corrected estimates |
@@ -362,7 +362,7 @@ R packages: `BOIN`, `dfcrm` (Cheung — author of CRM textbook), `trialr` (Brock
 - **Trigger:** Enriched population effect reported without bias correction.
 - **Mechanism:** Selection on subgroup with promising interim effect inflates estimate.
 - **Symptom:** Independent replication on enriched subgroup gives smaller effect.
-- **Fix:** Bias-correction via simulation or hierarchical Bayesian; cite Sun 2010 winner's curse.
+- **Fix:** Bias-correction via simulation or hierarchical Bayesian; cite Robertson 2023 for bias-adjusted estimation.
 
 ### RAR in 2-arm confirmatory
 
@@ -398,7 +398,7 @@ R packages: `BOIN`, `dfcrm` (Cheung — author of CRM textbook), `trialr` (Brock
 | Mehta-Pocock without simulation OCs | Stealth alpha inflation | Report simulation OCs; cite Jennison 2015 |
 | RAR in 2-arm confirmatory | Misapplication | Group-sequential instead; cite Robertson 2023 |
 | Schoenfeld for immuno-oncology | PH assumption violated | Lakatos or simulation; cite Lin 2020 |
-| Adaptive enrichment effect reported uncorrected | Selection bias | Bias-correction; cite Sun 2010 |
+| Adaptive enrichment effect reported uncorrected | Selection bias | Bias-correction; cite Robertson 2023 |
 | CRM with default skeleton | Mis-calibration | Calibrate via Lee-Cheung 2009 or switch to BOIN |
 | ICH E20 cited as "finalised April 2024" | Confusion with EFPIA position paper | ICH E20 is Step 2b/3 draft (June 2025); not final |
 | FDA Master Protocols "2018" | 2018 was draft | March 2022 was the final |
@@ -415,14 +415,14 @@ R packages: `BOIN`, `dfcrm` (Cheung — author of CRM textbook), `trialr` (Brock
 | "IDMC firewall?" | IDMC receives interim effect estimate; sponsor receives only "increase / no increase" decision; SOP documented; pre-specified |
 | "RAR ethics?" | Multi-arm (4 arms) setting; Berry 2015 consensus that patient-welfare argument valid; drift-bias adjustment in primary analysis |
 | "Promising zone vs CHW-weighted GSD?" | Operational simplicity preferred; OCs from simulation confirm Type-I ~5%; supportive Cui-Hung-Wang analysis |
-| "Adaptive enrichment bias?" | Bias-correction via simulation; conditional MLE for enriched-population effect; cite Sun 2010 |
+| "Adaptive enrichment bias?" | Bias-correction via simulation; conditional MLE for enriched-population effect; cite Robertson 2023 |
 | "Phase 1 BOIN vs CRM?" | BOIN Fit-for-Purpose qualified by FDA Dec 2021; tabulated decisions; no bedside Bayesian software |
 
 ## References
 
 - Babb J, Rogatko A, Zacks S. 1998. Cancer Phase I clinical trials: efficient dose escalation with overdose control. *Stat Med* 17:1103-1120.
 - Bauer P, Köhne K. 1994. Evaluation of experiments with adaptive interim analyses. *Biometrics* 50:1029-1041.
-- Berry DA. 2015. Commentary on Hey & Kimmelman. *Clin Trials* 12:107-110.
+- Berry DA. 2015. Commentary on Hey & Kimmelman. *Clin Trials* 12:107-109.
 - Cui L, Hung HMJ, Wang SJ. 1999. Modification of sample size in group sequential clinical trials. *Biometrics* 55:853-857.
 - FDA. 2019. Adaptive Designs for Clinical Trials of Drugs and Biologics. Final Guidance.
 - FDA. 2022. Master Protocols: Efficient Clinical Trial Design Strategies to Expedite Development of Oncology Drugs and Biologics. Final Guidance, March 2022.

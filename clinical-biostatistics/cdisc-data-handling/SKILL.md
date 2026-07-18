@@ -8,7 +8,7 @@ goal_approach_exempt: true
 
 ## Version Compatibility
 
-Reference examples tested with: pyreadstat 1.2+, pandas 2.1+, numpy 1.26+. CDISC standards referenced: SDTM 2.0 / SDTMIG 3.4 (SDTM 3.0 / SDTMIG 4.0 in public review through April 2026); ADaMIG v1.3 (2021); OCCDS v1.1 (Nov 2021); BDS-for-TTE v1.0; Define-XML 2.1 (FDA-recommended for studies starting on/after March 15, 2023); Dataset-JSON v1.1 (Dec 2025; FDA Federal Register notice April 2025); Pinnacle 21 Community 4.0+; CORE (CDISC Open Rules Engine, 2024).
+Reference examples tested with: pyreadstat 1.2+, pandas 2.1+, numpy 1.26+. CDISC standards referenced: SDTM 2.0 / SDTMIG 3.4 (SDTM 3.0 / SDTMIG 4.0 in public review through April 2026); ADaMIG v1.3 (2021); OCCDS v1.1 (Nov 2021); BDS-for-TTE v1.0; Define-XML 2.1 (FDA-recommended for studies starting on/after March 15, 2023); Dataset-JSON v1.1 (Dec 2024; FDA Federal Register notice April 2025); Pinnacle 21 Community 4.0+; CORE (CDISC Open Rules Engine, 2021). Define-XML 2.1 FDA support began March 15, 2021 and is required for studies starting on/after March 15, 2023.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -115,7 +115,7 @@ When pyreadstat is available, the metadata object provides column labels, value 
 - No UTF-8 (ASCII only) -> problematic for multilingual trials
 - Single dataset per file
 
-**Dataset-JSON v1.1 (CDISC, December 2025; FDA Federal Register notice April 2025)** is the modern replacement. PHUSE-CDISC-FDA pilot has demonstrated drop-in feasibility. FDA adoption timeline pending as of mid-2026; EMA and PMDA exploring in parallel.
+**Dataset-JSON v1.1 (CDISC, December 2024; FDA Federal Register notice April 2025)** is the modern replacement. PHUSE-CDISC-FDA pilot has demonstrated drop-in feasibility. FDA adoption timeline pending as of mid-2026; EMA and PMDA exploring in parallel.
 
 **Pragmatic position:** for the next ~2 years, SAS XPT v5 will remain the de facto submission format; sponsors should architect for Dataset-JSON migration but maintain XPT compliance.
 
@@ -265,7 +265,7 @@ adtte['event'] = (adtte['CNSR'] == 0).astype(int)  # 1 = event for survival pack
 
 ### Define-XML 2.1
 
-Every ADaM dataset requires variable-level metadata in Define-XML 2.1 (FDA-recommended for studies starting on/after March 15, 2023). Fields per variable:
+Every ADaM dataset requires variable-level metadata in Define-XML 2.1 (FDA-required for studies starting on/after March 15, 2023; support began March 15, 2021). Fields per variable:
 
 - **Origin** -- CRF, derived, predecessor SDTM variable
 - **Derivation rule** -- free text or controlled algorithm
@@ -377,7 +377,7 @@ ae_with_ref['AE_ONSET_DAY'] = (ae_with_ref['AESTDT'] - ae_with_ref['RFSTDT']).dt
 
 **FDA Validation Rules** are published quarterly by FDA Office of Translational Sciences; Pinnacle 21 wraps these into its rule engine.
 
-**CORE (CDISC Open Rules Engine, 2024)** is a newer open-source alternative using YAML-defined rules from the CDISC Rules Catalog. Gaining traction but not yet at Pinnacle-21 parity for confirmatory submissions.
+**CORE (CDISC Open Rules Engine, 2021)** is a newer open-source alternative using YAML-defined rules from the CDISC Rules Catalog. Gaining traction but not yet at Pinnacle-21 parity for confirmatory submissions.
 
 ```bash
 # Pinnacle 21 Community (free; appropriate for non-pivotal trials)
@@ -445,7 +445,7 @@ This is the data-quality precursor to choosing the estimand strategy in trial-re
 | ARM (planned) for ITT efficacy; ACTARM for safety | ICH E9 | Crossover/PP-violation handling |
 | Pinnacle 21 validation before submission | FDA Study Data Technical Conformance Guide | Standard quality gate; reject errors block acceptance |
 | Define-XML 2.1 for studies starting >=March 15, 2023 | FDA Study Data Standards Catalog | Older 2.0 still accepted for prior studies |
-| Dataset-JSON v1.1 (Dec 2025; FDA notice April 2025) | CDISC + FDA Federal Register | Modern replacement for XPT v5; timeline pending |
+| Dataset-JSON v1.1 (Dec 2024; FDA notice April 2025) | CDISC + FDA Federal Register | Modern replacement for XPT v5; timeline pending |
 | CNSR=0 for events, positive integers for censoring | ADaM BDS-for-TTE v1.0 | OPPOSITE of R `survival` and most stat packages |
 
 ## Anticipated Reviewer Pushback
@@ -464,8 +464,8 @@ This is the data-quality precursor to choosing the estimand strategy in trial-re
 
 - CDISC. 2021. Analysis Data Model Implementation Guide (ADaMIG) v1.3.
 - CDISC. 2021. Occurrence Data Structure (OCCDS) v1.1.
-- CDISC. 2012/2024. ADaM Basic Data Structure for Time-to-Event Analyses v1.0.
-- CDISC. 2025. Dataset-JSON v1.1.
+- CDISC. 2012. ADaM Basic Data Structure for Time-to-Event Analyses v1.0.
+- CDISC. 2024. Dataset-JSON v1.1.
 - FDA. 2024. Study Data Technical Conformance Guide.
 - FDA Federal Register Notice. April 2025. Dataset-JSON Pilot Comment Request.
 - ICH. 1995. E2A: Clinical Safety Data Management -- Definitions and Standards for Expedited Reporting.

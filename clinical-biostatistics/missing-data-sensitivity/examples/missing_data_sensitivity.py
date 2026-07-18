@@ -42,7 +42,7 @@ def characterise_dropout(df, arm_col='arm', dropout_col='dropout_reason'):
 
     # 10pp threshold: NRC 2010 implicit; dropout asymmetry of this magnitude
     # is the canonical signal that MAR is implausible (Mallinckrodt 2008;
-    # Aducanumab AdCom 2021 precedent for differential-dropout concerns).
+    # aducanumab Nov 2020 AdCom precedent for differential-dropout concerns).
     if abs(overall_dropout.iloc[0] - overall_dropout.iloc[1]) > 0.10:
         print('\nWARNING: dropout differs by arm > 10pp; MAR is suspect.')
         print('Consider treatment-policy estimand with reference-based MI as primary.')
@@ -78,6 +78,10 @@ def multiple_imputation_logit(df, formula, numeric_cols, n_imputations=20):
             if col not in numeric_cols:
                 imputed[col] = df[col].values
 
+        # Binary outcome is filled continuously by IterativeImputer; re-binarize at 0.5
+        # before logit (statsmodels requires endog in the unit interval)
+        outcome_var = formula.split('~')[0].strip()
+        imputed[outcome_var] = (imputed[outcome_var] >= 0.5).astype(float)
         model = smf.logit(formula, data=imputed).fit(disp=0)
         results.append({
             'coef': model.params.iloc[1],
@@ -95,7 +99,7 @@ def multiple_imputation_logit(df, formula, numeric_cols, n_imputations=20):
     z_score = pooled_coef / pooled_se
     # FMI: fraction of missing info
     fmi = (1 + 1 / n_imputations) * between_var / total_var
-    # Adequate m: m >= 100 * FMI (von Hippel 2020)
+    # Adequate m: m >= 100 * FMI (linear rule of thumb; von Hippel 2020 gives a two-stage quadratic refinement)
     adequate_m = int(np.ceil(100 * fmi))
 
     print(f'Pooled coefficient: {pooled_coef:.4f}')
@@ -159,6 +163,8 @@ def tipping_point_analysis(df, formula, outcome_col, arm_col,
             if col not in numeric_cols:
                 imputed_numeric[col] = df_adj[col].values
 
+        # Re-binarize the delta-shifted imputed outcome at 0.5 for logit
+        imputed_numeric[outcome_col] = (imputed_numeric[outcome_col] >= 0.5).astype(float)
         model = smf.logit(formula, data=imputed_numeric).fit(disp=0)
         # Treatment coefficient p-value
         p = model.pvalues.iloc[1]

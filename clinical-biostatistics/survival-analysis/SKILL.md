@@ -21,7 +21,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 ## The Single Most Important Modern Insight -- PH Almost Never Holds
 
-In modern oncology with checkpoint inhibitors, targeted therapies, crossover, and depleted high-risk subjects over follow-up, **proportional hazards (PH) violations are the rule, not the exception**. The Cross-Pharma NPH Working Group (Lin et al 2020 *Stat Biopharm Res*; Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293) documented systematic PH violations across phase III oncology trials, particularly delayed-effect patterns from checkpoint inhibitors.
+In modern oncology with checkpoint inhibitors, targeted therapies, crossover, and depleted high-risk subjects over follow-up, **proportional hazards (PH) violations are the rule, not the exception**. The Cross-Pharma NPH Working Group (Lin et al 2020 *Stat Biopharm Res*; Magirr-Burman 2021 *Stat Biopharm Res* 15(2):295) documented systematic PH violations across phase III oncology trials, particularly delayed-effect patterns from checkpoint inhibitors.
 
 The Cox HR is a *time-averaged log-hazard ratio* under PH violation (Xu-O'Quigley 2000), which may or may not be the estimand of interest. RMST (Royston-Parmar 2013) provides a clinically interpretable, hazard-free alternative.
 
@@ -52,10 +52,10 @@ The Cox HR is a *time-averaged log-hazard ratio* under PH violation (Xu-O'Quigle
 - Andersen-Keiding 2012 *Stat Med* 31:1074 (Fine-Gray semantic critique)
 - Putter-Schumacher-van Houwelingen 2020 *Biom J* 62:790 (Fine-Gray revisited; reduction factor)
 - Putter-Fiocco-Geskus 2007 *Stat Med* 26:2389 (competing risks tutorial)
-- Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293 (MaxCombo critique)
+- Magirr-Burman 2021 *Stat Biopharm Res* 15(2):295 (MaxCombo critique)
 - Grambsch-Therneau 1994 *Biometrika* 81:515 (scaled Schoenfeld residuals)
 - Buyse-Molenberghs 1998 *Biometrics* 54:1014 (PFS-OS surrogacy framework)
-- Lewis et al 2023 (ICH E9(R1) censoring rules and estimand)
+- Sun et al 2021 *Pharm Stat* 20:793 (estimands in oncology; ICH E9(R1) ICE strategies)
 - Sun 2006 *The Statistical Analysis of Interval-Censored Failure Time Data* (Springer)
 
 ## Decision Tree by Scenario
@@ -64,7 +64,7 @@ The Cox HR is a *time-averaged log-hazard ratio* under PH violation (Xu-O'Quigle
 |----------|---------------------|-----|
 | OS, drug expected to extend survival uniformly, PH plausible | Stratified log-rank + Cox HR with cox.zph diagnostic | Standard regulatory approach; pre-specify stratification factors from randomisation |
 | PFS in immuno-oncology with expected delayed separation | MaxCombo with pre-specified G(0,0), G(0,1), G(1,0), G(1,1); RMST as sensitivity | Robust to NPH; explicit direction check (Magirr-Burman 2021) |
-| OS with crossover to active arm | Treatment policy estimand (ITT) primary; RPSFT/IPCW as sensitivity for hypothetical | Lewis 2023; FDA/EMA accept both, ITT is primary |
+| OS with crossover to active arm | Treatment policy estimand (ITT) primary; RPSFT/IPCW as sensitivity for hypothetical | ICH E9(R1); FDA/EMA accept both, ITT is primary |
 | Time-to-event with assessment-schedule artifact (periodic scans) | Interval-censored Cox (R `icenReg::ic_par`) | Standard right-censoring at midpoint is biased |
 | DOR (duration of response) | KM among responders; censor at next-therapy/death/dropout per pre-specified estimand | Weber 2023 *Pharm Stat*; responder-conditioned = doubly post-randomisation |
 | Competing risk: drug efficacy on event A in context of high event-B mortality | Cause-specific Cox for A AND for B; report both; CIF via Aalen-Johansen | Andersen-Keiding 2012; Fine-Gray SHR is not causal |
@@ -95,7 +95,7 @@ print(results.summary)
 # In R: cox.zph(coxph_fit) returns same with KM transform as default
 ```
 
-**The g(t) choice trap (Park-Hendry 2015 *Political Analysis*):** the test power depends critically on g(t). KM transform, identity, log, and rank give materially different p-values. With n > 5000 even trivial deviations reject; with n < 100 the test misses meaningful violations.
+**The g(t) choice trap (Park-Hendry 2015 *American Journal of Political Science*):** the test power depends critically on g(t). KM transform, identity, log, and rank give materially different p-values. With n > 5000 even trivial deviations reject; with n < 100 the test misses meaningful violations.
 
 **Critical interpretation rule: a global p > 0.05 does NOT mean PH holds — it means the null cannot be rejected.** The graphical diagnostic is more informative — a flat smoothed line is the target. Use cox.zph as a *failure detector*, not a *PH validator*.
 
@@ -132,11 +132,11 @@ print(f'RMST diff: {rmst_A - rmst_B:.2f} months')
 
 ### The tau (truncation time) choice
 
-- **Statistical constraint:** tau <= min(largest follow-up time in each arm) to avoid extrapolation (Tian et al 2020 *Biostatistics* gives rigorous treatment)
+- **Statistical constraint:** tau <= min(largest follow-up time in each arm) to avoid extrapolation (Tian et al 2020 *Biometrics* gives rigorous treatment)
 - **Clinical constraint:** tau should reflect a clinically meaningful horizon (5-year OS in adjuvant; 24-month PFS in metastatic)
 - **Data-dependent tau inflates Type-I error** — MUST be pre-specified in SAP. Post-hoc tau tuning to chase significance is p-hacking.
 
-### Pseudo-observation regression (Andersen-Klein 2007)
+### Pseudo-observation regression (Andersen-Hansen-Klein 2004)
 
 For each subject i, compute jackknife pseudo-value θ_i(tau) = n·RMST(tau) - (n-1)·RMST_{-i}(tau). Regress pseudo-values on covariates via GEE — enables RMST regression WITH covariate adjustment, including time-varying covariates, no PH assumption.
 
@@ -203,7 +203,7 @@ results = multivariate_logrank_test(
 
 ### The MaxCombo controversy
 
-**Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293**: MaxCombo can reject the null in **opposite directions** on the same dataset. Formally, it rejects the strong null H_0: S_A(t) = S_B(t) for all t, but the rejection direction is determined by the dominant weight, which can flip across portions of the curve. **KEYNOTE-042 demonstration**: MaxCombo simultaneously favouring pembrolizumab AND chemo depending on weight choice.
+**Magirr-Burman 2021 *Stat Biopharm Res* 15(2):295**: MaxCombo can reject the null in **opposite directions** on the same dataset. Formally, it rejects the strong null H_0: S_A(t) = S_B(t) for all t, but the rejection direction is determined by the dominant weight, which can flip across portions of the curve. **KEYNOTE-042 demonstration**: MaxCombo simultaneously favouring pembrolizumab AND chemo depending on weight choice.
 
 **Cross-Pharma NPH Working Group recommendation:** MaxCombo with directionality constraints — require positive z-statistic at the late-emphasis weight before declaring superiority; report the dominant weight and its direction.
 
@@ -237,7 +237,7 @@ results = multivariate_logrank_test(
 
 **Box-Steffensmeier critique:** WLW is often misused — fitting separate Cox to "time to 2nd event" treats it as a first-event problem rather than conditional on prior history, inflating effect estimates. PWP-gap-time is the cleanest conditional model. AG most efficient when exchangeability holds.
 
-**Modern advice (Rogers et al 2016; Cook-Lawless 2007 book):** AG with robust variance as default; PWP if events qualitatively heterogeneous; avoid WLW unless events are truly distinct types.
+**Modern advice (Rogers et al 2014; Cook-Lawless 2007 book):** AG with robust variance as default; PWP if events qualitatively heterogeneous; avoid WLW unless events are truly distinct types.
 
 ## Oncology PFS/OS Estimands -- The 2024 Reality
 
@@ -252,13 +252,13 @@ Per ICH E9(R1), the same PFS dataset yields different HRs depending on censoring
 
 **The 2024 European Journal of Cancer demonstration (PMID 38547775):** two sets of censoring rules — FDA-favoured vs trialist-favoured — applied to the *same* PFS data shifted median PFS from 32 to 43 months in the experimental arm with no change in control. This is the estimand changing, not analytic artefact.
 
-**Fleming 2025 argument:** PFS should be defined as treatment-policy with progression + death + subsequent therapy as a composite ("treatment failure-free survival") to preserve ITT. Controversial because it loses interpretation as "tumor growth control."
+**Fleming 2025 argument:** handle subsequent therapy by treatment-policy -- continue follow-up rather than censor at the switch -- keeping progression + death as the composite endpoint to preserve ITT. Controversial because not censoring at subsequent therapy blurs interpretation as "tumor growth control."
 
 ### Informative censoring -- detection and handling
 
 **The mechanism:** standard right-censored Cox / KM assumes censoring is non-informative (the censoring process is unrelated to the underlying failure time after conditioning on observed covariates). **When this fails, KM is biased upward** in the arm with informative censoring -- patients who drop out due to lack of efficacy or toxicity are precisely the ones who would have failed early.
 
-**TROPiCS-02 2023 (Tolaney *JCO*):** "evaporative cooling" of progression events. Patients on the toxic arm discontinue and are censored BEFORE the next protocol-mandated scan that would have captured progression; KM biases PFS upward in the toxic arm. Templeton 2020 *Nat Rev Clin Oncol* and Campigotto-Weller 2014 *JCO* are foundational citations.
+**TROPiCS-02 informative censoring (Li et al 2023 *JCO* 41:1629):** "evaporative cooling" of progression events. Patients on the toxic arm discontinue and are censored BEFORE the next protocol-mandated scan that would have captured progression; KM biases PFS upward in the toxic arm. Templeton 2020 *Nat Rev Clin Oncol* and Campigotto-Weller 2014 *JCO* are foundational citations.
 
 **Detection workflow:**
 
@@ -273,7 +273,7 @@ Per ICH E9(R1), the same PFS dataset yields different HRs depending on censoring
 
 3. **Cox-Snell or Schoenfeld residuals on censoring-as-event model**: if treatment is significantly associated with censoring hazard, censoring is informative.
 
-**Handling strategies (per ICH E9(R1) and Lewis 2023):**
+**Handling strategies (per ICH E9(R1) and Sun 2021):**
 
 | Strategy | When to use | Implementation |
 |----------|-------------|----------------|
@@ -362,7 +362,7 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 - **Trigger:** RMST tau adjusted after seeing data
 - **Mechanism:** Selection bias; tau-tuning is a flavour of p-hacking
 - **Symptom:** Sponsor's RMST result differs from independently re-analysed with pre-specified tau
-- **Fix:** Pre-specify tau in SAP; cite Tian 2020 *Biostatistics*
+- **Fix:** Pre-specify tau in SAP; cite Tian 2020 *Biometrics*
 
 ### Right-censored midpoint for interval-censored PFS
 
@@ -385,7 +385,7 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 | Cox HR significant, RMST difference non-significant | HR is time-averaged log-HR under PH violation; RMST captures cumulative effect | If PH violated, RMST is the more interpretable summary; HR may be artifact of late-event preponderance |
 | MaxCombo rejects null but direction depends on weight | MaxCombo's rejection direction is determined by dominant weight; can flip across weight choices (Magirr-Burman 2021) | Pre-specify directional constraint (positive z at late-emphasis weight) before declaring superiority; do NOT post-hoc select winning weight |
 | Fine-Gray SHR vs cause-specific Cox HR conflict on direction | Fine-Gray confounds with competing-event hazard; cause-specific isolates causal effect on event of interest (Andersen-Keiding 2012) | For causal claims use cause-specific Cox; Fine-Gray for CIF prediction only; report both per Putter-Fiocco-Geskus 2007 |
-| Stratified log-rank p < unstratified p | Stratification removes between-stratum variance; correct standard error smaller | Stratified analysis matches randomisation; unstratified inflates Type-I per Kahan-Morris 2012 |
+| Stratified log-rank p < unstratified p | Stratification removes between-stratum variance; correct standard error smaller | Stratified analysis matches randomisation; unstratified is over-conservative (SE biased upward, power loss) per Kahan-Morris 2012 |
 | KM survival curve vs Aalen-Johansen 1-CIF disagree in competing-risks setting | KM treats competing events as non-informative censoring (biased upward) | Use Aalen-Johansen for CIF; never KM in competing-risk setting |
 | Schoenfeld-formula SS insufficient at trial end (events under-collected) | Non-PH (immuno-oncology delayed effect) violates Schoenfeld assumption; under-estimates events 20-50% | Re-power using Lakatos 1988 or simulation under expected HR(t); cite Lin 2020 NPH Working Group |
 | Right-censored midpoint Cox HR vs interval-censored Cox HR differ | Midpoint imputation biased when scan intervals long or asymmetric | Switch to interval-censored Cox via icenReg when scan intervals > 4 weeks or differ by arm |
@@ -396,8 +396,8 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 | Threshold | Source | Rationale |
 |-----------|--------|-----------|
 | cox.zph p > 0.05 is NOT proof of PH | Grambsch-Therneau 1994; Park-Hendry 2015 | Failure detector, not validator |
-| RMST tau <= min(largest follow-up per arm) | Tian 2020 *Biostatistics* | Avoid extrapolation; tau pre-specified in SAP |
-| MaxCombo with directional constraint | Magirr-Burman 2021 *Stat Biopharm Res* 15(2):293 | Prevents opposite-direction rejections |
+| RMST tau <= min(largest follow-up per arm) | Tian 2020 *Biometrics* | Avoid extrapolation; tau pre-specified in SAP |
+| MaxCombo with directional constraint | Magirr-Burman 2021 *Stat Biopharm Res* 15(2):295 | Prevents opposite-direction rejections |
 | Cause-specific Cox for etiology; FG for CIF prediction | Putter-Fiocco-Geskus 2007 | Andersen-Keiding 2012 critique |
 | Scan intervals > 4 weeks -> interval-censored analysis | Sun 2006 | Midpoint right-censoring is biased |
 | 10 events per covariate for Cox | Peduzzi 1995 *J Clin Epidemiol* | Below this, bias and overfitting |
@@ -413,7 +413,7 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 | MaxCombo with no direction restriction | Direction-flipping risk | Pre-specify constraints (Magirr-Burman 2021) |
 | ADTTE CNSR=1 used as "1=event" | Convention reversal | `event = (CNSR == 0).astype(int)` |
 | PFS midpoint right-censored without interval-censored sensitivity | Scan-schedule bias | Interval-censored analysis when scan intervals long |
-| Stratified randomisation factor not in Cox | Type-I inflation | Include strata via `strata()` or as covariate |
+| Stratified randomisation factor not in Cox | Over-conservative (SE biased upward, Type-I below nominal, power loss) | Include strata via `strata()` or as covariate |
 | Schoenfeld SS calculation in immuno-oncology | PH assumption violated | Simulate under expected hazard pattern (Lakatos 1988); use MaxCombo SS |
 | tau set to longest follow-up post-hoc | RMST p-hacking | Pre-specify tau in SAP; cite Tian 2020 |
 | Recurrent-event WLW with naive "time to 2nd event" | Inflated effect | AG with robust SE, or PWP gap-time |
@@ -436,14 +436,14 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 ## References
 
 - Andersen PK, Keiding N. 2012. Interpretability and importance of functionals in competing risks and multistate models. *Stat Med* 31:1074-1088.
-- Andersen PK, Klein JP. 2007. Regression analysis for the cumulative incidence functions. *Scand J Stat* 34:3-16.
+- Andersen PK, Hansen MG, Klein JP. 2004. Regression analysis of restricted mean survival time based on pseudo-observations. *Lifetime Data Anal* 10:335-350.
 - Buyse M, Molenberghs G. 1998. Criteria for the validation of surrogate endpoints in randomized experiments. *Biometrics* 54:1014-1029.
 - Cox DR. 1972. Regression models and life-tables. *JRSS-B* 34:187-220.
 - Fine JP, Gray RJ. 1999. A proportional hazards model for the subdistribution of a competing risk. *JASA* 94:496-509.
 - Karrison TG. 2016. Versatile tests for comparing survival curves based on weighted log-rank statistics. *Stat J* 16:678-690.
 - Lakatos E. 1988. Sample sizes based on the log-rank statistic in complex clinical trials. *Biometrics* 44:229-241.
-- Lewis EF et al. 2023. Time-to-event endpoints in oncology under the ICH E9(R1) estimand framework. *Pharm Stat* (specific cite varies; see oncology estimand working-group publications).
-- Magirr D, Burman CF. 2021. The strong null hypothesis and the MaxCombo test. *Stat Biopharm Res* 15(2):293-298. (Earlier "Cherry-picking in survival analysis" attribution was a blog post, Oct 2022.)
+- Sun S, Weber HJ, Butler E, Rufibach K, Roychoudhury S. 2021. Estimands in hematologic oncology trials. *Pharm Stat* 20(4):793-805.
+- Magirr D, Burman CF. 2021. The strong null hypothesis and the MaxCombo test. *Stat Biopharm Res* 15(2):295-296. (Earlier "Cherry-picking in survival analysis" attribution was a blog post, Oct 2022.)
 - Mantel N. 1966. Evaluation of survival data and two new rank order statistics arising in its consideration. *Cancer Chemotherapy Reports* 50:163-170.
 - Peduzzi P et al. 1995. Importance of events per independent variable in proportional hazards analysis. *J Clin Epidemiol* 48:1503-1510.
 - Putter H, Fiocco M, Geskus RB. 2007. Tutorial in biostatistics: competing risks and multi-state models. *Stat Med* 26:2389-2430.
@@ -452,7 +452,7 @@ This is a perpetual bug source. See clinical-biostatistics/cdisc-data-handling f
 - Schoenfeld DA. 1981. The asymptotic properties of nonparametric tests for comparing survival distributions. *Biometrika* 68:316-319.
 - Sun J. 2006. *The Statistical Analysis of Interval-Censored Failure Time Data*. Springer.
 - Grambsch PM, Therneau TM. 1994. Proportional hazards tests and diagnostics based on weighted residuals. *Biometrika* 81:515-526.
-- Tian L et al. 2020. Empirical comparison of the restricted mean survival time. *Biostatistics*.
+- Tian L, Jin H, Uno H, Lu Y, Huang B, Anderson KM, Wei LJ. 2020. On the empirical choice of the time window for restricted mean survival time. *Biometrics* 76(4):1157-1166.
 - Uno H et al. 2014. Moving beyond the hazard ratio in quantifying the between-group difference in survival analysis. *JCO* 32:2380-2385.
 - Xu R, O'Quigley J. 2000. Estimating average regression effect under non-proportional hazards. *Biostatistics* 1:423-439.
 

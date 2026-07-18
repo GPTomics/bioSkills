@@ -228,7 +228,7 @@ avg_comparisons(fit, variables = 'z', vcov = 'HC3')
 
 ## Marginal vs Conditional Effects -- The Core ICH E9(R1) Question
 
-For logistic regression, the maximum-likelihood coefficient on Z in `glm(Y ~ Z + X, family=binomial)` is the **conditional log odds ratio** -- the OR comparing Z=1 to Z=0 *holding X fixed*. Because the OR is non-collapsible, this is *different* from the marginal log OR even under perfect randomisation. Lin & Wei 1989 first proved the ANCOVA-style estimator from a nonlinear model is generally inconsistent for the marginal ATE; this is the result FDA 2023 implicitly relies on.
+For logistic regression, the maximum-likelihood coefficient on Z in `glm(Y ~ Z + X, family=binomial)` is the **conditional log odds ratio** -- the OR comparing Z=1 to Z=0 *holding X fixed*. Because the OR is non-collapsible, this is *different* from the marginal log OR even under perfect randomisation. Gail, Wieand & Piantadosi 1984 (*Biometrika* 71:431) first showed that treatment-effect estimates from nonlinear models are biased for the marginal effect when prognostic covariates are omitted, even under randomisation; this non-collapsibility is what FDA 2023 addresses by targeting a marginal estimand.
 
 ```python
 # Conditional OR (the default; biased toward null vs marginal OR)
@@ -346,7 +346,7 @@ Log scale ensures reciprocal effects (OR 0.5 and OR 2.0) appear equidistant from
 | "Why HC3 over HC1?" | n <=250 favours HC3 per Long-Ervin 2000; HC1 (Stata) and HC3 (R sandwich) can disagree at small n. |
 | "Where is the marginal effect?" | Per FDA 2023, marginal RD/RR via g-computation is the primary estimand for binary outcomes; conditional is supportive. |
 | "Why NNT in 'NNTB-infinity-NNTH' notation?" | Bender 2001 *CCT* 22:102 convention; standard in BMJ/Lancet/Cochrane. Disjoint CI honestly conveys non-significance. |
-| "Adjustment for stratification factors?" | Strata included in modified Poisson or in MN stratified CI via `ratesci::scoreci(stratified=TRUE)`; ignoring inflates Type-I (Kahan-Morris 2012). |
+| "Adjustment for stratification factors?" | Strata included in modified Poisson or in MN stratified CI via `ratesci::scoreci(stratified=TRUE)`; ignoring is over-conservative -- SE biased upward, power loss (Kahan-Morris 2012). |
 | "What about effect modification across subgroups?" | Pooled estimate reported as primary; stratum-specific ORs in forest plot; Breslow-Day test for homogeneity; if heterogeneous, do not pool -- see clinical-biostatistics/subgroup-analysis. |
 | "Post-hoc subgroup OR was significant -- can a claim be made?" | Not credible without pre-specification per EMA 2019 / CONSORT 2025; frame as hypothesis-generating; replicate in independent cohort before claiming. |
 
@@ -358,7 +358,7 @@ Log scale ensures reciprocal effects (OR 0.5 and OR 2.0) appear equidistant from
 - Brown LD, Cai TT, DasGupta A. 2001. Interval estimation for a binomial proportion. *Stat Sci* 16:101-117.
 - Chan ISF, Zhang Z. 1999. Test-based exact confidence intervals for the difference of two binomial proportions. *Biometrics* 55:1202-1209.
 - Cornfield J. 1956. A statistical problem arising from retrospective studies. *3rd Berkeley Symp* 4:135-148.
-- Donner A, Zou GY. 2012. Closed-form confidence intervals for ratios involving population means via MOVER-R. *Stat Methods Med Res* 21:347-359.
+- Donner A, Zou GY. 2012. Closed-form confidence intervals for functions of the normal mean and standard deviation. *Stat Methods Med Res* 21:347-359.
 - FDA. 2023. Adjusting for Covariates in Randomized Clinical Trials. Final Guidance, May 2023.
 - Hauck WW, Donner A. 1977. Wald's test as applied to hypotheses in logit analysis. *JASA* 72:851-853.
 - Katz D, Baptista J, Azen SP, Pike MC. 1978. Obtaining confidence intervals for the risk ratio in cohort studies. *Biometrics* 34:469-474.

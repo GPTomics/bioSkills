@@ -299,7 +299,7 @@ print(f'Pooled OR: {pooled_or:.3f} ({pooled_ci[0]:.3f}-{pooled_ci[1]:.3f})')
 - [ ] Missing data per CONSORT 2025 item 21c: mechanism assumption, primary method, MNAR sensitivity (J2R/CR/CIR per Carpenter-Roger 2013)
 - [ ] Permutt tipping-point delta reported in residual SD units
 - [ ] Subgroup forest plot with INTERACTION p-values (not per-subgroup p-comparison); graphical multiplicity via gMCP
-- [ ] Multiplicity adjustment method stated (CONSORT 2025 item 20; FDA Multiple Endpoints Final Oct 2022)
+- [ ] Multiplicity adjustment method stated (CONSORT 2025 item 30 limitations; FDA Multiple Endpoints Final Oct 2022)
 - [ ] CONSORT flow diagram numbers available
 - [ ] Harms per CONSORT 2025 item 15 (absorbs CONSORT-Harms 2022)
 

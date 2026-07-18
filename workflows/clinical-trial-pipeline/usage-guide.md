@@ -89,7 +89,7 @@ Tell your AI agent what you want to do:
 - When continuous longitudinal endpoint with monotone MAR: use R mmrm with method="Kenward-Roger-Linear" to match SAS PROC MIXED.
 - For MNAR sensitivity with reference-based MI (J2R/CR/CIR per Carpenter-Roger 2013), report BOTH Rubin information-anchored variance AND frequentist CMI+jackknife (Cro vs Bartlett debate is unsettled).
 - Permutt tipping-point delta should be in residual SD units (FDA preference) for cross-trial comparison.
-- LOCF is biased even under MCAR (Mallinckrodt 2008; NRC 2010 Rec 11 rejects); never use as "conservative" sensitivity.
+- LOCF is biased even under MCAR (Mallinckrodt 2008; NRC 2010 Rec 10 rejects); never use as "conservative" sensitivity.
 - For time-to-event, cox.zph p > 0.05 does NOT prove PH; use as failure detector with graphical residual plot as primary.
 - Under PH violation, RMST is more interpretable than HR; pre-specify tau in SAP, NOT post-hoc.
 - ADTTE CNSR convention is OPPOSITE of statistical packages (CDISC: CNSR=0 means event); always convert before passing to R/Python.

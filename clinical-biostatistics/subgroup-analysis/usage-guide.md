@@ -86,14 +86,14 @@ Tell your AI agent what you want to do:
 - **Breslow-Day with k=3 strata has ~40% power.** Non-significance does NOT prove homogeneity. Supplement with forest plot AND LR interaction test from logistic regression.
 - **CMH pooled OR can mask Simpson's paradox.** Always plot stratum-specific ORs.
 - **EMA 2019 guideline** distinguishes "assessment subgroups" (pre-specified, regulatory weight) from "discovery subgroups" (hypothesis-generating only). Interaction tests are "neither necessary nor sufficient" for credibility.
-- **Causal forests:** honest splitting (`honesty=TRUE`) is mandatory for valid CIs. Run `test_calibration()` AND `rate_omnibus()` for diagnostics. Rehill 2025 audit found ~70% of applied papers skip these.
+- **Causal forests:** honest splitting (`honesty=TRUE`) is mandatory for valid CIs. Run `test_calibration()` AND `rate_omnibus()` for diagnostics. Rehill 2025 audit found many applied papers skip these.
 - **STEPP with naive pointwise CIs is wrong** -- overlapping windows give correlated estimates. Use permutation supremum test.
 - **Bayesian shrinkage (Hemmings-Koch 2019):** appropriate for replication PLANNING, not signal GENERATION. Shrinkage pre-emptively damps the heterogeneity being searched for.
 - **EXNEX default 0.5/0.5 weights** allows substantial borrowing; sensitivity over weights essential.
 - **Yadlowsky RATE/AUTOC 2025** single-p test: whether CATE ranking has predictive (not just prognostic) value. Should replace `test_calibration` as primary HTE omnibus check.
 - **Sun et al 2012 BMJ 11 credibility criteria** is the canonical academic framework: pre-specified + significant interaction + biological plausibility + consistency across endpoints + replication.
-- **Winner's curse (Sun 2010):** median observed effect in significant subgroups is ~2.4x trial-overall effect. Bayesian shrinkage or honest cross-validation corrects.
-- **Stratified randomisation factors MUST appear in subgroup analyses** (Kahan-Morris 2012). Ignoring inflates Type-I.
+- **Winner's curse (Sun 2012):** effects in significant subgroups are inflated relative to the trial-overall effect. Bayesian shrinkage or honest cross-validation corrects.
+- **Stratified randomisation factors MUST appear in subgroup analyses** (Kahan-Morris 2012). Ignoring is over-conservative (SE biased upward, power loss).
 
 ## Related Skills
 

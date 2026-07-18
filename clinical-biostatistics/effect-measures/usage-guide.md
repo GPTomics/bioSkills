@@ -21,7 +21,7 @@ install.packages(c('ratesci', 'exact2x2', 'marginaleffects', 'RobinCar', 'riskCo
 Tell your AI agent what you want to do:
 - "Compute OR and RR from my 2x2 with Wald, profile-likelihood, and Miettinen-Nurminen score CIs"
 - "Extract marginal RD via g-computation from a covariate-adjusted logistic regression per FDA 2023"
-- "Calculate NNT with Bender 2002 convention (NNTB-infinity-NNTH when RD CI crosses zero)"
+- "Calculate NNT with Bender 2001 convention (NNTB-infinity-NNTH when RD CI crosses zero)"
 - "Forest plot of subgroup ORs on log scale with reference line"
 - "Modified Poisson with HC1/HC3 sandwich SE to estimate RR directly when prevalence > 10%"
 
@@ -41,7 +41,7 @@ Tell your AI agent what you want to do:
 
 ### NNT with proper convention
 
-> "Compute NNT from my trial with treated 30/200 events, control 50/200. Use Bender 2002 method; if RD CI crosses zero, report NNTB-infinity-NNTH convention."
+> "Compute NNT from my trial with treated 30/200 events, control 50/200. Use Bender 2001 method; if RD CI crosses zero, report NNTB-infinity-NNTH convention."
 
 > "Compare NNT at baseline risks 5%, 20%, 50% for an OR of 0.5 to show stakeholders how benefit varies."
 
@@ -63,7 +63,7 @@ Tell your AI agent what you want to do:
 2. Compute OR, RR, RD using calibrated CI methods (Wilson, Newcombe-Wilson, MN, profile likelihood)
 3. For binary outcomes, fit logistic regression and compute BOTH conditional OR AND marginal RD via g-computation per FDA 2023
 4. Apply modified Poisson with sandwich SE when prevalence > 10% and RR is the policy quantity
-5. Convert effect to NNT with Bender 2002 disjoint-interval convention when RD CI crosses zero
+5. Convert effect to NNT with Bender 2001 disjoint-interval convention when RD CI crosses zero
 6. Generate forest plots on log scale for OR/RR/HR; linear for RD/RMST
 
 ## Tips
@@ -72,7 +72,7 @@ Tell your AI agent what you want to do:
 - **Per FDA 2023, marginal RD via g-computation is the primary estimand** for binary endpoints with covariate adjustment. Conditional OR is a different parameter, not a different estimate.
 - **Wald CI has well-documented coverage failures** (Brown-Cai-DasGupta 2001). Wilson for single proportions; Newcombe-Wilson or MN for differences/ratios.
 - **Miettinen-Nurminen score CI is the regulatory standard for RD/RR** -- consistent with Pearson chi-square; preferred for NI margins.
-- **Bender 2002 NNT convention:** when RD CI crosses zero, NNT CI is disjoint (NNTB-infinity-NNTH). Report as "NNTB X (NNTB Y to inf to NNTH Z)" -- standard in BMJ/Lancet/Cochrane.
+- **Bender 2001 NNT convention:** when RD CI crosses zero, NNT CI is disjoint (NNTB-infinity-NNTH). Report as "NNTB X (NNTB Y to inf to NNTH Z)" -- standard in BMJ/Lancet/Cochrane.
 - **NNT requires baseline risk to be meaningful** -- same OR gives dramatically different NNTs at different baseline risks.
 - **OR overstates RR when prevalence > 10%.** Use modified Poisson (Zou 2004) with HC1/HC3 sandwich SE to estimate RR directly. Log-binomial is an alternative but often fails to converge.
 - **HC3 sandwich is recommended for n <=250** (Long-Ervin 2000). HC1 (Stata default) and HC3 (R sandwich default) can differ enough to flip NI p-values.

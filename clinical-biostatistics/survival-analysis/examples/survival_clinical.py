@@ -59,7 +59,7 @@ def rmst_difference(df, arm_col='arm', duration_col='time', event_col='event', t
 
     CRITICAL: tau must be pre-specified in the SAP. Post-hoc tau
     selection is p-hacking. Tau must be <= min(largest follow-up
-    per arm) to avoid extrapolation (Tian 2020 Biostatistics).
+    per arm) to avoid extrapolation (Tian 2020 Biometrics).
     """
     arms = df[arm_col].unique()
     if len(arms) != 2:

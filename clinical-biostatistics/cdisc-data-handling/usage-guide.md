@@ -71,7 +71,7 @@ Tell your AI agent what you want to do:
 
 ### Dataset-JSON
 
-> "Convert my submission from SAS XPT v5 to Dataset-JSON v1.1 (CDISC Dec 2025) using the PHUSE-CDISC pilot tooling. FDA Federal Register notice April 2025."
+> "Convert my submission from SAS XPT v5 to Dataset-JSON v1.1 (CDISC Dec 2024) using the PHUSE-CDISC pilot tooling. FDA Federal Register notice April 2025."
 
 ## What the Agent Will Do
 
@@ -98,10 +98,10 @@ Tell your AI agent what you want to do:
 - **Partial dates ('2023-03' without day) are common in SDTM.** Parse with `pd.to_datetime(col, errors='coerce')`.
 - **DS (Disposition) domain is the gateway** to missing-data strategy. Tabulate dropout reasons by arm; if differential, MAR is suspect.
 - **OCCDS v1.1 added TRTEM##FL** multi-period flags for crossover/multi-phase studies. Use these instead of single TRTEMFL.
-- **Define-XML 2.1 is FDA-recommended** for studies starting on/after March 15, 2023. Older 2.0 still accepted for prior studies.
+- **Define-XML 2.1 is FDA-required** for studies starting on/after March 15, 2023 (support began March 15, 2021). Older 2.0 still accepted for prior studies.
 - **Pinnacle 21 Community is free** and standard for non-pivotal trials; Enterprise edition for sponsor-pivotal. All errors must be resolved or justified.
-- **CORE (CDISC Open Rules Engine, 2024)** is the modern open-source alternative to Pinnacle 21; uses YAML rules from CDISC Rules Catalog. Not yet at Pinnacle parity for confirmatory.
-- **Dataset-JSON v1.1 (Dec 2025)** is the modern replacement for SAS XPT v5 (which dates to 1995 with 8-char varname limits). FDA Federal Register notice April 2025; adoption timeline pending.
+- **CORE (CDISC Open Rules Engine, 2021)** is the modern open-source alternative to Pinnacle 21; uses YAML rules from CDISC Rules Catalog. Not yet at Pinnacle parity for confirmatory.
+- **Dataset-JSON v1.1 (Dec 2024)** is the modern replacement for SAS XPT v5 (which dates to 1995 with 8-char varname limits). FDA Federal Register notice April 2025; adoption timeline pending.
 - **ADaMIG v3.0 is in development** (originally 2025, slipping to 2026+); will consolidate ADaMIG + OCCDS + BDS-TTE + ADAE supplement into single unified IG.
 - **SUPPQUAL is being de-emphasised in favor of NSV Registry**-listed variables in parent domain. Therapeutic Area User Guides (TAUGs) increasingly use NS-- domains or NSV directly.
 

@@ -76,7 +76,7 @@ Tell your AI agent what you want to do:
 - **Blinded SSR (Friede-Kieser 2006) is uncontroversial** because Type-I is not affected. Unblinded SSR (Cui-Hung-Wang 1999) requires CHW weighting to preserve Type-I.
 - **Mehta-Pocock promising zone is calibrated** so Type-I inflation is negligible (~0.001) without CHW weighting -- but the Jennison-Turnbull 2015 critique says it's "stealth alpha inflation." Pre-specify the increase rule transparently and report simulation operating characteristics.
 - **DMC firewall is essential** for unblinded SSR. Sponsor receives only the increase/no-increase decision; interim effect estimate never leaks. ICH E20 codifies this.
-- **ICH E20 is NOT final** as of May 2026. It is Step 2b/3 draft (June 25 2025). Step 4 targeted late 2026. Do not cite as final guidance.
+- **ICH E20 is NOT final** as of May 2026. It is Step 2b/3 draft (June 25 2025). Step 4 expected in 2026. Do not cite as final guidance.
 - **FDA Master Protocols Guidance was finalised March 2022**, NOT 2018 (2018 was the draft).
 - **BOIN was FDA Fit-for-Purpose qualified December 2021** under the Drug Development Tools program -- first formal FDA endorsement of a specific dose-finding design.
 - **Project Optimus (FDA OCE, 2021; final dose-optimisation guidance Aug 2024)** rewrote Phase 1 oncology -- randomised dose comparison before registration, replacing MTD-and-go.

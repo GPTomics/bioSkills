@@ -57,7 +57,7 @@ Tell your AI agent what you want to do:
 
 ### Stratified randomisation
 
-> "My trial used stratified randomisation by site and baseline severity. Include both as model covariates per Kahan-Morris 2012 -- ignoring inflates Type-I by up to 30%."
+> "My trial used stratified randomisation by site and baseline severity. Include both as model covariates per Kahan-Morris 2012 -- ignoring is over-conservative (SE biased upward, power loss)."
 
 ## What the Agent Will Do
 

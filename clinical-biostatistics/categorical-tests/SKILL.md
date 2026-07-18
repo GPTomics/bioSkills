@@ -43,7 +43,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | Independent 2x2, all expected >=5, n>=40 | Pearson chi-square, `correction=False` | Standard asymptotic; Yates' continuity correction is overly conservative and now discouraged |
 | Independent 2x2, expected <5 in any cell OR n<40 | Boschloo's exact (`scipy.stats.boschloo_exact`) | Uniformly more powerful than Fisher; preserves exact Type-I control |
 | Independent RxC, expected <5 in >20% of cells | Permutation chi-square or Fisher-Freeman-Halton (R `coin::chisq_test(distribution = approximate())`) | Exact RxC asymptotic invalid; permutation preserves level |
-| Stratified design (multi-site, multi-stratum randomisation) | CMH for the pooled test + Breslow-Day for homogeneity + per-stratum ORs | Stratification factor in randomisation MUST appear in analysis (Kahan-Morris 2012 *Stat Med* 31:328: ignoring inflates Type-I error by up to 30%) |
+| Stratified design (multi-site, multi-stratum randomisation) | CMH for the pooled test + Breslow-Day for homogeneity + per-stratum ORs | Stratification factor in randomisation MUST appear in analysis (Kahan-Morris 2012 *Stat Med* 31:328: ignoring is over-conservative -- SE biased upward, power loss) |
 | Stratified with sign-reversing effect (Simpson's paradox suspected) | Always report stratum-specific ORs + visual diagnostic; consider logistic regression with interaction | CMH pooled OR can mask sign reversal; homogeneity test underpowered |
 | Paired binary (pre/post on same subjects; matched case-control) | Asymptotic McNemar (`mcnemar(table, exact=False, correction=False)`) when b+c >= 25; mid-p when b+c < 25 | Fagerland 2013 simulations show mid-p and asymptotic outperform exact conditional |
 | Matched-pair non-inferiority (especially diagnostics) | Suissa-Shuster exact unconditional via R `exact2x2` | 20-40% smaller n than exact conditional for same power |
@@ -67,7 +67,7 @@ if (expected < 5).any():
 
 **Cochran 1954 rule (the precise version, not the textbook caricature):** "no expected cell should be <1 AND no more than 20% of cells should have expected <5." The textbook "all >=5" rule is the conservative simplification. With well-balanced 2x2 trials this rarely matters; with sparse RxC tables it materially expands the asymptotic range. The R `chisq.test` issues a warning under the strict Cochran rule; Python users must check manually.
 
-**Why Yates' correction is now discouraged:** continuity correction was introduced to approximate the exact distribution under H0 but inflates Type-II error by ~10% (D'Agostino, Casagrande, Pike 1988 *Stat Med* 7:347). Modern computing makes Boschloo's exact test cheap; the correct fix for sparse 2x2 is Boschloo, not chi-square + continuity.
+**Why Yates' correction is now discouraged:** continuity correction was introduced to approximate the exact distribution under H0 but inflates Type-II error by ~10% (D'Agostino, Chase & Belanger 1988 *Am Stat* 42:198). Modern computing makes Boschloo's exact test cheap; the correct fix for sparse 2x2 is Boschloo, not chi-square + continuity.
 
 ## Fisher's Exact -- and why Boschloo is usually better
 
@@ -135,7 +135,7 @@ print(st.test_equal_odds())         # Breslow-Day H0: equal stratum ORs
 
 - **Trigger:** Randomisation was stratified (sex, region, baseline severity) but the primary analysis pools across strata.
 - **Mechanism:** Stratified randomisation removes between-stratum variability that the unstratified SE still counts.
-- **Symptom:** Type-I error inflation up to 30% (Kahan-Morris 2012).
+- **Symptom:** Over-conservative inference -- SE biased upward, CIs too wide, Type-I below nominal, power loss (Kahan-Morris 2012).
 - **Fix:** Strata variables from randomisation MUST appear in analysis -- either CMH, logistic regression with strata, or stratified log-rank.
 
 ## McNemar's Test for Paired Binary Data
@@ -253,7 +253,7 @@ reject, adjusted_p, _, _ = multipletests(pvalues, method='holm')
 |-----------|--------|-----------|
 | n >= 40 for 2x2 chi-square | Cochran 1954 *Biometrics* 10:417 | Below this, asymptotic chi-square distribution approximation degrades regardless of expected counts |
 | All expected >=5 OR <=20% with expected <5 AND none <1 | Cochran 1954 (strict) | Textbook "all >=5" is overconservative; the strict rule expands chi-square's valid range |
-| Yates' correction discouraged | D'Agostino, Casagrande, Pike 1988 *Stat Med* 7:347 | Overly conservative; correct fix for sparse 2x2 is Boschloo's exact, not continuity-corrected chi-square |
+| Yates' correction discouraged | D'Agostino, Chase & Belanger 1988 *Am Stat* 42:198 | Overly conservative; correct fix for sparse 2x2 is Boschloo's exact, not continuity-corrected chi-square |
 | Discordant pairs >=25 for asymptotic McNemar | Fagerland-Lydersen-Laake 2013 *BMC MRM* 13:91 | Below this, chi-square approximation breaks; switch to mid-p, not exact conditional |
 | Newcombe-Wilson / Miettinen-Nurminen for RD CI | Newcombe 1998a *Stat Med* 17:873 | Wald CI for RD has poor coverage and can produce limits outside [-1, 1] |
 | Boschloo > Fisher for small 2x2 | Mehta-Senchaudhuri 2003; Lydersen-Fagerland-Laake 2009 *Stat Med* 28:1159 | Boschloo uniformly more powerful at same Type-I |
@@ -269,14 +269,14 @@ reject, adjusted_p, _, _ = multipletests(pvalues, method='holm')
 | CMH significant but stratum ORs reverse direction | Simpson's paradox; Breslow-Day underpowered | Forest plot stratum ORs; report stratum-specific as primary; switch to logistic with interaction |
 | Yates' correction enabled by default in `chi2_contingency` | scipy default is `correction=True` for 2x2 | Always pass `correction=False` for Pearson chi-square |
 | McNemar p-value much larger than expected | Default may be exact conditional in some packages; over-conservative | Use asymptotic without continuity correction (Fagerland 2013) |
-| Stratified randomisation ignored in primary analysis | Common SAP error | Include strata in CMH, logistic, or stratified log-rank; ignoring inflates Type-I (Kahan-Morris 2012) |
+| Stratified randomisation ignored in primary analysis | Common SAP error | Include strata in CMH, logistic, or stratified log-rank; ignoring is over-conservative -- SE biased upward, power loss (Kahan-Morris 2012) |
 
 ## Anticipated Reviewer Pushback
 
 | Pushback | Response |
 |----------|----------|
 | "Why not Fisher's exact?" | Cite Lydersen-Fagerland-Laake 2009; Boschloo is uniformly more powerful at same alpha. Provide Fisher p in appendix for direct comparison. |
-| "Why no continuity correction?" | D'Agostino-Casagrande-Pike 1988 -- Yates' inflates Type-II by ~10%. The correct fix for sparse 2x2 is Boschloo's exact, not Yates'. |
+| "Why no continuity correction?" | D'Agostino-Chase-Belanger 1988 -- Yates' inflates Type-II by ~10%. The correct fix for sparse 2x2 is Boschloo's exact, not Yates'. |
 | "Are these ORs collapsible?" | OR is non-collapsible (see clinical-biostatistics/effect-measures); marginal and conditional ORs differ even without confounding. Cite Permutt 2020. |
 | "Why mid-p McNemar over exact conditional?" | Fagerland-Lydersen-Laake 2013 simulations show exact conditional is over-conservative; mid-p and asymptotic maintain nominal Type-I with better power. |
 | "Adjustment for stratification factors?" | Per ICH E9 and FDA 2023 covariate adjustment guidance, strata from randomisation must appear in analysis. CMH or logistic with strata as covariates. |
@@ -288,11 +288,10 @@ reject, adjusted_p, _, _ = multipletests(pvalues, method='holm')
 - Brown LD, Cai TT, DasGupta A. 2001. Interval estimation for a binomial proportion. *Stat Sci* 16:101-117.
 - Cochran WG. 1954. Some methods for strengthening the common chi-squared tests. *Biometrics* 10:417-451.
 - D'Agostino RB, Chase W, Belanger A. 1988. The appropriateness of some common procedures for testing the equality of two independent binomial populations. *Am Stat* 42:198-202.
-- D'Agostino RB, Casagrande JT, Pike MC. 1988. Critique of Yates' continuity correction for sparse 2x2 tables. *Stat Med* 7:347 (cited in body as the Yates'-discouragement source; both 1988 D'Agostino papers exist and address different aspects).
-- Fagerland MW, Lydersen S, Laake P. 2013. The McNemar test: asymptotic and mid-p are better than exact conditional. *BMC Med Res Methodol* 13:91.
+- Fagerland MW, Lydersen S, Laake P. 2013. The McNemar test for binary matched-pairs data: mid-p and asymptotic are better than exact conditional. *BMC Med Res Methodol* 13:91.
 - FDA. 2022. Multiple Endpoints in Clinical Trials -- Guidance for Industry. Federal Register Oct 2022.
 - Kahan BC, Morris TP. 2012. Improper analysis of trials randomised using stratified blocks or minimisation. *Stat Med* 31:328-340.
-- Liddell FDK. 1983. Simplified exact analysis of case-referent studies: matched pairs. *Appl Stat* 32:127-132.
+- Liddell FDK. 1983. Simplified exact analysis of case-referent studies; matched pairs; dichotomous exposure. *J Epidemiol Community Health* 37:82-84.
 - Lydersen S, Fagerland MW, Laake P. 2009. Recommended tests for association in 2x2 tables. *Stat Med* 28:1159-1175.
 - Mehta CR, Senchaudhuri P. 2003. Conditional vs unconditional exact tests for comparing two binomials. (Cytel technical report; widely cited in subsequent literature.)
 - Miettinen O, Nurminen M. 1985. Comparative analysis of two rates. *Stat Med* 4:213-226.

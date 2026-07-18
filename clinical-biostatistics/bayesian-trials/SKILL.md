@@ -22,7 +22,7 @@ If code throws an error, introspect the installed package and adapt the example 
 
 ## Regulatory Status -- The 2024-2026 Bayesian Pivot
 
-**FDA 2010 CDRH Bayesian Devices Guidance** (Feb 5 2010): the only Bayesian-specific FDA guidance until January 2026. Why devices were ahead: CDRH's PMA pathway permits one pivotal trial and accepts borrowing from prior/OUS data more readily than CDER. Example: Edwards SAPIEN (PARTNER B, PMA P100041, Nov 2011) approved using Bayesian propensity-matched comparison to registry of standard-of-care patients.
+**FDA 2010 CDRH Bayesian Devices Guidance** (Feb 5 2010): the only Bayesian-specific FDA guidance until January 2026. Why devices were ahead: CDRH's PMA pathway permits one pivotal trial and accepts borrowing from prior/OUS data more readily than CDER. Example: Edwards SAPIEN (PARTNER B, PMA P100041, Nov 2011) was approved on a single randomized pivotal trial (TAVR vs standard therapy in inoperable patients); the later SAPIEN 3 intermediate-risk PMA used a propensity-score comparison of a single-arm cohort against PARTNER IIA surgical controls -- illustrating CDRH's acceptance of non-randomized/borrowed comparisons.
 
 **FDA January 2026 CDER Bayesian Methodology Draft** (FDA-2025-D-3217; comment period closed March 13 2026): first-ever drug-side Bayesian guidance. Explicit that Bayesian primary inference in pivotals is acceptable provided:
 - Prospective specification
@@ -67,11 +67,11 @@ If code throws an error, introspect the installed package and adapt the example 
 - O'Quigley J, Pepe M, Fisher L 1990 *Biometrics* 46:33 (CRM)
 - Babb J, Rogatko A, Zacks S 1998 *Stat Med* 17:1103 (EWOC)
 - Ji Y, Liu P, Li Y, Bekele BN 2010 *Clin Trials* 7:653 (mTPI)
-- Guo W, Wang SJ, Yang C, Ji Y 2017 *Contemp Clin Trials* 58:23 (mTPI-2 / Keyboard)
+- Guo W, Wang SJ, Yang S, Lynn H, Ji Y 2017 *Contemp Clin Trials* 58:23 (mTPI-2 / Keyboard)
 - Berry SM, Broglio KR, Groshen S, Berry DA 2013 *Clin Trials* 10:720 (basket trial hierarchical)
 - Berry SM, Berry DA 2004 *Biometrics* 60:418 (three-level AE hierarchical)
-- Spiegelhalter DJ, Freedman LS, Blackburn PR 1986 *Stat Med* 5:421 (skeptical prior framework)
-- Park JW et al 2016 *NEJM* 375:11 (I-SPY 2 veliparib)
+- Spiegelhalter DJ, Freedman LS, Parmar MKB 1994 *JRSS-A* 157:357 (skeptical/enthusiastic prior framework)
+- Rugo HS et al 2016 *NEJM* 375:23 (I-SPY 2 veliparib-carboplatin)
 - Angus DC et al 2020 *JAMA* (REMAP-CAP COVID rationale)
 
 ## Decision Tree by Scenario
@@ -192,7 +192,7 @@ print(robust_map)
 ess(robust_map)
 ```
 
-**Robust MAP rationale:** if the new data disagree with historical (prior-data conflict), the mixture down-weights the informative component automatically. Schoenfeld 2017 critique: Schmidli 2014's choice of mixture weight requires sensitivity analysis.
+**Robust MAP rationale:** if the new data disagree with historical (prior-data conflict), the mixture down-weights the informative component automatically. The mixture weight on the informative component is a tuning choice and should be varied in a pre-specified sensitivity analysis.
 
 ## EXNEX for Basket Trials
 
@@ -211,7 +211,7 @@ library(bhmbasket)
 
 ## Bayesian Platform Trials
 
-### I-SPY 2 (Park-Liu 2016 *NEJM* 375:11)
+### I-SPY 2 (Rugo et al 2016 *NEJM* 375:23)
 
 Neoadjuvant breast cancer; 10 biomarker-defined subtypes × multiple arms; Bayesian RAR; **graduation criterion = posterior predictive probability of success in 300-patient Phase 3 ≥ 0.85.** Berry Consultants designed engine.
 
@@ -337,7 +337,7 @@ mcmc_result <- mcmc_sample(result, n_chains = 4, n_iter = 4000)
 
 ## Spiegelhalter Skeptical/Enthusiastic Priors
 
-**Spiegelhalter, Freedman, Blackburn 1986 *Stat Med* 5:421:** the trip-wire / skeptical-prior framework. Pre-specify a skeptical prior centred at the null and an enthusiastic prior centred at the alternative; stopping requires the skeptic to be convinced (posterior under skeptical prior exceeds threshold).
+**Spiegelhalter, Freedman, Parmar 1994 *JRSS-A* 157:357:** the trip-wire / skeptical-prior framework. Pre-specify a skeptical prior centred at the null and an enthusiastic prior centred at the alternative; stopping requires the skeptic to be convinced (posterior under skeptical prior exceeds threshold).
 
 **Frames "evidence for regulators" vs "evidence for sponsor" in Bayesian language**; still cited in modern Bayesian-trial protocols.
 
@@ -415,7 +415,7 @@ mcmc_result <- mcmc_sample(result, n_chains = 4, n_iter = 4000)
 | MAP prior effective sample size 20-80% of new control | Schmidli 2014 | Borrowing strength typical range |
 | Robust MAP mixture weight 0.1-0.3 | Schmidli 2014 | Guards against prior-data conflict |
 | EXNEX default 0.5 EX / 0.5 NEX | Neuenschwander 2016 | Standard starting weight; sensitivity required |
-| I-SPY 2 graduation PP >= 0.85 | Barker 2009 | Bayesian platform standard |
+| I-SPY 2 graduation PP >= 0.85 | I-SPY 2 operational reports (Rugo/Park 2016) | Bayesian platform standard |
 | Power prior gamma 0.3-0.6 for pediatric extrapolation | working convention; the FDA Bayesian Jan 2026 draft does not prescribe a specific range | Partial borrowing default |
 | Stan R-hat <1.01, ESS >1000 per chain | Vehtari 2021 *Bayesian Analysis* | Posterior convergence criteria |
 | EWOC overdose constraint P(dose > MTD) <= 0.25 | Babb-Rogatko-Zacks 1998 | Safety floor |
@@ -459,16 +459,16 @@ mcmc_result <- mcmc_sample(result, n_chains = 4, n_iter = 4000)
 - FDA. 2010. Guidance for Industry: Use of Bayesian Statistics in Medical Device Clinical Trials.
 - FDA. 2021. BOIN Drug Development Tool Fit-for-Purpose Qualification.
 - FDA. 2026. Use of Bayesian Methodology in Clinical Trials. Draft Guidance (FDA-2025-D-3217).
-- Guo W, Wang SJ, Yang C, Ji Y. 2017. A Bayesian interval dose-finding design addressing Ockham's razor: mTPI-2. *Contemp Clin Trials* 58:23-33.
-- Hemmings R, Koch A. 2019. Commentary on Dane et al. *Pharm Stat* 18:140-141.
+- Guo W, Wang SJ, Yang S, Lynn H, Ji Y. 2017. A Bayesian interval dose-finding design addressing Ockham's razor: mTPI-2. *Contemp Clin Trials* 58:23-33.
+- Hemmings R, Koch A. 2019. Commentary on Dane et al. *Pharm Stat* 18:140-144.
 - Ji Y, Liu P, Li Y, Bekele BN. 2010. A modified toxicity probability interval method for dose-finding trials. *Clin Trials* 7:653-663.
 - Liu S, Yuan Y. 2015. Bayesian optimal interval designs for phase I clinical trials. *JRSS-C* 64:507-523.
 - Neuenschwander B, Wandel S, Roychoudhury S, Bailey S. 2016. Robust exchangeability designs for early phase clinical trials with multiple strata. *Pharm Stat* 15:123-134.
 - O'Quigley J, Pepe M, Fisher L. 1990. Continual reassessment method: a practical design for phase 1 clinical trials in cancer. *Biometrics* 46:33-48.
-- Park JW et al. 2016. Adaptive randomization of veliparib-carboplatin treatment in breast cancer. *NEJM* 375:11-22.
+- Rugo HS et al. 2016. Adaptive randomization of veliparib-carboplatin treatment in breast cancer. *NEJM* 375:23-34.
 - Robertson DS, Lee KM, López-Kolkovska BC, Villar SS. 2023. Response-adaptive randomization in clinical trials: from myths to practical considerations. *Stat Sci* 38:185-208.
 - Schmidli H, Gsteiger S, Roychoudhury S, O'Hagan A, Spiegelhalter D, Neuenschwander B. 2014. Robust meta-analytic-predictive priors in clinical trials with historical control information. *Biometrics* 70:1023-1032.
-- Spiegelhalter DJ, Freedman LS, Blackburn PR. 1986. Monitoring clinical trials: conditional or predictive power? *Stat Med* 5:421-433.
+- Spiegelhalter DJ, Freedman LS, Parmar MKB. 1994. Bayesian approaches to randomized trials. *JRSS-A* 157:357-387.
 - Vehtari A et al. 2021. Rank-normalization, folding, and localization: an improved R-hat for assessing convergence. *Bayesian Analysis*.
 - Weber S, Li Y, Seaman J, Kakizume T, Schmidli H. 2021. Applying meta-analytic-predictive priors with the R Bayesian evidence synthesis tools. *J Stat Softw* 100:19.
 
