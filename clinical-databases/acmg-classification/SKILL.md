@@ -1,13 +1,13 @@
 ---
 name: bio-clinical-databases-acmg-classification
-description: Applies ACMG/AMP 2015 framework with ClinGen SVI specifications, Tavtigian 2018/2020 Bayesian point system, Abou Tayoun 2018 PVS1 decision tree, Pejaver 2022 calibrated PP3/BP4 thresholds for REVEL/BayesDel/AlphaMissense, Brnich 2020 PS3/BS3 OddsPath, Walker 2023 SpliceAI splicing framework, and AMP/ASCO/CAP 2017 tumor tiers. Use when classifying germline variants P / LP / VUS / LB / B, applying VCEP-specific CSpec rules, computing Whiffin BS1, or assigning cancer Tier I-IV per Li 2017.
+description: Applies ACMG/AMP 2015 framework with ClinGen SVI specifications, Tavtigian 2018/2020 Bayesian point system, Abou Tayoun 2018 PVS1 decision tree, Pejaver 2022 and Bergquist 2025 calibrated PP3/BP4 thresholds for REVEL/BayesDel/AlphaMissense, Brnich 2020 PS3/BS3 OddsPath, Walker 2023 SpliceAI splicing framework, and AMP/ASCO/CAP 2017 tumor tiers. Use when classifying germline variants P / LP / VUS / LB / B, applying VCEP-specific CSpec rules, computing Whiffin BS1, or assigning cancer Tier I-IV per Li 2017.
 tool_type: python
 primary_tool: requests
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: requests 2.31+, pandas 2.2+, AutoPVS1 (Xiang 2020), InterVar 2.2+, GeneBe 1.0+ (Stawinski 2024 *Clin Genet*). ACMG/AMP Bayesian point system is Tavtigian 2018 *Genet Med* / 2020 *Hum Mutat*. Pejaver 2022 *AJHG* PP3/BP4 calibrated thresholds. ClinGen Splicing Subgroup 2023 (Walker *AJHG*). v3.2 ACMG SF list (Miller 2023). The ACMG 2.0 framework is in development as of May 2026; not yet published.
+Reference examples tested with: requests 2.31+, pandas 2.2+, AutoPVS1 (Xiang 2020), InterVar 2.2+, GeneBe 1.0+ (Stawiński 2024 *Clin Genet*). ACMG/AMP Bayesian point system is Tavtigian 2018 *Genet Med* / 2020 *Hum Mutat*. Pejaver 2022 *AJHG* PP3/BP4 calibrated thresholds. ClinGen Splicing Subgroup 2023 (Walker *AJHG*). v3.2 ACMG SF list (Miller 2023). The ACMG 2.0 framework is in development as of May 2026; not yet published.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -75,15 +75,15 @@ Pejaver 2022 *AJHG* 109:2163 Bayesian-calibrated 13 missense predictors to PP3/B
 
 | Predictor | BP4_Strong | BP4_Moderate | BP4_Supporting | PP3_Supporting | PP3_Moderate | PP3_Strong | Fails when |
 |-----------|-----------|--------------|----------------|----------------|--------------|------------|-----------|
-| **REVEL** | <= 0.003 | <= 0.016 | <= 0.290 | >= 0.644 | >= 0.773 | >= 0.932 | Stacked with BayesDel/VEST4 (training overlap; double-counting) |
-| **BayesDel (no AF)** | <= -0.36 | <= -0.18 | <= -0.08 | >= 0.13 | >= 0.27 | >= 0.50 | Combined with AF-aware variant (use no-AF version with PM2_Supporting) |
-| **VEST4** | <= 0.302 | <= 0.449 | <= 0.302 | >= 0.764 | >= 0.861 | >= 0.965 | Indels (missense-trained); regulatory variants |
+| **REVEL** | <= 0.016 | <= 0.183 | <= 0.290 | >= 0.644 | >= 0.773 | >= 0.932 | Stacked with BayesDel/VEST4 (training overlap; double-counting) |
+| **BayesDel (no AF)** | n/a | <= -0.36 | <= -0.18 | >= 0.13 | >= 0.27 | >= 0.50 | No BP4_Strong reached; combine no-AF version with PM2_Supporting |
+| **VEST4** | n/a | <= 0.302 | <= 0.449 | >= 0.764 | >= 0.861 | >= 0.965 | No BP4_Strong reached; indels (missense-trained); regulatory variants |
 | **MutPred2** | (Pejaver 2022) | -- | -- | -- | -- | -- | Genes with sparse MAVE training data |
 | **AlphaMissense** | NOT ClinGen-endorsed | -- | -- | Use as supporting only | -- | NOT ClinGen-endorsed | Developer threshold 0.564 misapplied as PP3 |
 
-**The two numbers to memorize: REVEL >= 0.932 = PP3_Strong; REVEL <= 0.290 = BP4_Strong (or <= 0.003 BP4_VeryStrong).**
+**The numbers to memorize: REVEL >= 0.932 = PP3_Strong; REVEL <= 0.016 = BP4_Strong (<= 0.003 BP4_VeryStrong); the 0.290-0.644 band is indeterminate (no criterion).**
 
-**AlphaMissense calibration** (Schmidt 2025 *Genet Med* 27:e101339, originally Pejaver et al. bioRxiv 2024.09.17): AlphaMissense reaches **PP3_Strong** and **BP4_Moderate** at calibrated thresholds. **Critical:** the developer-recommended 0.564 threshold is NOT the Pejaver PP3 threshold. ClinGen has NOT endorsed AlphaMissense PP3 strength as of May 2026; treat as supporting evidence only.
+**AlphaMissense calibration** (Bergquist 2025 *Genet Med* 27:101402, ClinGen SVI; originally Bergquist et al. bioRxiv 2024.09.17): this ClinGen SVI calibration extends the graded PP3/BP4 options to AlphaMissense, reaching **PP3_Strong** and at least **BP4_Moderate**. **Critical:** the developer-recommended 0.564 threshold is NOT the calibrated PP3 threshold; verify the current ClinGen SVI recommendation for the exact score cutoffs before applying.
 
 **Do not stack predictors.** REVEL, BayesDel, VEST4 share ClinVar/HGMD training data; using REVEL >= 0.773 AND BayesDel >= 0.27 to claim "two independent moderate hits" is double-counting. Pejaver 2022 explicitly recommends using ONE predictor per variant.
 
@@ -117,11 +117,13 @@ OddsPath calibration mapping to ACMG strengths:
 
 **SpliceAI is the recommended primary splicing tool.** Calibrated thresholds:
 
-| SpliceAI DS_max | Strength |
+| SpliceAI DS_max | Strength (Walker 2023: computational splice codes applied at Supporting weight) |
 |-----------------|----------|
-| >= 0.5 (Jaganathan 2019 default) | Can support PP3_Strong with corroborating evidence |
-| >= 0.20 | Minimum threshold for ANY splicing PP3 |
-| < 0.1 | BP4_Moderate (weaker than missense BP4 because absence of predicted aberrant splicing is less informative) |
+| >= 0.2 | PP3_Supporting (minimum threshold for ANY splicing PP3) |
+| 0.1 - 0.2 | Indeterminate (no criterion) |
+| <= 0.1 | BP4_Supporting |
+
+SpliceAI prediction alone does NOT reach PP3_Strong; strength escalation requires experimental/RNA splicing evidence (PS3) or the repurposed PVS1 route.
 
 **SpliceVault / 300K-RNA** (Dawes 2023 *Nat Genet* 55:324): does NOT predict whether a variant is splice-altering; predicts WHAT the aberrant transcript will be (which exon skips, which cryptic site activates). 96% sensitivity for exon-skipping; 86% for cryptic site activation in 140 clinical RNA-tested cases. Critical for PVS1 application to splice variants because PVS1 depends on whether the aberrant transcript triggers NMD.
 
@@ -173,13 +175,13 @@ The **Variant Interpretation for Cancer Consortium (VICC) Meta-Knowledgebase** s
 |--------------|----------------------|
 | Predicted LoF in known LoF-mechanism gene | AutoPVS1 decision tree -> PVS1_VeryStrong/Strong/Moderate/Supporting; check VCEP-specific PVS1 |
 | Missense in known missense-pathogenic gene | Apply Pejaver 2022 PP3/BP4 calibrated thresholds; ONE predictor only |
-| Splice variant | SpliceAI DS_max + SpliceVault for aberrant-transcript prediction; PP3_Strong if >=0.5 with corroborating evidence |
+| Splice variant | SpliceAI DS_max + SpliceVault for aberrant-transcript prediction; PP3_Supporting if DS_max >=0.2 (strength escalation needs RNA/experimental evidence) |
 | Synonymous | SpliceAI for cryptic splice effect; synVep / PrimateAI synonymous extension |
 | Variant in ACMG SF v3.2 gene | Apply full classification; flag P/LP for opt-in disclosure |
 | Cancer somatic variant | AMP/ASCO/CAP 2017 Tier I-IV; cross-check OncoKB / CIViC |
 | Variant in Limited gene-disease validity | ClinGen Strong/Definitive required for clinical action |
 | Functional evidence available | Brnich 2020 PS3/BS3 OddsPath framework |
-| Family segregation | PP1 / BS4 LOD score per Bayrak-Toydemir 2021 |
+| Family segregation | PP1 / BS4 LOD score per Biesecker 2024 |
 | In-trans observations (AR) | PM3 with ClinGen tabular scoring system |
 | HGVS-c on alternative transcript | Re-evaluate on MANE Select |
 
@@ -198,8 +200,9 @@ import pandas as pd
 REVEL_THRESHOLDS = {
     'BP4_VeryStrong': (-float('inf'), 0.003),
     'BP4_Strong': (0.003, 0.016),
-    'BP4_Moderate': (0.016, 0.290),
-    'BP4_Supporting': (0.290, 0.644),
+    'BP4_Moderate': (0.016, 0.183),
+    'BP4_Supporting': (0.183, 0.290),
+    # (0.290, 0.644) = indeterminate zone, no criterion applied
     'PP3_Supporting': (0.644, 0.773),
     'PP3_Moderate': (0.773, 0.932),
     'PP3_Strong': (0.932, float('inf'))
@@ -249,18 +252,17 @@ def classify_alphamissense_supporting_only(am_score):
 def spliceai_to_acmg(ds_max):
     '''Walker 2023 SVI Splicing Subgroup framework.
 
-    SpliceAI >= 0.5 + corroborating evidence -> PP3_Strong (use with caution).
-    SpliceAI >= 0.20 -> minimum for ANY splicing PP3.
-    SpliceAI < 0.1 -> BP4_Moderate.
+    Computational SpliceAI codes are applied at Supporting weight.
+    SpliceAI >= 0.20 -> PP3_Supporting (minimum for ANY splicing PP3).
+    SpliceAI <= 0.1 -> BP4_Supporting.
+    Prediction alone does not reach PP3_Strong; escalation needs RNA/experimental evidence.
     '''
     if ds_max is None:
         return None
-    if ds_max >= 0.5:
-        return 'PP3_Strong'  # Requires corroborating evidence (RNA assay, conservation)
     if ds_max >= 0.20:
         return 'PP3_Supporting'
-    if ds_max < 0.1:
-        return 'BP4_Moderate'
+    if ds_max <= 0.1:
+        return 'BP4_Supporting'
     return None
 
 
@@ -286,7 +288,7 @@ def tavtigian_classify(criteria_assigned):
 
 
 def genebe_classify(hgvs):
-    '''Query GeneBe API (Stawinski 2024) for automated ACMG classification.
+    '''Query GeneBe API (Stawiński 2024) for automated ACMG classification.
 
     GeneBe is open-source, Tavtigian-point-system-based, and performs comparably to
     VarSome (which is commercial, 82% ACMG criteria auto-application rate).
@@ -329,7 +331,7 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 
 **2. AlphaMissense PP3_Strong with developer 0.564 threshold**
 - Trigger: Apply AlphaMissense >0.564 -> PP3_Strong.
-- Mechanism: 0.564 is the developer-recommended likely-pathogenic threshold; NOT the Pejaver 2022 PP3-Strong calibration; ClinGen has not endorsed.
+- Mechanism: 0.564 is the developer-recommended likely-pathogenic threshold, NOT a calibrated PP3 cutoff; use the ClinGen SVI calibration (Bergquist 2025) score thresholds instead.
 - Symptom: Over-application of PP3.
 - Fix: Use AlphaMissense as supporting evidence only; defer to Pejaver-calibrated REVEL.
 
@@ -361,7 +363,7 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 - Trigger: Filter out synonymous variants from classification pipeline.
 - Mechanism: Synonymous can disrupt splicing; SpliceAI captures this.
 - Symptom: Pathogenic splice-disrupting synonymous missed.
-- Fix: Always run SpliceAI on synonymous variants in disease genes; PP3_Strong if DS_max >= 0.5.
+- Fix: Always run SpliceAI on synonymous variants in disease genes; PP3_Supporting if DS_max >= 0.2.
 
 **8. ClinVar P + ClinGen Limited validity**
 - Trigger: Report variant P in gene with Limited gene-disease validity.
@@ -384,7 +386,7 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 | REVEL PP3_Strong vs SpliceAI BP4 | Variant has missense impact but no splice impact | Apply ONE predictor; if splice-altering, PVS1 trumps |
 | PVS1 applies but ClinGen Limited validity | Variant-level vs gene-disease tension | Treat as candidate; require VCEP or strong functional evidence |
 | ClinGen VCI vs automated tool | VCI is gold standard for expert curation | Trust VCI; automated tools approximate |
-| AlphaMissense >0.564 + Pejaver PP3_Supporting only | Developer threshold not calibrated | Use Pejaver REVEL or BayesDel calibration |
+| AlphaMissense 0.564 dev call vs calibrated strength | Developer threshold not calibrated | Use the ClinGen SVI calibrated cutoffs (Bergquist 2025) |
 
 ## Quantitative Thresholds and Conventions
 
@@ -397,9 +399,8 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 | Tavtigian B | <= -7 | Tavtigian 2020 |
 | REVEL PP3_Strong | >= 0.932 | Pejaver 2022 |
 | REVEL BP4_Strong | <= 0.016 | Pejaver 2022 |
-| SpliceAI PP3_Strong | >= 0.5 (with corroboration) | Walker 2023 |
-| SpliceAI minimum for PP3 | >= 0.20 | Walker 2023 |
-| SpliceAI BP4_Moderate | < 0.1 | Walker 2023 |
+| SpliceAI PP3 (Supporting) | >= 0.2 | Walker 2023 |
+| SpliceAI BP4 (Supporting) | <= 0.1 | Walker 2023 |
 | BA1 default | grpmax_faf95 > 5% | ClinGen SVI |
 | BS1 | grpmax_faf95 > gene-specific max-credible-AF | Whiffin 2017 |
 | PM2 -> PM2_Supporting | Always (post-SVI 2020) | SVI 2020 |
@@ -426,10 +427,10 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 |----------|-------------------|
 | "Why Tavtigian point system?" | Every modern automated classifier implements it (InterVar, GeneBe, VarSome, Franklin). The 2015 combining rules are subsumed; many P/LP combinations only emerge from points. |
 | "Why ONE predictor and not REVEL + BayesDel?" | Pejaver 2022 explicit recommendation; predictors share training data. |
-| "AlphaMissense PP3_Strong?" | Treated as supporting only (Schmidt 2025 / Pejaver follow-up); ClinGen has not endorsed strength-graded thresholds. |
+| "AlphaMissense PP3_Strong?" | ClinGen SVI calibrated AlphaMissense to graded PP3/BP4 (Bergquist 2025); use the calibrated cutoffs, not the developer 0.564 threshold. |
 | "PVS1 for nonsense in SCN5A LQT3" | LQT3 is GoF; LoF mechanism not established; PVS1 does not apply. |
 | "Generic ACMG vs VCEP" | VCEP CSpec overrides generic; we check `cspec.genome.network` for active VCEP. |
-| "Splice variant PP3 from SpliceAI" | Walker 2023 SVI Splicing Subgroup: minimum DS_max >= 0.2 for ANY PP3; >= 0.5 + corroborating for PP3_Strong. |
+| "Splice variant PP3 from SpliceAI" | Walker 2023 SVI Splicing Subgroup: DS_max >= 0.2 applies PP3 at Supporting weight; prediction alone does not reach PP3_Strong (needs RNA/experimental evidence). |
 | "PM2 Moderate or Supporting?" | SVI 2020 downgraded to Supporting; we use Supporting for all classification post-2020. |
 
 ## References
@@ -439,10 +440,10 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 - Tavtigian SV et al. 2020. Fitting a naturally scaled point system to the ACMG/AMP variant classification guidelines. *Hum Mutat* 41:1734.
 - Abou Tayoun AN et al. 2018. Recommendations for interpreting the loss of function PVS1 ACMG/AMP variant criterion. *Hum Mutat* 39:1517.
 - Pejaver V et al. 2022. Calibration of computational tools for missense variant pathogenicity classification. *Am J Hum Genet* 109:2163.
-- Schmidt H et al. 2025. Calibration of additional missense predictors including AlphaMissense. *Genet Med* 27:e101339.
+- Bergquist T et al. 2025. Calibration of additional computational tools expands ClinGen recommendation options for variant classification with PP3/BP4 criteria. *Genet Med* 27:101402.
 - Brnich SE et al. 2020. Recommendations for application of the functional evidence PS3/BS3 criterion using the ACMG/AMP sequence variant interpretation framework. *Genome Med* 12:3.
 - Walker LC et al. 2023. ClinGen SVI Splicing Subgroup recommendations. *Am J Hum Genet* 110:1046.
-- Bayrak-Toydemir P et al. 2021. Disease-specific LOD score modifications for ACMG/AMP variant interpretation. *Hum Mutat* 42:1456. (PP1 segregation)
+- Biesecker LG et al. 2024. ClinGen guidance for use of the PP1/BS4 co-segregation and PP4 phenotype specificity criteria for sequence variant pathogenicity classification. *Am J Hum Genet* 111:24. (PP1/BS4 co-segregation)
 - Cheng J et al. 2023. Accurate proteome-wide missense variant effect prediction with AlphaMissense. *Science* 381:eadg7492.
 - Jaganathan K et al. 2019. Predicting splicing from primary sequence with deep learning. *Cell* 176:535. (SpliceAI)
 - Zeng T et al. 2022. Predicting RNA splicing from DNA sequence using Pangolin. *Genome Biol* 23:103.
@@ -450,7 +451,7 @@ def apply_bs1_ba1(grpmax_faf95, max_credible_af, ba1_threshold=0.05):
 - Whiffin N et al. 2017. Using high-resolution variant frequencies to empower clinical genome interpretation. *Genet Med* 19:1151.
 - Li MM et al. 2017. Standards and guidelines for the interpretation and reporting of sequence variants in cancer. *J Mol Diagn* 19:4. (AMP/ASCO/CAP)
 - Miller DT et al. 2023. ACMG SF v3.2 list. *Genet Med* 25:100866.
-- Stawinski PM et al. 2024. GeneBe; automated ACMG/AMP variant interpretation. *Clin Genet* (verify exact volume/pages in the published record before citing).
+- Stawiński P, Płoski R. 2024. Genebe.net: implementation and validation of an automatic ACMG variant pathogenicity criteria assignment. *Clin Genet* 106:119.
 - Kopanos C et al. 2019. VarSome: the human genomic variant search engine. *Bioinformatics* 35:1978.
 - Li Q, Wang K. 2017. InterVar: clinical interpretation of genetic variants. *Am J Hum Genet* 100:267.
 - Xiang J et al. 2020. AutoPVS1 -- automated PVS1 decision-tree implementation (verify exact venue/year against the published code/release).

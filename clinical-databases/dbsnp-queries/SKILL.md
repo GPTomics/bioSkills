@@ -29,7 +29,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 This is the load-bearing concept. dbSNP cluster definition: ss records (submitted SNPs) are mapped to the genome and clustered into RefSNPs by *position + variant type*, not by allele. A single rsID can point to a *locus* with multiple alleles:
 
 - `rs12345` may resolve to {A>G, A>T, A>C} at one position; the RefSNP JSON `primary_snapshot_data.placements_with_allele[*].alleles` enumerates them.
-- ~6-8% of dbSNP rsIDs are multi-allelic (Phan 2025 *NAR* 25-year review).
+- ~6-8% of dbSNP rsIDs are multi-allelic.
 - PLINK and many older tools historically misuse rsIDs as if they were variant identifiers, which fails for multi-allelic sites and yields wrong genotype assignments.
 
 **Rule:** Use rsID as a *human-facing label only*; use SPDI or ClinGen Allele Registry CA ID for joins.
@@ -288,7 +288,7 @@ def alfa_frequency(rsid, ancestry='Total'):
 | Threshold | Convention | Source |
 |-----------|-----------|--------|
 | Build 156 | Current as of Sep 2022; JSON-only distribution | dbSNP NCBI |
-| Multi-allelic rate | ~6-8% of dbSNP rsIDs are multi-allelic | Phan 2025 *NAR* |
+| Multi-allelic rate | ~6-8% of dbSNP rsIDs are multi-allelic | operational estimate |
 | Variation Services rate limit | 10 req/s with API key; 3 req/s without | NCBI E-utilities policy |
 | SPDI position | 0-based, half-open | NCBI SPDI specification |
 | HGVS position | 1-based, fully-closed | HGVS nomenclature |
@@ -319,7 +319,7 @@ def alfa_frequency(rsid, ancestry='Total'):
 
 ## References
 
-- Phan L et al. 2025. dbSNP 25-year retrospective. *Nucleic Acids Res* 53:D940.
+- Phan L et al. 2025. The evolution of dbSNP: 25 years of impact in genomic research. *Nucleic Acids Res* 53:D925.
 - Sayers EW et al. 2024. Database resources of the National Center for Biotechnology Information. *Nucleic Acids Res* 52:D33.
 - Holmes JB et al. 2020. SPDI: data model for variants and applications at NCBI. *Bioinformatics* 36:1902.
 - NCBI Variation Services API: `https://api.ncbi.nlm.nih.gov/variation/v0/`

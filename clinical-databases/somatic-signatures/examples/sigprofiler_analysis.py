@@ -1,7 +1,7 @@
 '''SigProfilerSuite workflow with stability gates, COSMIC v3.4 etiology mapping, and FFPE-aware refit.
 
 Reference: SigProfilerMatrixGenerator 1.2+, SigProfilerExtractor 1.1.24+, SigProfilerAssignment 0.1+
-Verify API if version differs. COSMIC v3.4 (Sept 2024) is current.
+Verify API if version differs. COSMIC v3.4 (2023, COSMIC v98); v3.6 is current as of 2026.
 FFPE artifact is SBS30-like (NOT SBS33 as legacy literature claims).
 '''
 import os
@@ -21,7 +21,7 @@ SIGNATURE_ETIOLOGY = {
     'SBS7d': 'UV T>C (6-4 photoproduct)',
     'SBS10a': 'POLE-exo P286R; C>A at TCT; hypermutator -> ICI excellent response',
     'SBS10b': 'POLE-exo V411L; C>T at TCG; hypermutator -> ICI excellent response',
-    'SBS10c': 'POLD1 (Mertz 2020)',
+    'SBS10c': 'POLD1 (Hodel 2020)',
     'SBS10d': 'POLD1',
     'SBS11': 'Temozolomide; C>T at unmethylated CpC/CpT',
     'SBS13': 'APOBEC (A3A/B); C>G or C>A at TCW; pairs with SBS2',

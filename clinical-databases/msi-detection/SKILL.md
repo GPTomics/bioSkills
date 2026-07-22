@@ -1,13 +1,13 @@
 ---
 name: bio-clinical-databases-msi-detection
-description: Calls microsatellite instability from WES/WGS/targeted-panel with MSIsensor, MSIsensor-pro, MSIsensor-ct (panel-aware), MSIngs, MANTIS, MSIPanel, MSIDetect, and ngsMSI for FDA pembrolizumab MSI-H pan-tumor / Lynch syndrome / dMMR ICI biomarker. Use when stratifying ICI eligibility (Le 2015), pairing MSI with TMB-H (Sha 2020 / Salem 2018), screening Lynch syndrome (universal IHC + MSI), or distinguishing MSI-H tumors from POLE-exo hypermutator with overlapping signatures.
+description: Calls microsatellite instability from WES/WGS/targeted-panel with MSIsensor, MSIsensor-pro, MSIsensor-ct (panel-aware), mSINGS, and MANTIS for FDA pembrolizumab MSI-H pan-tumor / Lynch syndrome / dMMR ICI biomarker. Use when stratifying ICI eligibility (Le 2015), pairing MSI with TMB-H (Sha 2020 / Salem 2018), screening Lynch syndrome (universal IHC + MSI), or distinguishing MSI-H tumors from POLE-exo hypermutator with overlapping signatures.
 tool_type: cli
 primary_tool: MSIsensor-pro
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: MSIsensor-pro 1.2+, MSIsensor 0.6+, MSIngs 1.0+, MANTIS 1.0.5+, samtools 1.19+, mSINGS 5.6+, pandas 2.2+, cyvcf2 0.30+. FDA pembrolizumab MSI-H / dMMR pan-tumor approval is from 2017 (Le 2015 *NEJM*; KEYNOTE-016/164/158); approval extended to colorectal first-line in 2020.
+Reference examples tested with: MSIsensor-pro 1.2+, MSIsensor 0.6+, MANTIS 1.0.5+, samtools 1.19+, mSINGS 5.6+, pandas 2.2+, cyvcf2 0.30+. FDA pembrolizumab MSI-H / dMMR pan-tumor approval is from 2017 (Le 2015 *NEJM*; KEYNOTE-016/164/158); approval extended to colorectal first-line in 2020.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -23,7 +23,6 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 - CLI (paired tumor-normal): `msisensor msi -d microsatellites.list -n normal.bam -t tumor.bam -o msi_out`
 - CLI (ctDNA / blood MSI): `msisensor-ct ...`
 - CLI (older WES standard): `mantis -t tumor.bam -n normal.bam -b targets.bed --threads 8`
-- CLI (panel-only): MSIPanel for clinical assays
 
 ## The Regulatory and Trial Landscape
 
@@ -46,10 +45,10 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **TMB-H** | >= 10 mut/Mb | NGS panel / WES | Statistical correlate of MSI-H |
 | **POLE-exo hypermutator** | POLE proofreading defect | Sequencing / signatures | Hypermutator WITHOUT MMR-D; MSI-stable typically |
 
-**MSI-H + TMB-H overlap** (Salem ME et al 2018 *Mol Cancer Res* 16(5):805-812):
-- ~80% of MSI-H tumors in CRC and endometrial are TMB-H.
+**MSI-H + TMB-H overlap** (Chalmers 2017 *Genome Med* 9:34):
+- ~83% of MSI-H tumors are TMB-H.
 - ~16% of TMB-H solid tumors are MSI-H.
-- Sha 2020 *Cell Rep Med*: MSI-H supersedes TMB-H for ICI biomarker decision; TMB-H not additive.
+- Sha 2020 *Cancer Discov*: MSI-H is the more established dMMR biomarker for ICI decisions; TMB-H not additive.
 
 **POLE-exo vs MMR-D:**
 - POLE-exo (SBS10a/10b): hypermutator (100-300 mut/Mb pure); typically MSI-stable.
@@ -64,12 +63,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **MSIsensor-pro** (Jia 2020 *Genom Proteom Bioinform*) | Optional | **Yes** | No | Distribution comparison to baseline | Baseline cohort not provided; panel < 50 loci |
 | **MSIsensor-ct** (Han 2021 *Brief Bioinform*) | -- | -- | **Yes** | cfDNA-aware | Tumor fraction < 3%; low ctDNA shed |
 | **MANTIS** (Kautto 2017 *Oncotarget*) | Yes | No | No | Step-wise difference | Tumor-only; low coverage at microsatellites |
-| **MSIngs** (Salipante 2014 *Clin Chem*) | Yes | No | No | Number of unstable loci | Tumor-only; outdated vs MSIsensor-pro |
-| **mSINGS** (Salipante 2014) | -- | Yes | No | Background panel | Background panel poorly characterized for cohort |
-| **MSIPanel** | -- | Yes | -- | Panel-specific calibration | Panel not in vendor calibration table |
-| **ngsMSI** | Yes | Yes | -- | Algorithmic variations | Limited benchmarking; rarely first choice |
-| **MSIDetect** | Various | -- | -- | DL-based | New tool; reproducibility data still maturing |
-| **MMR-MS** | IHC concordance check | -- | -- | -- | Not a direct MSI caller; for orthogonal validation |
+| **mSINGS** (Salipante 2014 *Clin Chem*) | -- | Yes | No | Background panel (unstable-loci fraction) | Background panel poorly characterized for cohort |
 
 **Operational consensus 2024-2026:**
 - **Tumor + paired normal WES:** MSIsensor or MANTIS.
@@ -94,12 +88,12 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 ## Bethesda Panel and Modern NGS-Derived Loci
 
-The **Bethesda 5-locus panel** (Boland 1998) is the PCR-based reference:
+The original **NCI/Bethesda reference panel** (Boland 1998) used BAT-25 and BAT-26 plus three dinucleotide markers (D2S123, D5S346, D17S250); >= 2 of 5 loci unstable -> MSI-H. Modern PCR assays use the **mononucleotide pentaplex** (the current clinical standard), which replaced the dinucleotide markers for improved cross-population specificity:
 - **BAT-25** (chr4)
 - **BAT-26** (chr2)
 - **NR-21** (chr14)
 - **NR-24** (chr2)
-- **MONO-27** (chr2; also called BAT-25/Penta C in some nomenclature)
+- **MONO-27** (chr2)
 
 NGS-based MSI panels use 50-1000+ microsatellite loci. MSI-H requires unstable status at >=40% of tested loci typically (varies by panel calibration).
 
@@ -297,12 +291,12 @@ def msi_tmb_ici_decision(msi_status, tmb_value, tumor_type=None, dmmr_ihc=None):
 | MANTIS MSI-H threshold | Step-wise difference > 0.4 | Kautto 2017 |
 | MSIsensor MSI-H threshold | >= 20% by FoCR | Friends of Cancer Research |
 | Minimum informative loci | >= 50 NGS loci | Panel-design convention |
-| ctDNA tumor fraction minimum | >= 3% for reliable cfDNA MSI | Han 2021 |
+| ctDNA tumor fraction minimum | >= 3% for reliable cfDNA MSI (depth-dependent operational floor; MSIsensor-ct reports 0.05% LOD only at >= 3000x) | Operational convention |
 | Tumor purity minimum | >= 20% | Standard |
 | FDA approval | MSI-H or dMMR pan-tumor (2017) | KEYNOTE-016/164/158 |
 | First-line MSI-H CRC | KEYNOTE-177 (2020) | -- |
-| MSI-H + TMB-H overlap (CRC, endometrial) | ~80% | Salem 2018 |
-| TMB-H -> MSI-H rate | ~16% | Salem 2018 |
+| MSI-H -> TMB-H rate | ~83% | Chalmers 2017 |
+| TMB-H -> MSI-H rate | ~16% | Chalmers 2017 |
 | Sporadic MSI-H mechanism | ~50% MLH1 hypermethylation | Various |
 | Universal screening cutoff | CRC <= 70 yr | NCCN / ACG |
 
@@ -321,7 +315,7 @@ def msi_tmb_ici_decision(msi_status, tmb_value, tumor_type=None, dmmr_ihc=None):
 
 | Pushback | Standard response |
 |----------|-------------------|
-| "MSI-H + TMB-H both reported additive" | Sha 2020 *Cell Rep Med*: MSI-H is the primary biomarker; TMB-H is statistical correlate. We report MSI-H first; TMB-H reported but noted not additive. |
+| "MSI-H + TMB-H both reported additive" | Sha 2020 *Cancer Discov*: MSI-H is the primary biomarker; TMB-H is statistical correlate. We report MSI-H first; TMB-H reported but noted not additive. |
 | "Why MSIsensor-pro instead of MSIsensor?" | MSIsensor requires paired normal; MSIsensor-pro handles tumor-only via cohort baseline. Most commercial panels are tumor-only. |
 | "MSI-PCR vs NGS discordant" | Bethesda 5-locus panel is less sensitive; we use NGS >=50 informative loci for confirmation. |
 | "Universal Lynch screening?" | NCCN / ACG recommend reflex IHC + MSI on all CRC <= 70 yr; we implemented universal screening protocol. |
@@ -332,16 +326,17 @@ def msi_tmb_ici_decision(msi_status, tmb_value, tumor_type=None, dmmr_ihc=None):
 ## References
 
 - Le DT et al. 2015. PD-1 blockade in tumors with mismatch-repair deficiency. *NEJM* 372:2509. (The seminal paper)
-- Marabelle A et al. 2020. Efficacy of pembrolizumab in patients with advanced MSI-H or dMMR cancer. *J Clin Oncol* 38:1.
+- Marabelle A et al. 2020. Efficacy of pembrolizumab in patients with noncolorectal high MSI/dMMR cancer. *J Clin Oncol* 38:1.
 - Niu B et al. 2014. MSIsensor: microsatellite instability detection using paired tumor-normal sequence data. *Bioinformatics* 30:1015.
 - Jia P et al. 2020. MSIsensor-pro: fast, accurate, and matched-normal-sample-free detection of microsatellite instability. *Genomics Proteomics Bioinformatics* 18:65.
-- Han P et al. 2021. MSIsensor-ct: microsatellite instability detection using cfDNA sequencing data. *Brief Bioinform* 22:bbaa402.
+- Han X et al. 2021. MSIsensor-ct: microsatellite instability detection using cfDNA sequencing data. *Brief Bioinform* 22:bbaa402.
 - Kautto EA et al. 2017. Performance evaluation for rapid detection of pan-cancer microsatellite instability with MANTIS. *Oncotarget* 8:7452.
 - Salipante SJ et al. 2014. Microsatellite instability detection by NGS. *Clin Chem* 60:1192.
 - Boland CR et al. 1998. National Cancer Institute workshop on microsatellite instability for cancer detection and familial predisposition. *Cancer Res* 58:5248.
-- Salem ME et al. 2018. Landscape of TMB in different cancers: implications for ICI response. *Cancer Discov* 8:1136.
-- Sha D et al. 2020. TMB as a predictive biomarker in solid tumors. *Cell Rep Med* 1:100043.
-- Vanderwalde A et al. 2018. MSI and dMMR comparison: the role of NGS. *J Mol Diagn* 20:809.
+- Salem ME et al. 2018. Landscape of tumor mutation load, mismatch repair deficiency, and PD-L1 expression in a large patient cohort of gastrointestinal cancers. *Mol Cancer Res* 16:805.
+- Chalmers ZR et al. 2017. Analysis of 100,000 human cancer genomes reveals the landscape of tumor mutational burden. *Genome Med* 9:34.
+- Sha D et al. 2020. Tumor mutational burden as a predictive biomarker in solid tumors. *Cancer Discov* 10:1808.
+- Vanderwalde A et al. 2018. Microsatellite instability status determined by next-generation sequencing and compared with PD-L1 and tumor mutational burden in 11,348 patients. *Cancer Med* 7:746.
 
 ## Related Skills
 

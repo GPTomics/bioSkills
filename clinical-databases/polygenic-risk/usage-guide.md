@@ -85,7 +85,7 @@ Tell the agent what to do:
 5. Exclude HLA region (chr6 28-34 Mb) from main PRS; model classical HLA alleles separately for autoimmune traits.
 6. Recalibrate ancestry-conditional Z using TEST cohort PCs (not discovery PCs).
 7. Transform PRS percentile to absolute risk via external age-conditional incidence curve.
-8. Apply Hingorani 2023 caveats: HR per SD 1.3-1.7 is comparable to family history alone; PRS does not meet population-screening utility threshold.
+8. Apply Hingorani 2023 caveats: HR/OR per SD (~1.3) is comparable to family history alone; PRS does not meet population-screening utility threshold.
 9. Cite methods correctly: PRSmix and MUSSEL are *Cell Genomics*; PROSPER is *Nat Commun*; Mavaddat 2023 is CEBP; Mullins 2021 is bipolar (not MDD).
 
 ## Tips
@@ -101,7 +101,7 @@ Tell the agent what to do:
 - Cryptic relatedness inflates PRS performance; remove individuals with KING > 0.0884.
 - LDpred2 LD: prefer UKB LD (n=40k+) over 1KG-EUR (n=489).
 - Sample overlap test (EraSOR / bivariate LDSC intercept) is mandatory; |intercept| > 0.05 with target n>=1000 = problem.
-- HR per SD typically 1.3-1.7 for most diseases; this is similar to family history; PRS alone does not justify population screening per Hingorani 2023.
+- HR/OR per SD is modest (~1.3 per SD); this is similar to family history; PRS alone does not justify population screening per Hingorani 2023.
 - Citation traps: PRSmix and MUSSEL are *Cell Genomics*; PROSPER is *Nat Commun*; Hingorani 2023 is *BMJ Medicine* not main *BMJ*; Mavaddat 2023 update is *CEBP*; Mullins 2021 is bipolar disorder.
 - Top 2.5% PRS detection rate ~7% of CAD cases captured; 5% false-positive rate (Hingorani 2023 PGS Catalog analysis).
 - No general FDA PRS draft guidance exists as of May 2026; Aug 2025 Federal Register Cancer Predisposition Risk Assessment Class II classification is the relevant regulatory text.

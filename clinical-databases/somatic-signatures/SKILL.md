@@ -1,13 +1,13 @@
 ---
 name: bio-clinical-databases-somatic-signatures
-description: Extracts and assigns COSMIC v3.4 mutational signatures (84 SBS / 11 DBS / 18 ID / 24 CN / 16 SV) from somatic VCFs using SigProfilerSuite, MutationalPatterns, MuSiCal mvNMF, SigNet, or HRDetect. Use when characterizing DNA-damage etiology (BRCA1/2 HRD, MMR-D, POLE, APOBEC3A, UV, tobacco, aflatoxin, 5-FU/SBS17b, platinum, colibactin SBS88), routing PARP inhibitor decisions, or auditing de novo extraction vs refit choice for cohort size.
+description: Extracts and assigns COSMIC v3.4 mutational signatures (86 SBS / 11 DBS / 18 ID / 21 CN / 16 SV) from somatic VCFs using SigProfilerSuite, MutationalPatterns, MuSiCal mvNMF, SigNet, or HRDetect. Use when characterizing DNA-damage etiology (BRCA1/2 HRD, MMR-D, POLE, APOBEC3A, UV, tobacco, aflatoxin, 5-FU/SBS17b, platinum, colibactin SBS88), routing PARP inhibitor decisions, or auditing de novo extraction vs refit choice for cohort size.
 tool_type: mixed
 primary_tool: SigProfilerAssignment
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: SigProfilerMatrixGenerator 1.2+ (Bergstrom 2019), SigProfilerExtractor 1.1.24+ (Islam 2022), SigProfilerAssignment 0.1+ (Diaz-Gay 2023), MutationalPatterns 3.12+ (Manders 2022), MuSiCal 0.7+ (Liu 2024), SigNet (Serrano 2023, bioRxiv), HRDetect (Davies 2017 / Degasperi 2022 implementations), pandas 2.2+, R 4.3+. COSMIC v3.4 (September 2024) is the current reference catalog: 84 SBS, 11 DBS, 18 ID, 24 CN, 16 SV signatures.
+Reference examples tested with: SigProfilerMatrixGenerator 1.2+ (Bergstrom 2019), SigProfilerExtractor 1.1.24+ (Islam 2022), SigProfilerAssignment 0.1+ (Diaz-Gay 2023), MutationalPatterns 3.12+ (Manders 2022), MuSiCal 0.7+ (Jin 2024), SigNet (Serrano 2023, bioRxiv), HRDetect (Davies 2017 / Degasperi 2022 implementations), pandas 2.2+, R 4.3+. COSMIC v3.4 (2023, COSMIC v98): 86 SBS, 11 DBS, 18 ID, 21 CN, 16 SV signatures (v3.6 is the current catalog as of 2026).
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -21,25 +21,25 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 - Python (recommended): SigProfilerMatrixGenerator -> SigProfilerExtractor (de novo) or SigProfilerAssignment (refit)
 - R alternative: `MutationalPatterns::fit_to_signatures()` (strict refit) or `extract_signatures()` (NMF de novo)
-- Python (mvNMF for non-uniqueness): MuSiCal (Liu 2024 *Nat Genet*)
+- Python (mvNMF for non-uniqueness): MuSiCal (Jin 2024 *Nat Genet*)
 - Python (deep learning low-mutation count): SigNet (Serrano 2023)
-- R (HRD-specific): HRDetect (Davies 2017 *Nat Med*); the 5-feature BRCA-deficiency classifier
+- R (HRD-specific): HRDetect (Davies 2017 *Nat Med*); the 6-feature BRCA-deficiency classifier
 
 ## COSMIC v3.4 Catalog: Evolution and Composition
 
 | Class | Count | Encoding |
 |-------|-------|----------|
-| **SBS** (Single Base Substitutions) | 84 | 96 trinucleotide contexts (6 substitution types x 16 trinucleotides) |
+| **SBS** (Single Base Substitutions) | 86 | 96 trinucleotide contexts (6 substitution types x 16 trinucleotides) |
 | **DBS** (Doublet Base Substitutions) | 11 | 78 strand-agnostic doublet classes (Bergstrom 2019) |
 | **ID** (Insertion/Deletion) | 18 | 83 categories (indel length x repeat context x microhomology) |
-| **CN** (Copy Number) | 24 | 48 channels (total CN x heterozygosity x segment length; Drews 2022 *Nature*) |
+| **CN** (Copy Number) | 21 | 48 channels (total CN x heterozygosity x segment length; Steele 2022 *Nature*) |
 | **SV** (Structural Variants) | 16 | 32 channels (cluster x length x type) |
 
 **Recent splits to know:**
 - **SBS40 -> SBS40a / SBS40b / SBS40c** (Senkin 2024 *Nature*): pan-cancer active (40a); RCC-specific (40b/c).
 - **SBS17 -> SBS17a (T>C uncertain) / SBS17b (T>G in CTT, 5-FU)** (Christensen 2019 *Nat Commun*; Pich 2019 *Nat Genet*).
 - **SBS7 -> SBS7a / 7b / 7c / 7d** (UV photoproduct chemistry; Alexandrov 2020).
-- **SBS10 -> SBS10a (POLE P286R) / 10b (POLE V411L) / 10c / 10d (POLD1)** (Mertz 2020 *Mol Cell*).
+- **SBS10 -> SBS10a (POLE P286R) / 10b (POLE V411L) / 10c / 10d (POLD1)** (Hodel 2020 *Mol Cell*).
 
 ## Etiology Table (Postdoc-grade)
 
@@ -50,7 +50,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **SBS2 / SBS13** | APOBEC (APOBEC3A dominant per Petljak 2022) | Often co-occur; kataegis; ICI response signal | A3A vs A3B via YTCA vs RTCA tetranucleotide ratio |
 | **SBS3** | HRD (BRCA1/2 deficient flat profile) | **PARP inhibitor eligibility** | HRDetect 98.7% sensitivity (Davies 2017) |
 | **ID6** | HRD microhomology-mediated deletions | PARP eligibility | Pairs with SBS3 |
-| **CN17 (HRD-CN1)** | HRD chromosomal instability | PARP eligibility; also BRCA1 promoter hypermethylation | Drews 2022 |
+| **CN17 (HRD-CN1)** | HRD chromosomal instability | PARP eligibility; also BRCA1 promoter hypermethylation | Steele 2022 |
 | **SBS6 / 14 / 15 / 20 / 21 / 26 / 44 + ID1 / 2** | MMR-D | ICI eligibility | Lynch typically 6/15/26/44; sporadic MLH1-hyperMet typically 21/26 |
 | **SBS14 + SBS20** | POLE+MMR or POLD1+MMR double defect | Ultra-hypermutator; ICI excellent response | >500 mut/Mb |
 | **SBS10a / 10b** | POLE-exo P286R / V411L | Hypermutator; ICI excellent response | 100-300 mut/Mb pure POLE |
@@ -75,14 +75,14 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 |------|----------|----------------|-------------|-----------|
 | **SigProfilerSuite** (Alexandrov lab; Bergstrom 2019 *BMC Genomics*; Islam 2022 *Cell Genomics*; Diaz-Gay 2023 *Bioinformatics*) | Matrix gen -> NMF de novo / forward-backward refit | SBS / DBS / ID / CN / SV | Field standard; CPIC-equivalent for signatures | Heavy compute for de novo (100 NMF replicates) |
 | **MutationalPatterns** (Manders 2022 *BMC Genomics*) | R-based; strict refit + NMF de novo | SBS / DBS / ID; lesion segregation | R workflows; reproducible refit | Lacks SV signatures |
-| **MuSiCal** (Liu 2024 *Nat Genet*) | mvNMF (minimum-volume NMF) addressing NMF non-uniqueness | SBS / DBS / ID | Mid-size cohorts; novel signatures suspected | Less benchmarking at very large scale |
-| **SigNet** (Serrano 2023, bioRxiv) | ANN-based signature attribution | SBS | Low mutation counts (best in 13-tool benchmark) | New tool; reproducibility data still maturing |
-| **YAPSA** (Hubschmann 2020) | Linear combination decomposition | SBS | Comparison runs | Less widely used |
+| **MuSiCal** (Jin 2024 *Nat Genet*) | mvNMF (minimum-volume NMF) addressing NMF non-uniqueness | SBS / DBS / ID | Mid-size cohorts; novel signatures suspected | Less benchmarking at very large scale |
+| **SigNet** (Serrano 2023, bioRxiv) | ANN-based signature attribution | SBS | Low mutation counts | New tool; reproducibility data still maturing |
+| **YAPSA** (Hubschmann 2021) | Linear combination decomposition | SBS | Comparison runs | Less widely used |
 | **MutSignatures** (Fantini 2020) | Probabilistic refits | SBS | -- | -- |
 | **deconstructSigs** (Rosenthal 2016) | NNLS (unregularized) | SBS | **DEPRECATED; never use** | NNLS overfits onto reference set; superseded by SigProfilerAssignment |
 | **mSigAct** | Signatures from RNA-seq | SBS | RNA-seq only contexts | Limited resolution |
 | **Helmsman** (Carlson 2018) | Fast matrix construction | SBS / DBS / ID | Preprocessing step only | Not for extraction/refit |
-| **HRDetect** (Davies 2017 *Nat Med*) | Lasso logistic on 6 features (SBS3 / ID6 / RS3 / RS5 / HRD-LOH) | HRD-specific | BRCA1/2 deficiency classifier | Breast/ovarian-trained; cross-cancer needs revalidation |
+| **HRDetect** (Davies 2017 *Nat Med*) | Lasso logistic on 6 features (SBS3 / SBS8 / RS3 / RS5 / HRD-LOH / del-microhomology proportion) | HRD-specific | BRCA1/2 deficiency classifier | Breast/ovarian-trained; cross-cancer needs revalidation |
 | **MutationTimer** (Gerstung 2020 *Nature*) | Mutation timing relative to CN states | SBS | PCAWG-style evolution | Requires Battenberg/ASCAT CN; >=30x coverage |
 
 **The deprecation:** deconstructSigs is the most-cited signature tool in publications but is **operationally deprecated**. NNLS without regularization overfits onto the ~70-signature reference; reviewers flag manuscripts using it without SigProfilerAssignment sensitivity. Replace with SigProfilerAssignment or MutationalPatterns strict refit.
@@ -116,13 +116,13 @@ Manuscripts reporting extraction without these stability values are unreviewable
 | Cohort >= 50 WGS, novel etiology suspected | SigProfilerExtractor de novo + cross-validate | Capture potentially novel signatures |
 | Cohort >= 50 WGS, established cancer type | SigProfilerAssignment refit | Field consensus; fast |
 | Mid-size cohort with novel signatures | MuSiCal mvNMF | Handles NMF non-uniqueness |
-| Low mutation count (<100/sample) | SigNet (Serrano 2023) | Best low-count performance per Pancotti et al 2025 *Brief Bioinform* benchmark |
+| Low mutation count (<100/sample) | SigNet (Serrano 2023) | ANN-based; optimized for low mutation counts |
 | BRCA1/2 deficiency screen | HRDetect (Davies 2017) | 6-feature lasso classifier; 98.7% sensitivity |
 | Tumor evolution / mutation timing | MutationTimer (Gerstung 2020) | Requires Battenberg CN; PCAWG-validated |
 | FFPE samples | SigProfilerAssignment with explicit FFPE-artifact handling | SBS30-like artifact; matched fresh-frozen controls ideal |
 | WES (not WGS) | SigProfilerMatrixGenerator with `exome=True` | Trinucleotide-context correction for capture bias |
 | RNA-seq only | mSigAct | Limited resolution; supplement with DNA-seq if available |
-| HRD CN signatures | SigProfilerExtractor CN mode + CN17 (HRD-CN1) | Drews 2022 framework |
+| HRD CN signatures | SigProfilerExtractor CN mode + CN17 (HRD-CN1) | Steele 2022 framework |
 | Cross-cancer signature comparison | SigProfilerSuite with strand bias on | Aristolochic-acid SBS22 shows strong transcribed-strand bias |
 
 ## Standard Workflow: SigProfilerSuite
@@ -224,11 +224,11 @@ plot_contribution(strict_refit$fit_res$contribution, signatures, mode = 'relativ
 
 **Goal:** Classify tumors as HRD vs HR-proficient using the 6-feature Davies 2017 lasso.
 
-**Approach:** Compute SBS3, ID6 (microhomology-mediated deletions), RS3 (rearrangement signature 3), RS5, HRD-LOH score; apply lasso classifier.
+**Approach:** Compute SBS3, SBS8, RS3 (rearrangement signature 3), RS5, HRD-LOH score, and the proportion of deletions with microhomology; apply lasso classifier.
 
 ```r
 # Davies 2017 HRDetect framework
-# Features: SBS3, ID6/ID8, RS3, RS5, HRD-LOH
+# Features: SBS3, SBS8, RS3, RS5, HRD-LOH, proportion of deletions with microhomology
 # Output: probability of HRD; threshold 0.7 = HRD-positive
 library(signature.tools.lib)
 
@@ -326,8 +326,8 @@ hrdetect <- HRDetect_pipeline(
 | HRDetect threshold | BRCA_prob >= 0.7 = HRD-positive | Davies 2017 |
 | POLE-exo + MMR mutation count | >500 mut/Mb (ultra-hypermutator) | Alexandrov 2020 |
 | Pure POLE-exo mutation count | 100-300 mut/Mb | Alexandrov 2020 |
-| MMR-D typical mutation count | 30-50 mut/Mb | Salem 2018 *Cancer Discov* |
-| COSMIC version | 3.4 (September 2024) | COSMIC database |
+| MMR-D typical mutation count | 30-50 mut/Mb | Salem 2018 *Mol Cancer Res* |
+| COSMIC version | 3.4 (2023, COSMIC v98); v3.6 current | COSMIC database |
 
 ## Common Errors
 
@@ -358,15 +358,15 @@ hrdetect <- HRDetect_pipeline(
 ## References
 
 - Alexandrov LB et al. 2020. The repertoire of mutational signatures in human cancer. *Nature* 578:94. (PCAWG)
-- Tate JG et al. 2019. COSMIC: the Catalogue Of Somatic Mutations In Cancer. *Nucleic Acids Res* 47:D941. (COSMIC v89)
+- Tate JG et al. 2019. COSMIC: the Catalogue Of Somatic Mutations In Cancer. *Nucleic Acids Res* 47:D941. (COSMIC v86)
 - Senkin S et al. 2024. Geographic variation of mutagenic exposures in kidney cancer genomes. *Nature* 629:910. (SBS40a/b/c split)
-- Drews RM et al. 2022. A pan-cancer compendium of chromosomal instability. *Nature* 606:976. (CN signatures)
+- Steele CD et al. 2022. Signatures of copy number alterations in human cancer. *Nature* 606:984. (COSMIC CN signatures)
 - Petljak M et al. 2022. Mechanisms of APOBEC3 mutagenesis in human cancer cells. *Nature* 607:799. (A3A dominance)
 - Bergstrom EN et al. 2019. SigProfilerMatrixGenerator: a tool for visualizing and exploring patterns of small mutational events. *BMC Genomics* 20:685.
 - Islam SMA et al. 2022. Uncovering novel mutational signatures by de novo extraction with SigProfilerExtractor. *Cell Genomics* 2:100179.
-- Diaz-Gay M et al. 2023. SigProfilerAssignment: an R + Python package for assigning known mutational signatures to individual samples. *Bioinformatics* 39:btad756.
+- Diaz-Gay M et al. 2023. Assigning mutational signatures to individual samples and individual somatic mutations with SigProfilerAssignment. *Bioinformatics* 39:btad756.
 - Manders F et al. 2022. MutationalPatterns: the one-stop shop for the analysis of mutational processes. *BMC Genomics* 23:134.
-- Liu Q et al. 2024. Identifying mutational signatures with minimum volume non-negative matrix factorization. *Nat Genet*.
+- Jin H et al. 2024. Accurate and sensitive mutational signature analysis with MuSiCal. *Nat Genet* 56:541.
 - Davies H et al. 2017. HRDetect is a predictor of BRCA1 and BRCA2 deficiency based on mutational signatures. *Nat Med* 23:517.
 - Degasperi A et al. 2022. Substitution mutational signatures in whole-genome-sequenced cancers in the UK population. *Science* 376:abl9283.
 - Christensen S et al. 2019. 5-Fluorouracil treatment induces characteristic T>G mutations in human cancer. *Nat Commun* 10:4571. (SBS17b)
@@ -376,9 +376,8 @@ hrdetect <- HRDetect_pipeline(
 - Hoang ML et al. 2013. Mutational signature of aristolochic acid exposure as revealed by whole-exome sequencing. *Sci Transl Med* 5:197ra102.
 - Pleguezuelos-Manzano C et al. 2020. Mutational signature in colorectal cancer caused by genotoxic pks+ E. coli. *Nature* 580:269. (Colibactin SBS88)
 - Gerstung M et al. 2020. The evolutionary history of 2,658 cancers. *Nature* 578:122. (MutationTimer)
-- Mertz TM et al. 2020. POLE mutation spectra are shaped by the mutant allele identity. *Mol Cell* 78:1116.
+- Hodel KP et al. 2020. POLE mutation spectra are shaped by the mutant allele identity, its abundance, and mismatch repair status. *Mol Cell* 78:1166.
 - (FFPE-induced C>T mutational artifact: the earlier "Guyard 2022 Nat Commun" attribution could not be verified -- consult current FFPE-artifact literature for a confirmed primary citation.)
-- Pancotti C et al. 2025. Deep learning methods for the recovery of mutational signatures. *Brief Bioinform* 26:bbaf545.
 - COSMIC Signatures: `https://cancer.sanger.ac.uk/signatures/`
 
 ## Related Skills

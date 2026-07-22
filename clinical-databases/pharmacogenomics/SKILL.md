@@ -7,7 +7,7 @@ primary_tool: PharmCAT
 
 ## Version Compatibility
 
-Reference examples tested with: PharmCAT 2.13+, Cyrius 1.1+ (Chen 2021), Aldy 4.0+, Stargazer 2.0+, StarPhase 1.0+ (PacBio HiFi), HIBAG 1.40+, requests 2.31+, pandas 2.2+. CPIC guideline versions are gene-specific; PharmVar releases are quarterly. The 2024 DPYD update (Lam et al. *Clin Pharmacol Ther*) replaced single-variant logic with the activity-score system; the 2025 TPMT/NUDT15 update (Maillard 2026) refines compound-IM dosing.
+Reference examples tested with: PharmCAT 2.13+, Cyrius 1.1+ (Chen 2021), Aldy 4.0+, Stargazer 2.0+, StarPhase 1.0+ (PacBio HiFi), HIBAG 1.40+, requests 2.31+, pandas 2.2+. CPIC guideline versions are gene-specific; PharmVar releases are quarterly. DPYD dosing uses the CPIC gene activity-score system (Amstutz 2018 *Clin Pharmacol Ther* 103:210, the 2017-update guideline); the 2025 TPMT/NUDT15 update (Maillard 2026) refines compound-IM dosing.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -38,12 +38,12 @@ These four authorities are routinely conflated. They differ in scope, scale, and
 | **FDA Table of Pharmacogenomic Biomarkers** | Drug label info | ~300 drugs (informational) | NOT an actionability list; many entries are dosing-suggestion-only |
 | **FDA Table of Pharmacogenetic Associations** | Actionable subset | Closer to CPIC | Compare head-to-head with CPIC |
 
-**Bank et al 2019** *Clin Pharmacol Ther* 105:951 (DOI 10.1002/cpt.762; first online 2018, print 2019) is the canonical CPIC-vs-DPWG comparison. Notable disagreements:
+**Bank et al 2018** *Clin Pharmacol Ther* 103:599 (DOI 10.1002/cpt.762) is the canonical CPIC-vs-DPWG comparison. Notable disagreements:
 - CYP2D6 IM + multiple antidepressants: DPWG actionable; CPIC says insufficient evidence.
 - HLA-B*15:11 carbamazepine: DPWG actionable; CPIC silent.
 - CYP2C19 IM + voriconazole: dosing magnitudes differ 25-50%.
 
-**Donnelly 2024** critiques: (1) EUR over-representation in discovery cohorts; (2) most PGx RCTs are open-label / prescriber-unblinded; (3) publication bias in antiseizure PGx may overstate effects ~2x; (4) subjective composite endpoints.
+**Common PGx-evidence critiques:** (1) EUR over-representation in discovery cohorts; (2) most PGx RCTs are open-label / prescriber-unblinded; (3) publication bias in antiseizure PGx may overstate effects ~2x; (4) subjective composite endpoints.
 
 ## PharmGKB Clinical Annotation Levels: What 1A Actually Means
 
@@ -103,7 +103,7 @@ CYP2D6 on 22q13.2 sits adjacent to the highly-similar CYP2D7 pseudogene. Four cl
 | Tool | CYP2D6 SV | CYP2D6 CN | Other PGx genes | Phased | Validation | Fails when |
 |------|-----------|-----------|-----------------|--------|------------|-----------|
 | **PharmCAT** (Sangkuhl 2020 *Clin Pharmacol Ther*) | No (consumes outside SV calls) | No | 21 CPIC genes; full clinical reporting | Phased or unphased VCF | High; CPIC reference | CYP2D6 SV-rich samples need Cyrius/StellarPGx upstream |
-| **Cyrius** (Chen 2021 *Genome Med*) | **Yes (99.3% concordance)** | **Yes** | CYP2D6 only | Phased haplotypes | GeT-RM 99.3% | Other genes (single-purpose tool) |
+| **Cyrius** (Chen 2021 *Pharmacogenomics J*) | **Yes (99.3% concordance)** | **Yes** | CYP2D6 only | Phased haplotypes | GeT-RM 99.3% | Other genes (single-purpose tool) |
 | **BCyrius** (PubMed 39901590, 2025) | Yes (extended) | Yes | CYP2D6 only | Phased | Extended SV diversity | Other genes |
 | **Aldy v4** (Numanagic 2018 *Nat Commun*) | Yes | Yes | CYP2D6, CYP2A6, CYP2B6, etc. | Phased | GeT-RM 82-87% (CYP2D6) | Less accurate than Cyrius for CYP2D6 |
 | **Stargazer** (Lee 2019 *Genet Med*) | Limited | Yes | ~50 PGx genes | Statistical phasing | ~84% (CYP2D6) | Fails on rare alleles; statistical phasing is unstable |
@@ -127,8 +127,8 @@ HLA associations are **idiosyncratic immune reactions**, not dose-response pheno
 | **HLA-B\*58:01** | Allopurinol | SJS/TEN, DRESS | Han Chinese (10-15%), Thai, Korean | Hung 2005 *PNAS* (OR ~580) |
 | **HLA-B\*13:01** | Dapsone | DDS | Han Chinese, SE Asian | Zhang 2013 *NEJM* |
 | **HLA-B\*35:02** (NOT \*35:01) | Minocycline | DILI | All | Urban 2017 *J Hepatol* |
-| **HLA-B\*35:01** | TMP-SMX | DILI, DRESS-like | Mixed | Li 2021 *Hepatology* |
-| **HLA-B\*14:01** | TMP-SMX | DILI | African | Li 2021 |
+| **HLA-B\*35:01** | TMP-SMX | DILI, DRESS-like | African American | Li 2021 *Hepatology* |
+| **HLA-B\*14:01** | TMP-SMX | DILI | European American (OR 9.20) | Li 2021 |
 | **HLA-A\*33:01/03** | Terbinafine | DILI | Multi-ancestry | Nicoletti 2017 |
 | **HLA-DRB1\*15:01-DQB1\*06:02 haplotype** | Amoxicillin-clavulanate | DILI | Europeans | Stephens 2013 |
 | **HLA-B\*15:13** | Phenytoin | SJS | Malaysian | Chang 2017 |
@@ -137,9 +137,9 @@ HLA associations are **idiosyncratic immune reactions**, not dose-response pheno
 
 ## Non-CYP Pharmacogenes: Variant-Level Detail
 
-### DPYD (5-FU / Capecitabine / Tegafur); 2024 Activity Score Framework
+### DPYD (5-FU / Capecitabine / Tegafur); Activity Score Framework
 
-CPIC 2024 update (Lam et al. *Clin Pharmacol Ther*) moves DPYD to a full **gene activity score** system. Activity values: normal-function = 1.0, decreased = 0.5, no function = 0.
+The CPIC DPYD guideline (Amstutz 2018 *Clin Pharmacol Ther* 103:210) uses a **gene activity score** system. Activity values: normal-function = 1.0, decreased = 0.5, no function = 0.
 
 | Variant | rsID | Allele | Activity |
 |---------|------|--------|----------|
@@ -150,9 +150,9 @@ CPIC 2024 update (Lam et al. *Clin Pharmacol Ther*) moves DPYD to a full **gene 
 
 Gene AS = sum of two lowest activities. Recommended dose: AS 2 = full dose; AS 1.5 = 50% start + TDM; AS 1.0 = 50% start + TDM; AS 0 = avoid.
 
-c.85T>C (DPYD\*9A) is NOT in the CPIC 2024 actionable set despite frequent commercial reporting; evidence does not support clinical decrement.
+c.85T>C (DPYD\*9A) is NOT in the CPIC actionable set despite frequent commercial reporting; evidence does not support clinical decrement.
 
-EU universal pre-treatment testing standard since Henricks 2018 *Lancet Oncol* (70% reduction in grade >=3 fluoropyrimidine toxicity) and EMA 2020 endorsement. US lags; ASCO/NCCN moved 2022-2024.
+EU universal pre-treatment testing standard since Henricks 2018 *Lancet Oncol* (genotype-guided dosing lowered severe fluoropyrimidine toxicity in DPYD variant carriers, e.g. DPYD*2A grade >=3 toxicity RR 2.87 -> 1.31) and EMA 2020 endorsement. US lags; ASCO/NCCN moved 2022-2024.
 
 ### TPMT + NUDT15 (Thiopurines); 2025 Update
 
@@ -164,9 +164,9 @@ Maillard 2026 *Clin Pharmacol Ther* update emphasizes greater dose reduction for
 | TPMT *3A | c.460G>A + c.719A>G | 0 | EUR-common |
 | TPMT *3B | c.460G>A | 0 | -- |
 | TPMT *3C | c.719A>G | 0 | AFR / EAS dominant |
-| NUDT15 *3 | c.415C>T (rs116855232) | 0 | 9.8% Han Chinese; <1% EUR |
+| NUDT15 *3 | c.415C>T (rs116855232) | 0 | ~9.8% East Asian; <1% EUR |
 
-NUDT15 *3 is the **dominant thiopurine determinant in East Asians**; TPMT-alone testing misses these patients (Yang 2014 *Nat Genet*).
+NUDT15 *3 is the **dominant thiopurine determinant in East Asians**; TPMT-alone testing misses these patients (Yang 2015 *J Clin Oncol*).
 
 ### UGT1A1 (Irinotecan, Atazanavir)
 
@@ -178,7 +178,7 @@ NUDT15 *3 is the **dominant thiopurine determinant in East Asians**; TPMT-alone 
 
 - **Pare 2010** *NEJM*: no benefit of clopidogrel in \*2 carriers in CURE/ACTIVE-A.
 - **TAILOR-PCI** (Pereira 2020 *JAMA*): 5,302 patients post-PCI; primary endpoint MACE @12mo HR 0.66, **p=0.06 (negative by pre-specified alpha)** but positive in sensitivity analyses.
-- **Pereira NL et al 2021 meta-analysis** (7 RCTs, 6,409 patients): ~30% MACE reduction. Likely venue *JAMA Cardiology* 6:e215028 — verify exact citation in current literature.
+- **Pereira NL et al 2021 meta-analysis** (7 RCTs, 15,949 patients): ~30% MACE reduction in CYP2C19 LOF carriers (*JACC Cardiovasc Interv* 14:739).
 - **Consensus 2024 (ACC/AHA/ESC):** genotype-guided therapy reasonable; strongest in post-PCI ACS.
 
 ### Warfarin (CYP2C9 + VKORC1 + CYP4F2)
@@ -306,7 +306,7 @@ score = cyp2d6_activity(diplotype)  # 0 (from *4xN) + 0.25 (from *10) = 0.25
 print(f'{diplotype}: AS={score}, phenotype={cyp2d6_phenotype(score)}')  # IM, NOT UM
 ```
 
-## DPYD Activity Score (CPIC 2024)
+## DPYD Activity Score (CPIC)
 
 ```python
 DPYD_2024_ACTIVITY = {
@@ -320,7 +320,7 @@ DPYD_2024_ACTIVITY = {
 def dpyd_activity(variants):
     '''Compute DPYD gene activity score from observed variants.
 
-    Sum the two lowest activities across the two alleles. CPIC 2024 dosing:
+    Sum the two lowest activities across the two alleles. CPIC dosing:
     - AS 2.0: full dose
     - AS 1.5: 50% start + TDM
     - AS 1.0: 50% start + TDM
@@ -384,7 +384,7 @@ def cpic_guideline(gene_symbol):
 
 **4. EUR-only DPYD panel**
 - Trigger: Pre-treat fluoropyrimidine using CPIC-core 4-variant panel only.
-- Mechanism: 4-variant panel captures EUR DPD-deficient carriers; misses ~30% of AFR carriers (Offer 2014).
+- Mechanism: 4-variant panel captures EUR DPD-deficient carriers but misses additional DPYD variants enriched in non-European populations (Offer 2014 identified ~30 such deleterious variants).
 - Symptom: African-ancestry patients suffer severe toxicity despite "negative" PGx.
 - Fix: Use extended panel for AFR cohorts; supplement with phenotype testing (uracil/dihydrouracil plasma ratio).
 
@@ -408,7 +408,7 @@ def cpic_guideline(gene_symbol):
 
 **8. Activity-based vs allele-based confusion**
 - Trigger: Sum activities across substrate-non-specific assumption for *17.
-- Mechanism: CYP2D6 *17 metabolizes codeine poorly but moderately for other substrates (Twesigomwe 2020).
+- Mechanism: CYP2D6 *17 shows substrate-dependent activity (reduced for some substrates, near-normal for others).
 - Symptom: Substrate-specific dose recommendations applied generically.
 - Fix: Use substrate-specific guidance where available; flag *17 in AFR cohorts.
 
@@ -428,17 +428,17 @@ def cpic_guideline(gene_symbol):
 
 | Threshold | Convention | Source |
 |-----------|-----------|--------|
-| Cyrius CYP2D6 accuracy | 99.3% on GeT-RM reference samples | Chen 2021 *Genome Med* |
+| Cyrius CYP2D6 accuracy | 99.3% on GeT-RM reference samples | Chen 2021 *Pharmacogenomics J* |
 | Aldy CYP2D6 accuracy | 82-87% on GeT-RM | Twesigomwe 2020 |
 | Stargazer CYP2D6 accuracy | ~84% on GeT-RM | Twesigomwe 2020 |
 | Inter-tool CYP2D6 discordance | 10-18% (concentrated in SV samples) | Twesigomwe 2020 |
 | PREPARE ADR reduction | OR 0.70 (95% CI 0.54-0.91) for actionable interactions | Swen 2023 *Lancet* |
 | PREPARE actionable variant rate | 93.5% of patients had >=1 actionable variant | Swen 2023 |
 | TAILOR-PCI primary endpoint | HR 0.66 (95% CI 0.43-1.02), p=0.06 (negative) | Pereira 2020 *JAMA* |
-| Pereira 2021 meta-analysis | ~30% MACE reduction with genotype-guided clopidogrel | Pereira NL et al 2021 (cardiology meta-analysis; verify exact venue against current literature — likely *JAMA Cardiology*) |
-| Henricks 2018 DPYD outcome | 70% reduction in grade >=3 fluoropyrimidine toxicity | Henricks 2018 *Lancet Oncol* |
-| NUDT15 *3 frequency | 9.8% Han Chinese vs <1% EUR | Yang 2014 *Nat Genet* |
-| HLA-B*57:01 OR for abacavir HSS | ~100 (NNT 13) | Mallal 2008 *NEJM* (PREDICT-1) |
+| Pereira 2021 meta-analysis | ~30% MACE reduction in CYP2C19 LOF carriers | Pereira 2021 *JACC Cardiovasc Interv* 14:739 |
+| Henricks 2018 DPYD outcome | Per-variant toxicity reduction (DPYD*2A grade >=3 RR 2.87 -> 1.31) | Henricks 2018 *Lancet Oncol* |
+| NUDT15 *3 frequency | ~9.8% East Asian vs <1% EUR | Relling 2019 CPIC *Clin Pharmacol Ther* 105:1095 |
+| HLA-B*57:01 OR for abacavir HSS | ~100 (case-control) | Mallal 2002 *Lancet* 359:727 |
 
 ## Common Errors
 
@@ -449,7 +449,7 @@ def cpic_guideline(gene_symbol):
 | African patient suffers warfarin bleeding despite "wildtype" CYP2C9 | Panel omits *5/*6/*8/*11 (AFR-common) | Use ancestry-aware panel; supplement with INR-guided dosing |
 | Severe thiopurine toxicity in TPMT-wildtype EAS patient | NUDT15 not tested | Always pair TPMT + NUDT15 |
 | Patient with CYP2C19 *2/*2 and clopidogrel failure | Expected; no genotype-guided alternative chosen | Switch to prasugrel/ticagrelor per CPIC |
-| DPYD AS = 0 but no dose adjustment | Pre-2024 single-variant rule used instead of activity score | Update to CPIC 2024 activity-score framework |
+| DPYD AS = 0 but no dose adjustment | Single-variant rule used instead of activity score | Update to the CPIC activity-score framework |
 | HLA-B*57:01 false positive | 2-field B*57 result misinterpreted | Re-type at 4-field |
 
 ## Anticipated Reviewer Pushback
@@ -457,7 +457,7 @@ def cpic_guideline(gene_symbol):
 | Pushback | Standard response |
 |----------|-------------------|
 | "TAILOR-PCI missed primary endpoint; why genotype clopidogrel?" | Sensitivity analyses positive; Pereira 2021 meta-analysis (7 RCTs) +30% MACE reduction; ESC 2023 endorses; ACC 2022 weaker. |
-| "DPYD universal screening is expensive" | Henricks 2018 70% toxicity reduction + Knikman 2021 cost-effective; EU standard since 2020; US ASCO/NCCN updated 2022-2024. |
+| "DPYD universal screening is expensive" | Henricks 2018 per-variant toxicity reduction + Knikman 2021 cost-effective; EU standard since 2020; US ASCO/NCCN updated 2022-2024. |
 | "CYP2D6 SV calling is unreliable" | Cyrius 99.3% on GeT-RM (Chen 2021); not unreliable; the prior tools were. |
 | "*10 = 0.25 disagrees with old paper" | Caudle 2020 *Clin Transl Sci* consensus reset based on substrate-metabolic-ratio evidence. |
 | "GeneSight is approved by my hospital" | GUIDED trial (Greden 2019) missed primary endpoint; physician-unblinded; literature shows modest effects inseparable from expectancy bias. |
@@ -467,21 +467,23 @@ def cpic_guideline(gene_symbol):
 ## References
 
 - Sangkuhl K et al. 2020. Pharmacogenomics Clinical Annotation Tool (PharmCAT). *Clin Pharmacol Ther* 107:203.
-- Chen X et al. 2021. Cyrius: accurate CYP2D6 genotyping from WGS. *Genome Med* 13:35.
+- Chen X et al. 2021. Cyrius: accurate CYP2D6 genotyping using whole-genome sequencing data. *Pharmacogenomics J* 21:251.
 - Numanagic I et al. 2018. Allelic decomposition and exact genotyping of highly polymorphic and structurally variant genes. *Nat Commun* 9:828. (Aldy)
 - Lee SB et al. 2019. Stargazer: a tool for calling star alleles. *Genet Med* 21:361.
-- Twesigomwe D et al. 2020. Systematic comparison of pharmacogene haplotype callers. *npj Genom Med* 5:36.
+- Twesigomwe D et al. 2020. A systematic comparison of pharmacogene star allele calling bioinformatics algorithms. *npj Genom Med* 5:30.
 - Caudle KE et al. 2020. Standardizing CYP2D6 genotype to phenotype translation. *Clin Transl Sci* 13:116. (Activity-score reset for *10)
-- Bank PCD et al. 2018. Comparison of dosing recommendations of pharmacogenomic-based guidelines (CPIC vs DPWG). *Clin Pharmacol Ther* 105:951.
+- Bank PCD et al. 2018. Comparison of the guidelines of the CPIC and the Dutch Pharmacogenetics Working Group. *Clin Pharmacol Ther* 103:599.
+- Amstutz U et al. 2018. CPIC guideline for dihydropyrimidine dehydrogenase genotype and fluoropyrimidine dosing: 2017 update. *Clin Pharmacol Ther* 103:210. (DPYD activity score)
 - Swen JJ et al. 2023. PREPARE: A pre-emptive pharmacogenetic testing strategy. *Lancet* 401:347.
 - Henricks LM et al. 2018. DPYD-guided dose individualization to fluoropyrimidines. *Lancet Oncol* 19:1459.
 - Pereira NL et al. 2020. Effect of genotype-guided oral P2Y12 inhibitor selection vs conventional clopidogrel therapy on ischemic outcomes after PCI. *JAMA* 324:761. (TAILOR-PCI)
-- Pereira NL et al. 2021. CYP2C19 genetic testing for oral P2Y12 inhibitor therapy: a meta-analysis of 7 RCTs. *Lancet* (or *J Am Coll Cardiol*; cited).
+- Pereira NL et al. 2021. Effect of CYP2C19 genotype on ischemic outcomes during oral P2Y12 inhibitor therapy: a meta-analysis. *JACC Cardiovasc Interv* 14:739.
 - Mallal S et al. 2008. HLA-B*5701 screening for hypersensitivity to abacavir. *NEJM* 358:568. (PREDICT-1)
 - Chung WH et al. 2004. Medical genetics: a marker for Stevens-Johnson syndrome. *Nature* 428:486.
 - McCormack M et al. 2011. HLA-A*3101 and carbamazepine-induced hypersensitivity reactions in Europeans. *NEJM* 364:1134.
 - Hung SI et al. 2005. HLA-B*5801 allele as a genetic marker for severe cutaneous adverse reactions caused by allopurinol. *PNAS* 102:4134.
-- Yang JJ et al. 2014. Inherited NUDT15 variant is a genetic determinant of mercaptopurine intolerance. *Nat Genet* 46:1017.
+- Yang JJ et al. 2015. Inherited NUDT15 variant is a genetic determinant of mercaptopurine intolerance. *J Clin Oncol* 33:1235.
+- Relling MV et al. 2019. CPIC guideline for thiopurine dosing based on TPMT and NUDT15 genotypes: 2018 update. *Clin Pharmacol Ther* 105:1095.
 - PharmCAT documentation: `https://pharmcat.org`
 - PharmVar: `https://www.pharmvar.org`
 - CPIC: `https://cpicpgx.org`

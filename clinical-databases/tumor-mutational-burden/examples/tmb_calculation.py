@@ -2,7 +2,7 @@
 
 Reference: cyvcf2 0.30+, Ensembl VEP 111+ (or snpEff 5.2+) | Verify VCF INFO field names.
 FoundationOne CDx scored region is 0.8 Mb (NOT 1.1 Mb total panel).
-FDA pembrolizumab 10 mut/Mb cutoff equivalent: TSO500 7.8, Oncomine 8.4.
+FDA pembrolizumab 10 mut/Mb cutoff equivalent: TSO500 7.8, Oncomine 8.4 (Ramos-Paradas 2021).
 '''
 from cyvcf2 import VCF
 import argparse
@@ -23,11 +23,11 @@ PANEL_SCORED_REGION_MB = {
     'wgs': 3000.0,
 }
 
-# Vega 2021 calibration: equivalent thresholds for FoundationOne 10/Mb sensitivity.
+# TMB2 (Ramos-Paradas 2021) equivalent thresholds for FoundationOne 10/Mb sensitivity.
 ASSAY_TMB_H_CUTOFF = {
     'foundationone_cdx': 10.0,
-    'tso500': 7.8,                 # Vega 2021
-    'oncomine_tml': 8.4,           # Vega 2021
+    'tso500': 7.8,                 # Ramos-Paradas 2021
+    'oncomine_tml': 8.4,           # Ramos-Paradas 2021
     'msk_impact_v3': 10.0,         # Full Vega 2021 calibration recommended
     'msk_impact_v4': 10.0,
     'wes': 10.0,
@@ -147,7 +147,7 @@ def calculate_tmb(vcf_path, assay='foundationone_cdx',
         'scored_region_mb': scored_mb,
         'assay': assay,
         'assay_includes_synonymous': include_syn,
-        'tmb_h_cutoff_per_vega2021': cutoff,
+        'tmb_h_cutoff_calibrated': cutoff,
         'classification': classification,
         **counts
     }
@@ -172,9 +172,9 @@ def classify_tmb_tier(tmb, cutoff=10.0):
 def tmb_msi_decision(tmb_value, msi_status, tumor_type=None, hla_loh=False):
     '''Integrated ICI eligibility from TMB + MSI + HLA-LOH.
 
-    Sha 2020 Cell Rep Med: MSI-H is primary; TMB-H not additive.
+    Sha 2020 Cancer Discov: MSI-H is primary; TMB-H not additive.
     McGrail 2021 + ESMO 2024: TMB-H NOT endorsed for breast/prostate/glioma.
-    Marty 2017 / Montesion 2021: HLA-LOH reduces neoantigen presentation.
+    McGranahan 2017 / Montesion 2021: HLA-LOH reduces neoantigen presentation.
     '''
     tmb_h = tmb_value >= 10
     excluded_tumors = {'breast', 'prostate', 'glioma'}
@@ -209,7 +209,7 @@ if __name__ == '__main__':
                            max_gnomad_grpmax_faf95=args.max_gnomad_faf95)
     print(f"TMB: {result['tmb']} mut/Mb on {args.assay} ({result['scored_region_mb']} Mb scored)")
     print(f"Assay synonymous convention: {result['assay_includes_synonymous']}")
-    print(f"Vega 2021 calibrated TMB-H cutoff: {result['tmb_h_cutoff_per_vega2021']}")
+    print(f"Panel-calibrated TMB-H cutoff: {result['tmb_h_cutoff_calibrated']}")
     print(f"Classification: {result['classification']}")
     print(f"\nCounts: target={result['count_target']}/pass-filters={result['pass_filters']}; "
           f"excluded germline={result['excl_germline']}, low-VAF={result['excl_lowvaf']}, "

@@ -1,6 +1,6 @@
 ---
 name: bio-clinical-databases-polygenic-risk
-description: Constructs and validates polygenic risk scores using LDpred2-auto, SBayesRC, MegaPRS, PRS-CS, PROSPER, MUSSEL, BridgePRS, JointPRS, PRSmix, or PGS Catalog Calculator with ancestry-aware reference panels (HapMap3, UKB-LD), Pejaver-style calibration, and PRS-RS reporting standards. Use when computing PRS for cohorts, applying Whiffin-style absolute-risk transformation, assessing cross-ancestry portability (Martin 2017 / Ding 2023 continuous ancestry), or auditing PRS manuscripts against the 22-item PRS-RS reviewer checklist.
+description: Constructs and validates polygenic risk scores using LDpred2-auto, SBayesRC, MegaPRS, PRS-CS, PROSPER, MUSSEL, BridgePRS, JointPRS, PRSmix, or PGS Catalog Calculator with ancestry-aware reference panels (HapMap3, UKB-LD), ancestry-conditional calibration, and PRS-RS reporting standards. Use when computing PRS for cohorts, applying absolute-risk transformation, assessing cross-ancestry portability (Martin 2017 / Ding 2023 continuous ancestry), or auditing PRS manuscripts against the 22-item PRS-RS reviewer checklist.
 tool_type: mixed
 primary_tool: PGS Catalog Calculator
 ---
@@ -38,7 +38,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **C+T** (PRSice-2; Choi 2019) | Clumping + thresholding | Legacy clinical scores (PRS313) | Highly polygenic; Bayesian methods dominate |
 | **PROSPER** (Zhang 2024 *Nat Commun*) | Ensemble penalized regression | Multi-ancestry, AFR + others | Single-ancestry; tuning set < 1000 |
 | **MUSSEL** (Jin 2024 *Cell Genomics*) | Spike-slab + super-learner | Multi-ancestry; admixed AFR | Single-ancestry; lacks tuning data |
-| **JointPRS** (Hu S et al 2025 *Nat Commun*) | Data-adaptive Bayesian | Multi-ancestry; sumstats only | Single-ancestry; very small target. (Verify exact volume/page reference in the latest Nat Commun citation; the earlier "16:59243" attribution appears implausible.) |
+| **JointPRS** (Xu L et al 2025 *Nat Commun* 16:3841) | Data-adaptive Bayesian | Multi-ancestry; sumstats only | Single-ancestry; very small target |
 | **PRS-CSx** (Ruan 2022 *Nat Genet*) | PRS-CS multi-ancestry extension | Multi-ancestry with EUR + non-EUR sumstats | Low causal-variant overlap across ancestries |
 | **BridgePRS** (Hoggart 2024 *Nat Genet*) | Ridge-bridge sharing | Low-h^2 AFR / low causal overlap | Standard scenarios (PROSPER/MUSSEL win) |
 | **PolyPred / PolyPred+** (Weissbrod 2022) | BOLT-LMM + PolyFun-SuSIE | Multi-ancestry; biobank-scale | Small individual-level data; expensive |
@@ -53,11 +53,11 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 ## Multi-Ancestry: The Big Problem
 
-Martin 2017 *Nat Genet* established the 4.5x R^2 attenuation between EUR and AFR. Updates:
+Martin 2019 *Nat Genet* established the ~4.5x R^2 attenuation between EUR and AFR (Martin 2017 *AJHG* first showed demographic history drives it). Updates:
 - **Martin 2019** *Nat Genet*: "Clinical use of current polygenic risk scores may exacerbate health disparities".
 - **Mostafavi 2020** *eLife*: PRS accuracy varies even within a single ancestry due to age, sex, SES, GxE.
 - **Ding 2023** *Nature* 618: PGS accuracy decays *continuously* along genetic-ancestry continuum (Pearson r = -0.95 vs PC distance from training data). **The 2026 standard is to report PRS performance vs continuous PC distance, NOT discrete ancestry boxes.**
-- **Hou 2023** *Nat Commun*: theoretical decay bounds in MAF/h^2/effect-correlation across ancestries.
+- **Hou 2023** *Nat Genet*: causal effects are similar across local ancestries within admixed individuals (radmix ~0.95), supporting cross-population transfer.
 
 Multi-ancestry method choice:
 1. Individual-level non-EUR training data + tuning set >= 1000: **PROSPER** or **MUSSEL** (top performance).
@@ -69,15 +69,15 @@ Multi-ancestry method choice:
 
 Khera 2018 *Nat Genet* established the clinical-PRS narrative; **Hingorani 2023** *BMJ Med* is the operative critique:
 
-- HR per SD typically lies between 1.3 and 1.7; **similar to family history alone**.
+- HR/OR per SD is modest (~1.3 per SD); **similar to family history alone**.
 - Among individuals who develop disease, only ~11% are detected at conventional high-risk PRS threshold; 5% false-positive rate.
-- CAD top-2.5% PRS captures 7% of cases; breast-cancer top-quintile captures 6%.
+- CAD top-2.5% PRS captures 7% of cases; breast-cancer top-2.5% captures 6%.
 - Wald-Hingorani detection-rate / false-positive-rate ratios approach 10:1 for screening; current PRS achieve 2-3:1.
 
 **Calibration mechanics:**
-- Cross-ancestry calibration breaks for the *variance* of the PRS distribution, not just the mean (Sun 2021 *Genome Med*).
+- Cross-ancestry calibration breaks for the *variance* of the PRS distribution, not just the mean.
 - Recalibration: subtract conditional mean given first 4-10 PCs; divide by conditional SD; convert to percentile. **Compute PCs in the test cohort, NOT discovery-cohort PCs**.
-- For absolute risk: integrate over external incidence curve (BOADICEA v6 / CanRisk for breast cancer; FOS for CAD).
+- For absolute risk: integrate over external incidence curve (BOADICEA v5 / CanRisk for breast cancer; FOS for CAD).
 
 ## PRS-RS Reporting Standards (Wand 2021 *Nature*)
 
@@ -97,7 +97,7 @@ Khera 2018 *Nat Genet* established the clinical-PRS narrative; **Hingorani 2023*
 | Combining multiple PGS Catalog scores | PRSmix (single trait) or PRSmix+ (cross-trait) | Elastic-net combination |
 | Production score for biobank | `pgsc_calc` Nextflow nf-core | Handles liftover, ancestry, normalization automatically |
 | No tuning data available | LDpred2-auto, PRS-CS-auto, JointPRS-auto | Bayesian auto-tuning |
-| Clinical reporting | Apply Hingorani-aware framing: absolute-risk transform via external incidence curve | HR per SD = 1.3-1.7 alone is inadequate for screening |
+| Clinical reporting | Apply Hingorani-aware framing: absolute-risk transform via external incidence curve | HR/OR per SD (~1.3) alone is inadequate for screening |
 
 ## Standard Workflow: LDpred2-auto
 
@@ -240,7 +240,7 @@ from scipy import stats
 import statsmodels.api as sm
 
 def ancestry_conditional_normalize(prs, pcs, n_pcs=10):
-    '''Recalibrate PRS by removing ancestry effects (Sun 2021 + Ding 2023 continuous).
+    '''Recalibrate PRS by removing ancestry effects (Ding 2023 continuous-ancestry).
 
     pcs: matrix of principal components computed in the TEST cohort (not discovery).
     Returns: ancestry-conditional Z scores.
@@ -265,7 +265,7 @@ def prs_to_percentile(z_scores):
 def absolute_risk_transform(percentile, incidence_curve_age, age):
     '''Integrate over external age-conditional incidence curve to get absolute risk.
 
-    Khera 2018 used FOS for CAD; Lee 2019 BOADICEA v6 for breast cancer.
+    Khera 2018 used FOS for CAD; Lee 2019 BOADICEA v5 for breast cancer.
     The HR-per-SD-only framing (Hingorani 2023 critique) is insufficient for screening.
     '''
     base_risk = incidence_curve_age(age)
@@ -326,7 +326,7 @@ ldsc.py \
 
 **6. Treating HR per SD = 1.5 as clinically actionable**
 - Trigger: Report "top 5% PRS = 1.5x risk -> screening criterion".
-- Mechanism: HR per SD 1.3-1.7 is similar to family history; Wald-Hingorani DR-to-FPR ratios approach 10:1 for true screening utility; PRS achieve 2-3:1.
+- Mechanism: HR/OR per SD (~1.3) is similar to family history; Wald-Hingorani DR-to-FPR ratios approach 10:1 for true screening utility; PRS achieve 2-3:1.
 - Symptom: Clinical implementation produces high false-positive rates.
 - Fix: Integrate over external incidence curve for absolute-risk reporting; benchmark against family history specifically.
 
@@ -367,14 +367,14 @@ ldsc.py \
 | LDpred2 LD ref `s` | < 0.05 indicates well-matched LD | Privé 2022 |
 | EraSOR | |intercept| > 0.05 with n >= 1000 => sample overlap | Choi 2023 |
 | MAF range for ambiguous SNPs | Drop or frequency-match 0.4-0.6 | LDpred2 default |
-| INFO score (imputed) | >= 0.8 for inclusion | Yengo 2018 |
+| INFO score (imputed) | >= 0.8 for inclusion | QC convention |
 | Kinship coefficient cutoff | KING > 0.0884 = 3rd-degree or closer; remove | KING documentation |
 | HLA region exclusion | chr6 28-34 Mb (some use 25-35) | Convention |
-| HR per SD typical | 1.3-1.7 for most diseases | Hingorani 2023 BMJ Med |
+| HR/OR per SD typical | ~1.3 per SD | Hingorani 2023 BMJ Med |
 | Top 2.5% PRS CAD detection rate | ~7% of cases captured | Hingorani 2023 |
 | Mavaddat PRS313 | 313 SNPs, breast cancer | Mavaddat 2019 |
 | Khera CAD PRS | ~6.6M variants | Khera 2018 |
-| Aragam CAD PRS | GPS_Mult; multi-ancestry SOTA 2023 | Aragam 2023 |
+| Patel CAD PRS | GPS_Mult; multi-ancestry SOTA 2023 | Patel 2023 |
 
 ## Common Errors
 
@@ -387,21 +387,21 @@ ldsc.py \
 | Non-EUR PRS at chance | Method not multi-ancestry-aware | Switch to PROSPER/MUSSEL/BridgePRS |
 | Different ranking with same data | Stochastic MCMC | Seed; report posterior CIs; check convergence |
 | PGS Catalog liftover failure | Incompatible build | Use pgsc_calc auto-liftover; check log |
-| Top 1% PRS appears benign | Conditional mean drift across ancestries | Apply Sun 2021 / Ding 2023 ancestry-conditional Z |
+| Top 1% PRS appears benign | Conditional mean drift across ancestries | Apply Ding 2023 ancestry-conditional Z |
 
 ## Anticipated Reviewer Pushback
 
 | Pushback | Standard response |
 |----------|-------------------|
 | "PRS HR 1.5 per SD is similar to family history" | Acknowledged (Hingorani 2023). We report absolute-risk integrated over age-conditional incidence (Wald-Hingorani framing); we do NOT recommend population-level screening on PRS alone. |
-| "Why use Bayesian methods over C+T?" | LDpred2-auto / PRS-CS / SBayesRC capture polygenic architecture better; +20-50% R^2 vs C+T per Pain 2021 / Privé 2022 benchmarks. |
+| "Why use Bayesian methods over C+T?" | LDpred2-auto / PRS-CS / SBayesRC capture polygenic architecture better; ~16-18% higher prediction correlation (r) vs C+T per Pain 2021 / Privé 2022 benchmarks. |
 | "Why not use the largest published GWAS?" | We checked sample overlap between discovery and target with EraSOR / bivariate LDSC intercept; |intercept| < 0.05. |
 | "Discrete ancestry boxes don't capture genetic structure" | Agreed; we report PRS performance vs continuous PC distance (Ding 2023 *Nature*); discrete labels are summary only. |
 | "Why exclude HLA?" | HLA region extreme LD makes SNP-based posteriors unstable; we model classical HLA alleles separately via HIBAG / SNP2HLA. |
 | "PRS-CS phi parameter; how chosen?" | We use --phi=auto with multiple chains; for sparse traits (lipids) 1e-4; for highly polygenic (height) 1e-2. |
 | "Where is the absolute risk?" | Reported per Wand 2021 PRS-RS item 19; integrated over age-conditional incidence using external curve. |
 | "FDA PRS guidance?" | No general FDA PRS draft guidance exists as of 2026; August 2025 Federal Register Class II classification for Cancer Predisposition Risk Assessment Systems is the operative regulatory text. |
-| "Why three different references for SBayesRC?" | Zheng 2024 *Nat Genet* is the primary paper; baseline-LD v2.2 is Finucane 2018; UKB LD panel is the bigsnpr/Privé 2020 release. |
+| "Why three different references for SBayesRC?" | Zheng 2024 *Nat Genet* is the primary paper; baseline-LD is Gazal 2017; UKB LD panel is the bigsnpr/Privé 2020 release. |
 
 ## References
 
@@ -411,26 +411,26 @@ ldsc.py \
 - Ruan Y et al. 2022. Improving polygenic prediction in ancestrally diverse populations. *Nat Genet* 54:573. (PRS-CSx)
 - Zheng Z et al. 2024. Leveraging functional genomic annotations and genome coverage to improve polygenic prediction of complex traits within and between ancestries. *Nat Genet* 56:767. (SBayesRC)
 - Lloyd-Jones LR et al. 2019. Improved polygenic prediction by Bayesian multiple regression on summary statistics. *Nat Commun* 10:5086. (SBayesR)
-- Zeng J et al. 2021. Widespread signatures of natural selection across human complex traits and major risk factor categories. *Nat Commun* 12:1164. (SBayesS)
+- Zeng J et al. 2021. Widespread signatures of natural selection across human complex traits and functional genomic categories. *Nat Commun* 12:1164. (SBayesS)
 - Zhang Q et al. 2021. Improved genetic prediction of complex traits from individual-level data or summary statistics. *Nat Commun* 12:4192. (MegaPRS)
-- Zhang H et al. 2024. PROSPER: enhanced polygenic risk score with summary statistics. *Nat Commun* 15:3413.
-- Jin Y et al. 2024. MUSSEL: enhanced Bayesian polygenic risk prediction in admixed populations. *Cell Genomics* 4:100539.
-- Hu S et al. 2025. JointPRS: a data-adaptive framework for joint polygenic risk score modeling. *Nat Commun* (verify exact volume/article number in the published record before citing).
+- Zhang J et al. 2024. An ensemble penalized regression method for multi-ancestry polygenic risk prediction. *Nat Commun* 15:3238. (PROSPER)
+- Jin J et al. 2024. MUSSEL: enhanced Bayesian polygenic risk prediction leveraging information across multiple ancestry groups. *Cell Genomics* 4:100539.
+- Xu L et al. 2025. JointPRS: a data-adaptive framework for multi-population genetic risk prediction incorporating genetic correlation. *Nat Commun* 16:3841.
 - Hoggart CJ et al. 2024. BridgePRS leverages shared genetic effects across ancestries. *Nat Genet* 56:180.
 - Weissbrod O et al. 2022. Leveraging fine-mapping and multipopulation training data to improve cross-population polygenic risk scores. *Nat Genet* 54:450. (PolyPred)
-- Zhao Z et al. 2022. PUMAS: fine-tuning polygenic risk scores with GWAS summary statistics. *Am J Hum Genet* 109:2253. (TL-PRS-adjacent transfer learning)
-- Truong B et al. 2024. PRSmix: integrating multiple polygenic risk scores. *Cell Genomics* 4:100495.
+- Zhao Z et al. 2022. The construction of cross-population polygenic risk scores using transfer learning. *Am J Hum Genet* 109:1998. (TL-PRS)
+- Truong B et al. 2024. Integrative polygenic risk score improves the prediction accuracy of complex traits and diseases (PRSmix). *Cell Genomics* 4:100523.
 - Mostafavi H et al. 2020. Variable prediction accuracy of polygenic scores within an ancestry group. *eLife* 9:e48376.
 - Ding Y et al. 2023. Polygenic scoring accuracy varies across the genetic ancestry continuum. *Nature* 618:774.
-- Hou K et al. 2023. Causal effects on complex traits are similar for common variants across segments of different continental ancestries within admixed individuals. *Nat Commun* 14:5566.
+- Hou K et al. 2023. Causal effects on complex traits are similar for common variants across segments of different continental ancestries within admixed individuals. *Nat Genet* 55:549.
 - Hingorani AD et al. 2023. Performance of polygenic risk scores in screening, prediction, and risk stratification. *BMJ Med* 2:e000554.
 - Wand H et al. 2021. Improving reporting standards for polygenic scores in risk prediction studies. *Nature* 591:211. (PRS-RS)
 - Lambert SA et al. 2021. The Polygenic Score Catalog as an open database for reproducibility and systematic evaluation. *Nat Genet* 53:420.
-- Lambert SA et al. 2024. The PGS Catalog Calculator: automated polygenic scoring of large datasets at scale. *Nat Genet* 56:1989.
-- Fritsche LG et al. 2020. Cancer PRSweb: an online repository with polygenic risk scores for major cancer traits and their evaluation in two cohorts. *Am J Hum Genet* 107:815. (PRSweb)
+- Lambert SA et al. 2024. Enhancing the Polygenic Score Catalog with tools for score calculation and ancestry normalization. *Nat Genet* 56:1989.
+- Fritsche LG et al. 2020. Cancer PRSweb: an online repository with polygenic risk scores for major cancer traits and their evaluation in two independent biobanks. *Am J Hum Genet* 107:815. (PRSweb)
 - Khera AV et al. 2018. Genome-wide polygenic scores for common diseases identify individuals with risk equivalent to monogenic mutations. *Nat Genet* 50:1219.
 - Aragam KG et al. 2022. Discovery and systematic characterization of risk variants and genes for coronary artery disease in over a million participants. *Nat Genet* 54:1803.
-- Aragam KG et al. 2023. Genome-wide polygenic scores reduce risk reclassification in primary prevention. *Nat Med* 29:1793.
+- Patel AP et al. 2023. A multi-ancestry polygenic risk score improves risk prediction for coronary artery disease. *Nat Med* 29:1793.
 - Mavaddat N et al. 2019. Polygenic risk scores for prediction of breast cancer and breast cancer subtypes. *Am J Hum Genet* 104:21. (PRS313)
 - Conti DV et al. 2021. Trans-ancestry genome-wide association meta-analysis of prostate cancer identifies new susceptibility loci. *Nat Genet* 53:65.
 - Trubetskoy V et al. 2022. Mapping genomic loci implicates genes and synaptic biology in schizophrenia. *Nature* 604:502. (PGC3)

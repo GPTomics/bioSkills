@@ -7,7 +7,7 @@ primary_tool: cyvcf2
 
 ## Version Compatibility
 
-Reference examples tested with: cyvcf2 0.30+, VEP 111+ (or snpEff 5.2+), pandas 2.2+, numpy 1.26+, LOHHLA 1.0+ (Marty 2017), DASH 1.0+ (Montesion 2021). v4.1 (May 2024) gnomAD is current for germline subtraction. Friends of Cancer Research TMB harmonization framework (Vega 2021 *Ann Oncol*) and ESMO 2024 (Mosele *Ann Oncol*) define the operational thresholds.
+Reference examples tested with: cyvcf2 0.30+, VEP 111+ (or snpEff 5.2+), pandas 2.2+, numpy 1.26+, LOHHLA 1.0+ (McGranahan 2017), DASH 1.0+ (Pyke 2022). v4.1 (May 2024) gnomAD is current for germline subtraction. Friends of Cancer Research TMB harmonization framework (Vega 2021 *Ann Oncol*) and ESMO 2024 (Mosele *Ann Oncol*) define the operational thresholds.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -21,7 +21,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 - Python: `cyvcf2.VCF()` + VEP/snpEff consequence parsing + panel-size normalization
 - CLI: `bcftools view` filtering + custom counting
-- HLA-LOH: LOHHLA (Marty 2017 *Cell*) or DASH (Montesion 2021 *Cancer Discov*)
+- HLA-LOH: LOHHLA (McGranahan 2017 *Cell*) or DASH (Pyke 2022 *Nat Commun*)
 - Neoantigen quality: pVAC-tools, NetMHCpan-4.1, Luksza 2017 fitness model
 
 ## Regulatory and Trial Landscape
@@ -31,7 +31,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 | **KEYNOTE-158 + FDA pembrolizumab pan-tumor approval** | 2020 | TMB-H >= 10 mut/Mb | FoundationOne CDx companion diagnostic; 10 cohorts |
 | **Friends of Cancer Research TMB harmonization Phase I (Merino 2020)** | 2020 | -- | 11 panels vs WES truth; 3-fold panel-specific differences |
 | **Friends of Cancer Research Phase II (Vega 2021)** | 2021 | Calibration equations | 19 platforms; per-assay calibration to WES-aligned TMB-Mb |
-| **ESMO 2024 (Mosele *Ann Oncol*)** | 2024 | TMB-H >= 10/Mb retained | NOT endorsed for breast, prostate, glioma |
+| **ESMO 2024 (Mosele *Ann Oncol*)** | 2024 | TMB-H >= 10/Mb retained (tumour-agnostic, ESCAT IB) | Tumour-type limits per McGrail 2021 |
 | **KEYNOTE-189 (NSCLC + pembrolizumab + chemo)** | 2018 | -- | TMB-H did NOT enrich for benefit with chemo backbone |
 | **POSEIDON / KEYNOTE-021 / KEYNOTE-407** | 2019-2022 | -- | TMB inconsistent with chemo backbones |
 | **B-F1RST + BFAST Cohort C (bTMB)** | 2022 | bTMB >= 16/Mb | BFAST Cohort C FAILED primary endpoint |
@@ -47,8 +47,8 @@ Merino 2020 *J Immunother Cancer*: in silico panel sampling from TCGA WES truth 
 | **FoundationOne CDx** | 0.8 Mb scored (NOT 1.1 Mb total) | 10 mut/Mb (FDA reference; F1CDx companion) | Using 1.1 Mb panel total inflates TMB ~37%; pipeline excludes synonymous (F1CDx includes them) |
 | **MSK-IMPACT v3** | 0.98 Mb | ~10 (full Vega 2021 calibration recommended) | Tumor purity < 30%; non-paired-normal mode |
 | **MSK-IMPACT v4** | 1.22 Mb | ~10 | -- |
-| **TruSight Oncology 500** | ~1.3 Mb scored (from 1.94 Mb total) | **7.8 mut/Mb** | Pipeline uses 10/Mb instead of Vega 2021 calibrated 7.8 |
-| **Oncomine Tumor Mutation Load** | 1.2 Mb | **8.4 mut/Mb** | Pipeline uses 10/Mb instead of Vega 2021 calibrated 8.4 |
+| **TruSight Oncology 500** | ~1.3 Mb scored (from 1.94 Mb total) | **7.8 mut/Mb** | Pipeline uses 10/Mb instead of the TMB2-calibrated 7.8 (Ramos-Paradas 2021) |
+| **Oncomine Tumor Mutation Load** | 1.2 Mb | **8.4 mut/Mb** | Pipeline uses 10/Mb instead of the TMB2-calibrated 8.4 (Ramos-Paradas 2021) |
 | **Caris MI Tumor Seek** | ~1.2 Mb |; (verify Caris docs) | -- |
 | **Tempus xT v3** | 0.6 Mb | -- | Below 0.8 Mb minimum reliability threshold |
 | **Predicine ATLAS** | ~0.6 Mb | -- | Below 0.8 Mb minimum; high sampling variance |
@@ -77,25 +77,25 @@ These choices alter TMB by 5-20%:
 | **Hypermutator (research)** | >= 100 mut/Mb | MMR-D, POLE-exo |
 | **Ultra-hypermutator** | >= 500 mut/Mb | POLE+MMR concurrent |
 
-MSI-H typically 30-50 mut/Mb; pure POLE-exo P286R 100-300 mut/Mb; POLE-exo + MMR-D exceeds 500. MSI-H and TMB-H overlap substantially in CRC and endometrial (~80% of MSI-H are TMB-H) but only ~16% of TMB-H solid tumors are MSI-H (Salem ME et al 2018 *Mol Cancer Res* 16:805-812).
+MSI-H typically 30-50 mut/Mb; pure POLE-exo P286R 100-300 mut/Mb; POLE-exo + MMR-D exceeds 500. MSI-H and TMB-H overlap substantially (~83% of MSI-H are TMB-H) but only ~16% of TMB-H solid tumors are MSI-H (Chalmers 2017 *Genome Med* 9:34).
 
 ## The Tumor-Type-Specific Cutoff Debate
 
 **McGrail 2021** *Ann Oncol* is the most damning paper for the universal 10/Mb cutoff. TMB-H predicts ICI response in melanoma, NSCLC, bladder; but FAILS in breast, prostate, glioma. ORR in TMB-H melanoma/NSCLC/bladder was 39.8%; TMB-H breast/prostate/glioma was 15.3%. Mechanistic explanation: TMB only predicts when baseline CD8 T-cell infiltrate is present.
 
-**Sha 2020** *Cell Rep Med*: TMB-H predicts ICI benefit in MSS subset but adds nothing on top of MSI-H (because MSI-H is uniformly hypermutator and uniformly responsive).
+**Sha 2020** *Cancer Discov*: TMB-H predicts ICI benefit in MSS subset but adds nothing on top of MSI-H (because MSI-H is uniformly hypermutator and uniformly responsive).
 
 **Samstein 2019** *Nat Genet* (MSK-IMPACT 1,662 ICI-treated): cancer-specific TMB cutoffs (top 20% within each tumor type) outperform universal 10/Mb.
 
-**ESMO 2024** retained TMB-H >= 10/Mb pan-tumor but explicitly noted exceptions: **NOT endorsed for breast, prostate, glioma** based on negative real-world data.
+**ESMO 2024** retained TMB-H >= 10/Mb pan-tumor (tumour-agnostic, ESCAT IB). The tumour-type limits (poor performance in breast, prostate, glioma) come from **McGrail 2021**, not ESMO.
 
 ## Blood TMB (bTMB): The Negative-Trial Story
 
 **Gandara 2018** *Nat Med*: bTMB on Foundation Medicine FoundationACT panel; POPLAR + OAK retrospective. bTMB >= 16 mut/Mb showed PFS benefit with atezolizumab in NSCLC.
 
-**B-F1RST (Kim 2022)**: bTMB >= 16 prospectively predictive for atezolizumab first-line NSCLC.
+**B-F1RST (Kim 2022)**: prospective phase 2 test of bTMB >= 16 as a first-line atezolizumab predictor in NSCLC; did NOT meet its pre-specified primary endpoint (bTMB-H improved ORR 28.6% vs 4.4%, only a non-significant PFS/OS trend).
 
-**BFAST Cohort C (Dziadziuszko 2022)**: FAILED primary endpoint; atezolizumab vs chemo in bTMB-H NSCLC did not improve investigator-assessed PFS. Dominant confounder: low ctDNA shed fraction produces false-negative bTMB.
+**BFAST Cohort C (Peters 2022)**: FAILED primary endpoint; atezolizumab vs chemo in bTMB-H NSCLC did not improve investigator-assessed PFS. Dominant confounder: low ctDNA shed fraction produces false-negative bTMB.
 
 **Operational state:** bTMB is research-grade in tissue-naive settings; tissue TMB remains the regulatory standard.
 
@@ -105,17 +105,17 @@ MSI-H typically 30-50 mut/Mb; pure POLE-exo P286R 100-300 mut/Mb; POLE-exo + MMR
 
 **McGranahan 2016** *Science*: **clonal neoantigen burden** (mutations present in all tumor cells) predicts ICI response better than total. Subclonal-rich tumors evade despite high TMB.
 
-**HLA-LOH** (Marty 2017 *Cell*, LOHHLA; Montesion 2021 *Cancer Discov*, DASH): HLA-LOH occurs in ~40% of NSCLC and abolishes neoantigen presentation for the lost allele. ~17% pan-cancer; >30% in HNSCC / NSCLC / cervical. Co-occurs with high subclonal burden + APOBEC + immune escape.
+**HLA-LOH** (McGranahan 2017 *Cell*, LOHHLA; Pyke 2022 *Nat Commun*, DASH; Montesion 2021 *Cancer Discov* for the ~17% pan-cancer estimate): HLA-LOH occurs in ~40% of NSCLC and abolishes neoantigen presentation for the lost allele. ~17% pan-cancer; >30% in HNSCC / NSCLC / cervical. Co-occurs with high subclonal burden + APOBEC + immune escape.
 
 ## Decision Tree by Scenario
 
 | Scenario | Recommended path | Why |
 |----------|------------------|-----|
 | Pan-tumor ICI eligibility (FDA pembrolizumab) | TMB-H >= 10/Mb on FoundationOne CDx | FDA companion diagnostic |
-| Non-FoundationOne panel | Apply Vega 2021 calibration to FoundationOne 10/Mb equivalent | TSO500 = 7.8; Oncomine = 8.4 |
+| Non-FoundationOne panel | Apply per-assay calibration to the FoundationOne 10/Mb equivalent | TSO500 = 7.8; Oncomine = 8.4 (Ramos-Paradas 2021) |
 | WES TMB | Compute directly; threshold per ESMO 2024 = 10/Mb | WES is reference standard |
 | Tissue-naive bTMB | Caution: BFAST Cohort C failed | Research-grade; check ctDNA shed fraction |
-| Breast / prostate / glioma | TMB-H NOT endorsed per ESMO 2024 + McGrail 2021 | Tumor-type-specific cutoffs |
+| Breast / prostate / glioma | TMB-H does not enrich ICI response per McGrail 2021 | Tumor-type-specific cutoffs |
 | MSI-H + TMB-H concurrence | MSI-H supersedes for ICI biomarker decision | Sha 2020 |
 | Hypermutator characterization (>=100/Mb) | Confirm MMR-D or POLE-exo via signatures + IHC | Co-occurrence is common |
 | Neoantigen quality (research) | Luksza fitness + HLA-LOH (LOHHLA / DASH) + clonality (McGranahan) | Beyond raw TMB |
@@ -151,7 +151,7 @@ PANEL_SCORED_REGION = {
     'WGS': 3000.0
 }
 
-# Vega 2021 calibration: equivalent thresholds for FDA 10/Mb FoundationOne sensitivity
+# TMB2 (Ramos-Paradas 2021) equivalent thresholds for FDA 10/Mb FoundationOne sensitivity
 ASSAY_TMB_H_CUTOFF = {
     'FoundationOne_CDx': 10.0,
     'TSO500': 7.8,
@@ -282,13 +282,13 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 
     if msi_high:
         return ('ICI eligible by MSI-H (FDA 2017 pembrolizumab); TMB-H adds no information '
-                '(Sha 2020 Cell Rep Med).')
+                '(Sha 2020 Cancer Discov).')
     if tmb_high and tumor_type in ('breast', 'prostate', 'glioma'):
-        return ('TMB-H present but NOT endorsed for this tumor type (ESMO 2024; McGrail 2021). '
+        return ('TMB-H present but does not enrich ICI response in this tumor type (McGrail 2021). '
                 'Tumor-specific cutoffs recommended.')
     if tmb_high:
         return ('TMB-H pan-tumor; ICI eligible (FDA pembrolizumab 2020). '
-                'Confirm baseline CD8 infiltrate; check HLA-LOH (Marty 2017 LOHHLA).')
+                'Confirm baseline CD8 infiltrate; check HLA-LOH (McGranahan 2017 LOHHLA).')
     return 'TMB-low; MSS. Standard-of-care chemo.'
 ```
 
@@ -302,9 +302,9 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 
 **2. Cross-panel comparison without calibration**
 - Trigger: TSO500 reports TMB = 9.5; compared to FoundationOne 10/Mb cutoff.
-- Mechanism: Vega 2021 showed equivalent threshold is 7.8/Mb on TSO500 (not 10/Mb).
+- Mechanism: the TMB2 project (Ramos-Paradas 2021) showed the equivalent threshold is 7.8/Mb on TSO500 (not 10/Mb).
 - Symptom: TSO500 TMB-H called positive at incorrect threshold.
-- Fix: Apply assay-specific Vega 2021 calibration; TSO500 cutoff = 7.8/Mb.
+- Fix: Apply assay-specific calibration; the TSO500 equivalent cutoff = 7.8/Mb (Ramos-Paradas 2021).
 
 **3. FoundationOne synonymous mis-handling**
 - Trigger: Compare academic pipeline (no synonymous) to FoundationOne reference (synonymous included).
@@ -326,9 +326,9 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 
 **6. TMB-H applied to breast / prostate / glioma**
 - Trigger: ICI prescribed for TMB-H breast cancer based on pan-tumor approval.
-- Mechanism: McGrail 2021 demonstrated TMB fails to enrich for ICI response in breast, prostate, glioma; ESMO 2024 explicitly excludes these.
+- Mechanism: McGrail 2021 demonstrated TMB fails to enrich for ICI response in breast, prostate, glioma.
 - Symptom: ICI offered with low expectation of benefit; patient bears unnecessary toxicity.
-- Fix: Apply tumor-type-specific cutoffs (Samstein 2019); document ESMO 2024 caveat in report.
+- Fix: Apply tumor-type-specific cutoffs (Samstein 2019); document the McGrail 2021 tumor-type caveat in report.
 
 **7. Hotspots inflating TMB**
 - Trigger: Include BRAF V600E and KRAS G12C in TMB count.
@@ -346,7 +346,7 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 - Trigger: TMB-H + neoantigen prediction without LOH check.
 - Mechanism: HLA-LOH abolishes neoantigen presentation for lost allele in ~17% pan-cancer (>30% HNSCC / NSCLC / cervical).
 - Symptom: Apparent neoantigen burden inflated.
-- Fix: Run LOHHLA (Marty 2017) or DASH (Montesion 2021); flag HLA-LOH-positive tumors.
+- Fix: Run LOHHLA (McGranahan 2017) or DASH (Pyke 2022); flag HLA-LOH-positive tumors.
 
 ## Reconciliation: When Sources Disagree
 
@@ -365,12 +365,12 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 | Threshold | Convention | Source |
 |-----------|-----------|--------|
 | FDA pembrolizumab pan-tumor | TMB-H >= 10 mut/Mb on FoundationOne CDx | FDA 2020 |
-| TSO500 equivalent cutoff | 7.8 mut/Mb | Vega 2021 |
-| Oncomine TML equivalent cutoff | 8.4 mut/Mb | Vega 2021 |
+| TSO500 equivalent cutoff | 7.8 mut/Mb | Ramos-Paradas 2021 |
+| Oncomine TML equivalent cutoff | 8.4 mut/Mb | Ramos-Paradas 2021 |
 | Hypermutator | >= 100 mut/Mb | Research convention |
 | Ultra-hypermutator | >= 500 mut/Mb | POLE+MMR; ICI excellent |
-| MSI-H typical TMB | 30-50 mut/Mb | Salem 2018 *Mol Cancer Res* 16:805 |
-| MSI-H + TMB-H overlap | ~80% MSI-H are TMB-H in CRC/endometrial; ~16% TMB-H are MSI-H | Salem 2018 *Mol Cancer Res* 16:805 |
+| MSI-H typical TMB | 30-50 mut/Mb | Research convention |
+| MSI-H + TMB-H overlap | ~83% MSI-H are TMB-H; ~16% TMB-H are MSI-H | Chalmers 2017 *Genome Med* 9:34 |
 | Tumor purity floor | FoundationOne >=20%; MSK-IMPACT >=30% | Vendor documentation |
 | Min VAF | FoundationOne 5%; tumor-only no UMI 10% | Vendor documentation |
 | Tumor-only germline filter | gnomAD AF <=0.5% (sometimes 1%) | Convention |
@@ -385,7 +385,7 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 | Academic TMB systematically lower | Excluded synonymous; FoundationOne includes | Match counting convention |
 | AFR / EAS tumor-only TMB inflated | gnomAD AF filter EUR-only | Use grpmax FAF95; stratify by patient ancestry |
 | bTMB negative but tissue positive | Low ctDNA shed | Use tissue TMB; check fraction |
-| TMB-H in breast cancer with poor response | ESMO 2024 / McGrail 2021 exclusion | Use tumor-type-specific cutoff |
+| TMB-H in breast cancer with poor response | McGrail 2021 tumor-type limitation | Use tumor-type-specific cutoff |
 | MSI-H + TMB-H reported as additive | Tautology | MSI-H is primary biomarker |
 | POLE-exo + low TMB | Tumor sequencing artifact OR low tumor purity | Check VAF distribution; re-call if purity low |
 | Variant counting differs across replicates | Random VAF sampling at borderline thresholds | Set explicit VAF floor + replicate-stable filter |
@@ -394,34 +394,36 @@ def tmb_msi_reconcile(tmb_value, msi_status, tumor_type=None):
 
 | Pushback | Standard response |
 |----------|-------------------|
-| "Why panel-specific cutoffs?" | Vega 2021 demonstrated 3-fold panel variance; FoundationOne 10/Mb = TSO500 7.8 = Oncomine 8.4. Universal 10/Mb is wrong across non-F1 platforms. |
-| "TMB-H is supposed to be tumor-agnostic" | FDA pan-tumor approval based on KEYNOTE-158; ESMO 2024 retained but excluded breast/prostate/glioma. McGrail 2021 + Samstein 2019 demonstrate tumor-type-specific cutoffs. |
+| "Why panel-specific cutoffs?" | Vega 2021 demonstrated panel variance; the FoundationOne 10/Mb = TSO500 7.8 = Oncomine 8.4 equivalences are from the TMB2 project (Ramos-Paradas 2021). Universal 10/Mb is wrong across non-F1 platforms. |
+| "TMB-H is supposed to be tumor-agnostic" | FDA pan-tumor approval based on KEYNOTE-158; ESMO 2024 retained it tumour-agnostic. McGrail 2021 + Samstein 2019 demonstrate tumor-type-specific limits. |
 | "Synonymous variants?" | FoundationOne CDx counts synonymous; academic pipelines exclude. We document the counting convention and apply Vega 2021 calibration. |
 | "Why exclude hotspots?" | Driver hotspots are non-random; including biases TMB upward in driver-mutated samples vs cohort comparator. |
 | "Tumor-only TMB unreliable" | Acknowledged; we apply stringent gnomAD grpmax FAF95 filtering stratified by patient ancestry; report paired-normal-validated subset separately. |
-| "Why HLA-LOH integration?" | Marty 2017 + Montesion 2021 show ~17% pan-cancer (>30% HNSCC / NSCLC / cervical) lose HLA via LOH; apparent neoantigen burden over-estimated without LOH check. |
-| "bTMB?" | BFAST Cohort C failed primary endpoint (Dziadziuszko 2022); bTMB is research-grade in tissue-naive only; we use tissue TMB as regulatory standard. |
+| "Why HLA-LOH integration?" | McGranahan 2017 (LOHHLA) + Montesion 2021 show ~17% pan-cancer (>30% HNSCC / NSCLC / cervical) lose HLA via LOH; apparent neoantigen burden over-estimated without LOH check. |
+| "bTMB?" | BFAST Cohort C failed primary endpoint (Peters 2022); bTMB is research-grade in tissue-naive only; we use tissue TMB as regulatory standard. |
 | "Why ultra-hypermutator distinction?" | POLE+MMR (>=500 mut/Mb) shows superior ICI response per multiple case series; mechanistically distinct from MMR-D alone. |
 
 ## References
 
 - Marabelle A et al. 2020. Association of TMB with efficacy of pembrolizumab in advanced solid tumours from the phase 2 KEYNOTE-158 study. *Lancet Oncol* 21:1353.
 - Merino DM et al. 2020. Establishing guidelines to harmonize tumor mutational burden (TMB). *J Immunother Cancer* 8:e000147. (FoC Phase I)
-- Vega DM et al. 2021. Aligning TMB analytical validation efforts: TMB harmonization Phase II project. *Ann Oncol* 32:1626.
-- Mosele MF et al. 2024. Recommendations for the use of NGS for patients with metastatic cancers. *Ann Oncol* 35:588. (ESMO 2024)
-- McGrail DJ et al. 2021. High TMB predicts response to immunotherapy independent of clinical or pathologic features. *Ann Oncol* 32:661.
-- Sha D et al. 2020. TMB as a predictive biomarker in solid tumors. *Cell Rep Med* 1:100043.
+- Vega DM et al. 2021. Aligning tumor mutational burden (TMB) quantification across diagnostic platforms: phase II of the Friends of Cancer Research TMB Harmonization Project. *Ann Oncol* 32:1626.
+- Mosele MF et al. 2024. Recommendations for the use of next-generation sequencing for patients with advanced cancer in 2024. *Ann Oncol* 35:588. (ESMO 2024)
+- McGrail DJ et al. 2021. High tumor mutation burden fails to predict immune checkpoint blockade response across all cancer types. *Ann Oncol* 32:661.
+- Sha D et al. 2020. Tumor mutational burden as a predictive biomarker in solid tumors. *Cancer Discov* 10:1808.
+- Ramos-Paradas J et al. 2021. Tumor mutational burden assessment in non-small-cell lung cancer samples: results from the TMB2 harmonization project comparing three NGS panels. *J Immunother Cancer* 9:e001904.
 - Samstein RM et al. 2019. TMB and survival after immunotherapy across cancer types. *Nat Genet* 51:202.
 - Chalmers ZR et al. 2017. Analysis of 100,000 human cancer genomes reveals the landscape of TMB. *Genome Med* 9:34.
 - Yarchoan M et al. 2017. Tumor mutational burden and response rate to PD-1 inhibition. *NEJM* 377:2500.
 - Gandara DR et al. 2018. Blood-based TMB as a predictor of response to atezolizumab in NSCLC. *Nat Med* 24:1441.
-- Dziadziuszko R et al. 2022. Atezolizumab vs platinum-based chemotherapy in blood-based TMB-positive NSCLC: BFAST Cohort C. *Nat Med* 28:2541.
-- Salem ME et al. 2018. Landscape of TMB in different cancers: implications for ICI response. *Cancer Discov* 8:1136.
+- Peters S et al. 2022. Atezolizumab versus chemotherapy in advanced or metastatic NSCLC with high blood-based tumor mutational burden: BFAST Cohort C. *Nat Med* 28:1831.
+- Salem ME et al. 2018. Landscape of tumor mutation load, mismatch repair deficiency, and PD-L1 expression in a large patient cohort of gastrointestinal cancers. *Mol Cancer Res* 16:805.
 - Luksza M et al. 2017. A neoantigen fitness model predicts tumour response to checkpoint blockade immunotherapy. *Nature* 551:517.
 - Luksza M et al. 2022. Neoantigen quality predicts immunoediting in survivors of pancreatic cancer. *Nature* 606:389.
 - McGranahan N et al. 2016. Clonal neoantigens elicit T cell immunoreactivity and sensitivity to immune checkpoint blockade. *Science* 351:1463.
-- Marty R et al. 2017. MHC-I genotype restricts the oncogenic mutational landscape. *Cell* 171:1272. (LOHHLA)
-- Montesion M et al. 2021. Somatic HLA class I loss is a widespread mechanism of immune evasion which refines the use of TMB as a biomarker. *Cancer Discov* 11:282. (DASH)
+- McGranahan N et al. 2017. Allele-specific HLA loss and immune escape in lung cancer evolution. *Cell* 171:1259. (LOHHLA)
+- Montesion M et al. 2021. Somatic HLA class I loss is a widespread mechanism of immune evasion which refines the use of TMB as a biomarker. *Cancer Discov* 11:282.
+- Pyke RM et al. 2022. A machine learning algorithm with subclonal sensitivity reveals widespread pan-cancer HLA loss of heterozygosity. *Nat Commun* 13:1925. (DASH)
 - Friends of Cancer Research TMB harmonization resources: `https://friendsofcancerresearch.org/tmb/`
 
 ## Related Skills

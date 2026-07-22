@@ -13,18 +13,18 @@ import pandas as pd
 REVEL_THRESHOLDS = [
     (float('-inf'), 0.003, 'BP4_VeryStrong'),
     (0.003, 0.016, 'BP4_Strong'),
-    (0.016, 0.290, 'BP4_Moderate'),
-    (0.290, 0.644, 'BP4_Supporting'),
+    (0.016, 0.183, 'BP4_Moderate'),
+    (0.183, 0.290, 'BP4_Supporting'),
+    # (0.290, 0.644) = indeterminate zone, no criterion
     (0.644, 0.773, 'PP3_Supporting'),
     (0.773, 0.932, 'PP3_Moderate'),
     (0.932, float('inf'), 'PP3_Strong'),
 ]
 
 BAYESDEL_NOAF_THRESHOLDS = [
-    (float('-inf'), -0.36, 'BP4_Strong'),
-    (-0.36, -0.18, 'BP4_Moderate'),
-    (-0.18, -0.08, 'BP4_Supporting'),
-    (-0.08, 0.13, None),
+    (float('-inf'), -0.36, 'BP4_Moderate'),   # BayesDel-noAF benign ceiling is Moderate (no BP4_Strong)
+    (-0.36, -0.18, 'BP4_Supporting'),
+    (-0.18, 0.13, None),                      # indeterminate
     (0.13, 0.27, 'PP3_Supporting'),
     (0.27, 0.50, 'PP3_Moderate'),
     (0.50, float('inf'), 'PP3_Strong'),
@@ -68,31 +68,29 @@ def bayesdel_pp3_bp4(bayesdel_noaf_score):
     return pejaver_calibrate(bayesdel_noaf_score, BAYESDEL_NOAF_THRESHOLDS)
 
 
-def spliceai_walker2023(ds_max, has_corroborating_evidence=False):
+def spliceai_walker2023(ds_max):
     '''Walker 2023 SVI Splicing Subgroup framework.
 
-    SpliceAI DS_max >= 0.5 + corroborating evidence -> PP3_Strong.
-    SpliceAI >= 0.20 -> minimum threshold for ANY splicing PP3 (PP3_Supporting default).
-    SpliceAI < 0.1 -> BP4_Moderate.
+    Computational SpliceAI codes are applied at Supporting weight.
+    DS_max >= 0.20 -> PP3_Supporting (minimum for ANY splicing PP3).
+    DS_max <= 0.1 -> BP4_Supporting.
+    Prediction alone does not reach PP3_Strong; escalation needs RNA/experimental evidence.
     '''
     if ds_max is None:
         return None
-    if ds_max >= 0.5 and has_corroborating_evidence:
-        return 'PP3_Strong'
-    if ds_max >= 0.5:
-        return 'PP3_Moderate'  # Without corroboration, downgrade
     if ds_max >= 0.20:
         return 'PP3_Supporting'
-    if ds_max < 0.1:
-        return 'BP4_Moderate'
+    if ds_max <= 0.1:
+        return 'BP4_Supporting'
     return None
 
 
 def alphamissense_supporting_only(am_score):
-    '''AlphaMissense is supporting-only as of May 2026 (ClinGen not endorsed PP3 calibration).
+    '''AlphaMissense applied conservatively at Supporting weight.
 
-    Cheng 2023 developer threshold 0.564 is NOT the Pejaver-style PP3 calibration.
-    Schmidt 2025 calibration is preliminary; use REVEL/BayesDel for PP3.
+    Cheng 2023 developer threshold 0.564 is NOT a calibrated PP3 cutoff.
+    Bergquist 2025 (ClinGen SVI) calibrates AlphaMissense to graded PP3/BP4; consult the
+    current ClinGen SVI recommendation for the exact score cutoffs before applying higher strengths.
     '''
     if am_score is None:
         return None
@@ -224,7 +222,7 @@ def classify_with_subsumption(criteria_assigned):
 
 
 def genebe_api(hgvs):
-    '''Query GeneBe automated ACMG classifier (Stawinski 2024).
+    '''Query GeneBe automated ACMG classifier (Stawiński 2024).
 
     Open-source; Tavtigian-point-system-based; comparable to VarSome (commercial).
     '''

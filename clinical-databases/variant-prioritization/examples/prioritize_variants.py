@@ -18,9 +18,9 @@ ACMG_SF_V3_2 = {
     # CALM v3.2 ADDITIONS -- calmodulinopathy (long QT / CPVT; high actionability)
     'CALM1', 'CALM2', 'CALM3',
     # Cardiomyopathies / aortopathies
-    'ACTA2', 'ACTC1', 'COL3A1', 'DES', 'FBN1', 'FLNC', 'GLA', 'LMNA', 'MYBPC3',
+    'ACTA2', 'ACTC1', 'BAG3', 'COL3A1', 'DES', 'FBN1', 'FLNC', 'GLA', 'LMNA', 'MYBPC3',
     'MYH7', 'MYH11', 'MYL2', 'MYL3', 'PRKAG2', 'PKP2', 'RBM20', 'SCN5A', 'SMAD3',
-    'TGFBR1', 'TGFBR2', 'TMEM43', 'TNNI3', 'TNNT2', 'TPM1', 'TTN',
+    'TGFBR1', 'TGFBR2', 'TMEM43', 'TNNC1', 'TNNI3', 'TNNT2', 'TPM1', 'TTN',
     # Channelopathies + arrhythmias
     'CACNA1S', 'KCNH2', 'KCNQ1', 'RYR1', 'RYR2',
     # Cancer predisposition
@@ -32,7 +32,7 @@ ACMG_SF_V3_2 = {
     # Vascular
     'ACVRL1', 'ENG',
     # Metabolic / other
-    'FH', 'GAA', 'HFE', 'HNF1A', 'LDLR', 'NTRK1', 'OTC', 'PCSK9', 'TTR'
+    'FH', 'GAA', 'HFE', 'HNF1A', 'LDLR', 'OTC', 'PCSK9', 'TTR'
 }
 
 FUNCTIONAL_CONSEQUENCES = {

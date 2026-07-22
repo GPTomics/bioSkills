@@ -19,7 +19,7 @@ Decision-grade clinical and population genetics database skills covering variant
 | pharmacogenomics | CPIC vs DPWG, PharmVar, Caudle 2020 CYP2D6 activity (*10 = 0.25), Cyrius for CYP2D6 SVs, DPYD 2024 AS, PharmCAT, HLA-drug |
 | polygenic-risk | LDpred2-auto, SBayesRC, MegaPRS, PRS-CSx, PROSPER, MUSSEL, BridgePRS, JointPRS, PRSmix, Ding 2023 continuous ancestry, Hingorani 2023 critique |
 | somatic-signatures | COSMIC v3.4 (SBS40a/b/c split; SBS17b 5-FU; SBS10a-d POLE/POLD1), MuSiCal mvNMF, HRDetect, FFPE-as-SBS30 correction, Petljak A3A dominance |
-| tumor-mutational-burden | Vega 2021 calibration (FoundationOne 0.8 Mb scored; TSO500 7.8; Oncomine 8.4), FDA pembrolizumab pan-tumor, McGrail 2021 tumor-type exclusions, HLA-LOH |
+| tumor-mutational-burden | Vega 2021 FoCR harmonization; Ramos-Paradas 2021 TMB2 panel-equivalent cutoffs (FoundationOne 0.8 Mb scored; TSO500 7.8; Oncomine 8.4), FDA pembrolizumab pan-tumor, McGrail 2021 tumor-type exclusions, HLA-LOH |
 | msi-detection | MSIsensor-pro tumor-only, MSIsensor-ct cfDNA, MANTIS, Lynch syndrome workflow (IHC + MSI + MLH1 methylation), POLE-exo vs MMR-D disambiguation |
 | hla-typing | T1K (class I + II + KIR), HLA-LA, OptiType, arcasHLA (RNA-seq), StarPhase / FuFiHLA long-read, HIBAG SNP-array imputation, CIWD v3.0.0, TCE3 core/non-core |
 
@@ -31,7 +31,7 @@ Decision-grade clinical and population genetics database skills covering variant
 - "Run PharmCAT on this VCF + Cyrius for CYP2D6 SVs; generate CPIC-compliant report"
 - "Compute LDpred2-auto PRS for CAD with sample-overlap detection via EraSOR; apply Hingorani 2023 absolute-risk transform"
 - "Extract de novo SBS signatures from this 100-sample WGS cohort with SigProfilerExtractor stability gates"
-- "Calculate TMB on TSO500 panel; apply Vega 2021 calibration equivalent threshold (7.8/Mb)"
+- "Calculate TMB on TSO500 panel; apply the TMB2 (Ramos-Paradas 2021) equivalent threshold (7.8/Mb)"
 - "Run MSIsensor-pro tumor-only; apply Lynch syndrome workflow if MSI-H + retained IHC"
 - "Type HLA from WGS with T1K (class I + II + KIR); screen B*57:01 for abacavir, B*15:02 for carbamazepine"
 - "Filter trio exome to candidate Mendelian variants: rare grpmax FAF95 < 0.0001 + de novo + Exomiser hiPHIVE ranking"

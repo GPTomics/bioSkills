@@ -108,7 +108,7 @@ echo "     - Unmethylated -> Lynch suspect; germline testing"
 echo "  3. If MSH2/6/PMS2 loss -> Lynch suspect; germline testing"
 echo
 echo "=== Reconciliation with other biomarkers ==="
-echo "MSI-H + TMB-H: MSI-H is PRIMARY (Sha 2020 Cell Rep Med); TMB-H NOT additive."
+echo "MSI-H + TMB-H: MSI-H is PRIMARY (Sha 2020 Cancer Discov); TMB-H NOT additive."
 echo "MSI-H + retained IHC: check POLE-exo via signatures (SBS10a/10b)"
 echo "                      and consider rare MSH6-only subtype."
 echo "MSS + TMB >= 100: investigate POLE-exo signature; ICI may still benefit."
