@@ -70,7 +70,7 @@ Karczewski 2020 *Nature* 581:434 defined LOEUF as the upper bound of the 90% CI 
 |--------|------|----------------|
 | **LOEUF** | Upper bound of 90% CI of LoF observed/expected ratio | Lower = more LoF-intolerant; **first decile (LOEUF < 0.35 v2; < 0.6 v4) = strongly intolerant** |
 | **pLI** | Probability LoF intolerant | Still used; gnomAD team recommends LOEUF for ranking |
-| **Missense Z** | Z-score of observed-vs-expected missense | Z > 3.09 = top 1% missense-constrained |
+| **Missense Z** | Z-score of observed-vs-expected missense | Z > 3.09 = 'constrained' set (~p < 0.001, one-tailed) |
 | **Missense O/E** | Observed/expected missense ratio | Continuous form of missense Z |
 
 **Critical version mismatch:**
@@ -371,7 +371,7 @@ def filter_rare_variants_hail(input_vcf, max_grpmax_faf95=0.0001, output_path='f
 | PM2_Supporting | Absent or ultra-rare in gnomAD | SVI 2020 downgrade |
 | LOEUF first decile v2 | < 0.35 | Karczewski 2020 |
 | LOEUF first decile v4 | < 0.6 | gnomAD constraint release March 2024 |
-| Missense Z top 1% | Z > 3.09 | Karczewski 2020 |
+| Missense Z constrained | Z > 3.09 (~p < 0.001) | Samocha 2014 |
 | mtDNA heteroplasmy carrier threshold | >=10% heteroplasmy | Laricchia 2022 |
 | v4 sample size | 730,947 exomes + 76,215 genomes = 807,162 | gnomAD v4.0 release Nov 2023 |
 | Bottleneck groups (excluded from grpmax) | AMI, ASJ, FIN, REMAINING | gnomAD v4 documentation |
@@ -405,6 +405,7 @@ def filter_rare_variants_hail(input_vcf, max_grpmax_faf95=0.0001, output_path='f
 
 - Chen S et al. 2024. A genomic mutational constraint map using variation in 76,156 human genomes. *Nature* 625:92.
 - Karczewski KJ et al. 2020. The mutational constraint spectrum quantified from variation in 141,456 humans. *Nature* 581:434.
+- Samocha KE et al. 2014. A framework for the interpretation of de novo mutation in human disease. *Nat Genet* 46:944.
 - Collins RL et al. 2020. A structural variation reference for medical and population genetics. *Nature* 581:444.
 - Laricchia KM et al. 2022. Mitochondrial DNA variation across 56,434 individuals in gnomAD. *Genome Res* 32:569.
 - Whiffin N et al. 2017. Using high-resolution variant frequencies to empower clinical genome interpretation. *Genet Med* 19:1151.

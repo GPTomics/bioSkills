@@ -64,7 +64,7 @@ Typical trio exome enters as 40,000-100,000 variants per individual; reaches dia
 | **DeNovoGear** (Ramu 2013 *Nat Methods*) | Bayesian, considers parent-of-origin | Standard for trio WES |
 | **Triodenovo** (Wei 2015) | Bayesian + family-aware | Alternative |
 | **GATK PossibleDeNovo annotation** | Hard filter | Quick prefilter; not standalone |
-| **DeNovoCNN** (2024) | Deep learning trio caller | Most accurate as of 2024-2026 |
+| **DeNovoCNN** (2022) | Deep learning trio caller | Most accurate as of 2022-2026 |
 
 **False-DNV rate:** ~10-30% without manual IGV inspection; concentrated in:
 - Tandem repeat regions (DNM rate inflated)
@@ -87,7 +87,7 @@ Typical trio exome enters as 40,000-100,000 variants per individual; reaches dia
 
 ## ClinGen Gene-Disease Validity: Mandatory Gating
 
-Strong et al. 2017 *AJHG* + ClinGen ongoing curation: **Limited / Moderate / Strong / Definitive** evidence per gene-disease pair.
+Strande et al. 2017 *AJHG* + ClinGen ongoing curation: **Limited / Moderate / Strong / Definitive** evidence per gene-disease pair.
 
 | Category | When to apply |
 |----------|---------------|
@@ -109,9 +109,9 @@ Inclusion criteria: ClinGen Strong or Definitive gene-disease validity + ClinGen
 ```python
 ACMG_SF_V3_2_GENES = [
     # Cardiomyopathies
-    'ACTA2', 'ACTC1', 'COL3A1', 'DES', 'FBN1', 'FLNC', 'GLA', 'LMNA', 'MYBPC3',
+    'ACTA2', 'ACTC1', 'BAG3', 'COL3A1', 'DES', 'FBN1', 'FLNC', 'GLA', 'LMNA', 'MYBPC3',
     'MYH11', 'MYH7', 'MYL2', 'MYL3', 'PRKAG2', 'PKP2', 'RBM20', 'SCN5A', 'SMAD3',
-    'TGFBR1', 'TGFBR2', 'TMEM43', 'TNNI3', 'TNNT2', 'TPM1', 'TTN',
+    'TGFBR1', 'TGFBR2', 'TMEM43', 'TNNC1', 'TNNI3', 'TNNT2', 'TPM1', 'TTN',
     # CALM v3.2 additions (calmodulinopathies)
     'CALM1', 'CALM2', 'CALM3',
     # Arrhythmias and channelopathies
@@ -125,7 +125,7 @@ ACMG_SF_V3_2_GENES = [
     'SDHB', 'SDHC', 'SDHD', 'SMAD4', 'STK11', 'TMEM127', 'TP53', 'TSC1', 'TSC2',
     'VHL', 'WT1',
     # Other
-    'FH', 'GAA', 'HFE', 'HNF1A', 'LDLR', 'NTRK1', 'OTC', 'PCSK9', 'TTR'
+    'FH', 'GAA', 'HFE', 'HNF1A', 'LDLR', 'OTC', 'PCSK9', 'TTR'
 ]
 # Note: above list is illustrative; pin to Miller 2023 supplement for exact set.
 ```
@@ -138,7 +138,7 @@ ACMG_SF_V3_2_GENES = [
 | Singleton WES | WhatsHap read-based phasing + AR-hom + AR-compoundhet candidates | Compound het hard without trio |
 | Suspected mosaic | Lower VAF threshold (2-30%); deep coverage (>200x) | Standard tools miss mosaic |
 | Long-read genome | Add SV calling + STR repeat expansion | SVs miss in short-read |
-| Newborn screening (BabyScreen+) | 605-gene Mendelian panel with current ACMG SF v3.2 | Lynch / Brett 2025 *Nat Med* |
+| Newborn screening (BabyScreen+) | 605-gene Mendelian panel with current ACMG SF v3.2 | Lunke 2025 *Nat Med* 31:4236 |
 | Cancer predisposition | ClinGen Hereditary Cancer VCEPs + ACMG SF cancer subset | Use VCEP CSpec |
 | Cardiomyopathy / arrhythmia | ClinGen HCM / DCM / LQT VCEPs | Strict gene-disease validity |
 | Population screening | ACMG SF v3.2 (81 genes) opt-in/opt-out | Miller 2023 |
@@ -307,7 +307,7 @@ def phenotype_score_with_exomiser_yml(yml_path, vcf_path, hpo_terms, output_dir)
 
 **8. VUS reclassification gaps**
 - Trigger: VUS labeled 2017 still in active diagnostic report 2025.
-- Mechanism: Median VUS reclassification cycle ~5 years for actively-curated genes (Harrison 2017 follow-up).
+- Mechanism: VUS are reclassified as evidence accrues in actively-curated genes; a one-time classification has an expiry date.
 - Symptom: Stale classifications drive incorrect clinical decisions.
 - Fix: Annual VUS re-review for active diagnostic variants; tools like Genome Alert! (Yauy 2022) automate detection of monthly ClinVar changes.
 
@@ -341,7 +341,7 @@ def phenotype_score_with_exomiser_yml(yml_path, vcf_path, hpo_terms, output_dir)
 | Compound het phasing | <= 500 bp read-based; trio gold standard | WhatsHap |
 | Exomiser top-1 diagnostic rank | 74%; top-5 94% (with rich HPO) | Cipriani 2020 |
 | ACMG SF v3.2 genes | 81 (Miller 2023) | Miller 2023 *Genet Med* |
-| VUS reclassification cycle | Median 5 years for active genes; up to 10 for orphan | Harrison 2017 follow-up |
+| VUS reclassification cycle | Reassess as evidence accrues; ClinGen recommends periodic re-review | convention |
 | Mosaic VAF threshold | 2-30% | Convention |
 | ClinGen gene-disease validity gate | Moderate or Strong minimum for diagnostic reporting | ClinGen SVI |
 
@@ -376,14 +376,14 @@ def phenotype_score_with_exomiser_yml(yml_path, vcf_path, hpo_terms, output_dir)
 - Miller DT et al. 2023. ACMG SF v3.2 list for reporting of secondary findings in clinical exome and genome sequencing. *Genet Med* 25:100866.
 - Smedley D et al. 2015. Next-generation diagnostics and disease-gene discovery with the Exomiser. *Nat Protoc* 10:2004.
 - Zhao M et al. 2020. Phen2Gene: rapid phenotype-driven gene prioritization for rare diseases. *NARGAB* 2:lqaa032.
-- Birgmeier J et al. 2020. AMELIE accelerates Mendelian patient diagnosis directly from the primary literature. *Sci Transl Med* 12:eaau9113.
+- Birgmeier J et al. 2020. AMELIE speeds Mendelian diagnosis by matching patient phenotype and genotype to primary literature. *Sci Transl Med* 12:eaau9113.
 - Cipriani V et al. 2020. An improved phenotype-driven tool for rare Mendelian variant prioritization. *Genes* 11:460.
 - Ramu A et al. 2013. DeNovoGear: de novo indel and point mutation discovery and phasing. *Nat Methods* 10:985.
 - Patterson M et al. 2015. WhatsHap: weighted haplotype assembly for future-generation sequencing reads. *J Comput Biol* 22:498.
-- Strong A et al. 2017. Gene-disease validity framework. *AJHG* 100:895.
+- Strande NT et al. 2017. Evaluating the clinical validity of gene-disease associations: an evidence-based framework developed by ClinGen. *AJHG* 100:895.
 - Whiffin N et al. 2017. Using high-resolution variant frequencies to empower clinical genome interpretation. *Genet Med* 19:1151.
-- Lynch F, Brett T et al. 2025. BabyScreen+ implementation results from genomic newborn screening. *Nat Med*.
-- Yauy K et al. 2022. Genome Alert! *Genet Med* 24:S1098. (VUS reclassification monitoring)
+- Lunke S et al. 2025. Feasibility, acceptability and clinical outcomes of the BabyScreen+ genomic newborn screening study. *Nat Med* 31:4236.
+- Yauy K et al. 2022. Genome Alert! *Genet Med* 24:1316. (VUS reclassification monitoring)
 - ClinGen gene-disease validity: `https://search.clinicalgenome.org/kb/gene-validity`
 - HPO: `https://hpo.jax.org/`
 - ACMG SF v3.2 supplement: `https://www.gimjournal.org/article/S1098-3600(23)00879-1/fulltext`

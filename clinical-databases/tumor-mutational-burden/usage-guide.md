@@ -2,7 +2,7 @@
 
 ## Overview
 
-Calculate tumor mutational burden from somatic VCFs with Friends of Cancer Research (Vega 2021) harmonization equations for per-assay calibration to the FDA pembrolizumab 10 mut/Mb pan-tumor threshold (TSO500 = 7.8, Oncomine = 8.4). Covers FoundationOne CDx convention of including synonymous variants, hypermutator / ultra-hypermutator tiering (POLE+MMR), tumor-type-specific cutoffs per McGrail 2021 + ESMO 2024 (NOT endorsed for breast / prostate / glioma), blood TMB caveats (BFAST Cohort C failed), and integration with MSI-H, HLA-LOH (LOHHLA / DASH), and neoantigen quality (Luksza fitness, McGranahan clonality).
+Calculate tumor mutational burden from somatic VCFs with Friends of Cancer Research (Vega 2021) harmonization equations for per-assay calibration to the FDA pembrolizumab 10 mut/Mb pan-tumor threshold (TSO500 = 7.8, Oncomine = 8.4 per Ramos-Paradas 2021). Covers FoundationOne CDx convention of including synonymous variants, hypermutator / ultra-hypermutator tiering (POLE+MMR), tumor-type-specific cutoffs per McGrail 2021 (poor TMB performance in breast / prostate / glioma), blood TMB caveats (BFAST Cohort C failed), and integration with MSI-H, HLA-LOH (LOHHLA / DASH), and neoantigen quality (Luksza fitness, McGranahan clonality).
 
 ## Prerequisites
 
@@ -25,10 +25,10 @@ pip install cyvcf2 pandas numpy
 
 Tell the agent what to do:
 - "Calculate TMB from this FoundationOne-style somatic VCF using 0.8 Mb scored region (NOT 1.1 Mb panel total)"
-- "Apply Vega 2021 cross-panel calibration: report TMB-H equivalent thresholds for TSO500 (7.8), Oncomine (8.4)"
+- "Apply cross-panel calibration: report TMB-H equivalent thresholds for TSO500 (7.8), Oncomine (8.4) per Ramos-Paradas 2021"
 - "For this MSK-IMPACT cohort, compute TMB excluding synonymous (vs FoundationOne which includes them); document convention"
 - "Integrate TMB + MSI-H + HLA-LOH (LOHHLA) for ICI eligibility decision"
-- "For breast / prostate / glioma cohorts, apply tumor-type-specific Samstein 2019 cutoff (NOT universal 10/Mb per ESMO 2024)"
+- "For breast / prostate / glioma cohorts, apply tumor-type-specific Samstein 2019 cutoff (NOT universal 10/Mb; McGrail 2021)"
 
 ## Example Prompts
 
@@ -36,7 +36,7 @@ Tell the agent what to do:
 
 > "Compute TMB from this VEP-annotated Mutect2 VCF. Use FoundationOne CDx conventions: scored region 0.8 Mb, include synonymous, VAF >= 5%, exclude hotspots, gnomAD grpmax FAF95 < 0.5%."
 
-> "For my TSO500 panel cohort, compute TMB with 1.3 Mb scored region; apply Vega 2021 calibration equivalent threshold of 7.8/Mb for TMB-H classification."
+> "For my TSO500 panel cohort, compute TMB with 1.3 Mb scored region; apply the TSO500 equivalent threshold of 7.8/Mb (Ramos-Paradas 2021) for TMB-H classification."
 
 ### Cross-Panel Comparison
 
@@ -46,7 +46,7 @@ Tell the agent what to do:
 
 ### Cancer-Type-Specific Cutoffs
 
-> "For this breast cancer cohort, do NOT apply universal 10/Mb cutoff. Use tumor-type-specific cutoff per Samstein 2019 (top 20% within tumor type). Cite ESMO 2024 + McGrail 2021 for breast / prostate / glioma exclusion."
+> "For this breast cancer cohort, do NOT apply universal 10/Mb cutoff. Use tumor-type-specific cutoff per Samstein 2019 (top 20% within tumor type). Cite McGrail 2021 for the breast / prostate / glioma limitation."
 
 ### MSI + HLA-LOH Integration
 
@@ -68,7 +68,7 @@ Tell the agent what to do:
 4. Divide by SCORED region in Mb (NOT total panel size).
 5. Apply Vega 2021 calibration: assay-specific equivalent threshold for FoundationOne 10/Mb sensitivity.
 6. Classify: TMB-low; TMB-H (>= cutoff); hypermutator (>= 100); ultra-hypermutator (>= 500).
-7. For breast / prostate / glioma, apply tumor-type-specific Samstein 2019 cutoff and document ESMO 2024 exclusion.
+7. For breast / prostate / glioma, apply tumor-type-specific Samstein 2019 cutoff and document the McGrail 2021 tumor-type limitation.
 8. Integrate MSI status: MSI-H is the primary biomarker (Sha 2020); TMB-H is not additive.
 9. Run LOHHLA / DASH for HLA-LOH; flag tumors with reduced neoantigen presentation.
 10. For research-grade neoantigen quality, compute Luksza fitness + McGranahan clonality.
@@ -77,9 +77,9 @@ Tell the agent what to do:
 
 - FoundationOne CDx **SCORED region** is 0.8 Mb (NOT the 1.1 Mb total panel). Using panel total inflates TMB ~37%.
 - FoundationOne CDx INCLUDES synonymous variants in TMB; MSK-IMPACT and most academic pipelines exclude. Match the comparison reference.
-- Cross-panel TMB is not directly comparable without Vega 2021 calibration. FoundationOne 10/Mb = TSO500 7.8 = Oncomine 8.4.
+- Cross-panel TMB is not directly comparable without per-assay calibration. The FoundationOne 10/Mb = TSO500 7.8 = Oncomine 8.4 equivalences are from the TMB2 project (Ramos-Paradas 2021).
 - bTMB is research-grade in tissue-naive contexts; BFAST Cohort C failed primary endpoint due to low ctDNA shed.
-- TMB-H is NOT endorsed for breast, prostate, glioma per ESMO 2024 + McGrail 2021. Use tumor-type-specific cutoffs.
+- TMB-H does not enrich ICI response in breast, prostate, glioma per McGrail 2021. Use tumor-type-specific cutoffs.
 - MSI-H + TMB-H is statistical tautology (MSI-H is uniformly hypermutator). MSI-H is primary biomarker.
 - HLA-LOH (~17% pan-cancer; >30% HNSCC / NSCLC / cervical) abolishes neoantigen presentation; run LOHHLA / DASH for high-TMB tumors.
 - Hypermutator (>=100/Mb) signature stratification: MMR-D = SBS6/15/26/44 + ID1/2; POLE-exo = SBS10a/10b + SBS28.

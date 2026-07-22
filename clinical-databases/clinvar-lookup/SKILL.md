@@ -283,13 +283,13 @@ A single VCV can carry all three with distinct evaluations; the legacy "Pathogen
 | "Why wasn't the somatic variant flagged?" | Pre-2024 XML schema had no separate somatic field; we now read `ONCDN`/`SCIDN`/`SomaticClinicalImpact` per v2 schema. |
 | "VarSome says LP but this says VUS" | Tool-specific aggregation rule differences; VarSome auto-applies PP3+PM2 by default per Tavtigian point system; we apply VCEP-specific PP3 calibration per CSpec. |
 | "rsID match returned wrong variant" | rsID is a cluster identifier; multi-allelic rsIDs require allele-level resolution; we use SPDI or CA ID. |
-| "Why retest a 2022-curated variant?" | Submission staleness median 5-year reclassification cycle in active genes (Harrison 2017); ClinGen recommends annual re-review for active diagnostic variants. |
+| "Why retest a 2022-curated variant?" | Classifications drift as evidence accrues; ClinGen recommends annual re-review for active diagnostic variants. |
 
 ## References
 
-- Landrum MJ et al. 2025. ClinVar: improvements to accessing data. *Nucleic Acids Res* 53(D1):D1313 (2025 NAR DB issue).
+- Landrum MJ et al. 2025. ClinVar: updates to support classifications of both germline and somatic variants. *Nucleic Acids Res* 53(D1):D1313.
 - Harrison SM et al. 2017. Clinical laboratories collaborate to resolve differences in variant interpretations submitted to ClinVar. *Genet Med* 19:1096.
-- Yauy K et al. 2022. Genome Alert! a standardized procedure for genomic variant reinterpretation and automated genotype-phenotype reassessment. *Genet Med* 24:S1098.
+- Yauy K et al. 2022. Genome Alert! a standardized procedure for genomic variant reinterpretation and automated gene-phenotype reassessment. *Genet Med* 24:1316.
 - Tavtigian SV et al. 2018. Modeling the ACMG/AMP variant classification guidelines as a Bayesian classification framework. *Genet Med* 20:1054.
 - Tavtigian SV et al. 2020. Fitting a naturally scaled point system to the ACMG/AMP variant classification guidelines. *Hum Mutat* 41:1734.
 - Richards S et al. 2015. Standards and guidelines for the interpretation of sequence variants. *Genet Med* 17:405. (Original ACMG/AMP 2015)

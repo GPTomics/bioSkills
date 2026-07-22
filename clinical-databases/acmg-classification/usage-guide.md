@@ -83,14 +83,14 @@ Tell the agent what to do:
 - The Tavtigian point system is the engine inside every modern automated classifier (InterVar, GeneBe, VarSome, Franklin). The 2015 combining rules are subsumed.
 - Final categories: P >= 10 points; LP 6-9; VUS 0-5; LB -1 to -6; B <= -7.
 - REVEL PP3_Strong >= 0.932; BP4_Strong <= 0.016; the two thresholds to memorize.
-- AlphaMissense developer threshold 0.564 is NOT the Pejaver PP3 calibration; treat as supporting only.
+- AlphaMissense developer threshold 0.564 is NOT a calibrated PP3 cutoff; ClinGen SVI (Bergquist 2025) calibrates AlphaMissense to graded PP3/BP4 -- use those cutoffs.
 - Do NOT stack REVEL + BayesDel + VEST4; they share training data per Pejaver 2022.
 - PM2 was downgraded to PM2_Supporting in SVI 2020 (1 point, not 2). Old papers with PM2_Moderate need re-classification.
 - PS3 default Strong is over-strengthened; apply Brnich 2020 OddsPath framework.
 - VCEP CSpec overrides generic ACMG. Check `cspec.genome.network/cspec/ui/svi/all` for active VCEP before classification.
 - Abou Tayoun PVS1 decision tree refines PVS1 from binary to graded (VeryStrong / Strong / Moderate / Supporting). >15 VCEP-specific PVS1 trees as of 2024.
 - PVS1 should NOT apply in GoF mechanism genes (e.g., SCN5A LQT3, KCNH2 LQT2).
-- SpliceAI DS_max thresholds (Walker 2023): >=0.5 + corroborating evidence = PP3_Strong; >=0.20 minimum for ANY PP3; <0.1 = BP4_Moderate.
+- SpliceAI DS_max thresholds (Walker 2023, applied at Supporting weight): >=0.2 = PP3_Supporting (minimum for ANY PP3); <=0.1 = BP4_Supporting; prediction alone does not reach PP3_Strong (needs RNA/experimental evidence).
 - SpliceVault (Dawes 2023) predicts WHICH aberrant transcript; critical for PVS1 applied to splice variants because NMD depends on the actual mis-spliced product.
 - Cancer somatic = AMP/ASCO/CAP 2017 Tier I/II/III/IV; OncoKB Levels 1-4 map loosely; cross-check CIViC.
 - ClinGen VCI is the gold standard for expert curation; automated tools approximate.

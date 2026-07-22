@@ -71,13 +71,13 @@ run_ldpred2_auto <- function(target_rds, sumstats_path, ld_ref_path, n_cores = 8
 
 
 ancestry_conditional_z <- function(prs, pcs, n_pcs = 10) {
-    # Recalibrate PRS by removing ancestry effects (Sun 2021; Ding 2023 continuous-ancestry)
+    # Recalibrate PRS by removing ancestry effects (Ding 2023 continuous-ancestry)
     # IMPORTANT: PCs must be computed in the TEST cohort, NOT discovery cohort
     pc_design <- cbind(intercept = 1, pcs[, 1:n_pcs])
     mean_fit <- lm.fit(pc_design, prs)
     residuals <- prs - mean_fit$fitted.values
 
-    # Variance also varies by PC (Sun 2021)
+    # Variance also varies by PC
     log_var_fit <- lm.fit(pc_design, log(residuals^2 + 1e-12))
     sd_est <- sqrt(exp(log_var_fit$fitted.values))
 

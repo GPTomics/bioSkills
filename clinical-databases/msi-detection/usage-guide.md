@@ -2,7 +2,7 @@
 
 ## Overview
 
-Detect microsatellite instability from WES / WGS / targeted-panel data using MSIsensor (paired tumor-normal), MSIsensor-pro (tumor-only), MSIsensor-ct (ctDNA / liquid biopsy), MANTIS, or MSIngs. Covers FDA pembrolizumab MSI-H / dMMR pan-tumor approval (Le 2015 + KEYNOTE-016/164/158/177), Lynch syndrome universal screening (IHC + MSI), the MSI-H + TMB-H tautology (Sha 2020), and distinguishing POLE-exo hypermutator (typically MSI-stable) from MMR-D (MSI-H).
+Detect microsatellite instability from WES / WGS / targeted-panel data using MSIsensor (paired tumor-normal), MSIsensor-pro (tumor-only), MSIsensor-ct (ctDNA / liquid biopsy), MANTIS, or mSINGS. Covers FDA pembrolizumab MSI-H / dMMR pan-tumor approval (Le 2015 + KEYNOTE-016/164/158/177), Lynch syndrome universal screening (IHC + MSI), the MSI-H + TMB-H tautology (Sha 2020), and distinguishing POLE-exo hypermutator (typically MSI-stable) from MMR-D (MSI-H).
 
 ## Prerequisites
 
@@ -84,7 +84,7 @@ Tell the agent what to do:
 ## Tips
 
 - FDA pembrolizumab MSI-H / dMMR pan-tumor approval (2017) requires MSI-H **or** dMMR; either suffices.
-- MSI-H + TMB-H is statistical tautology (Sha 2020 *Cell Rep Med*); MSI-H is primary biomarker.
+- MSI-H + TMB-H is statistical tautology (Sha 2020 *Cancer Discov*); MSI-H is primary biomarker.
 - TMB-H + MSS: ESMO 2024 endorses ICI but NOT for breast / prostate / glioma (McGrail 2021 exclusion).
 - POLE-exo (SBS10a/10b) typically MSI-stable; pure POLE-exo 100-300 mut/Mb; POLE+MMR concurrent >500 mut/Mb.
 - Lynch syndrome ~50% of MSI-H CRC; rest is sporadic (MLH1 hypermethylation).

@@ -24,7 +24,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 - REST: `GET https://myvariant.info/v1/variant/{hgvs_or_id}?fields=...`
 - Bulk: `POST https://myvariant.info/v1/variant` with comma-separated IDs
 
-## BioThings Architecture (Wu 2022 *Bioinformatics*)
+## BioThings Architecture (Lelong 2022 *Bioinformatics*)
 
 myvariant.info is one of three flagship BioThings APIs (with MyGene.info and MyChem.info). All three share the BioThings SDK, which auto-deploys an Elasticsearch index from heterogeneous source files via per-source dataloaders. The 2022 paper formalized the SDK; the architecture itself is older (Xin 2016 *Genome Biol*).
 
@@ -88,10 +88,10 @@ For reproducibility, record per-source versions in analysis output alongside res
 | Tool | Approach | When to use |
 |------|----------|-------------|
 | **myvariant.info** | Cloud aggregator, ES-backed | Quick batch annotation, no local setup |
-| **OpenCRAVAT** (Pagel 2020 *Cancer Res*) | Local install, modular annotators | Offline / PHI-sensitive |
+| **OpenCRAVAT** (Pagel 2020 *JCO Clin Cancer Inform*) | Local install, modular annotators | Offline / PHI-sensitive |
 | **VarSome** (Kopanos 2019 *Bioinformatics* 35:1978; commercial) | Hosted, 22 sources | 82% ACMG criteria auto-application (highest); clinical labs |
 | **Franklin / Genoox** | Commercial hosted | 59 data sources; family/cohort analysis |
-| **GeneBe.net** (Stawinski 2024 *Clin Genet*) | Open-source web + API | Free Tavtigian-point-system-based ACMG; comparable to VarSome |
+| **GeneBe.net** (Stawiński 2024 *Clin Genet*) | Open-source web + API | Free Tavtigian-point-system-based ACMG; comparable to VarSome |
 | **ANNOVAR / VEP / snpEff** | Local annotation tools | Pipeline integration, batch annotation, no ACMG |
 
 **myvariant.info does NOT produce ACMG calls**; it is purely an annotation aggregator. Pair with InterVar, GeneBe, or the `acmg-classification` skill for classification.
@@ -270,7 +270,7 @@ def find_alphamissense_pathogenic(gene, min_score=0.564):
 | dbNSFP refresh lag | 6-18 months from primary source release | dbNSFP release history |
 | `_meta.src` field | Per-source version is always available | BioThings SDK convention |
 | Lucene escape | Special chars need `\` (e.g., `chr7\:140453136`) | Elasticsearch convention |
-| Multi-allelic rsID | ~6-8% of dbSNP rsIDs are multi-allelic | Phan 2025 *NAR* |
+| Multi-allelic rsID | ~6-8% of dbSNP rsIDs are multi-allelic | operational estimate |
 | AlphaMissense PP3 calibration | NOT yet ClinGen-endorsed (as of May 2026) | ClinGen SVI |
 | REVEL PP3_Strong calibration | >= 0.932 per Pejaver 2022 | Pejaver 2022 *AJHG* |
 
@@ -298,13 +298,13 @@ def find_alphamissense_pathogenic(gene, min_score=0.564):
 
 ## References
 
-- Wu C et al. 2022. BioThings SDK: a toolkit for building high-performance data APIs in biomedical research. *Bioinformatics* 38:2316.
+- Lelong S et al. 2022. BioThings SDK: a toolkit for building high-performance data APIs in biomedical research. *Bioinformatics* 38:2077.
 - Xin J et al. 2016. High-performance web services for querying gene and variant annotation. *Genome Biol* 17:91.
 - Cheng J et al. 2023. Accurate proteome-wide missense variant effect prediction with AlphaMissense. *Science* 381:eadg7492.
 - Pejaver V et al. 2022. Calibration of computational tools for missense variant pathogenicity classification. *Am J Hum Genet* 109:2163.
-- Pagel KA et al. 2020. Integrated informatics analysis of cancer-related variants. *Cancer Res* 80:e29. (OpenCRAVAT)
+- Pagel KA et al. 2020. Integrated informatics analysis of cancer-related variants. *JCO Clin Cancer Inform* 4:310. (OpenCRAVAT)
 - Kopanos C et al. 2019. VarSome: the human genomic variant search engine. *Bioinformatics* 35:1978.
-- Stawinski PM et al. 2024. GeneBe; a tool for automated ACMG/AMP variant interpretation. *Clin Genet* (verify exact volume/pages in the published record before citing).
+- Stawiński P, Płoski R. 2024. Genebe.net: implementation and validation of an automatic ACMG variant pathogenicity criteria assignment. *Clin Genet* 106:119.
 - myvariant.info docs: `https://docs.myvariant.info/en/latest/`
 - BioThings field metadata: `https://myvariant.info/v1/metadata/fields`
 

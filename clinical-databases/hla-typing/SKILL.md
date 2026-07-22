@@ -61,15 +61,15 @@ Any caller reporting DRB4 with `DRB1*15:01` is broken or has a chimera. Use this
 
 | Tool | Class I | Class II | KIR | Resolution | Approach | Fails when |
 |------|---------|----------|-----|-----------|----------|-----------|
-| **OptiType** (Szolek 2014 *Bioinformatics* 30:3310) | Yes (~98% 4-digit) | No | No | 4-field | ILP on exons 2-3 | Class II needed; very deep contamination |
+| **OptiType** (Szolek 2014 *Bioinformatics* 30:3310) | Yes (~97% 4-digit) | No | No | 4-field | ILP on exons 2-3 | Class II needed; very deep contamination |
 | **Polysolver** (Shukla 2015 *Nat Biotechnol* 33:1152) | Yes (~95% 4-digit) | No | No | 4-field | Allele-specific ref alignment | Class II; non-European ancestry under-typing |
-| **HLA-LA** (Dilthey 2019 *Bioinformatics* 35:4054) | Yes (~94% class I) | Yes (best class II of WES tools) | No | 4-field | Graph-based PRG | High RAM/disk (~30-100 GB scratch) |
+| **HLA-LA** (Dilthey 2019 *Bioinformatics* 35:4394) | Yes (~94% class I) | Yes (strong class II) | No | 4-field | Graph-based PRG | High RAM/disk (~30-100 GB scratch) |
 | **T1K** (Song 2023 *Genome Res*) | Yes (~99% 4-digit) | Yes (~99%) | Yes (KIR + KIR3DL2 ligand) | 4-field | EM on consensus reference | Newer; less benchmarking on edge cases |
 | **HLA-HD** (Kawaguchi 2017 *Hum Mutat* 38:788) | Yes (~98%) | Yes (~95%) | No | 4-field | Bowtie2 against IPD-IMGT | License required for commercial use |
 | **arcasHLA** (Orenbuch 2020 *Bioinformatics* 36:33) | Yes (~100% 2-field) | Yes (>99% 2-field) | No | 4-field from RNA-seq | EM on STAR alignment | DNA-seq; population prior bias in non-EUR |
 | **PHLAT, HLAforest, HLAminer, seq2HLA, HLAreporter** | Yes | Some | No | Mostly 2-4 field | Various | Older; superseded |
 
-**Operational benchmark consensus (Claeys 2023 *BMC Genomics*; Matey-Hernandez 2018):** T1K is currently the best general-purpose all-rounder; HLA-LA is the class-II reference; OptiType is the class-I anchor for WES. For full coverage of class I + II + KIR on WGS/WES, T1K is the 2024-2026 recommendation.
+**Operational benchmark consensus:** in the Claeys 2023 *BMC Genomics* 13-tool benchmark (Matey-Hernandez 2018), HLA-HD was the top class-II caller and OptiType (WES) / arcasHLA (RNA) the class-I anchors. T1K (Song 2023, not in that benchmark) adds class I + II + KIR co-typing in one pass and is the 2024-2026 all-rounder recommendation for WGS/WES.
 
 ## Long-Read and Ultra-High-Resolution
 
@@ -80,7 +80,6 @@ Any caller reporting DRB4 with `DRB1*15:01` is broken or has a chimera. Use this
 | **FuFiHLA** (2025 bioRxiv) | PacBio HiFi + ONT R10 | 8-field | Platform-agnostic |
 | **HLAminer streaming** (Warren 2025) | ONT long-read | 4-field | Streaming nanopore |
 | **pbaa + StarPhase** | PacBio amplicon | 8-field | Cost-effective targeted typing |
-| **IGenotyper** (Roe 2021) | PacBio long-read | 8-field | Immunogenetics-focused |
 
 ONT R9 was historically unreliable for null-allele discrimination due to homopolymer errors; R10.4 with duplex closes the gap for class I and is competitive with PacBio HiFi for class II. PacBio HiFi remains the gold standard for DPB1 4-field typing.
 
@@ -105,7 +104,7 @@ When only SNP-array genotypes are available (GWAS cohorts), use imputation:
 |----------|------------------|-----|
 | WGS/WES, class I only, max speed | OptiType | Best class-I accuracy, ILP-based, fast |
 | WGS/WES, class I + II, general-purpose | T1K | Best all-rounder; class I + II + KIR co-typing |
-| WGS/WES, class II reference grade | HLA-LA | Highest class-II accuracy in benchmarks |
+| WGS/WES, class II reference grade | HLA-LA | Strong class-II accuracy (graph-based PRG) |
 | RNA-seq tumor/normal for ICI | arcasHLA | RNA-seq native; expressed-allele-aware |
 | Transplant 6+ field resolution | StarPhase (PacBio HiFi) | 8-field native; reference standard |
 | Cost-effective targeted typing | pbaa + StarPhase amplicons | Lower cost than WGS |
@@ -311,23 +310,23 @@ hla_DRB1 <- predict(model.list[['DRB1']], gen, type='response+prob')
 | Threshold | Convention | Source |
 |-----------|-----------|--------|
 | IPD-IMGT/HLA quarterly release | Updates Jan/Apr/Jul/Oct | IPD-IMGT/HLA database |
-| Current allele count | ~43,000+ at Jul 2025 | IPD-IMGT/HLA database release notes (Robinson J et al, *NAR* DB issue) |
+| Current allele count | ~43,000+ at Jul 2025 | IPD-IMGT/HLA database release notes (Barker DJ et al, *NAR* DB issue) |
 | HLA region coordinates | chr6:28000000-34000000 (GRCh38) | Standard |
 | HLA-LA RAM requirement | ~30-100 GB scratch | HLA-LA documentation |
 | OptiType class I 4-digit accuracy | ~98% (1000G benchmark) | Claeys 2023 |
 | Polysolver class I 4-digit accuracy | ~95% | Matey-Hernandez 2018 |
-| HLA-LA class II accuracy | Best of WES tools | Claeys 2023 |
+| HLA-HD class II accuracy | Top class-II WES tool | Claeys 2023 |
 | T1K class I + II accuracy | ~99% / ~99% | Song 2023 |
 | HIBAG probability cutoff | >=0.5 for clinical-grade; >=0.3 for exploratory | HIBAG documentation |
 | 1000G allele coverage | ~60-70% of African-ancestry alleles still under-represented in IPD-IMGT/HLA | Robinson 2024 |
 | HSCT matching standard | 10/10 or 12/12 at 6-field | NMDP/WMDA guidelines |
-| TCE3 core alleles | DPB1\*02:01, \*04:01, \*04:02, \*23:01 | Meurer 2024 *Blood* 144:1659 |
+| TCE3 core alleles | DPB1\*02:01, \*04:01, \*04:02, \*23:01 | Arrieta-Bolaños 2022 *Blood* 140:659 |
 
 ## CIWD v3.0.0 Ambiguity Catalogue
 
 Hurley 2020 *HLA* 95:516; compiled from >8M unrelated HSCT donors across 7 geographic/ancestral groups. Categories: Common (18%, n=545), Intermediate (17%, n=513), Well-Documented (65%, n=1,997) at 2-field. Replaces legacy CWD 2.0 (Mack 2013); many older pipelines still hardcode CWD 2.0; a quiet quality failure.
 
-## TCE3 Core vs Non-Core (Meurer 2024 *Blood*)
+## TCE3 Core vs Non-Core (Arrieta-Bolaños 2022/2024 *Blood*)
 
 DPB1 mismatch GvHD/relapse risk depends on TCE3 group:
 - **Core (DPB1\*02:01, \*04:01, \*04:02, \*23:01):** GvHD reduction with permissive mismatch in the GvH direction.
@@ -361,21 +360,22 @@ Now operational in NMDP donor selection algorithms; legacy TCE3 frameworks (Croc
 
 ## References
 
-- Robinson J et al. 2024. IPD-IMGT/HLA database: 25 years of evolution. *HLA*.
-- Robinson J et al. 2026. IPD-IMGT/HLA recent developments. *Nucleic Acids Res* 54:D1152.
+- Robinson J et al. 2024. 25 years of the IPD-IMGT/HLA Database. *HLA* 103:e15549.
+- Barker DJ et al. 2026. The IPD-IMGT/HLA database: recent developments in sequence submission. *Nucleic Acids Res* 54:D1152.
 - Szolek A et al. 2014. OptiType: precision HLA typing from NGS data. *Bioinformatics* 30:3310.
-- Dilthey AT et al. 2019. HLA*LA; HLA typing from linearly projected graph alignments. *Bioinformatics* 35:4054.
-- Song B et al. 2023. T1K: efficient and accurate KIR and HLA genotyping. *Genome Res*.
+- Dilthey AT et al. 2019. HLA*LA; HLA typing from linearly projected graph alignments. *Bioinformatics* 35:4394.
+- Song L et al. 2023. Efficient and accurate KIR and HLA genotyping with massively parallel sequencing data. *Genome Res* 33:923.
 - Shukla SA et al. 2015. Comprehensive analysis of cancer-associated somatic mutations in class I HLA genes. *Nat Biotechnol* 33:1152.
 - Kawaguchi S et al. 2017. HLA-HD: An accurate HLA typing algorithm for next-generation sequencing data. *Hum Mutat* 38:788.
 - Orenbuch R et al. 2020. arcasHLA: high-resolution HLA typing from RNAseq. *Bioinformatics* 36:33.
-- Claeys A et al. 2023. Benchmark of tools for in silico prediction of MHC class I and class II genotypes from NGS data. *BMC Genomics* 24:9351.
+- Claeys A et al. 2023. Benchmark of tools for in silico prediction of MHC class I and class II genotypes from NGS data. *BMC Genomics* 24:247.
 - Matey-Hernandez ML et al. 2018. Benchmarking the HLA typing performance of Polysolver and Optitype in 50 Danish parental trios. *BMC Bioinformatics* 19:239.
 - Zheng X et al. 2014. HIBAG; HLA genotype imputation with attribute bagging. *Pharmacogenomics J* 14:192.
 - Luo Y et al. 2021. A high-resolution HLA reference panel capturing global population diversity. *Nat Genet* 53:1504.
 - Hurley CK et al. 2020. Common, intermediate and well-documented HLA alleles in world populations: CIWD version 3.0.0. *HLA* 95:516.
-- Meurer T et al. 2024. New HLA-DPB1 T-cell epitope model for mismatched URD transplant. *Blood* 144:1659.
-- Douillard V et al. 2024. Population-specific HLA imputation reference panels. *HLA*.
+- Arrieta-Bolaños E et al. 2022. A core group of structurally similar HLA-DPB1 alleles drives permissiveness after HCT. *Blood* 140:659.
+- Arrieta-Bolaños E et al. 2024. Directionality of HLA-DP permissive mismatches improves risk prediction. *Blood* 144:1747.
+- Douillard V et al. 2024. Optimal population-specific HLA imputation with dimension reduction. *HLA* 103:e15282.
 
 ## Related Skills
 

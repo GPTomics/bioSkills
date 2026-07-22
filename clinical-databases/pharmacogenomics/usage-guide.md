@@ -32,7 +32,7 @@ Tell the agent what to do:
 - "Run PharmCAT on this VCF; supplement CYP2D6 with Cyrius; cross-reference HLA from typing"
 - "Calculate CYP2D6 activity score for *4xN/*10 (this is the clinical-silence footgun)"
 - "For this East-Asian patient, screen NUDT15 *3 before mercaptopurine; do NOT rely on TPMT alone"
-- "Apply CPIC 2024 DPYD activity-score framework to determine fluoropyrimidine dose"
+- "Apply CPIC DPYD activity-score framework to determine fluoropyrimidine dose"
 - "Pre-emptive PGx panel from VCF: report all CPIC Level A genes with phenotype + dosing"
 - "Screen HLA-B*57:01 before abacavir; require 4-field specificity to distinguish from *57:03"
 
@@ -54,7 +54,7 @@ Tell the agent what to do:
 
 ### DPYD 2024 Framework
 
-> "Apply CPIC 2024 DPYD activity-score framework to my fluoropyrimidine-treated cancer cohort. Identify AS 0 (avoid), AS 1.0-1.5 (50% start + TDM), AS 2.0 (full dose). Note: c.85T>C is NOT in the CPIC 2024 actionable set."
+> "Apply CPIC DPYD activity-score framework to my fluoropyrimidine-treated cancer cohort. Identify AS 0 (avoid), AS 1.0-1.5 (50% start + TDM), AS 2.0 (full dose). Note: c.85T>C is NOT in the CPIC actionable set."
 
 > "For African-ancestry patients, supplement the 4-variant CPIC core panel with extended DPYD coverage."
 
@@ -85,7 +85,7 @@ Tell the agent what to do:
 1. Choose appropriate tool stack: PharmCAT for the multi-gene panel + Cyrius for CYP2D6 (SV-aware) + dedicated HLA typer for HLA loci.
 2. Apply Caudle 2020 activity values for CYP2D6 (note *10 = 0.25, not 0.5).
 3. Handle CYP2D6 SV correctly: *4xN is clinically silent; *1xN/*2xN multiply functional activity.
-4. Apply CPIC 2024 DPYD activity-score framework (not single-variant logic).
+4. Apply CPIC DPYD activity-score framework (not single-variant logic).
 5. Pair TPMT + NUDT15 for thiopurines; apply Maillard 2026 compound-IM dosing.
 6. Require 4-field HLA resolution for PGx screening; distinguish risk-allele from non-risk family members.
 7. For African-ancestry warfarin, explicitly include CYP2C9 *5/*6/*8/*11; document COAG failure rationale.
@@ -97,8 +97,8 @@ Tell the agent what to do:
 - Cyrius is 99.3% accurate on GeT-RM reference samples vs Aldy 82-87% vs Stargazer 84%.
 - CYP2D6 *4xN is clinically silent (no-function * N = 0). This is the most common reportable error in clinical PGx.
 - Caudle 2020 reset CYP2D6 *10 activity from 0.5 to 0.25; reclassified large fractions of East-Asian populations to IM.
-- CPIC 2024 DPYD update moves to activity-score framework; c.85T>C is NOT in the CPIC 2024 actionable set despite frequent commercial reporting.
-- TPMT-only testing misses NUDT15 *3 (9.8% frequency in Han Chinese vs <1% EUR). Always pair TPMT + NUDT15.
+- The CPIC DPYD guideline uses the activity-score framework (not single-variant logic); c.85T>C is NOT in the CPIC actionable set despite frequent commercial reporting.
+- TPMT-only testing misses NUDT15 *3 (~9.8% frequency in East Asians vs <1% EUR). Always pair TPMT + NUDT15.
 - HLA-B*57:01 vs *57:02 / *57:03 distinguishes abacavir risk vs no-risk; require 4-field.
 - HLA-B*35:02 (minocycline DILI) vs *35:01 (TMP-SMX DILI); different drugs, different alleles.
 - COAG (Kimmel 2013 *NEJM*) failed in African Americans because the algorithm omitted CYP2C9 *5/*6/*8/*11; paradigmatic ancestry-algorithm failure.

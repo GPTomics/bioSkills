@@ -1,8 +1,8 @@
-'''Pharmacogenomic workflow: PharmGKB + CYP2D6 activity score (Caudle 2020) + DPYD AS 2024.
+'''Pharmacogenomic workflow: PharmGKB + CYP2D6 activity score (Caudle 2020) + DPYD activity score.
 
 Reference: requests 2.31+, pandas 2.2+ | Verify CPIC guideline versions if differs.
 Activity values follow Caudle 2020 *Clin Transl Sci* (CYP2D6 *10 reset to 0.25).
-DPYD follows CPIC 2024 (Lam et al. *Clin Pharmacol Ther*) activity-score framework.
+DPYD follows the CPIC activity-score framework (Amstutz 2018 Clin Pharmacol Ther 103:210).
 '''
 import requests
 import time
@@ -34,13 +34,13 @@ CYP2C9_ACTIVITY = {
     '*5': 0.0, '*6': 0.0, '*8': 0.5, '*11': 0.5  # AFR-common; the COAG failure variants
 }
 
-# DPYD CPIC 2024 activity values (Lam et al. Clin Pharmacol Ther)
+# DPYD CPIC activity values (Amstutz 2018 Clin Pharmacol Ther 103:210)
 DPYD_2024_ACTIVITY = {
     'c.1905+1G>A': 0.0,  # DPYD*2A; splice donor
     'c.1679T>G': 0.0,    # DPYD*13; p.I560S
     'c.2846A>T': 0.5,    # p.D949V
     'HapB3': 0.5,        # c.1129-5923C>G + c.1236G>A linked
-    # c.85T>C (DPYD*9A) is NOT in CPIC 2024 actionable set; evidence does not support clinical decrement
+    # c.85T>C (DPYD*9A) is NOT in the CPIC actionable set; evidence does not support clinical decrement
 }
 
 
@@ -96,7 +96,7 @@ def cyp2c19_phenotype(diplotype):
 
 
 def dpyd_activity(variants):
-    '''CPIC 2024 DPYD gene activity score.
+    '''CPIC DPYD gene activity score.
 
     Sum the two lowest activities across the two alleles.
     AS 2.0: full dose; AS 1.5: 50% start + TDM; AS 1.0: 50% start + TDM; AS 0: avoid.
@@ -138,7 +138,7 @@ def hla_pgx_screen(hla_alleles_4field):
     '''
     pgx_alleles = {
         'B*57:01': {'drug': 'Abacavir', 'reaction': 'HSS', 'population': 'All (5-8% NFE)',
-                    'or': 100, 'cite': 'Mallal 2008 NEJM (PREDICT-1)'},
+                    'or': 100, 'cite': 'Mallal 2002 Lancet (case-control)'},
         'B*15:02': {'drug': 'Carbamazepine/oxcarbazepine', 'reaction': 'SJS/TEN',
                     'population': 'Han Chinese, Thai, Malay, Indian', 'or': 2500,
                     'cite': 'Chung 2004 Nature; FDA black-box 2007'},
@@ -150,9 +150,9 @@ def hla_pgx_screen(hla_alleles_4field):
                     'cite': 'Zhang 2013 NEJM'},
         'B*35:02': {'drug': 'Minocycline', 'reaction': 'DILI', 'population': 'All',
                     'cite': 'Urban 2017; NOT *35:01'},
-        'B*35:01': {'drug': 'TMP-SMX', 'reaction': 'DILI', 'population': 'Mixed',
+        'B*35:01': {'drug': 'TMP-SMX', 'reaction': 'DILI', 'population': 'African American',
                     'cite': 'Li 2021 Hepatology'},
-        'B*14:01': {'drug': 'TMP-SMX', 'reaction': 'DILI', 'population': 'African',
+        'B*14:01': {'drug': 'TMP-SMX', 'reaction': 'DILI', 'population': 'European American',
                     'cite': 'Li 2021'},
         'B*15:13': {'drug': 'Phenytoin', 'reaction': 'SJS', 'population': 'Malaysian',
                     'cite': 'Chang 2017'},
@@ -172,7 +172,7 @@ if __name__ == '__main__':
         result = cyp2d6_phenotype(dip)
         print(f"  {dip:20s} AS={result['activity_score']:.2f}  {result['phenotype']}")
 
-    print('\n=== DPYD CPIC 2024 ===')
+    print('\n=== DPYD CPIC ===')
     case1 = dpyd_activity(['c.1905+1G>A'])  # Heterozygous *2A
     case2 = dpyd_activity(['c.2846A>T', 'c.2846A>T'])  # Homozygous p.D949V
     print(f"  Het *2A: AS={case1['gene_activity_score']}, dosing: {case1['dosing']}")

@@ -38,7 +38,7 @@ Complete workflow from somatic variants to ranked neoantigen vaccine candidates 
 
 ## Key Judgment -- binding is the easy part; PPV lives downstream
 
-A binding-only pipeline has single-digit-percent positive predictive value (TESLA; Wells 2020 Cell 183:818). The critical steps are downstream of binding: correct full-resolution HLA typing (wrong allele = confident garbage), HLA loss-of-heterozygosity (run LOHHLA and DROP candidates on a lost allele — it invalidates predictions silently), proximal-variant phasing (supply `--phased-proximal-variants-vcf` or the mutant peptide is wrong), cancer cell fraction for clonality (clonal beats subclonal; use purity + copy number, not raw VAF), expression, and quality features (agretopicity, foreignness). Treat the ranked output as a tier-1 hypothesis list for immunopeptidomics MS and functional T-cell validation, not a final answer. Add MHC class II (CD4) neoantigens for vaccine help (see immunoinformatics/mhc-class-ii-prediction). Note on DAI below: agretopicity is most often the WT/MT binding ratio; whichever form is used, an anchor-position mutation inflates it without changing the TCR-facing surface, and a barely-presented WT makes it unstable — pair it with anchor evaluation.
+A binding-only pipeline has single-digit-percent positive predictive value (TESLA; Wells 2020 Cell 183:818). The critical steps are downstream of binding: correct full-resolution HLA typing (wrong allele = confident garbage), HLA loss-of-heterozygosity (run LOHHLA and DROP candidates on a lost allele; it invalidates predictions silently), proximal-variant phasing (supply `--phased-proximal-variants-vcf` or the mutant peptide is wrong), cancer cell fraction for clonality (clonal beats subclonal; use purity + copy number, not raw VAF), expression, and quality features (agretopicity, foreignness). Treat the ranked output as a tier-1 hypothesis list for immunopeptidomics MS and functional T-cell validation, not a final answer. Add MHC class II (CD4) neoantigens for vaccine help (see immunoinformatics/mhc-class-ii-prediction). Note on DAI below: agretopicity is most often the WT/MT binding ratio; whichever form is used, an anchor-position mutation inflates it without changing the TCR-facing surface, and a barely-presented WT makes it unstable; pair it with anchor evaluation.
 
 ## Made-once commitments
 
@@ -179,7 +179,7 @@ pvacseq run \
     -t 8
 ```
 
-Drop candidates on HLA-LOH-lost alleles (run LOHHLA/DASH) BEFORE ranking, and correct clonality to cancer-cell fraction (CCF from purity + copy number, not raw VAF; see copy-number/allele-specific-copy-number) — the raw-VAF filter below is a coarse proxy.
+Drop candidates on HLA-LOH-lost alleles (run LOHHLA/DASH) BEFORE ranking, and correct clonality to cancer-cell fraction (CCF from purity + copy number, not raw VAF; see copy-number/allele-specific-copy-number). The raw-VAF filter below is a coarse proxy.
 
 ### Step 4: Filter and Rank Candidates
 
@@ -340,7 +340,7 @@ plt.savefig('neoantigen_summary.pdf')
 
 ## References
 
-- Hundal J, Kiwala S, Feng YY, et al (2020) pVACtools: a computational toolkit to identify and visualize cancer neoantigens. *Cancer Immunology Research* 8:409-420. DOI 10.1158/2326-6066.CIR-19-0401.
+- Hundal J, Kiwala S, McMichael J, et al (2020) pVACtools: a computational toolkit to identify and visualize cancer neoantigens. *Cancer Immunology Research* 8:409-420. DOI 10.1158/2326-6066.CIR-19-0401.
 - Wells DK, van Buuren MM, Dang KK, et al (2020) Key parameters of tumor epitope immunogenicity revealed through a consortium approach improve neoantigen prediction (TESLA). *Cell* 183:818-834. DOI 10.1016/j.cell.2020.09.015. (single-digit PPV of binding-only.)
 - McGranahan N, Rosenthal R, Hiley CT, et al (2017) Allele-specific HLA loss and immune escape in lung cancer evolution. *Cell* 171:1259-1271. DOI 10.1016/j.cell.2017.10.001. (LOHHLA.)
 - Wood MA, Nguyen A, Struck AJ, et al (2020) neoepiscope improves neoepitope prediction with multivariant phasing. *Bioinformatics* 36:713-720. DOI 10.1093/bioinformatics/btz653. (phasing matters.)

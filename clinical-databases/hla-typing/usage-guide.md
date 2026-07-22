@@ -61,7 +61,7 @@ Tell the agent what to do:
 
 > "Type all class I + II at 6-field for this HSCT donor with PacBio HiFi using StarPhase. Output null alleles (N-suffix) explicitly; do not strip suffixes for clinical reporting."
 
-> "For this DPB1 mismatch, classify as TCE3 core (GvHD-reduction permissive) vs non-core (relapse-protection) per Meurer 2024."
+> "For this DPB1 mismatch, classify as TCE3 core (GvHD-reduction permissive) vs non-core (relapse-protection) per Arrieta-Bolaños 2024."
 
 > "Calculate eplet mismatch score (HLAMatchmaker) for this donor-recipient pair at HLA-A, B, DRB1, DQB1."
 

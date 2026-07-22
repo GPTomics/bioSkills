@@ -78,7 +78,7 @@ Tell the agent what to do:
 - `Conflicting interpretations` is 1-star (not 2-star as sometimes reported); inspect `CLNSIGCONF` to see whether the conflict is clinically meaningful.
 - Use ClinGen Allele Registry CA ID (`https://reg.clinicalgenome.org/`) for any cross-database join; ClinVar VariationID was renumbered during the 2017 schema redesign.
 - ClinVar somatic classifications (`ONCDN`, `SCIDN`) were added in 2024; pre-2024 pipelines miss them silently.
-- Conflict resolution is slow: only ~4% of BRCA1 missense VUS conflicts resolved despite years of effort (Harrison 2017 follow-up data).
+- Conflict resolution is slow: only ~4% of BRCA1 missense VUS conflicts have reached consensus despite years of effort.
 - For pathogenicity classification logic (PVS1 decision tree, Pejaver 2022 calibrated PP3/BP4 thresholds, Tavtigian point system), defer to `clinical-databases/acmg-classification`; this skill is for querying ClinVar, not classification.
 
 ## Related Skills

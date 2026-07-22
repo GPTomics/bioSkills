@@ -39,7 +39,7 @@ Tell the agent what to do:
 
 > "Rank my candidate gene list by LOEUF decile (first decile = strongly LoF-intolerant)."
 
-> "What is the missense Z-score and missense O/E for SCN2A? Is it among the top 1% missense-constrained?"
+> "What is the missense Z-score and missense O/E for SCN2A? Is it missense-constrained (Z > 3.09)?"
 
 ### ACMG BS1/BA1 Application
 
