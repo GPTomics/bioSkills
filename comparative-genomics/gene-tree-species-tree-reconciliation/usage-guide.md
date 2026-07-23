@@ -56,7 +56,7 @@ Tell the AI agent what to do:
    - ALEml_undated for posterior over D/T/L
    - GeneRax for ML reconciliation with SPR refinement
    - AleRax for joint co-estimation
-   - Whale.jl for Bayesian DTL + WGD
+   - Whale.jl for Bayesian DL + WGD
 5. **Aggregate per-branch event counts** across families
 6. **Cross-validate** with parsimony (RANGER-DTL, NOTUNG) for screening
 7. **Report**: per-branch event posteriors, family-level reconciled trees, species-tree refinements
@@ -70,7 +70,7 @@ Tell the AI agent what to do:
 - Species labels must match exactly between species tree and gene trees; ALE / GeneRax silently fail on mismatch
 - Use `nw_labels -I` (newick utilities) to verify species sets before reconciliation
 - For HGT-affected clades (bacteria, archaea), transfers >> duplications; opposite for opisthokonts
-- ILS confounded with HGT at short internal branches; use ecceTERA or DLCpar for ILS-aware inference
+- ILS confounded with HGT at short internal branches; use DLCpar for ILS-aware inference
 - Multifurcations in species tree break ALE / GeneRax; resolve via `ape::multi2di()` or randomization
 - For WGD lineages, use Whale.jl with explicit WGD branch placement
 - RANGER-DTL parsimony is fine for screening; results sensitive to cost weights; sensitivity sweep required

@@ -1,13 +1,13 @@
 ---
 name: bio-comparative-genomics-whole-genome-duplication
-description: Detect, date, and contextualize whole-genome duplication (WGD / paleopolyploidy) events using wgd v2 (Chen & Zwaenepoel 2024), KsRates (Sensalari 2022 substitution-rate-corrected Ks dating), DupGen_finder (Qiao 2019), MAPS (Li 2018 phylogenomic), POInT (Conant 2008 ordered-block), SLEDGe (2024 ML-based), Whale.jl (Bayesian DTL+WGD), and synteny-anchored paranome construction. Use when identifying ancient polyploidy from Ks distributions and synteny block analysis, positioning WGD events relative to speciation, distinguishing tandem from segmental from WGD duplications, dating the 2R/3R vertebrate / fish / salmonid WGDs, building paranome and Ks-age mixture models, applying KsRates substitution-rate correction across lineages, or testing alternative biased-fractionation / dosage-balance models post-WGD.
+description: Detect, date, and contextualize whole-genome duplication (WGD / paleopolyploidy) events using wgd v2 (Chen et al 2024), KsRates (Sensalari 2022 substitution-rate-corrected Ks dating), DupGen_finder (Qiao 2019), MAPS (Li 2018 phylogenomic), POInT (Conant 2008 ordered-block), SLEDGe (2024 ML-based), Whale.jl (Bayesian DL+WGD), and synteny-anchored paranome construction. Use when identifying ancient polyploidy from Ks distributions and synteny block analysis, positioning WGD events relative to speciation, distinguishing tandem from segmental from WGD duplications, dating the 2R/3R vertebrate / fish / salmonid WGDs, building paranome and Ks-age mixture models, applying KsRates substitution-rate correction across lineages, or testing alternative biased-fractionation / dosage-balance models post-WGD.
 tool_type: mixed
 primary_tool: wgd
 ---
 
 ## Version Compatibility
 
-Reference examples tested with: wgd v2.0.31+ (heche-psb/wgd; Chen & Zwaenepoel 2024 Bioinformatics 40:btae272), KsRates 1.1.3+ (VIB-PSB/ksrates; Sensalari 2022 Bioinformatics 38:530), DupGen_finder (Qiao 2019 Genome Biol 20:38), MAPS 1.0 (Li 2018), POInT (Conant lab), SLEDGe (bioRxiv 2024.01.17.574559), Whale.jl 2.0+, ksrates pip 1.1+, MCScanX 1.0+, PAML 4.10+ (yn00/codeml for Ks), BLAT 36+, DIAMOND 2.1+, R 4.4+, mclust 6.1+ (for mixture models). Python 3.10+ required for wgd v2.
+Reference examples tested with: wgd v2.0.31+ (heche-psb/wgd; Chen et al 2024 Bioinformatics 40:btae272), KsRates 1.1.3+ (VIB-PSB/ksrates; Sensalari 2022 Bioinformatics 38:530), DupGen_finder (Qiao 2019 Genome Biol 20:38), MAPS 1.0 (Li 2018), POInT (Conant lab), SLEDGe (bioRxiv 2024.01.17.574559), Whale.jl 2.0+, ksrates pip 1.1+, MCScanX 1.0+, PAML 4.10+ (yn00/codeml for Ks), BLAT 36+, DIAMOND 2.1+, R 4.4+, mclust 6.1+ (for mixture models). Python 3.10+ required for wgd v2.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `wgd --version`; `ksrates --version`; `wgd ksd --help`
@@ -18,7 +18,7 @@ If code throws `wgd ksd: cannot find PAML output`, `KsRates: insufficient sister
 
 # Whole Genome Duplication Analysis
 
-**"Are there WGD events in this lineage and when did they occur?"** -> WGD detection combines **Ks distributions** (synonymous-substitution rates between gene paralog pairs, showing peaks at past polyploidy events) and **synteny block analysis** (parallel collinear blocks within a genome). Modern best practice uses **wgd v2** (Chen & Zwaenepoel 2024 Bioinformatics 40:btae272) as an integrated pipeline. **KsRates** (Sensalari 2022 Bioinformatics 38:530) is mandatory for cross-lineage comparison because substitution rates vary across the tree -- ignoring this places WGDs incorrectly relative to speciation events. The fundamental tradeoff: Ks plot peaks are visually obvious but biologically ambiguous between (1) small-scale tandem duplications, (2) segmental duplications, and (3) true WGD; combining Ks with synteny anchors disambiguates these.
+**"Are there WGD events in this lineage and when did they occur?"** -> WGD detection combines **Ks distributions** (synonymous-substitution rates between gene paralog pairs, showing peaks at past polyploidy events) and **synteny block analysis** (parallel collinear blocks within a genome). Modern best practice uses **wgd v2** (Chen et al 2024 Bioinformatics 40:btae272) as an integrated pipeline. **KsRates** (Sensalari 2022 Bioinformatics 38:530) is mandatory for cross-lineage comparison because substitution rates vary across the tree -- ignoring this places WGDs incorrectly relative to speciation events. The fundamental tradeoff: Ks plot peaks are visually obvious but biologically ambiguous between (1) small-scale tandem duplications, (2) segmental duplications, and (3) true WGD; combining Ks with synteny anchors disambiguates these.
 
 - CLI: `wgd dmd` and `wgd ksd` -- paranome construction + Ks distribution
 - CLI: `wgd syn` -- synteny-anchored WGD signal extraction
@@ -30,15 +30,14 @@ If code throws `wgd ksd: cannot find PAML output`, `KsRates: insufficient sister
 
 | Tool | Approach | Output | Strength | Fails when |
 |------|----------|--------|----------|------------|
-| wgd v2 (Chen & Zwaenepoel 2024 Bioinformatics 40:btae272) | Integrated paranome + Ks + synteny + WGD dating | Ks distributions, collinearity plots, GMM/ELMM mixture fits, dating | Standard 2024 pipeline; replaces deprecated arzwa/wgd v1 | Saturation at Ks > 2; single-lineage substitution rate variation |
+| wgd v2 (Chen et al 2024 Bioinformatics 40:btae272) | Integrated paranome + Ks + synteny + WGD dating | Ks distributions, collinearity plots, GMM/ELMM mixture fits, dating | Standard 2024 pipeline; replaces deprecated arzwa/wgd v1 | Saturation at Ks > 2; single-lineage substitution rate variation |
 | KsRates (Sensalari 2022 Bioinformatics 38:530) | Substitution-rate correction via outgroup pairs | Adjusted Ks ages of focal-species paralogs vs orthologs | MANDATORY when comparing WGDs across lineages with different rates | Requires at least 2 outgroups for rate calibration |
-| DupGen_finder (Qiao 2019 Genome Biol 20:38) | Classifies duplications by genomic context | Per-gene class: tandem, proximal, dispersed, segmental, WGD | Disambiguates duplication type | Class assignment depends on intervening-gene-count windows |
+| DupGen_finder (Qiao 2019 Genome Biol 20:38) | Classifies duplications by genomic context | Per-gene class: tandem, proximal, transposed, dispersed, WGD | Disambiguates duplication type | Class assignment depends on intervening-gene-count windows |
 | MAPS (Li 2018) | Phylogenomic placement of WGD via gene-tree topology mapping | WGD position on species tree | Detects WGDs from gene-tree-species-tree discordance | Computationally heavy; requires many gene trees |
 | POInT (Conant & Wolfe 2008 Genetics 179:1681) | Order-aware reconstruction of WGD chromosomes | Reconstructed ancestral WGD genome | Strong inference for syntenic-block ages | Lineage-specific tuning required |
 | SLEDGe (bioRxiv 2024.01.17.574559) | ML classifier on Ks plot features | WGD vs no-WGD binary call + confidence | Reduces visual-peak-fitting subjectivity | Newer; less validated |
 | wgd v1 (arzwa/wgd; DEPRECATED) | Predecessor of v2 | -- | Historical | Use v2 (heche-psb/wgd) |
-| dupHMM (Zwaenepoel 2019 different MBE paper) | HMM on Ks for WGD/SSD attribution | Per-pair WGD/SSD classification | Probabilistic disambiguation | Less integrated than wgd v2 |
-| Whale.jl (Zwaenepoel & Van de Peer 2019 MBE 36:1384) | Bayesian DTL + WGD reconciliation | WGD posterior at species-tree nodes | Native WGD modeling; integrates with [[gene-tree-species-tree-reconciliation]] | Julia ecosystem |
+| Whale.jl (Zwaenepoel & Van de Peer 2019 MBE 36:1384) | Bayesian DL + WGD reconciliation | WGD posterior at species-tree nodes | Native WGD modeling; integrates with [[gene-tree-species-tree-reconciliation]] | Julia ecosystem |
 | WGDexploreR (legacy) | Visualize Ks plots | Plots only | Visualization aid | Not for inference |
 | McLuster-WGD (custom workflows) | Mixture-model fitting on Ks | GMM / ELMM components | For custom peak fitting | Not a standard tool |
 | ksrates web (sensalari 2022) | Web interface to ksrates | Same as CLI | User-friendly | Manual config; not scriptable for genome-wide |
@@ -64,7 +63,7 @@ Methodology evolves; verify the current wgd v2 manual and the Chen & Zwaenepoel 
 | ML classification of WGD signal | SLEDGe | Newer ML-based alternative to manual fitting |
 | Integrate WGD with DTL inference | Whale.jl OR ALE with WGD branch | See [[gene-tree-species-tree-reconciliation]] |
 | Pan-clade WGD survey (e.g. all angiosperms) | wgd v2 batch + ksrates aggregated | Standard for sustained phylogenomic surveys |
-| Polyploid genome with subgenomes | DupGen_finder for tandem/segmental + AnchorWave proali for subgenome-aware synteny | Subgenome assignment first |
+| Polyploid genome with subgenomes | DupGen_finder for tandem/transposed + AnchorWave proali for subgenome-aware synteny | Subgenome assignment first |
 | Recently diverged species pair, possible recent WGD | minimap2 -x asm5 + SyRI + Ks distribution | High-resolution recent-WGD detection |
 
 ## Per-Tool Failure Modes
@@ -97,7 +96,7 @@ Methodology evolves; verify the current wgd v2 manual and the Chen & Zwaenepoel 
 
 **Symptom:** "WGD" peak Ks-distribution is dominated by paralogs from tandem clusters; synteny analysis shows few cross-chromosome parallel blocks.
 
-**Fix:** Use DupGen_finder to classify each paralog pair as tandem / proximal / dispersed / segmental / WGD. The true WGD signal comes from segmental + WGD classes. Recompute Ks distribution restricted to WGD-classified pairs (or anchor-pair restricted to synteny blocks). wgd v2 integrates this filtering.
+**Fix:** Use DupGen_finder to classify each paralog pair as tandem / proximal / transposed / dispersed / WGD. The true WGD signal comes from the WGD-classified pairs. Recompute Ks distribution restricted to WGD-classified pairs (or anchor-pair restricted to synteny blocks). wgd v2 integrates this filtering.
 
 ### Synteny block age inconsistency
 
@@ -178,7 +177,7 @@ Methodology evolves; verify the current wgd v2 manual and the Chen & Zwaenepoel 
 | Vertebrate 2R Ks | saturated; estimated 500-700 Myr | Dehal 2005 |
 | Teleost 3R Ks | saturated; estimated 250-350 Myr | Glasauer 2014 |
 | Salmonid Ss4R Ks | 80-100 Myr; Ks ~0.1-0.2 | Lien 2016 |
-| Plant 1R / 2R | varies clade; angiosperm zeta ~120 Myr | Soltis 2009 |
+| Plant 1R / 2R | varies clade; core-eudicot gamma paleohexaploidy ~120 Myr | Jiao 2012 (dating); Soltis 2009 (placement) |
 | Synonymous codon site count | dS reliable when >= 30 synonymous sites per pair | Yang 2007 PAML |
 | Per-pair gene length minimum | >= 300 bp CDS | wgd v2 default |
 | Codon-aware MSA aligner | MAFFT --auto or MUSCLE; for distant pairs PRANK | wgd v2 supports all |
@@ -258,7 +257,7 @@ def identify_wgd_peaks(ks_values, min_components=1, max_components=5):
 **Approach:** Define focal species + 2+ outgroups -> compute orthologous Ks (focal vs outgroup) -> compute paralogous Ks (focal-internal) -> rescale via outgroup calibration.
 
 ```bash
-# KsRates is best driven through its Snakemake pipeline (which orchestrates ortholog Ks,
+# KsRates is best driven through its Nextflow pipeline (which orchestrates ortholog Ks,
 # paralog Ks, rate correction, and plotting). Subcommand naming differs across releases;
 # always verify with `ksrates --help` against the installed version.
 
@@ -268,7 +267,7 @@ ksrates init config_ksrates.txt        # OR: ksrates generate-config config_ksra
 
 # 2. Edit config_ksrates.txt to set focal_species, outgroups, FASTA + GFF paths, tree.
 
-# 3. Run the full pipeline (Snakemake-driven):
+# 3. Run the full pipeline (Nextflow-driven):
 ksrates --config config_ksrates.txt --n-threads 16
 # Or invoke individual stages (subcommand names: see `ksrates --help`).
 ```
@@ -277,7 +276,7 @@ The output plot shows the rate-corrected focal-species paralog Ks distribution w
 
 ## DupGen_finder for Duplication Class Assignment
 
-**Goal:** Classify each paralog pair as tandem / proximal / dispersed / segmental / WGD by genomic context.
+**Goal:** Classify each paralog pair as tandem / proximal / transposed / dispersed / WGD by genomic context.
 
 **Approach:** MCScanX collinearity + intervening-gene count -> classify each duplicate by class.
 
@@ -293,14 +292,14 @@ cd DupGen_finder
     -c gene_count_file \
     -o output
 
-# Output: tandem, proximal, dispersed, segmental, wgd duplicate lists
+# Output: tandem, proximal, transposed, dispersed, wgd duplicate lists
 ```
 
 ```python
 '''Aggregate DupGen_finder output for downstream Ks distribution per class.'''
 def load_dupgen(class_dir):
     classes = {}
-    for cls in ('tandem', 'proximal', 'dispersed', 'segmental', 'wgd'):
+    for cls in ('tandem', 'proximal', 'transposed', 'dispersed', 'wgd'):
         path = f'{class_dir}/{cls}.pairs'
         try:
             classes[cls] = pd.read_csv(path, sep='\t', header=None,
@@ -336,7 +335,7 @@ MAPS is heavyweight; requires CRG database setup and significant compute. See ht
 
 ## Cohort Gotchas
 
-- **Plant WGD legacy:** All angiosperms share at least one ancestral WGD; the zeta WGD ~120 Myr (Soltis 2009 Am J Bot 96:336); confirm consensus against published plant lineages
+- **Plant WGD legacy:** All angiosperms share at least one ancestral WGD (the epsilon event, ~192 Myr); the core-eudicot gamma paleohexaploidy is younger (~120 Myr; Jiao 2012 Genome Biol 13:R3), core-eudicot-specific (Soltis 2009 Am J Bot 96:336); confirm consensus against published plant lineages
 - **Vertebrate 2R:** ~500-600 Myr; Ks saturated; use MAPS phylogenomic placement (Dehal & Boore 2005)
 - **Teleost 3R:** ~320 Myr; in addition to 2R; doubles ohnologs in fish
 - **Salmonid Ss4R:** ~80-100 Myr; recent enough that Ks is informative; ohnologs identifiable
@@ -415,24 +414,25 @@ For new analyses, default to wgd v2 + KsRates as the primary pipeline; MAPS or W
 
 ## References
 
-- Chen H & Zwaenepoel A 2024 Bioinformatics 40:btae272 (wgd v2)
+- Chen H et al 2024 Bioinformatics 40:btae272 (wgd v2)
 - Sensalari C et al 2022 Bioinformatics 38:530 (KsRates)
 - Qiao X et al 2019 Genome Biol 20:38 (DupGen_finder)
 - Li Z et al 2018 PNAS 115:4713 (MAPS phylogenomic WGD placement)
 - Conant GC & Wolfe KH 2008 Genetics 179:1681 (POInT)
 - Zwaenepoel A & Van de Peer Y 2019 MBE 36:1384 (Whale.jl)
-- SLEDGe team 2024 bioRxiv 2024.01.17.574559 (SLEDGe ML classifier)
+- Sutherland BL et al 2024 bioRxiv 2024.01.17.574559 (SLEDGe ML classifier)
 - Vanneste K et al 2013 MBE 30:177 (Ks saturation)
 - Holland PWH et al 1994 Development Suppl:125 (2R hypothesis)
 - Dehal P & Boore JL 2005 PLoS Biol 3:e314 (vertebrate 2R confirmation)
 - Glasauer SMK & Neuhauss SCF 2014 Mol Genet Genomics 289:1045 (teleost 3R)
 - Lien S et al 2016 Nature 533:200 (salmonid Ss4R)
 - Soltis DE et al 2009 Am J Bot 96:336 (polyploidy and angiosperm diversification)
+- Jiao Y et al 2012 Genome Biol 13:R3 (dates the core-eudicot gamma triplication)
 - Birchler JA & Veitia RA 2007 Plant Cell 19:395 (gene balance hypothesis)
 - Force A et al 1999 Genetics 151:1531 (subfunctionalization)
 - Maere S et al 2005 PNAS 102:5454 (post-WGD retention bias)
 - Tang H et al 2008 GR 18:1944 (synteny / MCScan)
-- Lovell JT et al 2022 eLife 11:78526 (GENESPACE)
+- Lovell JT et al 2022 eLife 11:e78526 (GENESPACE)
 - Jia K-H et al 2022 New Phytol 235:801 (SubPhaser subgenome assignment)
 - Yang Z 2007 PAML manual (yn00 codon Ks)
 - Chen H & Zwaenepoel A 2023 Methods Mol Biol 2545:3 (inference of ancient polyploidy from genomic data)

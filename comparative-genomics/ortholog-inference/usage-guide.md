@@ -2,9 +2,9 @@
 
 ## Overview
 
-Ortholog inference distinguishes genes whose history reflects speciation (orthologs) from genes derived from duplication (paralogs). **HOGs** (Hierarchical Orthologous Groups; Altenhoff 2013) are the modern unit of analysis -- a maximal cluster of genes descended from a single ancestral gene at a defined taxonomic level. **OrthoFinder3** (Emms & Kelly 2025 bioRxiv) is the current Quest-for-Orthologs benchmark leader; its HOG output is 12% more accurate than v2 orthogroups (+20% with outgroup). For prokaryote-eukaryote scale, **TOGA** (Kirilenko 2023 Science) integrates whole-genome-alignment-based orthology with gene-loss classification.
+Ortholog inference distinguishes genes whose history reflects speciation (orthologs) from genes derived from duplication (paralogs). **HOGs** (Hierarchical Orthologous Groups; Altenhoff 2013) are the modern unit of analysis -- a maximal cluster of genes descended from a single ancestral gene at a defined taxonomic level. **OrthoFinder3** (Emms et al 2026 Nat Methods) is the current Quest-for-Orthologs benchmark leader; its HOG output is ~7% more accurate than v2 orthogroups (5-7% higher f-score); outgroup inclusion further improves accuracy. For prokaryote-eukaryote scale, **TOGA** (Kirilenko 2023 Science) integrates whole-genome-alignment-based orthology with gene-loss classification.
 
-The "ortholog conjecture" (orthologs more functionally similar than paralogs) is supported but weakly (Altenhoff 2012; Stamboulian 2020). Don't treat 1:1 ortholog labeling as automatic functional equivalence.
+The "ortholog conjecture" (orthologs more functionally similar than paralogs) is supported but weakly (Altenhoff 2012), though Stamboulian 2020 finds paralogs are often comparable predictors of function. Don't treat 1:1 ortholog labeling as automatic functional equivalence.
 
 ## Prerequisites
 
@@ -68,9 +68,9 @@ Tell the AI agent what to do:
 
 ## Tips
 
-- OrthoFinder3 (2025 bioRxiv) is the modern Quest-for-Orthologs leader
+- OrthoFinder3 (2026 Nat Methods) is the modern Quest-for-Orthologs leader
 - HOG output (v3) is at `Phylogenetic_Hierarchical_Orthogroups/N0.tsv`; v2 layout differs
-- Include >= 1 outgroup at next-higher taxonomic level for STRIDE rooting (+20% HOG accuracy)
+- Include >= 1 outgroup at next-higher taxonomic level for STRIDE rooting (improves HOG accuracy)
 - Pre-filter to longest isoform per gene; otherwise isoforms inflate co-ortholog counts
 - For WGD-affected lineages, use synteny-aware methods (GENESPACE, ProteinOrtho-synteny)
 - Cross-validate with 2+ methods (OrthoFinder3 + SonicParanoid2 or OrthoFinder3 + OMA)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The pangenome is the union of all genes across a sampled group of genomes. The Tettelin partition (Tettelin 2005 PNAS 102:13950) splits it into core (universal), shell (in many), cloud (rare), and species-specific genes. **Bacterial pangenome** tools (Panaroo, PPanGGOLiN, PEPPAN) cluster genes into orthogroups for compact genomes. **Eukaryotic pangenome** tools (Minigraph-Cactus, PGGB, vg) build graph-based representations of haplotype-level variation. The Roary tool (Page 2015) is deprecated; Panaroo (Tonkin-Hill 2020) reduces accessory inflation by 30-50% on the same data.
+The pangenome is the union of all genes across a sampled group of genomes. The Tettelin partition (Tettelin 2005 PNAS 102:13950) splits it into core (universal), shell (in many), cloud (rare), and species-specific genes. **Bacterial pangenome** tools (Panaroo, PPanGGOLiN, PEPPAN) cluster genes into orthogroups for compact genomes. **Eukaryotic pangenome** tools (Minigraph-Cactus, PGGB, vg) build graph-based representations of haplotype-level variation. The Roary tool (Page 2015) is deprecated; Panaroo (Tonkin-Hill 2020) reduces accessory inflation substantially on the same data (nearly an order of magnitude on the clonal Mtb benchmark).
 
 For **repetitive and clinically-relevant genes** (MHC class II, DAZ1-4, OPN1LW/OPN1MW), PGR-TK (Chin 2023 Nat Methods 20:1213) uses MAP graphs + principal bundle decomposition; its successor PANGEA is in development.
 
@@ -72,7 +72,7 @@ Tell the AI agent what to do:
 ## Tips
 
 - Use Bakta (not Prokka) for current bacterial annotation; GenBank-compliant + faster
-- Panaroo `--clean-mode strict --remove-invalid-genes` reduces annotation-error inflation 30-50%
+- Panaroo `--clean-mode strict --remove-invalid-genes` reduces annotation-error inflation substantially
 - Roary is deprecated; migrate to Panaroo
 - For clonal lineages (Mtb), Panaroo strict mode is gold standard
 - For genus-scale (1000+ genomes), PEPPAN scales better than Panaroo

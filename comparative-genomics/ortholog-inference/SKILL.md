@@ -7,7 +7,7 @@ primary_tool: OrthoFinder
 
 ## Version Compatibility
 
-Reference examples tested with: OrthoFinder 3.0+ (bioRxiv 2025.07.15.664860), SonicParanoid 2.0.8+ (Cosentino 2024), Broccoli 1.2+ (Derelle 2020), ProteinOrtho 6.3.0+ (Lechner 2011 + recent), OMA standalone 2.6.0+, FastOMA 0.3.5+ (Majidian 2025), eggNOG-mapper 2.1.12+, JustOrthologs 2.0+, DIAMOND 2.1.10+, MMseqs2 17-b804f+, IQ-TREE 2.3.6+, BUSCO 5.7+, Compleasm 0.2.7+, BioPython 1.84+, R 4.4+ for downstream tree-based reconciliation.
+Reference examples tested with: OrthoFinder 3.0+ (Emms et al 2026 Nat Methods 23:1327), SonicParanoid 2.0.8+ (Cosentino 2024), Broccoli 1.2+ (Derelle 2020), ProteinOrtho 6.3.0+ (Lechner 2011 + recent), OMA standalone 2.6.0+, FastOMA 0.3.5+ (Majidian 2025), eggNOG-mapper 2.1.12+, JustOrthologs 2.0+, DIAMOND 2.1.10+, MMseqs2 17-b804f+, IQ-TREE 2.3.6+, BUSCO 5.7+, Compleasm 0.2.7+, BioPython 1.84+, R 4.4+ for downstream tree-based reconciliation.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `orthofinder --help`; `sonicparanoid --help`; `oma --help`
@@ -30,14 +30,14 @@ If code throws `Diamond requires N more sequences than provided`, `KeyError on s
 
 | Tool | Approach | Output | Strength | Fails when |
 |------|----------|--------|----------|------------|
-| OrthoFinder3 (Emms & Kelly 2025 bioRxiv) | DIAMOND2-ultra search -> gene trees -> rooted via STRIDE -> HOG inference at every node | HOGs at every taxonomic level, orthologs, species tree, gene-duplication events | Best Quest-for-Orthologs benchmark (Altenhoff 2024); HOGs are 12% more accurate than v2 orthogroups, 20% with outgroup | Slow with > 200 species without `-c 1` clustering pre-step; new file layout breaks old parsers |
+| OrthoFinder3 (Emms et al 2026 Nat Methods) | DIAMOND2-ultra search -> gene trees -> rooted via STRIDE -> HOG inference at every node | HOGs at every taxonomic level, orthologs, species tree, gene-duplication events | Best Quest-for-Orthologs benchmark (Altenhoff 2024); HOGs are ~7% more accurate than v2 orthogroups (5-7% higher f-score); outgroup inclusion further improves accuracy | Slow with > 200 species without `-c 1` clustering pre-step; new file layout breaks old parsers |
 | SonicParanoid2 (Cosentino 2024 GB 25:195) | RBH + ML classifier with protein language model embeddings | Pairwise orthologs + orthogroups | Best accuracy among graph methods at competitive speed; ML correction reduces InParanoid errors | InParanoid lineage still has paralogy confusion in WGD clades; close-relative duplications hard to resolve |
 | Broccoli (Derelle 2020 MBE 37:3389) | k-mer similarity -> directed graph -> chimera-aware OG inference | OGs + chimera flagging | Robust to chimeric assemblies; runs without species tree | Less accurate than OrthoFinder on benchmark; no HOG output |
 | ProteinOrtho 6 (Lechner 2011 BMC Bioinf 12:124) | Pairwise BLAST/DIAMOND + connectivity graph; optional synteny module | Orthogroups + synteny option | Fast; scales to 1000+ genomes; `-synteny` enables co-linear-anchor filtering | Lower recall than tree-based; synteny module slow and requires GFFs |
 | OMA standalone (Altenhoff 2019 GR 29:1152) | Strict RBH + verification + HOG inference | HOG database; orthologs at each taxonomic level | Conservative; highest precision in QfO benchmarks; "Fast" mode for prefiltering | Lowest recall among methods (Altenhoff 2024); slow for large datasets |
 | FastOMA (Majidian 2025 Nat Methods 22:269) | OMA HOG inference with GPU-accelerated DIAMOND + Roothap | Same HOG output as OMA, 10-100x faster | Scales OMA to 1000+ genomes | Newer; less benchmarked in production |
 | eggNOG-mapper 2 (Cantalapiedra 2021 MBE 38:5825) | DIAMOND/MMseqs2 against eggNOG 5 -> map to precomputed orthogroups | OGs + functional annotation (GO/KEGG/COG) | Standard for functional annotation propagation; phylogeny-aware | Pre-computed OGs; cannot add novel species coherently; only as fresh as eggNOG release |
-| JustOrthologs 2 (Miller 2019 Bioinformatics 35:546) | DNA-based; exon-aware; close-species RBH | Pairwise orthologs | Extremely fast for closely related species (same family); preserves splice variants | Only suitable for closely related species |
+| JustOrthologs (Miller 2019 Bioinformatics 35:546) | DNA-based; exon-aware; close-species RBH | Pairwise orthologs | Extremely fast for closely related species (same family); preserves splice variants | Only suitable for closely related species |
 | TOGA (Kirilenko 2023 Science 380:eabn3107) | Whole-genome-alignment chain -> ML projection + intactness classification | Per-query orthologs with intact/lost/missing call | Modern paradigm for vertebrate-scale orthology; handles gene loss explicitly; integrates with CESAR 2.0 | Requires WGA (Cactus); not designed for prokaryotes or fungi |
 | HOGENOM / HOGsuite (Penel 2009 BMC Bioinf 10:S3) | Tree-based HOGs in databases | Pre-computed HOG database | Legacy; for downstream use of stored HOGs | Not for new computation; outdated taxon sampling |
 
@@ -69,7 +69,7 @@ Methodology evolves; Quest-for-Orthologs benchmarks (Altenhoff 2024 NAR Genom Bi
 
 **Trigger:** OrthoFinder run without a sufficiently distant outgroup; only ingroup taxa included.
 
-**Mechanism:** OrthoFinder roots gene trees via STRIDE / STAG using outgroup-based duplication signals. Without an outgroup, the root inferred for each gene tree may be internal, mistakenly classifying a duplication-then-loss pattern as orthology. The "1:1 orthologs" returned may actually be hidden paralogs (Emms & Kelly 2017 MBE 34:3267 STRIDE; benchmark shows 8% improvement in HOG accuracy with outgroup).
+**Mechanism:** OrthoFinder roots gene trees via STRIDE / STAG using outgroup-based duplication signals. Without an outgroup, the root inferred for each gene tree may be internal, mistakenly classifying a duplication-then-loss pattern as orthology. The "1:1 orthologs" returned may actually be hidden paralogs (Emms & Kelly 2017 MBE 34:3267 STRIDE).
 
 **Symptom:** Phylogenomic concatenation produces low-bootstrap species tree; per-gene trees show inconsistent rooting; same-clade species show longer-than-expected branches in single-copy ortholog trees.
 
@@ -99,7 +99,7 @@ Methodology evolves; Quest-for-Orthologs benchmarks (Altenhoff 2024 NAR Genom Bi
 
 **Trigger:** Transferring GO/KEGG functional annotation from 1:1 ortholog without testing functional divergence.
 
-**Mechanism:** Studies show orthologs are *weakly* more functionally similar than paralogs (Altenhoff 2012 PLoS Comp Biol 8:e1002514; Stamboulian 2020 Bioinformatics 36:i219), but effect size is small and dependent on evolutionary distance. Subfunctionalization (Force 1999 Genetics 151:1531), neofunctionalization, and dosage subfunctionalization can rapidly differentiate 1:1 orthologs.
+**Mechanism:** Studies show orthologs are *weakly* more functionally similar than paralogs (Altenhoff 2012 PLoS Comp Biol 8:e1002514), though Stamboulian 2020 (Bioinformatics 36:i219) finds paralogs often comparable predictors; effect size is small and dependent on evolutionary distance. Subfunctionalization (Force 1999 Genetics 151:1531), neofunctionalization, and dosage subfunctionalization can rapidly differentiate 1:1 orthologs.
 
 **Symptom:** Transferred annotation contradicts species-specific experimental data; ortholog has fold-change different expression patterns; rapid evolution (dN/dS > 0.3) on one branch only.
 
@@ -123,7 +123,7 @@ Methodology evolves; Quest-for-Orthologs benchmarks (Altenhoff 2024 NAR Genom Bi
 
 **Symptom:** Multiple co-orthologs per species in orthogroups for WGD-affected lineages; rate variation across "co-orthologs" suggests one is the true ortholog and the others are recent duplicates.
 
-**Fix:** Use synteny-aware methods (GENESPACE -- Lovell 2022 eLife 78526; ProteinOrtho `-synteny`; OrthoFinder3 + post-hoc synteny verification). Restrict 1:1 ortholog phylogenomics to genes in single-copy syntenic regions. For deep WGD ancestry (e.g. 2R vertebrate WGD), modern orthologs of post-2R paralogs (ohnologs) can no longer be unambiguously identified by sequence; use synteny + duplication-dating.
+**Fix:** Use synteny-aware methods (GENESPACE -- Lovell 2022 eLife 11:e78526; ProteinOrtho `-synteny`; OrthoFinder3 + post-hoc synteny verification). Restrict 1:1 ortholog phylogenomics to genes in single-copy syntenic regions. For deep WGD ancestry (e.g. 2R vertebrate WGD), modern orthologs of post-2R paralogs (ohnologs) can no longer be unambiguously identified by sequence; use synteny + duplication-dating.
 
 ### MAFFT-only alignment in OrthoFinder MSA mode
 
@@ -133,7 +133,7 @@ Methodology evolves; Quest-for-Orthologs benchmarks (Altenhoff 2024 NAR Genom Bi
 
 **Symptom:** Per-OG MAFFT logs show "FFT-NS-2 selected"; gene trees have unstable rooting; bootstrap support < 60% for many internal branches.
 
-**Fix:** Force `mafft-linsi` or specify `-A mafft --thread -1 --localpair --maxiterate 1000`. For deeply divergent OGs, run PRANK or MUSCLE5 post-hoc on critical OGs and re-build gene trees with IQ-TREE. PREQUAL or HmmCleaner segment-filtering improves resulting trees (Di Franco 2019 BMC Eco Evo 19:21).
+**Fix:** Force `mafft-linsi` or specify `-A mafft --thread -1 --localpair --maxiterate 1000`. For deeply divergent OGs, run PRANK or MUSCLE5 post-hoc on critical OGs and re-build gene trees with IQ-TREE. PREQUAL or HmmCleaner segment-filtering improves resulting trees (Di Franco 2019 BMC Evol Biol 19:21).
 
 ## Quantitative Thresholds
 
@@ -141,12 +141,12 @@ Methodology evolves; Quest-for-Orthologs benchmarks (Altenhoff 2024 NAR Genom Bi
 |----------|-----------|-------------------|
 | QfO benchmark adoption | 100% within-species ortholog pairs identified | Altenhoff 2024 NAR Genom Bioinform 6:lqae167; minimum competence threshold |
 | BUSCO/Compleasm completeness for inclusion | >= 90% complete (single + duplicated) before orthology run | Below this, expect inflated lineage-specific OGs |
-| OrthoFinder3 outgroup distance | >= one sister taxonomic level (sister phylum / class / order) | Emms & Kelly 2017 MBE 34:3267 STRIDE rooting; +20% HOG accuracy |
+| OrthoFinder3 outgroup distance | >= one sister taxonomic level (sister phylum / class / order) | Emms & Kelly 2017 MBE 34:3267 STRIDE rooting |
 | Single-copy ortholog filter for phylogenomics | Present in >= 90% of species, exactly 1 copy each | Standard convention; below this, missing data biases tree inference |
 | MMseqs2 sensitivity for divergent homologs | `-s 7.5` for > 50% divergence | mmseqs2 documentation; default `-s 4.0` misses distant homologs |
 | ProteinOrtho `--conn` (connectivity) | >= 0.1 default; 0.2 stricter for less paralogy confusion | Lechner 2011 |
 | OMA HOG inclusion criterion | RBH + Smith-Waterman score and pairwise stability | OMA convention; sub-clade HOGs nested in supergroup HOGs |
-| Ortholog age threshold for functional transfer | divergence < 200 Myr OR dN/dS < 0.2 | Stamboulian 2020 Bioinformatics 36:i219; ortholog conjecture stronger at lower divergence |
+| Ortholog age threshold for functional transfer | divergence < 200 Myr OR dN/dS < 0.2 | Operational convention (ortholog conjecture weaker at higher divergence) |
 | Annotation pipeline normalization | All species annotated with same pipeline OR BUSCO-completeness within 5% | Avoid annotation-heterogeneity bias on CAFE |
 | eggNOG-mapper minimum score | bit score / e-value defaults; check `--seed_ortholog_score` | eggNOG-mapper docs |
 | TOGA intactness classes (loss_summ_data.tsv) | I (intact), PI (partial intact), UL (uncertain loss), L (lost), M (missing/assembly gap), PM (partial missing) | Kirilenko 2023 + TOGA repo |
@@ -412,13 +412,13 @@ For Quest-for-Orthologs benchmark submission, follow https://orthology.benchmark
 - Altenhoff AM et al 2024 NAR Genom Bioinform 6:lqae167 (Quest for Orthologs benchmark)
 - Emms DM & Kelly S 2019 Genome Biol 20:238 (OrthoFinder 2)
 - Emms DM & Kelly S 2017 MBE 34:3267 (STRIDE rooting)
-- Emms DM & Kelly S 2025 bioRxiv 2025.07.15.664860 (OrthoFinder 3)
+- Emms DM et al 2026 Nat Methods 23:1327 (OrthoFinder 3)
 - Cosentino S, Sriswasdi S & Iwasaki W 2024 Genome Biol 25:195 (SonicParanoid2)
 - Derelle R et al 2020 MBE 37:3389 (Broccoli)
 - Lechner M et al 2011 BMC Bioinf 12:124 (ProteinOrtho)
 - Majidian S et al 2025 Nat Methods 22:269 (FastOMA)
 - Cantalapiedra CP et al 2021 MBE 38:5825 (eggNOG-mapper 2)
-- Miller JB et al 2019 Bioinformatics 35:546 (JustOrthologs 2)
+- Miller JB et al 2019 Bioinformatics 35:546 (JustOrthologs)
 - Kirilenko BM et al 2023 Science 380:eabn3107 (TOGA + CESAR)
 - Sharma V, Schwede P & Hiller M 2017 Bioinformatics 33:3985 (CESAR 2.0)
 - Stamboulian M et al 2020 Bioinformatics 36:i219 (ortholog conjecture revisited)
@@ -426,9 +426,9 @@ For Quest-for-Orthologs benchmark submission, follow https://orthology.benchmark
 - Birchler JA & Veitia RA 2007 Plant Cell 19:395 (gene balance hypothesis)
 - Nehrt NL et al 2011 PLoS Comp Biol 7:e1002073 (ortholog conjecture challenge)
 - Studer RA & Robinson-Rechavi M 2009 Trends Genet 25:210 (ortholog conjecture critique)
-- Penel S et al 2009 BMC Bioinf 10:S3 (HOGENOM)
+- Penel S et al 2009 BMC Bioinf 10(Suppl 6):S3 (HOGENOM)
 - Zhang C & Mirarab S 2022 Bioinformatics 38:4949 (ASTRAL-Pro2)
-- Di Franco A et al 2019 BMC Eco Evo 19:21 (alignment filtering improves trees)
+- Di Franco A et al 2019 BMC Evol Biol 19:21 (alignment filtering improves trees)
 
 ## Related Skills
 
