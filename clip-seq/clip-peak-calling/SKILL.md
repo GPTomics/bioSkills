@@ -33,16 +33,16 @@ The ENCODE eCLIP gold standard for "stringent" peaks is: log2(IP / SMInput) >= 3
 | Caller | Model | Resolution | SMInput required | Strength | Fails when |
 |--------|-------|------------|------------------|----------|------------|
 | CLIPper (Yeo) | Poisson with 500 bp local lambda, cubic-spline interpolation | Peak (10-500 nt) | Not for calling; required for ENCODE normalization | ENCODE eCLIP standard; reproducible against published ENCODE peak sets | Assumes most reads not from binding; fails when IP signal dominates a gene; sensitive to highly expressed transcripts |
-| PureCLIP (Krakau 2017) | Non-homogeneous HMM jointly modeling enrichment + truncation + sequence biases | Single-nucleotide CL + broad region | Optional via -ibam; recommended | Single-nt resolution; only caller that explicitly models the iCLIP truncation pattern | Misses broad binding zones; very focal (Skipper 2023 benchmark: only ~4 sites per CLIP on test set; F1 ~0.2) |
+| PureCLIP (Krakau 2017) | Non-homogeneous HMM jointly modeling enrichment + truncation + sequence biases | Single-nucleotide CL + broad region | Optional via -ibam; recommended | Single-nt resolution; only caller that explicitly models the iCLIP truncation pattern | Misses broad binding zones; very focal (low recall on broad-binding RBPs in the Boyle 2023 benchmark) |
 | Skipper (Boyle 2023) | GC-stratified beta-binomial, 100 bp feature-respecting windows | Window (~100 nt) | Mandatory | 210-320% more sites than CLIPper; 8x faster; properly normalizes against input | Loses single-nt resolution; relatively new (2023); fewer published peak sets to compare |
 | Piranha (Smith lab) | Zero-truncated negative binomial regression with optional covariates | Bin (50-200 nt) | Optional; pass as covariate | Mature, widely cited, handles count overdispersion | Biased toward high-expression transcripts; convergence fails with large covariate values (use `-l` log-space) |
-| omniCLIP (Drewe-Boss 2018) | Non-homogeneous HMM with Dirichlet-multinomial of variants | Peak | Required | Models replicate variance; integrates background; can call peaks on any CLIP variant | Slow on deep libraries; F1 ~0.4 on standard benchmarks; fails for mitochondrial transcripts (Skipper benchmark: 0 chrM windows for FASTKD2) |
+| omniCLIP (Drewe-Boss 2018) | Non-homogeneous HMM with Dirichlet-multinomial of variants | Peak | Required | Models replicate variance; integrates background; can call peaks on any CLIP variant | Slow on deep libraries; blind to mitochondrial transcripts (misses chrM windows for FASTKD2) |
 | CTK CIMS/CITS (Shah 2017) | Empirical FDR on crosslink-induced mutations or truncations | Single-nucleotide | No (uses background mutation rate from non-bound transcripts) | Single-nt resolution; works on HITS-CLIP deletions, PAR-CLIP T->C, iCLIP truncations | Empirical FDR less principled than HMM/beta-binomial; perl-based pipeline harder to integrate |
 | CLAM peakcaller (Zhang & Xing 2017) | EM-assigned multi-mapper count + Piranha-like negative binomial | Peak | Optional | Only solution for repeat-binding RBPs; 10-30% additional sites in repeats | Inherits Piranha limitations on coverage-based stats; slower than Piranha |
-| Paraclu (Kawaji) | Parametric clustering with min-density and max-density thresholds | Variable | No | Simple, parameter-tunable, works on bedgraph | Heuristic; no statistical significance; cluster boundaries sensitive to thresholds |
+| Paraclu (Frith) | Parametric clustering with min-density and max-density thresholds | Variable | No | Simple, parameter-tunable, works on bedgraph | Heuristic; no statistical significance; cluster boundaries sensitive to thresholds |
 | PIPE-CLIP | Online CLIP pipeline with custom peak caller | Peak | Optional | Web interface; integrated end-to-end | Slow on cloud; less customizable; community has moved on |
 | CLIPick (Park 2018) | Expression-deconvolved peak caller | Peak | No (RNA-seq used instead) | Models RNA-seq abundance as background | RNA-seq cannot capture nonspecific binding; less popular post-Skipper |
-| Flipper (Tu 2024) | Negative-binomial differential test downstream of Skipper | Window | Yes | Companion differential tool to Skipper | Only meaningful in differential context; see clip-seq/differential-clip |
+| Flipper (Flanagan 2026) | Negative-binomial differential test downstream of Skipper | Window | Yes | Companion differential tool to Skipper | Only meaningful in differential context; see clip-seq/differential-clip |
 | MACS3 callpeak | Local Poisson | Peak | Optional (treats SMInput as ChIP-seq input) | Familiar, fast | Not designed for CLIP; misses truncation signal; produces wider-than-typical peaks |
 
 Methodology evolves; verify the current ENCODE eCLIP standard operating procedure (encodeproject.org/eclip) and the nf-core/clipseq pipeline configuration before locking on a single caller. The 2023 Skipper benchmark (Boyle Cell Genomics) is the most recent comprehensive comparison and is the rationale for many recent eCLIP reanalyses.
@@ -127,7 +127,7 @@ The Yeo lab scripts (`overlap_peakfi_with_bam_PE.py`, `compress_l2foldenrpeakfi_
 
 **Trigger:** RBP with broad binding mode (PUM2 in 3' UTR clusters; SR proteins across exonic enhancer regions); using PureCLIP and disappointed.
 
-**Mechanism:** PureCLIP's HMM emits single-nt crosslink-site state at high stringency. Skipper 2023 benchmark: PureCLIP F1 ~0.2 on RBFOX2 and similar bulk RBPs (only ~4 sites called per CLIP on test data).
+**Mechanism:** PureCLIP's HMM emits single-nt crosslink-site state at high stringency. In the Boyle 2023 Skipper benchmark, PureCLIP was highly focal with low recall on broad-binding RBPs (few true-positive windows).
 
 **Symptom:** Site count 100x lower than expected; sites cluster within known binding regions but vast majority of region is "background" in PureCLIP output.
 
@@ -341,7 +341,7 @@ def peak_qc(peaks_bed):
 - Zhang Z & Xing Y 2017 Nucleic Acids Res 45:9260 (CLAM multi-mapper)
 - Frith MC et al 2008 Genome Res 18:1-12 (paraclu)
 - Li Q et al 2011 Ann Appl Stat 5:1752 (IDR framework)
-- Van Nostrand EL et al 2020 Nature 583:711 (Principles of RNA processing from 150 eCLIP maps)
+- Van Nostrand EL et al 2020 Nature 583:711 (A large-scale binding and functional map of human RNA-binding proteins)
 - ENCODE eCLIP Standards (encodeproject.org/eclip) - canonical thresholds
 
 ## Related Skills

@@ -7,7 +7,7 @@ primary_tool: chimeric-eCLIP
 
 ## Version Compatibility
 
-Reference examples tested with: eCLIP pipeline (Yeo lab), chimeric eCLIP analysis scripts (Manakov 2022), HEAP pipeline (Li 2020), Hyb pipeline (Travis 2014), TargetScanHuman 8.0, miRDB 6.0, samtools 1.19+, bedtools 2.31+, pyHyb 0.4+.
+Reference examples tested with: eCLIP pipeline (Yeo lab), chimeric eCLIP analysis scripts (Yeo lab), HEAP pipeline (Li 2020), Hyb pipeline (Travis 2014), TargetScanHuman 8.0, miRDB 6.0, samtools 1.19+, bedtools 2.31+, pyHyb 0.4+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -25,7 +25,7 @@ If code throws unexpected errors, introspect the installed package and adapt the
 - CLI (HEAP analysis): standard HITS-CLIP processing pipeline + Halo-Ago2 capture details
 - Python (seed-pairing analysis on AGO CLIP peaks): scan peaks for canonical 7mer-m8, 7mer-1A, 8mer, 6mer seeds + 3' UTR position + miRNA expression filter
 
-The Yeo lab miR-eCLIP / chimeric eCLIP (Manakov 2022) is the modern depth-improved version of chimeric AGO-CLIP, enriching for chimeras of specific miRNAs of interest (30-175x enrichment via PCR or on-bead probe capture). For comprehensive miRNA-target mapping, miR-eCLIP combined with eCLIP-seq-style normalization is the state-of-the-art.
+The Yeo lab miR-eCLIP / chimeric eCLIP is the modern depth-improved version of chimeric AGO-CLIP, enriching for chimeras of specific miRNAs of interest via PCR or on-bead probe capture. For comprehensive miRNA-target mapping, miR-eCLIP combined with eCLIP-seq-style normalization is the state-of-the-art.
 
 ## Methods Taxonomy
 
@@ -36,21 +36,20 @@ The Yeo lab miR-eCLIP / chimeric eCLIP (Manakov 2022) is the modern depth-improv
 | AGO-CLEAR-CLIP (Moore 2015) | 2015 | Direct (chimera) | None (incidental) | First direct miRNA-target chimera method | Chimeric reads only 1-5% of library; deep sequencing needed |
 | CLASH (Helwak 2013) | 2013 | Direct (chimera) | None | First general chimera method; pan-Argonaute | Lower chimera rate than CLEAR-CLIP |
 | HEAP (Li 2020) | 2020 | Indirect (with chimeric step) | None | HaloTag-Ago2 in vivo mouse strain | Mouse only; requires transgenic model |
-| chimeric eCLIP / miR-eCLIP (Manakov 2022) | 2022 | Direct (chimera) | 30-175x enriched | Deepest miRNA-target chimera profiling | Specialized library prep |
-| AGO HITS-CLIP + targeted chimeric (Bracken et al; verify exact venue/year) | -- | Direct | Yes | Per-miRNA enrichment via probe capture | Older; superseded by miR-eCLIP |
-| AGO-IP-RNA-seq (Karginov 2007) | 2007 | Indirect | None | Earliest; predecessor of CLIP for AGO | No crosslinking; misses transient targets |
+| chimeric eCLIP / miR-eCLIP | 2022 | Direct (chimera) | Probe/PCR enriched | Deepest miRNA-target chimera profiling | Specialized library prep |
+| AGO-IP-microarray (Karginov 2007) | 2007 | Indirect | None | Earliest; predecessor of CLIP for AGO | No crosslinking; misses transient targets |
 
-Methodology evolves; verify the Manakov 2022 / Bracken 2024 papers for current chimeric eCLIP best practice. As of 2024, miR-eCLIP is the canonical approach for deep miRNA-target profiling.
+Methodology evolves; verify the current chimeric eCLIP / miR-eCLIP literature for best practice. As of 2024, miR-eCLIP is the canonical approach for deep miRNA-target profiling.
 
 ## Critical Choice: Chimeric vs Computational miRNA-Target Pairing
 
 Two fundamentally different strategies:
 
-**Chimeric methods (CLEAR-CLIP, chimeric eCLIP / miR-eCLIP, CLASH):** During library prep, a ligation step covalently joins the miRNA to its target mRNA, producing chimeric reads (miRNA at 5' + target mRNA at 3'). The miRNA-target pair is read directly from the sequence. Pro: direct evidence of binding interaction; no inference. Con: chimera rate is 1-5% of library by default (enriched to 30-175x with miR-eCLIP for specific miRNAs); deep sequencing or enrichment needed.
+**Chimeric methods (CLEAR-CLIP, chimeric eCLIP / miR-eCLIP, CLASH):** During library prep, a ligation step covalently joins the miRNA to its target mRNA, producing chimeric reads (miRNA at 5' + target mRNA at 3'). The miRNA-target pair is read directly from the sequence. Pro: direct evidence of binding interaction; no inference. Con: chimera rate is 1-5% of library by default (substantially enriched with miR-eCLIP probe capture for specific miRNAs); deep sequencing or enrichment needed.
 
 **Computational pairing (HITS-CLIP / PAR-CLIP + seed-matching):** Standard AGO CLIP identifies AGO-bound peaks; downstream computational scanning matches each peak against canonical miRNA seeds (7mer-m8, 7mer-1A, 8mer) from TargetScan, miRDB, or DIANA databases. Pro: any AGO CLIP data can be analyzed; no special library prep. Con: indirect; assigns miRNAs based on canonical seed rules, missing non-canonical interactions (3' compensatory, central pairing).
 
-The Bartel lab CLEAR-CLIP analysis revealed substantial 3' auxiliary pairing beyond canonical seeds: ~50% of miRNA-target interactions have weak or non-canonical seed matching but strong 3' supplementary pairing. Chimeric methods recover these; computational seed-only inference misses them.
+The CLEAR-CLIP analysis (Darnell lab, Moore 2015) revealed substantial 3' auxiliary pairing beyond canonical seeds: many miRNA-target interactions have weak or non-canonical seed matching but strong 3' supplementary pairing. Chimeric methods recover these; computational seed-only inference misses them.
 
 | Goal | Method |
 |------|--------|
@@ -151,7 +150,7 @@ python analyze_chimeras.py \
     --output validated_chimeras.tsv
 ```
 
-## miR-eCLIP Probe Enrichment (Manakov 2022)
+## miR-eCLIP Probe Enrichment
 
 To recover deep coverage of one or a few miRNAs' targets, miR-eCLIP uses probe-based or PCR-based enrichment to amplify chimeras containing specific miRNAs.
 
@@ -189,7 +188,7 @@ bedtools intersect -wa -wb \
 
 **Symptom:** Per-miRNA target count is sparse; rare miRNAs have < 100 chimeras.
 
-**Fix:** Use miR-eCLIP with probe enrichment for specific miRNAs of interest (30-175x boost). Or sequence ultra-deep (200M+ reads) for global chimera profiling.
+**Fix:** Use miR-eCLIP with probe enrichment for specific miRNAs of interest (substantial boost). Or sequence ultra-deep (200M+ reads) for global chimera profiling.
 
 ### Hyb -- BLAST sensitivity vs miRNA length
 
@@ -215,7 +214,7 @@ bedtools intersect -wa -wb \
 
 **Trigger:** Seed-matching only; 3' compensatory pairing missed.
 
-**Mechanism:** ~50% of miRNA-target interactions have weak seeds but strong 3' UTR pairing (positions 12-17). Seed-only matching loses these.
+**Mechanism:** A substantial fraction of miRNA-target interactions have weak seeds but strong 3' UTR pairing (positions 12-17). Seed-only matching loses these.
 
 **Symptom:** Chimeric methods find targets that TargetScan misses; these have weak seeds.
 
@@ -246,7 +245,7 @@ bedtools intersect -wa -wb \
 | Scenario | Method | Why |
 |----------|--------|-----|
 | Direct miRNA-target identification, modern | chimeric eCLIP / miR-eCLIP | Direct chimeras; deep enrichment available |
-| Specific miRNA's deep target list | miR-eCLIP with probe for that miRNA | 30-175x enrichment |
+| Specific miRNA's deep target list | miR-eCLIP with probe for that miRNA | probe-based enrichment |
 | Discover novel miRNA-target interactions | CLEAR-CLIP or chimeric eCLIP | Direct chimera, no seed prior |
 | In vivo mouse tissue | HEAP (Halo-Ago2 mouse) | Mouse only |
 | Initial AGO-binding site discovery | AGO HITS-CLIP / eCLIP | Cost-effective; no chimera |
@@ -294,9 +293,7 @@ bedtools intersect -wa -wb \
 - Helwak A et al 2013 Cell 153:654 (CLASH; chimera method)
 - Travis AJ et al 2014 Methods 65:263 (Hyb pipeline)
 - Moore MJ et al 2015 Nat Commun 6:8864 (CLEAR-CLIP, 130k chimeras mouse brain)
-- Bracken CP et al -- chimeric AGO-CLIP, targeted (consult current literature for verified venue/year; earlier "2016 Nat Methods 13:739" attribution could not be confirmed).
-- Li K et al 2020 Mol Cell 80:1100 (HEAP, Halo-Ago2 in vivo mouse)
-- Manakov SA et al 2022 bioRxiv 2022.02.13.480296 (chimeric eCLIP / miR-eCLIP, 30-175x enrichment)
+- Li X et al 2020 Mol Cell 79:167 (HEAP, Halo-Ago2 in vivo mouse)
 - Agarwal V et al 2015 eLife 4:e05005 (TargetScan 7.0)
 - Lewis BP et al 2003 Cell 115:787 (original 7mer/8mer seed rules)
 - Bartel DP 2018 Cell 173:20 (miRNA target principles)

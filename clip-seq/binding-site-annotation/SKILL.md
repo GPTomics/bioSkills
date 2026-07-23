@@ -35,12 +35,11 @@ The Yeo lab convention for ENCODE eCLIP: ChIPseeker for global region distributi
 | ChIPseeker (R) | Peak BED + TxDb | Gene-level or transcript-level | Promoter > 5' UTR > 3' UTR > Exon > Intron > Intergenic | Per-peak annotation + pie chart + distance-to-TSS | Mature, widely used, fast | TSS-region default `c(-3000, 3000)` over-extends; promoter category meaningless for RNA |
 | RCAS (R) | Peak BED + GFF | Transcript-level | Customizable | HTML report + per-region table | RNA-specific design; ncRNA-aware | Slow; HTML-heavy; less actively maintained |
 | RBP-Maps (Yeo) | eCLIP BAM + alternative splicing event tables | Splice junction-level | NA (positional metagene) | Splicing regulatory map (1400nt vector around cassette exon) | The standard for splicing-factor CLIP analysis | Splicing-only; not for 3' UTR or ncRNA binders |
-| ASTERIX (Yeo) | Peak BED | Region | NA | Region distribution + region-specific motifs | Companion to RBP-Maps for non-splicing regions | Less granular than ChIPseeker |
 | HOMER annotatePeaks.pl | Peak BED | Gene-level | Promoter > UTR > Exon > Intron > Intergenic | Annotation TSV | Familiar from ChIP-seq | Same TSS issue as ChIPseeker; less RNA-aware |
 | bedtools intersect | Peak BED + feature BED | User-defined | User-defined | Per-feature overlap | Most flexible | Manual hierarchy logic must be written |
 | pyranges (Python) | Peak BED + GTF | Customizable | User-defined | DataFrame | Fast, pythonic, scriptable | Hand-written priority logic |
 | pybedtools | Peak BED + GTF | Customizable | User-defined | iterators | Flexible, scripted | Same as pyranges |
-| Peakhood (Reuter 2022) | Peak BED + transcripts | Transcript context | NA | Per-peak transcript context | Resolves transcript-isoform ambiguity | Specialized; not a global region tool |
+| Peakhood (Uhl 2022) | Peak BED + transcripts | Transcript context | NA | Per-peak transcript context | Resolves transcript-isoform ambiguity | Specialized; not a global region tool |
 
 Methodology evolves; verify the GTF source (GENCODE preferred over Ensembl for human; both have feature differences) and the priority hierarchy against published RBP literature.
 
@@ -307,12 +306,12 @@ plotHeatmap -m matrix.gz -o metagene_heatmap.png
 ## References
 
 - Yu G et al 2015 Bioinformatics 31:2382 (ChIPseeker)
-- Yusuf D et al 2017 BMC Bioinformatics 18:227 (RCAS)
+- Uyar B, Yusuf D et al 2017 Nucleic Acids Res 45:e91 (RCAS)
 - Yee BA et al 2019 RNA 25:193 (RBP-Maps splicing regulatory maps)
 - Van Nostrand EL et al 2020 Nature 583:711 (ENCODE 150 RBP eCLIP, region distribution analysis)
 - Quinlan AR & Hall IM 2010 Bioinformatics 26:841 (bedtools)
 - Hentze MW et al 2018 Nat Rev Mol Cell Biol 19:327 (RBP function review)
-- Uhl M et al 2022 NAR Genom Bioinform 4:lqac020 (Peakhood transcript-context)
+- Uhl M et al 2022 Bioinformatics 38:1139 (Peakhood transcript-context)
 - ENCODE eCLIP standards (encodeproject.org/eclip) - region distribution conventions
 
 ## Related Skills

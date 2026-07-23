@@ -20,8 +20,8 @@ Map and analyze protein-RNA interactions from CLIP-seq family methods (eCLIP, iC
 | differential-clip | DEWSeq sliding-window NB GLM (Schwarzl + Hentze) with interaction design `~ type + condition + type:condition`; Flipper Skipper-companion; edgeR / limma-voom on consensus peakset; KD validation by WB; aggregation of adjacent significant windows |
 | m6a-clip | miCLIP2 + m6Aboost ML (eCLIP-pipeline compatible, Kortel 2021); GLORI antibody-free stoichiometric (Liu 2023, new gold standard); DART-seq APOBEC1-YTH; m6Anet nanopore direct RNA; MeRIP-seq; DRACH motif constraint; cross-method discordance |
 | stamp-antibody-free | STAMP / scSTAMP (APOBEC1-RBP, C->U editing) and TRIBE / HyperTRIBE (ADAR, A->I) for antibody-free profiling; Bullseye / SAILOR / JACUSA2 edit-site detection; deaminase-only control mandatory; per-cell pseudobulk for scSTAMP |
-| ago-clip-mirna-targets | Chimeric eCLIP / miR-eCLIP (30-175x miRNA enrichment, Manakov 2022); CLEAR-CLIP chimeras (Moore 2015); HEAP Halo-Ago2 mouse; Hyb pipeline with bowtie2 mode; canonical 7mer-m8 / 8mer seeds + non-canonical 3' compensatory; miRNA expression filter |
-| clip-deep-learning | RBPNet sequence-to-CL distribution at single-nt (Jens 2024); RNAProt RNN classifier (AUC 87-89%); GraphProt2 GCN with structure; DeepCLIP; DeepRiPe; chromosome-split prevents leakage; variant-effect prediction; saliency + TF-MoDISco interpretation |
+| ago-clip-mirna-targets | Chimeric eCLIP / miR-eCLIP probe enrichment; CLEAR-CLIP chimeras (Moore 2015); HEAP Halo-Ago2 mouse; Hyb pipeline with bowtie2 mode; canonical 7mer-m8 / 8mer seeds + non-canonical 3' compensatory; miRNA expression filter |
+| clip-deep-learning | RBPNet sequence-to-CL distribution at single-nt (Horlacher 2023); RNAProt RNN classifier (AUC 87-89%); GraphProt2 GCN with structure; DeepCLIP; DeepRiPe; chromosome-split prevents leakage; variant-effect prediction; saliency + TF-MoDISco interpretation |
 
 ## Example Prompts
 
@@ -100,7 +100,7 @@ pip install rbpnet rnaprot graphprot2 deepclip biopython
 | Direct miRNA-target pairs | chimeric eCLIP / miR-eCLIP |
 | In vivo mouse AGO | HEAP |
 | Isoform-resolved binding | dirCLIP (long-read, 2026) or m6Anet |
-| Subcellular localization-resolved | coCLIP or RBProximity-CLIP (2025) |
+| Subcellular localization-resolved | coCLIP (2024) or RBProximity-CLIP (2025) |
 | Multi-RBP co-binding | Re-CLIP / irCLIP-RNP (2024) |
 | Highly multiplexed RBPs | SPIDR (2023) |
 

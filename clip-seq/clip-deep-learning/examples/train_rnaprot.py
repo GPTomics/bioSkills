@@ -3,7 +3,6 @@
 # Chromosome-split train/test prevents gene-neighbor leakage that inflates AUC.
 # GC-matched 3' UTR background prevents the model from learning transcript-region differences instead of RBP specificity.
 
-import os
 import subprocess
 from pathlib import Path
 

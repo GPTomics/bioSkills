@@ -73,7 +73,7 @@ Tell your AI agent what you want to do:
 
 ## Tips
 
-- **U bias is real and universal.** ~60-80% of CL events at U. Cross-check central column of PWM.
+- **U bias is real.** CL sites are strongly enriched at U. Cross-check central column of PWM.
 - **HOMER background matters.** Auto-shuffled is GC-blind; provide GC-matched.
 - **mCross needs single-nt CL sites.** Peak BED breaks the model.
 - **PEKA does not need input control.** Internal normalization vs low-count crosslinks.

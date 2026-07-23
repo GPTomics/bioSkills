@@ -44,7 +44,7 @@ Tell your AI agent what you want to do:
 
 ### Protocol-specific variants
 
-> "PAR-CLIP for HuR: raise STAR --outFilterMismatchNoverReadLmax to 0.07; use PARalyzer with Hafner 2010 parameters"
+> "PAR-CLIP for HuR: raise STAR --outFilterMismatchNoverReadLmax to 0.07; use PARalyzer with Corcoran 2011 default parameters"
 
 > "iCLIP2 multiplexed library: demultiplex NNNXXXXNN library barcode first, then UMI extract the 5 random Ns"
 

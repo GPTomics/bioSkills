@@ -17,7 +17,7 @@ If code throws unexpected errors, introspect the installed tool and adapt the ex
 
 # CLIP-seq Motif Analysis
 
-**"Find enriched RNA motifs at my RBP binding sites"** -> Discover the in vivo sequence preference of an RNA-binding protein from CLIP-seq peaks or single-nucleotide crosslink sites. The fundamental confound is the uracil bias of UV254 crosslinking: U is the most-crosslinked base (>50% of CL events), so naive motif logos centered on CL positions are U-enriched even for non-U-binding RBPs. Modern tools (mCross, PEKA) register motifs relative to the CL position and correct for this bias; legacy tools (HOMER, MEME) need careful background selection.
+**"Find enriched RNA motifs at my RBP binding sites"** -> Discover the in vivo sequence preference of an RNA-binding protein from CLIP-seq peaks or single-nucleotide crosslink sites. The fundamental confound is the uracil bias of UV254 crosslinking: U is the most-crosslinked base, so naive motif logos centered on CL positions are U-enriched even for non-U-binding RBPs. Modern tools (mCross, PEKA) register motifs relative to the CL position and correct for this bias; legacy tools (HOMER, MEME) need careful background selection.
 
 - CLI (de novo, peak-based, HOMER RNA mode): `findMotifs.pl peaks.fa fasta motif_out -rna -len 5,6,7,8 -p 4`
 - CLI (de novo, peak-based, MEME-ChIP / STREME): `streme --rna --oc streme_out -p peaks.fa -n background.fa --minw 5 --maxw 10`
@@ -38,11 +38,11 @@ ENCODE eCLIP motif convention: extract sequences from peaks (CLIPper + SMInput s
 | MEME-ChIP | Peak FASTA | Markov order 1-3 | No | Multiple motifs | Wrapper for MEME + CentriMo + Tomtom comparison | Designed for ChIP; for CLIP use STREME directly |
 | kpLogo | k-mer scores with positions | NA (significance from kpLogo internals) | Yes (positional) | Position-specific logo | Visualizes position-specific signal; complements PWM | Requires k-mer-score input file; not a peak-to-motif tool by itself |
 | mCross (Feng 2019) | Single-nucleotide CL sites + genome | Generated internally | Yes (jointly models motif + CL position) | Registered PWM + CL offset | The standard for in vivo RBP motif registration; SRSF1 example showed clustered GGA half-sites | Requires high-quality single-nt CL sites (PureCLIP or CTK CITS) |
-| PEKA (Mihai 2022) | Peaks + crosslink BED | Low-count crosslinks within same dataset | Yes (positional k-mer) | Position-enriched k-mers with significance | No external input required; cross-validates with mCross | Less granular than mCross's jointly-modeled PWM |
-| RBPamp (Jens 2020) | Peak FASTA or CL sites | Joint affinity model | No (affinity-based) | Affinity-weighted motif + Kd estimate | Provides Kd; compatible with RBNS calibration | Slow; small community; needs validation |
+| PEKA (Kuret 2022) | Peaks + crosslink BED | Low-count crosslinks within same dataset | Yes (positional k-mer) | Position-enriched k-mers with significance | No external input required; cross-validates with mCross | Less granular than mCross's jointly-modeled PWM |
+| RBPamp (Jens 2022) | Peak FASTA or CL sites | Joint affinity model | No (affinity-based) | Affinity-weighted motif + Kd estimate | Provides Kd; compatible with RBNS calibration | Slow; small community; needs validation |
 | RCAS | Peak BED + GTF | Auto | No | Motif + region annotation | One-stop for motif + region distribution | Less granular than per-tool dedicated runs |
 | MEME FIMO (motif scan) | PWM + FASTA | Markov bg | No | Match locations and scores | Scan known motifs across genome | Not a de novo tool; complements HOMER known scan |
-| RBPNet (Jens & Gagneur 2024) | Raw sequence | Trained model | Yes (sequence-to-signal at single nt) | Predicted CL count distribution | Deep learning; predicts per-base affinity profile | See clip-seq/clip-deep-learning |
+| RBPNet (Horlacher et al 2023) | Raw sequence | Trained model | Yes (sequence-to-signal at single nt) | Predicted CL count distribution | Deep learning; predicts per-base affinity profile | See clip-seq/clip-deep-learning |
 
 Methodology evolves; verify motif comparison databases (CISBP-RNA, ATtRACT, oRNAment, mCrossBase, RBPDB) for known motif validation. RBNS in vitro Kd values (Lambert 2014; Dominguez 2018 for 78 RBPs) are the most reliable orthogonal reference for in vivo CLIP motifs.
 
@@ -56,7 +56,7 @@ The fundamental difference: peak-based logos show "what sequence is enriched nea
 
 ## Uracil Crosslinking Bias
 
-UV254 crosslinking is U-biased: ~60-80% of single-nt CL events occur at U residues (Konig 2010; Sugimoto 2017). Consequence: motif logos centered on raw CL positions are U-enriched at the center even for non-U-binding RBPs (e.g., PUM2 binds UGUANAUA but peak-center is shifted; HNRNPK binds C-rich tracts but centers can show spurious U).
+UV254 crosslinking is U-biased: single-nt CL events are strongly enriched at U residues (Konig 2010; Sugimoto 2012). Consequence: motif logos centered on raw CL positions are U-enriched at the center even for non-U-binding RBPs (e.g., PUM2 binds UGUANAUA but peak-center is shifted; HNRNPK binds C-rich tracts but centers can show spurious U).
 
 **Mitigations:**
 - Use peak boundaries, not single-nt CL, for HOMER/MEME (peak-level averaging dilutes the U bias).
@@ -102,11 +102,11 @@ For naive HOMER/MEME output, examine the central column of the PWM: if it is U-s
 
 **Trigger:** Concerned that PEKA's "low-count crosslinks within same dataset" background is biased.
 
-**Mechanism:** PEKA does NOT need external input. It uses low-count crosslinks (below a quantile threshold) as the background and high-count crosslinks (above) as the foreground. This is by design (Mihai 2022) and cross-validated against mCross.
+**Mechanism:** PEKA does NOT need external input. It uses low-count crosslinks (below a quantile threshold) as the background and high-count crosslinks (above) as the foreground. This is by design (Kuret 2022) and cross-validated against mCross.
 
 **Symptom:** False positive concern; user wants to verify.
 
-**Fix:** Run BOTH PEKA and mCross; cross-validate. PEKA paper shows >90% concordance with mCross for ENCODE RBPs; treat them as orthogonal confirmation.
+**Fix:** Run BOTH PEKA and mCross; cross-validate. The PEKA paper reports high concordance with mCross for ENCODE RBPs; treat them as orthogonal confirmation.
 
 ### RBPamp -- Slow convergence
 
@@ -266,14 +266,14 @@ def parse_homer_motif(motif_file):
 
 - Heinz S et al 2010 Mol Cell 38:576 (HOMER motif discovery)
 - Bailey TL et al 2015 Nucleic Acids Res 43:W39 (MEME Suite)
-- Bailey TL et al 2021 Bioinformatics 37:2834 (STREME, MEME's fast successor)
-- Wu X & Bartel DP 2017 Nucleic Acids Res 45:7331 (kpLogo positional logo)
+- Bailey TL 2021 Bioinformatics 37:2834 (STREME, MEME's fast successor)
+- Wu X & Bartel DP 2017 Nucleic Acids Res 45:W534 (kpLogo positional logo)
 - Feng H et al 2019 Mol Cell 74:1189 (mCross, jointly modeling motif + CL position)
-- Kuret K, Amalietti AG, Jones DM, Capitanchik C, Ule J 2022 Genome Biol 23:160 (PEKA, positional k-mer no input)
-- Jens M et al 2018 Cell Reports 24:2940 (RBPamp, affinity-weighted motif)
+- Kuret K, Amalietti AG, Jones DM, Capitanchik C, Ule J 2022 Genome Biol 23:191 (PEKA, positional k-mer no input)
+- Jens M et al 2022 bioRxiv 2022.11.08.515616 (RBPamp, affinity-weighted motif; preprint)
 - Lambert N et al 2014 Mol Cell 54:887 (RNA Bind-n-Seq)
 - Dominguez D et al 2018 Mol Cell 70:854 (78-RBP RBNS atlas)
-- Sugimoto Y et al 2015 Nature 519:491 (iCLIP U-crosslink bias)
+- Sugimoto Y et al 2012 Genome Biol 13:R67 (CLIP/iCLIP analysis; uridine crosslink preference)
 - Van Nostrand EL et al 2020 Nature 583:711 (ENCODE 150 RBP eCLIP + motifs)
 - Konig J et al 2010 Nat Struct Mol Biol 17:909 (iCLIP, U bias origin)
 

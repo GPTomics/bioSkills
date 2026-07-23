@@ -80,7 +80,7 @@ Tell your AI agent what you want to do:
 - **CLIPper alone is not "ENCODE peaks".** Always normalize against SMInput.
 - **Stringent: log2 FC >= 3 AND -log10 p >= 3.** Lenient: log2 >= 1 AND -log10 >= 2. Both apply to IDR-passing peaks.
 - **Skipper is the 2023 sensitivity king.** 210-320% more sites than CLIPper for mRNA-binding RBPs; requires SMInput.
-- **PureCLIP is focal.** Only ~4 sites per CLIP on benchmark test sets. Pair with CLIPper for broad sites.
+- **PureCLIP is focal.** It emits far fewer, single-nucleotide sites than coverage callers (very focal, low recall in the Boyle 2023 benchmark). Pair with CLIPper for broad sites.
 - **Piranha biases to high-expression.** Use SMInput as covariate via `-c -l` or switch to Skipper.
 - **CLIPper misses chrM.** Switch to Skipper for mitochondrial RBPs (FASTKD2, LRPPRC).
 - **PureCLIP misses broad zones.** Use it for single-nt CL maps; not for broad sites.

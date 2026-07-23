@@ -65,7 +65,7 @@ echo "  If saturated (everything edits): titrate down APOBEC1 expression"
 
 # Step 4 (optional): Filter for DRACH motif if using DART-seq (APOBEC1-YTH for m6A)
 # bedtools intersect -wa -u -s -a ${OUT_PREFIX}_edits.bed -b drach_motifs.bed > ${OUT_PREFIX}_dart_drach.bed
-# 44% of DART edits fall in DRACH context per Liu 2023
+# ~44% of DART edits fall in DRACH context
 
 echo ""
 echo "Cross-validate with CLIP/eCLIP for high-resolution binding site localization"

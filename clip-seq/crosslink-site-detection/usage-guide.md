@@ -41,7 +41,7 @@ Tell your AI agent:
 
 ### PAR-CLIP
 
-> "PARalyzer with Hafner 2010 parameters for HuR"
+> "PARalyzer with Corcoran 2011 default parameters for HuR"
 
 > "CTK CIMS substitution T->C for single-nt; alternative to PARalyzer clusters"
 
@@ -73,7 +73,7 @@ Tell your AI agent:
 
 - **PureCLIP works on all CLIP variants.** Most general HMM.
 - **Match method to chemistry.** Truncation for iCLIP/eCLIP; deletion for HITS-CLIP; T->C for PAR-CLIP.
-- **HITS-CLIP needs deletion-tolerant aligner.** BWA-aln is the Yeo convention.
+- **HITS-CLIP needs deletion-tolerant aligner.** BWA-aln is the Zhang lab / CTK convention.
 - **PAR-CLIP needs raised STAR mismatch ceiling.** 0.07 not 0.04.
 - **PureCLIP is focal.** F1 ~0.2 on bulk RBPs; use for single-nt sites, not broad zones.
 - **Restrict PureCLIP scope.** -iv expressed.bed to avoid genome-wide convergence issues.

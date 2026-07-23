@@ -2,7 +2,7 @@
 
 ## Overview
 
-Predict RBP binding from RNA sequence with deep neural networks. Modern models: RBPNet (2024, sequence-to-CL distribution at single-nt), RNAProt (RNN classifier; AUC 87-89%), GraphProt2 (GCN with structure), DeepCLIP, DeepRiPe. Use for variant-effect prediction, in silico binding-site discovery, and systematic RBP comparison. Training requires GPU; chromosome-split prevents data leakage; background must match foreground transcript region. Pretrained models exist for ~150 ENCODE RBPs.
+Predict RBP binding from RNA sequence with deep neural networks. Modern models: RBPNet (2023, sequence-to-CL distribution at single-nt), RNAProt (RNN classifier; AUC 87-89%), GraphProt2 (GCN with structure), DeepCLIP, DeepRiPe. Use for variant-effect prediction, in silico binding-site discovery, and systematic RBP comparison. Training requires GPU; chromosome-split prevents data leakage; background must match foreground transcript region. Pretrained models exist for ~150 ENCODE RBPs.
 
 ## Prerequisites
 

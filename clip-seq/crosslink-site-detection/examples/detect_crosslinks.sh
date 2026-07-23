@@ -53,7 +53,7 @@ case $PROTOCOL in
 
   parclip)
     # PAR-CLIP uses T->C substitution. Two complementary tools:
-    #   PARalyzer: kernel-density clusters (Hafner 2010)
+    #   PARalyzer: kernel-density clusters (Corcoran 2011)
     #   CTK CIMS substitution: single-nt T->C positions
     # PureCLIP also handles PAR-CLIP via its general HMM.
 
@@ -71,7 +71,7 @@ case $PROTOCOL in
 
         echo "PAR-CLIP CIMS T->C single-nt sites: $(wc -l < ${OUT_PREFIX}_cims_t2c.bed)"
     fi
-    echo "For cluster-level PAR-CLIP, use PARalyzer with parameters from Hafner 2010 supplementary"
+    echo "For cluster-level PAR-CLIP, use PARalyzer with the Corcoran 2011 default parameters"
     ;;
 
   *)

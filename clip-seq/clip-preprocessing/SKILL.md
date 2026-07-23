@@ -34,10 +34,10 @@ The eCLIP convention is: trim quality and adapter from the 3' end ONLY. The 5' e
 | seCLIP (single-end eCLIP) | 10 nt at R1 5' end | R1 5' end | TruSeq R1 only | ENCODE accepts both eCLIP and seCLIP |
 | iCLIP (Konig 2010) | 5 nt random (NNNXXXXNN: 3 N + 4 X library barcode + 2 N), single-end | R1 5' end after barcode strip | L3 adapter at 3' | Multiplexed - demultiplex by the 4 X bases |
 | iCLIP2 (Buchbender 2020) | 5 or 9 nt random (NNNXXXXNN or longer), single-end | R1 5' end | L3 adapter at 3' | Increased complexity vs iCLIP; same UMI pattern |
-| iCLIP3 (Buchbender et al, bioRxiv 2026.03.01.708747) | 10 nt random + dual sample index, single-end | R1 5' end | TruSeq | Silica-column RNA isolation; non-radioactive; streamlined low-input protocol. Preprint - verify final published version before pinning a pipeline. |
+| iCLIP3 (Despic et al, bioRxiv 2026.03.01.708747) | 10 nt random + dual sample index, single-end | R1 5' end | TruSeq | Silica-column RNA isolation; non-radioactive; streamlined low-input protocol. Preprint - verify final published version before pinning a pipeline. |
 | irCLIP (Zarnegar 2016) | 5 nt random + barcode (similar to iCLIP) | R1 5' end | IR700 adapter + standard TruSeq sequencing adapter | Infrared replaces 32P; otherwise iCLIP-like |
 | PAR-CLIP (Hafner 2010) | 0-4 nt depending on prep | T->C transitions within reads (NOT a truncation method) | TruSeq R1 | UMI optional; rely on T->C signature for CL |
-| FLASH (Aktas 2020) | Sample barcode + UMI in custom adapter | R1 5' | Custom L3 design | 1.5 day protocol; adapter design proprietary to MPI |
+| FLASH (Ilik 2020) | Sample barcode + UMI in custom adapter | R1 5' | Custom L3 design | 1.5 day protocol; adapter design proprietary to MPI |
 | miCLIP / miCLIP2 (Linder 2015 / Kortel 2021) | iCLIP-style barcodes | R1 5' = m6A -1 (truncation OR C-to-T) | iCLIP L3 | m6A-specific |
 | STAMP (Brannan 2021) | NA (no UV) | NA (C-to-U editing) | 10x or bulk RNA-seq adapters | Antibody-free editing-based; preprocess as RNA-seq |
 
@@ -225,10 +225,10 @@ CLIP libraries have HIGH duplication rates (40-70%) by design - the IP enriches 
 - Lee FCY et al 2021 bioRxiv 2021.08.27.457890 (iiCLIP / improved iCLIP, motif specificity)
 - Hafner M et al 2010 Cell 141:129 (PAR-CLIP, 4SU labeling, T->C signature)
 - Zarnegar BJ et al 2016 Nat Methods 13:489 (irCLIP, non-radioactive)
-- Aktas T et al 2020 Nucleic Acids Res 48:e15 (FLASH, fast protocol)
+- Ilik IA et al 2020 Nucleic Acids Res 48:e15 (FLASH, fast protocol)
 - Smith T et al 2017 Genome Res 27:491 (UMI-tools, network-based dedup)
 - Daley T & Smith AD 2013 Nat Methods 10:325 (preseq library complexity)
-- Chakrabarti AM et al 2023 Genome Biol 24:235 (nf-core/clipseq pipeline)
+- West C et al 2023 Wellcome Open Res 8:286 (nf-core/clipseq pipeline)
 
 ## Related Skills
 
