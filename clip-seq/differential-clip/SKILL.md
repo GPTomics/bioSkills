@@ -26,23 +26,23 @@ If code throws unexpected errors, introspect the installed package and adapt the
 - R (peak-level, limma-voom): `v <- voom(dge, design); fit <- lmFit(v, design); fit <- eBayes(fit); res <- topTable(fit, coef=2, number=Inf)`
 - CLI (htseq-clip preprocessing): `htseq-clip extract -i annotation.gff -o annotation_windows.bed -w 50 -s 20 && htseq-clip count -i sample.bam -w annotation_windows.bed -o sample.counts.txt`
 
-DEWSeq is the EMBL/Hentze-group windowed-NB approach designed specifically for differential CLIP. Flipper is the Skipper-companion tool (Tu 2024) for the modern Skipper workflow. Peak-level edgeR/limma-voom work when the upstream peak caller produced a comparable peak BED across conditions (e.g., consensus peaks from CLIPper).
+DEWSeq is the EMBL/Hentze-group windowed-NB approach for CLIP binding-site discovery, commonly adapted for differential testing via the interaction design. Flipper is the Skipper-companion tool (Flanagan 2026) for the modern Skipper workflow. Peak-level edgeR/limma-voom work when the upstream peak caller produced a comparable peak BED across conditions (e.g., consensus peaks from CLIPper).
 
 ## Algorithmic Taxonomy
 
 | Tool | Scale | Statistical model | Replicate requirement | Strength | Fails when |
 |------|-------|-------------------|----------------------|----------|------------|
-| DEWSeq (Schwarzl 2020) | 50-100 nt sliding window | Negative binomial GLM (DESeq2 internals) | >= 2 reps per condition | Designed specifically for CLIP; integrates SMInput | Slow on dense libraries; output window-resolution |
-| Flipper (Tu 2024) | Skipper window (100 nt) | Negative binomial; designed for Skipper output | >= 2 reps per condition | Modern; pairs with Skipper peak caller | Only useful if upstream is Skipper |
+| DEWSeq (Schwarzl 2024) | 50-100 nt sliding window | Negative binomial GLM (DESeq2 internals) | >= 2 reps per condition | Designed specifically for CLIP; integrates SMInput | Slow on dense libraries; output window-resolution |
+| Flipper (Flanagan 2026) | Skipper window (100 nt) | Negative binomial; designed for Skipper output | >= 2 reps per condition | Modern; pairs with Skipper peak caller | Only useful if upstream is Skipper |
 | ASpeak | Peak | Negative binomial | >= 2 reps | Peak-level for CLIPper output | Less popular; legacy |
 | edgeR (general) | Peak or window | Quasi-likelihood F-test on NB | >= 2 reps | Mature, widely cited | Generic; not CLIP-aware; needs careful normalization |
 | limma-voom | Peak or window | Linear model with mean-variance trend | >= 2 reps | Fast; well-validated; handles small samples | Generic; treats counts as continuous after voom |
 | DESeq2 (direct) | Peak or window | Negative binomial GLM | >= 2 reps | Mature; same engine as DEWSeq | Same as edgeR caveats |
-| MASTR-seq (Banks 2023) | Cell-resolved (scCLIP) | Cell-mixture model | Cells | Single-cell CLIP differential | Specialized; few published applications |
+| Single-cell CLIP (specialized) | Cell-resolved (scCLIP) | Cell-mixture / pseudobulk | Cells | Single-cell CLIP differential | Nascent; few published tools |
 | diffbind (CLIP adaptation) | Peak | DESeq2 or edgeR backend | >= 2 reps | Familiar from ChIP/ATAC | Designed for ChIP; needs CLIP-specific normalization |
 | MAnorm2 | Peak | Hierarchical empirical Bayes | >= 2 reps | Tested on ChIP; less on CLIP | Less CLIP-specific |
 
-Methodology evolves; verify DEWSeq vignette and Flipper paper for current best practice. The DEWSeq + htseq-clip pipeline (Schwarzl 2020) is the most-published CLIP-specific differential framework; Flipper (Tu 2024) is the modern Skipper-coupled alternative.
+Methodology evolves; verify DEWSeq vignette and Flipper paper for current best practice. The DEWSeq + htseq-clip pipeline (Schwarzl 2024) is the most-published CLIP-specific differential framework; Flipper (Flanagan 2026) is the modern Skipper-coupled alternative.
 
 ## Critical Decision: The Interaction-Term Design
 
@@ -71,14 +71,14 @@ Three scales differ in resolution and statistical power:
 | ENCODE-style peak-level differential (CLIPper upstream) | Peak | DESeq2 / edgeR / limma-voom on CLIPper consensus peaks |
 | Maximum sensitivity windowed differential | Window | DEWSeq (with htseq-clip) or Flipper (with Skipper) |
 | Modern Skipper-coupled workflow | Window | Flipper |
-| Single-cell scCLIP differential | Cell | MASTR-seq or scCLAM (sparse) |
+| Single-cell scCLIP differential | Cell | Specialized single-cell CLIP methods (few published tools) |
 | Compare binding-mode shifts within a peak | Window | DEWSeq |
 | Allele-specific differential | CL site | BEAPR + custom logistic |
 | RBP-KD effect on binding profile | Peak/window | DEWSeq (handles KD-effect on RBP itself) |
 
 ## DEWSeq Workflow (Window-Level Differential)
 
-DEWSeq is the EMBL/Hentze-group differential framework specifically designed for CLIP. The pipeline is:
+DEWSeq is the EMBL/Hentze-group windowed-NB framework for CLIP binding-site discovery, adapted here for differential testing via the interaction design. The pipeline is:
 
 **Goal:** Identify transcriptome windows where the IP-vs-SMInput ratio shifts across conditions, accounting for replicate variance with the negative-binomial GLM.
 
@@ -143,7 +143,7 @@ sig_windows$chr <- gsub('_.*', '', rownames(sig_windows))
 
 ## Flipper Workflow (Skipper-Coupled)
 
-Flipper (Tu 2024) is the differential companion to Skipper, using the same 100 nt feature-respecting windows and the same beta-binomial framework.
+Flipper (Flanagan 2026) is the differential companion to Skipper, operating on the same 100 nt feature-respecting windows with a negative-binomial (DESeq2-based) differential test.
 
 ```bash
 # Assume Skipper has been run on all samples; Skipper output is at skipper_out/
@@ -303,7 +303,7 @@ The canonical differential CLIP design is to knock down the RBP and observe what
 | Treatment vs vehicle (small effect) | DEWSeq (window-level higher power) | Sliding windows capture small shifts |
 | Multiple time points | DEWSeq with time as covariate | Continuous design with time vector |
 | Allele-specific differential | BEAPR per-allele + custom logistic | See clip-seq/clip-alignment for WASP |
-| Single-cell CLIP differential | MASTR-seq or scCLAM | Specialized; few options |
+| Single-cell CLIP differential | Specialized single-cell CLIP methods | Nascent; few published tools |
 | Differential motif occupancy | Window-level + DEWSeq + motif overlap | Combine differential windows with motif BED |
 | RBP overexpression vs control | Same as KD reversed | Same statistical framework |
 | Compare two RBPs | NOT differential CLIP; use SPIDR or separate CLIPs | Different RBPs need separate IPs |
@@ -344,14 +344,14 @@ The canonical differential CLIP design is to knock down the RBP and observe what
 
 ## References
 
-- Schwarzl T et al 2020 Bioconductor pkg DEWSeq (windowed CLIP differential)
+- Schwarzl T et al 2024 Nucleic Acids Res 52:e1 (DEWSeq, windowed NB binding-site discovery; DESeq2-based, adaptable to differential designs)
 - Sahadevan S et al 2022 Methods Mol Biol 2404:189 (DEWSeq + htseq-clip pipeline)
-- Tu Y et al 2024 PMC PMC13060198 (Flipper, Skipper-companion differential)
+- Flanagan K, Xu S, Yeo GW 2026 bioRxiv 2026.03.13.711628 (Flipper, Skipper-companion differential; preprint)
 - Boyle EA et al 2023 Cell Genomics 3:100317 (Skipper, parent of Flipper)
 - Love MI et al 2014 Genome Biol 15:550 (DESeq2)
 - McCarthy DJ et al 2012 Nucleic Acids Res 40:4288 (edgeR)
 - Ritchie ME et al 2015 Nucleic Acids Res 43:e47 (limma)
-- Wu B et al 2018 Nat Commun 9:5117 (BEAPR allele-specific differential)
+- Yang EW et al 2019 Nat Commun 10:1338 (BEAPR allele-specific protein-RNA binding)
 - Van Nostrand EL et al 2020 Nature 583:711 (ENCODE 150 RBP shRNA + eCLIP comparison)
 
 ## Related Skills

@@ -35,8 +35,8 @@ The detection method must match the underlying chemistry of how the reverse tran
 
 | CLIP variant | RT behavior at CL | Detection signature | Sensitivity (CL captured per read) | Sequence bias |
 |--------------|-------------------|---------------------|-------------------------------------|---------------|
-| iCLIP / iCLIP2 / iCLIP3 / eCLIP / irCLIP / FLASH | Truncates at adduct | 5' end of cDNA = CL site - 1 | ~80% of reads truncate, 20% read through with deletion | Strong U bias (~60-80% of CL events at U) |
-| HITS-CLIP | Reads through with deletion (3-7% of crosslinked positions) | Single-base deletion in read | ~3-7% of reads contain deletion at CL site | U bias plus sequence-specific deletion rate |
+| iCLIP / iCLIP2 / iCLIP3 / eCLIP / irCLIP / FLASH | Truncates at adduct | 5' end of cDNA = CL site - 1 | ~80% of reads truncate; the minority read through | Strong U bias at CL sites |
+| HITS-CLIP | Reads through with deletion (~8-20% of tags) | Single-base deletion in read | ~8-20% of tags contain a deletion at the CL site | U bias plus sequence-specific deletion rate |
 | PAR-CLIP (4SU) | Reads through with T->C (20-50% of T positions in crosslinked reads) | T->C transition (or G->A on reverse strand) | Per-T rate 20-50%; per-read 1-5 conversions | Restricted to T positions; depends on 4SU incorporation rate |
 | PAR-CLIP (6SG) | Reads through with G->A | G->A transition | Lower rate than 4SU T->C | Restricted to G positions |
 | miCLIP / miCLIP2 (m6A) | Primarily truncation at the m6A site (RT stops at antibody-trapped m6A); secondary C->T transition observed in a subset of reads at m6A | 5' end (CL -1); C->T rate is a feature used by m6Aboost ML in addition to truncation, not a stand-alone primary signal | Mixed; m6Aboost ML integrates truncation + sequence context to score | DRACH motif context required |
@@ -47,7 +47,7 @@ The detection method must match the underlying chemistry of how the reverse tran
 
 | Tool | CLIP variant | Detection signal | Statistical model | Output resolution | Strength | Fails when |
 |------|--------------|------------------|-------------------|-------------------|----------|------------|
-| PureCLIP (Krakau 2017) | iCLIP/eCLIP/PAR-CLIP | Truncation + enrichment + CL motif | Non-homogeneous HMM | Single-nucleotide | The most comprehensive HMM model | F1 ~0.2 on broad-binding RBPs (only ~4 sites per CLIP on benchmark) |
+| PureCLIP (Krakau 2017) | iCLIP/eCLIP/PAR-CLIP | Truncation + enrichment + CL motif | Non-homogeneous HMM | Single-nucleotide | The most comprehensive HMM model | Lowest F1 among callers benchmarked in Boyle 2023 on broad-binding RBPs (highly focal) |
 | CTK CITS (Shah 2017) | iCLIP/eCLIP | Truncation only | Empirical FDR vs background | Single-nucleotide | Simple, well-validated for iCLIP | Less granular than PureCLIP; no HMM smoothing |
 | CTK CIMS deletion (Shah 2017) | HITS-CLIP | Single-base deletions | Empirical FDR | Single-nucleotide | Standard for HITS-CLIP | Requires deletion-tolerant aligner (BWA -e) |
 | CTK CIMS T->C (Shah 2017) | PAR-CLIP | T->C substitutions | Empirical FDR | Single-nucleotide | Alternative to PARalyzer | Less popular than PARalyzer |
@@ -67,7 +67,7 @@ Three orthogonal approaches:
 
 **Truncation-based (CITS, PureCLIP)** -- Find positions enriched in cDNA 5' ends. The RT enzyme stops at the adduct; the 5' end of the read maps to CL site - 1. Used for iCLIP/eCLIP. Pro: high yield (~80% of reads truncate). Con: U bias of crosslinking inflates U positions.
 
-**Mutation-based (CIMS for deletions/substitutions; PARalyzer for T->C)** -- Find positions with crosslink-induced mutations. RT reads through the adduct with high mutation rate at the CL position. Used for HITS-CLIP (deletions, 3-7%) and PAR-CLIP (T->C, 20-50%). Pro: less U bias; PAR-CLIP signal is restricted to T positions. Con: lower yield (only mutated reads count).
+**Mutation-based (CIMS for deletions/substitutions; PARalyzer for T->C)** -- Find positions with crosslink-induced mutations. RT reads through the adduct with high mutation rate at the CL position. Used for HITS-CLIP (deletions, ~8-20%) and PAR-CLIP (T->C, 20-50%). Pro: less U bias; PAR-CLIP signal is restricted to T positions. Con: lower yield (only mutated reads count).
 
 **HMM-based (PureCLIP, omniCLIP)** -- Joint model of enrichment + CL signature + sequence context. State the most-likely posterior probability of CL state per nucleotide. Used across CLIP variants. Pro: integrates multiple signals; explicit input normalization. Con: F1 ~0.2 on bulk RBPs (very focal); single-nt resolution at the cost of breadth.
 
@@ -98,7 +98,7 @@ Three orthogonal approaches:
 
 **Trigger:** RBP with broad binding (PUM2 3' UTRs, SR proteins exonic enhancers); using PureCLIP exclusively.
 
-**Mechanism:** PureCLIP HMM emits the CL state at very high stringency. Skipper 2023 benchmark reports F1 ~0.2 on bulk RBPs - only ~4 sites per CLIP on test data.
+**Mechanism:** PureCLIP HMM emits the CL state at very high stringency. The Boyle 2023 Skipper benchmark reports PureCLIP as the most focal caller with low recall on broad-binding RBPs.
 
 **Symptom:** PureCLIP CL site count is 100x lower than CLIPper / Skipper peak count.
 
@@ -132,7 +132,7 @@ Three orthogonal approaches:
 
 **Symptom:** PARalyzer cluster count 5-100x off from literature reports for the same RBP.
 
-**Fix:** Use the published PARalyzer parameter file for that RBP class (Hafner 2010 supplementary). Validate on a known-binding region with a reference dataset before publication.
+**Fix:** Use the PARalyzer default parameters (Corcoran 2011), tuned for that RBP class. Validate on a known-binding region with a reference dataset before publication.
 
 ### Aligner deletion-tolerance for HITS-CLIP
 
@@ -142,7 +142,7 @@ Three orthogonal approaches:
 
 **Symptom:** Few CIGAR D operations in BAM (`samtools view dedup.bam | awk '$6 ~ /D/' | wc -l`); CIMS deletion site count low.
 
-**Fix:** Re-align HITS-CLIP with BWA-aln (Yeo lab convention) or STAR `--scoreDelOpen -1 --scoreDelBase -1 --scoreInsOpen -1 --scoreInsBase -1` to permit deletions. Or use Novoalign which is more deletion-tolerant.
+**Fix:** Re-align HITS-CLIP with BWA-aln (Zhang lab / CTK convention) or STAR `--scoreDelOpen -1 --scoreDelBase -1 --scoreInsOpen -1 --scoreInsBase -1` to permit deletions. Or use Novoalign which is more deletion-tolerant.
 
 ### PAR-CLIP T->C mismatch ceiling
 
@@ -171,7 +171,7 @@ Three orthogonal approaches:
 | Single-nt CL map for mCross motif registration | PureCLIP | `-i dedup.bam -ibam sminput.bam -dm 8` |
 | iCLIP/eCLIP CITS truncation sites | CTK CITS | `tag2cluster.pl -cs5 5 -m 1` |
 | HITS-CLIP deletion CIMS | CTK CIMS | `CIMS.pl -big -c -p 0.01` |
-| PAR-CLIP T->C clusters | PARalyzer | Per-RBP params from Hafner 2010 |
+| PAR-CLIP T->C clusters | PARalyzer | Per-RBP params tuned from Corcoran 2011 defaults |
 | PAR-CLIP T->C single-nt | CTK CIMS substitution | `CIMS.pl -type sub -nuc t -mut c -p 0.001` |
 | Yeast CRAC | pyCRAC | `pyCRAC.py` with HTP-tagged protein |
 | Variant effect at CL sites | PureCLIP + DeepRiPe | See clip-seq/clip-deep-learning |
@@ -241,9 +241,10 @@ bedtools intersect -wa -wb -s -a sample.crosslinks.bed -b het_snps.vcf > cl_at_h
 - Comoglio F et al 2015 BMC Bioinformatics 16:32 (wavClusteR)
 - Shah A et al 2017 Bioinformatics 33:566 (CTK / CIMS / CITS)
 - Krakau S et al 2017 Genome Biol 18:240 (PureCLIP HMM)
-- Sugimoto Y et al 2015 Nature 519:491 (iCLIP U-crosslink bias)
+- Boyle EA et al 2023 Cell Genomics 3:100317 (Skipper; PureCLIP focality/F1 benchmark)
+- Sugimoto Y et al 2012 Genome Biol 13:R67 (CLIP/iCLIP analysis; uridine crosslink preference)
 - Feng H et al 2019 Mol Cell 74:1189 (mCross requires CL sites)
-- Wu B et al 2018 Nat Commun 9:5117 (BEAPR allele-specific binding)
+- Yang EW et al 2019 Nat Commun 10:1338 (BEAPR allele-specific protein-RNA binding)
 - Van Nostrand EL et al 2020 Nature 583:711 (ENCODE eCLIP single-nt analyses)
 
 ## Related Skills

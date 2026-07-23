@@ -70,7 +70,7 @@ Tell your AI agent:
 
 - **GLORI is the new (2023) gold standard.** Stoichiometric, antibody-free.
 - **miCLIP2 + m6Aboost is the eCLIP-compatible method.** Trained on Mettl3 KO.
-- **m6Anet for nanopore / isoform context.** AUC 0.83; needs >= 20 cov per DRACH.
+- **m6Anet for nanopore / isoform context.** High AUC on HEK293T; needs >= 20 cov per DRACH.
 - **DART-seq needs APOBEC1-only control.** 30-50% off-target without it.
 - **DRACH covers 70-90% of m6A.** Filter selectively; some real sites are non-DRACH.
 - **Method discordance is real.** 60-75% concordance across methods.

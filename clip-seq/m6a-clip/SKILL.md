@@ -18,7 +18,7 @@ If code throws unexpected errors, introspect the installed package and adapt the
 
 # m6A CLIP (N6-Methyladenosine Profiling)
 
-**"Map m6A modifications at single-nucleotide resolution"** -> Profile m6A on RNA using one of three orthogonal approaches: antibody-based UV-CL (miCLIP/miCLIP2), antibody-free chemical conversion (GLORI), or enzyme-fusion editing (DART-seq with APOBEC1-YTH). Nanopore direct RNA (m6Anet, nanocompore, EpiNano) provides a fourth modality. The DRACH consensus motif (D=A/G/U, R=A/G, A=m6A, C=C, H=A/C/U) constrains plausible sites but is not exclusive - only a fraction of DRACH instances are methylated; some m6A sites occur outside DRACH. Cross-method discordance is real: DART-seq C->U mutations are 44% within DRACH motifs (Liu 2023), suggesting many DART sites are not consensus m6A. GLORI is the new (2023) gold standard for stoichiometric single-base m6A.
+**"Map m6A modifications at single-nucleotide resolution"** -> Profile m6A on RNA using one of three orthogonal approaches: antibody-based UV-CL (miCLIP/miCLIP2), antibody-free chemical conversion (GLORI), or enzyme-fusion editing (DART-seq with APOBEC1-YTH). Nanopore direct RNA (m6Anet, nanocompore, EpiNano) provides a fourth modality. The DRACH consensus motif (D=A/G/U, R=A/G, A=m6A, C=C, H=A/C/U) constrains plausible sites but is not exclusive - only a fraction of DRACH instances are methylated; some m6A sites occur outside DRACH. Cross-method discordance is real: only ~44% of DART-seq C->U mutations fall within DRACH motifs (Guo 2025 reanalysis of the DART-seq data), suggesting many DART sites are not consensus m6A. GLORI is the new (2023) gold standard for stoichiometric single-base m6A.
 
 - CLI (miCLIP2 antibody-based): `iCount` or custom pipeline through truncation + C->T mutation analysis; then m6Aboost ML scoring
 - CLI (GLORI antibody-free): `GLORI-tools` Python pipeline; output is per-A m6A fraction (stoichiometric)
@@ -35,19 +35,19 @@ The m6A field is rapidly evolving (2022-2026); single-base methods (GLORI, m6Ane
 | MeRIP-seq (Dominissini 2012, Meyer 2012) | Anti-m6A IP + RNA-seq | Peak (50-300 nt) | Yes | No | Original m6A method; widely used | Low resolution; cannot distinguish m6A from m6Am |
 | miCLIP (Linder 2015) | Anti-m6A + UV-CL + RT mutation | Single-nucleotide (some) | Yes | No | Single-nt subset of m6A peaks | Low yield of single-nt; high false-positive rate |
 | miCLIP2 (Kortel 2021) | Anti-m6A + UV-CL + improved library | Single-nucleotide | Yes | No | Higher complexity; ML-classified (m6Aboost) | Antibody specificity remains issue |
-| GLORI (Liu 2023) | Glyoxal + nitrite chemical conversion of A to N1-methyl-2-amino-6-oxopurine | Single-nucleotide | No (chemical) | Yes (stoichiometric) | Stoichiometric m6A fraction per site | New; less validated; harsh conversion may damage rare RNAs |
+| GLORI (Liu 2023) | Glyoxal + nitrite deamination of unmodified A to inosine (reads as G) | Single-nucleotide | No (chemical) | Yes (stoichiometric) | Stoichiometric m6A fraction per site | New; less validated; harsh conversion may damage rare RNAs |
 | DART-seq (Meyer 2019) | APOBEC1-YTH fusion edits C adjacent to m6A | Single-nucleotide (offset) | No | No | Antibody-free; in vivo | Only 44% of edits in DRACH motifs; high false positive |
 | m6A-CLIP (Ke 2015) | Anti-m6A + UV-CL | Peak | Yes | No | Original UV-CL approach | Predecessor to miCLIP |
 | m6Anet (Hendra 2022) | Nanopore direct RNA + neural net | Single-nucleotide (DRACH constraint) | No | Probability | Direct RNA; preserves isoform context | Restricted to DRACH; needs high coverage per site |
 | EpiNano (Liu 2019) | Nanopore + SVM on signal features | Single-nucleotide | No | No | Pioneer nanopore m6A | Lower accuracy than m6Anet on benchmark |
 | nanocompore (Leger 2021) | Nanopore + statistical test wt vs Mettl3-KO | Single-nucleotide | No | No | Comparative; high specificity | Requires KO control sample |
-| DENA (Zhong 2024) | Nanopore + transformer model | Single-nucleotide | No | No | Single-sample tool | Newer; less validation |
+| DENA (Qin 2022) | Nanopore + neural network | Single-nucleotide | No | No | Single-sample tool | Newer; less validation |
 | FTO/ALKBH5-aware methods | Eraser perturbation | Site | No | Indirect | Validates m6A regulation | Indirect |
-| MAZTER-seq (Garcia-Campos 2019) | RNase T1 cleavage at unmodified ACA | Site (within ACA) | No | No | Antibody-free | Restricted to ACA context (subset of DRACH) |
-| REF-seq (Werner 2020) | Endonuclease-cleavage | Site | No | No | Antibody-free | Restricted context |
-| m6ACali (Yang 2024) | Calibrates MeRIP / miCLIP | Site | NA | Yes (calibration) | Cross-method calibration | Postprocessing only |
+| MAZTER-seq (Garcia-Campos 2019) | MazF (RNase) cleavage at unmodified ACA | Site (within ACA) | No | No | Antibody-free | Restricted to ACA context (subset of DRACH) |
+| REF-seq (Zhang 2019) | MazF endonuclease-cleavage | Site | No | No | Antibody-free | Restricted context |
+| m6ACali (Ye 2024) | Calibrates MeRIP | Site | NA | Yes (calibration) | Cross-method calibration | Postprocessing only |
 
-Methodology evolves; verify the latest benchmark publications (e.g., Tegowski 2024 Mol Cell review). The field is moving toward GLORI as the new gold standard but miCLIP2 remains the most-cited method because of its eCLIP-pipeline compatibility.
+Methodology evolves; verify the latest benchmark publications and reviews. The field is moving toward GLORI as the new gold standard but miCLIP2 remains the most-cited method because of its eCLIP-pipeline compatibility.
 
 ## Critical Choice: Antibody-Based vs Antibody-Free
 
@@ -57,7 +57,7 @@ Methodology evolves; verify the latest benchmark publications (e.g., Tegowski 20
 
 **Antibody-free enzymatic (DART-seq, APOBEC1-YTH):** APOBEC1 cytidine deaminase fused to YTH-domain (m6A reader) edits C residues adjacent to m6A. Editing pattern (C->U) marks m6A nearby but not exactly. 44% of DART edits in DRACH; many edits are off-target.
 
-**Antibody-free nanopore (m6Anet, nanocompore, EpiNano):** Direct RNA sequencing detects m6A via current signal perturbation. Preserves isoform context. m6Anet AUC 0.83 on HEK293T; outperforms EpiNano and Tombo on benchmark (Liu 2024).
+**Antibody-free nanopore (m6Anet, nanocompore, EpiNano):** Direct RNA sequencing detects m6A via current signal perturbation. Preserves isoform context. m6Anet has high AUC on HEK293T and outperforms EpiNano and Tombo on the Hendra 2022 benchmark.
 
 | Goal | Method |
 |------|--------|
@@ -88,15 +88,15 @@ The DRACH consensus (D=A/G/U, R=A/G, A=m6A, C=C, H=A/C/U) is the dominant motif 
 | miCLIP vs miCLIP2 | ~70% | Kortel 2021 |
 | miCLIP2 vs GLORI | ~60% (miCLIP2 calls in GLORI) | Liu 2023 |
 | GLORI vs MeRIP-seq peaks | ~50% sites in MeRIP peaks | Liu 2023 |
-| DART-seq vs GLORI | 44% DART edits in DRACH; 7-28% near GLORI sites | Liu 2023 |
+| DART-seq vs GLORI | ~44% of DART edits within DRACH | Guo 2025 |
 | m6Anet vs miCLIP2 | ~75% concordance at high-coverage sites | Hendra 2022 |
-| Antibody-based methods | High discordance between antibody lots | Tegowski 2024 |
+| Antibody-based methods | High discordance between antibody lots | Practitioner reports |
 
 **Reconciliation strategy:** Use GLORI as the new gold standard (2023+); cross-reference with m6Anet for nanopore isoform context; treat miCLIP2 + m6Aboost as a complementary in vivo perspective; treat DART-seq as a hypothesis-generating method. Three orthogonal methods agreeing on a site = high confidence.
 
 ## miCLIP2 Workflow
 
-miCLIP2 (Kortel 2021) is the eCLIP-pipeline-compatible m6A method. It uses anti-m6A antibody + UV-CL + improved library prep that increases complexity 10x over miCLIP.
+miCLIP2 (Kortel 2021) is the eCLIP-pipeline-compatible m6A method. It uses anti-m6A antibody + UV-CL + improved library prep that yields substantially higher-complexity libraries from less input than miCLIP.
 
 **Goal:** Produce a high-confidence single-nucleotide m6A site BED from anti-m6A miCLIP2 reads with antibody-false-positive suppression via m6Aboost machine learning.
 
@@ -241,7 +241,7 @@ awk -F'\t' 'NR>1 && $5 >= 0.9' m6anet_out/data.indiv_proba.csv > m6Anet_high.tsv
 
 **Mechanism:** APOBEC1 has intrinsic C->U editing activity independent of YTH-m6A binding. Without APOBEC1-only control, 30-50% of edits are off-target.
 
-**Symptom:** Many DART edits in non-DRACH context (44% in DRACH per Liu 2023); GO term enrichment of edited genes is non-specific.
+**Symptom:** Many DART edits in non-DRACH context (~44% in DRACH); GO term enrichment of edited genes is non-specific.
 
 **Fix:** Always run APOBEC1-only control in parallel; subtract its edits. Filter for DRACH motif overlap when reporting. Cross-validate with miCLIP2 or GLORI.
 
@@ -263,7 +263,7 @@ awk -F'\t' 'NR>1 && $5 >= 0.9' m6anet_out/data.indiv_proba.csv > m6Anet_high.tsv
 
 **Symptom:** Peak BED width > 100 nt; downstream single-nt analysis impossible.
 
-**Fix:** Combine MeRIP-seq with single-nt method (GLORI, miCLIP2). Or use m6ACali (Yang 2024) for cross-method calibration.
+**Fix:** Combine MeRIP-seq with single-nt method (GLORI, miCLIP2). Or use m6ACali (Ye 2024) for cross-method calibration.
 
 ### DRACH-only filter -- Misses non-canonical m6A
 
@@ -341,12 +341,14 @@ awk -F'\t' 'NR>1 && $5 >= 0.9' m6anet_out/data.indiv_proba.csv > m6Anet_high.tsv
 - Kortel N et al 2021 Nucleic Acids Res 49:e92 (miCLIP2 + m6Aboost)
 - Liu C et al 2023 Nat Biotechnol 41:355 (GLORI)
 - Meyer KD 2019 Nat Methods 16:1275 (DART-seq)
+- Guo W et al 2025 Mol Cell 85:1233 (single-molecule m6A; DART-seq DRACH reanalysis, 44% within DRACH)
 - Hendra C et al 2022 Nat Methods 19:1590 (m6Anet)
-- Liu Y et al 2019 Nat Commun 10:4079 (EpiNano)
+- Liu H et al 2019 Nat Commun 10:4079 (EpiNano)
 - Leger A et al 2021 Nat Commun 12:7198 (nanocompore)
 - Garcia-Campos MA et al 2019 Cell 178:731 (MAZTER-seq)
-- Tegowski M et al 2024 Mol Cell 84:1135 (m6A methods review)
-- Yang Y et al 2024 Briefings Bioinform 25:bbae001 (m6ACali, benchmark)
+- Qin H et al 2022 Genome Biol 23:25 (DENA)
+- Zhang Z et al 2019 Sci Adv 5:eaax0250 (m6A-REF-seq)
+- Ye H et al 2024 Nucleic Acids Res 52:4830 (m6ACali, MeRIP-seq calibration)
 
 ## Related Skills
 

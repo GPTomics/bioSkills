@@ -7,7 +7,7 @@ primary_tool: STAMP
 
 ## Version Compatibility
 
-Reference examples tested with: STAMP / scSTAMP (Brannan 2021/2024 Yeo lab github), Bullseye 1.0+, SAILOR 1.1+, samtools 1.19+, REDItools2 1.3+, JACUSA2 2.0+, scanpy 1.10+, anndata 0.10+, pysam 0.22+.
+Reference examples tested with: STAMP / scSTAMP (Brannan 2021 Yeo lab github), Bullseye 1.0+, SAILOR 1.1+, samtools 1.19+, REDItools2 1.3+, JACUSA2 2.0+, scanpy 1.10+, anndata 0.10+, pysam 0.22+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -25,32 +25,31 @@ If code throws unexpected errors, introspect the installed package and adapt the
 - Python (scSTAMP single-cell): 10x Genomics or Smart-seq2 pipeline + custom editing-rate quantification per cell + per-cell binding-target inference
 - CLI (general edit-site detection): `JACUSA2 call-2 -r ref.fa -p 8 -F 1024 -A,B treated.bam,control.bam -t pileup.tsv` then filter for C-to-U or A-to-I
 
-STAMP (Brannan 2021) is the canonical antibody-free RBP profiling method. TRIBE (McMahon 2016) and HyperTRIBE (Xu 2018) are earlier ADAR-based variants. DART-seq (Meyer 2019) is the m6A-specific application using YTH-fused APOBEC1. scSTAMP (Brannan 2024) extends STAMP to single-cell readout.
+STAMP (Brannan 2021) is the canonical antibody-free RBP profiling method. TRIBE (McMahon 2016) and HyperTRIBE (Xu 2018) are earlier ADAR-based variants. DART-seq (Meyer 2019) is the m6A-specific application using YTH-fused APOBEC1. scSTAMP (single-cell readout) is part of the same Brannan 2021 method.
 
 ## Methods Taxonomy
 
 | Method | Deaminase | Edit signature | Cells supported | Single-cell | Strength | Fails when |
 |--------|-----------|----------------|-----------------|-------------|----------|------------|
 | STAMP (Brannan 2021) | APOBEC1 | C->U in mRNA (reads as C->T) | Any | Yes (scSTAMP) | Antibody-free; no UV; in vivo | APOBEC1 also edits ssDNA off-target; saturated edits at high APOBEC1 expression |
-| scSTAMP (Brannan 2024) | APOBEC1 | C->U per cell | Single cell (10x or Smart-seq2) | Yes (native) | Per-cell RBP profiling | Coverage per cell limits sensitivity; ~25% of cytosines accessible per transcript |
+| scSTAMP (Brannan 2021) | APOBEC1 | C->U per cell | Single cell (10x or Smart-seq2) | Yes (native) | Per-cell RBP profiling | Coverage per cell limits sensitivity; ~25% of cytosines accessible per transcript |
 | TRIBE (McMahon 2016) | ADAR catalytic domain | A->I (reads as A->G in cDNA) | Drosophila standard; mammalian works | Yes (scTRIBE) | First antibody-free | Edits restricted to certain ADAR consensus; lower edit rate than HyperTRIBE |
 | HyperTRIBE (Xu 2018) | ADAR E488Q hyperactive mutant | A->I in much wider context | Drosophila / mammalian | Yes | Higher edit rate than original TRIBE | Hyperactive may edit off-target; needs ADAR-only control |
-| TRIBE-DiCo (Erickson 2024) | ADAR catalytic + dimerization | A->I | Mammalian | Yes | Improved specificity | Newer; less validation |
 | DART-seq (Meyer 2019) | APOBEC1-YTH | C->U near m6A | Any | Yes (scDART) | m6A reader profiling | Indirect (edits near m6A, not at RBP binding sites) |
 | Bullseye | NA (analysis tool) | NA | Any | Yes | STAMP / DART analysis | Just an analysis pipeline |
 | SAILOR | NA (analysis tool) | NA | Any | Yes | RNA editing analysis | Just an analysis pipeline |
 | REDItools2 | NA (analysis tool) | NA | Any | NA | Generic RNA editing | Generic; not RBP-specific |
-| JACUSA2 (Piechotta 2022 BMC Bioinformatics 23:139) | NA (analysis tool) | NA | Any | NA | Multi-sample edit-site detection | Generic; not RBP-specific |
+| JACUSA2 (Piechotta 2022 Genome Biol 23:115) | NA (analysis tool) | NA | Any | NA | Multi-sample edit-site detection | Generic; not RBP-specific |
 | ADAR-CLIP | NA - this is regular ADAR CLIP | NA | NA | NA | CLIP for ADAR | Not an antibody-free method; just a different CLIP target |
 
-Methodology evolves; the Brannan lab and Yeo lab papers (2021, 2024) are canonical. Verify deaminase fusion expression level (low expression for specificity; saturation degrades specificity).
+Methodology evolves; the Brannan lab / Yeo lab 2021 paper is canonical. Verify deaminase fusion expression level (low expression for specificity; saturation degrades specificity).
 
 ## STAMP vs m6A-Specific Methods
 
 For m6A profiling specifically, antibody-free choices include:
-- **DART-seq (APOBEC1-YTH fusion):** This skill covers the methodology, but for m6A detection see clip-seq/m6a-clip. Only 44% of DART edits fall within DRACH motifs (Liu 2023); strong off-target component.
+- **DART-seq (APOBEC1-YTH fusion):** This skill covers the methodology, but for m6A detection see clip-seq/m6a-clip. Only ~44% of DART edits fall within DRACH motifs (Guo 2025); strong off-target component.
 - **GLORI (Liu 2023):** Antibody-free, chemical, stoichiometric single-base m6A; this is the new (2023) gold standard for m6A. See clip-seq/m6a-clip.
-- **m6Anet (Hendra 2022):** Nanopore direct RNA m6A; AUC 0.83 on HEK293T.
+- **m6Anet (Hendra 2022):** Nanopore direct RNA m6A; high AUC on HEK293T.
 
 If the use case is m6A profiling, the m6a-clip skill is the canonical reference; this skill (stamp-antibody-free) focuses on the broader RBP-editing-fusion paradigm where the target is not m6A but the RBP's RNA targets.
 
@@ -65,7 +64,7 @@ If the use case is m6A profiling, the m6a-clip skill is the canonical reference;
 | Off-target | APOBEC1 alone has detectable C->U on ssDNA + RNA | ADAR has weak intrinsic A->I |
 | Spatial offset from RBP binding | 0-50 nt | 0-30 nt |
 | Cell line tested | HEK293, K562, mouse tissue | Drosophila (original), mouse, human |
-| Single-cell | scSTAMP 2024 | scTRIBE 2020 |
+| Single-cell | scSTAMP (Brannan 2021) | scTRIBE |
 | Compatible methods | C->U is rare in mRNA; signal is clean | A->I is common at ALU repeats; baseline ADAR editing competes |
 | Cytosine accessibility | ~25-35% of mRNA bases are C; APOBEC1 needs ssRNA | All A residues are potential ADAR targets |
 
@@ -173,7 +172,7 @@ awk '$5 == "C" && $9 ~ /U/ && $11 >= 0.1' jacusa_edits.tsv > stamp_edits_filtere
 
 **Mechanism:** APOBEC1-YTH edits Cs 0-50 nt from the YTH-bound m6A site. The exact m6A position is not the edit position.
 
-**Symptom:** DART edits scattered around DRACH motifs; only 44% of edits within DRACH (Liu 2023).
+**Symptom:** DART edits scattered around DRACH motifs; only ~44% of edits within DRACH.
 
 **Fix:** Treat DART edits as "near m6A"; cross-reference with single-base m6A methods (GLORI, miCLIP2). DART is hypothesis-generating, not precise localization.
 
@@ -256,18 +255,16 @@ awk '$5 == "C" && $9 ~ /U/ && $11 >= 0.1' jacusa_edits.tsv > stamp_edits_filtere
 
 ## References
 
-- Brannan KW et al 2021 Mol Cell 81:2890 (STAMP, APOBEC1-RBP fusion)
-- Brannan KW et al 2024 Cell Genomics (scSTAMP single-cell extension)
+- Brannan KW et al 2021 Nat Methods 18:507 (STAMP + scSTAMP single-cell, APOBEC1-RBP fusion)
 - McMahon AC et al 2016 Cell 165:742 (TRIBE original, Drosophila)
-- Xu W et al 2018 Cell 174:1567 (HyperTRIBE)
-- Erickson AW et al 2024 (TRIBE-DiCo)
+- Xu W, Rahman R, Rosbash M 2018 RNA 24:173 (HyperTRIBE)
 - Meyer KD 2019 Nat Methods 16:1275 (DART-seq, APOBEC1-YTH)
+- Guo W et al 2025 Mol Cell 85:1233 (DART-seq DRACH reanalysis, 44% within DRACH)
 - (SAILOR: pipeline by Yeo lab; documented at github.com/YeoLab/SAILOR -- specific peer-reviewed citation has not been confirmed; consult current literature.)
 - Piechotta M et al 2017 BMC Bioinformatics 18:7 (JACUSA1).
-- Piechotta M et al 2022 BMC Bioinformatics 23:139 (JACUSA2 -- the multi-sample call-2 mode used above).
+- Piechotta M et al 2022 Genome Biol 23:115 (JACUSA2 -- the multi-sample call-2 mode used above).
 - Picardi E & Pesole G 2013 Bioinformatics 29:1813 (REDItools)
 - Tegowski M et al 2022 Mol Cell 82:868 (scDART single-cell DART-seq)
-- Hayashi Y et al 2023 (DART-seq benchmarking)
 
 ## Related Skills
 

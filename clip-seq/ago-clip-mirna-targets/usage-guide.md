@@ -2,7 +2,7 @@
 
 ## Overview
 
-Identify direct miRNA-target interactions experimentally. Three approaches: chimeric methods (CLEAR-CLIP, chimeric eCLIP / miR-eCLIP, CLASH) ligate miRNA-target chimeras for direct pairing; standard AGO HITS-CLIP / eCLIP + computational seed-matching (TargetScan, miRDB) for indirect pairing; HEAP (Halo-Ago2 mouse) for in vivo. Chimeric methods are gold-standard for direct identification; standard AGO-CLIP cannot assign miRNAs without computational prediction. ~50% of miRNA-target interactions are non-canonical (3' compensatory) and missed by seed-only methods.
+Identify direct miRNA-target interactions experimentally. Three approaches: chimeric methods (CLEAR-CLIP, chimeric eCLIP / miR-eCLIP, CLASH) ligate miRNA-target chimeras for direct pairing; standard AGO HITS-CLIP / eCLIP + computational seed-matching (TargetScan, miRDB) for indirect pairing; HEAP (Halo-Ago2 mouse) for in vivo. Chimeric methods are gold-standard for direct identification; standard AGO-CLIP cannot assign miRNAs without computational prediction. A substantial fraction of miRNA-target interactions are non-canonical (3' compensatory) and missed by seed-only methods.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ Tell your AI agent:
 
 > "Hyb pipeline with bowtie2 alignment mode for short miRNA chimeras"
 
-> "miR-eCLIP for hsa-miR-21 with probe enrichment 30-175x"
+> "miR-eCLIP for hsa-miR-21 with probe enrichment"
 
 ### Standard AGO-CLIP + Computational
 
@@ -70,13 +70,13 @@ Tell your AI agent:
 ## Tips
 
 - **Chimeric methods are gold standard for direct pairing.** Other methods need computational inference.
-- **miR-eCLIP enriches specific miRNAs 30-175x.** For deep targets of one or a few miRNAs.
+- **miR-eCLIP enriches specific miRNAs via probe capture.** For deep targets of one or a few miRNAs.
 - **Hyb pipeline needs bowtie2 mode for short miRNAs.** BLAST is too stringent.
 - **Standard chimera rate is 1-5%.** Sequence deep (200M+) for global chimera profiling.
 - **TargetScan + CLIP overlap is high-confidence.** TargetScan alone over-predicts.
 - **Filter by miRNA expression > 100 TPM.** Many miRNAs in databases not expressed in your cell type.
 - **6mer matches dominate but are weak.** Report separately; require 7mer-m8 / 8mer for high confidence.
-- **3' compensatory misses in seed-only methods.** ~50% of miRNA-target interactions are non-canonical.
+- **3' compensatory misses in seed-only methods.** A substantial fraction of miRNA-target interactions are non-canonical.
 - **HEAP is mouse-only.** Use eCLIP / chimeric eCLIP for human.
 
 ## Related Skills

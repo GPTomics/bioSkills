@@ -7,7 +7,7 @@ primary_tool: RBPNet
 
 ## Version Compatibility
 
-Reference examples tested with: RBPNet (Jens & Gagneur 2024 github), RNAProt 0.5+, GraphProt2 (Sauer 2022 github), DeepCLIP 1.0+ (Gronning 2020), DeepRiPe (Krakau lab), pytorch 2.2+, tensorflow 2.15+, scikit-learn 1.4+, biopython 1.83+, transformers 4.40+ (for RNA foundation models).
+Reference examples tested with: RBPNet (Horlacher et al 2023 github), RNAProt 0.5+, GraphProt2 (Uhl et al 2021 github), DeepCLIP 1.0+ (Gronning 2020), DeepRiPe (Ohler lab), pytorch 2.2+, tensorflow 2.15+, scikit-learn 1.4+, biopython 1.83+, transformers 4.40+ (for RNA foundation models).
 
 Before using code patterns, verify installed versions match. If versions differ:
 - Python: `pip show <package>` then `help(module.function)` to check signatures
@@ -17,7 +17,7 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 
 # CLIP-seq Deep Learning
 
-**"Predict RBP binding from RNA sequence using deep learning"** -> Train or apply neural networks that learn the sequence (and optionally structure) preference of an RBP from CLIP-seq peaks or single-nucleotide crosslink sites. The output is per-base or per-site binding probability for any input sequence, enabling: (a) variant-effect prediction at heterozygous SNPs; (b) in silico binding-site discovery on transcripts not covered by CLIP; (c) systematic comparison across RBPs via shared model architectures; (d) interpretation via attribution / saliency to recover RBP-specific motifs and structural preferences. Modern models (RBPNet 2024) predict per-nucleotide crosslink count distributions rather than binary peak/non-peak, providing single-nt resolution outputs.
+**"Predict RBP binding from RNA sequence using deep learning"** -> Train or apply neural networks that learn the sequence (and optionally structure) preference of an RBP from CLIP-seq peaks or single-nucleotide crosslink sites. The output is per-base or per-site binding probability for any input sequence, enabling: (a) variant-effect prediction at heterozygous SNPs; (b) in silico binding-site discovery on transcripts not covered by CLIP; (c) systematic comparison across RBPs via shared model architectures; (d) interpretation via attribution / saliency to recover RBP-specific motifs and structural preferences. Modern models (RBPNet 2023) predict per-nucleotide crosslink count distributions rather than binary peak/non-peak, providing single-nt resolution outputs.
 
 - Python (RBPNet sequence-to-CL signal): `import rbpnet; model = rbpnet.load_pretrained('RBP_name'); predictions = model.predict(sequence)` produces per-base CL count distribution
 - Python (RNAProt RNN classifier): `RNAProt train -i peaks.bed -t background.bed -g genome.fa -o model/` then `RNAProt predict -m model/ -i query_sequences.fa -o predictions.tsv`
@@ -25,43 +25,43 @@ If code throws ImportError, AttributeError, or TypeError, introspect the install
 - Python (DeepCLIP for binding probability): `deepclip --train --train_data train.fa --validation_data val.fa --predict --predict_data test.fa --output_dir output/`
 - Python (DeepRiPe multi-modal CNN): `from deepripe import DeepRiPe; model.train(X_train, y_train); predictions = model.predict(X_test)`
 
-The benchmarks (RNAProt paper, 2021): RNAProt AUC 87-89%; DeepCLIP 84-87%; GraphProt 82-84%. RBPNet (2024) is the modern sequence-to-signal model that predicts per-nt CL distributions at single-nucleotide resolution rather than binary site classification.
+The benchmarks (RNAProt paper, 2021): RNAProt AUC 87-89%; DeepCLIP 84-87%; GraphProt 82-84%. RBPNet (2023) is the modern sequence-to-signal model that predicts per-nt CL distributions at single-nucleotide resolution rather than binary site classification.
 
 ## Models Taxonomy
 
 | Model | Architecture | Input | Output | Resolution | Strength | Fails when |
 |-------|--------------|-------|--------|------------|----------|------------|
-| RBPNet (Jens & Gagneur 2024) | Sequence-to-signal CNN | Sequence | Per-nt CL count distribution | Single-nt | Modern single-nt resolution; predicts CL distribution not binary | New (2024); fewer pretrained RBPs |
-| RNAProt (Uhl 2021) | LSTM RNN | Sequence | Binary binding probability | Site/peak | Highest AUC in benchmark (87-89%); feature-rich (RNA-Foldscan structure) | Single-prediction; not per-base profile |
+| RBPNet (Horlacher et al 2023) | Sequence-to-signal CNN | Sequence | Per-nt CL count distribution | Single-nt | Modern single-nt resolution; predicts CL distribution not binary | New (2023); fewer pretrained RBPs |
+| RNAProt (Uhl 2021) | GRU RNN | Sequence | Binary binding probability | Site/peak | Highest AUC in benchmark (87-89%); feature-rich (RNAplfold structure) | Single-prediction; not per-base profile |
 | GraphProt (Maticzka 2014) | Graph kernel + SVM | Sequence + structure | Binary | Site/peak | Original structure-aware; well-validated | Older; superseded by GraphProt2 |
-| GraphProt2 (Sauer 2022) | Graph Convolutional Network (GCN) | Variable-length sequence + structure | Nucleotide-wise binding profile | Per-nt | Variable-length input; structure-aware | Slow to train; needs GPU |
-| DeepCLIP (Gronning 2020) | CNN | Sequence | Binary | Site | Fast; good benchmarks | Sequence-only; no structure |
-| DeepRiPe (Ghanbari 2020) | Multi-modal CNN | Sequence + structure + region | Binary | Site | Multi-input; good ENCODE benchmark | Sequence/structure/region must be pre-extracted |
+| GraphProt2 (Uhl 2021) | Graph Convolutional Network (GCN) | Variable-length sequence + structure | Nucleotide-wise binding profile | Per-nt | Variable-length input; structure-aware | Slow to train; needs GPU |
+| DeepCLIP (Gronning 2020) | CNN + BiLSTM | Sequence | Binary | Site | Fast; good benchmarks | Sequence-only; no structure |
+| DeepRiPe (Ghanbari 2020) | Multi-modal CNN | Sequence + region type | Binary | Site | Multi-input; good ENCODE benchmark | Sequence/region must be pre-extracted |
 | iDeep / iDeepE (Pan 2018) | CNN ensemble | Sequence | Binary | Site | Ensemble approach | Older; few pretrained models |
 | Pysster (Budach 2018) | CNN-LSTM | Sequence | Binary | Site | Generic framework | Less RBP-specific |
 | DeepBind (Alipanahi 2015) | CNN | Sequence | Binary | Site | First deep-learning RBP model | Outdated; superseded |
-| BasenjiPredict (Yeo lab adapt) | Multi-task CNN | Sequence | Per-task profile | Per-nt | Joint learning across RBPs | Computational overhead |
-| RNA foundation models (RNAErnie, RNA-FM 2024) | Transformer pretrained on RNA | Sequence | Embeddings (downstream task) | Embedding | Transfer learning across RBPs | Foundation model trained at depth; fine-tuning needed |
+| Basenji-style multi-task CNN | Multi-task CNN | Sequence | Per-task profile | Per-nt | Joint learning across RBPs | Computational overhead; no dedicated CLIP tool |
+| RNA foundation models (RNAErnie, RNA-FM) | Transformer pretrained on RNA | Sequence | Embeddings (downstream task) | Embedding | Transfer learning across RBPs | Foundation model trained at depth; fine-tuning needed |
 
-Methodology evolves; verify the latest publication on RBP deep learning (RBPNet 2024 is the current state-of-the-art per-nt resolution model). RNA foundation models (RNA-FM, RNAErnie) are emerging in 2024 as transfer-learning backbones; fine-tuning on CLIP data for specific RBPs is the next-generation approach.
+Methodology evolves; verify the latest publication on RBP deep learning (RBPNet 2023 is the current state-of-the-art per-nt resolution model). RNA foundation models (RNA-FM, RNAErnie) are emerging in 2024 as transfer-learning backbones; fine-tuning on CLIP data for specific RBPs is the next-generation approach.
 
 ## Critical Choice: Binary Classification vs Sequence-to-Signal
 
 **Binary classification (RNAProt, DeepCLIP, DeepRiPe, GraphProt2):** Train on labeled site vs background; predict probability of binding for an input sequence. Output: per-sequence score. Pro: simple framework; mature benchmarks. Con: discards single-nt CL distribution information; binary decision boundary.
 
-**Sequence-to-signal (RBPNet):** Train on per-nt CL count distributions from PureCLIP or CTK CITS output; predict per-base CL count for input sequence. Output: per-nt profile. Pro: single-nt resolution; preserves CL count information; matches biology (CL is a sharp signal, not a region). Con: newer (2024); fewer pretrained models; harder to interpret with classical motif tools.
+**Sequence-to-signal (RBPNet):** Train on per-nt CL count distributions from PureCLIP or CTK CITS output; predict per-base CL count for input sequence. Output: per-nt profile. Pro: single-nt resolution; preserves CL count information; matches biology (CL is a sharp signal, not a region). Con: newer (2023); fewer pretrained models; harder to interpret with classical motif tools.
 
 | Goal | Model |
 |------|-------|
 | Predict RBP binding probability for an input sequence | RNAProt or DeepRiPe |
 | Predict per-base CL distribution | RBPNet |
 | Variant-effect at heterozygous SNP | RBPNet or DeepRiPe (per-base output) |
-| Compare RBP preferences across ENCODE | Multi-task model (BasenjiPredict-style) |
+| Compare RBP preferences across ENCODE | Multi-task model (Basenji-style) |
 | Transfer learning across RBPs | RNA foundation model + fine-tune |
 | In silico screening of variants | RBPNet (per-base) for genome-wide |
 | Motif interpretation via attribution | DeepRiPe or GraphProt2 (interpretable) |
 | Custom training on new CLIP data | RNAProt (easiest pipeline) |
-| Production-grade per-base prediction | RBPNet 2024 |
+| Production-grade per-base prediction | RBPNet 2023 |
 
 ## Variant-Effect Prediction Workflow
 
@@ -240,7 +240,7 @@ predictions = model.predict(novel_sequences)
 
 **Symptom:** Saliency results noisy; no clean motif emerges.
 
-**Fix:** Use TF-MoDISco (Schreiber 2020) for cleaner motif extraction from saliency maps. Or use DeepLIFT scores instead of vanilla saliency.
+**Fix:** Use TF-MoDISco (Shrikumar et al 2018) for cleaner motif extraction from saliency maps. Or use DeepLIFT scores instead of vanilla saliency.
 
 ## Decision Tree by Use Case
 
@@ -251,7 +251,7 @@ predictions = model.predict(novel_sequences)
 | Structure-aware prediction | GraphProt2 | Structure ensemble integration |
 | Custom training on new CLIP data | RNAProt (easiest CLI) | Fast training; CLI tool |
 | Single RBP, no pretrained | Train custom RNAProt | Most accessible framework |
-| Multi-task across RBPs | BasenjiPredict-style | Joint learning |
+| Multi-task across RBPs | Basenji-style | Joint learning |
 | Transfer learning from foundation model | RNA-FM + fine-tune | New approach; not yet in production |
 | Production scoring of many sequences | DeepCLIP (fast inference) | Throughput |
 | Motif interpretation | DeepRiPe + TF-MoDISco | Interpretable architectures |
@@ -292,16 +292,16 @@ predictions = model.predict(novel_sequences)
 
 - Alipanahi B et al 2015 Nat Biotechnol 33:831 (DeepBind, first DL RBP model)
 - Maticzka D et al 2014 Genome Biol 15:R17 (GraphProt with structure)
-- Sauer M et al 2022 (GraphProt2 with GCN)
+- Uhl M et al 2021 bioRxiv 850024 (GraphProt2 with GCN; preprint)
 - Gronning AGB et al 2020 Nucleic Acids Res 48:7099 (DeepCLIP)
-- Ghanbari M et al 2020 Bioinformatics 36:3489 (DeepRiPe multi-modal)
-- Pan X et al 2018 Bioinformatics 34:i285 (iDeepE)
-- Budach S et al 2018 Bioinformatics 34:3387 (Pysster)
+- Ghanbari M, Ohler U 2020 Genome Res 30:214 (DeepRiPe multi-modal)
+- Pan X, Shen HB 2018 Bioinformatics 34:3427 (iDeepE)
+- Budach S, Marsico A 2018 Bioinformatics 34:3035 (Pysster)
 - Uhl M et al 2021 GigaScience 10:giab054 (RNAProt RNN)
 - Horlacher M, Wagner N, Moyon L et al 2023 Genome Biol 24:180 (RBPNet sequence-to-signal at single-nt)
 - Shrikumar A et al 2018 arXiv (TF-MoDISco interpretation)
-- Chen J et al 2024 (RNA-FM foundation model)
-- Wang W et al 2024 (RNAErnie pretrained transformer)
+- Chen J et al 2022 arXiv:2204.00300 (RNA-FM foundation model, preprint)
+- Wang N et al 2024 Nat Mach Intell 6:548 (RNAErnie)
 
 ## Related Skills
 

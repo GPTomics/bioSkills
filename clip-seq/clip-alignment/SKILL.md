@@ -37,7 +37,7 @@ End-to-end alignment is non-negotiable. `--alignEndsType Local` (STAR default fo
 | novoalign | Yes (splice with -X) | ~10 GB | Acceptable | Old standard; some labs still use | Commercial; community moved to STAR/HISAT2 |
 | Salmon (transcriptome) | N/A | low | Not suitable | Pseudo-alignment | Discards intronic and unannotated reads, both common in CLIP |
 
-Methodology evolves; verify the current ENCODE eCLIP pipeline (encodeproject.org/eclip) before locking parameters. As of 2025, ENCODE 4 still uses STAR 2.4.0j (legacy version pinning); modern reanalyses use STAR 2.7.x with the same parameter set.
+Methodology evolves; verify the current ENCODE eCLIP pipeline (encodeproject.org/eclip) before locking parameters. The ENCODE eCLIP SOP v2.2 pins STAR 2.5.2b (the earlier v1 SOP used 2.4.0i); modern reanalyses use STAR 2.7.x with the same parameter set.
 
 ## Critical Choice: Unique-Mapper-Only vs Multi-Mapper Rescue
 
@@ -192,7 +192,7 @@ CLAM peakcaller -i clam_out/unique.sorted.bam clam_out/realigned.sorted.bam \
     -o clam_peaks.bed -p 8 --gtf gencode.v38.annotation.gtf
 ```
 
-CLAM rescues 10-30% additional peaks in repeat regions (Zhang & Xing 2017). It is the only EM-based multi-mapper solution actively maintained for CLIP as of 2025.
+CLAM (Zhang & Xing 2017) rescues additional peaks in repeat regions (operationally ~10-30% more, dataset-dependent). It is the only EM-based multi-mapper solution actively maintained for CLIP as of 2025.
 
 ## HISAT2 Low-Memory Alternative
 
@@ -255,7 +255,7 @@ WASP filtering is MANDATORY for allele-specific binding analyses; reference-alle
 | HISAT2 calls peaks STAR misses | HISAT2 lower-stringency soft-clip behaviour | Re-run HISAT2 with `--no-softclip`; differences should narrow to < 5% |
 | Two STAR versions (2.4 vs 2.7) give different BAMs | Index sjdb format changed; parameter defaults drift | Pin STAR version for cross-study comparison; document |
 
-**Operational rule:** For ENCODE-comparable analysis, use STAR 2.4.0j or 2.7.x with the ENCODE eCLIP parameter block; use `--alignEndsType EndToEnd`; use `--outFilterMultimapNmax 1` unless the biology requires multi-mappers (then add CLAM); UMI-dedupe with `umi_tools dedup --method=unique`. Document any deviation in methods.
+**Operational rule:** For ENCODE-comparable analysis, use STAR 2.5.2b (ENCODE eCLIP SOP v2.2) or 2.7.x with the ENCODE eCLIP parameter block; use `--alignEndsType EndToEnd`; use `--outFilterMultimapNmax 1` unless the biology requires multi-mappers (then add CLAM); UMI-dedupe with `umi_tools dedup --method=unique`. Document any deviation in methods.
 
 ## Common Errors
 
@@ -281,7 +281,7 @@ WASP filtering is MANDATORY for allele-specific binding analyses; reference-alle
 - Zhang Z & Xing Y 2017 Nucleic Acids Res 45:9260 (CLAM multi-mapper assignment)
 - van de Geijn B et al 2015 Nat Methods 12:1061 (WASP allele-specific alignment)
 - Hafner M et al 2010 Cell 141:129 (PAR-CLIP T->C mismatch tolerance need)
-- Chakrabarti AM et al 2023 Genome Biol 24:235 (nf-core/clipseq alignment defaults)
+- West C et al 2023 Wellcome Open Res 8:286 (nf-core/clipseq alignment defaults)
 
 ## Related Skills
 

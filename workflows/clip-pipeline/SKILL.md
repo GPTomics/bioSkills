@@ -31,8 +31,8 @@ A CLIP callset is decided at four seams, not inside the peak caller.
 
 1. **The protocol variant is the master commitment made once at the top.** It fixes the UMI pattern, the STAR mismatch ceiling, and the crosslink signal (truncation vs PAR-CLIP T->C vs STAMP C->U edit). The CLIP Variant Selection table below is that decision; everything downstream inherits it.
 2. **Every IP is normalized against its SMInput with ENCODE-stringent thresholds (log2 FC >= 3 AND -log10 p >= 3).** Peaks called without SMInput normalization are enrichment-uncontrolled and dominated by abundance.
-3. **The R2 5' end IS the crosslink site (-1), so preprocessing and alignment must PRESERVE it.** Trim 3'-only and permissively (`-q 6`, never `-g` on R1), and align with STAR `--alignEndsType EndToEnd` — soft-clipping or aggressive 5' trimming destroys the truncation base and with it single-nucleotide resolution.
-4. **40-70% PCR duplication is BY DESIGN; low duplication signals a FAILED IP, not a clean library.** The IP enriches a small molecule pool, so the real quality metric is the UNIQUE-fragment count after UMI dedup — never the raw duplication rate.
+3. **The R2 5' end IS the crosslink site (-1), so preprocessing and alignment must PRESERVE it.** Trim 3'-only and permissively (`-q 6`, never `-g` on R1), and align with STAR `--alignEndsType EndToEnd` - soft-clipping or aggressive 5' trimming destroys the truncation base and with it single-nucleotide resolution.
+4. **40-70% PCR duplication is BY DESIGN; low duplication signals a FAILED IP, not a clean library.** The IP enriches a small molecule pool, so the real quality metric is the UNIQUE-fragment count after UMI dedup - never the raw duplication rate.
 
 ## Pipeline Overview
 
@@ -276,7 +276,7 @@ findMotifs.pl motifs/peaks.fa fasta motifs/homer \
 mCross.pl motifs/peakseqs.fa motifs/mcross   # see clip-seq/clip-motif-analysis for options
 ```
 
-UV254 crosslinking has a strong U bias (~60-80% CL events at U); naive logos centered on CL positions are U-enriched even for non-U-binding RBPs. mCross corrects this by registering motif relative to the CL offset. See clip-seq/clip-motif-analysis.
+UV254 crosslinking has a strong U bias at CL sites; naive logos centered on CL positions are U-enriched even for non-U-binding RBPs. mCross corrects this by registering motif relative to the CL offset. See clip-seq/clip-motif-analysis.
 
 ## Step 10: Differential Binding (Optional, Across Conditions)
 
