@@ -7,7 +7,7 @@ primary_tool: PAML
 
 ## Version Compatibility
 
-Reference examples tested with: PAML 4.10.7+, HyPhy 2.5.62+ (BUSTED-MH from Lucaci 2023 bioRxiv; FUBAR-MH from same), datamonkey.org 2024+ for web jobs, IQ-TREE 2.3.6+, MACSE V2.07+, PRANK 170427+, MAFFT 7.526+, PREQUAL 1.02+, HmmCleaner 0.243+, GARD (HyPhy bundled), RDP5 5.59+, ete4 4.1.0+, BioPython 1.84+, scipy 1.13+, polyDFE 2.0+, DFE-alpha 2.16+, GRAPES 1.1.1+, RERconverge 0.3.0+, CSUBST 1.6.0+, PhyloAcc 2.4.0+. Quest-for-Selection benchmark refreshed annually.
+Reference examples tested with: PAML 4.10.7+, HyPhy 2.5.62+ (BUSTED-MH from Lucaci 2023 MBE 40:msad150; FUBAR-MH from same), datamonkey.org 2024+ for web jobs, IQ-TREE 2.3.6+, MACSE V2.07+, PRANK 170427+, MAFFT 7.526+, PREQUAL 1.02+, HmmCleaner 0.243+, GARD (HyPhy bundled), RDP5 5.59+, ete4 4.1.0+, BioPython 1.84+, scipy 1.13+, polyDFE 2.0+, DFE-alpha 2.16+, GRAPES 1.1.1+, RERconverge 0.3.0+, CSUBST 1.6.0+, PhyloAcc 2.4.0+. Quest-for-Selection benchmark refreshed annually.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `codeml` (PAML; check by `codeml /dev/null` -- prints version banner), `hyphy --version`, `gard --help`
@@ -34,13 +34,13 @@ If code throws `branch-site test LRT non-positive`, `omega2 hit upper bound 999`
 | PAML codeml M0 (Yang 1997 CABIOS 13:555) | Gene-wide single-omega estimate | -- (point estimate) | Standard reference omega; baseline test | Site heterogeneity (use M3+) |
 | codeml M1a vs M2a (Yang 2000 Genetics 155:431) | Any site under selection? | Nearly neutral, 2-category | Conservative; LRT df=2 | Low power for episodic selection |
 | codeml M7 vs M8 | More-sensitive site test | Beta(0,1) | Higher power than M1a/M2a | Higher false-positive rate; relaxed-constraint mimics selection |
-| codeml M8 vs M8a (Swanson 2003 Genetics 165:725) | Conservative site test (omega2 = 1 null) | Beta + omega2=1 | Cleanest LRT df=1; preferred site test | Lower power than M7 vs M8 |
+| codeml M8 vs M8a (Swanson 2003 MBE 20:18) | Conservative site test (omega2 = 1 null) | Beta + omega2=1 | Cleanest LRT df=1; preferred site test | Lower power than M7 vs M8 |
 | codeml branch-site mod A (Zhang 2005 MBE 22:2472) | Selection on pre-specified foreground branch | A1 (omega2=1 fixed) | Most powerful for episodic per-branch selection | Foreground specified post hoc -> Type-I inflation |
 | codeml clade model (Bielawski & Yang 2004 J Mol Evol 59:121) | Different omega between named clades | M3 with shared categories | Tests for shifted selection regime | Requires clade pre-specification |
 | codeml free-ratio | Per-branch omega estimates (exploratory) | M0 | Visualizes branch-wise variation | Unidentifiable for short branches; no formal LRT |
 | HyPhy BUSTED (Murrell 2015 MBE 32:1365) | Any episodic selection on any branch site? | No omega+ class | Site + branch joint; foreground assignable | Sensitive to alignment errors |
 | HyPhy BUSTED-S (Wisotsky 2020 MBE 37:2430) | BUSTED with synonymous-rate variation | -- | Corrects for SRV; reduces false positives | Slightly less power than BUSTED |
-| HyPhy BUSTED-MH (Lucaci 2023 bioRxiv 2022.12.02) | BUSTED with multi-nucleotide substitutions | -- | Captures complex (multi-hit) substitutions; reduces false positives from MNMs | Newer; limited benchmarking |
+| HyPhy BUSTED-MH (Lucaci 2023 MBE 40:msad150) | BUSTED with multi-nucleotide substitutions | -- | Captures complex (multi-hit) substitutions; reduces false positives from MNMs | Newer; limited benchmarking |
 | HyPhy BUSTED-PH | Two phenotypes; selection on one not other | -- | Tests phenotype-specific selection | Requires phenotype branch label |
 | HyPhy MEME (Murrell 2012 PLoS Genet 8:e1002764) | Per-site episodic selection | FEL | Detects sites under episodic positive selection | Higher false-positive rate at p threshold |
 | HyPhy FEL (Kosakovsky Pond 2005 MBE 22:1208) | Per-site pervasive selection | -- | Fast; counts substitutions per site | No episodic detection |
@@ -81,7 +81,7 @@ Methodology evolves; verify the latest HyPhy / PAML manuals and the Álvarez-Car
 | Trait-correlated rate shifts genome-wide | RERconverge | Categorical / binary phenotype; correlates RERs across thousands of genes |
 | Suspected positive selection but dS > 2 | Use protein-level method or reduce taxon sampling | Codon-based methods unreliable at saturation; protein-only ASR can still work |
 | Recombination expected (immune genes, viral genomes) | GARD pre-screen mandatory | Recombination + tree-based selection -> false positives (Anisimova 2003) |
-| Convergent codon substitution at specific sites | TDG09 (Tamuri 2009) or PCOC (Rey 2018) | Detects convergence at specific sites associated with traits |
+| Convergent codon substitution at specific sites | TDG09 (Tamuri 2009) or PCOC (Rey 2018) | TDG09 detects site-specific shifts in selective constraint between trait-defined lineage groups; PCOC detects convergent amino-acid substitution |
 | Drug-target evolution screen | aBSREL on candidate genes; cross-validate with MEME | Recent positive selection at drug-target loci |
 | Pathogen / immune-evasion gene with high dS variation | BUSTED-S (synonymous rate variation aware) | dS variation across sites violates basic BUSTED assumptions |
 | Plasmodium / Trypanosoma / Plasmid analysis | BUSTED-MH (multi-hit aware) | Multi-nucleotide substitutions common in these; basic BUSTED inflates false positives |
@@ -106,7 +106,7 @@ Methodology evolves; verify the latest HyPhy / PAML manuals and the Álvarez-Car
 
 **Symptom:** "Selected sites" cluster in alignment regions with > 30% gaps; per-site posteriors in BEB / FUBAR concentrate in ambiguous columns; PREQUAL or Guidance2 marks these regions as poorly aligned; protein alignment shows obvious mismatches.
 
-**Fix:** Use codon-aware aligner: **PRANK** (Loytynoja 2014 Methods Mol Biol 1079:155) is the standard for selection analysis (correctly models insertions); MACSE V2 (Ranwez 2018 MBE 35:2582) handles frameshifts and pseudogenes natively; OMM_MACSE wrapper combines them. After alignment, filter with PREQUAL (segment-level) or HmmCleaner (Di Franco 2019 BMC Eco Evo 19:21); do NOT use block-filtering (Gblocks, trimAl) which removes informative sites. Segment-level filtering preferred for selection (Di Franco 2019).
+**Fix:** Use codon-aware aligner: **PRANK** (Loytynoja 2014 Methods Mol Biol 1079:155) is the standard for selection analysis (correctly models insertions); MACSE V2 (Ranwez 2018 MBE 35:2582) handles frameshifts and pseudogenes natively; OMM_MACSE wrapper combines them. After alignment, filter with PREQUAL (segment-level) or HmmCleaner (Di Franco 2019 BMC Evol Biol 19:21); do NOT use block-filtering (Gblocks, trimAl) which removes informative sites. Segment-level filtering preferred for selection (Di Franco 2019).
 
 ### Saturated synonymous sites
 
@@ -197,7 +197,7 @@ Methodology evolves; verify the latest HyPhy / PAML manuals and the Álvarez-Car
 | aBSREL p-value | p < 0.05 (corrected by Holm-Bonferroni internally) | Smith 2015 |
 | RELAX k interpretation | k < 1 relaxed; k > 1 intensified | Wertheim 2015 |
 | Codon usage bias ENC | ENC < 35 high bias; consider effect on dS | Wright 1990 Gene 87:23 |
-| W->S substitution ratio for gBGC | > 1.5 suggests gBGC | Galtier 2013 |
+| W->S substitution ratio for gBGC | > 1.5 suggests gBGC | Operational convention |
 | BUSTED-MH multi-hit threshold | omega_DH > 1 indicates multi-hit pattern | Lucaci 2023 |
 | HyPhy SRV (Synonymous Rate Variation) | Use BUSTED-S when dS varies across sites > 2x | Wisotsky 2020 |
 
@@ -466,17 +466,17 @@ For genome-wide scans (> 5000 genes), parallelize per-gene analyses with Snakema
 - Yang Z et al 2000 Genetics 155:431 (codon models M0-M8)
 - Yang Z & Bielawski JP 2000 TREE 15:496 (codon model framework)
 - Zhang J et al 2005 MBE 22:2472 (branch-site mod A); Wong WSW et al 2004 Genetics 168:1041 (LRT mixture); Self SG & Liang K-Y 1987 JASA 82:605 (LRT boundary)
-- Swanson WJ et al 2003 Genetics 165:725 (M8a null); Bielawski JP & Yang Z 2004 J Mol Evol 59:121 (clade models)
-- Anisimova M & Yang Z 2007 MBE 24:1219 (PAML comparison); Anisimova M et al 2003 Genetics 164:1229 (recombination FP); Anisimova M, Bielawski JP & Yang Z 2001 MBE 18:1585 (LRT power)
+- Swanson WJ et al 2003 MBE 20:18 (M8a null); Bielawski JP & Yang Z 2004 J Mol Evol 59:121 (clade models)
+- Anisimova M & Yang Z 2007 MBE 24:1219 (multiple-testing / branch-site power); Anisimova M et al 2003 Genetics 164:1229 (recombination FP); Anisimova M, Bielawski JP & Yang Z 2001 MBE 18:1585 (LRT power)
 - Pond SLK et al 2006 MBE 23:1891 (GARD); Martin DP et al 2021 Virus Evol 7:veaa087 (RDP5)
 - Kosakovsky Pond SL & Frost SDW 2005 MBE 22:1208 (FEL); Murrell B et al 2012 PLoS Genet 8:e1002764 (MEME); Murrell B et al 2013 MBE 30:1196 (FUBAR)
-- Murrell B et al 2015 MBE 32:1365 (BUSTED); Wisotsky SR et al 2020 MBE 37:2430 (BUSTED-S); Lucaci AG et al 2023 bioRxiv 2022.12.02.518889 (BUSTED-MH)
+- Murrell B et al 2015 MBE 32:1365 (BUSTED); Wisotsky SR et al 2020 MBE 37:2430 (BUSTED-S); Lucaci AG et al 2023 MBE 40:msad150 (BUSTED-MH)
 - Smith MD et al 2015 MBE 32:1342 (aBSREL); Wertheim JO et al 2015 MBE 32:820 (RELAX)
 - McDonald JH & Kreitman M 1991 Nature 351:652 (MK); Smith NGC & Eyre-Walker A 2002 Nature 415:1022 (alpha); Messer PW & Petrov DA 2013 PNAS 110:8615 (asymptotic alpha)
 - Murga-Moreno J et al 2022 G3 12:jkac206 (impMKT); Tataru P & Bataillon T 2019 Bioinformatics 35:2868 (polyDFE); Eyre-Walker A & Keightley PD 2009 MBE 26:2097 (DFE-alpha); Galtier N 2016 PLoS Genet 12:e1005774 (GRAPES)
 - Galtier N & Duret L 2007 Trends Genet 23:273 (gBGC); Capra JA et al 2013 PLoS Genet 9:e1003684 (gBGC genome-scale)
 - Schneider A et al 2009 GBE 1:114 + Markova-Raina P & Petrov D 2011 GR 21:863 (alignment-error FP)
-- Loytynoja A 2014 Methods Mol Biol 1079:155 (PRANK); Ranwez V et al 2018 MBE 35:2582 (MACSE V2); Whelan S et al 2018 Bioinformatics 34:3929 (PREQUAL); Di Franco A et al 2019 BMC Eco Evo 19:21 (HmmCleaner)
+- Loytynoja A 2014 Methods Mol Biol 1079:155 (PRANK); Ranwez V et al 2018 MBE 35:2582 (MACSE V2); Whelan S et al 2018 Bioinformatics 34:3929 (PREQUAL); Di Franco A et al 2019 BMC Evol Biol 19:21 (HmmCleaner)
 - Yang Z 2007 PAML manual; Álvarez-Carretero S et al 2023 MBE 40:msad041 (Beginner's Guide PAML)
 - Kowalczyk A et al 2019 Bioinformatics 35:4815 + Redlich R et al 2024 MBE 41:msae210 (RERconverge)
 - Fukushima K & Pollock DD 2023 Nat Eco Evo 7:155 (CSUBST); Hu Z et al 2019 MBE 36:1086 (PhyloAcc); Pollard KS et al 2010 GR 20:110 (phyloP); Rey C et al 2018 MBE 35:2296 (PCOC)

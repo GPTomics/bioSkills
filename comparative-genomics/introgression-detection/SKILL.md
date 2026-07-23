@@ -1,6 +1,6 @@
 ---
 name: bio-comparative-genomics-introgression-detection
-description: Detect introgression and admixture between species or populations using Dsuite (Malinsky 2021 fast D-statistics), Patterson's D / ABBA-BABA test (Green 2010; Durand 2011), f4-ratio and f-branch statistic (Malinsky 2018), TreeMix (Pickrell & Pritchard 2012), HyDe (Blischak 2018), QuIBL (Edelman 2019), sprime (Browning 2018), Twisst (Martin 2017), PhyloNet (Solis-Lemus 2017) for explicit phylogenetic networks, and qpAdm / qpGraph (Patterson 2012). Distinguish introgression from incomplete lineage sorting (ILS), ancestral structure, ghost-lineage admixture, and rate variation. Use when testing inter-species gene flow, dating admixture events, identifying introgressed segments, building phylogenetic networks for reticulate evolution, or applying the ABBAclustering (Koppetsch-Malinsky-Matschiner 2024) framework for divergent-species gene flow.
+description: Detect introgression and admixture between species or populations using Dsuite (Malinsky 2021 fast D-statistics), Patterson's D / ABBA-BABA test (Green 2010; Durand 2011), f4-ratio and f-branch statistic (Malinsky 2018), TreeMix (Pickrell & Pritchard 2012), HyDe (Blischak 2018), QuIBL (Edelman 2019), sprime (Browning 2018), Twisst (Martin 2017), PhyloNet (Than 2008) for explicit phylogenetic networks, and qpAdm / qpGraph (Patterson 2012). Distinguish introgression from incomplete lineage sorting (ILS), ancestral structure, ghost-lineage admixture, and rate variation. Use when testing inter-species gene flow, dating admixture events, identifying introgressed segments, building phylogenetic networks for reticulate evolution, or applying the ABBAclustering (Koppetsch-Malinsky-Matschiner 2024) framework for divergent-species gene flow.
 tool_type: cli
 primary_tool: Dsuite
 ---
@@ -458,10 +458,10 @@ For population-genetic analyses, the Dsuite + AdmixTools v2 (R) + TreeMix combin
 - Browning SR et al 2018 Cell 173:53 (sprime archaic introgression)
 - Eriksson A & Manica A 2012 PNAS 109:13956 (ancestral structure produces D-stat without admixture); Soraggi S et al 2018 G3 8:551 (D-statistic with low-coverage data)
 - Slon V et al 2018 Nature 561:113 (Denisovan-Neanderthal hybrid)
-- Mafessoni F et al 2020 PNAS 117:15132 (ghost-lineage modeling)
+- Mafessoni F et al 2020 PNAS 117:15132 (high-coverage Chagyrskaya Neanderthal genome)
 - Speidel L et al 2019 Nat Genet 51:1321 (Relate genealogy)
 - Fitak RR 2021 Biol Methods Protoc 6:bpab017 (OptM)
-- Lawson DJ et al 2018 Nat Comm 9:3258 (haplotype-based admixture)
+- Lawson DJ et al 2012 PLoS Genet 8:e1002453 (ChromoPainter; haplotype-based admixture)
 - Patin E et al 2017 Science 356:543 (sub-Saharan admixture example)
 - Frantz LAF et al 2019 PNAS 116:17231 (animal domestication admixture)
 

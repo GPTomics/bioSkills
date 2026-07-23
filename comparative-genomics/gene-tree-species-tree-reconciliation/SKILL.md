@@ -1,6 +1,6 @@
 ---
 name: bio-comparative-genomics-gene-tree-species-tree-reconciliation
-description: Reconcile gene trees against a species tree under probabilistic models of duplication, transfer, and loss (DTL) using ALE (Szöllősi 2013 amalgamated likelihood), GeneRax (Morel 2020 ML reconciliation), AleRax (Morel 2024 co-estimation), Whale.jl (Bayesian DTL+WGD), RANGER-DTL 2 parsimony, NOTUNG, ecceTERA, and Treerecs. Use when inferring ancestral gene-family content, distinguishing duplication from horizontal transfer from differential loss, rooting deep species trees from gene-content signals (STRIDE / Williams 2017 ALE-rooting), counting DTL events per branch, refining noisy gene trees against a species tree, modeling WGD events jointly with DTL, or producing publication-grade gene-family histories for phylogenomic / comparative analyses.
+description: Reconcile gene trees against a species tree under probabilistic models of duplication, transfer, and loss (DTL) using ALE (Szöllősi 2013 amalgamated likelihood), GeneRax (Morel 2020 ML reconciliation), AleRax (Morel 2024 co-estimation), Whale.jl (Bayesian DL+WGD), RANGER-DTL 2 parsimony, NOTUNG, ecceTERA, and Treerecs. Use when inferring ancestral gene-family content, distinguishing duplication from horizontal transfer from differential loss, rooting deep species trees from gene-content signals (STRIDE / Williams 2017 ALE-rooting), counting DTL events per branch, refining noisy gene trees against a species tree, modeling WGD events jointly with DTL, or producing publication-grade gene-family histories for phylogenomic / comparative analyses.
 tool_type: cli
 primary_tool: ALE
 ---
@@ -23,7 +23,7 @@ If code throws `species tree mismatch`, `gene tree taxa not in species tree`, or
 - CLI: `ALEobserve` + `ALEml_undated` -- Bayesian DTL on a sample of gene trees (amalgamated likelihood)
 - CLI: `generax` -- ML reconciliation; refines gene trees jointly with reconciliation
 - CLI: `alerax` -- co-estimation of gene and species trees + DTL rates (Morel 2024)
-- Julia: `using Whale` -- Bayesian DTL + WGD modeling
+- Julia: `using Whale` -- Bayesian DL + WGD modeling
 - CLI: `ranger-dtl` -- parsimony DTL with cost weights
 - CLI: `notung` -- duplication-loss only (DL); user-friendly GUI; legacy
 
@@ -35,14 +35,14 @@ If code throws `species tree mismatch`, `gene tree taxa not in species tree`, or
 | ALE dated | Same as undated but uses time-calibrated species tree | D, T, L | Bayesian | Time-aware; better donor inference | Requires dated species tree (BEAST2 / RevBayes calibration) |
 | GeneRax (Morel 2020 MBE 37:2763) | ML reconciliation + joint gene-tree refinement | D, T, L | ML | Faster than ALE; refines noisy gene trees; species-tree-aware | Less uncertainty quantification than ALE |
 | AleRax (Morel 2024 Bioinformatics 40:btae162) | Co-estimation of gene tree, species tree, and DTL rates | D, T, L | Bayesian / ML hybrid | Gold standard 2024; corrects gene-tree-error feedback into species tree | Computationally heaviest; needs >= 20 species |
-| Whale.jl (Zwaenepoel & Van de Peer 2019 MBE 36:1384) | Bayesian DTL + WGD via amalgamated likelihood | D, T, L, WGD | Bayesian (Turing.jl) | Native WGD modeling; modern Bayesian framework | Julia ecosystem dependency |
+| Whale.jl (Zwaenepoel & Van de Peer 2019 MBE 36:1384) | Bayesian DL + WGD via amalgamated likelihood | D, L, WGD | Bayesian (Turing.jl) | Native WGD modeling; modern Bayesian framework | Julia ecosystem dependency |
 | RANGER-DTL 2.0 (Bansal 2018 Bioinformatics 34:3214) | Parsimony DTL with user cost weights (D-cost, T-cost, L-cost) | D, T, L | Parsimony | Fast; deterministic; many gene families per minute | Cost weights are user choices; results sensitive to costs |
 | NOTUNG (Chen 2000 JCB 7:429; Stolzer 2012 Bioinformatics 28:i409) | Parsimony DL; HGT extension | D, L (optional T) | Parsimony | User-friendly GUI; widely used | DL-only by default; HGT extension less rigorous than ALE |
-| ecceTERA (Jacox 2016 Bioinformatics 32:2056) | DTL on input set of trees; ILS extension | D, T, L (+ ILS) | Parsimony / DP | Handles ILS jointly with DTL | Less popular than ALE; smaller community |
-| Treerecs (Comte 2020 Bioinformatics 36:4822) | Joint species tree + gene tree refinement | D, L | ML | Refines gene trees by species-tree constraint | No HGT; eukaryote-focused |
+| ecceTERA (Jacox 2016 Bioinformatics 32:2056) | DTL on input set of trees; sampled + unsampled ("dead") lineages | D, T, L | Parsimony / DP | Transfers from extinct/unsampled lineages; cost-sweep mode | No ILS model; less popular than ALE; smaller community |
+| Treerecs (Comte 2020 Bioinformatics 36:4822) | Gene-tree correction/rooting against a fixed species tree | D, L | ML | Refines gene trees by species-tree constraint | No HGT; eukaryote-focused |
 | DLCpar (Wu 2014 GR 24:475) | DLC parsimony for DL + coalescence (ILS) | D, L, C | Parsimony | Models ILS explicitly | No HGT; older |
 | GraphDTL (Tofigh 2011) | Graph algorithm for DTL | D, T, L | Parsimony | Fast on small instances | Less used today |
-| Phyldog (Boussau 2013 GR 23:323) | Joint species-tree-gene-tree DL with site-rate variation | D, L | Bayesian | Joint inference; refines gene trees | Bacteria-unfriendly; eukaryote-only |
+| Phyldog (Boussau 2013 GR 23:323) | Joint species-tree-gene-tree DL with site-rate variation | D, L | ML | Joint inference; refines gene trees | Bacteria-unfriendly; eukaryote-only |
 
 Methodology evolves; verify the AleRax / ALE documentation before locking on a single approach. The probabilistic ALE / GeneRax / AleRax tools have largely superseded parsimony reconciliation for serious phylogenomic work; parsimony is fine for screening but not for publication-grade DTL inference.
 
@@ -153,7 +153,7 @@ Verify with `nw_labels -I species_tree.nwk` vs `nw_labels -I gene_trees/OG000000
 
 **Symptom:** Many "transfers" at short internal branches; transfer rate per branch correlates with branch length (more transfers at short branches).
 
-**Fix:** Use ecceTERA or DLCpar which model coalescence (ILS) jointly with DTL; or pre-screen for ILS-likely loci via Dsuite ABBA-BABA (see [[introgression-detection]]); restrict ALE to gene families where ILS unlikely (long internodes). For phylogenomic-scale ILS, consider Phyldog (Boussau 2013) or the ASTRAL-Pro2 coalescent species tree.
+**Fix:** Use DLCpar, which models deep coalescence (ILS) jointly with duplication and loss; or pre-screen for ILS-likely loci via Dsuite ABBA-BABA (see [[introgression-detection]]); restrict ALE to gene families where ILS unlikely (long internodes). For phylogenomic-scale ILS, use an ASTRAL-Pro2 coalescent species tree as the fixed input to reconciliation.
 
 ### Multifurcations in the species tree
 
@@ -333,11 +333,11 @@ mpirun -n 32 alerax \
 
 AleRax outputs include `alerax_run/inferred_species_tree.nwk` (possibly re-rooted; D/T/L-aware) and per-family reconciled gene trees.
 
-## Whale.jl Bayesian DTL + WGD
+## Whale.jl Bayesian DL + WGD
 
 **Goal:** Bayesian DTL inference with explicit WGD modeling.
 
-**Approach:** Define species tree with WGD nodes -> Whale.jl posterior over D/T/L + WGD retention.
+**Approach:** Define species tree with WGD nodes -> Whale.jl posterior over D/L + WGD retention.
 
 ```julia
 # IMPORTANT: Whale.jl public API evolves; verify against current docs at
@@ -374,7 +374,7 @@ results = mcmc(problem, n=1000)
 | Whale.jl WGD posterior high; ALE shows duplication burst | Same event; Whale models as WGD with retention parameter | Whale.jl interpretation is more biological for clades with known WGD |
 | NOTUNG DL reconciliation contradicts ALE | NOTUNG ignores T; ALE includes T | Trust ALE for HGT-affected clades |
 | Same family: D in one tool, T in another | Boundary case; both events possible | Report both with explicit caveats; or use AleRax for joint co-estimation |
-| Many "transfers" at short internal branches | ILS confounded with T | Switch to ecceTERA / DLCpar / Phyldog for ILS-aware inference |
+| Many "transfers" at short internal branches | ILS confounded with T | Switch to DLCpar (or an ASTRAL-Pro2 coalescent species tree) for ILS-aware inference |
 | ALE posterior diffuse across branches | Saturated; very ancient family or short tree | Restrict to subclade; or report event class only |
 | GeneRax fails on 1% of families | Specific orthology / alignment issue | Inspect failed families manually; often related to species-label mismatch |
 
@@ -386,7 +386,7 @@ results = mcmc(problem, n=1000)
 - **Endosymbionts with genome reduction (Buchnera, Wolbachia):** rampant gene loss; loss rates may exceed all other events; calibrate against known biology
 - **Salmonid 4R Ss4R WGD:** add WGD node to species tree before reconciliation; use Whale.jl with native WGD parameter; treating Ss4R as duplication burst inflates DL counts
 - **Plant tetraploids:** subgenome assignment first ([[whole-genome-duplication]]); reconcile each subgenome lineage separately
-- **Rapid radiations (cichlids, Drosophila species groups, hominoids):** ILS confounded with transfers; use ASTRAL-Pro2 coalescent species tree as input; or apply ecceTERA with ILS extension
+- **Rapid radiations (cichlids, Drosophila species groups, hominoids):** ILS confounded with transfers; use ASTRAL-Pro2 coalescent species tree as input; or apply DLCpar for explicit duplication-loss-coalescence reconciliation
 - **Polyploid lineages with WGD-derived "extra" genes:** appear as duplications in DTL methods; AleRax with WGD node specification handles this; Whale.jl native
 
 ## Anticipated Reviewer Pushback
@@ -395,11 +395,11 @@ results = mcmc(problem, n=1000)
 |----------|-------------------|
 | "Gene-tree uncertainty?" | ALE integrates over 100+ UFBoot trees per family; AleRax co-estimates |
 | "Species tree rooting?" | ALE-rooting (Williams 2017) under multiple candidate rooting hypotheses; events robust across rootings reported |
-| "ILS vs HGT?" | Tested via ABBA-BABA / Dsuite; or used ecceTERA / DLCpar for joint inference |
+| "ILS vs HGT?" | Tested via ABBA-BABA / Dsuite; or used DLCpar for joint duplication-loss-coalescence inference |
 | "WGD vs DL?" | Whale.jl native WGD modeling for known-WGD lineages; otherwise WGD node added explicitly |
 | "Why ALE over RANGER?" | RANGER is cost-sensitive parsimony; ALE provides posterior probabilities |
 | "Why AleRax over ALE?" | AleRax co-estimates gene tree + species tree + DTL rates, correcting gene-tree-error feedback; preferred for publication-grade work since 2024 |
-| "ILS at rapid radiation?" | ILS-aware reconciliation (ecceTERA, DLCpar); or restrict to gene families with long internodes |
+| "ILS at rapid radiation?" | ILS-aware reconciliation (DLCpar); or restrict to gene families with long internodes |
 | "Cost weight sensitivity (RANGER)?" | If RANGER used, sensitivity sweep across cost weights performed; consensus events reported |
 | "Contamination?" | Pre-filtered with FCS-GX / BlobTools (cross-ref [[hgt-detection]]) |
 | "Gene-tree quality?" | UFBoot bootstrap >= 95 average; PREQUAL / HmmCleaner alignment filter applied |
@@ -418,7 +418,7 @@ results = mcmc(problem, n=1000)
 | Reconciliation gives 1000 events on a 5-gene family | Numerical instability or bad input | Inspect family for paralog confusion or sequence error |
 | Per-branch event posterior > 1.0 | Multiple events on same branch | Expected for high-DTL-rate branches; sum over event classes |
 | NOTUNG DL counts vastly exceed ALE D + L counts | NOTUNG attributes T events to L (no T model) | Use ALE for HGT-affected clades |
-| ecceTERA "ILS detected at every branch" | ILS extension over-applied | Restrict ILS-aware to known short-internode regions only |
+| DLCpar over-calls deep coalescence (ILS) across many nodes | ILS/coalescence cost too permissive | Restrict ILS-aware analysis to known short-internode regions; re-check cost settings |
 
 ## Tool Installation Notes
 
@@ -463,7 +463,7 @@ For cluster deployment, AleRax / GeneRax require MPI; verify `mpicc --version` a
 - Morel B et al 2020 MBE 37:2763 (GeneRax)
 - Morel B et al 2024 Bioinformatics 40:btae162 (AleRax co-estimation)
 - Williams TA et al 2017 PNAS 114:E4602 (ALE-rooting of the archaeal tree of life)
-- Zwaenepoel A & Van de Peer Y 2019 MBE 36:1384 (Whale.jl Bayesian DTL+WGD)
+- Zwaenepoel A & Van de Peer Y 2019 MBE 36:1384 (Whale.jl Bayesian DL+WGD)
 - Bansal MS et al 2018 Bioinformatics 34:3214 (RANGER-DTL 2.0)
 - Chen K et al 2000 J Comp Biol 7:429 (NOTUNG)
 - Stolzer M et al 2012 Bioinformatics 28:i409 (NOTUNG-HGT extension)

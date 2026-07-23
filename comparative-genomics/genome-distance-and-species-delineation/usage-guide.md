@@ -71,7 +71,7 @@ Tell the AI agent what to do:
 - skani (Shaw 2023) is the modern default; 20-30x faster than FastANI; default in GTDB-Tk 2.4+
 - For ANI matrix of 1000+ genomes, use `skani triangle` all-vs-all mode
 - ANI saturates below 75%; switch to AAI for distant comparisons
-- Alignment fraction (AF) >= 0.5 required for valid species call (Jain 2018 standard)
+- Alignment fraction (AF) >= 0.5 required for valid species call (operational convention)
 - GTDB-Tk uses skani; pin GTDB-Tk + GTDB release version compatibility
 - For MAGs, CheckM2 pre-filter is essential (>= 70% completeness, < 5% contamination)
 - dDDH via TYGS or GGDC web service is gold standard for novel species naming

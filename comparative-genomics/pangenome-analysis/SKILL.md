@@ -17,7 +17,7 @@ If code throws `Bakta annotation incompatible`, `GFA file inconsistent`, `vg ind
 
 # Pangenome Analysis
 
-**"What genes are universal vs accessory across this set of genomes?"** -> The pangenome is the union of all genes across a sampled group; the **Tettelin partition** (Tettelin 2005 PNAS 102:13950) splits it into core (universal), shell (in many but not all), cloud (rare), and species-specific (private) genes. The fundamental dichotomy is **bacterial pangenome** (clusters genes into orthogroups; Panaroo / PPanGGOLiN / PEPPAN for compact genomes) vs **eukaryotic pangenome** (graph-based; Minigraph-Cactus / PGGB / vg for haplotype-resolved sequences). The choice depends on what's being represented: bacterial pangenome captures gene-content variation in a species/genus; eukaryotic pangenome graph captures haplotype-level structural and sequence variation. **Roary (Page 2015) is now deprecated** in favor of Panaroo, which handles annotation-error noise that previously inflated bacterial pangenomes by 30-50%.
+**"What genes are universal vs accessory across this set of genomes?"** -> The pangenome is the union of all genes across a sampled group; the **Tettelin partition** (Tettelin 2005 PNAS 102:13950) splits it into core (universal), shell (in many but not all), cloud (rare), and species-specific (private) genes. The fundamental dichotomy is **bacterial pangenome** (clusters genes into orthogroups; Panaroo / PPanGGOLiN / PEPPAN for compact genomes) vs **eukaryotic pangenome** (graph-based; Minigraph-Cactus / PGGB / vg for haplotype-resolved sequences). The choice depends on what's being represented: bacterial pangenome captures gene-content variation in a species/genus; eukaryotic pangenome graph captures haplotype-level structural and sequence variation. **Roary (Page 2015) is now deprecated** in favor of Panaroo, which handles annotation-error noise that previously inflated bacterial pangenomes substantially.
 
 - CLI: `panaroo -i annotated_gffs/ -o panaroo_out --clean-mode strict --remove-invalid-genes` -- bacterial pangenome
 - CLI: `ppanggolin workflow --fasta fasta_list.tsv --output ppanggolin_out` -- partitioned bacterial pangenome
@@ -33,7 +33,7 @@ If code throws `Bakta annotation incompatible`, `GFA file inconsistent`, `vg ind
 | Panaroo (Tonkin-Hill 2020 GB 21:180) | Graph-based ortholog clustering + annotation-error correction | Core, shell, accessory pangenome with cleaned annotations | Best for clonal bacteria (Mtb 413-genome benchmark; Tonkin-Hill 2020) | Slow for > 10000 genomes; assumes Prokka/Bakta input |
 | PPanGGOLiN (Gautreau 2020 PLoS CB 16:e1007732) | Hidden Markov partition: persistent/shell/cloud | Partitioned pangenome with HMM-based class assignment | Scales to many genomes; interpretable partitions | Probabilistic class boundaries differ from strict Tettelin |
 | PEPPAN (Zhou 2020 GR 30:1667) | Bacterial pangenome for diverse genera | Pan + core genomes from 1000s of genomes | Designed for high diversity (whole genus) | Slower than newer alternatives at small scales |
-| Roary (Page 2015; DEPRECATED) | Original bacterial pangenome | Same outputs as Panaroo | Legacy; widely cited | Inflates accessory by ~30-50% due to annotation-error tolerance; use Panaroo |
+| Roary (Page 2015; DEPRECATED) | Original bacterial pangenome | Same outputs as Panaroo | Legacy; widely cited | Inflates accessory substantially due to annotation-error tolerance; use Panaroo |
 | GET_HOMOLOGUES (Contreras-Moreira 2013) | Multi-algorithm consensus (OrthoMCL, BDBH, COG) | Consensus pangenome | Cross-validates across methods | Slower; multi-program output integration |
 | anvi'o pangenomics (Eren 2021 Nat Microbiol 6:3) | Interactive pangenome with metadata | Visual pangenome browsing + integration | Standard for interactive microbial pangenome | Less automated; manual curation expected |
 | Minigraph-Cactus (Hickey 2024 Nat Biotech 42:663) | Cactus base-level + minigraph SV-graph integration | Pangenome graph (GFA, VCF, GBZ) | Production-grade for HPRC-scale haplotypes | Requires reference; designed for intra-species pangenome |
@@ -80,9 +80,9 @@ Methodology evolves; verify the current Panaroo and PPanGGOLiN manuals + the 202
 
 **Trigger:** Running Panaroo on Prokka- vs Bakta- vs RefSeq- annotated genomes mixed.
 
-**Mechanism:** Different annotation tools predict different gene boundaries; the same gene is annotated slightly differently across tools, appearing as separate orthogroups. Roary's tolerance of these differences inflated bacterial pangenome accessory by 30-50% (Tonkin-Hill 2020 GB 21:180). Panaroo's graph-based correction reduces this but cannot eliminate it.
+**Mechanism:** Different annotation tools predict different gene boundaries; the same gene is annotated slightly differently across tools, appearing as separate orthogroups. Roary's tolerance of these differences inflated the bacterial accessory genome substantially -- nearly an order of magnitude on the clonal M. tuberculosis benchmark (Tonkin-Hill 2020 GB 21:180). Panaroo's graph-based correction reduces this but cannot eliminate it.
 
-**Symptom:** Per-strain "accessory" gene count is inflated relative to known biology; comparison to a single-pipeline reference reveals 30-50% spurious gene-content differences.
+**Symptom:** Per-strain "accessory" gene count is inflated relative to known biology; comparison to a single-pipeline reference reveals substantial spurious gene-content differences.
 
 **Fix:** Re-annotate ALL genomes with one pipeline (currently Bakta 1.10.4+ for bacteria; Bakta is GenBank-compliant and faster than Prokka). Use `panaroo --clean-mode strict --remove-invalid-genes` to apply graph cleaning. Document annotation pipeline + version in methods.
 
@@ -100,7 +100,7 @@ Methodology evolves; verify the current Panaroo and PPanGGOLiN manuals + the 202
 
 **Trigger:** Using Roary in new analyses.
 
-**Mechanism:** Roary tolerates annotation errors (low-identity matches; protein-vs-DNA matches), producing thousands of artifactual accessory genes. Panaroo's introduction (Tonkin-Hill 2020) demonstrated this by re-analyzing 413 Mtb genomes and finding Panaroo's accessory genome was 30-50% smaller than Roary's.
+**Mechanism:** Roary tolerates annotation errors (low-identity matches; protein-vs-DNA matches), producing thousands of artifactual accessory genes. Panaroo's introduction (Tonkin-Hill 2020) demonstrated this by re-analyzing 413 Mtb genomes and finding Panaroo's accessory genome was nearly an order of magnitude smaller than the inflated tools' (Roary included).
 
 **Symptom:** Roary output has many "lineage-specific genes" with poor evidence (single-strain hits, short proteins, no functional annotation).
 
@@ -124,7 +124,7 @@ Methodology evolves; verify the current Panaroo and PPanGGOLiN manuals + the 202
 
 **Symptom:** Heaps-law alpha varies by > 0.2 across resampling; conclusions about pangenome openness flip.
 
-**Fix:** Require >= 50 genomes (preferably > 100) for Heaps-law estimation; report 95% CI from resampling. Tettelin 2005 demonstrated open Streptococcus pyogenes; Vernikos 2015 reviews open vs closed across taxa.
+**Fix:** Require >= 50 genomes (preferably > 100) for Heaps-law estimation; report 95% CI from resampling. Tettelin 2005 demonstrated open Streptococcus agalactiae; Vernikos 2015 reviews open vs closed across taxa.
 
 ### PGGB memory exhaustion at many genomes
 
@@ -398,7 +398,7 @@ scoary \
 | Pushback | Standard response |
 |----------|-------------------|
 | "Annotation pipeline?" | Bakta 1.10+ on all genomes; consistent settings; BUSCO completeness reported per strain |
-| "Why Panaroo over Roary?" | Panaroo's annotation-error correction reduces accessory inflation 30-50% (Tonkin-Hill 2020 Mtb benchmark) |
+| "Why Panaroo over Roary?" | Panaroo's annotation-error correction reduces accessory inflation substantially (nearly an order of magnitude on the Mtb benchmark; Tonkin-Hill 2020) |
 | "Tettelin thresholds?" | Reported at multiple thresholds (95%, 99%); PPanGGOLiN HMM partition as cross-validation |
 | "Heaps law inference?" | >= 100 genomes; resampling 95% CI reported |
 | "Recombination?" | ClonalFrameML applied; recombinant regions masked or analyzed separately |

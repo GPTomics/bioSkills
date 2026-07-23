@@ -18,7 +18,7 @@ If code throws `CAFE5: lambda did not converge`, `Count negative branch length`,
 
 # Gene Family Evolution
 
-**"Which gene families expanded or contracted in which lineages?"** -> Birth-death models on phylogeny (Hahn 2007; Csurös 2010) treat each orthogroup's per-species count as evolving under a stochastic birth-death process; lineage-specific rate shifts are detected as departures from a global rate. **Annotation heterogeneity is the single largest confounder**: different annotation pipelines predict different numbers of genes per family, producing apparent lineage-specific expansions that are artifacts of annotation choice (Tonkin-Hill 2020 demonstrated this for bacterial pangenomes). Consistent annotation + BUSCO/Compleasm completeness filtering are mandatory before any birth-death model interpretation. CAFE5 (Mendes et al 2020 Bioinformatics 36:5516) replaces older CAFE versions with gamma-distributed rate categories for more biologically realistic modeling.
+**"Which gene families expanded or contracted in which lineages?"** -> Birth-death models on phylogeny (Hahn 2005; Csurös 2010) treat each orthogroup's per-species count as evolving under a stochastic birth-death process; lineage-specific rate shifts are detected as departures from a global rate. **Annotation heterogeneity is the single largest confounder**: different annotation pipelines predict different numbers of genes per family, producing apparent lineage-specific expansions that are artifacts of annotation choice (Tonkin-Hill 2020 demonstrated this for bacterial pangenomes). Consistent annotation + BUSCO/Compleasm completeness filtering are mandatory before any birth-death model interpretation. CAFE5 (Mendes et al 2020 Bioinformatics 36:5516) replaces older CAFE versions with gamma-distributed rate categories for more biologically realistic modeling.
 
 - CLI: `cafe5 -i orthogroup_counts.tsv -t species_tree.nwk -p` -- main CAFE5 workflow
 - CLI: `cafe5 -e` -- error-aware mode for annotation uncertainty
@@ -36,7 +36,7 @@ If code throws `CAFE5: lambda did not converge`, `Count negative branch length`,
 | DupliPHY-Family (Ames et al 2012) | Per-family birth-death | Ancestral counts per family | Family-level granularity | Older; less integrated with modern OrthoFinder |
 | ALE / GeneRax / AleRax (Szöllősi 2013; Morel 2024) | Per-family DTL reconciliation | Per-family D/T/L event counts | Direct integration with [[gene-tree-species-tree-reconciliation]] | Slower; per-family rather than across-family |
 | CAFExp / CAFE 4.2 (DEPRECATED) | Earlier CAFE | -- | Historical | Use CAFE5 |
-| Whale.jl with WGD (Zwaenepoel 2019) | Bayesian DTL+WGD | WGD-aware family dynamics | Native WGD integration | Julia ecosystem |
+| Whale.jl with WGD (Zwaenepoel 2019) | Bayesian DL+WGD | WGD-aware family dynamics | Native WGD integration | Julia ecosystem |
 | Functional enrichment downstream | clusterProfiler / topGO on expanded/contracted | GO/KEGG enrichment | Standard | Multiple testing across families |
 
 Methodology evolves; CAFE5 is the modern standard; verify the current CAFE5 manual (hahnlab/CAFE5) and Hahn lab papers before locking on a single approach.
@@ -386,7 +386,7 @@ git clone https://github.com/PauloRoldan/badirate
 # DupliPHY-Family
 # Web only; no public CLI
 
-# Whale.jl (Julia) — see [[gene-tree-species-tree-reconciliation]]
+# Whale.jl (Julia) -- see [[gene-tree-species-tree-reconciliation]]
 julia -e 'using Pkg; Pkg.add("Whale")'
 
 # R packages
@@ -421,7 +421,7 @@ conda install -c bioconda funannotate braker3
 - Fukushima K & Pollock DD 2023 Nat Eco Evo 7:155 (CSUBST)
 - Lynch M & Conery JS 2000 Science 290:1151 (gene duplication mechanism)
 - Force A et al 1999 Genetics 151:1531 (subfunctionalization)
-- De Bie T et al 2006 Bioinformatics 22:1269 (CAFE 2)
+- De Bie T et al 2006 Bioinformatics 22:1269 (CAFE original software)
 - Han MV et al 2013 MBE 30:1987 (CAFE 3)
 - Otto SP & Whitton J 2000 Annu Rev Genet 34:401 (polyploidy mechanisms)
 - TimeTree (database, http://www.timetree.org)

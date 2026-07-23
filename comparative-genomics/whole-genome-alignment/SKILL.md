@@ -429,7 +429,7 @@ For Cactus on HPC, set up Toil with the appropriate batch system (`--batchSystem
 - Brudno M et al 2003 GR 13:721 (LAGAN)
 - Liao W-W et al 2023 Nature 617:312 (HPRC draft pangenome)
 - Sirén J et al 2024 Nat Methods 21:2017 (vg personalized pangenome references). The vg-Giraffe pangenome mapper is Sirén J et al 2021 Science 374:abg8871.
-- Garrison E et al 2024 Nat Methods (PGGB)
+- Garrison E et al 2024 Nat Methods 21:2008 (PGGB)
 - Paten B et al 2011 Genome Res 21:1512 (Cactus algorithm)
 - ComparativeGenomicsToolkit Cactus + HAL toolkit documentation (https://github.com/ComparativeGenomicsToolkit)
 

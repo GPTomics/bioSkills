@@ -37,7 +37,7 @@ conda install -c bioconda braker3 funannotate maker
 Tell the AI agent what to do:
 - "Project mouse gene annotations onto rat using LiftOff"
 - "Run TOGA + CESAR on a Cactus HAL to annotate 100 mammal genomes with gene-loss classification"
-- "Build a comparative annotation pipeline with CAT (Snakemake) for multi-species annotation"
+- "Build a comparative annotation pipeline with CAT (Luigi + Toil) for multi-species annotation"
 - "Identify pseudogenized genes in cetacean genomes using TOGA intactness classification"
 
 ## Example Prompts

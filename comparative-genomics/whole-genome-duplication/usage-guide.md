@@ -2,7 +2,7 @@
 
 ## Overview
 
-Whole-genome duplication (WGD / paleopolyploidy) events shape genome evolution by doubling all genes; subsequent gene loss is biased toward certain functional categories (Birchler & Veitia 2007 Plant Cell 19:395 gene balance hypothesis). Detection combines **Ks distribution** (synonymous substitution rates among paralog pairs) with **synteny block analysis** (parallel collinear blocks). The 2024 standard pipeline is **wgd v2** (Chen & Zwaenepoel 2024 Bioinformatics 40:btae272). For comparing WGDs across lineages, **KsRates** (Sensalari 2022 Bioinformatics 38:530) is mandatory because substitution rates vary across the tree.
+Whole-genome duplication (WGD / paleopolyploidy) events shape genome evolution by doubling all genes; subsequent gene loss is biased toward certain functional categories (Birchler & Veitia 2007 Plant Cell 19:395 gene balance hypothesis). Detection combines **Ks distribution** (synonymous substitution rates among paralog pairs) with **synteny block analysis** (parallel collinear blocks). The 2024 standard pipeline is **wgd v2** (Chen et al 2024 Bioinformatics 40:btae272). For comparing WGDs across lineages, **KsRates** (Sensalari 2022 Bioinformatics 38:530) is mandatory because substitution rates vary across the tree.
 
 The vertebrate 2R, teleost 3R, and salmonid Ss4R WGDs are well-established; plant WGDs are extremely common (every angiosperm has at least one ancestral WGD).
 
@@ -34,8 +34,8 @@ Rscript -e "install.packages(c('mclust', 'rmixmod'))"
 Tell the AI agent what to do:
 - "Detect whole-genome duplications in this plant genome using wgd v2 Ks distribution analysis"
 - "Position the WGD event relative to speciation using KsRates with three outgroup species"
-- "Classify all paralog pairs as tandem, proximal, segmental, or WGD using DupGen_finder"
-- "Apply Whale.jl Bayesian DTL+WGD modeling with explicit WGD nodes on the species tree"
+- "Classify all paralog pairs as tandem, proximal, transposed, or WGD using DupGen_finder"
+- "Apply Whale.jl Bayesian DL+WGD modeling with explicit WGD nodes on the species tree"
 
 ## Example Prompts
 
@@ -58,7 +58,7 @@ Tell the AI agent what to do:
 3. **Compute Ks distribution** with wgd ksd (codon-aware alignment + PAML yn00 / codeml)
 4. **Identify synteny anchors** with wgd syn (MCScanX-based)
 5. **Apply KsRates** for substitution rate correction (if cross-lineage comparison)
-6. **Classify paralog pairs** with DupGen_finder (tandem / proximal / dispersed / segmental / WGD)
+6. **Classify paralog pairs** with DupGen_finder (tandem / proximal / transposed / dispersed / WGD)
 7. **Fit mixture models** (GMM, ELMM) with BIC-based model selection
 8. **Report**: WGD count, Ks peak locations + ages, synteny block synchrony, KsRates-corrected positioning
 9. **Cross-validate** with MAPS / Whale.jl for phylogenomic placement

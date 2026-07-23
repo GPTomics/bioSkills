@@ -7,7 +7,7 @@ primary_tool: skani
 
 ## Version Compatibility
 
-Reference examples tested with: skani 0.2.5+ (Shaw & Yu 2023 Nat Methods 20:1661; bluenote-1577/skani), FastANI 1.34+ (Jain 2018 Nat Commun 9:5114), pyani 0.3.0+ (Pritchard 2016 Anal Methods 8:12), pyskani 0.1+ (Larralde 2025), OrthoANI 1.40+ (Lee 2016 Int J Syst Evol Microbiol 66:1100), OrthoANIu 1.2+, GTDB-Tk 2.7.1+ (Chaumeil 2022 Bioinformatics 38:5315), GTDB release 220 (2024-Q3+), TYGS web (Meier-Kolthoff & Goker 2019 Nat Commun 10:2182), GGDC v3.0 (web), Mash 2.3+ (Ondov 2016 Genome Biol 17:132), Dashing 2 (Baker & Langmead 2023 Genome Res 33:1218), CompareM 0.1.2+ for AAI (Parks/Cherubini), pyANI 0.3.1+, BLAT 36+, DIAMOND 2.1+. JSpeciesWS web (Richter & Rossello-Mora 2009 PNAS 106:19126).
+Reference examples tested with: skani 0.2.5+ (Shaw & Yu 2023 Nat Methods 20:1661; bluenote-1577/skani), FastANI 1.34+ (Jain 2018 Nat Commun 9:5114), pyani 0.3.0+ (Pritchard 2016 Anal Methods 8:12), pyskani 0.1+ (Larralde 2025), OrthoANI 1.40+ (Lee 2016 Int J Syst Evol Microbiol 66:1100), OrthoANIu 1.2+, GTDB-Tk 2.7.1+ (Chaumeil 2022 Bioinformatics 38:5315), GTDB release 220 (2024-Q3+), TYGS web (Meier-Kolthoff & Goker 2019 Nat Commun 10:2182), GGDC v3.0 (web), Mash 2.3+ (Ondov 2016 Genome Biol 17:132), Dashing 2 (Baker & Langmead 2023 Genome Res 33:1218), CompareM 0.1.2+ for AAI (Parks/Cherubini), pyANI 0.3.1+, BLAT 36+, DIAMOND 2.1+. JSpeciesWS web (Richter et al 2016 Bioinformatics 32:929).
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `skani --version`; `fastANI --version`; `gtdbtk --version`; `mash --version`; `pyani --version`
@@ -38,9 +38,9 @@ If code throws `GTDB-Tk database not found`, `skani sketch incompatible`, `Mash 
 | GGDC (Auch 2010 Stand Genomic Sci 2:117; v3 web) | Digital DDH calculation | dDDH percent + thresholds | Validated against laboratory DDH | Web-only; computational cost |
 | Mash (Ondov 2016 Genome Biol 17:132) | MinHash k-mer sketches | Approximate distance (1 - similarity) | Extremely fast for large-scale clustering | k-mer-based; loses biological interpretation |
 | Dashing 2 (Baker & Langmead 2023 GR 33:1218) | Sketching with Bloom filter optimization | Same as Mash but faster | 5-10x faster than Mash | Newer; less broadly used |
-| pyskani (Larralde 2025 bioRxiv) | Python wrapper around skani | ANI in Python | Programmatic access; CI/CD friendly | Newer; ecosystem still developing |
+| pyskani (Larralde 2025 NAR Genom Bioinform) | Python wrapper around skani | ANI in Python | Programmatic access; CI/CD friendly | Newer; ecosystem still developing |
 | CompareM | All-vs-all AAI (amino acid identity) | AAI percent | Cross-genus comparison via protein | Slow; needs all proteomes |
-| JSpeciesWS (web; Richter & Rossello-Mora 2009) | ANIb / ANIm | Web ANI + species delineation | Standard for clinical microbiology | Web rate limits; slow |
+| JSpeciesWS (web; Richter et al 2016) | ANIb / ANIm | Web ANI + species delineation | Standard for clinical microbiology | Web rate limits; slow |
 | ANI Calculator (CGB Korea) | Web ANI | Web ANI | Quick check | Web-only |
 
 Methodology evolves; verify GTDB release (currently r220 / 2024-Q3) and GTDB-Tk version compatibility. The 95% ANI species threshold has been confirmed across 90,000+ prokaryote genomes (Jain 2018; Parks 2018 demonstrating clear bimodality).
@@ -165,10 +165,10 @@ Methodology evolves; verify GTDB release (currently r220 / 2024-Q3) and GTDB-Tk 
 |----------|-----------|-------------------|
 | Species delineation ANI | >= 95% (Jain 2018) | Standard; based on 90,000 prokaryote genomes |
 | Genus-specific species ANI radius | 94-99% (varies by clade) | Parks 2018 Nat Biotech 36:996 |
-| Alignment fraction (AF) for ANI | >= 0.5 (Jain 2018) | Below this, comparison too small |
+| Alignment fraction (AF) for ANI | >= 0.5 | Operational convention (GTDB-Tk / skani); below this, comparison too small |
 | Strain delineation ANI | >= 99% (typical); >= 99.5% strict | Operational |
 | Sub-species delineation | >= 99% ANI + epidemiology | Manual |
-| AAI species delineation | >= 70% | Konstantinidis 2005; varies clade |
+| AAI species delineation | >= 70% | Operational convention; varies clade |
 | AAI genus delineation | >= 60% | Standard |
 | dDDH species delineation | >= 70% | Goris 2007; matches ANI 95% |
 | dDDH genus delineation | >= 50% | Auch 2010 |
@@ -412,16 +412,16 @@ For 1000+ genome scans, use cluster with 64+ cores; skani all-vs-all on 1000 gen
 - Ondov BD et al 2016 Genome Biol 17:132 (Mash MinHash)
 - Baker DN & Langmead B 2023 Genome Res 33:1218 (Dashing 2)
 - Pritchard L et al 2016 Anal Methods 8:12 (pyani)
-- Lee I et al 2016 IJSEM 66:1100 (OrthoANIu)
-- Richter M & Rossello-Mora R 2009 PNAS 106:19126 (JSpeciesWS)
+- Lee I et al 2016 IJSEM 66:1100 (OrthoANI)
+- Richter M et al 2016 Bioinformatics 32:929 (JSpeciesWS web server)
 - Goris J et al 2007 IJSEM 57:81 (ANI threshold validation)
-- Konstantinidis KT & Tiedje JM 2005 PNAS 102:2567 (AAI concept)
+- Konstantinidis KT & Tiedje JM 2005 PNAS 102:2567 (species definition via ANI + gene content)
 - Stackebrandt E & Ebers J 2006 Microbiol Today 33:152 (16S thresholds; superseded)
 - Chklovski A et al 2023 Nat Methods 20:1203 (CheckM2)
 - Olm MR et al 2017 ISME J 11:2864 (dRep; ANI clustering)
 - Rodriguez-R LM & Konstantinidis KT 2014 Microbe 9:111 (ANI reference)
-- Yoon S-H et al 2017 IJSEM 67:1613 (ANI species delimitation)
-- Larralde M et al 2025 bioRxiv (pyskani, pyfastani, pyorthoani)
+- Yoon S-H et al 2017 IJSEM 67:1613 (EzBioCloud database)
+- Larralde M et al 2025 NAR Genom Bioinform 7:lqaf095 (pyskani, pyfastani, pyorthoani)
 
 ## Related Skills
 

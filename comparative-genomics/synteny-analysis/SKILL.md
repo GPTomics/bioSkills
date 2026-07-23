@@ -7,7 +7,7 @@ primary_tool: MCScanX
 
 ## Version Compatibility
 
-Reference examples tested with: MCScanX 1.0+ (wyp1125/MCScanX commit 2020+), JCVI 1.4.21+ (Python port of MCScan), GENESPACE 1.4.0+ (Lovell 2022 eLife 78526), SyRI 1.7.1+ (Goel 2019 Genome Biol 20:277), plotsr 1.1.1+, AnchorWave 1.2.5+ (Song 2022 PNAS 119:e2113075119), i-ADHoRe 3.0.01+, SynNet (Zhao 2017 Plant Cell 29:1278), ntSynt 1.0.4+ (2023), minimap2 2.28+, MUMmer 4.0.0+, OrthoFinder 3.0+, R 4.4+. plotsr requires pysam 0.22+ and seaborn 0.13+.
+Reference examples tested with: MCScanX 1.0+ (wyp1125/MCScanX commit 2020+), JCVI 1.4.21+ (Python port of MCScan), GENESPACE 1.4.0+ (Lovell 2022 eLife 11:e78526), SyRI 1.7.1+ (Goel 2019 Genome Biol 20:277), plotsr 1.1.1+, AnchorWave 1.2.5+ (Song 2022 PNAS 119:e2113075119), i-ADHoRe 3.0.01+, SynNet (Zhao 2017 Plant Cell 29:1278), ntSynt 1.0.4+ (2024), minimap2 2.28+, MUMmer 4.0.0+, OrthoFinder 3.0+, R 4.4+. plotsr requires pysam 0.22+ and seaborn 0.13+.
 
 Before using code patterns, verify installed versions match. If versions differ:
 - CLI: `MCScanX -h`; `syri --version`; `python -m jcvi.compara.catalog ortholog --help`
@@ -33,12 +33,12 @@ If code throws `MCScanX: argument bad format`, `syri: input alignment file missi
 | MCScanX (Wang 2012 NAR 40:e49) | Dynamic programming on BLAST hits with collinearity scoring | `.collinearity` blocks; tandem duplications collapsed | Most widely used; 14 downstream tools; well-benchmarked | Repeat-derived false BLAST hits; brittle 4-column input |
 | MCScanX-h | Within-genome variant for WGD detection | Self-comparison blocks | Standard for paranome construction; WGD-aware | Same input fragility |
 | JCVI / MCScan Python (Tang 2008 GR 18:1944) | Re-implementation of MCScanX with anchor stringency control | Publication-grade dotplots, karyotype, riparian | Best plotting; `--cscore` reciprocal-hit control | Slower than MCScanX C version on huge genomes |
-| GENESPACE (Lovell 2022 eLife 78526) | OrthoFinder + MCScanX orthogroup-constrained synteny | Riparian plots; pan-gene tracks; CNV across genomes | Modern standard for plant comparative; integrates orthology | Slow at > 30 genomes; less rigorous for non-plant clades |
+| GENESPACE (Lovell 2022 eLife 11:e78526) | OrthoFinder + MCScanX orthogroup-constrained synteny | Riparian plots; pan-gene tracks; CNV across genomes | Modern standard for plant comparative; integrates orthology | Slow at > 30 genomes; less rigorous for non-plant clades |
 | i-ADHoRe 3.0 (Proost 2012 NAR 40:e11) | Iterative ordered-gene-list detection | Ghost gene families; deeply diverged synteny | Catches ancient synteny obscured by rearrangements | Computationally heavy at genome scale |
 | AnchorWave (Song 2022 PNAS 119:e2113075119) | CDS/exon anchors -> wave-front alignment | Whole-genome alignment with WGD awareness; SVs | Best for plant WGD analyses with known ploidy | CDS-anchored only; intergenic resolution limited |
 | SyRI (Goel 2019 GB 20:277) | Pairwise WGA -> syntenic-path identification -> SV calls | INV / TRANS / DUP / SYN / INS / DEL annotated | Comprehensive SV detection; works on chromosome-level assemblies | Requires chromosome-level assemblies; pairwise only |
 | plotsr (Goel 2022 Bioinformatics 38:2922) | Multi-genome SyRI visualization | Stacked synteny + SV maps across N genomes | Best for visualizing 3-10 genome rearrangement histories | Inherits SyRI's pairwise input limitation |
-| ntSynt (2023) | Minimizer-based alignment-free synteny | Multi-genome macrosynteny blocks | Alignment-free; handles > 15% divergence | Macrosynteny only; misses microsynteny |
+| ntSynt (2024) | Minimizer-based alignment-free synteny | Multi-genome macrosynteny blocks | Alignment-free; handles > 15% divergence | Macrosynteny only; misses microsynteny |
 | SynNet (Zhao 2017 Plant Cell 29:1278) | Synteny block adjacency graphs | Synteny networks across many genomes | Phylogenetic network from synteny; detects deep ancestry | Less standard than block-based methods |
 | Satsuma / progressive Cactus | Reference-free WGA | Whole-genome alignment (HAL format) | Underlies large-scale orthology; sequence-level synteny | See [[whole-genome-alignment]] |
 | LASTZ chain/net (UCSC; Kent 2003 PNAS 100:11484 chains/nets; Schwartz 2003 GR 13:103 BLASTZ) | Pairwise WGA with chains and nets | Chains + nets in UCSC genome browser | Reference-anchored synteny; standard for UCSC tracks | See [[whole-genome-alignment]] |
@@ -175,7 +175,7 @@ Methodology evolves; GENESPACE has emerged as the de facto standard for plant co
 | SyRI INV minimum size for biological significance | >= 5 kb | Below this, alignment noise dominates |
 | SyRI TRANS minimum size | >= 1 kb | Standard convention |
 | GENESPACE minimum syntenic block | 5 orthogroups | Lovell 2022 default |
-| Synteny block decay (macrosynteny half-life) | ~150 Myr in vertebrates | Naruse 2004 |
+| Synteny block decay (macrosynteny half-life) | ~150 Myr in vertebrates | Approximate convention |
 | Microsynteny conservation | up to 1 Gyr for metabolic gene clusters | Stated convention; verify per-clade |
 | minimap2 preset for synteny | -x asm5 for < 5% divergence; asm10 for ~10%; asm20 for ~20% | minimap2 docs |
 | MUMmer nucmer maxmatch | --maxmatch for SyRI; --mum default | MUMmer4 manual |
@@ -446,7 +446,7 @@ For GENESPACE, OrthoFinder 2.5.x must be pinned; install via `conda install -c b
 
 - Wang Y et al 2012 NAR 40:e49 (MCScanX)
 - Tang H et al 2008 GR 18:1944 (synteny / MCScan Python)
-- Lovell JT et al 2022 eLife 11:78526 (GENESPACE)
+- Lovell JT et al 2022 eLife 11:e78526 (GENESPACE)
 - Proost S et al 2012 NAR 40:e11 (i-ADHoRe 3.0)
 - Song B et al 2022 PNAS 119:e2113075119 (AnchorWave)
 - Goel M et al 2019 Genome Biol 20:277 (SyRI)
@@ -457,7 +457,6 @@ For GENESPACE, OrthoFinder 2.5.x must be pinned; install via `conda install -c b
 - Schwartz S et al 2003 GR 13:103 (BLASTZ pairwise aligner)
 - Jain C et al 2018 Bioinformatics 34:i748 (MashMap)
 - Li H 2018 Bioinformatics 34:3094 (minimap2)
-- Naruse K et al 2004 GR 14:820 (synteny block decay)
 - Holland PWH et al 1994 Development Suppl:125 (2R hypothesis)
 - Vanneste K et al 2013 MBE 30:177 (Ks saturation)
 - Birchler JA & Veitia RA 2007 Plant Cell 19:395 (gene balance)

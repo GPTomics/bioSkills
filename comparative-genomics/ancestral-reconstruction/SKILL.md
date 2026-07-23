@@ -94,13 +94,13 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes before lo
 
 **Symptom:** Re-rooting the tree changes the inferred ancestral state at the deepest node by > 0.2 posterior probability; STRIDE rooting (Emms 2017 MBE 34:3267) disagrees with outgroup rooting.
 
-**Fix:** Run ASR over a set of candidate roots; report robust nodes (state invariant) and root-sensitive nodes separately. For phylogenomic-scale data, use STRIDE / MAD rooting (Tria 2017 Nat Eco Evo 1:0193) or ALE-rooting (Williams 2017) and document the rooting strategy.
+**Fix:** Run ASR over a set of candidate roots; report robust nodes (state invariant) and root-sensitive nodes separately. For phylogenomic-scale data, use STRIDE / MAD rooting (Tria 2017 Nat Eco Evo 1:0193) or ALE-rooting (Williams 2017 PNAS 114:E4602) and document the rooting strategy.
 
 ### BiSSE false-positive in state-dependent diversification
 
 **Trigger:** Testing whether a discrete trait influences speciation/extinction using BiSSE (Maddison 2007 Syst Biol 56:701).
 
-**Mechanism:** BiSSE attributes ALL rate variation to the focal trait. When real diversification heterogeneity is caused by a hidden character correlated with the focal trait, BiSSE reports a spurious significant association (Rabosky-Goldberg 2015 Syst Biol 64:340 — ~40% Type-I rate at moderate trees).
+**Mechanism:** BiSSE attributes ALL rate variation to the focal trait. When real diversification heterogeneity is caused by a hidden character correlated with the focal trait, BiSSE reports a spurious significant association (Rabosky-Goldberg 2015 Syst Biol 64:340 -- ~40% Type-I rate at moderate trees).
 
 **Symptom:** BiSSE LRT highly significant but biological mechanism unclear; HiSSE rejects BiSSE in favor of a hidden-state model with the focal trait neutral.
 
@@ -134,7 +134,7 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes before lo
 
 **Symptom:** Ambiguous regions of the alignment correspond to low-confidence ASR sites; gappy columns dominate the low-confidence set; alignment scoring (TCS, Guidance2) marks the same regions as poorly aligned.
 
-**Fix:** Filter alignment with HmmCleaner (Di Franco 2019 BMC Eco Evo 19:21) or PREQUAL (Whelan et al 2018 Bioinformatics 34:3929) before ASR. Segment-level filtering outperforms block-level filtering (Gblocks, trimAl) for downstream evolutionary inference. For ASR specifically, mask ambiguous columns (treat as missing) rather than removing them, to preserve coordinates.
+**Fix:** Filter alignment with HmmCleaner (Di Franco 2019 BMC Evol Biol 19:21) or PREQUAL (Whelan et al 2018 Bioinformatics 34:3929) before ASR. Segment-level filtering outperforms block-level filtering (Gblocks, trimAl) for downstream evolutionary inference. For ASR specifically, mask ambiguous columns (treat as missing) rather than removing them, to preserve coordinates.
 
 ## Quantitative Thresholds
 
@@ -147,7 +147,7 @@ Methodology evolves; verify the latest `corHMM` / `phytools` vignettes before lo
 | Blomberg K interpretation | K > 1 conserved; K = 1 BM; K < 1 weak signal | Blomberg 2003 Evolution 57:717 |
 | Bootstrap support for ancestral clade | >= 70% before trusting the state at that node | Standard; below this, root-sensitivity tests required |
 | MCMC ESS for Bayesian ASR | ESS >= 200 per parameter; ASRV at least 200 | RevBayes / Tracer convention; Lakner 2008 Syst Biol 57:86 |
-| Stochastic mapping nsim | >= 1000 simulations per tree | Bollback 2006 BMC Bioinf 7:88; for asymmetric rates raise to >= 5000 |
+| Stochastic mapping nsim | >= 1000 simulations per tree | Operational convention (Bollback 2006 BMC Bioinf 7:88 SIMMAP method); for asymmetric rates raise to >= 5000 |
 | Tree depth limit for protein ASR | dS / branch length < 1.0 at deepest node | Above this, signal saturated; Yang 2007 PAML manual |
 | Codon ASR minimum sequences | >= 8 with sufficient divergence (~0.5 substitutions/site total) | Operational convention; below this, codon-model parameters poorly constrained |
 | Minimum taxa for binary trait ER vs ARD AIC | >= 20 tips; below this, rates often unidentifiable | Beaulieu 2016 |
@@ -301,7 +301,7 @@ hmm_fit <- corHMM(phy = tree, data = data.frame(species = names(x), trait = x),
 hmm_fit$states                          # marginal ancestral state matrix (rows: nodes)
 ```
 
-`pi='fitzjohn'` uses the Fitzjohn 2009 Syst Biol 58:595 root prior (root state proportional to its equilibrium probability), preferable to `pi='estimated'` which can over-fit, or `pi='equal'` which can bias toward the rarer state when data are asymmetric.
+`pi='fitzjohn'` uses the Fitzjohn 2009 Syst Biol 58:595 root prior (root-state prior weighted by the likelihood of the observed tip data given each root state), preferable to `pi='estimated'` which fixes the prior to the estimated equilibrium distribution and can over-fit, or `pi='equal'` which can bias toward the rarer state when data are asymmetric.
 
 ## Continuous-Trait ASR with Model Adequacy
 
@@ -443,7 +443,7 @@ For protein resurrection workflows, GRASP is the modern standard; for selection-
 - Shah P et al 2015 PNAS 112:E3226 (contingency and entrenchment epistasis)
 - Hochberg GKA & Thornton JW 2017 Annu Rev Biophys 46:247 (ASR for protein resurrection)
 - Foley G et al 2022 PLoS Comp Biol 18:e1010633 (GRASP indel-aware ASR)
-- Szánthó LL et al 2023 Syst Biol 72(4):767–780 (compositional LBA; CAT-PMSF) — DOI 10.1093/sysbio/syad013
+- Szánthó LL et al 2023 Syst Biol 72(4):767-780 (compositional LBA; CAT-PMSF) -- DOI 10.1093/sysbio/syad013
 - Boettiger C et al 2012 Evolution 66:2240 (model adequacy for continuous-trait macroevolution)
 - Cooper N et al 2016 Biol J Linn Soc 118:64 (cautionary note OU)
 - Cunningham CW 1999 Syst Biol 48:665 (asymmetric rate parsimony bias)
@@ -453,9 +453,10 @@ For protein resurrection workflows, GRASP is the modern standard; for selection-
 - Uyeda JC & Harmon LJ 2014 Syst Biol 63:902 (bayou)
 - FitzJohn RG 2009 Syst Biol 58:595 (root prior)
 - Whelan S et al 2018 Bioinformatics 34:3929 (PREQUAL)
-- Di Franco A et al 2019 BMC Eco Evo 19:21 (HmmCleaner)
+- Di Franco A et al 2019 BMC Evol Biol 19:21 (HmmCleaner)
 - Emms DM & Kelly S 2017 MBE 34:3267 (STRIDE rooting)
 - Tria FDK et al 2017 Nat Eco Evo 1:0193 (MAD rooting)
+- Williams TA et al 2017 PNAS 114:E4602 (ALE-rooting of deep phylogenies)
 - Hu Z et al 2019 MBE 36:1086 (PhyloAcc)
 - Fukushima K & Pollock DD 2023 Nat Eco Evo 7:155 (CSUBST)
 - Muffato M et al 2023 Nat Eco Evo 7:355 (AGORA)

@@ -18,7 +18,7 @@ If code throws `Taxonomy ID not found`, `database version mismatch`, or `KeyErro
 
 # Horizontal Gene Transfer Detection
 
-**"Are these genes horizontally acquired, and from where?"** -> HGT signal lives in three orthogonal signal classes: composition (recent transfers carry donor codon usage; erodes by Lawrence-Ochman 1998 amelioration in ~50-200 Myr), phylogeny (gene tree nests within distant clade), and phyletic distribution (patchy taxonomic presence). No single class proves HGT; **claims require concordance across at least two classes** plus mandatory exclusion of contamination and differential gene loss (DGL). The most consequential failure mode in eukaryotic HGT detection is contamination passing all three classes silently (Boothby 2015 tardigrade retraction; Crisp 2015 human "145 HGTs" refuted by Salzberg 2017 GB 18:85).
+**"Are these genes horizontally acquired, and from where?"** -> HGT signal lives in three orthogonal signal classes: composition (recent transfers carry donor codon usage; erodes by Lawrence-Ochman 1998 amelioration in ~50-200 Myr), phylogeny (gene tree nests within distant clade), and phyletic distribution (patchy taxonomic presence). No single class proves HGT; **claims require concordance across at least two classes** plus mandatory exclusion of contamination and differential gene loss (DGL). The most consequential failure mode in eukaryotic HGT detection is contamination passing all three classes silently (Boothby 2015 tardigrade "17% HGT" refuted by Koutsovoulos 2016; Crisp 2015 human "145 HGTs" refuted by Salzberg 2017 GB 18:85).
 
 - Python: `hgtector search` -> `hgtector analyze` for BLAST-distribution screen
 - Python: `AvP` (Koutsovoulos 2022 PLoS Comp Biol 18:e1010686) for eukaryotic phylogenetic HGT with automated tree workflow
@@ -73,9 +73,9 @@ Methodology evolves; verify the current AleRax / AvP documentation before commit
 
 **Mechanism:** Bacterial DNA in the sample is assembled as contigs separate from the eukaryote nuclear contigs but is reported as part of the assembly. Genes on contaminant contigs phylogenetically nest within bacteria, compositionally differ from the eukaryote, and have patchy phyletic distribution -- triggering all three HGT signal classes simultaneously.
 
-**Symptom:** "HGT" genes are concentrated on short, low-coverage contigs; have GC% dramatically different from the bulk genome; show codon usage indistinguishable from bacteria; cluster on contigs lacking eukaryotic gene order; the genome assembly's BUSCO completeness anomaly indicates contamination (e.g. tardigrade Hypsibius dujardini: Boothby 2015 PNAS 112:15976 -> Koutsovoulos 2016 PNAS 113:5053 retraction).
+**Symptom:** "HGT" genes are concentrated on short, low-coverage contigs; have GC% dramatically different from the bulk genome; show codon usage indistinguishable from bacteria; cluster on contigs lacking eukaryotic gene order; the genome assembly's BUSCO completeness anomaly indicates contamination (e.g. tardigrade Hypsibius dujardini: Boothby 2015 PNAS 112:15976 -> Koutsovoulos 2016 PNAS 113:5053 contamination refutation).
 
-**Fix:** MANDATORY contamination filter before any eukaryotic HGT analysis. Use BlobTools2 (Challis 2020 G3) coverage-vs-GC visualization to identify contaminant blobs; Kraken2 (Wood 2019 GB 20:257) or Conterminator (Steinegger 2020 GB 21:115) to taxonomically classify contigs; FCS-GX (Astashyn 2024 GB 25:60) is the NCBI tool now required for GenBank submission. Apply these BEFORE running AvP / HGTector / Alien Index. After cleaning, re-screen. Crisp 2015 Genome Biol 16:50 "145 HGT in humans" was reduced to ~17 after Salzberg 2017 GB 18:85 contamination-aware reanalysis.
+**Fix:** MANDATORY contamination filter before any eukaryotic HGT analysis. Use BlobTools2 (Challis 2020 G3) coverage-vs-GC visualization to identify contaminant blobs; Kraken2 (Wood 2019 GB 20:257) or Conterminator (Steinegger 2020 GB 21:115) to taxonomically classify contigs; FCS-GX (Astashyn 2024 GB 25:60) is the NCBI tool now required for GenBank submission. Apply these BEFORE running AvP / HGTector / Alien Index. After cleaning, re-screen. Crisp 2015 Genome Biol 16:50 "145 HGT in humans" was nearly all refuted by Salzberg 2017 GB 18:85 contamination-aware reanalysis (only known mitochondrial and retroviral insertions survive).
 
 ### Amelioration eroding compositional signal
 
@@ -115,7 +115,7 @@ Methodology evolves; verify the current AleRax / AvP documentation before commit
 
 **Symptom:** "HGT" candidates cluster in sub-telomeric regions or high-recombination zones; W->S substitution bias is elevated; phylogenetic placement is consistent with host species; selection scans (BUSTED) show no signal.
 
-**Fix:** Test for gBGC explicitly via W->S vs S->W substitution ratios (Galtier 2025 Genetics 230:iyaf111; Capra 2013 PLoS Genet 9:e1003684); require non-zero phylogenetic incongruence in addition to composition; exclude regions with recombination rate > 90th percentile.
+**Fix:** Test for gBGC explicitly via W->S vs S->W substitution ratios (Capra 2013 PLoS Genet 9:e1003684); require non-zero phylogenetic incongruence in addition to composition; exclude regions with recombination rate > 90th percentile.
 
 ### Close-relative donor making BLAST methods fail
 
@@ -163,7 +163,7 @@ Methodology evolves; verify the current AleRax / AvP documentation before commit
 | ALE undated vs dated | Use undated for ancient comparisons; dated for time-calibrated trees | Szöllősi 2013; AleRax recommends dated when sub-clade times are available |
 | Bayesian gene-tree sample size for ALE | >= 100 bootstrap or UFBoot trees | ALE convention |
 | Donor lineage minimum sampling | >= 5 genomes from candidate donor order | Below this, donor inference is exploratory |
-| Eukaryotic HGT post-cleanup threshold | Re-screen after FCS-GX / BlobTools; expect 10-50x reduction | Boothby->Koutsovoulos 2016 (~80% reduction); Crisp->Salzberg 2017 (~90% reduction) |
+| Eukaryotic HGT post-cleanup threshold | Re-screen after FCS-GX / BlobTools; expect 10-50x reduction | Boothby->Koutsovoulos 2016 (17.5% -> ~0.4% genes); Crisp->Salzberg 2017 (145 -> ~0, near-total refutation) |
 | MetaCHIP MAG quality | >= 90% complete, < 5% contamination (CheckM2) | Song 2019 |
 
 ## HGTector v2 Workflow
@@ -257,7 +257,7 @@ def parse_ale_uts(uts_file):
     return branch_events
 ```
 
-Bacterial datasets characteristically show transfers >> duplications, while opisthokonts (eukaryotes) show the opposite (Szöllősi 2013; Williams 2017 PNAS 114:E4602). ALE-rooting of species trees (Williams 2017) is now the standard rooting approach for deep bacterial phylogenomics.
+Bacterial datasets characteristically show transfers >> duplications, while opisthokonts (eukaryotes) show the opposite (Szöllősi 2013). ALE-rooting of species trees (Williams 2017 PNAS 114:E4602) is now a standard rooting approach for deep archaeal/prokaryote phylogenomics.
 
 ## AvP Eukaryotic HGT Phylogenetic Workflow
 
@@ -367,7 +367,6 @@ NCBI now mandates FCS-GX screening for new eukaryote genome submissions to GenBa
 - Maddison WP 1997 Syst Biol 46:523 (gene tree species tree discordance causes)
 - Felsenstein J 1978 Syst Zool 27:401 (LBA)
 - Galtier N & Duret L 2007 Trends Genet 23:273 (gBGC review)
-- Galtier N 2025 Genetics 230:iyaf111 (gBGC selection model)
 - Vernikos GS & Parkhill J 2006 Bioinformatics 22:2196 (AlienHunter)
 - Waack S et al 2006 BMC Bioinf 7:142 (SIGI-HMM)
 - Podell S & Gaasterland T 2007 Genome Biol 8:R16 (DarkHorse)
