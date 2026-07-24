@@ -247,7 +247,7 @@ Tier is tumor-type-specific - the SAME variant can be Tier I in one cancer and T
 **Oncogenicity (Horak 2022 *Genet Med* 24:986):** a SEPARATE points-based ClinGen/CGC/VICC axis (Oncogenic / Likely Oncogenic / VUS / Likely Benign / Benign) from hotspot recurrence, functional data, and tumor-type frequency. Oncogenicity (is it a driver) and actionability (is there a drug) are complementary: an oncogenic driver may still be Tier III if no therapy exists.
 
 - **Driver vs passenger:** a tumor carries thousands of somatic mutations; only a few drive it. Hotspot recurrence (COSMIC, Tate 2019), presence in known oncogenes/tumor suppressors, functional evidence, and clonality (clonal drivers vs subclonal passengers) distinguish them.
-- **Knowledgebase evidence levels:** OncoKB therapeutic levels 1-4 + R1/R2 (Chakravarty 2017); CIViC evidence items graded A (validated) to E (preclinical), read the item not just the letter (Griffith 2017).
+- **Knowledgebase evidence levels:** OncoKB therapeutic levels 1-4 + R1/R2 (Chakravarty 2017); CIViC evidence items graded A (validated) to E (inferential), read the item not just the letter (Griffith 2017).
 - **Tumor-only germline leak:** in tumor-only assays a high-VAF variant may be germline - reporting it as somatic (or applying a somatic tier to a germline pathogenic finding requiring genetic counseling) is a dual danger. Disclose and filter explicitly.
 
 ## Quality metrics
