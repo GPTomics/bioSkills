@@ -213,7 +213,7 @@ Case mode (`--run-mode CASE`) scores a new sample against the cohort `*-model` s
 
 - GATK Best Practices: Somatic copy number variant discovery (CNV). Broad Institute documentation.
 - Babadi M et al 2023. GATK-gCNV enables the discovery of rare copy number variants from exome sequencing data. Nat Genet 55:1589
-- Gao GF, Oh S, Saksena G, Tabak B, Beroukhim R, Getz G et al 2022. Tangent normalization for somatic copy-number inference in cancer genome analysis. Bioinformatics 38:4677 (Tabak is a middle, not first, author).
+- Gao GF, Oh C, Saksena G, Tabak B, Beroukhim R, Getz G et al 2022. Tangent normalization for somatic copy-number inference in cancer genome analysis. Bioinformatics 38:4677 (Tabak is a middle, not first, author).
 
 ## Related Skills
 

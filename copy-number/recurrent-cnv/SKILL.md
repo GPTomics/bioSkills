@@ -80,7 +80,7 @@ res <- quantifyCNSignatures(segments, experimentName = 'cohort',
 activities <- getActivities(res)   # samples x signatures exposure matrix
 ```
 
-The critical caveat (Steele 2022): three signatures had to be discarded as oversegmentation artifacts and ten were linear combinations needing manual filtering. Signatures are sensitive to the upstream caller — Steele prescribes the caller per platform (SNP6 -> ASCAT penalty 70; shallow WGS -> ASCAT.sc) precisely for this reason.
+The critical caveat (Steele 2022): three signatures had to be discarded as oversegmentation artifacts and ten were linear combinations needing manual filtering. Signatures are sensitive to the upstream caller — Steele standardizes on ASCAT (SNP6 penalty 70; WGS across the same SNP6 positions) precisely for this reason.
 
 ## Failure Modes
 
@@ -152,7 +152,7 @@ The critical caveat (Steele 2022): three signatures had to be discarded as overs
 | GISTIC significance | q < 0.25 | GISTIC2 default residual-q cutoff for peaks |
 | Peak-boundary confidence | `-conf 0.99` | Wider, conservative peak; higher confidence the true driver is inside (default 0.75) |
 | Focal/broad cutoff | `-brlen 0.7` | Events > 70% of an arm are treated as broad |
-| Cohort size for stable peaks | tens to hundreds | Mehta-style: too few samples gives unstable peaks; q is N-dependent |
+| Cohort size for stable peaks | tens to hundreds | Too few samples gives unstable peaks; q is N-dependent |
 | CN signatures input | absolute (allele-specific) CN | Steele 2022 / Drews 2022; relative log2 is invalid |
 
 ## Common Errors
